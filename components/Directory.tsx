@@ -15,7 +15,6 @@ interface Influencer {
   platform: string;
 }
 
-// Dummy data
 const dummyInfluencers: Influencer[] = [
   {
     id: 1,
@@ -50,6 +49,61 @@ const dummyInfluencers: Influencer[] = [
     categories: ["Fitness", "Lifestyle"],
     platform: "TikTok",
   },
+  {
+    id: 4,
+    name: "Γιώργος Travel",
+    bio: "Travel vlogger, κόσμος & εμπειρίες.",
+    avatar: "/avatar4.jpg",
+    verified: true,
+    socials: { instagram: "george_travel" },
+    followers: { instagram: 22000 },
+    categories: ["Travel"],
+    platform: "Instagram",
+  },
+  {
+    id: 5,
+    name: "Anna Foodie",
+    bio: "Food blogger & συνταγές.",
+    avatar: "/avatar5.jpg",
+    verified: false,
+    socials: { instagram: "anna_foodie" },
+    followers: { instagram: 17000 },
+    categories: ["Food", "Lifestyle"],
+    platform: "Instagram",
+  },
+  {
+    id: 6,
+    name: "Katerina Gaming",
+    bio: "Gaming highlights & live streams.",
+    avatar: "/avatar6.jpg",
+    verified: true,
+    socials: { twitch: "kat_gamer", youtube: "katerina_gaming" },
+    followers: { twitch: 32000, youtube: 9000 },
+    categories: ["Gaming"],
+    platform: "YouTube",
+  },
+  {
+    id: 7,
+    name: "Theo Fitness",
+    bio: "Personal trainer & motivation.",
+    avatar: "/avatar7.jpg",
+    verified: false,
+    socials: { instagram: "theo_fit" },
+    followers: { instagram: 11000 },
+    categories: ["Fitness"],
+    platform: "Instagram",
+  },
+  {
+    id: 8,
+    name: "Sofia Beauty",
+    bio: "Skincare tips & tutorials.",
+    avatar: "/avatar8.jpg",
+    verified: true,
+    socials: { instagram: "sofia_beauty" },
+    followers: { instagram: 28000 },
+    categories: ["Beauty"],
+    platform: "Instagram",
+  },
 ];
 
 export default function Directory() {
@@ -57,15 +111,17 @@ export default function Directory() {
   const [categoryFilter, setCategoryFilter] = useState<string>("All");
 
   const filtered = dummyInfluencers.filter((inf) => {
-    const platformMatch = platformFilter === "All" || inf.platform === platformFilter;
+    const platformMatch =
+      platformFilter === "All" || inf.platform === platformFilter;
+
     const categoryMatch =
       categoryFilter === "All" || inf.categories.includes(categoryFilter);
+
     return platformMatch && categoryMatch;
   });
 
   return (
     <div className="max-w-6xl mx-auto">
-      {/* Filters */}
       <div className="flex gap-4 mb-8 justify-center flex-wrap">
         <select
           value={platformFilter}
@@ -94,7 +150,6 @@ export default function Directory() {
         </select>
       </div>
 
-      {/* Influencer Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {filtered.map((inf) => (
           <InfluencerCard key={inf.id} {...inf} />
@@ -103,6 +158,7 @@ export default function Directory() {
     </div>
   );
 }
+
 
 
 

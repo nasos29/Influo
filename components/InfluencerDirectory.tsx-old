@@ -14,7 +14,11 @@ const influencers = [
 ];
 
 export default function InfluencerDirectory() {
-  const [filters, setFilters] = useState({ name: "", platform: "", category: "" });
+  const [filters, setFilters] = useState({
+    name: "",
+    platform: "",
+    category: "",
+  });
 
   const filtered = influencers.filter((inf) => {
     const nameMatch = inf.name.toLowerCase().includes(filters.name.toLowerCase());
@@ -27,6 +31,7 @@ export default function InfluencerDirectory() {
   return (
     <div className="max-w-6xl mx-auto">
       <DirectoryFilter onFilterChange={setFilters} />
+
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {filtered.map((inf) => (
           <InfluencerCard
@@ -44,6 +49,11 @@ export default function InfluencerDirectory() {
     </div>
   );
 }
+
+
+
+
+
 
 
 
