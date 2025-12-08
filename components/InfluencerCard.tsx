@@ -7,7 +7,12 @@ interface InfluencerCardProps {
   bio: string;
   avatar: string;
   verified: boolean;
-  socials: { [key: string]: string };
+  socials: {
+    instagram?: string;
+    tiktok?: string;
+    youtube?: string;
+    [key: string]: string | undefined;
+  };
   followers: { [key: string]: number };
   categories?: string[]; // προαιρετικό
 }
@@ -41,15 +46,24 @@ export default function InfluencerCard({
       </div>
 
       <div className="flex gap-3 text-gray-500 text-sm flex-wrap">
-        {Object.keys(socials).map((platform) => (
-          <a key={platform} href={`https://${platform}.com/${socials[platform]}`} target="_blank" rel="noreferrer" className="hover:underline">
-            {platform}
-          </a>
-        ))}
+        {Object.entries(socials).map(([platform, username]) =>
+          username ? (
+            <a
+              key={platform}
+              href={`https://${platform}.com/${username}`}
+              target="_blank"
+              rel="noreferrer"
+              className="hover:underline"
+            >
+              {platform}
+            </a>
+          ) : null
+        )}
       </div>
     </div>
   );
 }
+
 
 
 
