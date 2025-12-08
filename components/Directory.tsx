@@ -3,8 +3,20 @@
 import { useState } from "react";
 import InfluencerCard from "./InfluencerCard";
 
-// Dummy influencers
-const dummyInfluencers = [
+interface Influencer {
+  id: number;
+  name: string;
+  bio: string;
+  avatar: string;
+  verified: boolean;
+  socials: { [key: string]: string | undefined };
+  followers: { [key: string]: number | undefined };
+  categories: string[];
+  platform: string;
+}
+
+// Dummy data
+const dummyInfluencers: Influencer[] = [
   {
     id: 1,
     name: "Μαρία Παπαδοπούλου",
@@ -32,44 +44,11 @@ const dummyInfluencers = [
     name: "Ελένη Fitness",
     bio: "Fitness coach & nutrition tips.",
     avatar: "/avatar3.jpg",
-    verified: true,
+    verified: false,
     socials: { instagram: "eleni_fit", tiktok: "eleni.tok" },
     followers: { instagram: 15000, tiktok: 32000 },
     categories: ["Fitness", "Lifestyle"],
     platform: "TikTok",
-  },
-  {
-    id: 4,
-    name: "Gaming Guru",
-    bio: "Gaming & streaming.",
-    avatar: "/avatar4.jpg",
-    verified: false,
-    socials: { tiktok: "gamingguru" },
-    followers: { tiktok: 20000 },
-    categories: ["Gaming"],
-    platform: "TikTok",
-  },
-  {
-    id: 5,
-    name: "Foodie Anna",
-    bio: "Cooking & recipes.",
-    avatar: "/avatar5.jpg",
-    verified: true,
-    socials: { instagram: "foodie_anna" },
-    followers: { instagram: 14000 },
-    categories: ["Food"],
-    platform: "Instagram",
-  },
-  {
-    id: 6,
-    name: "Travel With Tom",
-    bio: "Travel vlogs & tips.",
-    avatar: "/avatar6.jpg",
-    verified: false,
-    socials: { instagram: "traveltom" },
-    followers: { instagram: 9000 },
-    categories: ["Travel"],
-    platform: "Instagram",
   },
 ];
 
@@ -79,12 +58,13 @@ export default function Directory() {
 
   const filtered = dummyInfluencers.filter((inf) => {
     const platformMatch = platformFilter === "All" || inf.platform === platformFilter;
-    const categoryMatch = categoryFilter === "All" || inf.categories.includes(categoryFilter);
+    const categoryMatch =
+      categoryFilter === "All" || inf.categories.includes(categoryFilter);
     return platformMatch && categoryMatch;
   });
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-6xl mx-auto">
       {/* Filters */}
       <div className="flex gap-4 mb-8 justify-center flex-wrap">
         <select
@@ -123,6 +103,7 @@ export default function Directory() {
     </div>
   );
 }
+
 
 
 
