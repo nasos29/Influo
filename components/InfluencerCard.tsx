@@ -7,14 +7,9 @@ interface InfluencerCardProps {
   bio: string;
   avatar: string;
   verified: boolean;
-  socials: {
-    instagram?: string;
-    tiktok?: string;
-    youtube?: string;
-    [key: string]: string | undefined;
-  };
-  followers: { [key: string]: number };
-  categories?: string[]; // προαιρετικό
+  socials: { [key: string]: string };
+  followers: { [key: string]: number | undefined }; // number | undefined
+  categories?: string[];
 }
 
 export default function InfluencerCard({
@@ -24,7 +19,7 @@ export default function InfluencerCard({
   verified,
   socials,
   followers,
-  categories = [], // default empty array
+  categories = [],
 }: InfluencerCardProps) {
   return (
     <div className="bg-white p-4 rounded-lg shadow hover:shadow-lg transition-shadow">
@@ -46,11 +41,11 @@ export default function InfluencerCard({
       </div>
 
       <div className="flex gap-3 text-gray-500 text-sm flex-wrap">
-        {Object.entries(socials).map(([platform, username]) =>
-          username ? (
+        {Object.keys(socials).map((platform) =>
+          socials[platform] ? (
             <a
               key={platform}
-              href={`https://${platform}.com/${username}`}
+              href={`https://${platform}.com/${socials[platform]}`}
               target="_blank"
               rel="noreferrer"
               className="hover:underline"
@@ -60,9 +55,21 @@ export default function InfluencerCard({
           ) : null
         )}
       </div>
+
+      <div className="flex gap-3 text-gray-500 text-sm flex-wrap mt-2">
+        {Object.keys(followers).map(
+          (platform) =>
+            followers[platform] !== undefined && (
+              <span key={platform}>
+                {platform}: {followers[platform]?.toLocaleString()}
+              </span>
+            )
+        )}
+      </div>
     </div>
   );
 }
+
 
 
 

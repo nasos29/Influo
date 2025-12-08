@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import Directory from "../components/Directory";
 import InfluencerSignupForm from "../components/InfluencerSignupForm";
-import InfluencerDirectory from "../components/InfluencerDirectory";
 
 export default function Home() {
   const [showModal, setShowModal] = useState(false);
@@ -45,7 +45,7 @@ export default function Home() {
           Σύνδεσε τον εαυτό σου με τις καλύτερες επιχειρήσεις
         </h2>
         <p className="text-lg md:text-xl text-gray-700 max-w-2xl mb-10">
-          Δημιούργησε το προφίλ σου ως influencer, πρόσθεσε τα social accounts σου, βίντεο και κατηγορίες. Η έγκριση γίνεται από τον διαχειριστή.
+          Δημιούργησε το προφίλ σου ως influencer, πρόσθεσε τα social accounts σου, βίντεο και κατηγορίες.
         </p>
         <button
           onClick={() => setShowModal(true)}
@@ -54,7 +54,7 @@ export default function Home() {
           Ξεκίνα Τώρα
         </button>
 
-        {/* Hero images - trendy faces */}
+        {/* Hero images */}
         <div className="mt-16 flex flex-wrap justify-center gap-6">
           <Image src="/hero1.jpg" alt="Happy influencer" width={150} height={150} className="rounded-full shadow-lg" />
           <Image src="/hero2.jpg" alt="Creative influencer" width={150} height={150} className="rounded-full shadow-lg" />
@@ -94,13 +94,13 @@ export default function Home() {
             Δες τα εγκεκριμένα προφίλ, φιλτράρισμα ανά πλατφόρμα και κατηγορία.
           </p>
         </div>
-        <InfluencerDirectory />
+        <Directory />
       </section>
 
       {/* Footer */}
       <footer className="bg-white shadow-inner py-6 mt-auto">
         <div className="max-w-7xl mx-auto px-6 text-center text-gray-600">
-          © {new Date().getFullYear()} Influo. All rights reserved.
+          © {new Date().getFullYear()} Inflо. All rights reserved.
         </div>
       </footer>
 
@@ -121,6 +121,7 @@ export default function Home() {
     </div>
   );
 }
+
 
 
 
