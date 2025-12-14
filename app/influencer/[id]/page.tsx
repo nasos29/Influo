@@ -15,29 +15,112 @@ interface ProInfluencer extends Influencer {
   past_brands?: string[];
 }
 
+const t = {
+  el: {
+    back: "← Επιστροφή",
+    contact: "Συνεργασία",
+    contact_btn: "Ζήτησε Προσφορά",
+    verified: "Επαληθευμένος",
+    male: "Άνδρας",
+    female: "Γυναίκα",
+    lang: "Γλώσσες",
+    foll: "Followers",
+    about: "Σχετικά",
+    portfolio: "Portfolio / Highlights",
+    connect: "Σύνδεση",
+    collabs: "Συνεργασίες",
+    no_bio: "Δεν υπάρχει βιογραφικό.",
+    no_vid: "Δεν έχουν ανέβει βίντεο.",
+    tab_over: "Επισκοπηση",
+    tab_aud: "Κοινο",
+    tab_price: "Τιμες",
+    stat_eng: "Αλληλεπίδραση",
+    stat_likes: "Μ.Ο. Likes",
+    aud_gen: "Φύλο Κοινού",
+    aud_age: "Ηλικιακό Group",
+    price_story: "Instagram Story (24h)",
+    price_post: "Instagram Post",
+    price_reel: "Reel / TikTok",
+    price_note: "* Οι τιμές ενδέχεται να αλλάξουν ανάλογα το project.",
+    modal_title: "Συνεργασία με",
+    modal_sub: "Στείλε την πρότασή σου. Θα ειδοποιηθούν άμεσα.",
+    modal_srv: "Επιλογή Υπηρεσίας",
+    modal_brand: "Όνομα Brand",
+    modal_email: "Email Brand",
+    modal_bud: "Budget (€)",
+    modal_desc: "Περιγραφή Project",
+    modal_btn: "Αποστολή Πρότασης",
+    modal_success: "Η πρόταση στάλθηκε!",
+    modal_success_desc: "Η αίτησή σου καταχωρήθηκε. Θα λάβεις απάντηση στο email σου.",
+    modal_close: "Κλείσιμο",
+    modal_sending: "Αποστολή..."
+  },
+  en: {
+    back: "← Back",
+    contact: "Contact for Work",
+    contact_btn: "Request Custom Quote",
+    verified: "Verified",
+    male: "Male",
+    female: "Female",
+    lang: "Languages",
+    foll: "Followers",
+    about: "About",
+    portfolio: "Portfolio / Highlights",
+    connect: "Connect",
+    collabs: "Brand Collabs",
+    no_bio: "No bio available.",
+    no_vid: "No videos uploaded.",
+    tab_over: "Overview",
+    tab_aud: "Audience",
+    tab_price: "Pricing",
+    stat_eng: "Engagement",
+    stat_likes: "Avg Likes",
+    aud_gen: "Audience Gender",
+    aud_age: "Top Age Group",
+    price_story: "Instagram Story (24h)",
+    price_post: "Instagram Post",
+    price_reel: "Reel / TikTok",
+    price_note: "* Prices may vary depending on project scope.",
+    modal_title: "Work with",
+    modal_sub: "Send a proposal. We'll notify them instantly.",
+    modal_srv: "Select Service",
+    modal_brand: "Brand Name",
+    modal_email: "Brand Email",
+    modal_bud: "Budget (€)",
+    modal_desc: "Project Details",
+    modal_btn: "Send Proposal",
+    modal_success: "Proposal Sent!",
+    modal_success_desc: "This request has been logged. You will receive an update via email.",
+    modal_close: "Close Window",
+    modal_sending: "Sending..."
+  }
+};
+
 export default function InfluencerProfile(props: { params: Params }) {
   const params = use(props.params);
   const id = params.id;
   
+  const [lang, setLang] = useState<"el" | "en">("el");
+  const txt = t[lang];
+
   const [activeTab, setActiveTab] = useState("overview");
   const [profile, setProfile] = useState<ProInfluencer | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // --- MODAL STATE ---
+  // MODAL STATE
   const [showProposalModal, setShowProposalModal] = useState(false);
   const [proposalType, setProposalType] = useState("Instagram Story");
   const [brandName, setBrandName] = useState("");
-  const [brandEmail, setBrandEmail] = useState(""); // ΝΕΟ
+  const [brandEmail, setBrandEmail] = useState("");
   const [budget, setBudget] = useState("");
   const [message, setMessage] = useState("");
   const [sent, setSent] = useState(false);
-  const [sending, setSending] = useState(false); // Loading state για αποστολή
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
       if (!id) return;
 
-      // 1. DUMMY CHECK
       if (id.toString().includes("dummy")) {
         const found = dummyInfluencers.find((d) => String(d.id) === id);
         if (found) {
@@ -54,7 +137,6 @@ export default function InfluencerProfile(props: { params: Params }) {
         }
       }
 
-      // 2. REAL CHECK
       const isNumeric = /^\d+$/.test(id);
       if (isNumeric) {
         const { data, error } = await supabase.from("influencers").select("*").eq("id", id).single();
@@ -95,7 +177,6 @@ export default function InfluencerProfile(props: { params: Params }) {
     e.preventDefault();
     setSending(true);
 
-    // Αν είναι Real Influencer (έχει νούμερο για ID), σώσε στη βάση
     const isNumeric = /^\d+$/.test(id);
     if (isNumeric) {
         const { error } = await supabase.from("proposals").insert([{
@@ -116,20 +197,26 @@ export default function InfluencerProfile(props: { params: Params }) {
         }
     }
 
-    // Αν είναι Dummy ή πέτυχε η εγγραφή
     setTimeout(() => {
         setSent(true);
         setSending(false);
     }, 1000);
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center">Loading Profile...</div>;
-  if (!profile) return <div className="min-h-screen flex items-center justify-center">Influencer not found.</div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center text-slate-500">Loading Profile...</div>;
+  if (!profile) return <div className="min-h-screen flex items-center justify-center text-slate-500">Influencer not found.</div>;
 
   return (
-    <div className="bg-slate-50 min-h-screen pb-20 font-sans relative">
+    <div className="bg-slate-50 min-h-screen pb-20 font-sans relative text-slate-900">
       
-      {/* --- PROPOSAL MODAL --- */}
+      {/* LANG TOGGLE */}
+      <div className="fixed top-6 right-6 z-50">
+          <button onClick={() => setLang(lang === "el" ? "en" : "el")} className="bg-white/20 backdrop-blur text-white px-3 py-1 rounded font-bold border border-white/30 hover:bg-white/40 shadow-sm">
+            {lang === "el" ? "🇬🇧 EN" : "🇬🇷 EL"}
+          </button>
+      </div>
+
+      {/* MODAL */}
       {showProposalModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden relative">
@@ -140,14 +227,14 @@ export default function InfluencerProfile(props: { params: Params }) {
 
                 {!sent ? (
                     <div className="p-8">
-                        <h3 className="text-2xl font-bold text-slate-900 mb-2">Work with {profile.name}</h3>
-                        <p className="text-slate-500 text-sm mb-6">Send a proposal. We'll notify them instantly.</p>
+                        <h3 className="text-2xl font-bold text-slate-900 mb-2">{txt.modal_title} {profile.name}</h3>
+                        <p className="text-slate-500 text-sm mb-6">{txt.modal_sub}</p>
                         
                         <form onSubmit={handleSendProposal} className="space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Select Service</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.modal_srv}</label>
                                 <div className="grid grid-cols-3 gap-2">
-                                    {['Instagram Story', 'Instagram Post', 'Reel / TikTok'].map((type) => (
+                                    {['Story', 'Post', 'Reel'].map((type) => (
                                         <button
                                             key={type}
                                             type="button"
@@ -162,39 +249,37 @@ export default function InfluencerProfile(props: { params: Params }) {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Brand Name</label>
-                                    <input required type="text" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" placeholder="e.g. Nike" value={brandName} onChange={e => setBrandName(e.target.value)} />
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.modal_brand}</label>
+                                    <input required type="text" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white" placeholder="Brand" value={brandName} onChange={e => setBrandName(e.target.value)} />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Brand Email</label>
-                                    <input required type="email" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" placeholder="contact@brand.com" value={brandEmail} onChange={e => setBrandEmail(e.target.value)} />
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.modal_email}</label>
+                                    <input required type="email" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white" placeholder="Email" value={brandEmail} onChange={e => setBrandEmail(e.target.value)} />
                                 </div>
                             </div>
                             
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Your Budget (€)</label>
-                                <input required type="number" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" placeholder="e.g. 200" value={budget} onChange={e => setBudget(e.target.value)} />
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.modal_bud}</label>
+                                <input required type="number" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white" placeholder="200" value={budget} onChange={e => setBudget(e.target.value)} />
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Project Details</label>
-                                <textarea required rows={3} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" placeholder="Describe your campaign..." value={message} onChange={e => setMessage(e.target.value)}></textarea>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.modal_desc}</label>
+                                <textarea required rows={3} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white" placeholder="..." value={message} onChange={e => setMessage(e.target.value)}></textarea>
                             </div>
 
                             <button type="submit" disabled={sending} className="w-full bg-slate-900 hover:bg-black text-white font-bold py-3 rounded-xl transition-all shadow-lg disabled:opacity-50">
-                                {sending ? "Sending..." : "Send Proposal"}
+                                {sending ? txt.modal_sending : txt.modal_btn}
                             </button>
                         </form>
                     </div>
                 ) : (
                     <div className="p-12 text-center">
                         <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">🚀</div>
-                        <h3 className="text-xl font-bold text-slate-900 mb-2">Proposal Sent!</h3>
-                        <p className="text-slate-500 mb-6">
-                            This request has been logged in our system. You will receive an update at <strong>{brandEmail}</strong> soon.
-                        </p>
+                        <h3 className="text-xl font-bold text-slate-900 mb-2">{txt.modal_success}</h3>
+                        <p className="text-slate-500 mb-6">{txt.modal_success_desc}</p>
                         <button onClick={() => { setShowProposalModal(false); setSent(false); }} className="text-blue-600 font-bold hover:underline">
-                            Close Window
+                            {txt.modal_close}
                         </button>
                     </div>
                 )}
@@ -202,11 +287,11 @@ export default function InfluencerProfile(props: { params: Params }) {
         </div>
       )}
 
-      {/* --- COVER & HEADER (ΙΔΙΑ ΜΕ ΠΡΙΝ) --- */}
+      {/* COVER */}
       <div className="h-72 w-full relative bg-slate-900">
          <Image src="https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=1500&q=80" alt="Cover" fill className="object-cover opacity-50" />
          <div className="absolute top-6 left-6 z-20">
-             <a href="/" className="text-white bg-white/20 backdrop-blur-md px-4 py-2 rounded-lg font-medium hover:bg-white/30 transition">← Back</a>
+             <a href="/" className="text-white bg-white/20 backdrop-blur-md px-4 py-2 rounded-lg font-medium hover:bg-white/30 transition">{txt.back}</a>
          </div>
       </div>
 
@@ -217,71 +302,58 @@ export default function InfluencerProfile(props: { params: Params }) {
             </div>
             <div className="flex-1 text-center md:text-left">
                 <h1 className="text-3xl font-bold text-slate-900 flex items-center justify-center md:justify-start gap-2">
-                    {profile.name} {profile.verified && <span className="text-blue-500 text-xl" title="Verified">✔️</span>}
+                    {profile.name} {profile.verified && <span className="text-blue-500 text-xl" title={txt.verified}>✔️</span>}
                 </h1>
-                <p className="text-slate-500">{profile.location} • {profile.gender}</p>
+                <p className="text-slate-500">{profile.location} • {profile.gender === "Male" ? txt.male : txt.female}</p>
                 <div className="flex flex-wrap justify-center md:justify-start gap-2 mt-3">
                     {profile.languages?.split(",").map((l,i) => <span key={i} className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-600">{l.trim()}</span>)}
                 </div>
             </div>
             <div className="flex gap-3">
-                <button 
-                    onClick={() => setShowProposalModal(true)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-transform hover:-translate-y-1 flex items-center gap-2"
-                >
-                    <span>⚡</span> Contact for Work
+                <button onClick={() => setShowProposalModal(true)} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-transform hover:-translate-y-1 flex items-center gap-2">
+                    <span>⚡</span> {txt.contact}
                 </button>
             </div>
         </div>
 
-        {/* --- TABS --- */}
         <div className="mt-8 border-b border-slate-200">
             <nav className="flex gap-8">
-                {["overview", "audience", "pricing"].map((tab) => (
-                    <button
-                        key={tab}
-                        onClick={() => setActiveTab(tab)}
-                        className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors ${
-                            activeTab === tab ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700"
-                        }`}
-                    >
-                        {tab}
-                    </button>
-                ))}
+                <button onClick={() => setActiveTab("overview")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors ${activeTab === "overview" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}>{txt.tab_over}</button>
+                <button onClick={() => setActiveTab("audience")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors ${activeTab === "audience" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}>{txt.tab_aud}</button>
+                <button onClick={() => setActiveTab("pricing")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors ${activeTab === "pricing" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}>{txt.tab_price}</button>
             </nav>
         </div>
 
-        {/* --- CONTENT --- */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
             <div className="lg:col-span-2 space-y-8">
                 {activeTab === "overview" && (
                     <>
                         <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
-                            <h2 className="text-xl font-bold text-slate-900 mb-4">About</h2>
-                            <p className="text-slate-600 leading-relaxed whitespace-pre-wrap">{profile.bio || "No bio available."}</p>
+                            <h2 className="text-xl font-bold text-slate-900 mb-4">{txt.about}</h2>
+                            <p className="text-slate-600 leading-relaxed whitespace-pre-wrap">{profile.bio || txt.no_bio}</p>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                              <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm text-center">
-                                <p className="text-slate-400 text-xs font-bold uppercase">Engagement</p>
+                                <p className="text-slate-400 text-xs font-bold uppercase">{txt.stat_eng}</p>
                                 <p className="text-2xl font-extrabold text-blue-600">{profile.engagement_rate}</p>
                              </div>
                              <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm text-center">
-                                <p className="text-slate-400 text-xs font-bold uppercase">Avg Likes</p>
+                                <p className="text-slate-400 text-xs font-bold uppercase">{txt.stat_likes}</p>
                                 <p className="text-2xl font-extrabold text-slate-800">{profile.avg_likes}</p>
                              </div>
                              <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm text-center">
-                                <p className="text-slate-400 text-xs font-bold uppercase">Followers</p>
+                                <p className="text-slate-400 text-xs font-bold uppercase">{txt.foll}</p>
                                 <p className="text-2xl font-extrabold text-slate-800">
                                     {profile.followers?.instagram ? (profile.followers.instagram / 1000).toFixed(1) + 'k' : 'N/A'}
                                 </p>
                              </div>
                              <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm text-center">
-                                <p className="text-slate-400 text-xs font-bold uppercase">Collabs</p>
+                                <p className="text-slate-400 text-xs font-bold uppercase">{txt.collabs}</p>
                                 <p className="text-2xl font-extrabold text-purple-600">{profile.past_brands?.length || 0}</p>
                              </div>
                         </div>
                          <div>
-                            <h3 className="text-lg font-bold text-slate-900 mb-4">Content Portfolio</h3>
+                            <h3 className="text-lg font-bold text-slate-900 mb-4">{txt.portfolio}</h3>
                             {profile.videos && profile.videos.length > 0 && profile.videos[0] !== "" ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {profile.videos.map((vid, i) => (
@@ -290,24 +362,24 @@ export default function InfluencerProfile(props: { params: Params }) {
                                                 <span className="text-5xl opacity-80 group-hover:scale-110 transition-transform">▶️</span>
                                             </div>
                                             <div className="absolute bottom-0 left-0 w-full p-3 bg-gradient-to-t from-black/80 to-transparent text-white text-sm font-medium">
-                                                Watch Highlight #{i+1}
+                                                Highlight #{i+1}
                                             </div>
                                         </a>
                                     ))}
                                 </div>
                             ) : (
-                                <div className="p-8 border-2 border-dashed border-slate-200 rounded-xl text-center text-slate-400">No content uploaded.</div>
+                                <div className="p-8 border-2 border-dashed border-slate-200 rounded-xl text-center text-slate-400">{txt.no_vid}</div>
                             )}
                         </div>
                     </>
                 )}
                 {activeTab === "audience" && (
                     <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
-                        <h2 className="text-xl font-bold text-slate-900 mb-6">Audience Demographics</h2>
+                        <h2 className="text-xl font-bold text-slate-900 mb-6">{txt.aud_gen}</h2>
                         <div className="mb-8">
                             <div className="flex justify-between mb-2 font-medium text-slate-700">
-                                <span>Female ({profile.audience_data?.female}%)</span>
-                                <span>Male ({profile.audience_data?.male}%)</span>
+                                <span>{txt.female} ({profile.audience_data?.female}%)</span>
+                                <span>{txt.male} ({profile.audience_data?.male}%)</span>
                             </div>
                             <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden flex">
                                 <div style={{ width: `${profile.audience_data?.female}%` }} className="bg-pink-400 h-full"></div>
@@ -317,39 +389,39 @@ export default function InfluencerProfile(props: { params: Params }) {
                         <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
                             <div className="bg-white p-3 rounded-full shadow-sm text-2xl">🎯</div>
                             <div>
-                                <p className="text-slate-500 text-sm">Top Age Group</p>
-                                <p className="text-xl font-bold text-slate-900">{profile.audience_data?.top_age} Years old</p>
+                                <p className="text-slate-500 text-sm">{txt.aud_age}</p>
+                                <p className="text-xl font-bold text-slate-900">{profile.audience_data?.top_age}</p>
                             </div>
                         </div>
                     </div>
                 )}
                 {activeTab === "pricing" && (
                      <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
-                        <h2 className="text-xl font-bold text-slate-900 mb-6">Rate Card</h2>
+                        <h2 className="text-xl font-bold text-slate-900 mb-6">{txt.tab_price}</h2>
                         <div className="space-y-4">
                             <div className="flex justify-between items-center p-4 border-b border-slate-100">
-                                <span className="font-medium text-slate-700">Instagram Story (24h)</span>
+                                <span className="font-medium text-slate-700">{txt.price_story}</span>
                                 <span className="font-bold text-xl text-slate-900">{profile.rate_card?.story}</span>
                             </div>
                             <div className="flex justify-between items-center p-4 border-b border-slate-100">
-                                <span className="font-medium text-slate-700">Instagram Post</span>
+                                <span className="font-medium text-slate-700">{txt.price_post}</span>
                                 <span className="font-bold text-xl text-slate-900">{profile.rate_card?.post}</span>
                             </div>
                             <div className="flex justify-between items-center p-4 border-b border-slate-100">
-                                <span className="font-medium text-slate-700">Reel / TikTok Video</span>
+                                <span className="font-medium text-slate-700">{txt.price_reel}</span>
                                 <span className="font-bold text-xl text-slate-900">{profile.rate_card?.reel}</span>
                             </div>
                         </div>
-                        <p className="mt-6 text-xs text-slate-400 text-center">* Prices may vary depending on project scope.</p>
+                        <p className="mt-6 text-xs text-slate-400 text-center">{txt.price_note}</p>
                         <button onClick={() => setShowProposalModal(true)} className="w-full mt-6 bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-black transition-colors">
-                            Request Custom Quote
+                            {txt.contact_btn}
                         </button>
                      </div>
                 )}
             </div>
             <div className="space-y-6">
                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h3 className="font-bold text-slate-900 mb-4 text-sm uppercase">Connect</h3>
+                    <h3 className="font-bold text-slate-900 mb-4 text-sm uppercase">{txt.connect}</h3>
                     <div className="space-y-3">
                          {Object.entries(profile.socials).map(([plat, user]) => (
                             <a key={plat} href={`https://${plat}.com/${user}`} target="_blank" className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition border border-transparent hover:border-slate-200 group">
@@ -360,16 +432,12 @@ export default function InfluencerProfile(props: { params: Params }) {
                     </div>
                  </div>
                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h3 className="font-bold text-slate-900 mb-4 text-sm uppercase">Brand Collabs</h3>
+                    <h3 className="font-bold text-slate-900 mb-4 text-sm uppercase">{txt.collabs}</h3>
                     <div className="flex flex-wrap gap-2">
                         {profile.past_brands && profile.past_brands.length > 0 ? (
-                            profile.past_brands.map((b, i) => (
-                                <span key={i} className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs font-bold border border-slate-200">
-                                    {b}
-                                </span>
-                            ))
+                            profile.past_brands.map((b, i) => <span key={i} className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs font-bold border border-slate-200">{b}</span>)
                         ) : (
-                            <span className="text-slate-400 text-sm">No brands listed yet.</span>
+                            <span className="text-slate-400 text-sm">-</span>
                         )}
                     </div>
                  </div>

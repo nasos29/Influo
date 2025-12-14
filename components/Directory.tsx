@@ -5,7 +5,6 @@ import Link from "next/link";
 import { supabase } from "../lib/supabaseClient";
 import InfluencerCard from "./InfluencerCard";
 
-// --- TYPES ---
 export interface Influencer {
   id: string | number;
   name: string;
@@ -25,7 +24,47 @@ export interface Influencer {
   engagement_rate?: string;
 }
 
-// --- DUMMY DATA (8+ Εγγραφές για να δείχνει γεμάτο) ---
+// Translations
+const t = {
+  el: {
+    searchPlace: "Αναζήτηση ονόματος...",
+    locPlace: "Τοποθεσία (π.χ. Αθήνα)",
+    results: "Αποτελέσματα",
+    clear: "Καθαρισμός",
+    filters: "Φίλτρα",
+    platAll: "Πλατφόρμα: Όλες",
+    catAll: "Κατηγορία: Όλες",
+    genAll: "Φύλο: Όλα",
+    genFem: "Γυναίκα",
+    genMal: "Άνδρας",
+    follAll: "Followers: Όλοι",
+    budAll: "Budget: Όλα",
+    engAll: "Engage: Όλα",
+    noResults: "Δεν βρέθηκαν influencers",
+    adjust: "Δοκίμασε διαφορετικά φίλτρα.",
+    reset: "Επαναφορά"
+  },
+  en: {
+    searchPlace: "Search name...",
+    locPlace: "Location (e.g. Athens)",
+    results: "Results",
+    clear: "Clear",
+    filters: "Filters",
+    platAll: "Platform: All",
+    catAll: "Category: All",
+    genAll: "Gender: Any",
+    genFem: "Female",
+    genMal: "Male",
+    follAll: "Followers: Any",
+    budAll: "Budget: Any",
+    engAll: "Engage: Any",
+    noResults: "No influencers found",
+    adjust: "Try adjusting your filters.",
+    reset: "Reset Filters"
+  }
+};
+
+// DUMMY DATA
 export const dummyInfluencers: Influencer[] = [
   {
     id: "dummy-1",
@@ -91,7 +130,7 @@ export const dummyInfluencers: Influencer[] = [
     engagement_rate: "3.2%",
     avg_likes: "5k"
   },
-   {
+  {
     id: "dummy-5",
     name: "Sofia Fashion",
     bio: "Fashion model & OOTD inspiration.",
@@ -163,45 +202,37 @@ const LocationIcon = () => <svg className="w-5 h-5 text-slate-400" fill="none" s
 const FilterIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>;
 const ChevronDown = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>;
 
-// --- HELPERS ---
-const parsePrice = (price?: string) => {
-    if (!price) return 0;
-    return parseFloat(price.replace(/[^0-9.]/g, ''));
-};
-const parseEngagement = (rate?: string) => {
-    if (!rate) return 0;
-    return parseFloat(rate.replace('%', ''));
-};
-const getMaxFollowers = (followers: { [key: string]: number | undefined }) => {
+// HELPERS
+const parsePrice = (price?: string) => price ? parseFloat(price.replace(/[^0-9.]/g, '')) : 0;
+const parseEngagement = (rate?: string) => rate ? parseFloat(rate.replace('%', '')) : 0;
+const getMaxFollowers = (followers: any) => {
     const values = Object.values(followers).filter((v): v is number => v !== undefined);
-    return values.length ? Math.max(...values) : 0;
+    return values.length ? Math.max(...values as number[]) : 0;
 };
 
-export default function Directory() {
+// COMPONENT accepts 'lang' prop
+export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
   const [influencers, setInfluencers] = useState<Influencer[]>(dummyInfluencers);
-  
-  // BASIC FILTERS
+  const txt = t[lang];
+
+  // FILTERS STATE
   const [searchQuery, setSearchQuery] = useState("");
   const [locationQuery, setLocationQuery] = useState("");
-  
-  // DROPDOWN FILTERS
-  const [platformFilter, setPlatformFilter] = useState<string>("All");
-  const [categoryFilter, setCategoryFilter] = useState<string>("All");
-  const [genderFilter, setGenderFilter] = useState<string>("All");
-
-  // ADVANCED FILTERS
+  const [platformFilter, setPlatformFilter] = useState("All");
+  const [categoryFilter, setCategoryFilter] = useState("All");
+  const [genderFilter, setGenderFilter] = useState("All");
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [followerRange, setFollowerRange] = useState<string>("All");
-  const [budgetMax, setBudgetMax] = useState<string>("All");
-  const [minEngagement, setMinEngagement] = useState<string>("All");
+  
+  // ADVANCED
+  const [followerRange, setFollowerRange] = useState("All");
+  const [budgetMax, setBudgetMax] = useState("All");
+  const [minEngagement, setMinEngagement] = useState("All");
 
   useEffect(() => {
-    const fetchRealInfluencers = async () => {
-      const { data, error } = await supabase.from("influencers").select("*").eq('verified', true);
-      if (error) { console.error(error); return; }
-
+    const fetchReal = async () => {
+      const { data } = await supabase.from("influencers").select("*").eq('verified', true);
       if (data) {
-        const realInfluencers: Influencer[] = data.map((inf: any) => {
+         const realInfluencers: Influencer[] = data.map((inf: any) => {
           const socialsObj: { [key: string]: string } = {};
           if (Array.isArray(inf.accounts)) {
             inf.accounts.forEach((acc: any) => {
@@ -215,7 +246,7 @@ export default function Directory() {
             avatar: inf.avatar_url || "https://images.unsplash.com/photo-1633332755192-727a05c4013d?auto=format&fit=crop&w=400&q=80",
             verified: inf.verified,
             socials: socialsObj,
-            followers: {}, 
+            followers: {},
             categories: ["New"],
             platform: "Instagram",
             gender: inf.gender || "Female",
@@ -229,21 +260,21 @@ export default function Directory() {
         setInfluencers([...dummyInfluencers, ...realInfluencers]);
       }
     };
-    fetchRealInfluencers();
+    fetchReal();
   }, []);
 
-  // --- LOGIC ---
+  // FILTER LOGIC
   const filtered = influencers.filter((inf) => {
     const searchMatch = inf.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                         inf.bio.toLowerCase().includes(searchQuery.toLowerCase());
     const locationMatch = locationQuery === "" || 
                           (inf.location && inf.location.toLowerCase().includes(locationQuery.toLowerCase()));
-
+    
     const platformMatch = platformFilter === "All" || inf.platform === platformFilter;
     const categoryMatch = categoryFilter === "All" || inf.categories.includes(categoryFilter);
     const genderMatch = genderFilter === "All" || inf.gender === genderFilter;
 
-    // Advanced Stats Logic
+    // Advanced
     let followerMatch = true;
     const maxFollowers = getMaxFollowers(inf.followers);
     if (followerRange === "Nano") followerMatch = maxFollowers > 1000 && maxFollowers < 10000;
@@ -254,10 +285,8 @@ export default function Directory() {
     if (budgetMax !== "All") {
         const rate = parsePrice(inf.min_rate);
         if (budgetMax === "Unlimited") {
-            // Αν ο πελάτης λέει "Unlimited (1000+)", θέλουμε αυτούς που είναι ακριβοί
             budgetMatch = rate >= 1000;
         } else {
-            // Αλλιώς, θέλουμε αυτούς που είναι φθηνότεροι από το Budget του πελάτη
             const max = parseInt(budgetMax);
             if (rate > max) budgetMatch = false;
         }
@@ -274,75 +303,70 @@ export default function Directory() {
   });
 
   const clearFilters = () => {
-    setSearchQuery("");
-    setLocationQuery("");
-    setPlatformFilter("All");
-    setCategoryFilter("All");
-    setGenderFilter("All");
-    setFollowerRange("All");
-    setBudgetMax("All");
-    setMinEngagement("All");
+    setSearchQuery(""); setLocationQuery(""); setPlatformFilter("All");
+    setCategoryFilter("All"); setGenderFilter("All"); setFollowerRange("All");
+    setBudgetMax("All"); setMinEngagement("All");
   };
+
+  // COMMON STYLE
+  const selectClass = "w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 cursor-pointer";
 
   return (
     <div>
-      {/* --- CONTROL BAR --- */}
       <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 mb-10 transition-all duration-300">
         
-        {/* Row 1: Search & Location */}
+        {/* Search Row */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
             <div className="md:col-span-5 relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><SearchIcon /></div>
-                <input type="text" placeholder="Search name or bio..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none" />
+                <input type="text" placeholder={txt.searchPlace} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none" />
             </div>
             <div className="md:col-span-4 relative">
                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><LocationIcon /></div>
-                <input type="text" placeholder="Location (e.g. Athens)" value={locationQuery} onChange={(e) => setLocationQuery(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none" />
+                <input type="text" placeholder={txt.locPlace} value={locationQuery} onChange={(e) => setLocationQuery(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none" />
             </div>
             <div className="md:col-span-3 flex items-center justify-end gap-3">
                  <button onClick={() => setShowAdvanced(!showAdvanced)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold border transition-colors ${showAdvanced ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
-                    <FilterIcon /> Filters <ChevronDown />
+                    <FilterIcon /> {txt.filters} <ChevronDown />
                  </button>
             </div>
         </div>
 
-        {/* Row 2: Advanced Filters */}
+        {/* Filters Panel */}
         <div className={`overflow-hidden transition-all duration-300 ${showAdvanced ? 'max-h-[500px] opacity-100 mt-4 pt-4 border-t border-slate-100' : 'max-h-0 opacity-0'}`}>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 
-                <select value={platformFilter} onChange={(e) => setPlatformFilter(e.target.value)} className="filter-select">
-                    <option value="All">Platform: All</option>
+                <select value={platformFilter} onChange={(e) => setPlatformFilter(e.target.value)} className={selectClass}>
+                    <option value="All">{txt.platAll}</option>
                     <option value="Instagram">Instagram</option>
                     <option value="TikTok">TikTok</option>
                     <option value="YouTube">YouTube</option>
                 </select>
 
-                <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="filter-select">
-                    <option value="All">Category: All</option>
+                <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className={selectClass}>
+                    <option value="All">{txt.catAll}</option>
                     <option value="Beauty">Beauty</option>
                     <option value="Lifestyle">Lifestyle</option>
                     <option value="Tech">Tech</option>
                     <option value="Fitness">Fitness</option>
-                    <option value="Gaming">Gaming</option>
                     <option value="Travel">Travel</option>
-                    <option value="Business">Business</option>
                 </select>
 
-                <select value={genderFilter} onChange={(e) => setGenderFilter(e.target.value)} className="filter-select">
-                    <option value="All">Gender: Any</option>
-                    <option value="Female">Female</option>
-                    <option value="Male">Male</option>
+                <select value={genderFilter} onChange={(e) => setGenderFilter(e.target.value)} className={selectClass}>
+                    <option value="All">{txt.genAll}</option>
+                    <option value="Female">{txt.genFem}</option>
+                    <option value="Male">{txt.genMal}</option>
                 </select>
 
-                <select value={followerRange} onChange={(e) => setFollowerRange(e.target.value)} className="filter-select bg-blue-50/50 border-blue-100 text-blue-800">
-                    <option value="All">Followers: Any</option>
+                <select value={followerRange} onChange={(e) => setFollowerRange(e.target.value)} className={`${selectClass} !bg-blue-50 !border-blue-100 !text-blue-800`}>
+                    <option value="All">{txt.follAll}</option>
                     <option value="Nano">Nano (1k-10k)</option>
                     <option value="Micro">Micro (10k-100k)</option>
                     <option value="Macro">Macro (100k+)</option>
                 </select>
 
-                <select value={budgetMax} onChange={(e) => setBudgetMax(e.target.value)} className="filter-select bg-green-50/50 border-green-100 text-green-800">
-                    <option value="All">Budget: Any</option>
+                <select value={budgetMax} onChange={(e) => setBudgetMax(e.target.value)} className={`${selectClass} !bg-green-50 !border-green-100 !text-green-800`}>
+                    <option value="All">{txt.budAll}</option>
                     <option value="100">Up to 100€</option>
                     <option value="200">Up to 200€</option>
                     <option value="500">Up to 500€</option>
@@ -351,8 +375,8 @@ export default function Directory() {
                     <option value="Unlimited">5000€+ (VIP)</option>
                 </select>
 
-                <select value={minEngagement} onChange={(e) => setMinEngagement(e.target.value)} className="filter-select bg-purple-50/50 border-purple-100 text-purple-800">
-                    <option value="All">Engage: Any</option>
+                <select value={minEngagement} onChange={(e) => setMinEngagement(e.target.value)} className={`${selectClass} !bg-purple-50 !border-purple-100 !text-purple-800`}>
+                    <option value="All">{txt.engAll}</option>
                     <option value="1">Min 1%</option>
                     <option value="3">Min 3% (Good)</option>
                     <option value="5">Min 5% (High)</option>
@@ -360,13 +384,13 @@ export default function Directory() {
             </div>
             
             <div className="mt-4 flex justify-between items-center">
-                <p className="text-xs text-slate-400">Showing {filtered.length} influencers matching criteria.</p>
-                <button onClick={clearFilters} className="text-sm text-red-500 hover:text-red-700 font-medium underline">Clear All</button>
+                <p className="text-xs text-slate-400">{filtered.length} {txt.results}</p>
+                <button onClick={clearFilters} className="text-sm text-red-500 hover:text-red-700 font-medium underline">{txt.clear}</button>
             </div>
         </div>
       </div>
 
-      {/* --- GRID --- */}
+      {/* Results Grid */}
       {filtered.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
             {filtered.map((inf) => (
@@ -377,17 +401,11 @@ export default function Directory() {
         </div>
       ) : (
         <div className="text-center py-20 bg-slate-50 rounded-2xl border border-dashed border-slate-300">
-            <h3 className="text-xl font-bold text-slate-900">No influencers found</h3>
-            <p className="text-slate-500 mb-4">Adjust your filters to see more results.</p>
-            <button onClick={clearFilters} className="bg-slate-900 text-white px-6 py-2 rounded-lg font-bold">Reset Filters</button>
+            <h3 className="text-xl font-bold text-slate-900">{txt.noResults}</h3>
+            <p className="text-slate-500 mb-4">{txt.adjust}</p>
+            <button onClick={clearFilters} className="bg-slate-900 text-white px-6 py-2 rounded-lg font-bold">{txt.reset}</button>
         </div>
       )}
-
-      <style jsx>{`
-        .filter-select {
-            @apply w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 cursor-pointer;
-        }
-      `}</style>
     </div>
   );
 }
