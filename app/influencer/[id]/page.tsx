@@ -7,7 +7,6 @@ import { supabase } from "../../../lib/supabaseClient";
 
 type Params = Promise<{ id: string }>;
 
-// Επέκταση του Interface για τα νέα Pro Fields
 interface ProInfluencer extends Influencer {
   engagement_rate?: string;
   avg_likes?: string;
@@ -19,22 +18,33 @@ interface ProInfluencer extends Influencer {
 export default function InfluencerProfile(props: { params: Params }) {
   const params = use(props.params);
   const id = params.id;
+  
   const [activeTab, setActiveTab] = useState("overview");
   const [profile, setProfile] = useState<ProInfluencer | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // --- MODAL STATE ---
+  const [showProposalModal, setShowProposalModal] = useState(false);
+  const [proposalType, setProposalType] = useState("Instagram Story");
+  const [brandName, setBrandName] = useState("");
+  const [brandEmail, setBrandEmail] = useState(""); // ΝΕΟ
+  const [budget, setBudget] = useState("");
+  const [message, setMessage] = useState("");
+  const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false); // Loading state για αποστολή
 
   useEffect(() => {
     const fetchProfile = async () => {
       if (!id) return;
 
-      // 1. DUMMY DATA CHECK (Εμπλουτισμένα με ψεύτικα Pro Data)
+      // 1. DUMMY CHECK
       if (id.toString().includes("dummy")) {
         const found = dummyInfluencers.find((d) => String(d.id) === id);
         if (found) {
           setProfile({
             ...found,
-            engagement_rate: "5.2%",
-            avg_likes: "3.2k",
+            engagement_rate: found.engagement_rate || "5.2%",
+            avg_likes: found.avg_likes || "3.2k",
             audience_data: { male: 35, female: 65, top_age: "18-34" },
             rate_card: { story: "80€", post: "150€", reel: "250€" },
             past_brands: ["Zara", "Vodafone", "e-Food"]
@@ -44,17 +54,15 @@ export default function InfluencerProfile(props: { params: Params }) {
         }
       }
 
-      // 2. REAL DATA CHECK
+      // 2. REAL CHECK
       const isNumeric = /^\d+$/.test(id);
       if (isNumeric) {
         const { data, error } = await supabase.from("influencers").select("*").eq("id", id).single();
-        
         if (data && !error) {
           const socialsObj: { [key: string]: string } = {};
           if (Array.isArray(data.accounts)) {
              data.accounts.forEach((acc: any) => { if(acc.platform) socialsObj[acc.platform.toLowerCase()] = acc.username; });
           }
-
           setProfile({
             id: data.id,
             name: data.display_name,
@@ -62,7 +70,7 @@ export default function InfluencerProfile(props: { params: Params }) {
             avatar: data.avatar_url || "https://images.unsplash.com/photo-1633332755192-727a05c4013d?auto=format&fit=crop&w=400&q=80",
             verified: data.verified,
             socials: socialsObj,
-            followers: { instagram: 0 }, // Θα μπορούσε να αποθηκευτεί στη βάση μελλοντικά
+            followers: {},
             categories: ["Creator"],
             platform: "Instagram",
             gender: data.gender,
@@ -70,11 +78,10 @@ export default function InfluencerProfile(props: { params: Params }) {
             languages: data.languages,
             min_rate: data.min_rate,
             videos: Array.isArray(data.videos) ? data.videos : [],
-            // New Pro Fields mapping
             engagement_rate: data.engagement_rate || "-",
             avg_likes: data.avg_likes || "-",
             audience_data: data.audience_data || { male: 50, female: 50, top_age: "?" },
-            rate_card: data.rate_card || { story: "-", post: "-", reel: "-" },
+            rate_card: data.rate_card || { story: "Ask", post: "Ask", reel: "Ask" },
             past_brands: data.past_brands || []
           });
         }
@@ -84,12 +91,118 @@ export default function InfluencerProfile(props: { params: Params }) {
     fetchProfile();
   }, [id]);
 
+  const handleSendProposal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSending(true);
+
+    // Αν είναι Real Influencer (έχει νούμερο για ID), σώσε στη βάση
+    const isNumeric = /^\d+$/.test(id);
+    if (isNumeric) {
+        const { error } = await supabase.from("proposals").insert([{
+            influencer_id: parseInt(id),
+            brand_name: brandName,
+            brand_email: brandEmail,
+            service_type: proposalType,
+            budget: budget,
+            message: message,
+            status: 'pending'
+        }]);
+        
+        if (error) {
+            console.error(error);
+            alert("Something went wrong. Please try again.");
+            setSending(false);
+            return;
+        }
+    }
+
+    // Αν είναι Dummy ή πέτυχε η εγγραφή
+    setTimeout(() => {
+        setSent(true);
+        setSending(false);
+    }, 1000);
+  };
+
   if (loading) return <div className="min-h-screen flex items-center justify-center">Loading Profile...</div>;
   if (!profile) return <div className="min-h-screen flex items-center justify-center">Influencer not found.</div>;
 
   return (
-    <div className="bg-slate-50 min-h-screen pb-20 font-sans">
-      {/* --- COVER & HEADER --- */}
+    <div className="bg-slate-50 min-h-screen pb-20 font-sans relative">
+      
+      {/* --- PROPOSAL MODAL --- */}
+      {showProposalModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden relative">
+                <button 
+                    onClick={() => { setShowProposalModal(false); setSent(false); }}
+                    className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-xl z-10"
+                >✕</button>
+
+                {!sent ? (
+                    <div className="p-8">
+                        <h3 className="text-2xl font-bold text-slate-900 mb-2">Work with {profile.name}</h3>
+                        <p className="text-slate-500 text-sm mb-6">Send a proposal. We'll notify them instantly.</p>
+                        
+                        <form onSubmit={handleSendProposal} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Select Service</label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {['Instagram Story', 'Instagram Post', 'Reel / TikTok'].map((type) => (
+                                        <button
+                                            key={type}
+                                            type="button"
+                                            onClick={() => setProposalType(type)}
+                                            className={`py-2 px-1 text-xs font-bold rounded-lg border transition-all ${proposalType === type ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-slate-200 hover:border-blue-300'}`}
+                                        >
+                                            {type}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Brand Name</label>
+                                    <input required type="text" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" placeholder="e.g. Nike" value={brandName} onChange={e => setBrandName(e.target.value)} />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Brand Email</label>
+                                    <input required type="email" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" placeholder="contact@brand.com" value={brandEmail} onChange={e => setBrandEmail(e.target.value)} />
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Your Budget (€)</label>
+                                <input required type="number" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" placeholder="e.g. 200" value={budget} onChange={e => setBudget(e.target.value)} />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Project Details</label>
+                                <textarea required rows={3} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" placeholder="Describe your campaign..." value={message} onChange={e => setMessage(e.target.value)}></textarea>
+                            </div>
+
+                            <button type="submit" disabled={sending} className="w-full bg-slate-900 hover:bg-black text-white font-bold py-3 rounded-xl transition-all shadow-lg disabled:opacity-50">
+                                {sending ? "Sending..." : "Send Proposal"}
+                            </button>
+                        </form>
+                    </div>
+                ) : (
+                    <div className="p-12 text-center">
+                        <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">🚀</div>
+                        <h3 className="text-xl font-bold text-slate-900 mb-2">Proposal Sent!</h3>
+                        <p className="text-slate-500 mb-6">
+                            This request has been logged in our system. You will receive an update at <strong>{brandEmail}</strong> soon.
+                        </p>
+                        <button onClick={() => { setShowProposalModal(false); setSent(false); }} className="text-blue-600 font-bold hover:underline">
+                            Close Window
+                        </button>
+                    </div>
+                )}
+            </div>
+        </div>
+      )}
+
+      {/* --- COVER & HEADER (ΙΔΙΑ ΜΕ ΠΡΙΝ) --- */}
       <div className="h-72 w-full relative bg-slate-900">
          <Image src="https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=1500&q=80" alt="Cover" fill className="object-cover opacity-50" />
          <div className="absolute top-6 left-6 z-20">
@@ -112,13 +225,16 @@ export default function InfluencerProfile(props: { params: Params }) {
                 </div>
             </div>
             <div className="flex gap-3">
-                <button className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-transform hover:-translate-y-1">
-                    Contact for Work
+                <button 
+                    onClick={() => setShowProposalModal(true)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-transform hover:-translate-y-1 flex items-center gap-2"
+                >
+                    <span>⚡</span> Contact for Work
                 </button>
             </div>
         </div>
 
-        {/* --- NAVIGATION TABS --- */}
+        {/* --- TABS --- */}
         <div className="mt-8 border-b border-slate-200">
             <nav className="flex gap-8">
                 {["overview", "audience", "pricing"].map((tab) => (
@@ -135,20 +251,15 @@ export default function InfluencerProfile(props: { params: Params }) {
             </nav>
         </div>
 
-        {/* --- CONTENT AREA --- */}
+        {/* --- CONTENT --- */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
-            
-            {/* LEFT COLUMN (Always visible) */}
             <div className="lg:col-span-2 space-y-8">
-                
                 {activeTab === "overview" && (
                     <>
                         <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
                             <h2 className="text-xl font-bold text-slate-900 mb-4">About</h2>
                             <p className="text-slate-600 leading-relaxed whitespace-pre-wrap">{profile.bio || "No bio available."}</p>
                         </div>
-
-                        {/* Social Stats Grid */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                              <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm text-center">
                                 <p className="text-slate-400 text-xs font-bold uppercase">Engagement</p>
@@ -169,8 +280,6 @@ export default function InfluencerProfile(props: { params: Params }) {
                                 <p className="text-2xl font-extrabold text-purple-600">{profile.past_brands?.length || 0}</p>
                              </div>
                         </div>
-
-                        {/* Portfolio */}
                          <div>
                             <h3 className="text-lg font-bold text-slate-900 mb-4">Content Portfolio</h3>
                             {profile.videos && profile.videos.length > 0 && profile.videos[0] !== "" ? (
@@ -192,12 +301,9 @@ export default function InfluencerProfile(props: { params: Params }) {
                         </div>
                     </>
                 )}
-
                 {activeTab === "audience" && (
                     <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
                         <h2 className="text-xl font-bold text-slate-900 mb-6">Audience Demographics</h2>
-                        
-                        {/* Gender Chart using CSS */}
                         <div className="mb-8">
                             <div className="flex justify-between mb-2 font-medium text-slate-700">
                                 <span>Female ({profile.audience_data?.female}%)</span>
@@ -208,8 +314,6 @@ export default function InfluencerProfile(props: { params: Params }) {
                                 <div style={{ width: `${profile.audience_data?.male}%` }} className="bg-blue-400 h-full"></div>
                             </div>
                         </div>
-
-                        {/* Age Group */}
                         <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
                             <div className="bg-white p-3 rounded-full shadow-sm text-2xl">🎯</div>
                             <div>
@@ -219,7 +323,6 @@ export default function InfluencerProfile(props: { params: Params }) {
                         </div>
                     </div>
                 )}
-
                 {activeTab === "pricing" && (
                      <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
                         <h2 className="text-xl font-bold text-slate-900 mb-6">Rate Card</h2>
@@ -238,14 +341,13 @@ export default function InfluencerProfile(props: { params: Params }) {
                             </div>
                         </div>
                         <p className="mt-6 text-xs text-slate-400 text-center">* Prices may vary depending on project scope.</p>
+                        <button onClick={() => setShowProposalModal(true)} className="w-full mt-6 bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-black transition-colors">
+                            Request Custom Quote
+                        </button>
                      </div>
                 )}
-
             </div>
-
-            {/* RIGHT COLUMN (Sidebar Info) */}
             <div className="space-y-6">
-                 {/* Social Links */}
                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                     <h3 className="font-bold text-slate-900 mb-4 text-sm uppercase">Connect</h3>
                     <div className="space-y-3">
@@ -257,8 +359,6 @@ export default function InfluencerProfile(props: { params: Params }) {
                         ))}
                     </div>
                  </div>
-
-                 {/* Past Brands */}
                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                     <h3 className="font-bold text-slate-900 mb-4 text-sm uppercase">Brand Collabs</h3>
                     <div className="flex flex-wrap gap-2">
