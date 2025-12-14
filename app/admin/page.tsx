@@ -9,9 +9,10 @@ interface DbInfluencer {
   created_at: string;
   display_name: string;
   gender: string;
-  contact_email: string; // Εδώ η TypeScript περιμένει string
+  contact_email: string;
   verified: boolean;
-  accounts: { platform: string; username: string }[];
+  // --- Η ΔΙΟΡΘΩΣΗ ΕΙΝΑΙ ΕΔΩ: Προστέθηκε το followers: string ---
+  accounts: { platform: string; username: string; followers: string }[]; 
   avatar_url: string | null;
   avg_likes: string | null; 
   location: string | null;
@@ -152,7 +153,6 @@ export default function AdminDashboard() {
     fetchData();
   }, []);
 
-  // Η ΣΥΝΑΡΤΗΣΗ ΠΟΥ ΔΙΟΡΘΩΣΑΜΕ
   const toggleStatus = async (id: number, currentStatus: boolean, userEmail: string, userName: string) => {
     const { error } = await supabase.from("influencers").update({ verified: !currentStatus }).eq("id", id);
     
@@ -242,7 +242,6 @@ export default function AdminDashboard() {
                                         {u.verified ? <span className="text-green-600 font-bold">{txt.verified}</span> : <span className="text-yellow-600 font-bold">{txt.pending}</span>}
                                     </td>
                                     <td className="p-3 text-right" onClick={(e) => e.stopPropagation()}> 
-                                        {/* Χρησιμοποιούμε stopPropagation για να μην ανοίγει το Modal όταν πατάμε το κουμπί */}
                                         <button 
                                             onClick={() => toggleStatus(u.id, u.verified, u.contact_email || "", u.display_name || "")} 
                                             className="text-blue-600 font-bold text-xs mr-3 hover:underline"
