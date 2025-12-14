@@ -7,6 +7,7 @@ type Account = { platform: string; username: string };
 
 export default function InfluencerSignupForm() {
   const [displayName, setDisplayName] = useState("");
+  const [gender, setGender] = useState("Female"); // Default state for gender
   const [accounts, setAccounts] = useState<Account[]>([{ platform: "Instagram", username: "" }]);
   const [bio, setBio] = useState("");
   const [videos, setVideos] = useState<string[]>([""]);
@@ -44,11 +45,28 @@ export default function InfluencerSignupForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Included 'gender' in the insert payload
     const { error } = await supabase.from("influencers").insert([
-      { display_name: displayName, accounts, bio, videos, contact_email: email }
+      { 
+        display_name: displayName, 
+        gender: gender, 
+        accounts, 
+        bio, 
+        videos, 
+        contact_email: email 
+      }
     ]);
-    if (error) setMessage(error.message);
-    else setMessage(lang === "el" ? "Το προφίλ δημιουργήθηκε! Περιμένει έγκριση." : "Profile created! Await admin approval.");
+
+    if (error) {
+      setMessage(error.message);
+    } else {
+      setMessage(
+        lang === "el" 
+          ? "Το προφίλ δημιουργήθηκε! Περιμένει έγκριση." 
+          : "Profile created! Await admin approval."
+      );
+    }
   };
 
   return (
@@ -81,8 +99,23 @@ export default function InfluencerSignupForm() {
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             required
-            className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+            className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
+        </div>
+
+        {/* Gender Selector */}
+        <div>
+          <label className="block mb-1 font-medium text-gray-800">
+            {lang === "el" ? "Φύλο" : "Gender"}
+          </label>
+          <select
+            value={gender}
+            onChange={(e) => setGender(e.target.value)}
+            className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="Female">{lang === "el" ? "Γυναίκα" : "Female"}</option>
+            <option value="Male">{lang === "el" ? "Άνδρας" : "Male"}</option>
+          </select>
         </div>
 
         {/* Social Accounts */}

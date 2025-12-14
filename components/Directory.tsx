@@ -13,6 +13,7 @@ interface Influencer {
   followers: { [key: string]: number | undefined };
   categories: string[];
   platform: string;
+  gender: "Male" | "Female"; // New field
 }
 
 const dummyInfluencers: Influencer[] = [
@@ -26,6 +27,7 @@ const dummyInfluencers: Influencer[] = [
     followers: { instagram: 12000, tiktok: 54000 },
     categories: ["Beauty", "Lifestyle"],
     platform: "Instagram",
+    gender: "Female",
   },
   {
     id: 2,
@@ -37,6 +39,7 @@ const dummyInfluencers: Influencer[] = [
     followers: { instagram: 8700 },
     categories: ["Tech"],
     platform: "Instagram",
+    gender: "Male",
   },
   {
     id: 3,
@@ -48,6 +51,7 @@ const dummyInfluencers: Influencer[] = [
     followers: { instagram: 15000, tiktok: 32000 },
     categories: ["Fitness", "Lifestyle"],
     platform: "TikTok",
+    gender: "Female",
   },
   {
     id: 4,
@@ -59,6 +63,7 @@ const dummyInfluencers: Influencer[] = [
     followers: { instagram: 22000 },
     categories: ["Travel"],
     platform: "Instagram",
+    gender: "Male",
   },
   {
     id: 5,
@@ -70,6 +75,7 @@ const dummyInfluencers: Influencer[] = [
     followers: { instagram: 17000 },
     categories: ["Food", "Lifestyle"],
     platform: "Instagram",
+    gender: "Female",
   },
   {
     id: 6,
@@ -81,6 +87,7 @@ const dummyInfluencers: Influencer[] = [
     followers: { twitch: 32000, youtube: 9000 },
     categories: ["Gaming"],
     platform: "YouTube",
+    gender: "Female",
   },
   {
     id: 7,
@@ -92,6 +99,7 @@ const dummyInfluencers: Influencer[] = [
     followers: { instagram: 11000 },
     categories: ["Fitness"],
     platform: "Instagram",
+    gender: "Male",
   },
   {
     id: 8,
@@ -103,12 +111,14 @@ const dummyInfluencers: Influencer[] = [
     followers: { instagram: 28000 },
     categories: ["Beauty"],
     platform: "Instagram",
+    gender: "Female",
   },
 ];
 
 export default function Directory() {
   const [platformFilter, setPlatformFilter] = useState<string>("All");
   const [categoryFilter, setCategoryFilter] = useState<string>("All");
+  const [genderFilter, setGenderFilter] = useState<string>("All"); // New state
 
   const filtered = dummyInfluencers.filter((inf) => {
     const platformMatch =
@@ -117,12 +127,17 @@ export default function Directory() {
     const categoryMatch =
       categoryFilter === "All" || inf.categories.includes(categoryFilter);
 
-    return platformMatch && categoryMatch;
+    // New filter logic
+    const genderMatch = 
+      genderFilter === "All" || inf.gender === genderFilter;
+
+    return platformMatch && categoryMatch && genderMatch;
   });
 
   return (
     <div className="max-w-6xl mx-auto">
       <div className="flex gap-4 mb-8 justify-center flex-wrap">
+        {/* Platform Filter */}
         <select
           value={platformFilter}
           onChange={(e) => setPlatformFilter(e.target.value)}
@@ -134,6 +149,7 @@ export default function Directory() {
           <option value="YouTube">YouTube</option>
         </select>
 
+        {/* Category Filter */}
         <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
@@ -147,6 +163,17 @@ export default function Directory() {
           <option value="Gaming">Gaming</option>
           <option value="Food">Food</option>
           <option value="Travel">Travel</option>
+        </select>
+
+        {/* Gender Filter */}
+        <select
+          value={genderFilter}
+          onChange={(e) => setGenderFilter(e.target.value)}
+          className="border rounded px-3 py-2 text-gray-700"
+        >
+          <option value="All">Όλα τα φύλα</option>
+          <option value="Female">Γυναίκες</option>
+          <option value="Male">Άνδρες</option>
         </select>
       </div>
 
