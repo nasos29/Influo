@@ -1,220 +1,286 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Link from "next/link"; // Import Link for navigation
+import { useState } from "react";
 import { supabase } from "../lib/supabaseClient";
-import InfluencerCard from "./InfluencerCard";
+import Image from "next/image";
 
-// Τύπος δεδομένων (κοινός για dummy και real)
-export interface Influencer {
-  id: string | number; // Δέχεται και 'dummy-1' και 15
-  name: string;
-  bio: string;
-  avatar: string;
-  verified: boolean;
-  socials: { [key: string]: string | undefined };
-  followers: { [key: string]: number | undefined };
-  categories: string[];
-  platform: string;
-  gender: "Male" | "Female";
-  videos?: string[]; // Προσθήκη για να περνάμε τα video
-}
+type Account = { platform: string; username: string };
 
-// Dummy Data (με αλλαγμένα IDs για να μην τρακάρουν με τη βάση)
-export const dummyInfluencers: Influencer[] = [
-  {
-    id: "dummy-1",
-    name: "Μαρία Παπαδοπούλου",
-    bio: "Beauty & lifestyle creator. Λατρεύω τα ταξίδια και το skincare.",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80",
-    verified: true,
-    socials: { instagram: "maria_pap", tiktok: "maria.tok" },
-    followers: { instagram: 12000, tiktok: 54000 },
-    categories: ["Beauty", "Lifestyle"],
-    platform: "Instagram",
-    gender: "Female",
-    videos: ["https://www.youtube.com/watch?v=LxR_f_1", "https://tiktok.com/@maria/video/1"]
-  },
-  {
-    id: "dummy-2",
-    name: "Nikos Tech",
-    bio: "Tech reviewer, gadgets & unboxing. Όλα για την τεχνολογία.",
-    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80",
-    verified: true,
-    socials: { instagram: "nikos.tech", youtube: "nikostech" },
-    followers: { instagram: 8700, youtube: 150000 },
-    categories: ["Tech"],
-    platform: "YouTube",
-    gender: "Male",
-    videos: []
-  },
-  {
-    id: "dummy-3",
-    name: "Ελένη Fitness",
-    bio: "Certified personal trainer. Fitness tips & υγιεινή διατροφή.",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80",
-    verified: false,
-    socials: { instagram: "eleni_fit", tiktok: "eleni.tok" },
-    followers: { instagram: 15000, tiktok: 32000 },
-    categories: ["Fitness", "Lifestyle"],
-    platform: "TikTok",
-    gender: "Female",
-    videos: []
-  },
-  {
-    id: "dummy-4",
-    name: "Γιώργος Travel",
-    bio: "Γυρίζω τον κόσμο με ένα backpack. Travel vlogger.",
-    avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&q=80",
-    verified: true,
-    socials: { instagram: "george_travel", youtube: "gtravel" },
-    followers: { instagram: 22000, youtube: 45000 },
-    categories: ["Travel"],
-    platform: "Instagram",
-    gender: "Male",
-    videos: []
-  },
-  {
-    id: "dummy-5",
-    name: "Anna Foodie",
-    bio: "Εύκολες και γρήγορες συνταγές για φοιτητές.",
-    avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=400&q=80",
-    verified: false,
-    socials: { instagram: "anna_foodie" },
-    followers: { instagram: 17000 },
-    categories: ["Food", "Lifestyle"],
-    platform: "Instagram",
-    gender: "Female",
-    videos: []
-  },
-   {
-    id: "dummy-6",
-    name: "Katerina Gaming",
-    bio: "Pro gamer & streamer. LoL & Valorant highlights.",
-    avatar: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=400&q=80",
-    verified: true,
-    socials: { twitch: "kat_gamer", youtube: "katerina_gaming" },
-    followers: { twitch: 32000, youtube: 9000 },
-    categories: ["Gaming"],
-    platform: "YouTube",
-    gender: "Female",
-    videos: []
-  },
-];
+export default function InfluencerSignupForm() {
+  // Basic Info
+  const [displayName, setDisplayName] = useState("");
+  const [gender, setGender] = useState("Female");
+  const [location, setLocation] = useState("Athens, Greece"); // ΝΕΟ
+  const [languages, setLanguages] = useState("Greek, English"); // ΝΕΟ
+  const [minRate, setMinRate] = useState(""); // ΝΕΟ
+  
+  // Media & Contact
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [bio, setBio] = useState("");
+  
+  // Lists
+  const [accounts, setAccounts] = useState<Account[]>([{ platform: "Instagram", username: "" }]);
+  const [videos, setVideos] = useState<string[]>([""]);
+  
+  // System
+  const [lang, setLang] = useState<"el" | "en">("el");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
-export default function Directory() {
-  const [influencers, setInfluencers] = useState<Influencer[]>(dummyInfluencers);
-  const [platformFilter, setPlatformFilter] = useState<string>("All");
-  const [categoryFilter, setCategoryFilter] = useState<string>("All");
-  const [genderFilter, setGenderFilter] = useState<string>("All");
+  // --- HANDLERS ---
 
-  // Fetch Real Data from Supabase and merge
-  useEffect(() => {
-    const fetchRealInfluencers = async () => {
-      // Φέρνουμε μόνο όσους έχεις κάνει 'verified: true' στο Supabase
-      // Αν θες να τους βλέπεις όλους για test, βγάλε το .eq('verified', true)
-      const { data, error } = await supabase
-        .from("influencers")
-        .select("*")
-        .eq('verified', true); 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setAvatarFile(file);
+      setAvatarPreview(URL.createObjectURL(file));
+    }
+  };
 
-      if (error) {
-        console.error("Error fetching:", error);
-        return;
-      }
+  const handleAccountChange = (i: number, field: keyof Account, value: string) => {
+    const copy = [...accounts];
+    copy[i][field] = value;
+    setAccounts(copy);
+  };
+  const addAccount = () => setAccounts([...accounts, { platform: "Instagram", username: "" }]);
+  const removeAccount = (i: number) => { const copy = [...accounts]; copy.splice(i, 1); setAccounts(copy); };
 
-      if (data) {
-        // Μετατροπή των δεδομένων της βάσης στη μορφή που θέλει το UI
-        const realInfluencers: Influencer[] = data.map((inf: any) => {
+  const handleVideoChange = (i: number, val: string) => { const copy = [...videos]; copy[i] = val; setVideos(copy); };
+  const addVideo = () => setVideos([...videos, ""]);
+  const removeVideo = (i: number) => { const copy = [...videos]; copy.splice(i, 1); setVideos(copy); };
+
+  // --- SUBMIT LOGIC ---
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage("");
+
+    try {
+      let avatarUrl = "";
+
+      // 1. Upload Image to Supabase Storage
+      if (avatarFile) {
+        const fileName = `${Date.now()}-${avatarFile.name}`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from("avatars") // Σιγουρέψου ότι έφτιαξες το bucket 'avatars'
+          .upload(fileName, avatarFile);
+
+        if (uploadError) throw uploadError;
+        
+        // Get Public URL
+        const { data: publicUrlData } = supabase.storage
+          .from("avatars")
+          .getPublicUrl(fileName);
           
-          // Μετατροπή του Accounts JSON σε αντικείμενο socials { instagram: 'user' }
-          const socialsObj: { [key: string]: string } = {};
-          if (Array.isArray(inf.accounts)) {
-            inf.accounts.forEach((acc: any) => {
-              if (acc.platform && acc.username) {
-                socialsObj[acc.platform.toLowerCase()] = acc.username;
-              }
-            });
-          }
-
-          return {
-            id: inf.id, // Αυτό είναι το Real ID (π.χ. 5)
-            name: inf.display_name,
-            bio: inf.bio || "",
-            // Αν δεν έχει avatar, βάζουμε ένα τυχαίο placeholder
-            avatar: inf.avatar_url || "https://images.unsplash.com/photo-1633332755192-727a05c4013d?auto=format&fit=crop&w=400&q=80",
-            verified: inf.verified,
-            socials: socialsObj,
-            followers: {}, // Στη φόρμα δεν ζητάμε followers ακόμα, οπότε κενό
-            categories: [], // Προς το παρόν κενό ή default
-            platform: "Instagram", // Default
-            gender: inf.gender || "Female",
-            videos: Array.isArray(inf.videos) ? inf.videos : []
-          };
-        });
-
-        // Προσθέτουμε τους Real ΜΕΤΑ τους Dummy
-        setInfluencers([...dummyInfluencers, ...realInfluencers]);
+        avatarUrl = publicUrlData.publicUrl;
       }
-    };
 
-    fetchRealInfluencers();
-  }, []);
+      // 2. Insert Data to Database
+      const { error } = await supabase.from("influencers").insert([
+        { 
+          display_name: displayName, 
+          gender, 
+          location,      // ΝΕΟ
+          languages,     // ΝΕΟ
+          min_rate: minRate, // ΝΕΟ
+          contact_email: email,
+          bio, 
+          accounts, 
+          videos, 
+          avatar_url: avatarUrl // ΝΕΟ
+        }
+      ]);
 
-  const filtered = influencers.filter((inf) => {
-    const platformMatch = platformFilter === "All" || inf.platform === platformFilter;
-    const categoryMatch = categoryFilter === "All" || inf.categories.includes(categoryFilter);
-    const genderMatch = genderFilter === "All" || inf.gender === genderFilter;
-    return platformMatch && categoryMatch && genderMatch;
-  });
+      if (error) throw error;
+
+      setMessage(lang === "el" ? "Επιτυχία! Το προφίλ ελέγχεται." : "Success! Profile under review.");
+      // Reset form (optional)
+      setDisplayName("");
+      setAvatarFile(null);
+      setAvatarPreview(null);
+      
+    } catch (err: any) {
+      console.error(err);
+      setMessage(`Error: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div>
-      {/* Filters Bar (Ίδιο με πριν) */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-8 flex flex-wrap gap-4 justify-center md:justify-start">
-         <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider self-center">Φίλτρα:</span>
-        <select
-          value={platformFilter}
-          onChange={(e) => setPlatformFilter(e.target.value)}
-          className="bg-slate-50 border border-slate-300 text-slate-700 text-sm rounded-lg p-2.5"
-        >
-          <option value="All">Όλες οι πλατφόρμες</option>
-          <option value="Instagram">Instagram</option>
-          <option value="TikTok">TikTok</option>
-          <option value="YouTube">YouTube</option>
-        </select>
-         <select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-          className="bg-slate-50 border border-slate-300 text-slate-700 text-sm rounded-lg p-2.5"
-        >
-          <option value="All">Όλες οι κατηγορίες</option>
-          <option value="Beauty">Beauty</option>
-          <option value="Lifestyle">Lifestyle</option>
-          <option value="Tech">Tech</option>
-          <option value="Fitness">Fitness</option>
-          <option value="Gaming">Gaming</option>
-          <option value="Food">Food</option>
-          <option value="Travel">Travel</option>
-        </select>
-        <select
-          value={genderFilter}
-          onChange={(e) => setGenderFilter(e.target.value)}
-          className="bg-slate-50 border border-slate-300 text-slate-700 text-sm rounded-lg p-2.5"
-        >
-          <option value="All">Όλα τα φύλα</option>
-          <option value="Female">Γυναίκες</option>
-          <option value="Male">Άνδρες</option>
-        </select>
+    <div className="bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row h-[90vh] md:h-[850px]">
+      
+      {/* Left Side - Visual */}
+      <div className="hidden md:flex md:w-1/3 bg-slate-900 text-white p-10 flex-col justify-between relative overflow-hidden">
+        <div className="absolute inset-0 opacity-30 bg-[url('https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=800&q=80')] bg-cover bg-center"></div>
+        <div className="relative z-10">
+            <h3 className="text-3xl font-bold mb-4">Professional Profile</h3>
+            <p className="text-slate-300">Συμπλήρωσε τα επαγγελματικά σου στοιχεία για να προσελκύσεις B2B συνεργασίες.</p>
+        </div>
       </div>
 
-      {/* Grid Cards Wrapped in Link */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
-        {filtered.map((inf) => (
-          <Link href={`/influencer/${inf.id}`} key={inf.id} className="block h-full">
-             <InfluencerCard {...inf} />
-          </Link>
-        ))}
+      {/* Right Side - Form */}
+      <div className="flex-1 p-8 md:p-12 overflow-y-auto">
+        <div className="flex justify-between items-center mb-8">
+            <h2 className="text-2xl font-bold text-slate-900">Δημιουργία Προφίλ</h2>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl mx-auto">
+            
+            {/* 1. PHOTO UPLOAD */}
+            <div className="flex items-center gap-6">
+                <div className="relative w-24 h-24 rounded-full bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden group hover:border-blue-500 transition-colors">
+                    {avatarPreview ? (
+                        <Image src={avatarPreview} alt="Preview" fill className="object-cover" />
+                    ) : (
+                        <span className="text-2xl text-slate-400">📷</span>
+                    )}
+                    <input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={handleFileChange} 
+                        className="absolute inset-0 opacity-0 cursor-pointer" 
+                    />
+                </div>
+                <div>
+                    <p className="font-semibold text-slate-900">Φωτογραφία Προφίλ</p>
+                    <p className="text-xs text-slate-500">Πάτησε για ανέβασμα (JPG, PNG)</p>
+                </div>
+            </div>
+
+            {/* 2. BASIC DETAILS */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Ονοματεπώνυμο</label>
+                    <input
+                        type="text"
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        required
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                </div>
+                <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Φύλο</label>
+                    <select
+                        value={gender}
+                        onChange={(e) => setGender(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                    >
+                        <option value="Female">Γυναίκα</option>
+                        <option value="Male">Άνδρας</option>
+                    </select>
+                </div>
+            </div>
+
+            {/* 3. PRO DETAILS (Location, Langs, Rates) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Τοποθεσία</label>
+                    <input
+                        type="text"
+                        value={location}
+                        onChange={(e) => setLocation(e.target.value)}
+                        placeholder="π.χ. Athens, Greece"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                </div>
+                <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Starting Budget (€)</label>
+                    <input
+                        type="text"
+                        value={minRate}
+                        onChange={(e) => setMinRate(e.target.value)}
+                        placeholder="π.χ. 150"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                </div>
+            </div>
+            
+             <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Γλώσσες (χωρισμένες με κόμμα)</label>
+                <input
+                    type="text"
+                    value={languages}
+                    onChange={(e) => setLanguages(e.target.value)}
+                    placeholder="π.χ. Greek, English, French"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+            </div>
+
+
+            {/* 4. BIO & EMAIL */}
+            <div>
+                 <label className="block text-sm font-semibold text-slate-700 mb-2">Email Επικοινωνίας</label>
+                 <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+            </div>
+
+            <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Bio</label>
+                <textarea
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    rows={3}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+            </div>
+
+            <hr className="border-slate-100" />
+
+            {/* 5. SOCIALS */}
+            <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-3">Social Media Accounts</label>
+                <div className="space-y-3">
+                    {accounts.map((acc, i) => (
+                        <div key={i} className="flex gap-3">
+                            <select
+                                value={acc.platform}
+                                onChange={(e) => handleAccountChange(i, "platform", e.target.value)}
+                                className="w-1/3 bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-700"
+                            >
+                                <option>Instagram</option>
+                                <option>TikTok</option>
+                                <option>YouTube</option>
+                            </select>
+                            <input
+                                type="text"
+                                value={acc.username}
+                                onChange={(e) => handleAccountChange(i, "username", e.target.value)}
+                                className="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                                placeholder="username"
+                            />
+                            <button type="button" onClick={() => removeAccount(i)} className="text-slate-400 hover:text-red-500 font-bold px-2">✕</button>
+                        </div>
+                    ))}
+                    <button type="button" onClick={addAccount} className="text-sm text-blue-600 font-bold hover:underline">+ Add Account</button>
+                </div>
+            </div>
+
+            {/* SUBMIT */}
+            <div className="pt-4 pb-10">
+                <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-xl shadow-lg transition-all disabled:opacity-50"
+                >
+                    {loading ? "Ανέβασμα..." : "Ολοκλήρωση Εγγραφής"}
+                </button>
+                {message && (
+                    <div className={`mt-4 p-4 rounded-lg text-center font-medium ${message.includes("Error") ? "bg-red-50 text-red-600" : "bg-green-50 text-green-600"}`}>
+                        {message}
+                    </div>
+                )}
+            </div>
+        </form>
       </div>
     </div>
   );
