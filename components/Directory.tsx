@@ -22,10 +22,10 @@ export interface Influencer {
   languages?: string;
   min_rate?: string;
   avg_likes?: string; 
-  engagement_rate?: string; // ΝΕΟ για τα dummy data
+  engagement_rate?: string;
 }
 
-// --- DUMMY DATA (Με engagement rates) ---
+// --- DUMMY DATA (8+ Εγγραφές για να δείχνει γεμάτο) ---
 export const dummyInfluencers: Influencer[] = [
   {
     id: "dummy-1",
@@ -106,6 +106,54 @@ export const dummyInfluencers: Influencer[] = [
     min_rate: "250€",
     engagement_rate: "5.5%",
     avg_likes: "12k"
+  },
+  {
+    id: "dummy-6",
+    name: "Katerina Gaming",
+    bio: "Pro gamer & streamer. LoL & Valorant.",
+    avatar: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=400&q=80",
+    verified: true,
+    socials: { twitch: "kat_gamer", youtube: "katerina_gaming" },
+    followers: { twitch: 32000, youtube: 9000 },
+    categories: ["Gaming"],
+    platform: "YouTube",
+    gender: "Female",
+    location: "Athens, GR",
+    min_rate: "200€",
+    engagement_rate: "4.1%",
+    avg_likes: "3k"
+  },
+  {
+    id: "dummy-7",
+    name: "Dimitris Crypto",
+    bio: "Crypto analysis & web3 news.",
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80",
+    verified: true,
+    socials: { twitter: "jim_crypto", youtube: "dimitris_btc" },
+    followers: { youtube: 12000 },
+    categories: ["Tech", "Business"],
+    platform: "YouTube",
+    gender: "Male",
+    location: "Cyprus",
+    min_rate: "400€",
+    engagement_rate: "8.5%",
+    avg_likes: "1.5k"
+  },
+  {
+    id: "dummy-8",
+    name: "Elena VIP",
+    bio: "TV Host & Celebrity Influencer.",
+    avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=400&q=80",
+    verified: true,
+    socials: { instagram: "elena_vip" },
+    followers: { instagram: 500000 },
+    categories: ["Lifestyle", "Fashion"],
+    platform: "Instagram",
+    gender: "Female",
+    location: "Athens, GR",
+    min_rate: "1500€",
+    engagement_rate: "3.5%",
+    avg_likes: "45k"
   }
 ];
 
@@ -115,7 +163,7 @@ const LocationIcon = () => <svg className="w-5 h-5 text-slate-400" fill="none" s
 const FilterIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>;
 const ChevronDown = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>;
 
-// --- HELPER FUNCTIONS ΓΙΑ NUMBERS ---
+// --- HELPERS ---
 const parsePrice = (price?: string) => {
     if (!price) return 0;
     return parseFloat(price.replace(/[^0-9.]/g, ''));
@@ -141,9 +189,9 @@ export default function Directory() {
   const [categoryFilter, setCategoryFilter] = useState<string>("All");
   const [genderFilter, setGenderFilter] = useState<string>("All");
 
-  // ADVANCED FILTERS (NUMERIC)
+  // ADVANCED FILTERS
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [followerRange, setFollowerRange] = useState<string>("All"); // Nano, Micro, Macro
+  const [followerRange, setFollowerRange] = useState<string>("All");
   const [budgetMax, setBudgetMax] = useState<string>("All");
   const [minEngagement, setMinEngagement] = useState<string>("All");
 
@@ -167,14 +215,14 @@ export default function Directory() {
             avatar: inf.avatar_url || "https://images.unsplash.com/photo-1633332755192-727a05c4013d?auto=format&fit=crop&w=400&q=80",
             verified: inf.verified,
             socials: socialsObj,
-            followers: {}, // Στα real δεν έχουμε followers ακόμα, θα είναι 0
+            followers: {}, 
             categories: ["New"],
             platform: "Instagram",
             gender: inf.gender || "Female",
             location: inf.location,
             min_rate: inf.min_rate,
             avg_likes: inf.avg_likes,
-            engagement_rate: inf.engagement_rate, // Πρέπει να υπάρχει στη βάση
+            engagement_rate: inf.engagement_rate,
             videos: Array.isArray(inf.videos) ? inf.videos : []
           };
         });
@@ -184,39 +232,37 @@ export default function Directory() {
     fetchRealInfluencers();
   }, []);
 
-  // --- LOGIC ΦΙΛΤΡΑΡΙΣΜΑΤΟΣ ---
+  // --- LOGIC ---
   const filtered = influencers.filter((inf) => {
-    // 1. Text Filters
     const searchMatch = inf.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                         inf.bio.toLowerCase().includes(searchQuery.toLowerCase());
-    
     const locationMatch = locationQuery === "" || 
                           (inf.location && inf.location.toLowerCase().includes(locationQuery.toLowerCase()));
 
-    // 2. Dropdowns
     const platformMatch = platformFilter === "All" || inf.platform === platformFilter;
     const categoryMatch = categoryFilter === "All" || inf.categories.includes(categoryFilter);
     const genderMatch = genderFilter === "All" || inf.gender === genderFilter;
 
-    // 3. ADVANCED NUMERIC
-    
-    // Followers
+    // Advanced Stats Logic
     let followerMatch = true;
     const maxFollowers = getMaxFollowers(inf.followers);
     if (followerRange === "Nano") followerMatch = maxFollowers > 1000 && maxFollowers < 10000;
     if (followerRange === "Micro") followerMatch = maxFollowers >= 10000 && maxFollowers < 100000;
     if (followerRange === "Macro") followerMatch = maxFollowers >= 100000;
 
-    // Budget (Max Price)
     let budgetMatch = true;
     if (budgetMax !== "All") {
-        const max = parseInt(budgetMax);
         const rate = parsePrice(inf.min_rate);
-        // Αν δεν έχει rate, τον κρύβουμε ή τον δείχνουμε; Εδώ τον δείχνουμε μόνο αν rate <= max
-        if (rate > max) budgetMatch = false;
+        if (budgetMax === "Unlimited") {
+            // Αν ο πελάτης λέει "Unlimited (1000+)", θέλουμε αυτούς που είναι ακριβοί
+            budgetMatch = rate >= 1000;
+        } else {
+            // Αλλιώς, θέλουμε αυτούς που είναι φθηνότεροι από το Budget του πελάτη
+            const max = parseInt(budgetMax);
+            if (rate > max) budgetMatch = false;
+        }
     }
 
-    // Engagement (Min %)
     let engageMatch = true;
     if (minEngagement !== "All") {
         const min = parseFloat(minEngagement);
@@ -243,43 +289,27 @@ export default function Directory() {
       {/* --- CONTROL BAR --- */}
       <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 mb-10 transition-all duration-300">
         
-        {/* Top Row: Search & Location */}
+        {/* Row 1: Search & Location */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
             <div className="md:col-span-5 relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><SearchIcon /></div>
-                <input 
-                    type="text" 
-                    placeholder="Search name or bio..." 
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                />
+                <input type="text" placeholder="Search name or bio..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none" />
             </div>
             <div className="md:col-span-4 relative">
                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><LocationIcon /></div>
-                <input 
-                    type="text" 
-                    placeholder="Location (e.g. Athens)" 
-                    value={locationQuery}
-                    onChange={(e) => setLocationQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                />
+                <input type="text" placeholder="Location (e.g. Athens)" value={locationQuery} onChange={(e) => setLocationQuery(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none" />
             </div>
             <div className="md:col-span-3 flex items-center justify-end gap-3">
-                 <button 
-                    onClick={() => setShowAdvanced(!showAdvanced)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold border transition-colors ${showAdvanced ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-                 >
+                 <button onClick={() => setShowAdvanced(!showAdvanced)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold border transition-colors ${showAdvanced ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
                     <FilterIcon /> Filters <ChevronDown />
                  </button>
             </div>
         </div>
 
-        {/* Filters Area (Collapsible) */}
+        {/* Row 2: Advanced Filters */}
         <div className={`overflow-hidden transition-all duration-300 ${showAdvanced ? 'max-h-[500px] opacity-100 mt-4 pt-4 border-t border-slate-100' : 'max-h-0 opacity-0'}`}>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 
-                {/* Standard Filters */}
                 <select value={platformFilter} onChange={(e) => setPlatformFilter(e.target.value)} className="filter-select">
                     <option value="All">Platform: All</option>
                     <option value="Instagram">Instagram</option>
@@ -293,7 +323,9 @@ export default function Directory() {
                     <option value="Lifestyle">Lifestyle</option>
                     <option value="Tech">Tech</option>
                     <option value="Fitness">Fitness</option>
+                    <option value="Gaming">Gaming</option>
                     <option value="Travel">Travel</option>
+                    <option value="Business">Business</option>
                 </select>
 
                 <select value={genderFilter} onChange={(e) => setGenderFilter(e.target.value)} className="filter-select">
@@ -302,9 +334,6 @@ export default function Directory() {
                     <option value="Male">Male</option>
                 </select>
 
-                {/* --- ADVANCED METRICS --- */}
-                
-                {/* 1. Size */}
                 <select value={followerRange} onChange={(e) => setFollowerRange(e.target.value)} className="filter-select bg-blue-50/50 border-blue-100 text-blue-800">
                     <option value="All">Followers: Any</option>
                     <option value="Nano">Nano (1k-10k)</option>
@@ -312,16 +341,16 @@ export default function Directory() {
                     <option value="Macro">Macro (100k+)</option>
                 </select>
 
-                {/* 2. Budget */}
                 <select value={budgetMax} onChange={(e) => setBudgetMax(e.target.value)} className="filter-select bg-green-50/50 border-green-100 text-green-800">
                     <option value="All">Budget: Any</option>
                     <option value="100">Up to 100€</option>
                     <option value="200">Up to 200€</option>
                     <option value="500">Up to 500€</option>
                     <option value="1000">Up to 1000€</option>
+                    <option value="2000">Up to 2000€</option>
+                    <option value="Unlimited">5000€+ (VIP)</option>
                 </select>
 
-                {/* 3. Quality */}
                 <select value={minEngagement} onChange={(e) => setMinEngagement(e.target.value)} className="filter-select bg-purple-50/50 border-purple-100 text-purple-800">
                     <option value="All">Engage: Any</option>
                     <option value="1">Min 1%</option>
