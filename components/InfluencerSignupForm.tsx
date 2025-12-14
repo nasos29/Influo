@@ -4,7 +4,8 @@ import { useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import Image from "next/image";
 
-type Account = { platform: string; username: string };
+// Προσθέσαμε το followers στο Type
+type Account = { platform: string; username: string; followers: string };
 type Lang = "el" | "en";
 
 const t = {
@@ -12,8 +13,8 @@ const t = {
     headerTitle: "Γίνε μέλος του Creator Club",
     headerDesc: "Συμπλήρωσε το προφίλ σου για να συνδεθείς με κορυφαία Brands.",
     step1: "Βασικά Στοιχεία",
-    step2: "Social Media",
-    step3: "Portfolio & Τιμές",
+    step2: "Κανάλια & Κοινό",
+    step3: "Portfolio & Insights",
     nameLabel: "Ονοματεπώνυμο",
     namePlace: "π.χ. Μαρία Παππά",
     genderLabel: "Φύλο",
@@ -24,12 +25,19 @@ const t = {
     emailLabel: "Email Επικοινωνίας",
     bioLabel: "Σύντομο Βιογραφικό",
     bioPlace: "Πες μας λίγα λόγια για το στυλ σου...",
-    socialsTitle: "Σύνδεσε τα κανάλια σου",
+    socialsTitle: "Τα Κανάλια σου",
+    socialsDesc: "Πρόσθεσε τα δίκτυα που είσαι ενεργός/ή και τους followers.",
+    platLabel: "Πλατφόρμα",
+    userLabel: "Username (χωρίς @)",
+    follLabel: "Followers (π.χ. 15k)",
     addAccount: "+ Προσθήκη Πλατφόρμας",
     langsLabel: "Γλώσσες Επικοινωνίας",
     langsPlace: "π.χ. Ελληνικά, Αγγλικά",
     photoLabel: "Φωτογραφία Προφίλ",
     uploadBtn: "Ανέβασμα Φωτογραφίας",
+    insightsLabel: "Αποδεικτικά Insights (Screenshots)",
+    insightsDesc: "Ανέβασε screenshots από τα στατιστικά σου για επαλήθευση.",
+    uploadInsightsBtn: "Ανέβασμα Screenshots",
     videoLabel: "Video Highlights (Links)",
     videoDesc: "Επικόλλησε links από TikTok, Reels ή YouTube.",
     addVideo: "+ Προσθήκη Video Link",
@@ -37,17 +45,17 @@ const t = {
     next: "Επόμενο →",
     back: "← Πίσω",
     submit: "Ολοκλήρωση Εγγραφής",
-    loading: "Δημιουργία Προφίλ...",
+    loading: "Ανέβασμα Δεδομένων...",
     successTitle: "Καλωσήρθες!",
-    successDesc: "Το προφίλ σου δημιουργήθηκε επιτυχώς. Η ομάδα μας θα το ελέγξει εντός 24 ωρών.",
+    successDesc: "Το προφίλ σου δημιουργήθηκε. Η ομάδα μας θα ελέγξει τα screenshots και θα σε ειδοποιήσει.",
     close: "Κλείσιμο"
   },
   en: {
     headerTitle: "Join the Creator Club",
     headerDesc: "Complete your profile to get matched with brands.",
     step1: "Basic Info",
-    step2: "Socials",
-    step3: "Portfolio & Rates",
+    step2: "Channels & Audience",
+    step3: "Portfolio & Insights",
     nameLabel: "Full Name",
     namePlace: "e.g. Maria Pappa",
     genderLabel: "Gender",
@@ -58,12 +66,19 @@ const t = {
     emailLabel: "Contact Email",
     bioLabel: "Short Bio",
     bioPlace: "Tell brands about your style...",
-    socialsTitle: "Connect your channels",
+    socialsTitle: "Your Channels",
+    socialsDesc: "Add your active networks and follower counts.",
+    platLabel: "Platform",
+    userLabel: "Username (no @)",
+    follLabel: "Followers (e.g. 15k)",
     addAccount: "+ Add Platform",
     langsLabel: "Languages Spoken",
     langsPlace: "e.g. Greek, English",
     photoLabel: "Profile Photo",
     uploadBtn: "Upload Photo",
+    insightsLabel: "Insights Proof (Screenshots)",
+    insightsDesc: "Upload screenshots of your stats for verification.",
+    uploadInsightsBtn: "Upload Screenshots",
     videoLabel: "Best Video Highlights (Links)",
     videoDesc: "Paste links from TikTok, Reels, or YouTube.",
     addVideo: "+ Add Video Link",
@@ -71,9 +86,9 @@ const t = {
     next: "Next →",
     back: "← Back",
     submit: "Complete Signup",
-    loading: "Creating Profile...",
+    loading: "Uploading Data...",
     successTitle: "Welcome aboard!",
-    successDesc: "Your profile has been created successfully. Under review.",
+    successDesc: "Profile created. Our team will review your insights proofs shortly.",
     close: "Close"
   }
 };
@@ -91,11 +106,13 @@ export default function InfluencerSignupForm() {
   const [bio, setBio] = useState("");
   const [email, setEmail] = useState("");
   
-  const [accounts, setAccounts] = useState<Account[]>([{ platform: "Instagram", username: "" }]);
+  // Updated Account State structure
+  const [accounts, setAccounts] = useState<Account[]>([{ platform: "Instagram", username: "", followers: "" }]);
   const [languages, setLanguages] = useState("");
   
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [insightFiles, setInsightFiles] = useState<File[]>([]); 
   const [videos, setVideos] = useState<string[]>([""]);
   const [minRate, setMinRate] = useState("");
 
@@ -108,10 +125,17 @@ export default function InfluencerSignupForm() {
     }
   };
 
+  const handleInsightsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+        const files = Array.from(e.target.files);
+        setInsightFiles(prev => [...prev, ...files]);
+    }
+  };
+
   const handleAccountChange = (i: number, field: keyof Account, value: string) => {
     const copy = [...accounts]; copy[i][field] = value; setAccounts(copy);
   };
-  const addAccount = () => setAccounts([...accounts, { platform: "Instagram", username: "" }]);
+  const addAccount = () => setAccounts([...accounts, { platform: "Instagram", username: "", followers: "" }]);
   const removeAccount = (i: number) => { const copy = [...accounts]; copy.splice(i, 1); setAccounts(copy); };
 
   const handleVideoChange = (i: number, val: string) => { const copy = [...videos]; copy[i] = val; setVideos(copy); };
@@ -122,15 +146,31 @@ export default function InfluencerSignupForm() {
   const handleSubmit = async () => {
     setLoading(true);
     try {
+      // 1. Avatar Upload
       let avatarUrl = "";
       if (avatarFile) {
-        const fileName = `${Date.now()}-${avatarFile.name}`;
+        const fileName = `avatar-${Date.now()}-${avatarFile.name}`;
         const { error: uploadError } = await supabase.storage.from("avatars").upload(fileName, avatarFile);
-        if (uploadError) throw uploadError;
-        const { data: publicUrlData } = supabase.storage.from("avatars").getPublicUrl(fileName);
-        avatarUrl = publicUrlData.publicUrl;
+        if (!uploadError) {
+            const { data } = supabase.storage.from("avatars").getPublicUrl(fileName);
+            avatarUrl = data.publicUrl;
+        }
       }
 
+      // 2. Insights Upload
+      const insightUrls: string[] = [];
+      if (insightFiles.length > 0) {
+          await Promise.all(insightFiles.map(async (file) => {
+              const fileName = `proof-${Date.now()}-${file.name}`;
+              const { error } = await supabase.storage.from("avatars").upload(fileName, file);
+              if (!error) {
+                  const { data } = supabase.storage.from("avatars").getPublicUrl(fileName);
+                  insightUrls.push(data.publicUrl);
+              }
+          }));
+      }
+
+      // 3. Database Insert
       const { error } = await supabase.from("influencers").insert([
         { 
           display_name: displayName, 
@@ -140,9 +180,10 @@ export default function InfluencerSignupForm() {
           min_rate: minRate,
           contact_email: email,
           bio, 
-          accounts, 
+          accounts, // Το JSONB τώρα θα έχει μέσα και τα followers ανά πλατφόρμα!
           videos: videos.filter(v => v !== ""),
-          avatar_url: avatarUrl 
+          avatar_url: avatarUrl,
+          insights_urls: insightUrls
         }
       ]);
 
@@ -158,8 +199,6 @@ export default function InfluencerSignupForm() {
 
   // UI Helpers
   const txt = t[lang]; 
-
-  // Στυλ Input (Καρφωτά χρώματα με !important για να φαίνονται σίγουρα)
   const inputClass = "w-full px-4 py-3 !bg-white !text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder:text-gray-500";
   const labelClass = "block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1";
 
@@ -236,28 +275,52 @@ export default function InfluencerSignupForm() {
             </div>
         )}
 
-        {/* --- STEP 2 --- */}
+        {/* --- STEP 2: ΚΑΝΑΛΙΑ & FOLLOWERS --- */}
         {step === 2 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
                 <h2 className="text-xl font-bold text-black border-b border-gray-200 pb-2">{txt.step2}</h2>
                 
-                <div className="space-y-3">
-                    <label className={labelClass}>{txt.socialsTitle}</label>
+                <div className="space-y-4">
+                    <div>
+                        <label className={labelClass}>{txt.socialsTitle}</label>
+                        <p className="text-xs text-gray-500 mb-3">{txt.socialsDesc}</p>
+                    </div>
+                    
                     {accounts.map((acc, i) => (
-                        <div key={i} className="flex gap-3">
-                            <select className={`${inputClass} !w-1/3`} value={acc.platform} onChange={(e) => handleAccountChange(i, "platform", e.target.value)}>
-                                <option>Instagram</option>
-                                <option>TikTok</option>
-                                <option>YouTube</option>
-                            </select>
-                            <div className="flex-1 relative">
-                                <span className="absolute left-3 top-3 text-gray-500 z-10">@</span>
-                                <input type="text" className={`${inputClass} !pl-8`} value={acc.username} onChange={(e) => handleAccountChange(i, "username", e.target.value)} placeholder="username" />
+                        <div key={i} className="flex flex-col md:flex-row gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 relative group">
+                            {/* Platform */}
+                            <div className="w-full md:w-1/4">
+                                <label className="text-[10px] uppercase font-bold text-gray-400 mb-1 block">{txt.platLabel}</label>
+                                <select className={`${inputClass} !py-2 !text-sm`} value={acc.platform} onChange={(e) => handleAccountChange(i, "platform", e.target.value)}>
+                                    <option>Instagram</option>
+                                    <option>TikTok</option>
+                                    <option>YouTube</option>
+                                    <option>Facebook</option>
+                                </select>
                             </div>
-                            <button onClick={() => removeAccount(i)} className="text-red-500 font-bold px-2 hover:bg-red-50 rounded">✕</button>
+                            
+                            {/* Username */}
+                            <div className="w-full md:w-1/3">
+                                <label className="text-[10px] uppercase font-bold text-gray-400 mb-1 block">{txt.userLabel}</label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-2.5 text-gray-500 text-sm">@</span>
+                                    <input type="text" className={`${inputClass} !py-2 !pl-7 !text-sm`} value={acc.username} onChange={(e) => handleAccountChange(i, "username", e.target.value)} placeholder="username" />
+                                </div>
+                            </div>
+
+                            {/* Followers - ΤΟ ΝΕΟ ΠΕΔΙΟ */}
+                            <div className="w-full md:w-1/3">
+                                <label className="text-[10px] uppercase font-bold text-gray-400 mb-1 block">{txt.follLabel}</label>
+                                <input type="text" className={`${inputClass} !py-2 !text-sm`} value={acc.followers} onChange={(e) => handleAccountChange(i, "followers", e.target.value)} placeholder="15k" />
+                            </div>
+
+                            <button onClick={() => removeAccount(i)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold shadow-md hover:bg-red-600 transition-colors">✕</button>
                         </div>
                     ))}
-                    <button onClick={addAccount} className="text-blue-600 text-sm font-bold hover:underline">{txt.addAccount}</button>
+                    
+                    <button onClick={addAccount} className="text-blue-600 text-sm font-bold hover:underline flex items-center gap-1">
+                        {txt.addAccount}
+                    </button>
                 </div>
 
                 <div>
@@ -289,6 +352,23 @@ export default function InfluencerSignupForm() {
                             <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
                         </label>
                     </div>
+                </div>
+
+                {/* INSIGHTS */}
+                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                    <label className={labelClass}>{txt.insightsLabel}</label>
+                    <p className="text-xs text-slate-500 mb-3">{txt.insightsDesc}</p>
+                    <label className="bg-white border border-blue-300 text-blue-700 font-bold rounded-lg px-4 py-2 text-sm cursor-pointer hover:bg-blue-50 inline-block shadow-sm">
+                        {txt.uploadInsightsBtn}
+                        <input type="file" multiple accept="image/*" onChange={handleInsightsChange} className="hidden" />
+                    </label>
+                    {insightFiles.length > 0 && (
+                        <div className="mt-3 flex gap-2 flex-wrap">
+                            {insightFiles.map((f, i) => (
+                                <span key={i} className="text-xs bg-white px-2 py-1 rounded border border-gray-300 text-gray-700">📄 {f.name}</span>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 {/* Videos */}
