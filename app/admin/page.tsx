@@ -9,12 +9,17 @@ interface DbInfluencer {
   created_at: string;
   display_name: string;
   gender: string;
-  contact_email: string;
+  contact_email: string; // Εδώ η TypeScript περιμένει string
   verified: boolean;
   accounts: { platform: string; username: string }[];
   avatar_url: string | null;
   avg_likes: string | null; 
   location: string | null;
+  followers_count: string | null; 
+  insights_urls: string[] | null; 
+  min_rate: string | null;
+  languages: string | null;
+  bio: string | null;
 }
 
 interface Proposal {
@@ -90,6 +95,9 @@ export default function AdminDashboard() {
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
   
+  // MODAL STATE
+  const [selectedUser, setSelectedUser] = useState<DbInfluencer | null>(null);
+
   const [stats, setStats] = useState({ 
     total: 0, 
     pending: 0, 
@@ -100,12 +108,11 @@ export default function AdminDashboard() {
 
   const fetchData = async () => {
     setLoading(true);
-    
     const { data: usersData } = await supabase.from("influencers").select("*").order("created_at", { ascending: false });
     const { data: propData } = await supabase.from("proposals").select("*, influencers(display_name)").order("created_at", { ascending: false });
 
     if (usersData) {
-      setUsers(usersData);
+      setUsers(usersData as any);
       const total = usersData.length;
       const verified = usersData.filter((u) => u.verified).length;
       
@@ -145,162 +152,264 @@ export default function AdminDashboard() {
     fetchData();
   }, []);
 
-  const toggleStatus = async (id: number, currentStatus: boolean) => {
-    await supabase.from("influencers").update({ verified: !currentStatus }).eq("id", id);
-    fetchData();
+  // Η ΣΥΝΑΡΤΗΣΗ ΠΟΥ ΔΙΟΡΘΩΣΑΜΕ
+  const toggleStatus = async (id: number, currentStatus: boolean, userEmail: string, userName: string) => {
+    const { error } = await supabase.from("influencers").update({ verified: !currentStatus }).eq("id", id);
+    
+    if (!error) {
+        fetchData();
+        // Αν ΕΓΚΡΙΝΟΥΜΕ (άρα το verified γίνεται true), στέλνουμε email
+        if (!currentStatus) { 
+             try {
+                await fetch('/api/emails', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'approved', email: userEmail, name: userName })
+                });
+                alert(`Ο χρήστης ${userName} εγκρίθηκε και στάλθηκε email!`);
+             } catch (e) {
+                 console.error(e);
+                 alert("Το status άλλαξε, αλλά απέτυχε η αποστολή email.");
+             }
+        }
+    }
+    
+    // Ενημέρωση του Modal αν είναι ανοιχτό
+    if(selectedUser?.id === id) {
+        setSelectedUser(prev => prev ? {...prev, verified: !currentStatus} : null);
+    }
   };
+  
   const deleteUser = async (id: number) => {
-    if (confirm("Delete user?")) {
+    if (confirm("Είσαι σίγουρος ότι θες να διαγράψεις αυτόν τον χρήστη;")) {
         await supabase.from("influencers").delete().eq("id", id);
         fetchData();
+        setSelectedUser(null);
     }
   };
 
-  if (loading) return <div className="p-10 text-center text-slate-500">Loading Dashboard...</div>;
+  if (loading) return <div className="p-10 text-center">Loading...</div>;
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans p-8 text-slate-900">
       
-      {/* Header */}
+      {/* Header & Lang Toggle */}
       <div className="max-w-7xl mx-auto mb-8 flex justify-between items-center">
         <div>
-           <h1 className="text-3xl font-bold text-slate-900">{txt.title}</h1>
+           <h1 className="text-3xl font-bold">{txt.title}</h1>
            <p className="text-slate-500">{txt.sub}</p>
         </div>
-        <div className="flex items-center gap-4">
-             <button 
-                onClick={() => setLang(lang === "el" ? "en" : "el")}
-                className="text-xs font-bold border border-slate-300 px-3 py-1 rounded hover:bg-slate-100"
-            >
-                {lang === "el" ? "🇬🇧 EN" : "🇬🇷 EL"}
+        <div className="flex gap-4">
+             <button onClick={() => setLang(lang === "el" ? "en" : "el")} className="border px-3 py-1 rounded bg-white">
+                {lang === "el" ? "EN" : "EL"}
             </button>
-            <a href="/" className="text-blue-600 hover:underline font-medium">{txt.back}</a>
+            <a href="/" className="text-blue-600 hover:underline">{txt.back}</a>
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-            <p className="text-slate-500 text-xs font-bold uppercase">{txt.users}</p>
-            <p className="text-2xl font-extrabold text-slate-900">{stats.total}</p>
-        </div>
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-            <p className="text-slate-500 text-xs font-bold uppercase">{txt.pending}</p>
-            <p className="text-2xl font-extrabold text-yellow-600">{stats.pending}</p>
-        </div>
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-            <p className="text-slate-500 text-xs font-bold uppercase">{txt.verified}</p>
-            <p className="text-2xl font-extrabold text-green-600">{stats.verified}</p>
-        </div>
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-            <p className="text-slate-500 text-xs font-bold uppercase">{txt.reach}</p>
-            <p className="text-2xl font-extrabold text-purple-600">{stats.reach}</p>
-        </div>
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 ring-2 ring-blue-100">
-            <p className="text-slate-500 text-xs font-bold uppercase">{txt.pipeline}</p>
-            <p className="text-2xl font-extrabold text-blue-600">{stats.pipeline}</p>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="max-w-7xl mx-auto mb-6 border-b border-slate-200">
-          <div className="flex gap-6">
-              <button onClick={() => setActiveTab("influencers")} className={`pb-3 font-bold text-sm ${activeTab === "influencers" ? "text-blue-600 border-b-2 border-blue-600" : "text-slate-500 hover:text-slate-800"}`}>
-                  {txt.tab_inf}
-              </button>
-              <button onClick={() => setActiveTab("proposals")} className={`pb-3 font-bold text-sm ${activeTab === "proposals" ? "text-blue-600 border-b-2 border-blue-600" : "text-slate-500 hover:text-slate-800"}`}>
-                  {txt.tab_deals} ({proposals.length})
-              </button>
-          </div>
-      </div>
-
-      {/* --- TAB 1: INFLUENCERS --- */}
-      {activeTab === "influencers" && (
-          <div className="max-w-7xl mx-auto bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                    <thead>
-                        <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider font-semibold">
-                            <th className="p-4 border-b">{txt.col_inf}</th>
-                            <th className="p-4 border-b">{txt.col_loc}</th>
-                            <th className="p-4 border-b">{txt.col_stats}</th>
-                            <th className="p-4 border-b">{txt.col_status}</th>
-                            <th className="p-4 border-b text-right">{txt.col_act}</th>
-                        </tr>
-                    </thead>
-                    <tbody className="text-slate-700 text-sm">
-                        {users.map((user) => (
-                            <tr key={user.id} className="hover:bg-slate-50 border-b border-slate-100">
-                                <td className="p-4 flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-slate-200 relative overflow-hidden">
-                                        {user.avatar_url && <Image src={user.avatar_url} fill className="object-cover" alt="Avatar" />}
-                                    </div>
-                                    <span className="font-bold">{user.display_name}</span>
-                                </td>
-                                <td className="p-4">{user.location || "-"}</td>
-                                <td className="p-4 font-mono text-xs">{user.avg_likes ? `${user.avg_likes} likes` : "-"}</td>
-                                <td className="p-4">
-                                    {user.verified ? <span className="text-green-600 font-bold text-xs">{txt.verified}</span> : <span className="text-yellow-600 font-bold text-xs">{txt.pending}</span>}
-                                </td>
-                                <td className="p-4 text-right">
-                                    <button onClick={() => toggleStatus(user.id, user.verified)} className="text-blue-600 font-bold text-xs mr-3 hover:underline">
-                                        {user.verified ? txt.btn_unverify : txt.btn_approve}
-                                    </button>
-                                    <button onClick={() => deleteUser(user.id)} className="text-red-600 font-bold text-xs hover:underline">{txt.btn_delete}</button>
-                                </td>
+      {/* Main Content Area */}
+      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8">
+          
+          {/* LEFT: Table List */}
+          <div className="lg:col-span-3 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+             <div className="p-4 border-b border-slate-100 flex gap-4">
+                 <button onClick={() => setActiveTab("influencers")} className={`font-bold ${activeTab==="influencers" ? "text-blue-600" : "text-slate-500"}`}>{txt.tab_inf}</button>
+                 <button onClick={() => setActiveTab("proposals")} className={`font-bold ${activeTab==="proposals" ? "text-blue-600" : "text-slate-500"}`}>{txt.tab_deals} ({proposals.length})</button>
+             </div>
+             
+             {activeTab === "influencers" && (
+                 <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-50 text-slate-500">
+                            <tr>
+                                <th className="p-3">{txt.col_inf}</th>
+                                <th className="p-3">{txt.col_loc}</th>
+                                <th className="p-3">{txt.col_status}</th>
+                                <th className="p-3 text-right">{txt.col_act}</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-          </div>
-      )}
-
-      {/* --- TAB 2: PROPOSALS --- */}
-      {activeTab === "proposals" && (
-          <div className="max-w-7xl mx-auto bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-             <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                    <thead>
-                        <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider font-semibold">
-                            <th className="p-4 border-b">{txt.col_date}</th>
-                            <th className="p-4 border-b">{txt.col_brand}</th>
-                            <th className="p-4 border-b">{txt.col_srv}</th>
-                            <th className="p-4 border-b">{txt.col_inf}</th>
-                            <th className="p-4 border-b">{txt.col_bud}</th>
-                            <th className="p-4 border-b">{txt.col_status}</th>
-                        </tr>
-                    </thead>
-                    <tbody className="text-slate-700 text-sm">
-                        {proposals.length === 0 ? (
-                             <tr><td colSpan={6} className="p-8 text-center text-slate-500">{txt.no_data}</td></tr>
-                        ) : (
-                            proposals.map((p) => (
-                                <tr key={p.id} className="hover:bg-slate-50 border-b border-slate-100">
-                                    <td className="p-4 text-slate-500 text-xs">
-                                        {new Date(p.created_at).toLocaleDateString()}
+                        </thead>
+                        <tbody>
+                            {users.map(u => (
+                                <tr key={u.id} className="border-b hover:bg-slate-50 cursor-pointer" onClick={() => setSelectedUser(u)}>
+                                    <td className="p-3">
+                                        <div className="flex items-center gap-2">
+                                            {u.avatar_url && <div className="w-6 h-6 rounded-full bg-slate-200 overflow-hidden relative"><Image src={u.avatar_url} fill className="object-cover" alt="." /></div>}
+                                            <span className="font-bold">{u.display_name}</span>
+                                        </div>
                                     </td>
-                                    <td className="p-4 font-bold text-slate-900">{p.brand_name}</td>
-                                    <td className="p-4">
-                                        <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs border border-blue-100">
-                                            {p.service_type}
-                                        </span>
+                                    <td className="p-3">{u.location || "-"}</td>
+                                    <td className="p-3">
+                                        {u.verified ? <span className="text-green-600 font-bold">{txt.verified}</span> : <span className="text-yellow-600 font-bold">{txt.pending}</span>}
                                     </td>
-                                    <td className="p-4">{p.influencers?.display_name || "Unknown"}</td>
-                                    <td className="p-4 font-bold text-green-600">{p.budget}€</td>
-                                    <td className="p-4">
-                                        <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs uppercase font-bold tracking-wide">
-                                            {p.status}
-                                        </span>
+                                    <td className="p-3 text-right" onClick={(e) => e.stopPropagation()}> 
+                                        {/* Χρησιμοποιούμε stopPropagation για να μην ανοίγει το Modal όταν πατάμε το κουμπί */}
+                                        <button 
+                                            onClick={() => toggleStatus(u.id, u.verified, u.contact_email || "", u.display_name || "")} 
+                                            className="text-blue-600 font-bold text-xs mr-3 hover:underline"
+                                        >
+                                            {u.verified ? txt.btn_unverify : txt.btn_approve}
+                                        </button>
+                                        <button onClick={() => deleteUser(u.id)} className="text-red-600 font-bold text-xs hover:underline">{txt.btn_delete}</button>
                                     </td>
                                 </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
-            </div>
+                            ))}
+                        </tbody>
+                    </table>
+                 </div>
+             )}
+
+             {activeTab === "proposals" && (
+                 <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-50 text-slate-500">
+                            <tr>
+                                <th className="p-3">{txt.col_brand}</th>
+                                <th className="p-3">{txt.col_inf}</th>
+                                <th className="p-3">{txt.col_bud}</th>
+                                <th className="p-3">{txt.col_status}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {proposals.length === 0 ? <tr><td colSpan={4} className="p-4 text-center">{txt.no_data}</td></tr> : 
+                            proposals.map(p => (
+                                <tr key={p.id} className="border-b hover:bg-slate-50">
+                                    <td className="p-3 font-bold">{p.brand_name}</td>
+                                    <td className="p-3">{p.influencers?.display_name}</td>
+                                    <td className="p-3 text-green-600 font-bold">{p.budget}€</td>
+                                    <td className="p-3">{p.status}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                 </div>
+             )}
+          </div>
+
+          {/* RIGHT: Stats */}
+          <div className="space-y-4">
+              <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                  <p className="text-xs text-slate-500 uppercase">{txt.users}</p>
+                  <p className="text-2xl font-bold">{stats.total}</p>
+              </div>
+              <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                  <p className="text-xs text-slate-500 uppercase">{txt.pending}</p>
+                  <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
+              </div>
+              <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                  <p className="text-xs text-slate-500 uppercase">{txt.verified}</p>
+                  <p className="text-2xl font-bold text-green-600">{stats.verified}</p>
+              </div>
+              <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                  <p className="text-xs text-slate-500 uppercase">{txt.pipeline}</p>
+                  <p className="text-2xl font-bold text-blue-600">{stats.pipeline}</p>
+              </div>
+          </div>
+      </div>
+
+      {/* --- DETAIL MODAL --- */}
+      {selectedUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+              <div className="bg-white w-full max-w-4xl h-[90vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+                  
+                  {/* Modal Header */}
+                  <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                      <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-full bg-slate-200 relative overflow-hidden">
+                              {selectedUser.avatar_url && <Image src={selectedUser.avatar_url} fill className="object-cover" alt="Avatar" />}
+                          </div>
+                          <div>
+                              <h2 className="text-xl font-bold text-slate-900">{selectedUser.display_name}</h2>
+                              <p className="text-sm text-slate-500">{selectedUser.contact_email}</p>
+                          </div>
+                      </div>
+                      <button onClick={() => setSelectedUser(null)} className="text-2xl text-slate-400 hover:text-slate-600">×</button>
+                  </div>
+
+                  {/* Modal Body */}
+                  <div className="flex-1 overflow-y-auto p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+                      
+                      {/* Left: Info */}
+                      <div className="space-y-6">
+                          <div>
+                              <h3 className="text-sm font-bold uppercase text-slate-400 mb-2">Basic Info</h3>
+                              <div className="grid grid-cols-2 gap-4 text-sm">
+                                  <div className="p-3 bg-slate-50 rounded">
+                                      <span className="block text-slate-500 text-xs">Location</span>
+                                      <span className="font-medium">{selectedUser.location}</span>
+                                  </div>
+                                  <div className="p-3 bg-slate-50 rounded">
+                                      <span className="block text-slate-500 text-xs">Followers (Declared)</span>
+                                      <span className="font-bold text-blue-600">{selectedUser.followers_count}</span>
+                                  </div>
+                                  <div className="p-3 bg-slate-50 rounded">
+                                      <span className="block text-slate-500 text-xs">Gender</span>
+                                      <span className="font-medium">{selectedUser.gender}</span>
+                                  </div>
+                                  <div className="p-3 bg-slate-50 rounded">
+                                      <span className="block text-slate-500 text-xs">Min Rate</span>
+                                      <span className="font-medium">{selectedUser.min_rate}€</span>
+                                  </div>
+                              </div>
+                          </div>
+
+                          <div>
+                              <h3 className="text-sm font-bold uppercase text-slate-400 mb-2">Bio</h3>
+                              <p className="text-sm text-slate-600 bg-slate-50 p-4 rounded leading-relaxed">{selectedUser.bio}</p>
+                          </div>
+
+                          <div>
+                              <h3 className="text-sm font-bold uppercase text-slate-400 mb-2">Socials</h3>
+                              <div className="flex flex-wrap gap-2">
+                                  {selectedUser.accounts?.map((acc, i) => (
+                                      <span key={i} className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded border border-blue-100">
+                                          {acc.platform}: {acc.username} ({acc.followers || "-"})
+                                      </span>
+                                  ))}
+                              </div>
+                          </div>
+                      </div>
+
+                      {/* Right: PROOF (Screenshots) */}
+                      <div className="bg-slate-50 p-6 rounded-xl border border-slate-200">
+                          <h3 className="text-sm font-bold uppercase text-slate-900 mb-4">📊 Insights Proof (Screenshots)</h3>
+                          
+                          {selectedUser.insights_urls && selectedUser.insights_urls.length > 0 ? (
+                              <div className="grid grid-cols-2 gap-4">
+                                  {selectedUser.insights_urls.map((url, i) => (
+                                      <a key={i} href={url} target="_blank" className="block relative aspect-[9/16] bg-white rounded-lg overflow-hidden border border-slate-200 shadow-sm hover:ring-2 ring-blue-500 transition-all">
+                                          <Image src={url} fill className="object-cover" alt="Proof" />
+                                          <div className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/20 transition-colors">
+                                              <span className="bg-white/80 px-2 py-1 text-xs rounded shadow opacity-0 hover:opacity-100">Zoom</span>
+                                          </div>
+                                      </a>
+                                  ))}
+                              </div>
+                          ) : (
+                              <div className="text-center py-10 text-slate-400 italic">No screenshots uploaded.</div>
+                          )}
+                      </div>
+
+                  </div>
+
+                  {/* Modal Footer (Actions) */}
+                  <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-4">
+                      <button onClick={() => deleteUser(selectedUser.id)} className="px-4 py-2 text-red-600 font-bold hover:bg-red-50 rounded">{txt.btn_delete}</button>
+                      
+                      {selectedUser.verified ? (
+                          <button onClick={() => toggleStatus(selectedUser.id, true, selectedUser.contact_email || "", selectedUser.display_name)} className="px-6 py-2 bg-yellow-100 text-yellow-700 font-bold rounded hover:bg-yellow-200">
+                              {txt.btn_unverify}
+                          </button>
+                      ) : (
+                          <button onClick={() => toggleStatus(selectedUser.id, false, selectedUser.contact_email || "", selectedUser.display_name)} className="px-6 py-2 bg-green-600 text-white font-bold rounded hover:bg-green-700 shadow-lg">
+                              ✅ {txt.btn_approve}
+                          </button>
+                      )}
+                  </div>
+
+              </div>
           </div>
       )}
+
     </div>
   );
 }

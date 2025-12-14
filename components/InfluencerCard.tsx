@@ -12,7 +12,7 @@ interface InfluencerCardProps {
   categories?: string[];
 }
 
-// --- ICONS ---
+// --- FULL ICONS ---
 const InstagramIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
 );
@@ -23,8 +23,7 @@ const YoutubeIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"></path><polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"></polygon></svg>
 );
 
-// --- HELPER ΓΙΑ ΜΟΡΦΟΠΟΙΗΣΗ ΑΡΙΘΜΩΝ ---
-// Μετατρέπει π.χ. το 12500 σε "12.5k"
+// --- NUMBER FORMATTER ---
 const formatNum = (num?: number) => {
     if (num === undefined || num === null) return "";
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
@@ -48,6 +47,7 @@ export default function InfluencerCard({
       <div className="h-24 bg-gradient-to-r from-blue-50 to-purple-50 group-hover:from-blue-100 group-hover:to-purple-100 transition-colors"></div>
       
       <div className="px-5 pb-5 flex-1 flex flex-col">
+        
         {/* Avatar & Verified Badge */}
         <div className="relative -mt-12 mb-3">
           <div className="relative w-20 h-20 rounded-full border-4 border-white shadow-md overflow-hidden bg-white">
@@ -86,7 +86,6 @@ export default function InfluencerCard({
         {/* Footer: Social Stats */}
         <div className="mt-auto pt-4 border-t border-slate-100 grid grid-cols-2 gap-2">
             
-            {/* Instagram */}
             {socials.instagram && (
                 <div className="flex items-center gap-2 text-slate-600 text-xs bg-slate-50 p-1.5 rounded-lg">
                     <span className="text-pink-600"><InstagramIcon /></span>
@@ -94,7 +93,6 @@ export default function InfluencerCard({
                 </div>
             )}
             
-            {/* TikTok */}
             {socials.tiktok && (
                 <div className="flex items-center gap-2 text-slate-600 text-xs bg-slate-50 p-1.5 rounded-lg">
                     <span className="text-black"><TiktokIcon /></span>
@@ -102,7 +100,6 @@ export default function InfluencerCard({
                 </div>
             )}
             
-            {/* YouTube */}
             {socials.youtube && (
                 <div className="flex items-center gap-2 text-slate-600 text-xs bg-slate-50 p-1.5 rounded-lg">
                     <span className="text-red-600"><YoutubeIcon /></span>

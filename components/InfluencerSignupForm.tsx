@@ -4,9 +4,17 @@ import { useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import Image from "next/image";
 
-// Προσθέσαμε το followers στο Type
 type Account = { platform: string; username: string; followers: string };
 type Lang = "el" | "en";
+
+// --- FULL CATEGORY LIST ---
+const CATEGORIES = [
+  "Lifestyle", "Fashion & Style", "Beauty & Makeup", "Travel", "Food & Drink",
+  "Health & Fitness", "Tech & Gadgets", "Business & Finance", "Gaming & Esports",
+  "Parenting & Family", "Home & Decor", "Pets & Animals", "Comedy & Entertainment",
+  "Art & Photography", "Music & Dance", "Education & Coaching", "Sports & Athletes",
+  "DIY & Crafts", "Sustainability & Eco", "Cars & Automotive"
+];
 
 const t = {
   el: {
@@ -18,6 +26,7 @@ const t = {
     nameLabel: "Ονοματεπώνυμο",
     namePlace: "π.χ. Μαρία Παππά",
     genderLabel: "Φύλο",
+    catLabel: "Κύρια Κατηγορία",
     male: "Άνδρας",
     female: "Γυναίκα",
     locationLabel: "Τοποθεσία",
@@ -59,6 +68,7 @@ const t = {
     nameLabel: "Full Name",
     namePlace: "e.g. Maria Pappa",
     genderLabel: "Gender",
+    catLabel: "Primary Category",
     male: "Male",
     female: "Female",
     locationLabel: "Location",
@@ -102,11 +112,11 @@ export default function InfluencerSignupForm() {
   // Data States
   const [displayName, setDisplayName] = useState("");
   const [gender, setGender] = useState("Female");
+  const [category, setCategory] = useState("Lifestyle");
   const [location, setLocation] = useState("");
   const [bio, setBio] = useState("");
   const [email, setEmail] = useState("");
   
-  // Updated Account State structure
   const [accounts, setAccounts] = useState<Account[]>([{ platform: "Instagram", username: "", followers: "" }]);
   const [languages, setLanguages] = useState("");
   
@@ -175,12 +185,13 @@ export default function InfluencerSignupForm() {
         { 
           display_name: displayName, 
           gender, 
+          category,
           location,
           languages,
           min_rate: minRate,
           contact_email: email,
           bio, 
-          accounts, // Το JSONB τώρα θα έχει μέσα και τα followers ανά πλατφόρμα!
+          accounts, 
           videos: videos.filter(v => v !== ""),
           avatar_url: avatarUrl,
           insights_urls: insightUrls
@@ -188,6 +199,27 @@ export default function InfluencerSignupForm() {
       ]);
 
       if (error) throw error;
+
+      // 4. Send Emails (NEW)
+      try {
+        // Mail στον Influencer
+        await fetch('/api/emails', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'signup_influencer', email: email, name: displayName })
+        });
+        
+        // Mail στον Admin (εσένα)
+        await fetch('/api/emails', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'signup_admin', email: email, name: displayName })
+        });
+      } catch (mailError) {
+          console.error("Email sending failed:", mailError);
+          // Δεν σταματάμε τη ροή αν αποτύχει το mail
+      }
+
       setStep(4);
     } catch (err: any) {
       console.error(err);
@@ -252,6 +284,16 @@ export default function InfluencerSignupForm() {
                     </div>
                 </div>
 
+                {/* CATEGORY SELECT */}
+                <div>
+                    <label className={labelClass}>{txt.catLabel}</label>
+                    <select className={inputClass} value={category} onChange={(e) => setCategory(e.target.value)}>
+                        {CATEGORIES.map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                    </select>
+                </div>
+
                 <div>
                     <label className={labelClass}>{txt.locationLabel}</label>
                     <input type="text" className={inputClass} value={location} onChange={(e) => setLocation(e.target.value)} placeholder={txt.locationPlace} />
@@ -275,7 +317,7 @@ export default function InfluencerSignupForm() {
             </div>
         )}
 
-        {/* --- STEP 2: ΚΑΝΑΛΙΑ & FOLLOWERS --- */}
+        {/* --- STEP 2 --- */}
         {step === 2 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
                 <h2 className="text-xl font-bold text-black border-b border-gray-200 pb-2">{txt.step2}</h2>
@@ -308,7 +350,7 @@ export default function InfluencerSignupForm() {
                                 </div>
                             </div>
 
-                            {/* Followers - ΤΟ ΝΕΟ ΠΕΔΙΟ */}
+                            {/* Followers */}
                             <div className="w-full md:w-1/3">
                                 <label className="text-[10px] uppercase font-bold text-gray-400 mb-1 block">{txt.follLabel}</label>
                                 <input type="text" className={`${inputClass} !py-2 !text-sm`} value={acc.followers} onChange={(e) => handleAccountChange(i, "followers", e.target.value)} placeholder="15k" />
@@ -418,8 +460,6 @@ export default function InfluencerSignupForm() {
     </div>
   );
 }
-
-
 
 
 

@@ -12,7 +12,7 @@ export interface Influencer {
   avatar: string;
   verified: boolean;
   socials: { [key: string]: string | undefined };
-  followers: { [key: string]: number | undefined }; // Αποθηκεύουμε νούμερα εδώ
+  followers: { [key: string]: number | undefined };
   categories: string[];
   platform: string;
   gender: "Male" | "Female";
@@ -24,7 +24,16 @@ export interface Influencer {
   engagement_rate?: string;
 }
 
-// --- TRANSLATIONS ---
+// --- FULL CATEGORY LIST ---
+const CATEGORIES = [
+  "Lifestyle", "Fashion & Style", "Beauty & Makeup", "Travel", "Food & Drink",
+  "Health & Fitness", "Tech & Gadgets", "Business & Finance", "Gaming & Esports",
+  "Parenting & Family", "Home & Decor", "Pets & Animals", "Comedy & Entertainment",
+  "Art & Photography", "Music & Dance", "Education & Coaching", "Sports & Athletes",
+  "DIY & Crafts", "Sustainability & Eco", "Cars & Automotive"
+];
+
+// --- FULL TRANSLATIONS ---
 const t = {
   el: {
     searchPlace: "Αναζήτηση ονόματος...",
@@ -64,7 +73,7 @@ const t = {
   }
 };
 
-// --- FULL DUMMY DATA ---
+// --- FULL DUMMY DATA (8 PROFILES) ---
 export const dummyInfluencers: Influencer[] = [
   {
     id: "dummy-1",
@@ -152,7 +161,7 @@ export const dummyInfluencers: Influencer[] = [
     bio: "Pro gamer & streamer. LoL & Valorant highlights.",
     avatar: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=400&q=80",
     verified: true,
-    socials: { youtube: "katerina_gaming" }, // Twitch mapping to YT for demo icon
+    socials: { youtube: "katerina_gaming" }, 
     followers: { youtube: 32000 },
     categories: ["Gaming"],
     platform: "YouTube",
@@ -209,8 +218,6 @@ const getMaxFollowers = (followers: any) => {
     const values = Object.values(followers).filter((v): v is number => v !== undefined);
     return values.length ? Math.max(...values as number[]) : 0;
 };
-
-// Helper: Μετατροπή "15.5k" -> 15500
 const parseFollowerString = (str: string) => {
     if (!str) return 0;
     const clean = str.toLowerCase().replace(/,/g, '').trim();
@@ -231,7 +238,6 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
   const [genderFilter, setGenderFilter] = useState("All");
   const [showAdvanced, setShowAdvanced] = useState(false);
   
-  // ADVANCED
   const [followerRange, setFollowerRange] = useState("All");
   const [budgetMax, setBudgetMax] = useState("All");
   const [minEngagement, setMinEngagement] = useState("All");
@@ -239,20 +245,17 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
   useEffect(() => {
     const fetchReal = async () => {
       const { data } = await supabase.from("influencers").select("*").eq('verified', true);
-      
       if (data) {
          const realInfluencers: Influencer[] = data.map((inf: any) => {
           
           const socialsObj: { [key: string]: string } = {};
           const followersObj: { [key: string]: number } = {};
 
-          // Εδώ γίνεται η μαγεία: Διαβάζουμε το account JSON και βγάζουμε τα νούμερα
           if (Array.isArray(inf.accounts)) {
             inf.accounts.forEach((acc: any) => {
               if (acc.platform && acc.username) {
                   const key = acc.platform.toLowerCase();
                   socialsObj[key] = acc.username;
-                  // Μετατροπή του string "15k" σε αριθμό
                   followersObj[key] = parseFollowerString(acc.followers);
               }
             });
@@ -265,8 +268,8 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
             avatar: inf.avatar_url || "https://images.unsplash.com/photo-1633332755192-727a05c4013d?auto=format&fit=crop&w=400&q=80",
             verified: inf.verified,
             socials: socialsObj,
-            followers: followersObj, // Τώρα η κάρτα θα δείχνει τα σωστά νούμερα
-            categories: ["New"],
+            followers: followersObj,
+            categories: [inf.category || "New"], 
             platform: "Instagram",
             gender: inf.gender || "Female",
             location: inf.location,
@@ -276,14 +279,12 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
             videos: Array.isArray(inf.videos) ? inf.videos : []
           };
         });
-        // Ενώνουμε τα Dummy με τα Real
         setInfluencers([...dummyInfluencers, ...realInfluencers]);
       }
     };
     fetchReal();
   }, []);
 
-  // FILTER LOGIC
   const filtered = influencers.filter((inf) => {
     const searchMatch = inf.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                         inf.bio.toLowerCase().includes(searchQuery.toLowerCase());
@@ -294,7 +295,6 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
     const categoryMatch = categoryFilter === "All" || inf.categories.includes(categoryFilter);
     const genderMatch = genderFilter === "All" || inf.gender === genderFilter;
 
-    // Advanced Stats
     let followerMatch = true;
     const maxFollowers = getMaxFollowers(inf.followers);
     if (followerRange === "Nano") followerMatch = maxFollowers > 1000 && maxFollowers < 10000;
@@ -332,10 +332,9 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
 
   return (
     <div>
-      {/* FILTER BAR */}
       <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 mb-10 transition-all duration-300">
         
-        {/* Row 1: Inputs */}
+        {/* Search Row */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
             <div className="md:col-span-5 relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><SearchIcon /></div>
@@ -352,7 +351,7 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
             </div>
         </div>
 
-        {/* Row 2: Advanced Filters */}
+        {/* Filters Panel */}
         <div className={`overflow-hidden transition-all duration-300 ${showAdvanced ? 'max-h-[500px] opacity-100 mt-4 pt-4 border-t border-slate-100' : 'max-h-0 opacity-0'}`}>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 
@@ -363,13 +362,12 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
                     <option value="YouTube">YouTube</option>
                 </select>
 
+                {/* FULL CATEGORY LIST USED HERE */}
                 <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className={selectClass}>
                     <option value="All">{txt.catAll}</option>
-                    <option value="Beauty">Beauty</option>
-                    <option value="Lifestyle">Lifestyle</option>
-                    <option value="Tech">Tech</option>
-                    <option value="Fitness">Fitness</option>
-                    <option value="Travel">Travel</option>
+                    {CATEGORIES.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                    ))}
                 </select>
 
                 <select value={genderFilter} onChange={(e) => setGenderFilter(e.target.value)} className={selectClass}>
@@ -409,7 +407,7 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
         </div>
       </div>
 
-      {/* GRID */}
+      {/* Grid */}
       {filtered.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
             {filtered.map((inf) => (
