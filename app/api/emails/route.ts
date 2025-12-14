@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@influo.gr'; // Βάλε το email σου στο .env
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'nd.6@hotmail.com'; // Βάλε το email σου στο .env
 
 export async function POST(req: Request) {
   try {
