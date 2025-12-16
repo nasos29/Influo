@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'nd.6@hotmail.com'; // Βάλε το email σου στο .env
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@influo.gr'; 
+const SENDER_EMAIL = 'noreply@influo.gr'; // <-- ΝΕΑ ΣΤΑΘΕΡΑ
 
 export async function POST(req: Request) {
   try {
@@ -53,7 +54,7 @@ export async function POST(req: Request) {
 
     // Αποστολή Email
     const data = await resend.emails.send({
-      from: 'Influo <onboarding@resend.dev>', // Στο Free tier, άστο έτσι ή use your verified domain
+      from: 'Influo <noreply@influo.gr>', // Στο Free tier, άστο έτσι ή use your verified domain
       to: [toEmail],
       subject: subject,
       html: html,
