@@ -4,7 +4,7 @@ import { Resend } from 'resend';
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 // --- ΤΟ VERIFIED EMAIL (ΤΟ ΔΙΚΟ ΣΟΥ) ---
-const VERIFIED_SENDER_EMAIL = 'nd.6@hotmail.com'; // Βάλε το δικό σου verified email
+const VERIFIED_SENDER_EMAIL = 'info@influo.gr'; // Βάλε το δικό σου verified email
 
 export async function POST(req: Request) {
   try {
