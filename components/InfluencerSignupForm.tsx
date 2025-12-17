@@ -152,13 +152,44 @@ export default function InfluencerSignupForm() {
   const addVideo = () => setVideos([...videos, ""]);
   const removeVideo = (i: number) => { const copy = [...videos]; copy.splice(i, 1); setVideos(copy); };
 
-  // Submit Logic
+  // --- NEW: EMAIL CHECK AND NEXT STEP ---
+  const handleCheckEmailAndNext = async () => {
+      setMessage(""); // Καθαρισμός μηνύματος
+      setLoading(true);
+
+      try {
+          // Έλεγχος Μοναδικότητας (πριν προχωρήσει)
+          const { count, error: checkError } = await supabase
+              .from('influencers')
+              .select('id', { count: 'exact', head: true }) 
+              .eq('contact_email', email);
+              
+          if (count && count > 0) { 
+              const errorMsg = lang === "el" 
+                  ? "Αυτό το Email είναι ήδη καταχωρημένο. Παρακαλώ χρησιμοποιήστε άλλο." 
+                  : "This email is already registered. Please use a different one.";
+              throw new Error(errorMsg);
+          }
+          if (checkError && checkError.code !== 'PGRST116' && checkError.code !== '42703') {
+              throw new Error(checkError.message);
+          }
+
+          // Όλα ΟΚ: Προχωράμε στο επόμενο βήμα
+          setStep(2);
+      } catch (err: any) {
+          console.error(err);
+          const errorMessage = err.message.includes("ήδη καταχωρημένο") || err.message.includes("already registered") ? err.message : (lang === "el" ? "Σφάλμα: " : "Error: ") + err.message;
+          setMessage(errorMessage); // Εμφάνιση error
+      } finally {
+          setLoading(false);
+      }
+  };
+
+  // Submit Logic (Final Step)
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      // 1. Database Insert (Αφήνουμε τη βάση να κάνει τον έλεγχο μοναδικότητας)
-      
-      // Uploads (simplified for brevity)
+      // 1. Uploads 
       let avatarUrl = "";
       if (avatarFile) {
         const fileName = `avatar-${Date.now()}-${avatarFile.name}`;
@@ -181,7 +212,7 @@ export default function InfluencerSignupForm() {
           }));
       }
 
-      // 2. Database Insert
+      // 2. Database Insert (Ο έλεγχος μοναδικότητας έγινε στο Step 1, αλλά η βάση θα πετάξει πάλι αν υπάρξει race condition)
       const { error: insertError } = await supabase.from("influencers").insert([
         { 
           display_name: displayName, 
@@ -200,11 +231,8 @@ export default function InfluencerSignupForm() {
       ]);
 
       if (insertError) {
-          // Πιάνουμε το ΣΦΑΛΜΑ ΜΟΝΑΔΙΚΟΤΗΤΑΣ (Postgres error code 23505)
           if (insertError.code === '23505') {
-             const errorMsg = lang === "el" 
-                ? "Αυτό το Email είναι ήδη καταχωρημένο. Παρακαλώ χρησιμοποιήστε άλλο." 
-                : "This email is already registered. Please use a different one.";
+             const errorMsg = lang === "el" ? "Αυτό το Email είναι ήδη καταχωρημένο. Παρακαλώ χρησιμοποιήστε άλλο." : "This email is already registered. Please use a different one.";
              throw new Error(errorMsg);
           }
           throw insertError;
@@ -232,7 +260,6 @@ export default function InfluencerSignupForm() {
       setStep(4);
     } catch (err: any) {
       console.error(err);
-      // Εμφάνιση του duplicate email error
       const errorMessage = err.message.includes("ήδη καταχωρημένο") || err.message.includes("already registered") || err.message.includes("23505") ? (lang === "el" ? "Αυτό το Email είναι ήδη καταχωρημένο. Παρακαλώ χρησιμοποιήστε άλλο." : "This email is already registered. Please use a different one.") : (lang === "el" ? "Σφάλμα: " : "Error: ") + err.message;
       setMessage(errorMessage);
     } finally {
@@ -320,10 +347,15 @@ export default function InfluencerSignupForm() {
                     <textarea className={inputClass} rows={3} value={bio} onChange={(e) => setBio(e.target.value)} placeholder={txt.bioPlace} />
                 </div>
 
+                {message && <p className="text-red-600 text-sm text-center mt-2 font-medium bg-red-50 p-2 rounded">{message}</p>}
+
                 <div className="pt-4">
-                    {/* FIX: ΣΒΗΝΕΙ ΤΟ ΜΗΝΥΜΑ ΛΑΘΟΥΣ ΟΤΑΝ ΠΑΤΑΣ NEXT */}
-                    <button onClick={() => { setStep(2); setMessage(""); }} disabled={!displayName || !email} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors shadow-lg disabled:opacity-50">
-                        {txt.next}
+                    <button 
+                        onClick={handleCheckEmailAndNext} 
+                        disabled={!displayName || !email || loading} 
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors shadow-lg disabled:opacity-50"
+                    >
+                        {loading ? "Checking..." : txt.next}
                     </button>
                 </div>
             </div>
