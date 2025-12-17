@@ -56,7 +56,7 @@ const t = {
     submit: "Ολοκλήρωση Εγγραφής",
     loading: "Ανέβασμα Δεδομένων...",
     successTitle: "Καλωσήρθες!",
-    successDesc: "Το προφίλ σου δημιουργήθηκε. Η ομάδα μας θα ελέγξει τα screenshots και θα σε ειδοποιήσει.",
+    successDesc: "Το προφίλ σου δημιουργήθηκε. Θα λάβεις email επιβεβαίωσης και η ομάδα μας θα ελέγξει τα στοιχεία σου.",
     close: "Κλείσιμο"
   },
   en: {
@@ -98,7 +98,7 @@ const t = {
     submit: "Complete Signup",
     loading: "Uploading Data...",
     successTitle: "Welcome aboard!",
-    successDesc: "Profile created. Our team will review your insights proofs shortly.",
+    successDesc: "Profile created. You will receive a confirmation email and our team will review your application.",
     close: "Close"
   }
 };
@@ -156,7 +156,23 @@ export default function InfluencerSignupForm() {
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      // 1. Avatar Upload
+      // --- 1. NEW: DUPLICATE EMAIL CHECK ---
+      const { data: existingUser, error: checkError } = await supabase
+        .from('influencers')
+        .select('id')
+        .eq('contact_email', email)
+        .maybeSingle(); // maybeSingle returns null if no user is found
+        
+      if (existingUser) {
+        throw new Error(txt.el === t.el.headerTitle ? "Αυτό το Email είναι ήδη καταχωρημένο. Παρακαλώ χρησιμοποιήστε άλλο." : "This email is already registered. Please use a different one.");
+      }
+      if (checkError && checkError.code !== 'PGRST116' && checkError.code !== '42703') { // PGRST116 = No rows, 42703 = column "followers_count" does not exist
+         // Αν υπάρχει άλλο σφάλμα στη βάση, το πετάμε
+         throw new Error(checkError.message);
+      }
+      // ------------------------------------
+
+      // 2. Uploads 
       let avatarUrl = "";
       if (avatarFile) {
         const fileName = `avatar-${Date.now()}-${avatarFile.name}`;
@@ -167,7 +183,6 @@ export default function InfluencerSignupForm() {
         }
       }
 
-      // 2. Insights Upload
       const insightUrls: string[] = [];
       if (insightFiles.length > 0) {
           await Promise.all(insightFiles.map(async (file) => {
@@ -181,7 +196,7 @@ export default function InfluencerSignupForm() {
       }
 
       // 3. Database Insert
-      const { error } = await supabase.from("influencers").insert([
+      const { error: insertError } = await supabase.from("influencers").insert([
         { 
           display_name: displayName, 
           gender, 
@@ -198,32 +213,32 @@ export default function InfluencerSignupForm() {
         }
       ]);
 
-      if (error) throw error;
+      if (insertError) throw insertError;
 
-      // 4. Send Emails (NEW)
+      // 4. Send Emails (UPDATED)
       try {
-        // Mail στον Influencer
+        // Mail 1: Στον Influencer (Confirmation)
         await fetch('/api/emails', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ type: 'signup_influencer', email: email, name: displayName })
         });
         
-        // Mail στον Admin (εσένα)
+        // Mail 2: Στον Admin (Notification)
         await fetch('/api/emails', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'signup_admin', email: email, name: displayName })
+            body: JSON.stringify({ type: 'signup_admin', email: email, name: displayName, location: location }) 
         });
       } catch (mailError) {
           console.error("Email sending failed:", mailError);
-          // Δεν σταματάμε τη ροή αν αποτύχει το mail
       }
 
       setStep(4);
     } catch (err: any) {
       console.error(err);
-      setMessage(`Error: ${err.message}`);
+      const errorMessage = err.message.includes("Email είναι ήδη καταχωρημένο") || err.message.includes("already registered") ? err.message : (lang === "el" ? "Σφάλμα: " : "Error: ") + err.message;
+      setMessage(errorMessage);
     } finally {
       setLoading(false);
     }

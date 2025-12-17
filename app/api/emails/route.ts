@@ -3,14 +3,13 @@ import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// --- ΟΡΙΣΤΙΚΟ FIX: ΠΑΝΤΑ ΤΟ @INFLUO.GR (Verified Domain) ---
 const VERIFIED_SENDER_EMAIL = 'noreply@influo.gr'; 
-const ADMIN_RECEIVING_EMAIL = 'nd.6@hotmail.com'; // Το email που λαμβάνεις notifications
+const ADMIN_RECEIVING_EMAIL = process.env.ADMIN_EMAIL || 'admin@influo.gr'; 
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { type, email, name } = body;
+    const { type, email, name, location } = body; // Προσθήκη location για το Admin mail
 
     let subject = "";
     let html = "";
@@ -19,27 +18,28 @@ export async function POST(req: Request) {
     // --- SET PARAMS ---
     if (type === 'signup_influencer') {
       toEmail = email;
-      subject = "Καλωσήρθες στο Influo! 🚀";
+      subject = "Επιβεβαίωση Εγγραφής | Welcome to Influo! 🤝"; // ΝΕΟ SUBJECT
       html = `
-        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
-            <h1 style="color: #1e40af;">Γεια σου ${name}!</h1>
-            <p>Λάβαμε την αίτησή σου για το Creator Club. Ευχαριστούμε για την εγγραφή!</p>
-            <p>Η ομάδα μας θα ελέγξει το προφίλ και τα screenshots σου εντός 24 ωρών.</p>
-            <p>Θα λάβεις νέο email μόλις εγκριθείς και το προφίλ σου γίνει δημόσιο.</p>
+        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #1e40af; border-radius: 8px; background-color: #eff6ff;">
+            <h1 style="color: #1e40af;">Ευχαριστούμε για την εγγραφή σου, ${name}!</h1>
+            <p>Λάβαμε το προφίλ σου. Η αίτησή σου βρίσκεται υπό έλεγχο.</p>
+            <p>Θα ελέγξουμε τα Insights σου και θα σε εγκρίνουμε εντός 24 ωρών.</p>
+            <br/>
+            <p>Θα λάβεις ένα νέο email **μόλις** το προφίλ σου γίνει δημόσιο στο Directory.</p>
             <br/>
             <p>Με εκτίμηση,<br/>Η ομάδα του Influo</p>
         </div>
       `;
     } 
     else if (type === 'signup_admin') {
-      toEmail = ADMIN_RECEIVING_EMAIL; // Διορθώνουμε τον παραλήπτη: ΠΑΕΙ ΣΤΟΝ ΕΑΥΤΟ ΜΑΣ
+      toEmail = ADMIN_RECEIVING_EMAIL; 
       subject = `🔔 Νέα εγγραφή: ${name}`;
       html = `
-        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9;">
+        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #ca8a04; border-radius: 8px; background-color: #fefce8;">
             <h1 style="color: #ca8a04;">Νέος Influencer για έλεγχο!</h1>
             <p>Ο/Η <strong>${name}</strong> μόλις έκανε εγγραφή.</p>
             <p>Email: ${email}</p>
-            <p>Location: ${body.location || 'N/A'}</p>
+            <p>Location: ${location || 'N/A'}</p>
             <p>Παρακαλώ μπες στο Admin Dashboard για έγκριση:</p>
             <a href="https://${req.headers.get('host')}/admin" style="display: inline-block; padding: 10px 20px; background-color: #1e40af; color: white; text-decoration: none; border-radius: 5px;">Πήγαινε στο Admin Dashboard</a>
         </div>
@@ -52,10 +52,9 @@ export async function POST(req: Request) {
         <div style="font-family: sans-serif; padding: 20px; border: 1px solid #10b981; border-radius: 8px; background-color: #ecfdf5;">
             <h1 style="color: #047857;">Είσαι Live! Συγχαρητήρια!</h1>
             <p>Γεια σου ${name},</p>
-            <p>Το προφίλ σου ελέγχθηκε και είναι πλέον ενεργό στο Directory μας.</p>
-            <p>Ξεκίνα να δέχεσαι προτάσεις συνεργασίας!</p>
+            <p>Το προφίλ σου είναι πλέον ενεργό στο Directory μας. Τα Brands μπορούν να σε βρουν!</p>
             <br/>
-            <p>Με εκτίμηση,<br/>Η ομάδα του Influo</p>
+            <p>Καλή επιτυχία,<br/>Η ομάδα του Influo</p>
         </div>
       `;
     }
@@ -65,7 +64,7 @@ export async function POST(req: Request) {
       from: `Influo <${VERIFIED_SENDER_EMAIL}>`, 
       to: [toEmail],
       subject: subject,
-      html: html, // ΕΔΩ ΕΙΝΑΙ ΠΛΕΟΝ ΤΟ ΠΕΡΙΕΧΟΜΕΝΟ
+      html: html,
     });
 
     return NextResponse.json({ success: true, data });
