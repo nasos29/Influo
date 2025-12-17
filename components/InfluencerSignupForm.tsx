@@ -107,7 +107,7 @@ export default function InfluencerSignupForm() {
   const [lang, setLang] = useState<Lang>("el"); 
   const [step, setStep] = useState(1); 
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(""); // Το μήνυμα λάθους/επιτυχίας
 
   // Data States
   const [displayName, setDisplayName] = useState("");
@@ -156,9 +156,9 @@ export default function InfluencerSignupForm() {
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      // --- 1. Database Insert (Αφήνουμε τη βάση να κάνει τον έλεγχο μοναδικότητας) ---
+      // 1. Database Insert (Αφήνουμε τη βάση να κάνει τον έλεγχο μοναδικότητας)
       
-      // 1. Uploads 
+      // Uploads (simplified for brevity)
       let avatarUrl = "";
       if (avatarFile) {
         const fileName = `avatar-${Date.now()}-${avatarFile.name}`;
@@ -321,7 +321,8 @@ export default function InfluencerSignupForm() {
                 </div>
 
                 <div className="pt-4">
-                    <button onClick={() => setStep(2)} disabled={!displayName || !email} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors shadow-lg disabled:opacity-50">
+                    {/* FIX: ΣΒΗΝΕΙ ΤΟ ΜΗΝΥΜΑ ΛΑΘΟΥΣ ΟΤΑΝ ΠΑΤΑΣ NEXT */}
+                    <button onClick={() => { setStep(2); setMessage(""); }} disabled={!displayName || !email} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors shadow-lg disabled:opacity-50">
                         {txt.next}
                     </button>
                 </div>
@@ -382,8 +383,10 @@ export default function InfluencerSignupForm() {
                 </div>
 
                 <div className="flex gap-4 pt-4">
-                    <button onClick={() => setStep(1)} className="px-6 py-3 bg-white border border-gray-300 text-gray-700 font-bold rounded-lg hover:bg-gray-50">{txt.back}</button>
-                    <button onClick={() => setStep(3)} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg">{txt.next}</button>
+                    {/* FIX: ΣΒΗΝΕΙ ΤΟ ΜΗΝΥΜΑ ΛΑΘΟΥΣ ΟΤΑΝ ΠΑΤΑΣ BACK */}
+                    <button onClick={() => { setStep(1); setMessage(""); }} className="px-6 py-3 bg-white border border-gray-300 text-gray-700 font-bold rounded-lg hover:bg-gray-50">{txt.back}</button>
+                    {/* FIX: ΣΒΗΝΕΙ ΤΟ ΜΗΝΥΜΑ ΛΑΘΟΥΣ ΟΤΑΝ ΠΑΤΑΣ NEXT */}
+                    <button onClick={() => { setStep(3); setMessage(""); }} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg">{txt.next}</button>
                 </div>
             </div>
         )}
@@ -444,7 +447,8 @@ export default function InfluencerSignupForm() {
                 </div>
 
                 <div className="flex gap-4 pt-4">
-                    <button onClick={() => setStep(2)} className="px-6 py-3 bg-white border border-gray-300 text-gray-700 font-bold rounded-lg hover:bg-gray-50">{txt.back}</button>
+                    {/* FIX: ΣΒΗΝΕΙ ΤΟ ΜΗΝΥΜΑ ΛΑΘΟΥΣ ΟΤΑΝ ΠΑΤΑΣ BACK */}
+                    <button onClick={() => { setStep(2); setMessage(""); }} className="px-6 py-3 bg-white border border-gray-300 text-gray-700 font-bold rounded-lg hover:bg-gray-50">{txt.back}</button>
                     <button onClick={handleSubmit} disabled={loading} className="flex-1 bg-slate-900 hover:bg-black text-white font-bold py-3 rounded-lg">
                         {loading ? txt.loading : txt.submit}
                     </button>
