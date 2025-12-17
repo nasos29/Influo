@@ -152,7 +152,7 @@ export default function InfluencerSignupForm() {
   const addVideo = () => setVideos([...videos, ""]);
   const removeVideo = (i: number) => { const copy = [...videos]; copy.splice(i, 1); setVideos(copy); };
 
-  // Submit Logic
+   // Submit Logic
   const handleSubmit = async () => {
     setLoading(true);
     try {
@@ -161,18 +161,20 @@ export default function InfluencerSignupForm() {
         .from('influencers')
         .select('id')
         .eq('contact_email', email)
-        .maybeSingle(); // maybeSingle returns null if no user is found
+        .maybeSingle(); 
         
       if (existingUser) {
-        throw new Error(txt.el === t.el.headerTitle ? "Αυτό το Email είναι ήδη καταχωρημένο. Παρακαλώ χρησιμοποιήστε άλλο." : "This email is already registered. Please use a different one.");
+        const errorMsg = lang === "el" 
+            ? "Αυτό το Email είναι ήδη καταχωρημένο. Παρακαλώ χρησιμοποιήστε άλλο." 
+            : "This email is already registered. Please use a different one.";
+        throw new Error(errorMsg);
       }
-      if (checkError && checkError.code !== 'PGRST116' && checkError.code !== '42703') { // PGRST116 = No rows, 42703 = column "followers_count" does not exist
-         // Αν υπάρχει άλλο σφάλμα στη βάση, το πετάμε
+      if (checkError && checkError.code !== 'PGRST116' && checkError.code !== '42703') { 
          throw new Error(checkError.message);
       }
       // ------------------------------------
 
-      // 2. Uploads 
+      // 2. Uploads (Same as before)
       let avatarUrl = "";
       if (avatarFile) {
         const fileName = `avatar-${Date.now()}-${avatarFile.name}`;
@@ -237,6 +239,7 @@ export default function InfluencerSignupForm() {
       setStep(4);
     } catch (err: any) {
       console.error(err);
+      // Εμφάνιση του duplicate email error
       const errorMessage = err.message.includes("Email είναι ήδη καταχωρημένο") || err.message.includes("already registered") ? err.message : (lang === "el" ? "Σφάλμα: " : "Error: ") + err.message;
       setMessage(errorMessage);
     } finally {
