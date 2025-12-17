@@ -156,25 +156,9 @@ export default function InfluencerSignupForm() {
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      // --- 1. NEW: DUPLICATE EMAIL CHECK (FIXED) ---
-      // Χρησιμοποιούμε select('id') και count για να ελέγξουμε αν υπάρχει ήδη.
-      const { count, error: checkError } = await supabase
-        .from('influencers')
-        .select('id', { count: 'exact', head: true }) 
-        .eq('contact_email', email);
-        
-      if (count && count > 0) { // Αν ο αριθμός είναι μεγαλύτερος από 0, υπάρχει!
-        const errorMsg = lang === "el" 
-            ? "Αυτό το Email είναι ήδη καταχωρημένο. Παρακαλώ χρησιμοποιήστε άλλο." 
-            : "This email is already registered. Please use a different one.";
-        throw new Error(errorMsg);
-      }
-      if (checkError && checkError.code !== 'PGRST116' && checkError.code !== '42703') { // ... error check
-         throw new Error(checkError.message);
-      }
-      // ------------------------------------
-
-      // 2. Uploads 
+      // --- 1. Database Insert (Αφήνουμε τη βάση να κάνει τον έλεγχο μοναδικότητας) ---
+      
+      // 1. Uploads 
       let avatarUrl = "";
       if (avatarFile) {
         const fileName = `avatar-${Date.now()}-${avatarFile.name}`;
@@ -197,7 +181,7 @@ export default function InfluencerSignupForm() {
           }));
       }
 
-      // 3. Database Insert
+      // 2. Database Insert
       const { error: insertError } = await supabase.from("influencers").insert([
         { 
           display_name: displayName, 
@@ -215,9 +199,18 @@ export default function InfluencerSignupForm() {
         }
       ]);
 
-      if (insertError) throw insertError;
+      if (insertError) {
+          // Πιάνουμε το ΣΦΑΛΜΑ ΜΟΝΑΔΙΚΟΤΗΤΑΣ (Postgres error code 23505)
+          if (insertError.code === '23505') {
+             const errorMsg = lang === "el" 
+                ? "Αυτό το Email είναι ήδη καταχωρημένο. Παρακαλώ χρησιμοποιήστε άλλο." 
+                : "This email is already registered. Please use a different one.";
+             throw new Error(errorMsg);
+          }
+          throw insertError;
+      }
 
-      // 4. Send Emails 
+      // 3. Send Emails 
       try {
         // Mail 1: Στον Influencer (Confirmation)
         await fetch('/api/emails', {
@@ -239,7 +232,8 @@ export default function InfluencerSignupForm() {
       setStep(4);
     } catch (err: any) {
       console.error(err);
-      const errorMessage = err.message.includes("Email είναι ήδη καταχωρημένο") || err.message.includes("already registered") ? err.message : (lang === "el" ? "Σφάλμα: " : "Error: ") + err.message;
+      // Εμφάνιση του duplicate email error
+      const errorMessage = err.message.includes("ήδη καταχωρημένο") || err.message.includes("already registered") || err.message.includes("23505") ? (lang === "el" ? "Αυτό το Email είναι ήδη καταχωρημένο. Παρακαλώ χρησιμοποιήστε άλλο." : "This email is already registered. Please use a different one.") : (lang === "el" ? "Σφάλμα: " : "Error: ") + err.message;
       setMessage(errorMessage);
     } finally {
       setLoading(false);
