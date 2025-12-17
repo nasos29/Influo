@@ -3,8 +3,12 @@ import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// --- ΤΟ VERIFIED EMAIL (ΤΟ ΔΙΚΟ ΣΟΥ) ---
-const VERIFIED_SENDER_EMAIL = 'info@influo.gr'; // Βάλε το δικό σου verified email
+// --- 1. SENDER: ΠΑΝΤΑ ΤΟ @INFLUO.GR (Verified Domain) ---
+const SENDER_EMAIL = 'noreply@influo.gr'; 
+
+// --- 2. RECEIVER: Πρέπει να διαβάζει το email του Admin από το Vercel ---
+// Αυτή η μεταβλητή (nd.6@hotmail.com) είναι μόνο για να λαμβάνει, όχι να στέλνει
+const ADMIN_RECEIVING_EMAIL = process.env.ADMIN_EMAIL || 'admin@influo.gr'; 
 
 export async function POST(req: Request) {
   try {
@@ -15,46 +19,27 @@ export async function POST(req: Request) {
     let html = "";
     let toEmail = email; 
 
-    // --- 1. SET PARAMS ---
-
+    // --- LOGIC ---
     if (type === 'signup_influencer') {
       subject = "Καλωσήρθες στο Influo! 🚀";
-      html = `... (Your HTML here) ...`;
+      html = `...`; 
+      toEmail = email; // Παραλήπτης: Influencer
     } 
     else if (type === 'signup_admin') {
-      toEmail = VERIFIED_SENDER_EMAIL; // Admin email, παραλήπτης είσαι εσύ
+      toEmail = ADMIN_RECEIVING_EMAIL; // Παραλήπτης: Εσύ
       subject = `🔔 Νέα εγγραφή: ${name}`;
-      html = `... (Your HTML here) ...`;
+      html = `...`; 
     }
     else if (type === 'approved') {
+      toEmail = email;
       subject = "Συγχαρητήρια! Το προφίλ σου εγκρίθηκε ✅";
-      html = `... (Your HTML here) ...`;
+      html = `...`; 
     }
 
-    // --- 2. SEND ---
-    
-    // ΕΔΩ ΕΙΝΑΙ ΤΟ ΚΛΕΙΔΙ:
-    // Αν ο τύπος ΔΕΝ είναι Admin (άρα είναι Influencer), στέλνουμε το mail ΚΑΙ στον εαυτό μας ΚΑΙ στον Influencer.
-    // ΟΜΩΣ, για να περάσει το validation, βάζουμε το TO να είναι ΜΟΝΟ το verified email.
-    
-    let finalTo = [toEmail]; // Το default είναι ο Influencer
-
-    if (type === 'signup_influencer' || type === 'approved') {
-        // Αν είναι mail προς Influencer, το στέλνουμε ΜΟΝΟ στον εαυτό μας για να περάσει το validation
-        finalTo = [VERIFIED_SENDER_EMAIL];
-        // Και προσθέτουμε το email του influencer στο Bcc
-        // Αυτή η μέθοδος ΔΕΝ δουλεύει στο Free Tier, οπότε:
-        
-        // --- ΤΟ ΠΡΑΓΜΑΤΙΚΟ FIX ΓΙΑ ΤΟ FREE TIER ---
-        // Στέλνουμε το mail ΜΟΝΟ στον εαυτό μας, και στο subject βάζουμε το πραγματικό mail:
-        finalTo = [VERIFIED_SENDER_EMAIL];
-        subject = `[INFLUENSER - ${email}] ` + subject;
-    }
-
-
+    // --- SEND: Χρησιμοποιούμε το Verified Domain Email ---
     const data = await resend.emails.send({
-      from: `Influo <${VERIFIED_SENDER_EMAIL}>`, // FROM ΠΑΝΤΑ ΤΟ VERIFIED EMAIL
-      to: finalTo,
+      from: `Influo <${SENDER_EMAIL}>`, // <-- FROM ΕΙΝΑΙ ΠΑΝΤΑ @influo.gr
+      to: [toEmail], 
       subject: subject,
       html: html,
     });
