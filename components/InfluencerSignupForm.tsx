@@ -152,29 +152,29 @@ export default function InfluencerSignupForm() {
   const addVideo = () => setVideos([...videos, ""]);
   const removeVideo = (i: number) => { const copy = [...videos]; copy.splice(i, 1); setVideos(copy); };
 
-   // Submit Logic
+  // Submit Logic
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      // --- 1. NEW: DUPLICATE EMAIL CHECK ---
-      const { data: existingUser, error: checkError } = await supabase
+      // --- 1. NEW: DUPLICATE EMAIL CHECK (FIXED) ---
+      // Χρησιμοποιούμε select('id') και count για να ελέγξουμε αν υπάρχει ήδη.
+      const { count, error: checkError } = await supabase
         .from('influencers')
-        .select('id')
-        .eq('contact_email', email)
-        .maybeSingle(); 
+        .select('id', { count: 'exact', head: true }) 
+        .eq('contact_email', email);
         
-      if (existingUser) {
+      if (count && count > 0) { // Αν ο αριθμός είναι μεγαλύτερος από 0, υπάρχει!
         const errorMsg = lang === "el" 
             ? "Αυτό το Email είναι ήδη καταχωρημένο. Παρακαλώ χρησιμοποιήστε άλλο." 
             : "This email is already registered. Please use a different one.";
         throw new Error(errorMsg);
       }
-      if (checkError && checkError.code !== 'PGRST116' && checkError.code !== '42703') { 
+      if (checkError && checkError.code !== 'PGRST116' && checkError.code !== '42703') { // ... error check
          throw new Error(checkError.message);
       }
       // ------------------------------------
 
-      // 2. Uploads (Same as before)
+      // 2. Uploads 
       let avatarUrl = "";
       if (avatarFile) {
         const fileName = `avatar-${Date.now()}-${avatarFile.name}`;
@@ -217,7 +217,7 @@ export default function InfluencerSignupForm() {
 
       if (insertError) throw insertError;
 
-      // 4. Send Emails (UPDATED)
+      // 4. Send Emails 
       try {
         // Mail 1: Στον Influencer (Confirmation)
         await fetch('/api/emails', {
@@ -239,7 +239,6 @@ export default function InfluencerSignupForm() {
       setStep(4);
     } catch (err: any) {
       console.error(err);
-      // Εμφάνιση του duplicate email error
       const errorMessage = err.message.includes("Email είναι ήδη καταχωρημένο") || err.message.includes("already registered") ? err.message : (lang === "el" ? "Σφάλμα: " : "Error: ") + err.message;
       setMessage(errorMessage);
     } finally {
