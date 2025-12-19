@@ -46,11 +46,14 @@ const t = {
     uploadBtn: "Ανέβασμα Φωτογραφίας",
     insightsLabel: "Αποδεικτικά Insights (Screenshots)",
     insightsDesc: "Ανέβασε screenshots από τα στατιστικά σου για επαλήθευση.",
+    insightsTip: "Συμπεριλάβετε οθόνες που δείχνουν το Κοινό (Φύλο/Ηλικία) και το Engagement Rate των τελευταίων 30 ημερών. Απαραίτητο για έγκριση.",
     uploadInsightsBtn: "Ανέβασμα Screenshots",
     videoLabel: "Video Highlights (Links)",
     videoDesc: "Επικόλλησε links από TikTok, Reels ή YouTube.",
     addVideo: "+ Προσθήκη Video Link",
     rateLabel: "Ελάχιστη Χρέωση / Budget (€)",
+    engageRateLabel: "Engagement Rate (%)", 
+    avgLikesLabel: "Μέσος Όρος Likes/Views", 
     next: "Επόμενο →",
     back: "← Πίσω",
     submit: "Ολοκλήρωση Εγγραφής",
@@ -88,11 +91,14 @@ const t = {
     uploadBtn: "Upload Photo",
     insightsLabel: "Insights Proof (Screenshots)",
     insightsDesc: "Upload screenshots of your stats for verification.",
+    insightsTip: "Tip: Please include screenshots showing Audience Demographics (Age/Gender) and Engagement Rate for the last 30 days. Required for approval.",
     uploadInsightsBtn: "Upload Screenshots",
     videoLabel: "Best Video Highlights (Links)",
     videoDesc: "Paste links from TikTok, Reels, or YouTube.",
     addVideo: "+ Add Video Link",
     rateLabel: "Minimum Rate / Budget (€)",
+    engageRateLabel: "Engagement Rate (%)", 
+    avgLikesLabel: "Avg Likes/Views", 
     next: "Next →",
     back: "← Back",
     submit: "Complete Signup",
@@ -107,7 +113,7 @@ export default function InfluencerSignupForm() {
   const [lang, setLang] = useState<Lang>("el"); 
   const [step, setStep] = useState(1); 
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState(""); // Το μήνυμα λάθους/επιτυχίας
+  const [message, setMessage] = useState(""); 
 
   // Data States
   const [displayName, setDisplayName] = useState("");
@@ -125,6 +131,8 @@ export default function InfluencerSignupForm() {
   const [insightFiles, setInsightFiles] = useState<File[]>([]); 
   const [videos, setVideos] = useState<string[]>([""]);
   const [minRate, setMinRate] = useState("");
+  const [engagementRate, setEngagementRate] = useState("");
+  const [avgLikes, setAvgLikes] = useState("");
 
   // Handlers
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -152,13 +160,13 @@ export default function InfluencerSignupForm() {
   const addVideo = () => setVideos([...videos, ""]);
   const removeVideo = (i: number) => { const copy = [...videos]; copy.splice(i, 1); setVideos(copy); };
 
-  // --- NEW: EMAIL CHECK AND NEXT STEP ---
+  // --- EMAIL CHECK AND NEXT STEP (STEP 1) ---
   const handleCheckEmailAndNext = async () => {
-      setMessage(""); // Καθαρισμός μηνύματος
+      setMessage(""); 
       setLoading(true);
 
       try {
-          // Έλεγχος Μοναδικότητας (πριν προχωρήσει)
+          // Έλεγχος Μοναδικότητας
           const { count, error: checkError } = await supabase
               .from('influencers')
               .select('id', { count: 'exact', head: true }) 
@@ -179,11 +187,12 @@ export default function InfluencerSignupForm() {
       } catch (err: any) {
           console.error(err);
           const errorMessage = err.message.includes("ήδη καταχωρημένο") || err.message.includes("already registered") ? err.message : (lang === "el" ? "Σφάλμα: " : "Error: ") + err.message;
-          setMessage(errorMessage); // Εμφάνιση error
+          setMessage(errorMessage); 
       } finally {
           setLoading(false);
       }
   };
+
 
   // Submit Logic (Final Step)
   const handleSubmit = async () => {
@@ -212,7 +221,7 @@ export default function InfluencerSignupForm() {
           }));
       }
 
-      // 2. Database Insert (Ο έλεγχος μοναδικότητας έγινε στο Step 1, αλλά η βάση θα πετάξει πάλι αν υπάρξει race condition)
+      // 2. Database Insert
       const { error: insertError } = await supabase.from("influencers").insert([
         { 
           display_name: displayName, 
@@ -226,7 +235,9 @@ export default function InfluencerSignupForm() {
           accounts, 
           videos: videos.filter(v => v !== ""),
           avatar_url: avatarUrl,
-          insights_urls: insightUrls
+          insights_urls: insightUrls,
+          engagement_rate: engagementRate,
+          avg_likes: avgLikes
         }
       ]);
 
@@ -446,6 +457,10 @@ export default function InfluencerSignupForm() {
                 <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
                     <label className={labelClass}>{txt.insightsLabel}</label>
                     <p className="text-xs text-slate-500 mb-3">{txt.insightsDesc}</p>
+                    {/* NEW: ΕΠΑΓΓΕΛΜΑΤΙΚΗ ΟΔΗΓΙΑ */}
+                    <div className="text-xs text-blue-800 bg-blue-100 p-3 rounded-lg mb-3 border border-blue-200">
+                        {txt.insightsTip}
+                    </div>
                     <label className="bg-white border border-blue-300 text-blue-700 font-bold rounded-lg px-4 py-2 text-sm cursor-pointer hover:bg-blue-50 inline-block shadow-sm">
                         {txt.uploadInsightsBtn}
                         <input type="file" multiple accept="image/*" onChange={handleInsightsChange} className="hidden" />
@@ -457,6 +472,18 @@ export default function InfluencerSignupForm() {
                             ))}
                         </div>
                     )}
+                </div>
+
+                {/* Engagement / Likes / Rate */}
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className={labelClass}>{txt.engageRateLabel}</label>
+                        <input type="text" className={inputClass} value={engagementRate} onChange={(e) => setEngagementRate(e.target.value)} placeholder="5.5%" />
+                    </div>
+                    <div>
+                        <label className={labelClass}>{txt.avgLikesLabel}</label>
+                        <input type="text" className={inputClass} value={avgLikes} onChange={(e) => setAvgLikes(e.target.value)} placeholder="3.2k" />
+                    </div>
                 </div>
 
                 {/* Videos */}
