@@ -1,5 +1,5 @@
 // app/admin/page.tsx
-// ΔΕΝ ΧΡΕΙΑΖΕΤΑΙ "use client"
+// SERVER COMPONENT
 
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { redirect } from 'next/navigation';
@@ -12,36 +12,40 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'nd.6@hotmail.com';
 async function getAdminStatus() {
     const supabase = createSupabaseServerClient();
     
-    const { data: { user } } = await supabase.auth.getUser();
+    // 1. Έλεγχος αν ο χρήστης είναι συνδεδεμένος
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!user) {
+    if (authError || !user) {
+        // Αν δεν είναι συνδεδεμένος, τον στέλνουμε στο login
         redirect('/login');
     }
-    
-    // Ελέγχουμε αν το email υπάρχει (πρέπει να υπάρχει αν ο user υπάρχει, αλλά το τσεκάρουμε)
-    if (!user.email) {
-        redirect('/login?error=noemail');
-    }
-    
-    // 1. Έλεγχος Admin Role
-    const { data: roleData } = await supabase
+
+    // 2. Έλεγχος Admin Role από τον πίνακα user_roles
+    const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('role')
         .eq('id', user.id)
         .single();
     
-    // 2. Έλεγχος: Αν δεν έχει role 'admin' ΚΑΙ το email δεν είναι το Admin Email (Fallback)
-    if (roleData?.role !== 'admin' && user.email !== ADMIN_EMAIL) {
+    // 3. DEBUGGING & ΕΛΕΓΧΟΣ:
+    // Αν υπάρχει error στη βάση ή το role δεν είναι 'admin'
+    if (roleError || roleData?.role !== 'admin') {
+        // Fallback check: Αν το email είναι το Admin Email
+        if (user.email === ADMIN_EMAIL) {
+            return user.email; // Επιτρέπουμε με Admin Email (Fallback)
+        }
+        
+        // Αν δεν είναι ούτε Admin, ούτε το Admin Email, τον πετάμε στο dashboard
         redirect('/dashboard?error=unauthorized'); 
     }
 
-    return user.email; // Επιστρέφουμε το email (τώρα είναι σίγουρα string)
+    return user.email; // Επιτρέπουμε
 }
 
 
 export default async function AdminPage() {
+    // ΕΔΩ ΕΚΤΕΛΕΙΤΑΙ ΤΟ REDIRECT
     const adminEmail = await getAdminStatus(); 
     
-    // Εφόσον πέρασε, φορτώνουμε το Client Component
     return <AdminDashboardContent adminEmail={adminEmail} />;
 }
