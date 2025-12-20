@@ -1,4 +1,3 @@
-// components/AdminDashboardContent.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -103,6 +102,68 @@ const t = {
   }
 };
 
+// [!!!] ΝΕΟ COMPONENT ΓΙΑ ΤΗΝ ΕΠΕΞΕΡΓΑΣΙΑ (Admin Edit)
+const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClose: () => void, onSave: (updatedUser: DbInfluencer) => void }) => {
+    const [name, setName] = useState(user.display_name);
+    const [bio, setBio] = useState(user.bio || "");
+    const [minRate, setMinRate] = useState(user.min_rate || "");
+    const [loading, setLoading] = useState(false);
+
+    const handleSave = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+
+        const { data, error } = await supabase
+            .from('influencers')
+            .update({ 
+                display_name: name, 
+                bio: bio, 
+                min_rate: minRate 
+            })
+            .eq('id', user.id)
+            .select()
+            .single();
+
+        setLoading(false);
+
+        if (error) {
+            alert("Error saving: " + error.message);
+        } else if (data) {
+            onSave(data as DbInfluencer); // Ενημέρωσε το state του πατρικού component
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6">
+                <h2 className="text-2xl font-bold mb-4">Edit Profile: {user.display_name}</h2>
+                <form onSubmit={handleSave} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-bold mb-1">Name</label>
+                        <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border rounded text-black" required />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-bold mb-1">Bio</label>
+                        <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} className="w-full p-2 border rounded text-black" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-bold mb-1">Min Rate</label>
+                        <input type="text" value={minRate} onChange={e => setMinRate(e.target.value)} className="w-full p-2 border rounded text-black" />
+                    </div>
+                    
+                    <div className="flex justify-end gap-3 pt-4">
+                        <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 rounded">Cancel</button>
+                        <button type="submit" disabled={loading} className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50">
+                            {loading ? 'Saving...' : 'Save Changes'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+
 export default function AdminDashboardContent({ adminEmail }: { adminEmail: string }) {
   const [lang, setLang] = useState<"el" | "en">("el");
   const txt = t[lang];
@@ -114,6 +175,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   
   // MODAL STATE
   const [selectedUser, setSelectedUser] = useState<DbInfluencer | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false); // ΝΕΟ: Edit Modal
 
   const [stats, setStats] = useState({ 
     total: 0, 
@@ -174,6 +236,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     
     if (!error) {
         fetchData();
+        // Αν ΕΓΚΡΙΝΟΥΜΕ (άρα το verified γίνεται true), στέλνουμε email
         if (!currentStatus) { 
              try {
                 await fetch('/api/emails', {
@@ -189,6 +252,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         }
     }
     
+    // Ενημέρωση του Modal αν είναι ανοιχτό
     if(selectedUser?.id === id) {
         setSelectedUser(prev => prev ? {...prev, verified: !currentStatus} : null);
     }
@@ -201,6 +265,15 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         setSelectedUser(null);
     }
   };
+
+  const handleUserUpdate = (updatedUser: DbInfluencer) => {
+      // Ενημέρωση του πίνακα χρηστών
+      setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+      // Κλείσιμο του modal
+      setShowEditModal(false);
+      setSelectedUser(updatedUser);
+  };
+
 
   if (loading) return <div className="p-10 text-center">Loading...</div>;
 
@@ -291,6 +364,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                         >
                                             {u.verified ? txt.btn_unverify : txt.btn_approve}
                                         </button>
+                                        {/* ΝΕΟ ΚΟΥΜΠΙ EDIT */}
+                                        <button 
+                                            onClick={() => setShowEditModal(true)} 
+                                            className="text-gray-600 font-bold text-xs mr-3 hover:underline"
+                                        >
+                                            Edit
+                                        </button>
                                         <button onClick={() => deleteUser(u.id)} className="text-red-600 font-bold text-xs hover:underline">{txt.btn_delete}</button>
                                     </td>
                                 </tr>
@@ -366,7 +446,11 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               <p className="text-sm text-slate-500">{selectedUser.contact_email}</p>
                           </div>
                       </div>
-                      <button onClick={() => setSelectedUser(null)} className="text-2xl text-slate-400 hover:text-slate-600">×</button>
+                      {/* ΝΕΟ ΚΟΥΜΠΙ EDIT ΣΤΟ HEADER */}
+                      <div className="flex gap-3">
+                          <button onClick={() => setShowEditModal(true)} className="bg-gray-200 text-gray-700 font-bold px-3 py-1 rounded hover:bg-gray-300">Edit</button>
+                          <button onClick={() => setSelectedUser(null)} className="text-2xl text-slate-400 hover:text-slate-600">×</button>
+                      </div>
                   </div>
 
                   {/* Modal Body */}
@@ -379,7 +463,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               <div className="grid grid-cols-2 gap-4 text-sm">
                                   <div className="p-3 bg-slate-50 rounded">
                                       <span className="block text-slate-500 text-xs">Location</span>
-                                      <span className="font-medium">{selectedUser.location}</span>
+                                      <span className="font-medium text-black">{selectedUser.location}</span> {/* FIX UI */}
                                   </div>
                                   <div className="p-3 bg-slate-50 rounded">
                                       <span className="block text-slate-500 text-xs">{txt.modal_followers}</span>
@@ -387,11 +471,11 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                   </div>
                                   <div className="p-3 bg-slate-50 rounded">
                                       <span className="block text-slate-500 text-xs">{txt.modal_gender}</span>
-                                      <span className="font-medium">{selectedUser.gender}</span>
+                                      <span className="font-medium text-black">{selectedUser.gender}</span> {/* FIX UI */}
                                   </div>
                                   <div className="p-3 bg-slate-50 rounded">
                                       <span className="block text-slate-500 text-xs">{txt.modal_minrate}</span>
-                                      <span className="font-medium">{selectedUser.min_rate}€</span>
+                                      <span className="font-medium text-black">{selectedUser.min_rate}€</span> {/* FIX UI */}
                                   </div>
                               </div>
                           </div>
@@ -452,6 +536,15 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
 
               </div>
           </div>
+      )}
+
+      {/* --- EDIT MODAL (Εμφανίζεται πάνω από το Detail Modal) --- */}
+      {selectedUser && showEditModal && (
+          <EditProfileModal 
+              user={selectedUser}
+              onClose={() => setShowEditModal(false)}
+              onSave={handleUserUpdate}
+          />
       )}
 
     </div>
