@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient"; // ΔΙΟΡΘΩΣΗ: Χρήση Alias
+import { supabase } from "@/lib/supabaseClient"; 
 import Image from "next/image";
 
 interface DbInfluencer {
@@ -174,7 +174,6 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     
     if (!error) {
         fetchData();
-        // Αν ΕΓΚΡΙΝΟΥΜΕ (άρα το verified γίνεται true), στέλνουμε email
         if (!currentStatus) { 
              try {
                 await fetch('/api/emails', {
@@ -190,7 +189,6 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         }
     }
     
-    // Ενημέρωση του Modal αν είναι ανοιχτό
     if(selectedUser?.id === id) {
         setSelectedUser(prev => prev ? {...prev, verified: !currentStatus} : null);
     }
@@ -219,6 +217,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
              <button onClick={() => setLang(lang === "el" ? "en" : "el")} className="border px-3 py-1 rounded bg-white">
                 {lang === "el" ? "EN" : "EL"}
             </button>
+            <a href="/logout" className="text-red-600 hover:underline">Logout</a> {/* Πρόσθεσα Logout */}
             <a href="/" className="text-blue-600 hover:underline">{txt.back}</a>
         </div>
       </div>
@@ -299,11 +298,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                         </tbody>
                     </table>
                  </div>
-             )}
+          </div>
+      )}
 
-             {/* --- TAB 2: PROPOSALS --- */}
-             {activeTab === "proposals" && (
-                 <div className="overflow-x-auto">
+      {/* --- TAB 2: PROPOSALS --- */}
+      {activeTab === "proposals" && (
+          <div className="max-w-7xl mx-auto bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+             <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
                         <thead className="bg-slate-50 text-slate-500">
                             <tr>
@@ -326,27 +327,26 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                         </tbody>
                     </table>
                  </div>
-             )}
           </div>
+      )}
 
-          {/* RIGHT: Stats */}
-          <div className="space-y-4">
-              <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                  <p className="text-xs text-slate-500 uppercase">{txt.users}</p>
-                  <p className="text-2xl font-bold">{stats.total}</p>
-              </div>
-              <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                  <p className="text-xs text-slate-500 uppercase">{txt.pending}</p>
-                  <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
-              </div>
-              <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                  <p className="text-xs text-slate-500 uppercase">{txt.verified}</p>
-                  <p className="text-2xl font-bold text-green-600">{stats.verified}</p>
-              </div>
-              <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                  <p className="text-xs text-slate-500 uppercase">{txt.pipeline}</p>
-                  <p className="text-2xl font-bold text-blue-600">{stats.pipeline}</p>
-              </div>
+      {/* RIGHT: Stats (Keep as is) */}
+      <div className="space-y-4">
+          <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+              <p className="text-xs text-slate-500 uppercase">{txt.users}</p>
+              <p className="text-2xl font-bold">{stats.total}</p>
+          </div>
+          <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+              <p className="text-xs text-slate-500 uppercase">{txt.pending}</p>
+              <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
+          </div>
+          <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+              <p className="text-xs text-slate-500 uppercase">{txt.verified}</p>
+              <p className="text-2xl font-bold text-green-600">{stats.verified}</p>
+          </div>
+          <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+              <p className="text-xs text-slate-500 uppercase">{txt.pipeline}</p>
+              <p className="text-2xl font-bold text-blue-600">{stats.pipeline}</p>
           </div>
       </div>
 
