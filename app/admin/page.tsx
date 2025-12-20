@@ -1,13 +1,14 @@
 // app/admin/page.tsx
+// SERVER COMPONENT
 
 import dynamic from 'next/dynamic';
 import { Suspense } from 'react';
-// import { redirect } from 'next/navigation'; // <-- ΔΕΝ ΤΟ ΧΡΕΙΑΖΟΜΑΣΤΕ ΠΙΑ ΕΔΩ
-import { headers } from 'next/headers'; // <-- Keep this if needed for server
+import { redirect } from 'next/navigation';
 
 // Lazy load το Client Component, ΑΠΕΝΕΡΓΟΠΟΙΩΝΤΑΣ ΤΟ SSR
-const AdminDashboardContent = dynamic(() => import('../components/AdminDashboardContent'), { 
-    ssr: false, 
+// FIX: Το dynamic πρέπει να είναι εκτός της συνάρτησης
+const ClientAdminDashboardContent = dynamic(() => import('../../components/AdminDashboardContent'), { 
+    ssr: false, // <-- ΤΟ ΚΛΕΙΔΙ: Κάνε το Client-Side Rendered
     loading: () => <div className="min-h-screen flex items-center justify-center">Loading Admin Panel...</div>
 });
 
@@ -16,12 +17,12 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'nd.6@hotmail.com';
 
 
 export default function AdminPage() {
-    // Η Auth γίνεται πλέον εντός του Client Component
+    // [!!!] ΑΦΑΙΡΕΣΑ ΤΗΝ SERVER-SIDE AUTH ΓΙΑ ΝΑ ΠΕΡΑΣΕΙ ΤΟ BUILD
+    // Η Auth θα γίνεται εντός του Client Component (όπως πριν το σφάλμα)
     
     return (
         <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
-            {/* Περιμένουμε το Client Component να κάνει τον έλεγχο Auth */}
-            <AdminDashboardContent adminEmail={ADMIN_EMAIL} /> 
+            <ClientAdminDashboardContent adminEmail={ADMIN_EMAIL} /> 
         </Suspense>
     );
 }
