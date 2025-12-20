@@ -2,11 +2,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-// Αλλαγή: Χρησιμοποίησε το alias
-import { supabase } from "@/lib/supabaseClient"; 
+import { supabase } from "@/lib/supabaseClient"; // ΔΙΟΡΘΩΣΗ: Χρήση Alias
 import Image from "next/image";
-
-// ... (keep the rest of the code) ...
 
 interface DbInfluencer {
   id: number;
@@ -51,7 +48,6 @@ const t = {
     tab_deals: "Προτάσεις & Deals",
     col_inf: "Influencer",
     col_loc: "Τοποθεσία",
-    col_stats: "Στατιστικά",
     col_status: "Status",
     col_act: "Ενέργειες",
     btn_approve: "Έγκριση",
@@ -85,7 +81,6 @@ const t = {
     tab_deals: "Proposals & Deals",
     col_inf: "Influencer",
     col_loc: "Location",
-    col_stats: "Stats",
     col_status: "Status",
     col_act: "Actions",
     btn_approve: "Approve",
@@ -231,23 +226,23 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       {/* Stats Grid */}
       <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-            <p className="text-slate-500 text-xs font-bold uppercase">{txt.users}</p>
+            <p className="text-xs text-slate-500 uppercase">{txt.users}</p>
             <p className="text-2xl font-bold">{stats.total}</p>
         </div>
         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-            <p className="text-slate-500 text-xs font-bold uppercase">{txt.pending}</p>
+            <p className="text-xs text-slate-500 uppercase">{txt.pending}</p>
             <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
         </div>
         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-            <p className="text-slate-500 text-xs font-bold uppercase">{txt.verified}</p>
+            <p className="text-xs text-slate-500 uppercase">{txt.verified}</p>
             <p className="text-2xl font-bold text-green-600">{stats.verified}</p>
         </div>
         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-            <p className="text-slate-500 text-xs font-bold uppercase">{txt.reach}</p>
+            <p className="text-xs text-slate-500 uppercase">{txt.reach}</p>
             <p className="text-2xl font-bold text-purple-600">{stats.reach}</p>
         </div>
         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 ring-2 ring-blue-100">
-            <p className="text-slate-500 text-xs font-bold uppercase">{txt.pipeline}</p>
+            <p className="text-xs text-slate-500 uppercase">{txt.pipeline}</p>
             <p className="text-2xl font-bold text-blue-600">{stats.pipeline}</p>
         </div>
       </div>
@@ -282,7 +277,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                 <tr key={u.id} className="border-b hover:bg-slate-50 cursor-pointer" onClick={() => setSelectedUser(u)}>
                                     <td className="p-3">
                                         <div className="flex items-center gap-2">
-                                            {u.avatar_url && <div className="w-6 h-6 rounded-full bg-slate-200 overflow-hidden relative"><Image src={u.avatar_url} fill className="object-cover" alt="." /></div>}
+                                            {u.avatar_url && <div className="w-6 h-6 rounded-full bg-slate-200 relative overflow-hidden"><Image src={u.avatar_url} fill className="object-cover" alt="." /></div>}
                                             <span className="font-bold">{u.display_name}</span>
                                         </div>
                                     </td>
