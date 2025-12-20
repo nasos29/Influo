@@ -2,8 +2,8 @@
 
 import { useEffect, useState, use } from "react";
 import Image from "next/image";
-import { dummyInfluencers, Influencer } from "../../../components/Directory"; 
-import { supabase } from "../../lib/supabaseClient";
+import { dummyInfluencers, Influencer } from "@/components/Directory"; 
+import { supabase } from "@/lib/supabaseClient";
 
 type Params = Promise<{ id: string }>;
 
