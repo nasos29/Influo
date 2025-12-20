@@ -1,50 +1,47 @@
 // app/admin/page.tsx
-// ΔΕΝ ΧΡΕΙΑΖΕΤΑΙ "use client" - ΕΙΝΑΙ SERVER COMPONENT
+// ΔΕΝ ΧΡΕΙΑΖΕΤΑΙ "use client"
 
-import { createSupabaseServerClient } from '@/lib/supabase-server'; 
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { redirect } from 'next/navigation';
-import AdminDashboardContent from '@/components/AdminDashboardContent'; // Υποθέτω alias
+import AdminDashboardContent from '@/components/AdminDashboardContent';
 
-// [!!!] ΒΑΛΕ ΤΟ ADMIN EMAIL ΣΟΥ ΕΔΩ ΓΙΑ ΛΟΓΟΥΣ ΑΣΦΑΛΕΙΑΣ
-// Χρησιμοποιείται ως fallback αν το role check αποτύχει
+// [!!!] ΒΑΛΕ ΤΟ ADMIN EMAIL ΣΟΥ ΕΔΩ
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'nd.6@hotmail.com';
 
 
-// Συνάρτηση που κάνει τον έλεγχο ασφαλείας
 async function getAdminStatus() {
-    // Δημιουργία Supabase Client που μπορεί να διαβάσει τα cookies
     const supabase = createSupabaseServerClient();
     
-    // 1. Έλεγχος αν ο χρήστης είναι συνδεδεμένος
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-        // Αν δεν είναι συνδεδεμένος, τον στέλνουμε στο login
         redirect('/login');
     }
-
-    // 2. Έλεγχος Admin Role από τον πίνακα user_roles
+    
+    // Ελέγχουμε αν το email υπάρχει (πρέπει να υπάρχει αν ο user υπάρχει, αλλά το τσεκάρουμε)
+    if (!user.email) {
+        redirect('/login?error=noemail');
+    }
+    
+    // 1. Έλεγχος Admin Role
     const { data: roleData } = await supabase
         .from('user_roles')
         .select('role')
         .eq('id', user.id)
         .single();
     
-    // Έλεγχος: Αν δεν έχει role 'admin' ΚΑΙ το email του δεν είναι το δικό μας email
+    // 2. Έλεγχος: Αν δεν έχει role 'admin' ΚΑΙ το email δεν είναι το Admin Email (Fallback)
     if (roleData?.role !== 'admin' && user.email !== ADMIN_EMAIL) {
-        // Τον στέλνουμε στο dashboard γιατί δεν έχει δικαίωμα Admin
-        redirect('/dashboard?error=unauthorized');
+        redirect('/dashboard?error=unauthorized'); 
     }
 
-    // Αν πέρασε όλους τους ελέγχους, είναι Admin
-    return user.email; 
+    return user.email; // Επιστρέφουμε το email (τώρα είναι σίγουρα string)
 }
 
 
 export default async function AdminPage() {
-    // Εκτελείται ο έλεγχος ασφαλείας. Αν αποτύχει, το redirect τον πετάει έξω.
     const adminEmail = await getAdminStatus(); 
     
-    // Εφόσον πέρασε, φορτώνουμε το Client Component που κάνει τη δουλειά
+    // Εφόσον πέρασε, φορτώνουμε το Client Component
     return <AdminDashboardContent adminEmail={adminEmail} />;
 }
