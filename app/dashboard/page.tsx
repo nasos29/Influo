@@ -1,55 +1,59 @@
 // app/dashboard/page.tsx
-// SERVER COMPONENT
+"use client"; // <--- ΤΟ ΚΑΝΟΥΜΕ CLIENT COMPONENT
 
-import { createSupabaseServerClient } from '@supabaseClient';
-import { redirect } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabaseClient'; 
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-// [!!!] ΒΑΛΕ ΤΟ ADMIN EMAIL ΣΟΥ ΕΔΩ (ΠΡΕΠΕΙ ΝΑ ΕΙΝΑΙ ΣΤΟ .env)
+// [!!!] ΒΑΛΕ ΤΟ ADMIN EMAIL ΣΟΥ ΕΔΩ
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'nd.6@hotmail.com';
 
 
-export default async function DashboardPage() {
-    // 1. Δημιουργία Supabase Client (Server)
-    // Πρέπει να χρησιμοποιούμε το createSupabaseServerClient για SSR
-    const supabase = createSupabaseServerClient();
-    
-    const { data: { user } } = await supabase.auth.getUser();
+export default function DashboardPage() {
+    const router = useRouter();
+    const [profile, setProfile] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
 
-    if (!user) {
-        redirect('/login');
+    useEffect(() => {
+        async function checkAuthAndLoadProfile() {
+            // 1. Έλεγχος Auth
+            const { data: { user } } = await supabase.auth.getUser();
+
+            if (!user) {
+                router.replace('/login');
+                return;
+            }
+
+            // 2. ΕΛΕΓΧΟΣ ADMIN (Client Side)
+            if (user.email === ADMIN_EMAIL) {
+                router.replace('/admin'); // Redirect Admin
+                return;
+            }
+
+            // 3. Load Profile (Μόνο για Influencer)
+            const { data: profileData } = await supabase
+                .from('influencers')
+                .select('display_name, location, contact_email, verified, min_rate')
+                .eq('contact_email', user.email)
+                .single();
+            
+            if (!profileData) {
+                 setProfile({ display_name: 'User', location: 'N/A', verified: false, min_rate: 'N/A' });
+            } else {
+                 setProfile(profileData);
+            }
+
+            setLoading(false);
+        }
+        checkAuthAndLoadProfile();
+    }, [router]);
+
+    if (loading || !profile) {
+        return <div className="min-h-screen flex items-center justify-center">Loading Dashboard...</div>;
     }
     
-    // --- 2. FIX: ADMIN REDIRECT ---
-    if (user.email === ADMIN_EMAIL) {
-        // Αν το email είναι το Admin email, τον στέλνουμε στο Admin Panel
-        redirect('/admin');
-    }
-    // ----------------------------
-
-
-    // 3. Βρες το Profile του Influencer (Μόνο για μη-Admin)
-    const { data: profile, error } = await supabase
-        .from('influencers')
-        .select('display_name, location, contact_email, verified, min_rate')
-        .eq('contact_email', user.email)
-        .single();
-    
-    if (!profile) {
-        return (
-            <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-slate-50">
-                <h1 className="text-3xl font-bold pt-16 text-slate-900">Profile Incomplete</h1>
-                <p className="text-slate-600 max-w-sm text-center">
-                    Το email σου είναι συνδεδεμένο, αλλά δεν βρέθηκε Influencer profile. 
-                    Παρακαλώ εγγράψου πρώτα.
-                </p>
-                <Link href="/" className="mt-4 text-blue-600 hover:underline">Go to Sign Up</Link>
-                <Link href="/logout" className="mt-2 text-red-500 hover:underline">Sign Out</Link>
-            </div>
-        );
-    }
-
-    // 4. Εμφάνιση του Dashboard 
+    // 4. Εμφάνιση Dashboard
     return (
         <div className="min-h-screen p-8 bg-slate-100">
             <div className="max-w-4xl mx-auto">
