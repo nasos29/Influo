@@ -2,7 +2,7 @@
 // SERVER COMPONENT
 
 // ΔΙΟΡΘΩΣΗ PATH: Βγαίνουμε από το /app και μπαίνουμε στο /lib
-import { createSupabaseServerClient } from './lib/supabase-server'; 
+import { createSupabaseServerClient } from '../lib/supabase-server'; 
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 
