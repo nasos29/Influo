@@ -63,14 +63,16 @@ export default function LoginPage() {
                 <h1 className="text-2xl font-bold mb-6 text-slate-900">Sign In (Magic Link)</h1>
                 <form onSubmit={handleLogin} className="space-y-4">
                     <label className="block text-sm font-medium text-slate-700">Email Address</label>
-                    <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                        className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="your@email.com"
-                    />
+                    // app/login/page.tsx - μέσα στο return()
+<input
+    type="email"
+    value={email}
+    onChange={(e) => setEmail(e.target.value)}
+    required
+    // FIX: Προσθέτουμε !text-black και !bg-white
+    className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 !text-black !bg-white"
+    placeholder="your@email.com"
+/>
                     {message && <p className="text-red-500 text-sm">{message}</p>}
                     <button
                         type="submit"
