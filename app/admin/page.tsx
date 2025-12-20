@@ -1,15 +1,14 @@
 // app/admin/page.tsx
-// Server Component (για να τρέχει το <Suspense>)
 
-import { createSupabaseServerClient } from '../lib/supabase-server'; 
-import { redirect } from 'next/navigation';
-import AdminDashboardContent from '@/components/AdminDashboardContent'; // <-- Keep this alias for components
-
+import dynamic from 'next/dynamic';
+import { Suspense } from 'react';
+// import { redirect } from 'next/navigation'; // <-- ΔΕΝ ΤΟ ΧΡΕΙΑΖΟΜΑΣΤΕ ΠΙΑ ΕΔΩ
+import { headers } from 'next/headers'; // <-- Keep this if needed for server
 
 // Lazy load το Client Component, ΑΠΕΝΕΡΓΟΠΟΙΩΝΤΑΣ ΤΟ SSR
-const AdminDashboardContent = dynamic(() => import('@/components/AdminDashboardContent'), { 
-    ssr: false, // <-- ΤΟ ΚΛΕΙΔΙ: Κάνε το Client-Side Rendered
-    loading: () => <div className="min-h-screen flex items-center justify-center">Loading...</div>
+const AdminDashboardContent = dynamic(() => import('../components/AdminDashboardContent'), { 
+    ssr: false, 
+    loading: () => <div className="min-h-screen flex items-center justify-center">Loading Admin Panel...</div>
 });
 
 // [!!!] ΒΑΛΕ ΤΟ ADMIN EMAIL ΣΟΥ ΕΔΩ
@@ -17,12 +16,11 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'nd.6@hotmail.com';
 
 
 export default function AdminPage() {
-    // Εδώ δεν χρειαζόμαστε Server Auth πλέον, γιατί ο client component θα το κάνει
-    // Εφόσον η σελίδα είναι κλειδωμένη με Client-Side Auth, ο κώδικας είναι καθαρός.
+    // Η Auth γίνεται πλέον εντός του Client Component
     
     return (
         <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
-            {/* Το Component αναλαμβάνει τον έλεγχο Auth από το client */}
+            {/* Περιμένουμε το Client Component να κάνει τον έλεγχο Auth */}
             <AdminDashboardContent adminEmail={ADMIN_EMAIL} /> 
         </Suspense>
     );

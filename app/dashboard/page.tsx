@@ -1,62 +1,87 @@
 // app/dashboard/page.tsx
-// SERVER COMPONENT
+"use client"; // <--- ΤΟ ΚΑΝΟΥΜΕ CLIENT SIDE
 
-// ΔΙΟΡΘΩΣΗ PATH: Βγαίνουμε από το /app και μπαίνουμε στο /lib
-import { createSupabaseServerClient } from '../lib/supabase-server'; 
-import { redirect } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { supabase } from '../lib/supabaseClient'; // Client Auth
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-export default async function DashboardPage() {
-    const supabase = createSupabaseServerClient();
-    
-    // 1. Πρώτα, τσεκάρουμε αν ο χρήστης είναι συνδεδεμένος
-    const { data: { user } } = await supabase.auth.getUser();
+export default function DashboardPage() {
+    const router = useRouter();
+    const [profile, setProfile] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
 
-    if (!user) {
-        // Αν δεν είναι συνδεδεμένος, τον στέλνουμε στο login
-        redirect('/login');
-    }
+    useEffect(() => {
+        async function checkAuthAndLoadProfile() {
+            // 1. Έλεγχος Auth
+            const { data: { user } } = await supabase.auth.getUser();
 
-    // 2. Αν είναι συνδεδεμένος, ψάχνουμε το προφίλ του Influencer
-    // Υποθέτουμε ότι το user.email συνδέεται με το contact_email του influencer
-    const { data: profile, error } = await supabase
-        .from('influencers')
-        .select('*')
-        .eq('contact_email', user.email)
-        .single();
-    
-    if (!profile) {
-        // Αν είναι συνδεδεμένος αλλά δεν έχει προφίλ (π.χ. είναι admin/test), 
-        // θα τον στείλουμε σε μια σελίδα που λέει "Profile Incomplete"
-        return (
-            <div className="min-h-screen p-8 text-center bg-slate-50">
-                <h1 className="text-3xl font-bold pt-16">Profile Not Found</h1>
-                <p className="text-slate-500">
-                    Your account is active, but we couldn't find an Influencer profile linked to {user.email}.
-                </p>
-                <a href="/login" className="mt-4 text-blue-600 hover:underline block">Sign out</a>
-            </div>
-        );
+            if (!user) {
+                router.replace('/login');
+                return;
+            }
+
+            // 2. Load Profile
+            const { data: profileData, error } = await supabase
+                .from('influencers')
+                .select('display_name, location, contact_email, verified, min_rate')
+                .eq('contact_email', user.email)
+                .single();
+            
+            if (error && error.code !== 'PGRST116') {
+                 // Μόνο αν υπάρχει σοβαρό σφάλμα
+                 console.error(error);
+            }
+            
+            if (!profileData) {
+                 // Αν δεν βρει προφίλ (σημαίνει ότι έκανε login κάποιος που δεν είναι influencer)
+                 setProfile({ display_name: 'User', location: 'N/A', verified: false, min_rate: 'N/A' });
+            } else {
+                 setProfile(profileData);
+            }
+
+            setLoading(false);
+        }
+        checkAuthAndLoadProfile();
+    }, [router]);
+
+    if (loading || !profile) {
+        return <div className="min-h-screen flex items-center justify-center">Loading Dashboard...</div>;
     }
     
-    // 3. Εμφάνιση του Dashboard (Εδώ θα φτιάξουμε το UI)
     return (
-        <div className="min-h-screen p-8 bg-slate-50">
-            <h1 className="text-4xl font-extrabold text-slate-900 mb-8">
-                Welcome back, {profile.display_name}!
-            </h1>
-            
-            <p className="text-lg mb-4 text-slate-600">This is your Influencer Dashboard.</p>
-            
-            <div className="bg-white p-6 rounded-xl shadow-lg">
-                <h2 className="text-xl font-bold mb-4">Profile Status</h2>
-                <p>Status: {profile.verified ? '✅ VERIFIED & LIVE' : '⏳ PENDING REVIEW'}</p>
-                <p>Location: {profile.location}</p>
-                <p>Email: {user.email}</p>
+        <div className="min-h-screen p-8 bg-slate-100">
+            <div className="max-w-4xl mx-auto">
+                <h1 className="text-4xl font-extrabold text-slate-900 mb-8">
+                    Welcome back, {profile.display_name}!
+                </h1>
                 
-                <a href="/logout" className="mt-6 inline-block bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600">
-                    Sign Out
-                </a>
+                <div className="bg-white p-8 rounded-xl shadow-xl space-y-6">
+                    <h2 className="text-2xl font-bold border-b pb-2">Your Profile Overview</h2>
+                    
+                    <div className="grid grid-cols-3 gap-4 text-sm">
+                        <div className="p-3 bg-slate-50 rounded">
+                            <span className="block text-slate-500 text-xs uppercase">Status</span>
+                            <span className={`font-bold ${profile.verified ? 'text-green-600' : 'text-yellow-600'}`}>
+                                {profile.verified ? '✅ VERIFIED & LIVE' : '⏳ PENDING REVIEW'}
+                            </span>
+                        </div>
+                        <div className="p-3 bg-slate-50 rounded">
+                            <span className="block text-slate-500 text-xs uppercase">Min Rate</span>
+                            <span className="font-bold">{profile.min_rate || 'N/A'}€</span>
+                        </div>
+                        <div className="p-3 bg-slate-50 rounded">
+                            <span className="block text-slate-500 text-xs uppercase">Location</span>
+                            <span className="font-bold">{profile.location || 'N/A'}</span>
+                        </div>
+                    </div>
+                    
+                    <div className="pt-4 border-t">
+                        <Link href="/logout" className="mt-6 inline-block bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600">
+                            Sign Out
+                        </Link>
+                    </div>
+                </div>
             </div>
         </div>
     );
