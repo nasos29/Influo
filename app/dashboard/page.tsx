@@ -1,7 +1,7 @@
 // app/dashboard/page.tsx
 // SERVER COMPONENT
 
-import { createSupabaseServerClient } from '../lib/supabase-server';
+import { createSupabaseServerClient } from '../../lib/supabase-server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 
