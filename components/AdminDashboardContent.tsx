@@ -2,8 +2,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-// ΑΥΤΟ ΕΙΝΑΙ ΤΟ ΣΩΣΤΟ PATH ΓΙΑ CLIENT COMPONENTS:
-import { supabase } from "../lib/supabaseClient"; 
+// Αλλαγή: Χρησιμοποίησε το alias
+import { supabase } from "@/lib/supabaseClient"; 
 import Image from "next/image";
 
 // ... (keep the rest of the code) ...

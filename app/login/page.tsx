@@ -2,7 +2,8 @@
 "use client";
 
 import { useState } from 'react';
-import { supabase } from '../lib/supabaseClient'; // Ο client που έχεις ήδη
+// Αλλαγή: Χρησιμοποίησε το alias
+import { supabase } from '@/lib/supabaseClient'; 
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
