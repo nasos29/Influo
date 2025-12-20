@@ -1,11 +1,10 @@
 // lib/supabase-server.ts
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 
 // Αυτή η συνάρτηση θα χρησιμοποιείται από τις Protected Server Components
 export function createSupabaseServerClient() {
-  // Παίρνουμε το store των cookies
-  const cookieStore = cookies(); 
+  const cookieStore = cookies()
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,17 +12,18 @@ export function createSupabaseServerClient() {
     {
       cookies: {
         get(name: string) {
-          // FIX: Χρησιμοποιούμε 'as any' για να παρακάμψουμε το type error
-          // ΔΕΝ επηρεάζει το runtime, αλλά περνάει το type-check.
-          return (cookieStore as any).get(name)?.value; 
+          // FIX: Χρησιμοποιούμε το standard get
+          // Εδώ, επιστρέφουμε την τιμή (value) του cookie object
+          const cookie = cookieStore.get(name);
+          return cookie ? cookie.value : undefined;
         },
         set(name: string, value: string, options: CookieOptions) {
-          (cookieStore as any).set({ name, value, ...options });
+          cookieStore.set({ name, value, ...options });
         },
         remove(name: string, options: CookieOptions) {
-          (cookieStore as any).set({ name, value: '', ...options });
+          cookieStore.set({ name, value: '', ...options });
         },
       },
     }
-  );
+  )
 }
