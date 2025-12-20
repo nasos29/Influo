@@ -121,6 +121,7 @@ export default function InfluencerProfile(props: { params: Params }) {
     const fetchProfile = async () => {
       if (!id) return;
 
+      // 1. DUMMY CHECK (Keep the logic as is)
       if (id.toString().includes("dummy")) {
         const found = dummyInfluencers.find((d) => String(d.id) === id);
         if (found) {
@@ -137,6 +138,7 @@ export default function InfluencerProfile(props: { params: Params }) {
         }
       }
 
+      // 2. REAL CHECK (Keep the logic as is)
       const isNumeric = /^\d+$/.test(id);
       if (isNumeric) {
         const { data, error } = await supabase.from("influencers").select("*").eq("id", id).single();
@@ -173,12 +175,14 @@ export default function InfluencerProfile(props: { params: Params }) {
     fetchProfile();
   }, [id]);
 
+  // --- HANDLER: SEND PROPOSAL (UPDATED) ---
   const handleSendProposal = async (e: React.FormEvent) => {
     e.preventDefault();
     setSending(true);
 
     const isNumeric = /^\d+$/.test(id);
     if (isNumeric) {
+        // 1. Save Proposal in DB
         const { error } = await supabase.from("proposals").insert([{
             influencer_id: parseInt(id),
             brand_name: brandName,
@@ -194,6 +198,24 @@ export default function InfluencerProfile(props: { params: Params }) {
             alert("Something went wrong. Please try again.");
             setSending(false);
             return;
+        }
+
+        // 2. Send Brand Confirmation Email (NEW)
+        try {
+            await fetch('/api/emails', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    type: 'proposal_brand_confirmation', 
+                    email: brandEmail, // Email του Brand
+                    brandName: brandName,
+                    influencerName: profile?.name,
+                    proposalType: proposalType
+                })
+            });
+            // Στην ιδανική περίπτωση, θα στέλναμε και mail στον Influencer
+        } catch (mailError) {
+             console.error("Brand Confirmation Email failed:", mailError);
         }
     }
 
@@ -216,7 +238,7 @@ export default function InfluencerProfile(props: { params: Params }) {
           </button>
       </div>
 
-      {/* MODAL */}
+      {/* PROPOSAL MODAL */}
       {showProposalModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden relative">
@@ -287,7 +309,7 @@ export default function InfluencerProfile(props: { params: Params }) {
         </div>
       )}
 
-      {/* COVER */}
+      {/* COVER & HEADER (Keep the rest of the code as is) */}
       <div className="h-72 w-full relative bg-slate-900">
          <Image src="https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=1500&q=80" alt="Cover" fill className="object-cover opacity-50" />
          <div className="absolute top-6 left-6 z-20">
@@ -316,6 +338,7 @@ export default function InfluencerProfile(props: { params: Params }) {
             </div>
         </div>
 
+        {/* TABS */}
         <div className="mt-8 border-b border-slate-200">
             <nav className="flex gap-8">
                 <button onClick={() => setActiveTab("overview")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors ${activeTab === "overview" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}>{txt.tab_over}</button>
@@ -324,6 +347,7 @@ export default function InfluencerProfile(props: { params: Params }) {
             </nav>
         </div>
 
+        {/* CONTENT */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
             <div className="lg:col-span-2 space-y-8">
                 {activeTab === "overview" && (
@@ -376,6 +400,8 @@ export default function InfluencerProfile(props: { params: Params }) {
                 {activeTab === "audience" && (
                     <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
                         <h2 className="text-xl font-bold text-slate-900 mb-6">{txt.aud_gen}</h2>
+                        
+                        {/* Gender Chart using CSS */}
                         <div className="mb-8">
                             <div className="flex justify-between mb-2 font-medium text-slate-700">
                                 <span>{txt.female} ({profile.audience_data?.female}%)</span>
@@ -386,6 +412,8 @@ export default function InfluencerProfile(props: { params: Params }) {
                                 <div style={{ width: `${profile.audience_data?.male}%` }} className="bg-blue-400 h-full"></div>
                             </div>
                         </div>
+
+                        {/* Age Group */}
                         <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
                             <div className="bg-white p-3 rounded-full shadow-sm text-2xl">🎯</div>
                             <div>

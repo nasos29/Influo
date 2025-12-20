@@ -3,28 +3,28 @@ import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+// --- ΤΑ VERIFIED EMAILS ---
 const VERIFIED_SENDER_EMAIL = 'noreply@influo.gr'; 
-const ADMIN_RECEIVING_EMAIL = process.env.ADMIN_EMAIL || 'admin@influo.gr'; 
+const ADMIN_RECEIVING_EMAIL = process.env.ADMIN_EMAIL || 'nd.6@hotmail.com'; 
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { type, email, name, location } = body; // Προσθήκη location για το Admin mail
+    const { type, email, name, location, brandName, influencerName, proposalType } = body;
 
     let subject = "";
     let html = "";
     let toEmail = email; 
-    
+
     // --- SET PARAMS ---
+
     if (type === 'signup_influencer') {
-      toEmail = email;
-      subject = "Επιβεβαίωση Εγγραφής | Welcome to Influo! 🤝"; // ΝΕΟ SUBJECT
+      subject = "Επιβεβαίωση Εγγραφής | Welcome to Influo! 🤝"; 
       html = `
         <div style="font-family: sans-serif; padding: 20px; border: 1px solid #1e40af; border-radius: 8px; background-color: #eff6ff;">
             <h1 style="color: #1e40af;">Ευχαριστούμε για την εγγραφή σου, ${name}!</h1>
             <p>Λάβαμε το προφίλ σου. Η αίτησή σου βρίσκεται υπό έλεγχο.</p>
             <p>Θα ελέγξουμε τα Insights σου και θα σε εγκρίνουμε εντός 24 ωρών.</p>
-            <br/>
             <p>Θα λάβεις ένα νέο email **μόλις** το προφίλ σου γίνει δημόσιο στο Directory.</p>
             <br/>
             <p>Με εκτίμηση,<br/>Η ομάδα του Influo</p>
@@ -52,11 +52,25 @@ export async function POST(req: Request) {
         <div style="font-family: sans-serif; padding: 20px; border: 1px solid #10b981; border-radius: 8px; background-color: #ecfdf5;">
             <h1 style="color: #047857;">Είσαι Live! Συγχαρητήρια!</h1>
             <p>Γεια σου ${name},</p>
-            <p>Το προφίλ σου είναι πλέον ενεργό στο Directory μας. Τα Brands μπορούν να σε βρουν!</p>
+            <p>Το προφίλ σου ελέγχθηκε και είναι πλέον ενεργό στο Directory μας. Τα Brands μπορούν να σε βρουν!</p>
             <br/>
             <p>Καλή επιτυχία,<br/>Η ομάδα του Influo</p>
         </div>
       `;
+    }
+    // --- NEW: BRAND CONFIRMATION EMAIL ---
+    else if (type === 'proposal_brand_confirmation') {
+        toEmail = email; // Brand's Email
+        subject = `Επιβεβαίωση Πρότασης | Proposal to ${influencerName} received!`;
+        html = `
+            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #6366f1; border-radius: 8px; background-color: #f5f3ff;">
+                <h1 style="color: #6366f1;">Επιβεβαίωση Πρότασης για τον/την ${influencerName}</h1>
+                <p>Λάβαμε επιτυχώς την πρόταση συνεργασίας από την ${brandName} για την υπηρεσία: <strong>${proposalType}</strong>.</p>
+                <p>Ο/Η ${influencerName} θα λάβει την πρότασή σου και θα σου απαντήσει άμεσα.</p>
+                <br/>
+                <p>Μείνετε συντονισμένοι,<br/>Η ομάδα του Influo</p>
+            </div>
+        `;
     }
 
     // --- SEND ---

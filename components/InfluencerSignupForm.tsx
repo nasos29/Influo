@@ -54,6 +54,11 @@ const t = {
     rateLabel: "Ελάχιστη Χρέωση / Budget (€)",
     engageRateLabel: "Engagement Rate (%)", 
     avgLikesLabel: "Μέσος Όρος Likes/Views", 
+    aud_title: "Δηλώστε τα στοιχεία Κοινού",
+    aud_male: "Άνδρες (%)",
+    aud_female: "Γυναίκες (%)",
+    aud_age_group: "Κορυφαία Ηλικιακή Ομάδα",
+    aud_age_place: "Π.χ. 18-24",
     next: "Επόμενο →",
     back: "← Πίσω",
     submit: "Ολοκλήρωση Εγγραφής",
@@ -99,6 +104,11 @@ const t = {
     rateLabel: "Minimum Rate / Budget (€)",
     engageRateLabel: "Engagement Rate (%)", 
     avgLikesLabel: "Avg Likes/Views", 
+    aud_title: "Declare Audience Demographics",
+    aud_male: "Male (%)",
+    aud_female: "Female (%)",
+    aud_age_group: "Top Age Group",
+    aud_age_place: "E.g. 18-24",
     next: "Next →",
     back: "← Back",
     submit: "Complete Signup",
@@ -133,6 +143,11 @@ export default function InfluencerSignupForm() {
   const [minRate, setMinRate] = useState("");
   const [engagementRate, setEngagementRate] = useState("");
   const [avgLikes, setAvgLikes] = useState("");
+
+  // NEW AUDIENCE STATES
+  const [malePercent, setMalePercent] = useState("");
+  const [femalePercent, setFemalePercent] = useState("");
+  const [topAge, setTopAge] = useState("");
 
   // Handlers
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -237,7 +252,11 @@ export default function InfluencerSignupForm() {
           avatar_url: avatarUrl,
           insights_urls: insightUrls,
           engagement_rate: engagementRate,
-          avg_likes: avgLikes
+          avg_likes: avgLikes,
+          // NEW AUDIENCE DATA
+          audience_male_percent: parseInt(malePercent) || 0,
+          audience_female_percent: parseInt(femalePercent) || 0,
+          audience_top_age: topAge,
         }
       ]);
 
@@ -457,7 +476,7 @@ export default function InfluencerSignupForm() {
                 <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
                     <label className={labelClass}>{txt.insightsLabel}</label>
                     <p className="text-xs text-slate-500 mb-3">{txt.insightsDesc}</p>
-                    {/* NEW: ΕΠΑΓΓΕΛΜΑΤΙΚΗ ΟΔΗΓΙΑ */}
+                    {/* ΕΠΑΓΓΕΛΜΑΤΙΚΗ ΟΔΗΓΙΑ */}
                     <div className="text-xs text-blue-800 bg-blue-100 p-3 rounded-lg mb-3 border border-blue-200">
                         {txt.insightsTip}
                     </div>
@@ -472,6 +491,23 @@ export default function InfluencerSignupForm() {
                             ))}
                         </div>
                     )}
+                </div>
+
+                {/* Audience Data (Self Declared) */}
+                <h3 className="text-sm font-bold uppercase text-gray-600 border-b border-gray-200 pb-2">{txt.aud_title}</h3>
+                <div className="grid grid-cols-3 gap-4">
+                    <div>
+                        <label className={labelClass}>{txt.aud_male}</label>
+                        <input type="number" className={inputClass} value={malePercent} onChange={(e) => setMalePercent(e.target.value)} placeholder="35" />
+                    </div>
+                    <div>
+                        <label className={labelClass}>{txt.aud_female}</label>
+                        <input type="number" className={inputClass} value={femalePercent} onChange={(e) => setFemalePercent(e.target.value)} placeholder="65" />
+                    </div>
+                    <div>
+                        <label className={labelClass}>{txt.aud_age_group}</label>
+                        <input type="text" className={inputClass} value={topAge} onChange={(e) => setTopAge(e.target.value)} placeholder={txt.aud_age_place} />
+                    </div>
                 </div>
 
                 {/* Engagement / Likes / Rate */}
