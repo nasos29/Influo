@@ -1,3 +1,4 @@
+// components/AdminDashboardContent.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -13,12 +14,19 @@ interface DbInfluencer {
   verified: boolean;
   accounts: { platform: string; username: string; followers: string }[]; 
   avatar_url: string | null;
+  
+  // --- ΠΕΔΙΑ ΠΟΥ ΕΣΠΑΖΑΝ: Πρέπει να είναι όλα εδώ ---
   avg_likes: string | null; 
   location: string | null;
   followers_count: string | null; 
+  insights_urls: string[] | null; // <-- ΤΟ ΠΡΟΒΛΗΜΑ
   min_rate: string | null;
   languages: string | null;
   bio: string | null;
+  engagement_rate: string | null;
+  audience_male_percent: number | null;
+  audience_female_percent: number | null;
+  audience_top_age: string | null;
 }
 
 interface Proposal {
@@ -462,7 +470,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               <div className="grid grid-cols-2 gap-4 text-sm">
                                   <div className="p-3 bg-slate-50 rounded">
                                       <span className="block text-slate-500 text-xs">Location</span>
-                                      <span className="font-medium text-black">{selectedUser.location}</span> {/* FIX UI */}
+                                      <span className="font-medium !text-slate-900">{selectedUser.location}</span> {/* FIX UI */}
                                   </div>
                                   <div className="p-3 bg-slate-50 rounded">
                                       <span className="block text-slate-500 text-xs">{txt.modal_followers}</span>
@@ -470,11 +478,11 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                   </div>
                                   <div className="p-3 bg-slate-50 rounded">
                                       <span className="block text-slate-500 text-xs">{txt.modal_gender}</span>
-                                      <span className="font-medium text-black">{selectedUser.gender}</span> {/* FIX UI */}
+                                      <span className="font-medium !text-slate-900">{selectedUser.gender}</span> {/* FIX UI */}
                                   </div>
                                   <div className="p-3 bg-slate-50 rounded">
                                       <span className="block text-slate-500 text-xs">{txt.modal_minrate}</span>
-                                      <span className="font-medium text-black">{selectedUser.min_rate}€</span> {/* FIX UI */}
+                                      <span className="font-medium !text-slate-900">{selectedUser.min_rate}€</span> {/* FIX UI */}
                                   </div>
                               </div>
                           </div>
