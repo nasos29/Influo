@@ -1,18 +1,19 @@
 // app/admin/page.tsx
-"use client"; // <-- ΤΟ ΚΑΝΟΥΜΕ CLIENT COMPONENT
+"use client"; 
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient'; // Client Auth
+import { supabase } from '@/lib/supabaseClient'; 
 import { useRouter } from 'next/navigation';
 import AdminDashboardContent from '@/components/AdminDashboardContent';
-import { redirect } from 'next/navigation';
+
 
 // [!!!] ΒΑΛΕ ΤΟ ADMIN EMAIL ΣΟΥ ΕΔΩ
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'nd.6@hotmail.com';
 
 
 export default function AdminPage() {
-    const [userRole, setUserRole] = useState(null);
+    // FIX: ΟΡΙΖΟΥΜΕ ΣΩΣΤΑ ΤΟΝ ΤΥΠΟ ΤΟΥ ROLE
+    const [userRole, setUserRole] = useState<'admin' | 'guest' | null>(null); 
     const [loading, setLoading] = useState(true);
     const router = useRouter();
 
@@ -27,9 +28,10 @@ export default function AdminPage() {
 
             // 1. Έλεγχος: Αν δεν είναι το Admin Email, τον πετάμε έξω!
             if (user.email !== ADMIN_EMAIL) {
+                // Εδώ, δεν χρειαζόμαστε το role check, καθώς το email είναι το hard-redirect.
                 router.replace('/dashboard?error=unauthorized');
             } else {
-                setUserRole('admin');
+                setUserRole('admin'); // Τώρα το 'admin' είναι αποδεκτός τύπος
             }
 
             setLoading(false);
@@ -37,11 +39,15 @@ export default function AdminPage() {
         checkAuth();
     }, [router]);
 
-    if (loading || userRole !== 'admin') {
-         // Εμφανίζουμε loading ή ένα απλό μήνυμα αν δεν είναι admin (θα έχει γίνει redirect)
+    if (loading) {
         return <div className="min-h-screen flex items-center justify-center">Loading Admin Panel...</div>;
     }
     
-    // Εμφανίζουμε το Admin Content ΜΟΝΟ αν ο έλεγχος πέτυχε
-    return <AdminDashboardContent adminEmail={ADMIN_EMAIL} />; 
+    // Εμφάνιση του Admin Content ΜΟΝΟ αν ο έλεγχος πέτυχε
+    if (userRole === 'admin') {
+        return <AdminDashboardContent adminEmail={ADMIN_EMAIL} />; 
+    }
+    
+    // Εάν δεν είναι Admin (θα έχει γίνει ήδη redirect, αλλά για ασφάλεια)
+    return <div className="min-h-screen p-8 text-red-500 text-center">Access Denied. Redirecting...</div>;
 }
