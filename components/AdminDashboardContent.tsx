@@ -1,8 +1,12 @@
+// components/AdminDashboardContent.tsx
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabaseClient";
+// ΑΥΤΟ ΕΙΝΑΙ ΤΟ ΣΩΣΤΟ PATH ΓΙΑ CLIENT COMPONENTS:
+import { supabase } from "../lib/supabaseClient"; 
 import Image from "next/image";
+
+// ... (keep the rest of the code) ...
 
 interface DbInfluencer {
   id: number;

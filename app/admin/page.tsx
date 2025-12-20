@@ -1,9 +1,9 @@
 // app/admin/page.tsx
 // ΔΕΝ ΧΡΕΙΑΖΕΤΑΙ "use client" - ΕΙΝΑΙ SERVER COMPONENT
 
-import { createSupabaseServerClient } from '@/lib/supabase-server'; // ΠΡΟΣΟΧΗ: Υποθέτω ότι το lib είναι στο root
+import { createSupabaseServerClient } from '../../lib/supabase-server'; // Διορθωμένο path
 import { redirect } from 'next/navigation';
-import AdminDashboardContent from '@/components/AdminDashboardContent';
+import AdminDashboardContent from '@/components/AdminDashboardContent'; // Υποθέτω ότι έχεις alias '@/components'
 
 // [!!!] ΒΑΛΕ ΤΟ ADMIN EMAIL ΣΟΥ ΕΔΩ ΓΙΑ ΛΟΓΟΥΣ ΑΣΦΑΛΕΙΑΣ
 // Χρησιμοποιείται ως fallback αν το role check αποτύχει
