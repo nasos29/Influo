@@ -16,7 +16,6 @@ interface DbInfluencer {
   avg_likes: string | null; 
   location: string | null;
   followers_count: string | null; 
-  insights_urls: string[] | null; 
   min_rate: string | null;
   languages: string | null;
   bio: string | null;
@@ -136,24 +135,24 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6">
-                <h2 className="text-2xl font-bold mb-4">Edit Profile: {user.display_name}</h2>
+                <h2 className="text-2xl font-bold mb-4 text-slate-900">Edit Profile: {user.display_name}</h2>
                 <form onSubmit={handleSave} className="space-y-4">
                     <div>
-                        <label className="block text-sm font-bold mb-1">Name</label>
-                        <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border rounded text-black" required />
+                        <label className="block text-sm font-bold mb-1 text-slate-700">Name</label>
+                        <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border rounded text-slate-900 bg-white" required />
                     </div>
                     <div>
-                        <label className="block text-sm font-bold mb-1">Bio</label>
-                        <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} className="w-full p-2 border rounded text-black" />
+                        <label className="block text-sm font-bold mb-1 text-slate-700">Bio</label>
+                        <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} className="w-full p-2 border rounded text-slate-900 bg-white" />
                     </div>
                     <div>
-                        <label className="block text-sm font-bold mb-1">Min Rate</label>
-                        <input type="text" value={minRate} onChange={e => setMinRate(e.target.value)} className="w-full p-2 border rounded text-black" />
+                        <label className="block text-sm font-bold mb-1 text-slate-700">Min Rate</label>
+                        <input type="text" value={minRate} onChange={e => setMinRate(e.target.value)} className="w-full p-2 border rounded text-slate-900 bg-white" />
                     </div>
                     
                     <div className="flex justify-end gap-3 pt-4">
-                        <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 rounded">Cancel</button>
-                        <button type="submit" disabled={loading} className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50">
+                        <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 rounded text-slate-700 hover:bg-gray-300">Cancel</button>
+                        <button type="submit" disabled={loading} className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50 hover:bg-blue-700">
                             {loading ? 'Saving...' : 'Save Changes'}
                         </button>
                     </div>
