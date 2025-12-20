@@ -2,8 +2,7 @@
 "use client";
 
 import { useState } from 'react';
-// Αλλαγή: Χρησιμοποίησε το alias
-import { supabase } from '../../lib/supabaseClient'; 
+import { supabase } from '../lib/supabaseClient'; // Ο client σου
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
@@ -16,11 +15,25 @@ export default function LoginPage() {
         setLoading(true);
         setMessage('');
 
+        // 1. Έλεγχος αν υπάρχει ήδη ο χρήστης
+        const { data: userData } = await supabase
+            .from('influencers')
+            .select('id')
+            .eq('contact_email', email)
+            .maybeSingle();
+
+        if (!userData) {
+            setMessage("Αυτό το email δεν είναι καταχωρημένο ως Influencer ή Admin.");
+            setLoading(false);
+            return;
+        }
+
+        // 2. Αποστολή Magic Link
         const { error } = await supabase.auth.signInWithOtp({
             email,
             options: {
-                // Προσοχή: Βάλε το URL του site σου (π.χ. https://influo.gr)
-                emailRedirectTo: `${window.location.origin}/dashboard`, 
+                // FIX: ΟΡΙΣΤΙΚΟ URL του site σου
+                emailRedirectTo: 'https://www.influo.gr/dashboard', 
             },
         });
 
@@ -67,7 +80,7 @@ export default function LoginPage() {
                         {loading ? 'Sending...' : 'Send Magic Link'}
                     </button>
                     <p className="text-xs text-slate-500 text-center pt-2">
-                        For Influencers & Admins.
+                        Για Influencers και Admins.
                     </p>
                 </form>
             </div>
