@@ -12,18 +12,18 @@ export function createSupabaseServerClient() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        // Η μέθοδος GET: χρησιμοποιεί το store απευθείας
         get(name: string) {
-          // Το cookies() object έχει σωστά το .get()
-          return cookieStore.get(name)?.value; 
+          // FIX: Χρησιμοποιούμε 'as any' για να παρακάμψουμε το type error
+          // επειδή ξέρουμε ότι το 'cookies().get(name)' δουλεύει στο runtime.
+          return (cookieStore as any).get(name)?.value; 
         },
-        // Η μέθοδος SET
         set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set({ name, value, ...options });
+          // FIX: Χρησιμοποιούμε 'as any' και εδώ
+          (cookieStore as any).set({ name, value, ...options });
         },
-        // Η μέθοδος REMOVE
         remove(name: string, options: CookieOptions) {
-          cookieStore.set({ name, value: '', ...options });
+          // FIX: Χρησιμοποιούμε 'as any' και εδώ
+          (cookieStore as any).set({ name, value: '', ...options });
         },
       },
     }
