@@ -1,7 +1,7 @@
 // app/admin/page.tsx
 // Server Component (για να τρέχει το <Suspense>)
 
-import { createSupabaseServerClient } from './lib/supabase-server'; 
+import { createSupabaseServerClient } from '../lib/supabase-server'; 
 import { redirect } from 'next/navigation';
 import AdminDashboardContent from '@/components/AdminDashboardContent'; // <-- Keep this alias for components
 

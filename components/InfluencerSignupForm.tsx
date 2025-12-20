@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "../app/lib/supabaseClient";
+import { supabase } from "../lib/supabaseClient";
 import Image from "next/image";
 
 type Account = { platform: string; username: string; followers: string };
