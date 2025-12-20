@@ -1,9 +1,9 @@
 // app/admin/page.tsx
-// ΔΕΝ ΧΡΕΙΑΖΕΤΑΙ "use client"
+// SERVER COMPONENT
 
-import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { createSupabaseServerClient } from '../../lib/supabase-server'; // ΔΙΟΡΘΩΣΗ PATH
 import { redirect } from 'next/navigation';
-import AdminDashboardContent from '@/components/AdminDashboardContent';
+import AdminDashboardContent from '@/components/AdminDashboardContent'; 
 
 // [!!!] ΒΑΛΕ ΤΟ ADMIN EMAIL ΣΟΥ ΕΔΩ
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'nd.6@hotmail.com';
@@ -18,25 +18,25 @@ async function getAdminStatus() {
         redirect('/login');
     }
     
-    // Ελέγχουμε αν το email υπάρχει (πρέπει να υπάρχει αν ο user υπάρχει, αλλά το τσεκάρουμε)
     if (!user.email) {
         redirect('/login?error=noemail');
     }
     
-    // 1. Έλεγχος Admin Role
+    // 1. Έλεγχος Admin Role (ΠΙΟ ΑΝΘΕΚΤΙΚΟΣ ΕΛΕΓΧΟΣ)
+    // Χρησιμοποιούμε maybeSingle() για να μην σκάσει αν ο χρήστης δεν υπάρχει στον πίνακα roles
     const { data: roleData } = await supabase
         .from('user_roles')
         .select('role')
         .eq('id', user.id)
-        .single();
+        .maybeSingle(); // <-- ΤΟ FIX ΕΙΝΑΙ ΕΔΩ
+
     
-    // 2. Έλεγχος: Αν δεν έχει role 'admin' ΚΑΙ το email δεν είναι το Admin Email (Fallback)
+    // 2. Ελέγχουμε: Αν δεν έχει role 'admin' ΚΑΙ το email δεν είναι το Admin Email (Fallback)
     if (roleData?.role !== 'admin' && user.email !== ADMIN_EMAIL) {
         redirect('/dashboard?error=unauthorized'); 
     }
 
-    // ΤΩΡΑ ΕΙΝΑΙ ΣΙΓΟΥΡΑ string, αλλά το τσεκάρουμε για να περάσει ο έλεγχος του build
-    return user.email as string; // <-- ΤΟ FIX ΕΙΝΑΙ ΕΔΩ (Force Cast)
+    return user.email as string; // Επιστρέφουμε το email (τώρα είναι σίγουρα string)
 }
 
 
@@ -44,6 +44,5 @@ export default async function AdminPage() {
     // ΕΔΩ ΕΚΤΕΛΕΙΤΑΙ ΤΟ REDIRECT
     const adminEmail = await getAdminStatus(); 
     
-    // Το adminEmail είναι πλέον σίγουρα string
     return <AdminDashboardContent adminEmail={adminEmail} />;
 }
