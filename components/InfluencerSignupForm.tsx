@@ -130,7 +130,7 @@ export default function InfluencerSignupForm() {
   const [step, setStep] = useState(1); 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(""); 
-  const [showPassword, setShowPassword] = useState(false); // <-- ΝΕΟ: Εμφάνιση Password
+  const [showPassword, setShowPassword] = useState(false);
 
   // Data States
   const [displayName, setDisplayName] = useState("");
@@ -247,6 +247,16 @@ export default function InfluencerSignupForm() {
       });
 
       if (authError) {
+          if (
+              authError.message.includes("already registered") ||
+              authError.message.includes("User already registered") ||
+              authError.message.includes("email")
+          ) {
+              const errorMsg = lang === "el"
+                  ? "Αυτό το email χρησιμοποιείται ήδη. Δοκιμάστε άλλο ή κάντε σύνδεση."
+                  : "This email is already registered. Try another or log in.";
+              throw new Error(errorMsg);
+          }
           throw new Error(authError.message);
       }
       if (!authData.user) {
@@ -279,7 +289,7 @@ export default function InfluencerSignupForm() {
       // 3. Database Insert (Σύνδεση με το UUID)
       const { error: insertError } = await supabase.from("influencers").insert([
         { 
-          id: authData.user.id, // <-- ΣΗΜΑΝΤΙΚΟ: Σύνδεση με το UUID του Auth
+          id: authData.user.id,
           display_name: displayName, 
           gender, 
           category,
@@ -294,7 +304,6 @@ export default function InfluencerSignupForm() {
           insights_urls: insightUrls,
           engagement_rate: engagementRate,
           avg_likes: avgLikes,
-          // NEW AUDIENCE DATA
           audience_male_percent: parseInt(malePercent) || 0,
           audience_female_percent: parseInt(femalePercent) || 0,
           audience_top_age: topAge,
@@ -309,12 +318,6 @@ export default function InfluencerSignupForm() {
           throw insertError;
       }
 
-      // 4. Δημιουργία Role (Για Influencer)
-      const { error: roleError } = await supabase.from("user_roles").insert([
-          { id: authData.user.id, role: 'influencer' }
-      ]);
-      if (roleError) console.error("Role creation failed:", roleError);
-      
       // 5. Send Emails 
       try {
         // Mail 1: Στον Influencer (Confirmation)
@@ -510,9 +513,7 @@ export default function InfluencerSignupForm() {
                 </div>
 
                 <div className="flex gap-4 pt-4">
-                    {/* FIX: ΣΒΗΝΕΙ ΤΟ ΜΗΝΥΜΑ ΛΑΘΟΥΣ ΟΤΑΝ ΠΑΤΑΣ BACK */}
                     <button onClick={() => { setStep(1); setMessage(""); }} className="px-6 py-3 bg-white border border-gray-300 text-gray-700 font-bold rounded-lg hover:bg-gray-50">{txt.back}</button>
-                    {/* FIX: ΣΒΗΝΕΙ ΤΟ ΜΗΝΥΜΑ ΛΑΘΟΥΣ ΟΤΑΝ ΠΑΤΑΣ NEXT */}
                     <button onClick={() => { setStep(3); setMessage(""); }} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg">{txt.next}</button>
                 </div>
             </div>
@@ -541,7 +542,6 @@ export default function InfluencerSignupForm() {
                 <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
                     <label className={labelClass}>{txt.insightsLabel}</label>
                     <p className="text-xs text-slate-500 mb-3">{txt.insightsDesc}</p>
-                    {/* ΕΠΑΓΓΕΛΜΑΤΙΚΗ ΟΔΗΓΙΑ */}
                     <div className="text-xs text-blue-800 bg-blue-100 p-3 rounded-lg mb-3 border border-blue-200">
                         {txt.insightsTip}
                     </div>
@@ -607,7 +607,6 @@ export default function InfluencerSignupForm() {
                 </div>
 
                 <div className="flex gap-4 pt-4">
-                    {/* FIX: ΣΒΗΝΕΙ ΤΟ ΜΗΝΥΜΑ ΛΑΘΟΥΣ ΟΤΑΝ ΠΑΤΑΣ BACK */}
                     <button onClick={() => { setStep(2); setMessage(""); }} className="px-6 py-3 bg-white border border-gray-300 text-gray-700 font-bold rounded-lg hover:bg-gray-50">{txt.back}</button>
                     <button onClick={handleSubmit} disabled={loading} className="flex-1 bg-slate-900 hover:bg-black text-white font-bold py-3 rounded-lg">
                         {loading ? txt.loading : txt.submit}
