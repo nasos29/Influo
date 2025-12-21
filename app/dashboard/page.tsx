@@ -1,8 +1,8 @@
 // app/dashboard/page.tsx
-"use client"; // <--- ΤΟ ΚΑΝΟΥΜΕ CLIENT COMPONENT
+"use client"; 
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient'; 
+import { supabase } from '../lib/supabaseClient'; // Client Auth
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -17,7 +17,6 @@ export default function DashboardPage() {
 
     useEffect(() => {
         async function checkAuthAndLoadProfile() {
-            // 1. Έλεγχος Auth
             const { data: { user } } = await supabase.auth.getUser();
 
             if (!user) {
@@ -25,13 +24,13 @@ export default function DashboardPage() {
                 return;
             }
 
-            // 2. ΕΛΕΓΧΟΣ ADMIN (Client Side)
+            // 1. ΕΛΕΓΧΟΣ ADMIN
             if (user.email === ADMIN_EMAIL) {
                 router.replace('/admin'); // Redirect Admin
                 return;
             }
 
-            // 3. Load Profile (Μόνο για Influencer)
+            // 2. Load Profile (Μόνο για Influencer)
             const { data: profileData } = await supabase
                 .from('influencers')
                 .select('display_name, location, contact_email, verified, min_rate')
@@ -53,7 +52,6 @@ export default function DashboardPage() {
         return <div className="min-h-screen flex items-center justify-center">Loading Dashboard...</div>;
     }
     
-    // 4. Εμφάνιση Dashboard
     return (
         <div className="min-h-screen p-8 bg-slate-100">
             <div className="max-w-4xl mx-auto">
@@ -82,7 +80,8 @@ export default function DashboardPage() {
                     </div>
                     
                     <div className="pt-4 border-t">
-                        <Link href="/logout" className="mt-6 inline-block bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600">
+                        <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold">Edit Profile</button>
+                        <Link href="/logout" className="ml-4 text-red-500 hover:underline">
                             Sign Out
                         </Link>
                     </div>

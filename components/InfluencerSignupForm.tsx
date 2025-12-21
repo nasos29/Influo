@@ -32,6 +32,7 @@ const t = {
     locationLabel: "Τοποθεσία",
     locationPlace: "π.χ. Αθήνα, Ελλάδα",
     emailLabel: "Email Επικοινωνίας",
+    passLabel: "Κωδικός (τουλάχιστον 6 χαρακτήρες)", // ΝΕΟ
     bioLabel: "Σύντομο Βιογραφικό",
     bioPlace: "Πες μας λίγα λόγια για το στυλ σου...",
     socialsTitle: "Τα Κανάλια σου",
@@ -64,8 +65,8 @@ const t = {
     submit: "Ολοκλήρωση Εγγραφής",
     loading: "Ανέβασμα Δεδομένων...",
     successTitle: "Καλωσήρθες!",
-    successDesc: "Το προφίλ σου δημιουργήθηκε. Θα λάβεις email επιβεβαίωσης και η ομάδα μας θα ελέγξει τα στοιχεία σου.",
-    close: "Κλείσιμο"
+    successDesc: "Ο λογαριασμός σου δημιουργήθηκε. Μπορείς να συνδεθείς τώρα. Το προφίλ σου θα ελεγχθεί.",
+    close: "Σύνδεση τώρα"
   },
   en: {
     headerTitle: "Join the Creator Club",
@@ -82,6 +83,7 @@ const t = {
     locationLabel: "Location",
     locationPlace: "e.g. Athens, Greece",
     emailLabel: "Contact Email",
+    passLabel: "Password (min 6 characters)", // NEW
     bioLabel: "Short Bio",
     bioPlace: "Tell brands about your style...",
     socialsTitle: "Your Channels",
@@ -114,8 +116,8 @@ const t = {
     submit: "Complete Signup",
     loading: "Uploading Data...",
     successTitle: "Welcome aboard!",
-    successDesc: "Profile created. You will receive a confirmation email and our team will review your application.",
-    close: "Close"
+    successDesc: "Your account has been created. You can log in now. Your profile will be reviewed.",
+    close: "Log in now"
   }
 };
 
@@ -132,6 +134,7 @@ export default function InfluencerSignupForm() {
   const [location, setLocation] = useState("");
   const [bio, setBio] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState(""); // <-- ΝΕΟ: Password State
   
   const [accounts, setAccounts] = useState<Account[]>([{ platform: "Instagram", username: "", followers: "" }]);
   const [languages, setLanguages] = useState("");
@@ -181,7 +184,12 @@ export default function InfluencerSignupForm() {
       setLoading(true);
 
       try {
-          // Έλεγχος Μοναδικότητας
+          // Έλεγχος Passwords
+          if (password.length < 6) {
+             throw new Error(lang === "el" ? "Ο κωδικός πρέπει να έχει τουλάχιστον 6 χαρακτήρες." : "Password must be at least 6 characters long.");
+          }
+          
+          // Έλεγχος Μοναδικότητας (για να μην βγάλει λάθος ο χρήστης)
           const { count, error: checkError } = await supabase
               .from('influencers')
               .select('id', { count: 'exact', head: true }) 
@@ -201,7 +209,7 @@ export default function InfluencerSignupForm() {
           setStep(2);
       } catch (err: any) {
           console.error(err);
-          const errorMessage = err.message.includes("ήδη καταχωρημένο") || err.message.includes("already registered") ? err.message : (lang === "el" ? "Σφάλμα: " : "Error: ") + err.message;
+          const errorMessage = err.message.includes("ήδη καταχωρημένο") || err.message.includes("already registered") || err.message.includes("6 χαρακτήρες") ? err.message : (lang === "el" ? "Σφάλμα: " : "Error: ") + err.message;
           setMessage(errorMessage); 
       } finally {
           setLoading(false);
@@ -213,7 +221,21 @@ export default function InfluencerSignupForm() {
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      // 1. Uploads 
+      
+      // 1. Auth: Δημιουργία Χρήστη (Sign Up)
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: email,
+          password: password,
+      });
+
+      if (authError) {
+          throw new Error(authError.message);
+      }
+      if (!authData.user) {
+          throw new Error("Δεν μπόρεσε να δημιουργηθεί ο χρήστης.");
+      }
+
+      // 2. Uploads 
       let avatarUrl = "";
       if (avatarFile) {
         const fileName = `avatar-${Date.now()}-${avatarFile.name}`;
@@ -236,9 +258,10 @@ export default function InfluencerSignupForm() {
           }));
       }
 
-      // 2. Database Insert
+      // 3. Database Insert (Σύνδεση με το UUID)
       const { error: insertError } = await supabase.from("influencers").insert([
         { 
+          id: authData.user.id, // <-- ΣΗΜΑΝΤΙΚΟ: Σύνδεση με το UUID του Auth
           display_name: displayName, 
           gender, 
           category,
@@ -253,7 +276,6 @@ export default function InfluencerSignupForm() {
           insights_urls: insightUrls,
           engagement_rate: engagementRate,
           avg_likes: avgLikes,
-          // NEW AUDIENCE DATA
           audience_male_percent: parseInt(malePercent) || 0,
           audience_female_percent: parseInt(femalePercent) || 0,
           audience_top_age: topAge,
@@ -261,6 +283,7 @@ export default function InfluencerSignupForm() {
       ]);
 
       if (insertError) {
+          // Πιάνουμε το ΣΦΑΛΜΑ ΜΟΝΑΔΙΚΟΤΗΤΑΣ (αν ο πίνακας influencers έχει το email unique)
           if (insertError.code === '23505') {
              const errorMsg = lang === "el" ? "Αυτό το Email είναι ήδη καταχωρημένο. Παρακαλώ χρησιμοποιήστε άλλο." : "This email is already registered. Please use a different one.";
              throw new Error(errorMsg);
@@ -268,7 +291,13 @@ export default function InfluencerSignupForm() {
           throw insertError;
       }
 
-      // 3. Send Emails 
+      // 4. Δημιουργία Role (Για Influencer)
+      const { error: roleError } = await supabase.from("user_roles").insert([
+          { id: authData.user.id, role: 'influencer' }
+      ]);
+      if (roleError) console.error("Role creation failed:", roleError);
+      
+      // 5. Send Emails 
       try {
         // Mail 1: Στον Influencer (Confirmation)
         await fetch('/api/emails', {
@@ -290,7 +319,9 @@ export default function InfluencerSignupForm() {
       setStep(4);
     } catch (err: any) {
       console.error(err);
-      const errorMessage = err.message.includes("ήδη καταχωρημένο") || err.message.includes("already registered") || err.message.includes("23505") ? (lang === "el" ? "Αυτό το Email είναι ήδη καταχωρημένο. Παρακαλώ χρησιμοποιήστε άλλο." : "This email is already registered. Please use a different one.") : (lang === "el" ? "Σφάλμα: " : "Error: ") + err.message;
+      const errorMessage = err.message.includes("already registered") || err.message.includes("23505") || err.message.includes("κωδικός") 
+          ? err.message 
+          : (lang === "el" ? "Σφάλμα: " : "Error: ") + err.message;
       setMessage(errorMessage);
     } finally {
       setLoading(false);
@@ -333,7 +364,7 @@ export default function InfluencerSignupForm() {
       <div className="flex-1 p-8 overflow-y-auto bg-white">
         {step < 4 && <ProgressSteps />}
 
-        {/* --- STEP 1 --- */}
+        {/* --- STEP 1 --- (Basic Info & Password) */}
         {step === 1 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
                 <h2 className="text-xl font-bold text-black border-b border-gray-200 pb-2">{txt.step1}</h2>
@@ -367,11 +398,19 @@ export default function InfluencerSignupForm() {
                     <input type="text" className={inputClass} value={location} onChange={(e) => setLocation(e.target.value)} placeholder={txt.locationPlace} />
                 </div>
 
-                <div>
-                    <label className={labelClass}>{txt.emailLabel}</label>
-                    <input type="email" className={inputClass} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="brands@example.com" />
+                {/* EMAIL & PASSWORD FIELDS */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className={labelClass}>{txt.emailLabel}</label>
+                        <input type="email" className={inputClass} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="brands@example.com" />
+                    </div>
+                    <div>
+                        <label className={labelClass}>{txt.passLabel}</label>
+                        <input type="password" className={inputClass} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+                    </div>
                 </div>
-
+                
+                {/* BIO */}
                 <div>
                     <label className={labelClass}>{txt.bioLabel}</label>
                     <textarea className={inputClass} rows={3} value={bio} onChange={(e) => setBio(e.target.value)} placeholder={txt.bioPlace} />
@@ -382,7 +421,7 @@ export default function InfluencerSignupForm() {
                 <div className="pt-4">
                     <button 
                         onClick={handleCheckEmailAndNext} 
-                        disabled={!displayName || !email || loading} 
+                        disabled={!displayName || !email || !password || loading} 
                         className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors shadow-lg disabled:opacity-50"
                     >
                         {loading ? "Checking..." : txt.next}
@@ -391,7 +430,7 @@ export default function InfluencerSignupForm() {
             </div>
         )}
 
-        {/* --- STEP 2 --- */}
+        {/* --- STEP 2 --- (Socials) */}
         {step === 2 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
                 <h2 className="text-xl font-bold text-black border-b border-gray-200 pb-2">{txt.step2}</h2>
@@ -453,7 +492,7 @@ export default function InfluencerSignupForm() {
             </div>
         )}
 
-        {/* --- STEP 3 --- */}
+        {/* --- STEP 3 --- (Portfolio & Insights) */}
         {step === 3 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
                 <h2 className="text-xl font-bold text-black border-b border-gray-200 pb-2">{txt.step3}</h2>
@@ -552,7 +591,7 @@ export default function InfluencerSignupForm() {
             </div>
         )}
 
-        {/* --- STEP 4 --- */}
+        {/* --- STEP 4 --- (Success) */}
         {step === 4 && (
             <div className="text-center py-20 animate-in zoom-in duration-300">
                 <div className="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-5xl mx-auto mb-6 shadow-sm">🎉</div>
@@ -560,9 +599,9 @@ export default function InfluencerSignupForm() {
                 <p className="text-gray-600 max-w-md mx-auto mb-10 text-lg">
                     {txt.successDesc}
                 </p>
-                <button onClick={() => window.location.reload()} className="px-6 py-3 bg-white border border-gray-300 text-gray-700 font-bold rounded-lg hover:bg-gray-50 w-full max-w-xs mx-auto">
+                <a href="/login" className="px-6 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 w-full max-w-xs mx-auto inline-block">
                     {txt.close}
-                </button>
+                </a>
             </div>
         )}
 
@@ -570,7 +609,6 @@ export default function InfluencerSignupForm() {
     </div>
   );
 }
-
 
 
 

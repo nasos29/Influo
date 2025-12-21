@@ -2,9 +2,9 @@
 "use client"; 
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient'; 
+import { supabase } from '../lib/supabaseClient'; // Client Auth
 import { useRouter } from 'next/navigation';
-import AdminDashboardContent from '@/components/AdminDashboardContent';
+import AdminDashboardContent from '../components/AdminDashboardContent'; // <-- Διορθωμένο Path
 
 
 // [!!!] ΒΑΛΕ ΤΟ ADMIN EMAIL ΣΟΥ ΕΔΩ
@@ -12,8 +12,7 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'nd.6@hotmail.com';
 
 
 export default function AdminPage() {
-    // FIX: ΟΡΙΖΟΥΜΕ ΣΩΣΤΑ ΤΟΝ ΤΥΠΟ ΤΟΥ ROLE
-    const [userRole, setUserRole] = useState<'admin' | 'guest' | null>(null); 
+    const [userRole, setUserRole] = useState<'admin' | 'guest' | null>(null);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
 
@@ -28,10 +27,9 @@ export default function AdminPage() {
 
             // 1. Έλεγχος: Αν δεν είναι το Admin Email, τον πετάμε έξω!
             if (user.email !== ADMIN_EMAIL) {
-                // Εδώ, δεν χρειαζόμαστε το role check, καθώς το email είναι το hard-redirect.
                 router.replace('/dashboard?error=unauthorized');
             } else {
-                setUserRole('admin'); // Τώρα το 'admin' είναι αποδεκτός τύπος
+                setUserRole('admin');
             }
 
             setLoading(false);
@@ -39,15 +37,11 @@ export default function AdminPage() {
         checkAuth();
     }, [router]);
 
-    if (loading) {
+    if (loading || userRole !== 'admin') {
+         // Εμφανίζουμε loading ή ένα απλό μήνυμα αν δεν είναι admin
         return <div className="min-h-screen flex items-center justify-center">Loading Admin Panel...</div>;
     }
     
-    // Εμφάνιση του Admin Content ΜΟΝΟ αν ο έλεγχος πέτυχε
-    if (userRole === 'admin') {
-        return <AdminDashboardContent adminEmail={ADMIN_EMAIL} />; 
-    }
-    
-    // Εάν δεν είναι Admin (θα έχει γίνει ήδη redirect, αλλά για ασφάλεια)
-    return <div className="min-h-screen p-8 text-red-500 text-center">Access Denied. Redirecting...</div>;
+    // Εμφανίζουμε το Admin Content ΜΟΝΟ αν ο έλεγχος πέτυχε
+    return <AdminDashboardContent adminEmail={ADMIN_EMAIL} />; 
 }
