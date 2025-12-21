@@ -2,9 +2,9 @@
 "use client"; 
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient'; // Client Auth
+import { supabase } from '@/lib/supabaseClient'; 
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import DashboardContent from '@/components/DashboardContent'; // ΝΕΟ COMPONENT
 
 // [!!!] ΒΑΛΕ ΤΟ ADMIN EMAIL ΣΟΥ ΕΔΩ
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'nd.6@hotmail.com';
@@ -14,6 +14,7 @@ export default function DashboardPage() {
     const router = useRouter();
     const [profile, setProfile] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [profileData, setProfileData] = useState<any>(null); // State για τα δεδομένα
 
     useEffect(() => {
         async function checkAuthAndLoadProfile() {
@@ -24,69 +25,32 @@ export default function DashboardPage() {
                 return;
             }
 
-            // 1. ΕΛΕΓΧΟΣ ADMIN
+            // 1. ΕΛΕΓΧΟΣ ADMIN (Redirect)
             if (user.email === ADMIN_EMAIL) {
-                router.replace('/admin'); // Redirect Admin
+                router.replace('/admin'); 
                 return;
             }
 
             // 2. Load Profile (Μόνο για Influencer)
-            const { data: profileData } = await supabase
+            const { data: profile, error } = await supabase
                 .from('influencers')
-                .select('display_name, location, contact_email, verified, min_rate')
+                .select('*') // Φέρνουμε ΟΛΑ τα δεδομένα για το edit
                 .eq('contact_email', user.email)
                 .single();
             
-            if (!profileData) {
-                 setProfile({ display_name: 'User', location: 'N/A', verified: false, min_rate: 'N/A' });
-            } else {
-                 setProfile(profileData);
-            }
-
+            setProfileData(profile);
             setLoading(false);
         }
         checkAuthAndLoadProfile();
     }, [router]);
 
-    if (loading || !profile) {
+    if (loading || !profileData) {
+        if (!loading && !profileData) {
+             return <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center"><h1 className="text-2xl font-bold">Profile Not Found</h1><p className="text-slate-500">Please finish your sign-up or contact admin.</p><Link href="/logout" className="mt-4 text-red-500 hover:underline">Sign Out</Link></div>
+        }
         return <div className="min-h-screen flex items-center justify-center">Loading Dashboard...</div>;
     }
     
-    return (
-        <div className="min-h-screen p-8 bg-slate-100">
-            <div className="max-w-4xl mx-auto">
-                <h1 className="text-4xl font-extrabold text-slate-900 mb-8">
-                    Welcome back, {profile.display_name}!
-                </h1>
-                
-                <div className="bg-white p-8 rounded-xl shadow-xl space-y-6">
-                    <h2 className="text-2xl font-bold border-b pb-2">Your Profile Overview</h2>
-                    
-                    <div className="grid grid-cols-3 gap-4 text-sm">
-                        <div className="p-3 bg-slate-50 rounded">
-                            <span className="block text-slate-500 text-xs uppercase">Status</span>
-                            <span className={`font-bold ${profile.verified ? 'text-green-600' : 'text-yellow-600'}`}>
-                                {profile.verified ? '✅ VERIFIED & LIVE' : '⏳ PENDING REVIEW'}
-                            </span>
-                        </div>
-                        <div className="p-3 bg-slate-50 rounded">
-                            <span className="block text-slate-500 text-xs uppercase">Min Rate</span>
-                            <span className="font-bold">{profile.min_rate || 'N/A'}€</span>
-                        </div>
-                        <div className="p-3 bg-slate-50 rounded">
-                            <span className="block text-slate-500 text-xs uppercase">Location</span>
-                            <span className="font-bold">{profile.location || 'N/A'}</span>
-                        </div>
-                    </div>
-                    
-                    <div className="pt-4 border-t">
-                        <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold">Edit Profile</button>
-                        <Link href="/logout" className="ml-4 text-red-500 hover:underline">
-                            Sign Out
-                        </Link>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
+    // 3. Εμφάνιση Dashboard Content (περνώντας τα δεδομένα)
+    return <DashboardContent profile={profileData} />;
 }
