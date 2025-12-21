@@ -202,22 +202,32 @@ export default function InfluencerSignupForm() {
       setLoading(true);
 
       try {
-          // Έλεγχος Passwords
           if (password.length < 6) {
-             throw new Error(lang === "el" ? "Ο κωδικός πρέπει να έχει τουλάχιστον 6 χαρακτήρες." : "Password must be at least 6 characters long.");
+              throw new Error(lang === "el" ? "Ο κωδικός πρέπει να έχει τουλάχιστον 6 χαρακτήρες." : "Password must be at least 6 characters long.");
           }
-          
-          // Έλεγχος Μοναδικότητας (πριν προχωρήσει)
+
+          // Έλεγχος στο Supabase Auth (users)
+          const { data: authUsers, error: authError } = await supabase
+              .from('users')
+              .select('email')
+              .eq('email', email);
+
+          if (authUsers && authUsers.length > 0) {
+              throw new Error(lang === "el" 
+                  ? "Αυτό το Email είναι ήδη καταχωρημένο. Παρακαλώ χρησιμοποιήστε άλλο." 
+                  : "This email is already registered. Please use a different one.");
+          }
+
+          // Έλεγχος και στο influencers table (προληπτικά)
           const { count, error: checkError } = await supabase
               .from('influencers')
               .select('id', { count: 'exact', head: true }) 
               .eq('contact_email', email);
-              
+
           if (count && count > 0) { 
-              const errorMsg = lang === "el" 
+              throw new Error(lang === "el" 
                   ? "Αυτό το Email είναι ήδη καταχωρημένο. Παρακαλώ χρησιμοποιήστε άλλο." 
-                  : "This email is already registered. Please use a different one.";
-              throw new Error(errorMsg);
+                  : "This email is already registered. Please use a different one.");
           }
           if (checkError && checkError.code !== 'PGRST116' && checkError.code !== '42703') {
               throw new Error(checkError.message);
@@ -252,10 +262,12 @@ export default function InfluencerSignupForm() {
               authError.message.includes("User already registered") ||
               authError.message.includes("email")
           ) {
-              const errorMsg = lang === "el"
+              // Επιστροφή στο 1ο βήμα και εμφάνιση μηνύματος εκεί
+              setStep(1);
+              setMessage(lang === "el"
                   ? "Αυτό το email χρησιμοποιείται ήδη. Δοκιμάστε άλλο ή κάντε σύνδεση."
-                  : "This email is already registered. Try another or log in.";
-              throw new Error(errorMsg);
+                  : "This email is already registered. Try another or log in.");
+              return;
           }
           throw new Error(authError.message);
       }
