@@ -33,6 +33,8 @@ const t = {
     locationPlace: "π.χ. Αθήνα, Ελλάδα",
     emailLabel: "Email Επικοινωνίας",
     passLabel: "Κωδικός (τουλάχιστον 6 χαρακτήρες)", 
+    passShow: "Εμφάνιση",
+    passHide: "Απόκρυψη",
     bioLabel: "Σύντομο Βιογραφικό",
     bioPlace: "Πες μας λίγα λόγια για το στυλ σου...",
     socialsTitle: "Τα Κανάλια σου",
@@ -84,6 +86,8 @@ const t = {
     locationPlace: "e.g. Athens, Greece",
     emailLabel: "Contact Email",
     passLabel: "Password (min 6 characters)", 
+    passShow: "Show",
+    passHide: "Hide",
     bioLabel: "Short Bio",
     bioPlace: "Tell brands about your style...",
     socialsTitle: "Your Channels",
@@ -126,6 +130,7 @@ export default function InfluencerSignupForm() {
   const [step, setStep] = useState(1); 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(""); 
+  const [showPassword, setShowPassword] = useState(false); // <-- ΝΕΟ: Εμφάνιση Password
 
   // Data States
   const [displayName, setDisplayName] = useState("");
@@ -182,13 +187,13 @@ export default function InfluencerSignupForm() {
   const handleMaleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const val = parseInt(e.target.value) || 0;
       setMalePercent(val.toString());
-      setFemalePercent((100 - val).toString());
+      if (val >= 0 && val <= 100) setFemalePercent((100 - val).toString());
   };
 
   const handleFemaleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const val = parseInt(e.target.value) || 0;
       setFemalePercent(val.toString());
-      setMalePercent((100 - val).toString());
+      if (val >= 0 && val <= 100) setMalePercent((100 - val).toString());
   };
 
   // --- EMAIL CHECK AND NEXT STEP (STEP 1) ---
@@ -202,7 +207,7 @@ export default function InfluencerSignupForm() {
              throw new Error(lang === "el" ? "Ο κωδικός πρέπει να έχει τουλάχιστον 6 χαρακτήρες." : "Password must be at least 6 characters long.");
           }
           
-          // Έλεγχος Μοναδικότητας 
+          // Έλεγχος Μοναδικότητας (πριν προχωρήσει)
           const { count, error: checkError } = await supabase
               .from('influencers')
               .select('id', { count: 'exact', head: true }) 
@@ -297,7 +302,6 @@ export default function InfluencerSignupForm() {
       ]);
 
       if (insertError) {
-          // Πιάνουμε το ΣΦΑΛΜΑ ΜΟΝΑΔΙΚΟΤΗΤΑΣ (Postgres error code 23505)
           if (insertError.code === '23505') {
              const errorMsg = lang === "el" ? "Αυτό το Email είναι ήδη καταχωρημένο. Παρακαλώ χρησιμοποιήστε άλλο." : "This email is already registered. Please use a different one.";
              throw new Error(errorMsg);
@@ -418,9 +422,17 @@ export default function InfluencerSignupForm() {
                         <label className={labelClass}>{txt.emailLabel}</label>
                         <input type="email" className={inputClass} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="brands@example.com" />
                     </div>
-                    <div>
+                    {/* PASSWORD FIELD WITH TOGGLE */}
+                    <div className="relative">
                         <label className={labelClass}>{txt.passLabel}</label>
-                        <input type="password" className={inputClass} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+                        <input type={showPassword ? "text" : "password"} className={inputClass} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+                        <button 
+                            type="button" 
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 bottom-2 text-sm text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                            {showPassword ? txt.passHide : txt.passShow}
+                        </button>
                     </div>
                 </div>
                 
@@ -623,7 +635,3 @@ export default function InfluencerSignupForm() {
     </div>
   );
 }
-
-
-
-
