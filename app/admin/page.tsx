@@ -2,7 +2,7 @@
 "use client"; 
 
 import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabaseClient'; // Client Auth
+import { supabase } from '@/lib/supabaseClient'; // Client Auth
 import { useRouter } from 'next/navigation';
 import AdminDashboardContent from '@/components/AdminDashboardContent'; // <-- Διορθωμένο Path
 
