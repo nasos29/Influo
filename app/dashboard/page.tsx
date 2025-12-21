@@ -4,7 +4,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient'; 
 import { useRouter } from 'next/navigation';
-import DashboardContent from '@/components/DashboardContent'; // ΝΕΟ COMPONENT
+import Link from 'next/link'; // <-- ΑΥΤΟ ΕΛΕΙΠΕ
+import DashboardContent from '@/components/DashboardContent'; 
 
 // [!!!] ΒΑΛΕ ΤΟ ADMIN EMAIL ΣΟΥ ΕΔΩ
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'nd.6@hotmail.com';
