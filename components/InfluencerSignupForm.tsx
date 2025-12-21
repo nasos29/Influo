@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "../lib/supabaseClient";
+import { supabase } from "@/lib/supabaseClient";
 import Image from "next/image";
 
 type Account = { platform: string; username: string; followers: string };
@@ -32,7 +32,7 @@ const t = {
     locationLabel: "Τοποθεσία",
     locationPlace: "π.χ. Αθήνα, Ελλάδα",
     emailLabel: "Email Επικοινωνίας",
-    passLabel: "Κωδικός (τουλάχιστον 6 χαρακτήρες)", // ΝΕΟ
+    passLabel: "Κωδικός (τουλάχιστον 6 χαρακτήρες)", 
     bioLabel: "Σύντομο Βιογραφικό",
     bioPlace: "Πες μας λίγα λόγια για το στυλ σου...",
     socialsTitle: "Τα Κανάλια σου",
@@ -83,7 +83,7 @@ const t = {
     locationLabel: "Location",
     locationPlace: "e.g. Athens, Greece",
     emailLabel: "Contact Email",
-    passLabel: "Password (min 6 characters)", // NEW
+    passLabel: "Password (min 6 characters)", 
     bioLabel: "Short Bio",
     bioPlace: "Tell brands about your style...",
     socialsTitle: "Your Channels",
@@ -134,7 +134,7 @@ export default function InfluencerSignupForm() {
   const [location, setLocation] = useState("");
   const [bio, setBio] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState(""); // <-- ΝΕΟ: Password State
+  const [password, setPassword] = useState(""); 
   
   const [accounts, setAccounts] = useState<Account[]>([{ platform: "Instagram", username: "", followers: "" }]);
   const [languages, setLanguages] = useState("");
@@ -178,6 +178,19 @@ export default function InfluencerSignupForm() {
   const addVideo = () => setVideos([...videos, ""]);
   const removeVideo = (i: number) => { const copy = [...videos]; copy.splice(i, 1); setVideos(copy); };
 
+  // --- NEW: AUDIENCE HANDLERS ---
+  const handleMaleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const val = parseInt(e.target.value) || 0;
+      setMalePercent(val.toString());
+      setFemalePercent((100 - val).toString());
+  };
+
+  const handleFemaleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const val = parseInt(e.target.value) || 0;
+      setFemalePercent(val.toString());
+      setMalePercent((100 - val).toString());
+  };
+
   // --- EMAIL CHECK AND NEXT STEP (STEP 1) ---
   const handleCheckEmailAndNext = async () => {
       setMessage(""); 
@@ -189,7 +202,7 @@ export default function InfluencerSignupForm() {
              throw new Error(lang === "el" ? "Ο κωδικός πρέπει να έχει τουλάχιστον 6 χαρακτήρες." : "Password must be at least 6 characters long.");
           }
           
-          // Έλεγχος Μοναδικότητας (για να μην βγάλει λάθος ο χρήστης)
+          // Έλεγχος Μοναδικότητας 
           const { count, error: checkError } = await supabase
               .from('influencers')
               .select('id', { count: 'exact', head: true }) 
@@ -276,6 +289,7 @@ export default function InfluencerSignupForm() {
           insights_urls: insightUrls,
           engagement_rate: engagementRate,
           avg_likes: avgLikes,
+          // NEW AUDIENCE DATA
           audience_male_percent: parseInt(malePercent) || 0,
           audience_female_percent: parseInt(femalePercent) || 0,
           audience_top_age: topAge,
@@ -283,7 +297,7 @@ export default function InfluencerSignupForm() {
       ]);
 
       if (insertError) {
-          // Πιάνουμε το ΣΦΑΛΜΑ ΜΟΝΑΔΙΚΟΤΗΤΑΣ (αν ο πίνακας influencers έχει το email unique)
+          // Πιάνουμε το ΣΦΑΛΜΑ ΜΟΝΑΔΙΚΟΤΗΤΑΣ (Postgres error code 23505)
           if (insertError.code === '23505') {
              const errorMsg = lang === "el" ? "Αυτό το Email είναι ήδη καταχωρημένο. Παρακαλώ χρησιμοποιήστε άλλο." : "This email is already registered. Please use a different one.";
              throw new Error(errorMsg);
@@ -537,11 +551,11 @@ export default function InfluencerSignupForm() {
                 <div className="grid grid-cols-3 gap-4">
                     <div>
                         <label className={labelClass}>{txt.aud_male}</label>
-                        <input type="number" className={inputClass} value={malePercent} onChange={(e) => setMalePercent(e.target.value)} placeholder="35" />
+                        <input type="number" className={inputClass} value={malePercent} onChange={handleMaleChange} placeholder="35" />
                     </div>
                     <div>
                         <label className={labelClass}>{txt.aud_female}</label>
-                        <input type="number" className={inputClass} value={femalePercent} onChange={(e) => setFemalePercent(e.target.value)} placeholder="65" />
+                        <input type="number" className={inputClass} value={femalePercent} onChange={handleFemaleChange} placeholder="65" />
                     </div>
                     <div>
                         <label className={labelClass}>{txt.aud_age_group}</label>
