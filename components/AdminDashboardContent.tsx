@@ -1,4 +1,3 @@
-// components/AdminDashboardContent.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -15,11 +14,11 @@ interface DbInfluencer {
   accounts: { platform: string; username: string; followers: string }[]; 
   avatar_url: string | null;
   
-  // --- ΠΕΔΙΑ ΠΟΥ ΕΣΠΑΖΑΝ: Πρέπει να είναι όλα εδώ ---
+  // --- ΠΕΔΙΑ ΠΟΥ ΕΣΠΑΖΑΝ (All fields used in the component) ---
   avg_likes: string | null; 
   location: string | null;
   followers_count: string | null; 
-  insights_urls: string[] | null; // <-- ΤΟ ΠΡΟΒΛΗΜΑ
+  insights_urls: string[] | null; 
   min_rate: string | null;
   languages: string | null;
   bio: string | null;
@@ -111,9 +110,13 @@ const t = {
 
 // [!!!] ΝΕΟ COMPONENT ΓΙΑ ΤΗΝ ΕΠΕΞΕΡΓΑΣΙΑ (Admin Edit)
 const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClose: () => void, onSave: (updatedUser: DbInfluencer) => void }) => {
+    // Local States για όλα τα πεδία που κάνουμε edit
     const [name, setName] = useState(user.display_name);
     const [bio, setBio] = useState(user.bio || "");
     const [minRate, setMinRate] = useState(user.min_rate || "");
+    const [location, setLocation] = useState(user.location || "");
+    const [avgLikes, setAvgLikes] = useState(user.avg_likes || "");
+    const [engage, setEngage] = useState(user.engagement_rate || "");
     const [loading, setLoading] = useState(false);
 
     const handleSave = async (e: React.FormEvent) => {
@@ -125,7 +128,10 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
             .update({ 
                 display_name: name, 
                 bio: bio, 
-                min_rate: minRate 
+                min_rate: minRate,
+                location: location, 
+                avg_likes: avgLikes, 
+                engagement_rate: engage,
             })
             .eq('id', user.id)
             .select()
@@ -137,30 +143,45 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
             alert("Error saving: " + error.message);
         } else if (data) {
             onSave(data as DbInfluencer); // Ενημέρωσε το state του πατρικού component
+            onClose(); // Κλείσιμο μετά την επιτυχία
         }
     };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6">
-                <h2 className="text-2xl font-bold mb-4 text-slate-900">Edit Profile: {user.display_name}</h2>
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 overflow-y-auto max-h-[90vh]">
+                <h2 className="text-2xl font-bold mb-6 text-slate-900">Edit Profile: {user.display_name}</h2>
                 <form onSubmit={handleSave} className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-bold mb-1 text-slate-700">Name</label>
-                        <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border rounded text-slate-900 bg-white" required />
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-bold mb-1 text-slate-700">Full Name</label>
+                            <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border rounded text-slate-900 bg-white" required />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold mb-1 text-slate-700">Location</label>
+                            <input type="text" value={location} onChange={e => setLocation(e.target.value)} className="w-full p-2 border rounded text-slate-900 bg-white" />
+                        </div>
+                         <div>
+                            <label className="block text-sm font-bold mb-1 text-slate-700">Min Rate (€)</label>
+                            <input type="text" value={minRate} onChange={e => setMinRate(e.target.value)} className="w-full p-2 border rounded text-slate-900 bg-white" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold mb-1 text-slate-700">Engagement Rate (%)</label>
+                            <input type="text" value={engage} onChange={e => setEngage(e.target.value)} className="w-full p-2 border rounded text-slate-900 bg-white" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold mb-1 text-slate-700">Avg Likes/Views</label>
+                            <input type="text" value={avgLikes} onChange={e => setAvgLikes(e.target.value)} className="w-full p-2 border rounded text-slate-900 bg-white" />
+                        </div>
                     </div>
                     <div>
                         <label className="block text-sm font-bold mb-1 text-slate-700">Bio</label>
                         <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} className="w-full p-2 border rounded text-slate-900 bg-white" />
                     </div>
-                    <div>
-                        <label className="block text-sm font-bold mb-1 text-slate-700">Min Rate</label>
-                        <input type="text" value={minRate} onChange={e => setMinRate(e.target.value)} className="w-full p-2 border rounded text-slate-900 bg-white" />
-                    </div>
                     
                     <div className="flex justify-end gap-3 pt-4">
                         <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 rounded text-slate-700 hover:bg-gray-300">Cancel</button>
-                        <button type="submit" disabled={loading} className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50 hover:bg-blue-700">
+                        <button type="submit" disabled={loading} className="px-6 py-3 bg-blue-600 text-white rounded disabled:opacity-50 hover:bg-blue-700">
                             {loading ? 'Saving...' : 'Save Changes'}
                         </button>
                     </div>
@@ -285,7 +306,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   if (loading) return <div className="p-10 text-center">Loading...</div>;
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans p-8 text-slate-900">
+    <div className="min-h-screen bg-slate-50 p-8 text-slate-900">
       
       {/* Header & Lang Toggle */}
       <div className="max-w-7xl mx-auto mb-8 flex justify-between items-center">

@@ -36,7 +36,7 @@ export default function LoginPage() {
             .eq('id', data.user!.id)
             .maybeSingle();
 
-        // [!!!] Hardcoded Admin Check
+        // [!!!] Hardcoded Admin Check:
         const isAdmin = roleData?.role === 'admin' || data.user?.email === 'nd.6@hotmail.com';
 
         if (isAdmin) {
@@ -65,7 +65,7 @@ export default function LoginPage() {
 
                     <label className="block text-sm font-medium text-slate-700">Password</label>
                     <input
-                        type="password"
+                        type="password" 
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
