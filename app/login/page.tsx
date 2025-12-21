@@ -28,23 +28,16 @@ export default function LoginPage() {
             setLoading(false);
             return;
         }
-        
-        // 2. Έλεγχος Role για Redirect
-        const { data: roleData } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('id', data.user!.id)
-            .maybeSingle();
 
-        // [!!!] Hardcoded Admin Check:
-        const isAdmin = roleData?.role === 'admin' || data.user?.email === 'nd.6@hotmail.com';
+        // Admin check by email
+        const isAdmin = data.user?.email === 'nd.6@hotmail.com';
 
         if (isAdmin) {
             router.push('/admin');
         } else {
             router.push('/dashboard');
         }
-        
+
         setLoading(false);
     };
 
