@@ -1,11 +1,11 @@
 "use client";
 
 import { useSearchParams } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import Messaging from '@/components/Messaging';
 import { supabase } from '@/lib/supabaseClient';
 
-export default function MessagesPage() {
+function MessagesContent() {
   const searchParams = useSearchParams();
   const influencerId = searchParams?.get('influencer') || null;
   const brandEmail = searchParams?.get('brandEmail') || null;
@@ -87,6 +87,18 @@ export default function MessagesPage() {
         />
       </div>
     </div>
+  );
+}
+
+export default function MessagesPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-slate-500">Loading...</div>
+      </div>
+    }>
+      <MessagesContent />
+    </Suspense>
   );
 }
 
