@@ -100,9 +100,9 @@ export default function Home() {
         }}
       />
       
-      <div className="min-h-screen flex flex-col bg-white font-sans text-slate-900 selection:bg-purple-200">
+      <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-white to-blue-50/30 font-sans text-slate-900 selection:bg-purple-200">
         {/* Header */}
-        <header className="sticky top-0 z-40 bg-white backdrop-blur-xl border-b border-slate-100 shadow-sm">
+        <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-200/50 shadow-sm">
           <div className="max-w-7xl mx-auto flex justify-between items-center px-6 py-4">
             <a href="/" className="flex items-center gap-2" aria-label="Influo Home">
               <Image 
@@ -139,7 +139,22 @@ export default function Home() {
         </header>
 
         {/* Hero Section */}
-        <section className="relative pt-24 pb-32 px-6 overflow-hidden bg-white">
+        <section className="relative pt-24 pb-32 px-6 overflow-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50/40">
+          {/* Background image overlay - subtle */}
+          <div 
+            className="absolute inset-0 opacity-[0.03] bg-cover bg-center bg-no-repeat"
+            style={{
+              backgroundImage: `url('https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1200&q=80')`,
+            }}
+          ></div>
+          
+          {/* Decorative background elements */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-blue-100/20 rounded-full blur-3xl"></div>
+            <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-100/20 rounded-full blur-3xl"></div>
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-blue-50/30 via-purple-50/30 to-pink-50/30 rounded-full blur-3xl"></div>
+          </div>
+          
           <div className="relative z-10 max-w-6xl mx-auto text-center">
             <h2 className="text-5xl md:text-6xl lg:text-7xl font-bold text-slate-900 mb-6 leading-tight tracking-tight">
               {txt.hero_title_1} <br />
@@ -163,8 +178,12 @@ export default function Home() {
         </section>
 
         {/* Directory Section */}
-        <section className="py-20 px-6 bg-white" id="directory">
-          <div className="max-w-7xl mx-auto">
+        <section className="relative py-20 px-6 bg-white" id="directory">
+          {/* Subtle pattern overlay */}
+          <div className="absolute inset-0 opacity-[0.015] pointer-events-none" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+          }}></div>
+          <div className="relative max-w-7xl mx-auto">
             <div className="text-center mb-12">
               <h3 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">{txt.dir_title}</h3>
               <p className="text-slate-600 max-w-2xl mx-auto">{txt.dir_desc}</p>
@@ -175,8 +194,10 @@ export default function Home() {
         </section>
 
         {/* Features Section */}
-        <section className="py-20 px-6 bg-slate-50" id="features">
-          <div className="max-w-6xl mx-auto">
+        <section className="relative py-20 px-6 bg-gradient-to-br from-slate-50 via-white to-purple-50/20" id="features">
+          {/* Gradient accents */}
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-200 via-purple-200 to-pink-200"></div>
+          <div className="max-w-6xl mx-auto relative">
             <div className="grid md:grid-cols-3 gap-8">
               <div className="bg-white p-8 rounded-lg border border-slate-200">
                   <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-xl mb-4">📈</div>

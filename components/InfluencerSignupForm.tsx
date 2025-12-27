@@ -206,19 +206,7 @@ export default function InfluencerSignupForm() {
               throw new Error(lang === "el" ? "Ο κωδικός πρέπει να έχει τουλάχιστον 6 χαρακτήρες." : "Password must be at least 6 characters long.");
           }
 
-          // Έλεγχος στο Supabase Auth (users)
-          const { data: authUsers, error: authError } = await supabase
-              .from('users')
-              .select('email')
-              .eq('email', email);
-
-          if (authUsers && authUsers.length > 0) {
-              throw new Error(lang === "el" 
-                  ? "Αυτό το Email είναι ήδη καταχωρημένο. Παρακαλώ χρησιμοποιήστε άλλο." 
-                  : "This email is already registered. Please use a different one.");
-          }
-
-          // Έλεγχος και στο influencers table (προληπτικά)
+          // Έλεγχος στο influencers table (πρώτα εδώ γιατί είναι πιο γρήγορος)
           const { count, error: checkError } = await supabase
               .from('influencers')
               .select('id', { count: 'exact', head: true }) 
@@ -229,14 +217,52 @@ export default function InfluencerSignupForm() {
                   ? "Αυτό το Email είναι ήδη καταχωρημένο. Παρακαλώ χρησιμοποιήστε άλλο." 
                   : "This email is already registered. Please use a different one.");
           }
-          if (checkError && checkError.code !== 'PGRST116' && checkError.code !== '42703') {
-              throw new Error(checkError.message);
+
+          // Προ-έλεγχος: Προσπαθούμε να καθαρίσουμε orphaned auth users (αν υπάρχουν)
+          // Αυτό βοηθάει αν κάποιος διαγράφηκε από influencers αλλά όχι από auth
+          try {
+              await fetch('/api/admin/cleanup-orphaned-auth', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ email }),
+              });
+              // Αγνοούμε το response - είναι προληπτικός έλεγχος
+          } catch (e) {
+              // Αγνοούμε errors - προχωράμε
           }
 
           // Όλα ΟΚ: Προχωράμε στο επόμενο βήμα
           setStep(2);
       } catch (err: any) {
           console.error(err);
+          
+          // Αν το error είναι "Invalid login credentials", σημαίνει ότι το email υπάρχει στο auth
+          // Προσφέρουμε cleanup option
+          if (err.message?.includes("Invalid login") || err.message?.includes("invalid")) {
+              const shouldCleanup = confirm(
+                  lang === "el" 
+                      ? "Το email υπάρχει στο σύστημα. Θέλετε να διαγραφεί ώστε να μπορέσετε να ξαναγραφτείτε?"
+                      : "Email exists in system. Delete it to allow new registration?"
+              );
+              
+              if (shouldCleanup) {
+                  try {
+                      const cleanupResponse = await fetch('/api/admin/cleanup-orphaned-auth', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ email }),
+                      });
+                      
+                      if (cleanupResponse.ok) {
+                          setMessage(lang === "el" ? "Το email διαγράφηκε. Παρακαλώ δοκιμάστε ξανά." : "Email cleaned up. Please try again.");
+                          return;
+                      }
+                  } catch (cleanupErr) {
+                      console.error('Cleanup error:', cleanupErr);
+                  }
+              }
+          }
+          
           const errorMessage = err.message.includes("ήδη καταχωρημένο") || err.message.includes("already registered") || err.message.includes("6 χαρακτήρες") ? err.message : (lang === "el" ? "Σφάλμα: " : "Error: ") + err.message;
           setMessage(errorMessage); 
       } finally {
@@ -251,7 +277,10 @@ export default function InfluencerSignupForm() {
     try {
       
       // 1. Auth: Δημιουργία Χρήστη (Sign Up)
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      let authData: any;
+      let authUser: any;
+
+      const { data: initialAuthData, error: authError } = await supabase.auth.signUp({
           email: email,
           password: password,
       });
@@ -262,17 +291,60 @@ export default function InfluencerSignupForm() {
               authError.message.includes("User already registered") ||
               authError.message.includes("email")
           ) {
-              // Επιστροφή στο 1ο βήμα και εμφάνιση μηνύματος εκεί
-              setStep(1);
-              setMessage(lang === "el"
-                  ? "Αυτό το email χρησιμοποιείται ήδη. Δοκιμάστε άλλο ή κάντε σύνδεση."
-                  : "This email is already registered. Try another or log in.");
-              return;
+              // Προσπαθούμε να καθαρίσουμε orphaned auth user
+              try {
+                  const cleanupResponse = await fetch('/api/admin/cleanup-orphaned-auth', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ email }),
+                  });
+
+                  const cleanupResult = await cleanupResponse.json();
+
+                  if (cleanupResponse.ok && cleanupResult.deleted) {
+                      // Retry signup after cleanup
+                      const { data: retryAuthData, error: retryError } = await supabase.auth.signUp({
+                          email: email,
+                          password: password,
+                      });
+
+                      if (retryError || !retryAuthData?.user) {
+                          setStep(1);
+                          setMessage(lang === "el"
+                              ? "Αυτό το email χρησιμοποιείται ήδη. Δοκιμάστε άλλο ή κάντε σύνδεση."
+                              : "This email is already registered. Try another or log in.");
+                          return;
+                      }
+
+                      // Success - use retryAuthData
+                      authData = retryAuthData;
+                      authUser = retryAuthData.user;
+                  } else {
+                      // Cleanup didn't work - show error
+                      setStep(1);
+                      setMessage(lang === "el"
+                          ? "Αυτό το email χρησιμοποιείται ήδη. Δοκιμάστε άλλο ή κάντε σύνδεση."
+                          : "This email is already registered. Try another or log in.");
+                      return;
+                  }
+              } catch (cleanupErr) {
+                  console.error('Cleanup attempt failed:', cleanupErr);
+                  setStep(1);
+                  setMessage(lang === "el"
+                      ? "Αυτό το email χρησιμοποιείται ήδη. Δοκιμάστε άλλο ή κάντε σύνδεση."
+                      : "This email is already registered. Try another or log in.");
+                  return;
+              }
+          } else {
+              throw new Error(authError.message);
           }
-          throw new Error(authError.message);
-      }
-      if (!authData.user) {
-          throw new Error("Δεν μπόρεσε να δημιουργηθεί ο χρήστης.");
+      } else {
+          // Initial signup succeeded
+          authData = initialAuthData;
+          if (!authData?.user) {
+              throw new Error("Δεν μπόρεσε να δημιουργηθεί ο χρήστης.");
+          }
+          authUser = authData.user;
       }
 
       // 2. Uploads 
@@ -301,7 +373,7 @@ export default function InfluencerSignupForm() {
       // 3. Database Insert (Σύνδεση με το UUID)
       const { error: insertError } = await supabase.from("influencers").insert([
         { 
-          id: authData.user.id,
+          id: authUser.id,
           display_name: displayName, 
           gender, 
           category,

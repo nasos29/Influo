@@ -48,13 +48,23 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // 1. Διαγραφή από influencers table
+      // 1. Διαγραφή από user_roles ΠΡΩΤΑ
+      const { error: rolesError } = await supabaseAdmin
+        .from('user_roles')
+        .delete()
+        .eq('id', user.id);
+
+      if (rolesError) {
+        console.error('Error deleting from user_roles:', rolesError);
+      }
+
+      // 2. Διαγραφή από influencers table
       const { error: dbError } = await supabaseAdmin
         .from('influencers')
         .delete()
         .eq('id', user.id);
 
-      // 2. Διαγραφή auth user
+      // 3. Διαγραφή auth user
       const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(user.id);
 
       if (authError || dbError) {

@@ -24,7 +24,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 1. Διαγραφή από τον πίνακα influencers (αν υπάρχει)
+    // 1. Διαγραφή από user_roles ΠΡΩΤΑ (για να μην σπάσει το foreign key constraint)
+    const { error: rolesDeleteError } = await supabaseAdmin
+      .from('user_roles')
+      .delete()
+      .eq('id', userId);
+
+    if (rolesDeleteError) {
+      console.error('Error deleting from user_roles table:', rolesDeleteError);
+    }
+
+    // 2. Διαγραφή από τον πίνακα influencers (αν υπάρχει)
     const { error: deleteError } = await supabaseAdmin
       .from('influencers')
       .delete()
@@ -34,7 +44,7 @@ export async function POST(request: NextRequest) {
       console.error('Error deleting from influencers table:', deleteError);
     }
 
-    // 2. Διαγραφή του auth user από το Supabase Auth
+    // 3. Διαγραφή του auth user από το Supabase Auth
     const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
 
     if (authDeleteError) {
