@@ -10,7 +10,7 @@ const ADMIN_RECEIVING_EMAIL = process.env.ADMIN_EMAIL || 'nd.6@hotmail.com';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { type, email, name, location, brandName, influencerName, proposalType } = body;
+    const { type, email, name, location, brandName, influencerName, proposalType, influencerId, budget, message } = body;
     const host = req.headers.get('host') || 'influo.gr';
 
     // Validation
@@ -101,6 +101,43 @@ export async function POST(req: Request) {
                 <br/>
                 <p>Παρακαλώ μπες στο Admin Dashboard για έλεγχο:</p>
                 <a href="https://${host}/admin" style="display: inline-block; padding: 10px 20px; background-color: #1e40af; color: white; text-decoration: none; border-radius: 5px; margin-top: 10px;">Πήγαινε στο Admin Dashboard</a>
+            </div>
+        `;
+    }
+    else if (type === 'proposal_admin_notification') {
+        toEmail = ADMIN_RECEIVING_EMAIL;
+        subject = `📨 Νέα Πρόταση από ${brandName} προς ${influencerName}`;
+        html = `
+            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #8b5cf6; border-radius: 8px; background-color: #faf5ff;">
+                <h1 style="color: #7c3aed;">Νέα Πρόταση Συνεργασίας!</h1>
+                <div style="background-color: white; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #8b5cf6;">
+                    <p><strong>Brand:</strong> ${brandName}</p>
+                    <p><strong>Email:</strong> ${email}</p>
+                    <p><strong>Influencer:</strong> ${influencerName}</p>
+                    <p><strong>Υπηρεσία:</strong> ${proposalType}</p>
+                    <p><strong>Budget:</strong> €${budget}</p>
+                    ${message ? `<p><strong>Μήνυμα:</strong><br/>${message.replace(/\n/g, '<br/>')}</p>` : ''}
+                </div>
+                <p>Παρακαλώ μπες στο Admin Dashboard για να δεις όλες τις προτάσεις:</p>
+                <a href="https://${host}/admin" style="display: inline-block; padding: 10px 20px; background-color: #8b5cf6; color: white; text-decoration: none; border-radius: 5px; margin-top: 10px;">Πήγαινε στο Admin Dashboard</a>
+            </div>
+        `;
+    }
+    else if (type === 'message_admin_notification') {
+        toEmail = ADMIN_RECEIVING_EMAIL;
+        const { senderName, senderType, recipientName, conversationId, messageContent } = body;
+        subject = `💬 Νέο Μήνυμα: ${senderName} → ${recipientName}`;
+        html = `
+            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #0ea5e9; border-radius: 8px; background-color: #f0f9ff;">
+                <h1 style="color: #0284c7;">Νέο Μήνυμα στη Συνέντευξη</h1>
+                <div style="background-color: white; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #0ea5e9;">
+                    <p><strong>Από:</strong> ${senderName} (${senderType === 'brand' ? 'Brand' : 'Influencer'})</p>
+                    <p><strong>Προς:</strong> ${recipientName}</p>
+                    <p><strong>Μήνυμα:</strong></p>
+                    <div style="background-color: #f8fafc; padding: 12px; border-radius: 6px; margin-top: 8px; white-space: pre-wrap;">${messageContent.replace(/\n/g, '<br/>')}</div>
+                </div>
+                <p>Παρακαλώ μπες στο Admin Dashboard για να δεις τη συνομιλία:</p>
+                <a href="https://${host}/admin?conversation=${conversationId}" style="display: inline-block; padding: 10px 20px; background-color: #0ea5e9; color: white; text-decoration: none; border-radius: 5px; margin-top: 10px;">Πήγαινε στο Admin Dashboard</a>
             </div>
         `;
     }

@@ -101,9 +101,9 @@ export default function Home() {
       />
       
       <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-white to-blue-50/30 font-sans text-slate-900 selection:bg-purple-200">
-        {/* Header */}
+      {/* Header */}
         <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-200/50 shadow-sm">
-          <div className="max-w-7xl mx-auto flex justify-between items-center px-6 py-4">
+        <div className="max-w-7xl mx-auto flex justify-between items-center px-6 py-4">
             <a href="/" className="flex items-center gap-2" aria-label="Influo Home">
               <Image 
                 src="/logo.svg" 
@@ -125,20 +125,20 @@ export default function Home() {
                 <li><a href="/login" className="hover:text-slate-900 transition-colors">
                   {lang === "el" ? "Σύνδεση" : "Sign In"}
                 </a></li>
-              </ul>
-              {/* Lang Toggle */}
-              <button 
-                  onClick={() => setLang(lang === "el" ? "en" : "el")}
+            </ul>
+            {/* Lang Toggle */}
+            <button 
+                onClick={() => setLang(lang === "el" ? "en" : "el")}
                   className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
                   aria-label="Toggle language"
-              >
+            >
                   {lang === "el" ? "EN" : "EL"}
-              </button>
-            </nav>
-          </div>
-        </header>
+            </button>
+          </nav>
+        </div>
+      </header>
 
-        {/* Hero Section */}
+      {/* Hero Section */}
         <section className="relative pt-24 pb-32 px-6 overflow-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50/40">
           {/* Background image overlay - subtle */}
           <div 
@@ -157,27 +157,27 @@ export default function Home() {
           
           <div className="relative z-10 max-w-6xl mx-auto text-center">
             <h2 className="text-5xl md:text-6xl lg:text-7xl font-bold text-slate-900 mb-6 leading-tight tracking-tight">
-              {txt.hero_title_1} <br />
+            {txt.hero_title_1} <br />
               <span className="text-slate-900">
-                {txt.hero_title_2}
-              </span>
-            </h2>
-            <p className="text-lg md:text-xl text-slate-600 max-w-2xl mx-auto mb-10 leading-relaxed">
-              {txt.hero_desc}
-            </p>
-            
-            <div className="flex flex-col sm:flex-row justify-center gap-4">
+              {txt.hero_title_2}
+            </span>
+          </h2>
+          <p className="text-lg md:text-xl text-slate-600 max-w-2xl mx-auto mb-10 leading-relaxed">
+            {txt.hero_desc}
+          </p>
+          
+          <div className="flex flex-col sm:flex-row justify-center gap-4">
               <button onClick={() => setShowModal(true)} className="px-8 py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg transition-colors">
-                {txt.hero_btn_primary}
-              </button>
+              {txt.hero_btn_primary}
+            </button>
               <a href="#directory" className="px-8 py-3.5 bg-white hover:bg-slate-50 text-slate-900 font-semibold border border-slate-200 rounded-lg transition-colors">
-                {txt.hero_btn_secondary}
-              </a>
-            </div>
+              {txt.hero_btn_secondary}
+            </a>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* Directory Section */}
+      {/* Directory Section */}
         <section className="relative py-20 px-6 bg-white" id="directory">
           {/* Subtle pattern overlay */}
           <div className="absolute inset-0 opacity-[0.015] pointer-events-none" style={{
@@ -186,14 +186,14 @@ export default function Home() {
           <div className="relative max-w-7xl mx-auto">
             <div className="text-center mb-12">
               <h3 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">{txt.dir_title}</h3>
-              <p className="text-slate-600 max-w-2xl mx-auto">{txt.dir_desc}</p>
-            </div>
-            {/* Περνάμε τη γλώσσα στο Directory */}
-            <Directory lang={lang} /> 
+            <p className="text-slate-600 max-w-2xl mx-auto">{txt.dir_desc}</p>
           </div>
-        </section>
+          {/* Περνάμε τη γλώσσα στο Directory */}
+          <Directory lang={lang} /> 
+        </div>
+      </section>
 
-        {/* Features Section */}
+      {/* Features Section */}
         <section className="relative py-20 px-6 bg-gradient-to-br from-slate-50 via-white to-purple-50/20" id="features">
           {/* Gradient accents */}
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-200 via-purple-200 to-pink-200"></div>
@@ -208,17 +208,17 @@ export default function Home() {
                   <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-xl mb-4">🤝</div>
                   <h4 className="text-lg font-semibold text-slate-900 mb-2">{txt.feat_2_title}</h4>
                   <p className="text-slate-600 text-sm leading-relaxed">{txt.feat_2_desc}</p>
-              </div>
+            </div>
               <div className="bg-white p-8 rounded-lg border border-slate-200">
                   <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-xl mb-4">💳</div>
                   <h4 className="text-lg font-semibold text-slate-900 mb-2">{txt.feat_3_title}</h4>
                   <p className="text-slate-600 text-sm leading-relaxed">{txt.feat_3_desc}</p>
-              </div>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* Footer */}
+      {/* Footer */}
         <footer className="bg-gradient-to-br from-slate-900 to-slate-800 border-t border-slate-700 py-12 text-slate-300">
           <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center text-sm">
             <p className="mb-4 md:mb-0">© {new Date().getFullYear()} Influo Inc. {txt.footer_rights}</p>
@@ -226,22 +226,22 @@ export default function Home() {
               <a href="#" className="hover:text-white transition-colors">{txt.footer_privacy}</a>
               <a href="#" className="hover:text-white transition-colors">{txt.footer_terms}</a>
               <a href="#" className="hover:text-white transition-colors">{txt.footer_contact}</a>
-            </div>
           </div>
-        </footer>
+        </div>
+      </footer>
 
-        {/* Modal */}
-        {showModal && (
+      {/* Modal */}
+      {showModal && (
           <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md flex justify-center items-center z-50 p-4 animate-in fade-in duration-200">
             <div className="relative w-full max-w-5xl animate-in zoom-in duration-300">
                <button onClick={() => setShowModal(false)} className="absolute -top-14 right-0 text-white font-bold text-base flex items-center gap-2 hover:text-slate-300 transition-colors bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg">
                 {lang === "el" ? "Κλείσιμο" : "Close"} <span className="text-xl">×</span>
-              </button>
-              <InfluencerSignupForm />
-            </div>
+            </button>
+            <InfluencerSignupForm />
           </div>
-        )}
-      </div>
+        </div>
+      )}
+    </div>
     </>
   );
 }

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import Image from 'next/image';
 import { getVideoThumbnail, isVideoUrl } from '@/lib/videoThumbnail';
+import Messaging from './Messaging';
 
 interface Account {
   platform: string;
@@ -351,6 +352,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
 export default function DashboardContent({ profile: initialProfile }: { profile: InfluencerData }) {
     const [profile, setProfile] = useState(initialProfile);
     const [showEditModal, setShowEditModal] = useState(false);
+    const [activeTab, setActiveTab] = useState<'profile' | 'messages'>('profile');
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
@@ -388,15 +390,44 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                     <p className="text-slate-600">Διαχείριση προφίλ και ρυθμίσεων</p>
                 </div>
                 
-                <div className="bg-white rounded-lg border border-slate-200 p-6 space-y-6">
-                    <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-                        <h2 className="text-xl font-semibold text-slate-900">Επισκόπηση Προφίλ</h2>
-                        <button onClick={() => setShowEditModal(true)} className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium transition-colors">
-                            ✏️ Επεξεργασία Προφίλ
-                        </button>
+                <div className="bg-white rounded-lg border border-slate-200">
+                    {/* Tabs */}
+                    <div className="border-b border-slate-200">
+                        <div className="flex">
+                            <button
+                                onClick={() => setActiveTab('profile')}
+                                className={`px-6 py-4 font-medium border-b-2 transition-colors ${
+                                    activeTab === 'profile'
+                                        ? 'border-slate-900 text-slate-900'
+                                        : 'border-transparent text-slate-500 hover:text-slate-700'
+                                }`}
+                            >
+                                Προφίλ
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('messages')}
+                                className={`px-6 py-4 font-medium border-b-2 transition-colors ${
+                                    activeTab === 'messages'
+                                        ? 'border-slate-900 text-slate-900'
+                                        : 'border-transparent text-slate-500 hover:text-slate-700'
+                                }`}
+                            >
+                                💬 Μηνύματα
+                            </button>
+                        </div>
                     </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+                    <div className="p-6">
+                        {activeTab === 'profile' ? (
+                            <div className="space-y-6">
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-xl font-semibold text-slate-900">Επισκόπηση Προφίλ</h2>
+                                    <button onClick={() => setShowEditModal(true)} className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium transition-colors">
+                                        ✏️ Επεξεργασία Προφίλ
+                                    </button>
+                                </div>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
                             <span className="block text-xs text-slate-500 uppercase font-medium mb-2">Status</span>
                             <span className={`text-lg font-semibold ${profile.verified ? 'text-green-600' : 'text-yellow-600'}`}>
@@ -426,12 +457,22 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 ))}
                             </div>
                         </div>
-                    )}
-                    
-                    <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row gap-3">
-                        <Link href="/logout" className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium text-center transition-colors">
-                            Αποσύνδεση
-                        </Link>
+                                )}
+                                
+                                <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row gap-3">
+                                    <Link href="/logout" className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium text-center transition-colors">
+                                        Αποσύνδεση
+                                    </Link>
+                                </div>
+                            </div>
+                        ) : (
+                            <Messaging
+                                influencerId={profile.id}
+                                influencerName={profile.display_name}
+                                influencerEmail={profile.contact_email}
+                                mode="influencer"
+                            />
+                        )}
                     </div>
                 </div>
             </div>

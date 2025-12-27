@@ -4,6 +4,7 @@ import { useEffect, useState, use } from "react";
 import Image from "next/image";
 import { dummyInfluencers, Influencer } from "@/components/Directory"; 
 import { supabase } from "@/lib/supabaseClient";
+import { getVideoThumbnail, isVideoUrl } from "@/lib/videoThumbnail";
 
 type Params = Promise<{ id: string }>;
 
@@ -244,6 +245,26 @@ export default function InfluencerProfile(props: { params: Params }) {
              console.error("Brand Confirmation Email failed:", mailError);
         }
 
+        // 3. Send Admin Notification Email
+        try {
+            await fetch('/api/emails', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    type: 'proposal_admin_notification', 
+                    email: brandEmail,
+                    brandName: brandName,
+                    influencerName: profile?.name || 'Unknown',
+                    influencerId: id,
+                    proposalType: proposalType,
+                    budget: budget,
+                    message: message
+                })
+            });
+        } catch (mailError) {
+             console.error("Admin Notification Email failed:", mailError);
+        }
+
         setSent(true);
     } catch (err) {
         console.error("Error sending proposal:", err);
@@ -363,6 +384,18 @@ export default function InfluencerProfile(props: { params: Params }) {
                 <button onClick={() => setShowProposalModal(true)} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-transform hover:-translate-y-1 flex items-center gap-2">
                     <span>⚡</span> {txt.contact}
                 </button>
+                <button 
+                    onClick={() => {
+                        const brandEmail = prompt("Enter your brand email to start messaging:");
+                        const brandNameInput = prompt("Enter your brand name:");
+                        if (brandEmail) {
+                            window.location.href = `/messages?influencer=${id}&brandEmail=${encodeURIComponent(brandEmail)}&brandName=${encodeURIComponent(brandNameInput || brandEmail)}`;
+                        }
+                    }}
+                    className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-transform hover:-translate-y-1 flex items-center gap-2"
+                >
+                    <span>💬</span> Message
+                </button>
             </div>
         </div>
 
@@ -408,16 +441,46 @@ export default function InfluencerProfile(props: { params: Params }) {
                             <h3 className="text-lg font-bold text-slate-900 mb-4">{txt.portfolio}</h3>
                             {profile.videos && profile.videos.length > 0 && profile.videos[0] !== "" ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {profile.videos.map((vid, i) => (
-                                        <a key={i} href={vid} target="_blank" className="block group relative h-48 bg-slate-900 rounded-xl overflow-hidden shadow-md">
-                                            <div className="absolute inset-0 flex items-center justify-center">
-                                                <span className="text-5xl opacity-80 group-hover:scale-110 transition-transform">▶️</span>
-                                            </div>
-                                            <div className="absolute bottom-0 left-0 w-full p-3 bg-gradient-to-t from-black/80 to-transparent text-white text-sm font-medium">
-                                                Highlight #{i+1}
-                                            </div>
-                                        </a>
-                                    ))}
+                                    {profile.videos.map((vid, i) => {
+                                        const thumbnail = getVideoThumbnail(vid);
+                                        const isVideo = isVideoUrl(vid);
+                                        const isImage = vid.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+                                        return (
+                                            <a key={i} href={vid} target="_blank" rel="noopener noreferrer" className="block group relative h-48 rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-shadow">
+                                                {thumbnail || isImage ? (
+                                                    <>
+                                                        <Image 
+                                                            src={thumbnail || vid} 
+                                                            alt={`Portfolio item ${i+1}`} 
+                                                            fill 
+                                                            className="object-cover" 
+                                                            unoptimized
+                                                        />
+                                                        {isVideo && (
+                                                            <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition-colors">
+                                                                <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                                                                    <span className="text-3xl text-slate-900 ml-1">▶</span>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                        <div className="absolute bottom-0 left-0 w-full p-3 bg-gradient-to-t from-black/80 to-transparent text-white text-sm font-medium">
+                                                            {isVideo ? `Video ${i+1}` : `Photo ${i+1}`}
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <div className="absolute inset-0 bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center">
+                                                        <div className="text-center">
+                                                            <span className="text-5xl opacity-80 group-hover:scale-110 transition-transform block mb-2">▶</span>
+                                                            <span className="text-white text-sm opacity-75">Video Link</span>
+                                                        </div>
+                                                        <div className="absolute bottom-0 left-0 w-full p-3 bg-gradient-to-t from-black/80 to-transparent text-white text-sm font-medium">
+                                                            Highlight #{i+1}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </a>
+                                        );
+                                    })}
                                 </div>
                             ) : (
                                 <div className="p-8 border-2 border-dashed border-slate-200 rounded-xl text-center text-slate-400">{txt.no_vid}</div>
