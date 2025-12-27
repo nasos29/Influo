@@ -13,8 +13,6 @@ interface DbInfluencer {
   verified: boolean;
   accounts: { platform: string; username: string; followers: string }[]; 
   avatar_url: string | null;
-  
-  // --- ΠΕΔΙΑ ΠΟΥ ΕΣΠΑΖΑΝ (All fields used in the component) ---
   avg_likes: string | null; 
   location: string | null;
   followers_count: string | null; 
@@ -26,6 +24,7 @@ interface DbInfluencer {
   audience_male_percent: number | null;
   audience_female_percent: number | null;
   audience_top_age: string | null;
+  category?: string;
 }
 
 interface Proposal {
@@ -43,14 +42,14 @@ const t = {
   el: {
     title: "Admin Dashboard",
     sub: "Επισκόπηση & Διαχείριση",
-    back: "← Πίσω στο Site",
-    users: "Χρήστες",
+    back: "Πίσω στο Site",
+    users: "Συνολικοί Χρήστες",
     pending: "Εκκρεμούν",
     verified: "Εγκεκριμένοι",
-    reach: "Απήχηση (Reach)",
-    pipeline: "Αξία Pipeline",
-    tab_inf: "Λίστα Influencers",
-    tab_deals: "Προτάσεις & Deals",
+    reach: "Απήχηση",
+    pipeline: "Pipeline",
+    tab_inf: "Influencers",
+    tab_deals: "Proposals",
     col_inf: "Influencer",
     col_loc: "Τοποθεσία",
     col_status: "Status",
@@ -59,32 +58,41 @@ const t = {
     btn_unverify: "Ανάκληση",
     btn_delete: "Διαγραφή",
     cleanup_test: "Cleanup Test Users",
-    col_date: "Ημερομηνία",
-    col_brand: "Brand",
-    col_srv: "Υπηρεσία",
-    col_bud: "Budget",
-    no_data: "Δεν υπάρχουν δεδομένα.",
+    export: "Export",
+    search: "Αναζήτηση...",
+    filter: "Φίλτρο",
+    select_all: "Επιλογή όλων",
+    bulk_approve: "Έγκριση επιλεγμένων",
+    bulk_delete: "Διαγραφή επιλεγμένων",
+    no_data: "Δεν υπάρχουν δεδομένα",
     modal_basic: "Βασικές Πληροφορίες",
-    modal_insights: "Αποδεικτικά Insights",
+    modal_insights: "Insights",
     modal_view: "Προβολή",
-    modal_followers: "Followers (Δηλωμένοι)",
+    modal_followers: "Followers",
     modal_minrate: "Ελάχιστη Χρέωση",
     modal_gender: "Φύλο",
     modal_bio: "Bio",
     modal_socials: "Socials",
-    modal_screenshots: "Screenshots"
+    modal_screenshots: "Screenshots",
+    edit: "Επεξεργασία",
+    view: "Προβολή",
+    email: "Email",
+    created: "Ημερομηνία",
+    category: "Κατηγορία",
+    engagement: "Engagement",
+    min_rate_label: "Min Rate"
   },
   en: {
     title: "Admin Dashboard",
     sub: "Overview & Management",
-    back: "← Back to Site",
-    users: "Users",
+    back: "Back to Site",
+    users: "Total Users",
     pending: "Pending",
     verified: "Verified",
     reach: "Total Reach",
-    pipeline: "Pipeline Value",
-    tab_inf: "Influencers List",
-    tab_deals: "Proposals & Deals",
+    pipeline: "Pipeline",
+    tab_inf: "Influencers",
+    tab_deals: "Proposals",
     col_inf: "Influencer",
     col_loc: "Location",
     col_status: "Status",
@@ -93,26 +101,33 @@ const t = {
     btn_unverify: "Unverify",
     btn_delete: "Delete",
     cleanup_test: "Cleanup Test Users",
-    col_date: "Date",
-    col_brand: "Brand",
-    col_srv: "Service",
-    col_bud: "Budget",
-    no_data: "No data available.",
+    export: "Export",
+    search: "Search...",
+    filter: "Filter",
+    select_all: "Select All",
+    bulk_approve: "Approve Selected",
+    bulk_delete: "Delete Selected",
+    no_data: "No data available",
     modal_basic: "Basic Info",
-    modal_insights: "Insights Proof",
+    modal_insights: "Insights",
     modal_view: "View",
-    modal_followers: "Followers (Declared)",
+    modal_followers: "Followers",
     modal_minrate: "Min Rate",
     modal_gender: "Gender",
     modal_bio: "Bio",
     modal_socials: "Socials",
-    modal_screenshots: "Screenshots"
+    modal_screenshots: "Screenshots",
+    edit: "Edit",
+    view: "View",
+    email: "Email",
+    created: "Created",
+    category: "Category",
+    engagement: "Engagement",
+    min_rate_label: "Min Rate"
   }
 };
 
-// [!!!] ΝΕΟ COMPONENT ΓΙΑ ΤΗΝ ΕΠΕΞΕΡΓΑΣΙΑ (Admin Edit)
 const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClose: () => void, onSave: (updatedUser: DbInfluencer) => void }) => {
-    // Local States για όλα τα πεδία που κάνουμε edit
     const [name, setName] = useState(user.display_name);
     const [bio, setBio] = useState(user.bio || "");
     const [minRate, setMinRate] = useState(user.min_rate || "");
@@ -144,46 +159,50 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
         if (error) {
             alert("Error saving: " + error.message);
         } else if (data) {
-            onSave(data as DbInfluencer); // Ενημέρωσε το state του πατρικού component
-            onClose(); // Κλείσιμο μετά την επιτυχία
+            onSave(data as DbInfluencer);
+            onClose();
         }
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-8 overflow-y-auto max-h-[90vh] border border-slate-100">
-                <h2 className="text-2xl font-bold mb-6 text-slate-900 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Edit Profile: {user.display_name}</h2>
-                <form onSubmit={handleSave} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-semibold mb-2 text-slate-700">Full Name</label>
-                            <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white transition-all" required />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+                <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                    <h2 className="text-xl font-semibold text-slate-900">Edit Profile</h2>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600">✕</button>
+                </div>
+                <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-6">
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
+                                <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Location</label>
+                                <input type="text" value={location} onChange={e => setLocation(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Min Rate (€)</label>
+                                <input type="text" value={minRate} onChange={e => setMinRate(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Engagement Rate (%)</label>
+                                <input type="text" value={engage} onChange={e => setEngage(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Avg Likes/Views</label>
+                                <input type="text" value={avgLikes} onChange={e => setAvgLikes(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                            </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold mb-2 text-slate-700">Location</label>
-                            <input type="text" value={location} onChange={e => setLocation(e.target.value)} className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white transition-all" />
-                        </div>
-                         <div>
-                            <label className="block text-sm font-semibold mb-2 text-slate-700">Min Rate (€)</label>
-                            <input type="text" value={minRate} onChange={e => setMinRate(e.target.value)} className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white transition-all" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-semibold mb-2 text-slate-700">Engagement Rate (%)</label>
-                            <input type="text" value={engage} onChange={e => setEngage(e.target.value)} className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white transition-all" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-semibold mb-2 text-slate-700">Avg Likes/Views</label>
-                            <input type="text" value={avgLikes} onChange={e => setAvgLikes(e.target.value)} className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white transition-all" />
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Bio</label>
+                            <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none" />
                         </div>
                     </div>
-                    <div>
-                        <label className="block text-sm font-semibold mb-2 text-slate-700">Bio</label>
-                        <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white transition-all resize-none" />
-                    </div>
-                    
-                    <div className="flex justify-end gap-3 pt-4">
-                        <button type="button" onClick={onClose} className="px-6 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-700 font-semibold transition-all">Cancel</button>
-                        <button type="submit" disabled={loading} className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl font-semibold disabled:opacity-50 shadow-lg shadow-blue-500/30 transition-all">
+                    <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-200">
+                        <button type="button" onClick={onClose} className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg font-medium transition-colors">Cancel</button>
+                        <button type="submit" disabled={loading} className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium disabled:opacity-50 transition-colors">
                             {loading ? 'Saving...' : 'Save Changes'}
                         </button>
                     </div>
@@ -193,7 +212,6 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
     );
 };
 
-
 export default function AdminDashboardContent({ adminEmail }: { adminEmail: string }) {
   const [lang, setLang] = useState<"el" | "en">("el");
   const txt = t[lang];
@@ -202,10 +220,12 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [users, setUsers] = useState<DbInfluencer[]>([]);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "verified" | "pending">("all");
+  const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
   
-  // MODAL STATE
   const [selectedUser, setSelectedUser] = useState<DbInfluencer | null>(null);
-  const [showEditModal, setShowEditModal] = useState(false); // ΝΕΟ: Edit Modal
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const [stats, setStats] = useState({ 
     total: 0, 
@@ -266,7 +286,6 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     
     if (!error) {
         fetchData();
-        // Αν ΕΓΚΡΙΝΟΥΜΕ (άρα το verified γίνεται true), στέλνουμε email
         if (!currentStatus) { 
              try {
                 await fetch('/api/emails', {
@@ -274,32 +293,26 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ type: 'approved', email: userEmail, name: userName })
                 });
-                alert(`Ο χρήστης ${userName} εγκρίθηκε και στάλθηκε email!`);
              } catch (e) {
                  console.error(e);
-                 alert("Το status άλλαξε, αλλά απέτυχε η αποστολή email.");
              }
         }
     }
     
-    // Ενημέρωση του Modal αν είναι ανοιχτό
     if(selectedUser?.id === id) {
         setSelectedUser(prev => prev ? {...prev, verified: !currentStatus} : null);
     }
   };
   
   const deleteUser = async (id: number) => {
-    if (!confirm("Είσαι σίγουρος ότι θες να διαγράψεις αυτόν τον χρήστη; Αυτή η ενέργεια θα διαγράψει τον χρήστη και από το authentication system.")) {
+    if (!confirm("Είσαι σίγουρος ότι θες να διαγράψεις αυτόν τον χρήστη;")) {
         return;
     }
 
     try {
-        // Κλήση API endpoint που διαγράφει και από database και από auth
         const response = await fetch('/api/admin/delete-user', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId: id }),
         });
 
@@ -309,22 +322,17 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
             throw new Error(result.error || 'Failed to delete user');
         }
 
-        // Ενημέρωση UI
         fetchData();
         setSelectedUser(null);
-        
-        // Επιτυχημένο μήνυμα
-        alert(`Ο χρήστης διαγράφηκε επιτυχώς από το database και το authentication system.`);
+        setSelectedUsers(selectedUsers.filter(uId => uId !== id));
     } catch (error: any) {
         console.error('Error deleting user:', error);
-        alert(`Σφάλμα κατά τη διαγραφή: ${error.message}`);
+        alert(`Σφάλμα: ${error.message}`);
     }
   };
 
   const handleUserUpdate = (updatedUser: DbInfluencer) => {
-      // Ενημέρωση του πίνακα χρηστών
       setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
-      // Κλείσιμο του modal
       setShowEditModal(false);
       setSelectedUser(updatedUser);
   };
@@ -332,19 +340,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const handleCleanupTestUsers = async () => {
     const emailsInput = prompt(
       lang === "el" 
-        ? "Εισάγετε τα emails (χωρισμένα με κόμμα) που θέλετε να διαγράψετε:\n\nπ.χ. test1@example.com, test2@example.com"
-        : "Enter emails (comma-separated) to delete:\n\ne.g. test1@example.com, test2@example.com"
+        ? "Εισάγετε τα emails (χωρισμένα με κόμμα):\n\nπ.χ. test1@example.com, test2@example.com"
+        : "Enter emails (comma-separated):\n\ne.g. test1@example.com, test2@example.com"
     );
 
-    if (!emailsInput || !emailsInput.trim()) {
-      return;
-    }
+    if (!emailsInput || !emailsInput.trim()) return;
 
-    const emails = emailsInput
-      .split(',')
-      .map(email => email.trim())
-      .filter(email => email.length > 0);
-
+    const emails = emailsInput.split(',').map(e => e.trim()).filter(e => e.length > 0);
     if (emails.length === 0) {
       alert(lang === "el" ? "Δεν δόθηκαν έγκυρα emails." : "No valid emails provided.");
       return;
@@ -352,332 +354,373 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
 
     if (!confirm(
       lang === "el"
-        ? `Θέλετε να διαγράψετε ${emails.length} user(s)?\n\n${emails.join('\n')}\n\nΑυτή η ενέργεια δεν μπορεί να αναιρεθεί!`
-        : `Do you want to delete ${emails.length} user(s)?\n\n${emails.join('\n')}\n\nThis action cannot be undone!`
-    )) {
-      return;
-    }
+        ? `Θέλετε να διαγράψετε ${emails.length} user(s)?\n\n${emails.join('\n')}`
+        : `Delete ${emails.length} user(s)?\n\n${emails.join('\n')}`
+    )) return;
 
     try {
       const response = await fetch('/api/admin/cleanup-test-users', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ emails }),
       });
 
       const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Failed');
 
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to cleanup users');
-      }
-
-      // Show results
       const successful = result.results.filter((r: any) => r.success).length;
       const failed = result.results.filter((r: any) => !r.success).length;
-
-      let message = lang === "el"
-        ? `Ολοκληρώθηκε!\n\nΕπιτυχημένα: ${successful}\nΑποτυχημένα: ${failed}`
-        : `Completed!\n\nSuccessful: ${successful}\nFailed: ${failed}`;
-
-      if (failed > 0) {
-        const failedEmails = result.results
-          .filter((r: any) => !r.success)
-          .map((r: any) => `- ${r.email}: ${r.error || r.errors?.auth || 'Unknown error'}`)
-          .join('\n');
-        message += `\n\n${lang === "el" ? "Αποτυχημένα:" : "Failed:"}\n${failedEmails}`;
-      }
-
-      alert(message);
-
-      // Refresh data
+      alert(`${lang === "el" ? "Επιτυχία" : "Success"}: ${successful}, ${lang === "el" ? "Αποτυχία" : "Failed"}: ${failed}`);
       fetchData();
     } catch (error: any) {
-      console.error('Error cleaning up users:', error);
-      alert(
-        lang === "el"
-          ? `Σφάλμα: ${error.message}`
-          : `Error: ${error.message}`
-      );
+      alert(`Error: ${error.message}`);
     }
   };
 
+  const handleBulkAction = async (action: 'approve' | 'delete') => {
+    if (selectedUsers.length === 0) {
+      alert(lang === "el" ? "Επιλέξτε τουλάχιστον έναν χρήστη" : "Select at least one user");
+      return;
+    }
 
-  if (loading) return <div className="p-10 text-center">Loading...</div>;
+    if (action === 'delete' && !confirm(lang === "el" ? `Διαγραφή ${selectedUsers.length} χρηστών;` : `Delete ${selectedUsers.length} users?`)) {
+      return;
+    }
+
+    try {
+      for (const userId of selectedUsers) {
+        if (action === 'approve') {
+          await supabase.from("influencers").update({ verified: true }).eq("id", userId);
+        } else {
+          await fetch('/api/admin/delete-user', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId }),
+          });
+        }
+      }
+      setSelectedUsers([]);
+      fetchData();
+      alert(lang === "el" ? "Ολοκληρώθηκε" : "Completed");
+    } catch (error: any) {
+      alert(`Error: ${error.message}`);
+    }
+  };
+
+  const exportData = () => {
+    const csv = [
+      ['Name', 'Email', 'Location', 'Status', 'Min Rate', 'Created'].join(','),
+      ...filteredUsers.map(u => [
+        u.display_name,
+        u.contact_email || '',
+        u.location || '',
+        u.verified ? 'Verified' : 'Pending',
+        u.min_rate || '',
+        u.created_at
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `influencers-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+  };
+
+  const filteredUsers = users.filter(u => {
+    const matchesSearch = !searchQuery || 
+      u.display_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      u.contact_email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      u.location?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesStatus = statusFilter === 'all' || 
+      (statusFilter === 'verified' && u.verified) ||
+      (statusFilter === 'pending' && !u.verified);
+    
+    return matchesSearch && matchesStatus;
+  });
+
+  const toggleUserSelection = (id: number) => {
+    setSelectedUsers(prev => 
+      prev.includes(id) ? prev.filter(uId => uId !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedUsers.length === filteredUsers.length) {
+      setSelectedUsers([]);
+    } else {
+      setSelectedUsers(filteredUsers.map(u => u.id));
+    }
+  };
+
+  if (loading) return (
+    <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="text-slate-600">Loading...</div>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-blue-50/10 to-purple-50/10 p-6 md:p-8 text-slate-900">
-      
-      {/* Header & Lang Toggle */}
-      <div className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-           <h1 className="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{txt.title}</h1>
-           <p className="text-slate-600 mt-1">{txt.sub}</p>
-        </div>
-        <div className="flex gap-3">
-             <button onClick={() => setLang(lang === "el" ? "en" : "el")} className="border-2 border-slate-200 px-4 py-2 rounded-lg bg-white hover:bg-slate-50 hover:border-blue-300 transition-all shadow-sm font-semibold text-sm">
-                {lang === "el" ? "🇬🇧 EN" : "🇬🇷 EL"}
-            </button>
-            <a href="/logout" className="px-4 py-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 font-semibold transition-all shadow-sm">Logout</a>
-            <a href="/" className="px-4 py-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 font-semibold transition-all shadow-sm">{txt.back}</a>
-        </div>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-        <div className="bg-white/90 backdrop-blur-sm p-5 rounded-xl shadow-md border border-slate-200 hover:shadow-lg transition-all">
-            <p className="text-xs text-slate-500 uppercase font-semibold mb-2">{txt.users}</p>
-            <p className="text-3xl font-extrabold text-slate-900">{stats.total}</p>
-        </div>
-        <div className="bg-gradient-to-br from-yellow-50 to-amber-50 p-5 rounded-xl shadow-md border border-yellow-200 hover:shadow-lg transition-all">
-            <p className="text-xs text-yellow-700 uppercase font-semibold mb-2">{txt.pending}</p>
-            <p className="text-3xl font-extrabold text-yellow-600">{stats.pending}</p>
-        </div>
-        <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-5 rounded-xl shadow-md border border-green-200 hover:shadow-lg transition-all">
-            <p className="text-xs text-green-700 uppercase font-semibold mb-2">{txt.verified}</p>
-            <p className="text-3xl font-extrabold text-green-600">{stats.verified}</p>
-        </div>
-        <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-5 rounded-xl shadow-md border border-purple-200 hover:shadow-lg transition-all">
-            <p className="text-xs text-purple-700 uppercase font-semibold mb-2">{txt.reach}</p>
-            <p className="text-3xl font-extrabold text-purple-600">{stats.reach}</p>
-        </div>
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-5 rounded-xl shadow-md border-2 border-blue-300 hover:shadow-lg transition-all ring-2 ring-blue-100">
-            <p className="text-xs text-blue-700 uppercase font-semibold mb-2">{txt.pipeline}</p>
-            <p className="text-3xl font-extrabold text-blue-600">{stats.pipeline}</p>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="max-w-7xl mx-auto mb-6 bg-white/50 backdrop-blur-sm rounded-xl p-2 border border-slate-200 shadow-sm">
-          <div className="flex gap-2">
-              <button onClick={() => setActiveTab("influencers")} className={`px-6 py-2.5 rounded-lg font-semibold text-sm transition-all ${activeTab==="influencers" ? "text-blue-700 bg-blue-50 border-2 border-blue-200 shadow-sm" : "text-slate-600 hover:text-slate-800 hover:bg-slate-50"}`}>
-                  {txt.tab_inf}
+    <div className="min-h-screen bg-slate-50">
+      {/* Header */}
+      <div className="bg-white border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div>
+              <h1 className="text-xl font-semibold text-slate-900">{txt.title}</h1>
+              <p className="text-sm text-slate-500">{txt.sub}</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button onClick={handleCleanupTestUsers} className="px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors">
+                {txt.cleanup_test}
               </button>
-              <button onClick={() => setActiveTab("proposals")} className={`px-6 py-2.5 rounded-lg font-semibold text-sm transition-all ${activeTab==="proposals" ? "text-blue-700 bg-blue-50 border-2 border-blue-200 shadow-sm" : "text-slate-600 hover:text-slate-800 hover:bg-slate-50"}`}>
-                  {txt.tab_deals} ({proposals.length})
+              <button onClick={() => setLang(lang === "el" ? "en" : "el")} className="px-3 py-1.5 text-sm border border-slate-300 rounded-lg hover:bg-slate-50">
+                {lang === "el" ? "EN" : "EL"}
               </button>
+              <a href="/logout" className="px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors">Logout</a>
+              <a href="/" className="px-3 py-1.5 text-sm bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors">{txt.back}</a>
+            </div>
           </div>
+        </div>
       </div>
 
-      {/* --- TAB 1: INFLUENCERS --- */}
-      {activeTab === "influencers" && (
-          <div className="max-w-7xl mx-auto bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200 overflow-hidden">
-             <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                        <thead className="bg-gradient-to-r from-slate-50 to-slate-100 text-slate-700 border-b border-slate-200">
-                            <tr>
-                                <th className="p-4 font-semibold">{txt.col_inf}</th>
-                                <th className="p-4 font-semibold">{txt.col_loc}</th>
-                                <th className="p-4 font-semibold">{txt.col_status}</th>
-                                <th className="p-4 text-right font-semibold">{txt.col_act}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {users.map(u => (
-                                <tr key={u.id} className="border-b border-slate-100 hover:bg-blue-50/50 cursor-pointer transition-colors" onClick={() => setSelectedUser(u)}>
-                                    <td className="p-4">
-                                        <div className="flex items-center gap-3">
-                                            {u.avatar_url && <div className="w-10 h-10 rounded-full bg-slate-200 relative overflow-hidden border-2 border-white shadow-sm"><Image src={u.avatar_url} fill className="object-cover" alt="." /></div>}
-                                            <span className="font-bold text-slate-900">{u.display_name}</span>
-                                        </div>
-                                    </td>
-                                    <td className="p-4 text-slate-600">{u.location || "-"}</td>
-                                    <td className="p-4">
-                                        {u.verified ? <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">{txt.verified}</span> : <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 border border-yellow-200">{txt.pending}</span>}
-                                    </td>
-                                    <td className="p-4 text-right" onClick={(e) => e.stopPropagation()}> 
-                                        <div className="flex items-center justify-end gap-2">
-                                        <button 
-                                            onClick={() => toggleStatus(u.id, u.verified, u.contact_email || "", u.display_name || "")} 
-                                            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition-all"
-                                        >
-                                            {u.verified ? txt.btn_unverify : txt.btn_approve}
-                                        </button>
-                                        {/* ΝΕΟ ΚΟΥΜΠΙ EDIT */}
-                                        <button 
-                                            onClick={() => { setSelectedUser(u); setShowEditModal(true); }} 
-                                            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all"
-                                        >
-                                            Edit
-                                        </button>
-                                        <button onClick={() => deleteUser(u.id)} className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition-all">{txt.btn_delete}</button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                 </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+          <div className="bg-white p-4 rounded-lg border border-slate-200">
+            <p className="text-xs text-slate-500 uppercase font-medium mb-1">{txt.users}</p>
+            <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
           </div>
-      )}
-
-      {/* --- TAB 2: PROPOSALS --- */}
-      {activeTab === "proposals" && (
-          <div className="max-w-7xl mx-auto bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-             <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                        <thead className="bg-slate-50 text-slate-500">
-                            <tr>
-                                <th className="p-3">{txt.col_brand}</th>
-                                <th className="p-3">{txt.col_inf}</th>
-                                <th className="p-3">{txt.col_bud}</th>
-                                <th className="p-3">{txt.col_status}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {proposals.length === 0 ? <tr><td colSpan={4} className="p-4 text-center">{txt.no_data}</td></tr> : 
-                            proposals.map(p => (
-                                <tr key={p.id} className="border-b hover:bg-slate-50">
-                                    <td className="p-3 font-bold">{p.brand_name}</td>
-                                    <td className="p-3">{p.influencers?.display_name}</td>
-                                    <td className="p-3 text-green-600 font-bold">{p.budget}€</td>
-                                    <td className="p-3">{p.status}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                 </div>
+          <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+            <p className="text-xs text-yellow-700 uppercase font-medium mb-1">{txt.pending}</p>
+            <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
           </div>
-      )}
-
-      {/* RIGHT: Stats (Keep as is) */}
-      <div className="space-y-4">
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-              <p className="text-xs text-slate-500 uppercase">{txt.users}</p>
-              <p className="text-2xl font-bold">{stats.total}</p>
+          <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
+            <p className="text-xs text-green-700 uppercase font-medium mb-1">{txt.verified}</p>
+            <p className="text-2xl font-bold text-green-600">{stats.verified}</p>
           </div>
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-              <p className="text-xs text-slate-500 uppercase">{txt.pending}</p>
-              <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
+          <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+            <p className="text-xs text-blue-700 uppercase font-medium mb-1">{txt.reach}</p>
+            <p className="text-2xl font-bold text-blue-600">{stats.reach}</p>
           </div>
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-              <p className="text-xs text-slate-500 uppercase">{txt.verified}</p>
-              <p className="text-2xl font-bold text-green-600">{stats.verified}</p>
+          <div className="bg-purple-50 border border-purple-200 p-4 rounded-lg">
+            <p className="text-xs text-purple-700 uppercase font-medium mb-1">{txt.pipeline}</p>
+            <p className="text-2xl font-bold text-purple-600">{stats.pipeline}</p>
           </div>
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-              <p className="text-xs text-slate-500 uppercase">{txt.pipeline}</p>
-              <p className="text-2xl font-bold text-blue-600">{stats.pipeline}</p>
+        </div>
+
+        {/* Tabs */}
+        <div className="bg-white rounded-lg border border-slate-200 mb-4">
+          <div className="flex items-center justify-between border-b border-slate-200 px-6">
+            <div className="flex gap-1">
+              <button 
+                onClick={() => setActiveTab("influencers")} 
+                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === "influencers" 
+                    ? "border-slate-900 text-slate-900" 
+                    : "border-transparent text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                {txt.tab_inf} ({filteredUsers.length})
+              </button>
+              <button 
+                onClick={() => setActiveTab("proposals")} 
+                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === "proposals" 
+                    ? "border-slate-900 text-slate-900" 
+                    : "border-transparent text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                {txt.tab_deals} ({proposals.length})
+              </button>
+            </div>
           </div>
-      </div>
 
-      {/* --- DETAIL MODAL --- */}
-      {selectedUser && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-              <div className="bg-white w-full max-w-4xl h-[90vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-                  
-                  {/* Modal Header */}
-                  <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                      <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-full bg-slate-200 relative overflow-hidden">
-                              {selectedUser.avatar_url && <Image src={selectedUser.avatar_url} fill className="object-cover" alt="Avatar" />}
-                          </div>
-                          <div>
-                              <h2 className="text-xl font-bold text-slate-900">{selectedUser.display_name}</h2>
-                              <p className="text-sm text-slate-500">{selectedUser.contact_email}</p>
-                          </div>
-                      </div>
-                      {/* ΝΕΟ ΚΟΥΜΠΙ EDIT ΣΤΟ HEADER */}
-                      <div className="flex gap-3">
-                          <button onClick={() => setShowEditModal(true)} className="bg-gray-200 text-gray-700 font-bold px-3 py-1 rounded hover:bg-gray-300">Edit</button>
-                          <button onClick={() => setSelectedUser(null)} className="text-2xl text-slate-400 hover:text-slate-600">×</button>
-                      </div>
-                  </div>
-
-                  {/* Modal Body */}
-                  <div className="flex-1 overflow-y-auto p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
-                      
-                      {/* Left: Info */}
-                      <div className="space-y-6">
-                          <div>
-                              <h3 className="text-sm font-bold uppercase text-slate-400 mb-2">{txt.modal_basic}</h3>
-                              <div className="grid grid-cols-2 gap-4 text-sm">
-                                  <div className="p-3 bg-slate-50 rounded">
-                                      <span className="block text-slate-500 text-xs">Location</span>
-                                      <span className="font-medium !text-slate-900">{selectedUser.location}</span> {/* FIX UI */}
-                                  </div>
-                                  <div className="p-3 bg-slate-50 rounded">
-                                      <span className="block text-slate-500 text-xs">{txt.modal_followers}</span>
-                                      <span className="font-bold text-blue-600">{selectedUser.followers_count}</span>
-                                  </div>
-                                  <div className="p-3 bg-slate-50 rounded">
-                                      <span className="block text-slate-500 text-xs">{txt.modal_gender}</span>
-                                      <span className="font-medium !text-slate-900">{selectedUser.gender}</span> {/* FIX UI */}
-                                  </div>
-                                  <div className="p-3 bg-slate-50 rounded">
-                                      <span className="block text-slate-500 text-xs">{txt.modal_minrate}</span>
-                                      <span className="font-medium !text-slate-900">{selectedUser.min_rate}€</span> {/* FIX UI */}
-                                  </div>
-                              </div>
-                          </div>
-
-                          <div>
-                              <h3 className="text-sm font-bold uppercase text-slate-400 mb-2">{txt.modal_bio}</h3>
-                              <p className="text-sm text-slate-600 bg-slate-50 p-4 rounded leading-relaxed">{selectedUser.bio}</p>
-                          </div>
-
-                          <div>
-                              <h3 className="text-sm font-bold uppercase text-slate-400 mb-2">{txt.modal_socials}</h3>
-                              <div className="flex flex-wrap gap-2">
-                                  {selectedUser.accounts?.map((acc, i) => (
-                                      <span key={i} className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded border border-blue-100">
-                                          {acc.platform}: {acc.username} ({acc.followers || "-"})
-                                      </span>
-                                  ))}
-                              </div>
-                          </div>
-                      </div>
-
-                      {/* Right: PROOF (Screenshots) */}
-                      <div className="bg-slate-50 p-6 rounded-xl border border-slate-200">
-                          <h3 className="text-sm font-bold uppercase text-slate-900 mb-4">📊 {txt.modal_insights} ({txt.modal_screenshots})</h3>
-                          
-                          {selectedUser.insights_urls && selectedUser.insights_urls.length > 0 ? (
-                              <div className="grid grid-cols-2 gap-4">
-                                  {selectedUser.insights_urls.map((url, i) => (
-                                      <a key={i} href={url} target="_blank" className="block relative aspect-[9/16] bg-white rounded-lg overflow-hidden border border-slate-200 shadow-sm hover:ring-2 ring-blue-500 transition-all">
-                                          <Image src={url} fill className="object-cover" alt="Proof" />
-                                          <div className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/20 transition-colors">
-                                              <span className="bg-white/80 px-2 py-1 text-xs rounded shadow opacity-0 hover:opacity-100">{txt.modal_view}</span>
-                                          </div>
-                                      </a>
-                                  ))}
-                              </div>
-                          ) : (
-                              <div className="text-center py-10 text-slate-400 italic">{txt.no_data}</div>
-                          )}
-                      </div>
-
-                  </div>
-
-                  {/* Modal Footer (Actions) */}
-                  <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-4">
-                      <button onClick={() => deleteUser(selectedUser.id)} className="px-4 py-2 text-red-600 font-bold hover:bg-red-50 rounded">{txt.btn_delete}</button>
-                      
-                      {selectedUser.verified ? (
-                          <button onClick={() => toggleStatus(selectedUser.id, true, selectedUser.contact_email || "", selectedUser.display_name)} className="px-6 py-2 bg-yellow-100 text-yellow-700 font-bold rounded hover:bg-yellow-200">
-                              {txt.btn_unverify}
-                          </button>
-                      ) : (
-                          <button onClick={() => toggleStatus(selectedUser.id, false, selectedUser.contact_email || "", selectedUser.display_name)} className="px-6 py-2 bg-green-600 text-white font-bold rounded hover:bg-green-700 shadow-lg">
-                              ✅ {txt.btn_approve}
-                          </button>
-                      )}
-                  </div>
-
+          {activeTab === "influencers" && (
+            <>
+              {/* Search & Filters */}
+              <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row gap-3">
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    placeholder={txt.search}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as any)}
+                  className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="all">{txt.filter}: All</option>
+                  <option value="verified">Verified</option>
+                  <option value="pending">Pending</option>
+                </select>
+                <button
+                  onClick={exportData}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors"
+                >
+                  {txt.export}
+                </button>
               </div>
-          </div>
-      )}
 
-      {/* --- EDIT MODAL (Εμφανίζεται πάνω από το Detail Modal) --- */}
-      {selectedUser && showEditModal && (
-          <EditProfileModal 
-              user={selectedUser}
-              onClose={() => setShowEditModal(false)}
-              onSave={handleUserUpdate}
-          />
-      )}
+              {/* Bulk Actions */}
+              {selectedUsers.length > 0 && (
+                <div className="px-4 py-3 bg-blue-50 border-b border-slate-200 flex items-center justify-between">
+                  <span className="text-sm text-slate-700">
+                    {selectedUsers.length} {lang === "el" ? "επιλεγμένοι" : "selected"}
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleBulkAction('approve')}
+                      className="px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                    >
+                      {txt.bulk_approve}
+                    </button>
+                    <button
+                      onClick={() => handleBulkAction('delete')}
+                      className="px-3 py-1.5 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                    >
+                      {txt.bulk_delete}
+                    </button>
+                  </div>
+                </div>
+              )}
 
+              {/* Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th className="px-4 py-3 text-left">
+                        <input
+                          type="checkbox"
+                          checked={selectedUsers.length === filteredUsers.length && filteredUsers.length > 0}
+                          onChange={toggleSelectAll}
+                          className="rounded border-slate-300"
+                        />
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{txt.col_inf}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{txt.email}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{txt.col_loc}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{txt.col_status}</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600 uppercase">{txt.col_act}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {filteredUsers.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-8 text-center text-slate-500">{txt.no_data}</td>
+                      </tr>
+                    ) : (
+                      filteredUsers.map(u => (
+                        <tr key={u.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={selectedUsers.includes(u.id)}
+                              onChange={() => toggleUserSelection(u.id)}
+                              className="rounded border-slate-300"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              {u.avatar_url && (
+                                <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200">
+                                  <Image src={u.avatar_url} alt={u.display_name} width={40} height={40} className="object-cover" />
+                                </div>
+                              )}
+                              <div>
+                                <div className="font-medium text-slate-900">{u.display_name}</div>
+                                {u.category && <div className="text-xs text-slate-500">{u.category}</div>}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-slate-600">{u.contact_email || '-'}</td>
+                          <td className="px-4 py-3 text-sm text-slate-600">{u.location || '-'}</td>
+                          <td className="px-4 py-3">
+                            {u.verified ? (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">Verified</span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">Pending</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => { setSelectedUser(u); setShowEditModal(true); }}
+                                className="px-2 py-1 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors"
+                              >
+                                {txt.edit}
+                              </button>
+                              <button
+                                onClick={() => toggleStatus(u.id, u.verified, u.contact_email || "", u.display_name)}
+                                className="px-2 py-1 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors"
+                              >
+                                {u.verified ? txt.btn_unverify : txt.btn_approve}
+                              </button>
+                              <button
+                                onClick={() => deleteUser(u.id)}
+                                className="px-2 py-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                              >
+                                {txt.btn_delete}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+
+          {activeTab === "proposals" && (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{txt.col_brand}</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{txt.col_inf}</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{txt.col_bud}</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{txt.col_status}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {proposals.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-4 py-8 text-center text-slate-500">{txt.no_data}</td>
+                    </tr>
+                  ) : (
+                    proposals.map(p => (
+                      <tr key={p.id} className="hover:bg-slate-50">
+                        <td className="px-4 py-3 font-medium text-slate-900">{p.brand_name}</td>
+                        <td className="px-4 py-3 text-slate-600">{p.influencers?.display_name}</td>
+                        <td className="px-4 py-3 font-medium text-green-600">{p.budget}€</td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">{p.status}</span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {showEditModal && selectedUser && (
+        <EditProfileModal
+          user={selectedUser}
+          onClose={() => setShowEditModal(false)}
+          onSave={handleUserUpdate}
+        />
+      )}
     </div>
   );
 }
