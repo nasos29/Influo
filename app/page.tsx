@@ -63,6 +63,7 @@ const t = {
 export default function Home() {
   const [showModal, setShowModal] = useState(false);
   const [lang, setLang] = useState<Lang>("el");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const txt = t[lang];
 
   return (
@@ -103,7 +104,7 @@ export default function Home() {
       <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-white to-blue-50/30 font-sans text-slate-900 selection:bg-purple-200">
       {/* Header */}
         <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-200/50 shadow-sm">
-        <div className="max-w-7xl mx-auto flex justify-between items-center px-6 py-4">
+        <div className="max-w-7xl mx-auto flex justify-between items-center px-4 sm:px-6 py-4">
             <a href="/" className="flex items-center gap-2" aria-label="Influo Home">
               <Image 
                 src="/logo.svg" 
@@ -114,6 +115,8 @@ export default function Home() {
                 priority
               />
             </a>
+            
+            {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-6" aria-label="Main navigation">
               <ul className="flex gap-6 text-sm font-medium text-slate-700">
                 <li><button onClick={() => setShowModal(true)} className="hover:text-slate-900 transition-colors">
@@ -135,7 +138,65 @@ export default function Home() {
                   {lang === "el" ? "EN" : "EL"}
             </button>
           </nav>
+
+          {/* Mobile Menu Button */}
+          <div className="flex items-center gap-3 md:hidden">
+            <button 
+              onClick={() => setLang(lang === "el" ? "en" : "el")}
+              className="text-xs font-medium border border-slate-200 px-2.5 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
+              aria-label="Toggle language"
+            >
+              {lang === "el" ? "EN" : "EL"}
+            </button>
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+              aria-label="Toggle mobile menu"
+              aria-expanded={mobileMenuOpen}
+            >
+              {mobileMenuOpen ? (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
+            </button>
+          </div>
         </div>
+
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <nav className="md:hidden border-t border-slate-200 bg-white">
+            <div className="px-4 py-3 space-y-2">
+              <button 
+                onClick={() => {
+                  setShowModal(true);
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full text-left px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors"
+              >
+                {txt.nav_join}
+              </button>
+              <a 
+                href="#directory"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors"
+              >
+                {txt.nav_directory}
+              </a>
+              <a 
+                href="/login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors"
+              >
+                {lang === "el" ? "Σύνδεση" : "Sign In"}
+              </a>
+            </div>
+          </nav>
+        )}
       </header>
 
       {/* Hero Section */}

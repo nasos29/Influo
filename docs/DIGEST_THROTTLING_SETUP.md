@@ -29,3 +29,4 @@ ALTER TABLE conversations ADD COLUMN IF NOT EXISTS last_digest_sent_at TIMESTAMP
 - ✅ Στέλνεται σε admin, influencer, και brand
 - ✅ Αποφεύγεται spam emails
 
+
