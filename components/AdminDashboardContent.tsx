@@ -58,6 +58,7 @@ const t = {
     btn_approve: "Έγκριση",
     btn_unverify: "Ανάκληση",
     btn_delete: "Διαγραφή",
+    cleanup_test: "Cleanup Test Users",
     col_date: "Ημερομηνία",
     col_brand: "Brand",
     col_srv: "Υπηρεσία",
@@ -91,6 +92,7 @@ const t = {
     btn_approve: "Approve",
     btn_unverify: "Unverify",
     btn_delete: "Delete",
+    cleanup_test: "Cleanup Test Users",
     col_date: "Date",
     col_brand: "Brand",
     col_srv: "Service",
@@ -287,10 +289,35 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   };
   
   const deleteUser = async (id: number) => {
-    if (confirm("Είσαι σίγουρος ότι θες να διαγράψεις αυτόν τον χρήστη;")) {
-        await supabase.from("influencers").delete().eq("id", id);
+    if (!confirm("Είσαι σίγουρος ότι θες να διαγράψεις αυτόν τον χρήστη; Αυτή η ενέργεια θα διαγράψει τον χρήστη και από το authentication system.")) {
+        return;
+    }
+
+    try {
+        // Κλήση API endpoint που διαγράφει και από database και από auth
+        const response = await fetch('/api/admin/delete-user', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ userId: id }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.error || 'Failed to delete user');
+        }
+
+        // Ενημέρωση UI
         fetchData();
         setSelectedUser(null);
+        
+        // Επιτυχημένο μήνυμα
+        alert(`Ο χρήστης διαγράφηκε επιτυχώς από το database και το authentication system.`);
+    } catch (error: any) {
+        console.error('Error deleting user:', error);
+        alert(`Σφάλμα κατά τη διαγραφή: ${error.message}`);
     }
   };
 
@@ -300,6 +327,80 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       // Κλείσιμο του modal
       setShowEditModal(false);
       setSelectedUser(updatedUser);
+  };
+
+  const handleCleanupTestUsers = async () => {
+    const emailsInput = prompt(
+      lang === "el" 
+        ? "Εισάγετε τα emails (χωρισμένα με κόμμα) που θέλετε να διαγράψετε:\n\nπ.χ. test1@example.com, test2@example.com"
+        : "Enter emails (comma-separated) to delete:\n\ne.g. test1@example.com, test2@example.com"
+    );
+
+    if (!emailsInput || !emailsInput.trim()) {
+      return;
+    }
+
+    const emails = emailsInput
+      .split(',')
+      .map(email => email.trim())
+      .filter(email => email.length > 0);
+
+    if (emails.length === 0) {
+      alert(lang === "el" ? "Δεν δόθηκαν έγκυρα emails." : "No valid emails provided.");
+      return;
+    }
+
+    if (!confirm(
+      lang === "el"
+        ? `Θέλετε να διαγράψετε ${emails.length} user(s)?\n\n${emails.join('\n')}\n\nΑυτή η ενέργεια δεν μπορεί να αναιρεθεί!`
+        : `Do you want to delete ${emails.length} user(s)?\n\n${emails.join('\n')}\n\nThis action cannot be undone!`
+    )) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/admin/cleanup-test-users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ emails }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to cleanup users');
+      }
+
+      // Show results
+      const successful = result.results.filter((r: any) => r.success).length;
+      const failed = result.results.filter((r: any) => !r.success).length;
+
+      let message = lang === "el"
+        ? `Ολοκληρώθηκε!\n\nΕπιτυχημένα: ${successful}\nΑποτυχημένα: ${failed}`
+        : `Completed!\n\nSuccessful: ${successful}\nFailed: ${failed}`;
+
+      if (failed > 0) {
+        const failedEmails = result.results
+          .filter((r: any) => !r.success)
+          .map((r: any) => `- ${r.email}: ${r.error || r.errors?.auth || 'Unknown error'}`)
+          .join('\n');
+        message += `\n\n${lang === "el" ? "Αποτυχημένα:" : "Failed:"}\n${failedEmails}`;
+      }
+
+      alert(message);
+
+      // Refresh data
+      fetchData();
+    } catch (error: any) {
+      console.error('Error cleaning up users:', error);
+      alert(
+        lang === "el"
+          ? `Σφάλμα: ${error.message}`
+          : `Error: ${error.message}`
+      );
+    }
   };
 
 
