@@ -180,6 +180,26 @@ export default function Messaging({
         // Send message to existing conversation
         const senderId = mode === 'influencer' ? influencerId : brandEmail!;
         
+        // If brand is sending and influencer is offline, send via email
+        if (mode === 'brand' && !isInfluencerOnline) {
+          try {
+            await fetch('/api/emails', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: 'message_offline',
+                toEmail: influencerEmail,
+                influencerName: influencerName,
+                brandName: brandName || brandEmail,
+                message: newMessage,
+                conversationId: convId,
+              })
+            });
+          } catch (emailError) {
+            console.error('Offline email failed:', emailError);
+          }
+        }
+        
         const response = await fetch('/api/messages', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -188,6 +208,7 @@ export default function Messaging({
             senderId,
             senderType: mode,
             content: newMessage,
+            sendViaEmail: mode === 'brand' && !isInfluencerOnline,
           })
         });
 

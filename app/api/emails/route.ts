@@ -10,7 +10,7 @@ const ADMIN_RECEIVING_EMAIL = process.env.ADMIN_EMAIL || 'nd.6@hotmail.com';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { type, email, name, location, brandName, influencerName, proposalType, influencerId, budget, message, toEmail, conversationId } = body;
+    const { type, email, name, location, brandName, influencerName, proposalType, influencerId, budget, message, conversationId } = body;
     const host = req.headers.get('host') || 'influo.gr';
 
     // Validation
@@ -142,7 +142,8 @@ export async function POST(req: Request) {
         `;
     }
     else if (type === 'message_offline') {
-        toEmail = toEmail || email;
+        // toEmail should come from the body for this type (influencer's email)
+        toEmail = body.toEmail || email;
         subject = `💬 Νέο μήνυμα από ${brandName}`;
         html = `
             <div style="font-family: sans-serif; padding: 20px; border: 1px solid #0ea5e9; border-radius: 8px; background-color: #f0f9ff;">
