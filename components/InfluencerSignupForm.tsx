@@ -363,32 +363,34 @@ export default function InfluencerSignupForm() {
 
   // UI Helpers
   const txt = t[lang]; 
-  const inputClass = "w-full px-4 py-3 !bg-white !text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder:text-gray-500";
-  const labelClass = "block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1";
+  const inputClass = "w-full px-4 py-3 !bg-white !text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400 shadow-sm hover:border-slate-300";
+  const labelClass = "block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2";
 
   const ProgressSteps = () => (
     <div className="flex justify-between mb-8 relative px-4">
-        <div className="absolute top-1/2 left-0 w-full h-1 bg-gray-200 -z-10"></div>
+        <div className="absolute top-1/2 left-0 w-full h-1.5 bg-slate-200 rounded-full -z-10"></div>
+        <div className={`absolute top-1/2 left-4 h-1.5 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full transition-all duration-500 -z-10`} style={{ width: step >= 3 ? 'calc(100% - 2rem)' : step >= 2 ? 'calc(66.666% - 2rem)' : '0%' }}></div>
         {[1, 2, 3].map((s) => (
-            <div key={s} className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-colors border-2 ${step >= s ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-300 text-gray-500'}`}>
-                {s}
+            <div key={s} className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm transition-all border-2 shadow-md ${step >= s ? 'bg-gradient-to-br from-blue-600 to-purple-600 border-blue-600 text-white scale-110' : 'bg-white border-slate-300 text-slate-500'}`}>
+                {step > s ? '✓' : s}
             </div>
         ))}
     </div>
   );
 
   return (
-    <div className="bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[90vh] md:h-[800px] max-w-4xl mx-auto border border-gray-200">
+    <div className="bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[90vh] md:h-[800px] max-w-4xl mx-auto border border-slate-200">
       
       {/* Header */}
-      <div className="bg-slate-900 p-6 text-white flex justify-between items-start">
-        <div className="text-center flex-1">
-            <h3 className="text-2xl font-bold">{txt.headerTitle}</h3>
-            <p className="text-slate-400 text-sm">{txt.headerDesc}</p>
+      <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-purple-900 p-6 text-white flex justify-between items-start relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-pink-600/20"></div>
+        <div className="text-center flex-1 relative z-10">
+            <h3 className="text-2xl md:text-3xl font-bold mb-2">{txt.headerTitle}</h3>
+            <p className="text-slate-300 text-sm">{txt.headerDesc}</p>
         </div>
         <button 
             onClick={() => setLang(lang === "el" ? "en" : "el")}
-            className="text-xs font-bold border border-slate-600 px-3 py-1 rounded hover:bg-slate-800 transition-colors"
+            className="text-xs font-bold border-2 border-white/30 px-4 py-2 rounded-lg hover:bg-white/20 transition-all backdrop-blur-sm relative z-10"
         >
             {lang === "el" ? "🇬🇧 EN" : "🇬🇷 EL"}
         </button>
@@ -463,7 +465,7 @@ export default function InfluencerSignupForm() {
                     <button 
                         onClick={handleCheckEmailAndNext} 
                         disabled={!displayName || !email || !password || loading} 
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors shadow-lg disabled:opacity-50"
+                        className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-blue-500/30 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {loading ? "Checking..." : txt.next}
                     </button>
@@ -525,8 +527,8 @@ export default function InfluencerSignupForm() {
                 </div>
 
                 <div className="flex gap-4 pt-4">
-                    <button onClick={() => { setStep(1); setMessage(""); }} className="px-6 py-3 bg-white border border-gray-300 text-gray-700 font-bold rounded-lg hover:bg-gray-50">{txt.back}</button>
-                    <button onClick={() => { setStep(3); setMessage(""); }} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg">{txt.next}</button>
+                    <button onClick={() => { setStep(1); setMessage(""); }} className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-all">{txt.back}</button>
+                    <button onClick={() => { setStep(3); setMessage(""); }} className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-500/30 transition-all">{txt.next}</button>
                 </div>
             </div>
         )}
@@ -619,8 +621,8 @@ export default function InfluencerSignupForm() {
                 </div>
 
                 <div className="flex gap-4 pt-4">
-                    <button onClick={() => { setStep(2); setMessage(""); }} className="px-6 py-3 bg-white border border-gray-300 text-gray-700 font-bold rounded-lg hover:bg-gray-50">{txt.back}</button>
-                    <button onClick={handleSubmit} disabled={loading} className="flex-1 bg-slate-900 hover:bg-black text-white font-bold py-3 rounded-lg">
+                    <button onClick={() => { setStep(2); setMessage(""); }} className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-all">{txt.back}</button>
+                    <button onClick={handleSubmit} disabled={loading} className="flex-1 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-900 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-slate-900/30 hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                         {loading ? txt.loading : txt.submit}
                     </button>
                 </div>
@@ -631,12 +633,12 @@ export default function InfluencerSignupForm() {
         {/* --- STEP 4 --- (Success) */}
         {step === 4 && (
             <div className="text-center py-20 animate-in zoom-in duration-300">
-                <div className="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-5xl mx-auto mb-6 shadow-sm">🎉</div>
-                <h2 className="text-3xl font-bold text-black mb-4">{txt.successTitle}</h2>
-                <p className="text-gray-600 max-w-md mx-auto mb-10 text-lg">
+                <div className="w-24 h-24 bg-gradient-to-br from-green-100 to-emerald-100 text-green-600 rounded-full flex items-center justify-center text-5xl mx-auto mb-6 shadow-lg shadow-green-500/20 animate-bounce">🎉</div>
+                <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">{txt.successTitle}</h2>
+                <p className="text-slate-600 max-w-md mx-auto mb-10 text-lg leading-relaxed">
                     {txt.successDesc}
                 </p>
-                <a href="/login" className="px-6 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 w-full max-w-xs mx-auto inline-block">
+                <a href="/login" className="px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold rounded-xl hover:shadow-xl shadow-lg shadow-blue-500/30 transition-all inline-block max-w-xs mx-auto">
                     {txt.close}
                 </a>
             </div>

@@ -42,40 +42,66 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-100">
-            <div className="bg-white p-8 rounded-xl shadow-xl w-full max-w-md">
-                <h1 className="text-2xl font-bold mb-6 text-slate-900">Sign In</h1>
-                <form onSubmit={handleLogin} className="space-y-4">
-                    <label className="block text-sm font-medium text-slate-700">Email Address</label>
-                    <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                        className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 !text-black !bg-white"
-                        placeholder="your@email.com"
-                    />
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/30 p-4">
+            <div className="bg-white/90 backdrop-blur-xl p-8 md:p-10 rounded-2xl shadow-2xl w-full max-w-md border border-slate-200/50">
+                {/* Logo/Brand */}
+                <div className="flex items-center justify-center gap-3 mb-8">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-blue-500/30">I</div>
+                    <h1 className="text-2xl font-extrabold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Influo</h1>
+                </div>
+                
+                <h2 className="text-3xl font-bold mb-2 text-slate-900 text-center">Welcome Back</h2>
+                <p className="text-slate-500 text-center mb-8">Sign in to your account</p>
+                
+                <form onSubmit={handleLogin} className="space-y-5">
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Email Address</label>
+                        <input
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                            className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 !text-black !bg-white transition-all shadow-sm hover:border-slate-300"
+                            placeholder="your@email.com"
+                        />
+                    </div>
 
-                    <label className="block text-sm font-medium text-slate-700">Password</label>
-                    <input
-                        type="password" 
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 !text-black !bg-white"
-                        placeholder="••••••••"
-                    />
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Password</label>
+                        <input
+                            type="password" 
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 !text-black !bg-white transition-all shadow-sm hover:border-slate-300"
+                            placeholder="••••••••"
+                        />
+                    </div>
 
-                    {message && <p className="text-red-500 text-sm">{message}</p>}
+                    {message && (
+                        <div className="bg-red-50 border-2 border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm font-medium">
+                            {message}
+                        </div>
+                    )}
+                    
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg disabled:opacity-50"
+                        className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3.5 rounded-xl disabled:opacity-50 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 transition-all transform hover:-translate-y-0.5"
                     >
-                        {loading ? 'Logging In...' : 'Log In'}
+                        {loading ? (
+                            <span className="flex items-center justify-center gap-2">
+                                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Logging In...
+                            </span>
+                        ) : 'Log In'}
                     </button>
+                    
                     <p className="text-xs text-slate-500 text-center pt-2">
-                        Για Influencers και Admins.
+                        For Influencers and Admins.
                     </p>
                 </form>
             </div>

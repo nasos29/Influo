@@ -148,40 +148,40 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 overflow-y-auto max-h-[90vh]">
-                <h2 className="text-2xl font-bold mb-6 text-slate-900">Edit Profile: {user.display_name}</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-8 overflow-y-auto max-h-[90vh] border border-slate-100">
+                <h2 className="text-2xl font-bold mb-6 text-slate-900 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Edit Profile: {user.display_name}</h2>
                 <form onSubmit={handleSave} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-bold mb-1 text-slate-700">Full Name</label>
-                            <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border rounded text-slate-900 bg-white" required />
+                            <label className="block text-sm font-semibold mb-2 text-slate-700">Full Name</label>
+                            <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white transition-all" required />
                         </div>
                         <div>
-                            <label className="block text-sm font-bold mb-1 text-slate-700">Location</label>
-                            <input type="text" value={location} onChange={e => setLocation(e.target.value)} className="w-full p-2 border rounded text-slate-900 bg-white" />
+                            <label className="block text-sm font-semibold mb-2 text-slate-700">Location</label>
+                            <input type="text" value={location} onChange={e => setLocation(e.target.value)} className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white transition-all" />
                         </div>
                          <div>
-                            <label className="block text-sm font-bold mb-1 text-slate-700">Min Rate (€)</label>
-                            <input type="text" value={minRate} onChange={e => setMinRate(e.target.value)} className="w-full p-2 border rounded text-slate-900 bg-white" />
+                            <label className="block text-sm font-semibold mb-2 text-slate-700">Min Rate (€)</label>
+                            <input type="text" value={minRate} onChange={e => setMinRate(e.target.value)} className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white transition-all" />
                         </div>
                         <div>
-                            <label className="block text-sm font-bold mb-1 text-slate-700">Engagement Rate (%)</label>
-                            <input type="text" value={engage} onChange={e => setEngage(e.target.value)} className="w-full p-2 border rounded text-slate-900 bg-white" />
+                            <label className="block text-sm font-semibold mb-2 text-slate-700">Engagement Rate (%)</label>
+                            <input type="text" value={engage} onChange={e => setEngage(e.target.value)} className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white transition-all" />
                         </div>
                         <div>
-                            <label className="block text-sm font-bold mb-1 text-slate-700">Avg Likes/Views</label>
-                            <input type="text" value={avgLikes} onChange={e => setAvgLikes(e.target.value)} className="w-full p-2 border rounded text-slate-900 bg-white" />
+                            <label className="block text-sm font-semibold mb-2 text-slate-700">Avg Likes/Views</label>
+                            <input type="text" value={avgLikes} onChange={e => setAvgLikes(e.target.value)} className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white transition-all" />
                         </div>
                     </div>
                     <div>
-                        <label className="block text-sm font-bold mb-1 text-slate-700">Bio</label>
-                        <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} className="w-full p-2 border rounded text-slate-900 bg-white" />
+                        <label className="block text-sm font-semibold mb-2 text-slate-700">Bio</label>
+                        <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white transition-all resize-none" />
                     </div>
                     
                     <div className="flex justify-end gap-3 pt-4">
-                        <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 rounded text-slate-700 hover:bg-gray-300">Cancel</button>
-                        <button type="submit" disabled={loading} className="px-6 py-3 bg-blue-600 text-white rounded disabled:opacity-50 hover:bg-blue-700">
+                        <button type="button" onClick={onClose} className="px-6 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-700 font-semibold transition-all">Cancel</button>
+                        <button type="submit" disabled={loading} className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl font-semibold disabled:opacity-50 shadow-lg shadow-blue-500/30 transition-all">
                             {loading ? 'Saving...' : 'Save Changes'}
                         </button>
                     </div>
@@ -306,54 +306,54 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   if (loading) return <div className="p-10 text-center">Loading...</div>;
 
   return (
-    <div className="min-h-screen bg-slate-50 p-8 text-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-purple-50/20 p-6 md:p-8 text-slate-900">
       
       {/* Header & Lang Toggle */}
-      <div className="max-w-7xl mx-auto mb-8 flex justify-between items-center">
+      <div className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-           <h1 className="text-3xl font-bold">{txt.title}</h1>
-           <p className="text-slate-500">{txt.sub}</p>
+           <h1 className="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{txt.title}</h1>
+           <p className="text-slate-600 mt-1">{txt.sub}</p>
         </div>
-        <div className="flex gap-4">
-             <button onClick={() => setLang(lang === "el" ? "en" : "el")} className="border px-3 py-1 rounded bg-white">
-                {lang === "el" ? "EN" : "EL"}
+        <div className="flex gap-3">
+             <button onClick={() => setLang(lang === "el" ? "en" : "el")} className="border-2 border-slate-200 px-4 py-2 rounded-lg bg-white hover:bg-slate-50 hover:border-blue-300 transition-all shadow-sm font-semibold text-sm">
+                {lang === "el" ? "🇬🇧 EN" : "🇬🇷 EL"}
             </button>
-            <a href="/logout" className="text-red-600 hover:underline">Logout</a> {/* Πρόσθεσα Logout */}
-            <a href="/" className="text-blue-600 hover:underline">{txt.back}</a>
+            <a href="/logout" className="px-4 py-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 font-semibold transition-all shadow-sm">Logout</a>
+            <a href="/" className="px-4 py-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 font-semibold transition-all shadow-sm">{txt.back}</a>
         </div>
       </div>
 
       {/* Stats Grid */}
       <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-            <p className="text-xs text-slate-500 uppercase">{txt.users}</p>
-            <p className="text-2xl font-bold">{stats.total}</p>
+        <div className="bg-white/90 backdrop-blur-sm p-5 rounded-xl shadow-md border border-slate-200 hover:shadow-lg transition-all">
+            <p className="text-xs text-slate-500 uppercase font-semibold mb-2">{txt.users}</p>
+            <p className="text-3xl font-extrabold text-slate-900">{stats.total}</p>
         </div>
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-            <p className="text-xs text-slate-500 uppercase">{txt.pending}</p>
-            <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
+        <div className="bg-gradient-to-br from-yellow-50 to-amber-50 p-5 rounded-xl shadow-md border border-yellow-200 hover:shadow-lg transition-all">
+            <p className="text-xs text-yellow-700 uppercase font-semibold mb-2">{txt.pending}</p>
+            <p className="text-3xl font-extrabold text-yellow-600">{stats.pending}</p>
         </div>
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-            <p className="text-xs text-slate-500 uppercase">{txt.verified}</p>
-            <p className="text-2xl font-bold text-green-600">{stats.verified}</p>
+        <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-5 rounded-xl shadow-md border border-green-200 hover:shadow-lg transition-all">
+            <p className="text-xs text-green-700 uppercase font-semibold mb-2">{txt.verified}</p>
+            <p className="text-3xl font-extrabold text-green-600">{stats.verified}</p>
         </div>
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-            <p className="text-xs text-slate-500 uppercase">{txt.reach}</p>
-            <p className="text-2xl font-bold text-purple-600">{stats.reach}</p>
+        <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-5 rounded-xl shadow-md border border-purple-200 hover:shadow-lg transition-all">
+            <p className="text-xs text-purple-700 uppercase font-semibold mb-2">{txt.reach}</p>
+            <p className="text-3xl font-extrabold text-purple-600">{stats.reach}</p>
         </div>
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 ring-2 ring-blue-100">
-            <p className="text-xs text-slate-500 uppercase">{txt.pipeline}</p>
-            <p className="text-2xl font-bold text-blue-600">{stats.pipeline}</p>
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-5 rounded-xl shadow-md border-2 border-blue-300 hover:shadow-lg transition-all ring-2 ring-blue-100">
+            <p className="text-xs text-blue-700 uppercase font-semibold mb-2">{txt.pipeline}</p>
+            <p className="text-3xl font-extrabold text-blue-600">{stats.pipeline}</p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="max-w-7xl mx-auto mb-6 border-b border-slate-200">
-          <div className="flex gap-6">
-              <button onClick={() => setActiveTab("influencers")} className={`pb-3 font-bold text-sm ${activeTab==="influencers" ? "text-blue-600 border-b-2 border-blue-600" : "text-slate-500 hover:text-slate-800"}`}>
+      <div className="max-w-7xl mx-auto mb-6 bg-white/50 backdrop-blur-sm rounded-xl p-2 border border-slate-200 shadow-sm">
+          <div className="flex gap-2">
+              <button onClick={() => setActiveTab("influencers")} className={`px-6 py-2.5 rounded-lg font-semibold text-sm transition-all ${activeTab==="influencers" ? "text-blue-700 bg-blue-50 border-2 border-blue-200 shadow-sm" : "text-slate-600 hover:text-slate-800 hover:bg-slate-50"}`}>
                   {txt.tab_inf}
               </button>
-              <button onClick={() => setActiveTab("proposals")} className={`pb-3 font-bold text-sm ${activeTab==="proposals" ? "text-blue-600 border-b-2 border-blue-600" : "text-slate-500 hover:text-slate-800"}`}>
+              <button onClick={() => setActiveTab("proposals")} className={`px-6 py-2.5 rounded-lg font-semibold text-sm transition-all ${activeTab==="proposals" ? "text-blue-700 bg-blue-50 border-2 border-blue-200 shadow-sm" : "text-slate-600 hover:text-slate-800 hover:bg-slate-50"}`}>
                   {txt.tab_deals} ({proposals.length})
               </button>
           </div>
@@ -361,45 +361,47 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
 
       {/* --- TAB 1: INFLUENCERS --- */}
       {activeTab === "influencers" && (
-          <div className="max-w-7xl mx-auto bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="max-w-7xl mx-auto bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200 overflow-hidden">
              <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
-                        <thead className="bg-slate-50 text-slate-500">
+                        <thead className="bg-gradient-to-r from-slate-50 to-slate-100 text-slate-700 border-b border-slate-200">
                             <tr>
-                                <th className="p-3">{txt.col_inf}</th>
-                                <th className="p-3">{txt.col_loc}</th>
-                                <th className="p-3">{txt.col_status}</th>
-                                <th className="p-3 text-right">{txt.col_act}</th>
+                                <th className="p-4 font-semibold">{txt.col_inf}</th>
+                                <th className="p-4 font-semibold">{txt.col_loc}</th>
+                                <th className="p-4 font-semibold">{txt.col_status}</th>
+                                <th className="p-4 text-right font-semibold">{txt.col_act}</th>
                             </tr>
                         </thead>
                         <tbody>
                             {users.map(u => (
-                                <tr key={u.id} className="border-b hover:bg-slate-50 cursor-pointer" onClick={() => setSelectedUser(u)}>
-                                    <td className="p-3">
-                                        <div className="flex items-center gap-2">
-                                            {u.avatar_url && <div className="w-6 h-6 rounded-full bg-slate-200 relative overflow-hidden"><Image src={u.avatar_url} fill className="object-cover" alt="." /></div>}
-                                            <span className="font-bold">{u.display_name}</span>
+                                <tr key={u.id} className="border-b border-slate-100 hover:bg-blue-50/50 cursor-pointer transition-colors" onClick={() => setSelectedUser(u)}>
+                                    <td className="p-4">
+                                        <div className="flex items-center gap-3">
+                                            {u.avatar_url && <div className="w-10 h-10 rounded-full bg-slate-200 relative overflow-hidden border-2 border-white shadow-sm"><Image src={u.avatar_url} fill className="object-cover" alt="." /></div>}
+                                            <span className="font-bold text-slate-900">{u.display_name}</span>
                                         </div>
                                     </td>
-                                    <td className="p-3">{u.location || "-"}</td>
-                                    <td className="p-3">
-                                        {u.verified ? <span className="text-green-600 font-bold">{txt.verified}</span> : <span className="text-yellow-600 font-bold">{txt.pending}</span>}
+                                    <td className="p-4 text-slate-600">{u.location || "-"}</td>
+                                    <td className="p-4">
+                                        {u.verified ? <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">{txt.verified}</span> : <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 border border-yellow-200">{txt.pending}</span>}
                                     </td>
-                                    <td className="p-3 text-right" onClick={(e) => e.stopPropagation()}> 
+                                    <td className="p-4 text-right" onClick={(e) => e.stopPropagation()}> 
+                                        <div className="flex items-center justify-end gap-2">
                                         <button 
                                             onClick={() => toggleStatus(u.id, u.verified, u.contact_email || "", u.display_name || "")} 
-                                            className="text-blue-600 font-bold text-xs mr-3 hover:underline"
+                                            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition-all"
                                         >
                                             {u.verified ? txt.btn_unverify : txt.btn_approve}
                                         </button>
                                         {/* ΝΕΟ ΚΟΥΜΠΙ EDIT */}
                                         <button 
-                                            onClick={() => setShowEditModal(true)} 
-                                            className="text-gray-600 font-bold text-xs mr-3 hover:underline"
+                                            onClick={() => { setSelectedUser(u); setShowEditModal(true); }} 
+                                            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all"
                                         >
                                             Edit
                                         </button>
-                                        <button onClick={() => deleteUser(u.id)} className="text-red-600 font-bold text-xs hover:underline">{txt.btn_delete}</button>
+                                        <button onClick={() => deleteUser(u.id)} className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition-all">{txt.btn_delete}</button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}

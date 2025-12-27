@@ -55,36 +55,36 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-8 overflow-y-auto max-h-[90vh]">
-                <h2 className="text-3xl font-bold mb-6 text-slate-900">Edit Your Profile</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-8 overflow-y-auto max-h-[90vh] border border-slate-100">
+                <h2 className="text-3xl font-bold mb-6 text-slate-900 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Edit Your Profile</h2>
                 <form onSubmit={handleSave} className="space-y-4">
                     <div className='grid md:grid-cols-2 gap-4'>
                         <div>
-                            <label className="block text-sm font-bold mb-1">Name</label>
-                            <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border rounded text-slate-900 bg-white" required />
+                            <label className="block text-sm font-semibold mb-2 text-slate-700">Name</label>
+                            <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white transition-all" required />
                         </div>
                         <div>
-                            <label className="block text-sm font-bold mb-1">Min Rate (€)</label>
-                            <input type="text" value={minRate} onChange={e => setMinRate(e.target.value)} className="w-full p-2 border rounded text-slate-900 bg-white" placeholder="e.g. 250€" />
+                            <label className="block text-sm font-semibold mb-2 text-slate-700">Min Rate (€)</label>
+                            <input type="text" value={minRate} onChange={e => setMinRate(e.target.value)} className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white transition-all" placeholder="e.g. 250€" />
                         </div>
                         <div>
-                            <label className="block text-sm font-bold mb-1">Engagement Rate (%)</label>
-                            <input type="text" value={engage} onChange={e => setEngage(e.target.value)} className="w-full p-2 border rounded text-slate-900 bg-white" placeholder="e.g. 5.2%" />
+                            <label className="block text-sm font-semibold mb-2 text-slate-700">Engagement Rate (%)</label>
+                            <input type="text" value={engage} onChange={e => setEngage(e.target.value)} className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white transition-all" placeholder="e.g. 5.2%" />
                         </div>
                          <div>
-                            <label className="block text-sm font-bold mb-1">Avg Likes/Views</label>
-                            <input type="text" value={likes} onChange={e => setLikes(e.target.value)} className="w-full p-2 border rounded text-slate-900 bg-white" placeholder="e.g. 3.2k" />
+                            <label className="block text-sm font-semibold mb-2 text-slate-700">Avg Likes/Views</label>
+                            <input type="text" value={likes} onChange={e => setLikes(e.target.value)} className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white transition-all" placeholder="e.g. 3.2k" />
                         </div>
                     </div>
                     <div>
-                        <label className="block text-sm font-bold mb-1">Bio</label>
-                        <textarea value={bio} onChange={e => setBio(e.target.value)} rows={4} className="w-full p-2 border rounded text-slate-900 bg-white" placeholder='Tell brands about yourself...' />
+                        <label className="block text-sm font-semibold mb-2 text-slate-700">Bio</label>
+                        <textarea value={bio} onChange={e => setBio(e.target.value)} rows={4} className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white transition-all resize-none" placeholder='Tell brands about yourself...' />
                     </div>
                     
                     <div className="flex justify-end gap-3 pt-4">
-                        <button type="button" onClick={onClose} className="px-4 py-3 bg-gray-200 rounded-lg font-bold hover:bg-gray-300">Cancel</button>
-                        <button type="submit" disabled={loading} className="px-6 py-3 bg-blue-600 text-white rounded-lg font-bold disabled:opacity-50 hover:bg-blue-700">
+                        <button type="button" onClick={onClose} className="px-6 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl font-semibold text-slate-700 transition-all">Cancel</button>
+                        <button type="submit" disabled={loading} className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl font-semibold disabled:opacity-50 shadow-lg shadow-blue-500/30 transition-all">
                             {loading ? 'Saving...' : 'Save Changes'}
                         </button>
                     </div>
@@ -106,38 +106,41 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     };
 
     return (
-        <div className="min-h-screen p-8 bg-slate-100">
-            <div className="max-w-4xl mx-auto">
-                <h1 className="text-4xl font-extrabold text-slate-900 mb-8">
-                    Welcome back, {profile.display_name}!
-                </h1>
+        <div className="min-h-screen p-6 md:p-8 bg-gradient-to-br from-slate-50 via-blue-50/20 to-purple-50/20">
+            <div className="max-w-5xl mx-auto">
+                <div className="mb-8">
+                    <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-2">
+                        Welcome back, <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{profile.display_name}</span>!
+                    </h1>
+                    <p className="text-slate-600">Manage your influencer profile and settings</p>
+                </div>
                 
-                <div className="bg-white p-8 rounded-xl shadow-xl space-y-6">
-                    <h2 className="text-2xl font-bold border-b pb-2">Your Profile Overview</h2>
+                <div className="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-slate-200/50 space-y-6">
+                    <h2 className="text-2xl font-bold border-b border-slate-200 pb-3 text-slate-900">Your Profile Overview</h2>
                     
-                    <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {/* STATS */}
-                        <div className="p-3 bg-slate-50 rounded">
-                            <span className="block text-slate-500 text-xs uppercase">Status</span>
-                            <span className={`font-bold ${profile.verified ? 'text-green-600' : 'text-yellow-600'}`}>
+                        <div className="p-5 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border border-green-100 shadow-sm">
+                            <span className="block text-slate-600 text-xs uppercase font-semibold mb-2">Status</span>
+                            <span className={`text-lg font-bold ${profile.verified ? 'text-green-700' : 'text-yellow-700'}`}>
                                 {profile.verified ? '✅ VERIFIED & LIVE' : '⏳ PENDING REVIEW'}
                             </span>
                         </div>
-                        <div className="p-3 bg-slate-50 rounded">
-                            <span className="block text-slate-500 text-xs uppercase">Min Rate</span>
-                            <span className="font-bold">{profile.min_rate || 'N/A'}€</span>
+                        <div className="p-5 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100 shadow-sm">
+                            <span className="block text-slate-600 text-xs uppercase font-semibold mb-2">Min Rate</span>
+                            <span className="text-lg font-bold text-blue-700">{profile.min_rate || 'N/A'}€</span>
                         </div>
-                         <div className="p-3 bg-slate-50 rounded">
-                            <span className="block text-slate-500 text-xs uppercase">Engagement Rate</span>
-                            <span className="font-bold text-purple-600">{profile.engagement_rate || 'N/A'}</span>
+                         <div className="p-5 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border border-purple-100 shadow-sm">
+                            <span className="block text-slate-600 text-xs uppercase font-semibold mb-2">Engagement Rate</span>
+                            <span className="text-lg font-bold text-purple-700">{profile.engagement_rate || 'N/A'}</span>
                         </div>
                     </div>
                     
-                    <div className="pt-4 border-t">
-                        <button onClick={() => setShowEditModal(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold">
-                            Edit Profile
+                    <div className="pt-6 border-t border-slate-200 flex flex-col sm:flex-row gap-4">
+                        <button onClick={() => setShowEditModal(true)} className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-xl font-semibold shadow-lg shadow-blue-500/30 hover:shadow-xl transition-all transform hover:-translate-y-0.5">
+                            ✏️ Edit Profile
                         </button>
-                        <Link href="/logout" className="ml-4 text-red-500 hover:underline">
+                        <Link href="/logout" className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold text-center transition-all">
                             Sign Out
                         </Link>
                     </div>
