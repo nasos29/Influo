@@ -187,7 +187,7 @@ export async function POST(req: Request) {
         html: html,
       });
 
-      console.log('Email sent successfully:', { id: data?.id, toEmail });
+      console.log('Email sent successfully:', { toEmail, data });
       return NextResponse.json({ success: true, data });
     } catch (sendError: any) {
       console.error('Resend send error:', sendError);
