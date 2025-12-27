@@ -385,13 +385,13 @@ export default function InfluencerSignupForm() {
       <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-purple-900 p-6 text-white relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-pink-600/20"></div>
         <div className="flex items-center justify-between relative z-10">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center">
             <Image 
-              src="/logo-icon.svg" 
-              alt="Influo Logo" 
-              width={32} 
-              height={32} 
-              className="w-8 h-8"
+              src="/logo.svg" 
+              alt="Influo.gr Logo" 
+              width={140} 
+              height={56} 
+              className="h-10 w-auto"
             />
           </div>
           <div className="text-center flex-1">

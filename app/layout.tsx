@@ -13,10 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.com'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr'),
   title: {
-    default: "Influo - Σύνδεσε το Ταλέντο σου με κορυφαία Brands | Πλατφόρμα Influencer Marketing",
-    template: "%s | Influo"
+    default: "Influo.gr - Σύνδεσε το Ταλέντο σου με κορυφαία Brands | Πλατφόρμα Influencer Marketing",
+    template: "%s | Influo.gr"
   },
   description: "Η πιο σύγχρονη πλατφόρμα Influencer Marketing στην Ελλάδα. Σύνδεσε το ταλέντο σου με κορυφαία Brands. Δημιούργησε το επαγγελματικό σου προφίλ και κλείσε συνεργασίες σήμερα.",
   keywords: ["influencer marketing", "influencer marketing Ελλάδα", "brand collaborations", "content creators", "Ελλάδα", "πλατφόρμα influencers", "διαφήμιση στα social media", "συνεργασίες με brands", "creator economy", "διαφημίσεις influencers", "προώθηση προϊόντων", "influencer Ελλάδα"],
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     locale: "el_GR",
     alternateLocale: ["en_US"],
     url: "/",
-    siteName: "Influo",
+    siteName: "Influo.gr",
     title: "Influo - Σύνδεσε το Ταλέντο σου με κορυφαία Brands",
     description: "Η πιο σύγχρονη πλατφόρμα Influencer Marketing στην Ελλάδα. Σύνδεσε το ταλέντο σου με κορυφαία Brands.",
     images: [
@@ -83,9 +83,9 @@ export default function RootLayout({
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Organization",
-    "name": "Influo",
-    "url": process.env.NEXT_PUBLIC_SITE_URL || "https://influo.com",
-    "logo": `${process.env.NEXT_PUBLIC_SITE_URL || "https://influo.com"}/logo.svg`,
+    "name": "Influo.gr",
+    "url": process.env.NEXT_PUBLIC_SITE_URL || "https://influo.gr",
+    "logo": `${process.env.NEXT_PUBLIC_SITE_URL || "https://influo.gr"}/logo.svg`,
     "description": "Η πιο σύγχρονη πλατφόρμα Influencer Marketing στην Ελλάδα. Σύνδεσε το ταλέντο σου με κορυφαία Brands.",
     "inLanguage": "el",
     "sameAs": [
@@ -104,14 +104,14 @@ export default function RootLayout({
   const websiteJsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    "name": "Influo",
-    "url": process.env.NEXT_PUBLIC_SITE_URL || "https://influo.com",
+    "name": "Influo.gr",
+    "url": process.env.NEXT_PUBLIC_SITE_URL || "https://influo.gr",
     "inLanguage": "el",
     "potentialAction": {
       "@type": "SearchAction",
       "target": {
         "@type": "EntryPoint",
-        "urlTemplate": `${process.env.NEXT_PUBLIC_SITE_URL || "https://influo.com"}/directory?search={search_term_string}`
+        "urlTemplate": `${process.env.NEXT_PUBLIC_SITE_URL || "https://influo.gr"}/directory?search={search_term_string}`
       },
       "query-input": "required name=search_term_string"
     }

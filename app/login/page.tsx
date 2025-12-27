@@ -46,16 +46,15 @@ export default function LoginPage() {
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white via-blue-50/15 to-purple-50/15 p-4">
             <div className="bg-white/90 backdrop-blur-xl p-8 md:p-10 rounded-2xl shadow-2xl w-full max-w-md border border-slate-200/50">
                 {/* Logo/Brand */}
-                <div className="flex items-center justify-center gap-3 mb-8">
+                <div className="flex items-center justify-center mb-8">
                     <Image 
-                      src="/logo-icon.svg" 
-                      alt="Influo Logo" 
-                      width={48} 
-                      height={48} 
-                      className="w-12 h-12"
+                      src="/logo.svg" 
+                      alt="Influo.gr Logo" 
+                      width={180} 
+                      height={72} 
+                      className="h-14 w-auto"
                       priority
                     />
-                    <h1 className="text-2xl font-extrabold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Influo</h1>
                 </div>
                 
                 <h2 className="text-3xl font-bold mb-2 text-slate-900 text-center">Welcome Back</h2>

@@ -74,18 +74,18 @@ export default function Home() {
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "WebPage",
-            "name": "Influo - Πλατφόρμα Influencer Marketing",
+            "name": "Influo.gr - Πλατφόρμα Influencer Marketing",
             "description": "Η πιο σύγχρονη πλατφόρμα Influencer Marketing στην Ελλάδα. Σύνδεσε το ταλέντο σου με κορυφαία Brands.",
-            "url": process.env.NEXT_PUBLIC_SITE_URL || "https://influo.com",
+            "url": process.env.NEXT_PUBLIC_SITE_URL || "https://influo.gr",
             "inLanguage": "el",
             "alternateName": {
-              "en": "Influo - Influencer Marketing Platform",
-              "el": "Influo - Πλατφόρμα Influencer Marketing"
+              "en": "Influo.gr - Influencer Marketing Platform",
+              "el": "Influo.gr - Πλατφόρμα Influencer Marketing"
             },
             "isPartOf": {
               "@type": "WebSite",
-              "name": "Influo",
-              "url": process.env.NEXT_PUBLIC_SITE_URL || "https://influo.com",
+              "name": "Influo.gr",
+              "url": process.env.NEXT_PUBLIC_SITE_URL || "https://influo.gr",
               "inLanguage": "el"
             },
             "about": {
@@ -93,47 +93,46 @@ export default function Home() {
               "serviceType": "Πλατφόρμα Influencer Marketing",
               "provider": {
                 "@type": "Organization",
-                "name": "Influo"
+                "name": "Influo.gr"
               }
             }
           })
         }}
       />
       
-      <div className="min-h-screen flex flex-col bg-gradient-to-br from-white via-blue-50/20 to-purple-50/20 font-sans text-slate-900 selection:bg-blue-100">
+      <div className="min-h-screen flex flex-col bg-white font-sans text-slate-900 selection:bg-purple-200">
         {/* Header */}
-        <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-slate-200/50 shadow-sm">
+        <header className="sticky top-0 z-40 bg-white backdrop-blur-xl border-b border-slate-100 shadow-sm">
           <div className="max-w-7xl mx-auto flex justify-between items-center px-6 py-4">
-            <a href="/" className="flex items-center gap-3" aria-label="Influo Home">
+            <a href="/" className="flex items-center gap-2" aria-label="Influo Home">
               <Image 
-                src="/logo-icon.svg" 
-                alt="Influo Logo" 
-                width={40} 
-                height={40} 
-                className="w-10 h-10"
+                src="/logo.svg" 
+                alt="Influo.gr Logo" 
+                width={160} 
+                height={64} 
+                className="h-10 w-auto"
                 priority
               />
-              <h1 className="text-2xl font-extrabold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent tracking-tight">Influo</h1>
             </a>
             <nav className="hidden md:flex items-center gap-8" aria-label="Main navigation">
               <ul className="flex gap-8 text-sm font-semibold text-slate-700">
-                <li><button onClick={() => setShowModal(true)} className="hover:text-blue-600 transition-colors relative group">
+                <li><button onClick={() => setShowModal(true)} className="hover:text-purple-600 transition-colors relative group">
                   {txt.nav_join}
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-600 transition-all group-hover:w-full"></span>
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-purple-600 to-pink-500 transition-all group-hover:w-full"></span>
                 </button></li>
-                <li><a href="#directory" className="hover:text-blue-600 transition-colors relative group">
-                  {txt.nav_directory}
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-600 transition-all group-hover:w-full"></span>
-                </a></li>
-                <li><a href="/admin" className="hover:text-blue-600 transition-colors relative group">
-                  {txt.nav_admin}
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-600 transition-all group-hover:w-full"></span>
+                <li>              <a href="#directory" className="hover:text-purple-600 transition-colors relative group">
+                {txt.nav_directory}
+                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-purple-600 to-pink-500 transition-all group-hover:w-full"></span>
+              </a></li>
+              <li><a href="/admin" className="hover:text-purple-600 transition-colors relative group">
+                {txt.nav_admin}
+                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-purple-600 to-pink-500 transition-all group-hover:w-full"></span>
                 </a></li>
               </ul>
               {/* Lang Toggle */}
               <button 
                   onClick={() => setLang(lang === "el" ? "en" : "el")}
-                  className="text-xs font-bold border-2 border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 hover:border-blue-300 text-slate-700 transition-all shadow-sm"
+                  className="text-xs font-bold border-2 border-slate-100 px-3 py-1.5 rounded-lg hover:bg-purple-50/50 hover:border-purple-300 text-slate-600 transition-all shadow-sm"
                   aria-label="Toggle language"
               >
                   {lang === "el" ? "🇬🇧 EN" : "🇬🇷 EL"}
@@ -143,30 +142,30 @@ export default function Home() {
         </header>
 
         {/* Hero Section */}
-        <section className="relative pt-20 pb-32 px-6 overflow-hidden">
-          {/* Background decorations */}
+        <section className="relative pt-20 pb-32 px-6 overflow-hidden bg-white">
+          {/* Background decorations - Much lighter */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl"></div>
-            <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-400/10 rounded-full blur-3xl"></div>
+            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-400/5 rounded-full blur-3xl"></div>
+            <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-400/5 rounded-full blur-3xl"></div>
           </div>
           
           <div className="relative z-10 max-w-7xl mx-auto text-center">
-            <div className="inline-flex items-center gap-2 px-5 py-2 mb-8 text-xs font-bold tracking-wider text-blue-700 uppercase bg-blue-50 border border-blue-200 rounded-full shadow-sm animate-in fade-in slide-in-from-top-4">
-              <span className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></span>
+            <div className="inline-flex items-center gap-2 px-5 py-2 mb-8 text-xs font-bold tracking-wider text-purple-700 uppercase bg-gradient-to-r from-pink-50 via-purple-50 to-blue-50 border border-purple-200 rounded-full shadow-sm animate-in fade-in slide-in-from-top-4">
+              <span className="w-2 h-2 bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 rounded-full animate-pulse"></span>
               {txt.hero_badge}
             </div>
             <h2 className="text-5xl md:text-7xl lg:text-8xl font-extrabold text-slate-900 mb-8 leading-[1.1] tracking-tight animate-in fade-in slide-in-from-bottom-8 duration-700">
               {txt.hero_title_1} <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 via-pink-500 to-green-500">
                 {txt.hero_title_2}
               </span>
             </h2>
-            <p className="text-lg md:text-xl text-slate-600 max-w-2xl mx-auto mb-12 leading-relaxed animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-200">
+            <p className="text-lg md:text-xl text-slate-500 max-w-2xl mx-auto mb-12 leading-relaxed animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-200">
               {txt.hero_desc}
             </p>
             
             <div className="flex flex-col sm:flex-row justify-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300">
-              <button onClick={() => setShowModal(true)} className="group px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 transition-all transform hover:-translate-y-1 hover:shadow-xl hover:shadow-blue-500/40">
+              <button onClick={() => setShowModal(true)} className="group px-8 py-4 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-500 hover:from-blue-700 hover:via-purple-700 hover:to-pink-600 text-white font-bold rounded-xl shadow-lg shadow-purple-500/30 transition-all transform hover:-translate-y-1 hover:shadow-xl hover:shadow-purple-500/40">
                 <span className="flex items-center justify-center gap-2">
                   {txt.hero_btn_primary}
                   <svg className="w-5 h-5 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -174,19 +173,19 @@ export default function Home() {
                   </svg>
                 </span>
               </button>
-              <a href="#directory" className="px-8 py-4 bg-white hover:bg-slate-50 text-slate-700 font-bold border-2 border-slate-200 hover:border-blue-300 rounded-xl shadow-sm hover:shadow-md transition-all transform hover:-translate-y-0.5">
+              <a href="#directory" className="px-8 py-4 bg-white hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 text-slate-600 font-bold border-2 border-slate-100 hover:border-purple-300 rounded-xl shadow-sm hover:shadow-md transition-all transform hover:-translate-y-0.5">
                 {txt.hero_btn_secondary}
               </a>
             </div>
 
             {/* Social Proof Images */}
             <div className="mt-20 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-500">
-              <p className="text-xs text-slate-500 mb-6 font-semibold tracking-wider uppercase">{txt.trusted_by}</p>
+              <p className="text-xs text-slate-400 mb-6 font-semibold tracking-wider uppercase">{txt.trusted_by}</p>
               <div className="flex justify-center items-center -space-x-3">
                 <img className="w-14 h-14 rounded-full border-4 border-white object-cover shadow-lg hover:scale-110 transition-transform cursor-pointer" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80" alt="Creator" />
                 <img className="w-14 h-14 rounded-full border-4 border-white object-cover shadow-lg hover:scale-110 transition-transform cursor-pointer" src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=100&q=80" alt="Creator" />
                 <img className="w-14 h-14 rounded-full border-4 border-white object-cover shadow-lg hover:scale-110 transition-transform cursor-pointer" src="https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=100&q=80" alt="Creator" />
-                <div className="w-14 h-14 rounded-full border-4 border-white bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center text-xs font-bold text-slate-700 shadow-lg">+2k</div>
+                <div className="w-14 h-14 rounded-full border-4 border-white bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 flex items-center justify-center text-xs font-bold text-slate-700 shadow-lg">+2k</div>
               </div>
             </div>
           </div>
@@ -196,8 +195,8 @@ export default function Home() {
         <section className="py-24 px-6 bg-white" id="directory">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-16">
-              <h3 className="text-3xl md:text-4xl font-extrabold text-slate-900 mb-4 bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">{txt.dir_title}</h3>
-              <p className="text-slate-600 max-w-2xl mx-auto text-lg">{txt.dir_desc}</p>
+              <h3 className="text-3xl md:text-4xl font-extrabold text-slate-900 mb-4">{txt.dir_title}</h3>
+              <p className="text-slate-500 max-w-2xl mx-auto text-lg">{txt.dir_desc}</p>
             </div>
             {/* Περνάμε τη γλώσσα στο Directory */}
             <Directory lang={lang} /> 
@@ -205,23 +204,23 @@ export default function Home() {
         </section>
 
         {/* Features Section */}
-        <section className="py-24 px-6 bg-gradient-to-br from-white via-blue-50/10 to-purple-50/10" id="features">
+        <section className="py-24 px-6 bg-white" id="features">
           <div className="max-w-7xl mx-auto">
             <div className="grid md:grid-cols-3 gap-8">
-              <div className="group bg-white p-8 rounded-2xl shadow-md border border-slate-100 hover:shadow-xl hover:-translate-y-2 transition-all duration-300 hover:border-blue-200">
+              <div className="group bg-white p-8 rounded-2xl shadow-md border border-slate-50 hover:shadow-xl hover:-translate-y-2 transition-all duration-300 hover:border-blue-300">
                   <div className="w-14 h-14 bg-gradient-to-br from-blue-100 to-blue-200 text-blue-600 rounded-2xl flex items-center justify-center text-2xl mb-6 shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-transform">📈</div>
                   <h4 className="text-xl font-bold text-slate-900 mb-3">{txt.feat_1_title}</h4>
-                  <p className="text-slate-600 leading-relaxed">{txt.feat_1_desc}</p>
+                  <p className="text-slate-500 leading-relaxed">{txt.feat_1_desc}</p>
               </div>
-              <div className="group bg-white p-8 rounded-2xl shadow-md border border-slate-100 hover:shadow-xl hover:-translate-y-2 transition-all duration-300 hover:border-purple-200">
+              <div className="group bg-white p-8 rounded-2xl shadow-md border border-slate-50 hover:shadow-xl hover:-translate-y-2 transition-all duration-300 hover:border-purple-300">
                   <div className="w-14 h-14 bg-gradient-to-br from-purple-100 to-purple-200 text-purple-600 rounded-2xl flex items-center justify-center text-2xl mb-6 shadow-lg shadow-purple-500/20 group-hover:scale-110 transition-transform">🤝</div>
                   <h4 className="text-xl font-bold text-slate-900 mb-3">{txt.feat_2_title}</h4>
-                  <p className="text-slate-600 leading-relaxed">{txt.feat_2_desc}</p>
+                  <p className="text-slate-500 leading-relaxed">{txt.feat_2_desc}</p>
               </div>
-              <div className="group bg-white p-8 rounded-2xl shadow-md border border-slate-100 hover:shadow-xl hover:-translate-y-2 transition-all duration-300 hover:border-green-200">
+              <div className="group bg-white p-8 rounded-2xl shadow-md border border-slate-50 hover:shadow-xl hover:-translate-y-2 transition-all duration-300 hover:border-green-300">
                   <div className="w-14 h-14 bg-gradient-to-br from-green-100 to-green-200 text-green-600 rounded-2xl flex items-center justify-center text-2xl mb-6 shadow-lg shadow-green-500/20 group-hover:scale-110 transition-transform">💳</div>
                   <h4 className="text-xl font-bold text-slate-900 mb-3">{txt.feat_3_title}</h4>
-                  <p className="text-slate-600 leading-relaxed">{txt.feat_3_desc}</p>
+                  <p className="text-slate-500 leading-relaxed">{txt.feat_3_desc}</p>
               </div>
             </div>
           </div>
