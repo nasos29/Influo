@@ -138,37 +138,61 @@ export default function InfluencerProfile(props: { params: Params }) {
         }
       }
 
-      // 2. REAL CHECK (Keep the logic as is)
-      const isNumeric = /^\d+$/.test(id);
-      if (isNumeric) {
-        const { data, error } = await supabase.from("influencers").select("*").eq("id", id).single();
-        if (data && !error) {
-          const socialsObj: { [key: string]: string } = {};
-          if (Array.isArray(data.accounts)) {
-             data.accounts.forEach((acc: any) => { if(acc.platform) socialsObj[acc.platform.toLowerCase()] = acc.username; });
-          }
-          setProfile({
-            id: data.id,
-            name: data.display_name,
-            bio: data.bio || "",
-            avatar: data.avatar_url || "https://images.unsplash.com/photo-1633332755192-727a05c4013d?auto=format&fit=crop&w=400&q=80",
-            verified: data.verified,
-            socials: socialsObj,
-            followers: {},
-            categories: ["Creator"],
-            platform: "Instagram",
-            gender: data.gender,
-            location: data.location,
-            languages: data.languages,
-            min_rate: data.min_rate,
-            videos: Array.isArray(data.videos) ? data.videos : [],
-            engagement_rate: data.engagement_rate || "-",
-            avg_likes: data.avg_likes || "-",
-            audience_data: data.audience_data || { male: 50, female: 50, top_age: "?" },
-            rate_card: data.rate_card || { story: "Ask", post: "Ask", reel: "Ask" },
-            past_brands: data.past_brands || []
+      // 2. REAL CHECK - Works with both UUIDs (new influencers) and numeric IDs (if any)
+      // Try to fetch by id (works for both UUIDs and numeric IDs)
+      const { data, error } = await supabase.from("influencers").select("*").eq("id", id).single();
+      if (data && !error) {
+        const socialsObj: { [key: string]: string } = {};
+        if (Array.isArray(data.accounts)) {
+           data.accounts.forEach((acc: any) => { if(acc.platform) socialsObj[acc.platform.toLowerCase()] = acc.username; });
+        }
+        
+        // Build followers object from accounts
+        const followersObj: { [key: string]: number } = {};
+        if (Array.isArray(data.accounts)) {
+          data.accounts.forEach((acc: any) => {
+            if (acc.platform && acc.followers) {
+              const platform = acc.platform.toLowerCase();
+              // Parse followers string (e.g., "15k" -> 15000, "1.5M" -> 1500000)
+              let followersNum = 0;
+              const followersStr = acc.followers.toString().toLowerCase().replace(/\s/g, '');
+              if (followersStr.includes('m')) {
+                followersNum = parseFloat(followersStr) * 1000000;
+              } else if (followersStr.includes('k')) {
+                followersNum = parseFloat(followersStr) * 1000;
+              } else {
+                followersNum = parseFloat(followersStr) || 0;
+              }
+              followersObj[platform] = Math.round(followersNum);
+            }
           });
         }
+        
+        setProfile({
+          id: data.id,
+          name: data.display_name,
+          bio: data.bio || "",
+          avatar: data.avatar_url || "https://images.unsplash.com/photo-1633332755192-727a05c4013d?auto=format&fit=crop&w=400&q=80",
+          verified: data.verified,
+          socials: socialsObj,
+          followers: followersObj,
+          categories: data.category ? [data.category] : ["Creator"],
+          platform: "Instagram",
+          gender: data.gender,
+          location: data.location,
+          languages: data.languages,
+          min_rate: data.min_rate,
+          videos: Array.isArray(data.videos) ? data.videos : [],
+          engagement_rate: data.engagement_rate || "-",
+          avg_likes: data.avg_likes || "-",
+          audience_data: {
+            male: data.audience_male_percent || 50,
+            female: data.audience_female_percent || 50,
+            top_age: data.audience_top_age || "?"
+          },
+          rate_card: data.rate_card || { story: "Ask", post: "Ask", reel: "Ask" },
+          past_brands: data.past_brands || []
+        });
       }
       setLoading(false);
     };
@@ -180,18 +204,21 @@ export default function InfluencerProfile(props: { params: Params }) {
     e.preventDefault();
     setSending(true);
 
-    const isNumeric = /^\d+$/.test(id);
-    if (isNumeric) {
+    try {
         // 1. Save Proposal in DB
-        const { error } = await supabase.from("proposals").insert([{
-            influencer_id: parseInt(id),
+        // Note: influencer_id should match the type in your proposals table
+        // If it's UUID (string), use id directly; if it's integer, we need to handle differently
+        const proposalData: any = {
+            influencer_id: id, // Use id as-is (works for both UUID and numeric)
             brand_name: brandName,
             brand_email: brandEmail,
             service_type: proposalType,
             budget: budget,
             message: message,
             status: 'pending'
-        }]);
+        };
+        
+        const { error } = await supabase.from("proposals").insert([proposalData]);
         
         if (error) {
             console.error(error);
@@ -200,29 +227,30 @@ export default function InfluencerProfile(props: { params: Params }) {
             return;
         }
 
-        // 2. Send Brand Confirmation Email (NEW)
+        // 2. Send Brand Confirmation Email
         try {
             await fetch('/api/emails', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     type: 'proposal_brand_confirmation', 
-                    email: brandEmail, // Email του Brand
+                    email: brandEmail,
                     brandName: brandName,
                     influencerName: profile?.name,
                     proposalType: proposalType
                 })
             });
-            // Στην ιδανική περίπτωση, θα στέλναμε και mail στον Influencer
         } catch (mailError) {
              console.error("Brand Confirmation Email failed:", mailError);
         }
-    }
 
-    setTimeout(() => {
         setSent(true);
+    } catch (err) {
+        console.error("Error sending proposal:", err);
+        alert("Something went wrong. Please try again.");
+    } finally {
         setSending(false);
-    }, 1000);
+    }
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-slate-500">Loading Profile...</div>;

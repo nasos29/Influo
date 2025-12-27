@@ -451,10 +451,10 @@ export default function InfluencerSignupForm() {
   );
 
   return (
-    <div className="bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[90vh] md:h-[800px] max-w-4xl mx-auto border border-slate-200">
+    <div className="bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[90vh] md:h-[85vh] max-w-4xl mx-auto border border-slate-200">
       
       {/* Header */}
-      <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-purple-900 p-6 text-white relative overflow-hidden">
+      <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-purple-900 p-6 text-white relative overflow-hidden flex-shrink-0">
         <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-pink-600/20"></div>
         <div className="flex items-center justify-between relative z-10">
           <div className="flex items-center">
@@ -479,7 +479,7 @@ export default function InfluencerSignupForm() {
         </div>
       </div>
 
-      <div className="flex-1 p-8 overflow-y-auto bg-white">
+      <div className="flex-1 p-8 overflow-y-auto bg-white pb-24">
         {step < 4 && <ProgressSteps />}
 
         {/* --- STEP 1 --- (Basic Info & Password) */}
@@ -543,17 +543,20 @@ export default function InfluencerSignupForm() {
                 </div>
 
                 {message && <p className="text-red-600 text-sm text-center mt-2 font-medium bg-red-50 p-2 rounded">{message}</p>}
-
-                <div className="pt-4">
-                    <button 
-                        onClick={handleCheckEmailAndNext} 
-                        disabled={!displayName || !email || !password || loading} 
-                        className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-blue-500/30 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        {loading ? "Checking..." : txt.next}
-                    </button>
-                </div>
             </div>
+        )}
+        
+        {/* Sticky Button Container for Step 1 */}
+        {step === 1 && (
+          <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 -mx-8 -mb-8 mt-6 shadow-lg">
+            <button 
+              onClick={handleCheckEmailAndNext} 
+              disabled={!displayName || !email || !password || loading} 
+              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-blue-500/30 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? "Checking..." : txt.next}
+            </button>
+          </div>
         )}
 
         {/* --- STEP 2 --- (Socials) */}
@@ -608,12 +611,17 @@ export default function InfluencerSignupForm() {
                     <label className={labelClass}>{txt.langsLabel}</label>
                     <input type="text" className={inputClass} value={languages} onChange={(e) => setLanguages(e.target.value)} placeholder={txt.langsPlace} />
                 </div>
-
-                <div className="flex gap-4 pt-4">
-                    <button onClick={() => { setStep(1); setMessage(""); }} className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-all">{txt.back}</button>
-                    <button onClick={() => { setStep(3); setMessage(""); }} className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-500/30 transition-all">{txt.next}</button>
-                </div>
             </div>
+        )}
+        
+        {/* Sticky Button Container for Step 2 */}
+        {step === 2 && (
+          <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 -mx-8 -mb-8 mt-6 shadow-lg">
+            <div className="flex gap-4">
+              <button onClick={() => { setStep(1); setMessage(""); }} className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-all">{txt.back}</button>
+              <button onClick={() => { setStep(3); setMessage(""); }} className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-500/30 transition-all">{txt.next}</button>
+            </div>
+          </div>
         )}
 
         {/* --- STEP 3 --- (Portfolio & Insights) */}
@@ -703,14 +711,20 @@ export default function InfluencerSignupForm() {
                     <input type="number" className={inputClass} value={minRate} onChange={(e) => setMinRate(e.target.value)} placeholder="150" />
                 </div>
 
-                <div className="flex gap-4 pt-4">
-                    <button onClick={() => { setStep(2); setMessage(""); }} className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-all">{txt.back}</button>
-                    <button onClick={handleSubmit} disabled={loading} className="flex-1 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-900 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-slate-900/30 hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                        {loading ? txt.loading : txt.submit}
-                    </button>
-                </div>
                 {message && <p className="text-red-600 text-sm text-center mt-2 font-medium bg-red-50 p-2 rounded">{message}</p>}
             </div>
+        )}
+        
+        {/* Sticky Button Container for Step 3 */}
+        {step === 3 && (
+          <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 -mx-8 -mb-8 mt-6 shadow-lg">
+            <div className="flex gap-4">
+              <button onClick={() => { setStep(2); setMessage(""); }} className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-all">{txt.back}</button>
+              <button onClick={handleSubmit} disabled={loading} className="flex-1 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-900 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-slate-900/30 hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                {loading ? txt.loading : txt.submit}
+              </button>
+            </div>
+          </div>
         )}
 
         {/* --- STEP 4 --- (Success) */}
