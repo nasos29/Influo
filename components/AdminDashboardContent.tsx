@@ -11,12 +11,13 @@ interface DbInfluencer {
   gender: string;
   contact_email: string;
   verified: boolean;
-  accounts: { platform: string; username: string; followers: string }[]; 
+  accounts: { platform: string; username: string; followers: string }[] | null; 
   avatar_url: string | null;
   avg_likes: string | null; 
   location: string | null;
   followers_count: string | null; 
   insights_urls: string[] | null; 
+  videos: string[] | null;
   min_rate: string | null;
   languages: string | null;
   bio: string | null;
