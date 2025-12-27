@@ -7,9 +7,9 @@ import { supabase } from '@/lib/supabaseClient';
 
 export default function MessagesPage() {
   const searchParams = useSearchParams();
-  const influencerId = searchParams.get('influencer');
-  const brandEmail = searchParams.get('brandEmail');
-  const brandName = searchParams.get('brandName');
+  const influencerId = searchParams?.get('influencer') || null;
+  const brandEmail = searchParams?.get('brandEmail') || null;
+  const brandName = searchParams?.get('brandName') || null;
   
   const [influencerData, setInfluencerData] = useState<{
     id: string;
@@ -82,7 +82,7 @@ export default function MessagesPage() {
           influencerName={influencerData.name}
           influencerEmail={influencerData.email}
           brandEmail={brandEmail}
-          brandName={brandName || null}
+          brandName={brandName ?? undefined}
           mode="brand"
         />
       </div>
