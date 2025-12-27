@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import Image from 'next/image';
+import { getVideoThumbnail, isVideoUrl } from '@/lib/videoThumbnail';
 
 interface Account {
   platform: string;
