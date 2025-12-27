@@ -494,6 +494,35 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     pipeline: "0€" 
   });
 
+  const fetchConversations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('conversations')
+        .select('*')
+        .order('last_message_at', { ascending: false });
+
+      if (error) throw error;
+      setConversations(data || []);
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+    }
+  };
+
+  const fetchConversationMessages = async (convId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', convId)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      setConversationMessages(data || []);
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+    }
+  };
+
   const fetchData = async () => {
     setLoading(true);
     const { data: usersData } = await supabase.from("influencers").select("*").order("created_at", { ascending: false });
