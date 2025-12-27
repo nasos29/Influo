@@ -13,10 +13,20 @@ export async function POST(req: Request) {
     const { type, email, name, location, brandName, influencerName, proposalType, influencerId, budget, message, conversationId } = body;
     const host = req.headers.get('host') || 'influo.gr';
 
-    // Validation
-    if (!type || !email) {
+    // Validation - email is optional for admin notifications
+    if (!type) {
       return NextResponse.json(
-        { success: false, error: 'Missing required fields: type and email' },
+        { success: false, error: 'Missing required field: type' },
+        { status: 400 }
+      );
+    }
+    
+    // Some email types don't require email field (admin notifications)
+    if ((type === 'message_admin_notification' || type === 'proposal_admin_notification' || type === 'profile_edit_admin' || type === 'signup_admin')) {
+      // Admin notifications - email is not required from body
+    } else if (!email && !body.toEmail) {
+      return NextResponse.json(
+        { success: false, error: 'Missing required field: email' },
         { status: 400 }
       );
     }
@@ -167,14 +177,28 @@ export async function POST(req: Request) {
     }
 
     // --- SEND ---
-    const data = await resend.emails.send({
-      from: `Influo <${VERIFIED_SENDER_EMAIL}>`, 
-      to: [toEmail],
-      subject: subject,
-      html: html,
-    });
+    console.log('Sending email:', { type, toEmail, subject: subject.substring(0, 50) });
+    
+    try {
+      const data = await resend.emails.send({
+        from: `Influo <${VERIFIED_SENDER_EMAIL}>`, 
+        to: [toEmail],
+        subject: subject,
+        html: html,
+      });
 
-    return NextResponse.json({ success: true, data });
+      console.log('Email sent successfully:', { id: data?.id, toEmail });
+      return NextResponse.json({ success: true, data });
+    } catch (sendError: any) {
+      console.error('Resend send error:', sendError);
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: sendError?.message || 'Failed to send email'
+        }, 
+        { status: 500 }
+      );
+    }
   } catch (error: any) {
     console.error("Resend Error:", error);
     return NextResponse.json(

@@ -88,11 +88,22 @@ export async function POST(req: Request) {
           .single();
 
         if (conv) {
-          await fetch(`${req.headers.get('origin') || 'http://localhost:3000'}/api/emails`, {
+          const origin = req.headers.get('origin') || req.headers.get('host') || 'localhost:3000';
+          const protocol = origin.includes('localhost') ? 'http' : 'https';
+          const baseUrl = origin.startsWith('http') ? origin : `${protocol}://${origin}`;
+          
+          console.log('Sending admin email notification (new conversation):', {
+            baseUrl,
+            conversationId: convId,
+            senderType
+          });
+          
+          const emailResponse = await fetch(`${baseUrl}/api/emails`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               type: 'message_admin_notification',
+              email: conv.influencer_email, // Required field
               senderName: senderType === 'brand' ? (brandName || brandEmail) : conv.influencer_name,
               senderType: senderType,
               recipientName: senderType === 'brand' ? conv.influencer_name : (brandName || brandEmail),
@@ -100,6 +111,13 @@ export async function POST(req: Request) {
               messageContent: content,
             })
           });
+          
+          const emailResult = await emailResponse.json();
+          if (!emailResult.success) {
+            console.error('Admin email notification failed:', emailResult.error);
+          } else {
+            console.log('Admin email notification sent successfully');
+          }
         }
       } catch (emailError) {
         console.error('Admin email notification failed:', emailError);
@@ -141,11 +159,22 @@ export async function POST(req: Request) {
           .single();
 
         if (conv) {
-          await fetch(`${req.headers.get('origin') || 'http://localhost:3000'}/api/emails`, {
+          const origin = req.headers.get('origin') || req.headers.get('host') || 'localhost:3000';
+          const protocol = origin.includes('localhost') ? 'http' : 'https';
+          const baseUrl = origin.startsWith('http') ? origin : `${protocol}://${origin}`;
+          
+          console.log('Sending admin email notification:', {
+            baseUrl,
+            conversationId,
+            senderType
+          });
+          
+          const emailResponse = await fetch(`${baseUrl}/api/emails`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               type: 'message_admin_notification',
+              email: conv.influencer_email, // Required field
               senderName: senderType === 'brand' ? (conv.brand_name || conv.brand_email) : conv.influencer_name,
               senderType: senderType,
               recipientName: senderType === 'brand' ? conv.influencer_name : (conv.brand_name || conv.brand_email),
@@ -153,6 +182,13 @@ export async function POST(req: Request) {
               messageContent: content,
             })
           });
+          
+          const emailResult = await emailResponse.json();
+          if (!emailResult.success) {
+            console.error('Admin email notification failed:', emailResult.error);
+          } else {
+            console.log('Admin email notification sent successfully');
+          }
         }
       } catch (emailError) {
         console.error('Admin email notification failed:', emailError);

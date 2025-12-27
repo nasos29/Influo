@@ -30,7 +30,33 @@ interface MessagingProps {
   brandEmail?: string;
   brandName?: string;
   mode: 'influencer' | 'brand';
+  lang?: 'el' | 'en';
 }
+
+const t = {
+  el: {
+    placeholder: "Γράψε το μήνυμά σου...",
+    online: "Online",
+    offline: "Offline",
+    offlineNotice: "💬 Ο influencer είναι offline. Το μήνυμα θα σταλεί ως email.",
+    sending: "Αποστολή...",
+    send: "Αποστολή",
+    messages: "Μηνύματα",
+    noConversations: "Δεν υπάρχουν συνομιλίες ακόμα",
+    selectConversation: "Επέλεξε μια συνομιλία για να δεις τα μηνύματα"
+  },
+  en: {
+    placeholder: "Type your message...",
+    online: "Online",
+    offline: "Offline",
+    offlineNotice: "💬 The influencer is offline. Message will be sent via email.",
+    sending: "Sending...",
+    send: "Send",
+    messages: "Messages",
+    noConversations: "No conversations yet",
+    selectConversation: "Select a conversation to view messages"
+  }
+};
 
 export default function Messaging({
   influencerId,
@@ -38,8 +64,10 @@ export default function Messaging({
   influencerEmail,
   brandEmail,
   brandName,
-  mode
+  mode,
+  lang = 'el'
 }: MessagingProps) {
+  const txt = t[lang];
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -89,6 +117,8 @@ export default function Messaging({
         }, (payload) => {
           setMessages((prev) => [...prev, payload.new as Message]);
           scrollToBottom();
+          // Play notification sound
+          playNotificationSound();
         })
         .subscribe();
 
@@ -214,6 +244,9 @@ export default function Messaging({
 
         const result = await response.json();
         if (!result.success) throw new Error(result.error);
+        
+        // Play sound when message is sent
+        playNotificationSound();
       }
 
       setNewMessage('');
@@ -230,6 +263,30 @@ export default function Messaging({
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const playNotificationSound = () => {
+    try {
+      // Create a simple notification sound using Web Audio API
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.value = 800; // Higher pitch
+      oscillator.type = 'sine';
+      
+      gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.1);
+    } catch (error) {
+      // Fallback: Use browser beep if Web Audio API is not available
+      console.log('Sound notification');
+    }
   };
 
   const checkInfluencerStatus = async () => {
@@ -291,9 +348,9 @@ export default function Messaging({
 
   return (
     <div className="bg-white rounded-2xl shadow-lg border border-slate-200 h-[600px] flex flex-col">
-      {/* Header */}
+              {/* Header */}
       <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
-        <h2 className="text-xl font-bold text-slate-900">Messages</h2>
+        <h2 className="text-xl font-bold text-slate-900">{txt.messages}</h2>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
@@ -302,7 +359,7 @@ export default function Messaging({
           {loading ? (
             <div className="p-4 text-center text-slate-500">Loading...</div>
           ) : conversations.length === 0 ? (
-            <div className="p-4 text-center text-sm text-slate-500">No conversations yet</div>
+            <div className="p-4 text-center text-sm text-slate-500">{txt.noConversations}</div>
           ) : (
             conversations.map((conv) => (
               <button
@@ -337,14 +394,14 @@ export default function Messaging({
                     <div className="flex items-center gap-2">
                       <div className={`w-2 h-2 rounded-full ${isInfluencerOnline ? 'bg-green-500' : 'bg-gray-400'}`}></div>
                       <span className="text-xs text-slate-500">
-                        {isInfluencerOnline ? 'Online' : 'Offline'}
+                        {isInfluencerOnline ? txt.online : txt.offline}
                       </span>
                     </div>
                   )}
                 </div>
                 {mode === 'brand' && !isInfluencerOnline && (
                   <p className="text-xs text-amber-600 mt-1">
-                    💬 Ο influencer είναι offline. Το μήνυμα θα σταλεί ως email.
+                    {txt.offlineNotice}
                   </p>
                 )}
               </div>
@@ -391,7 +448,7 @@ export default function Messaging({
                   <textarea
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="Type your message..."
+                    placeholder={txt.placeholder}
                     className="flex-1 px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900"
                     rows={2}
                   />
@@ -400,16 +457,14 @@ export default function Messaging({
                     disabled={sending || !newMessage.trim()}
                     className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
                   >
-                    {sending ? 'Sending...' : 'Send'}
+                    {sending ? txt.sending : txt.send}
                   </button>
                 </div>
               </form>
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center text-slate-500">
-              {mode === 'brand' && !brandEmail
-                ? 'Please provide brand email to start messaging'
-                : 'Select a conversation or start a new one'}
+              {txt.selectConversation}
             </div>
           )}
         </div>

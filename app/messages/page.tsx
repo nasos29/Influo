@@ -84,6 +84,7 @@ function MessagesContent() {
           brandEmail={brandEmail}
           brandName={brandName ?? undefined}
           mode="brand"
+          lang="el"
         />
       </div>
     </div>

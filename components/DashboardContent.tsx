@@ -471,6 +471,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 influencerName={profile.display_name}
                                 influencerEmail={profile.contact_email}
                                 mode="influencer"
+                                lang="el"
                             />
                         )}
                     </div>
