@@ -10,7 +10,7 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { conversationId, senderId, senderType, content, influencerId, brandEmail, brandName, proposalId } = body;
+    const { conversationId, senderId, senderType, content, influencerId, brandEmail, brandName, proposalId, sendViaEmail } = body;
 
     // If creating a new conversation
     if (!conversationId && influencerId && brandEmail) {
