@@ -80,7 +80,11 @@ const t = {
     created: "Ημερομηνία",
     category: "Κατηγορία",
     engagement: "Engagement",
-    min_rate_label: "Min Rate"
+    min_rate_label: "Min Rate",
+    col_brand: "Brand",
+    col_bud: "Budget",
+    col_srv: "Υπηρεσία",
+    col_date: "Ημερομηνία"
   },
   en: {
     title: "Admin Dashboard",
@@ -123,7 +127,11 @@ const t = {
     created: "Created",
     category: "Category",
     engagement: "Engagement",
-    min_rate_label: "Min Rate"
+    min_rate_label: "Min Rate",
+    col_brand: "Brand",
+    col_bud: "Budget",
+    col_srv: "Service",
+    col_date: "Date"
   }
 };
 
