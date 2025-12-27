@@ -18,7 +18,7 @@ const CATEGORIES = [
 
 const t = {
   el: {
-    headerTitle: "Γίνε μέλος του Creator Club",
+    headerTitle: "Γίνε μέλος του Influo",
     headerDesc: "Συμπλήρωσε το προφίλ σου για να συνδεθείς με κορυφαία Brands.",
     step1: "Βασικά Στοιχεία",
     step2: "Κανάλια & Κοινό",
@@ -71,7 +71,7 @@ const t = {
     close: "Σύνδεση τώρα"
   },
   en: {
-    headerTitle: "Join the Creator Club",
+    headerTitle: "Join Influo",
     headerDesc: "Complete your profile to get matched with brands.",
     step1: "Basic Info",
     step2: "Channels & Audience",

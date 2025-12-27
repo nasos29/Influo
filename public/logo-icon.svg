@@ -1,43 +1,16 @@
-<svg width="48" height="48" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="iconBar1" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" style="stop-color:#a855f7;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#9333ea;stop-opacity:1" />
-    </linearGradient>
-    <linearGradient id="iconBar2" x1="0%" y1="0%" x2="0%" y2="100%">
+    <linearGradient id="iconGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#2563eb;stop-opacity:1" />
-    </linearGradient>
-    <linearGradient id="iconBar3" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" style="stop-color:#06b6d4;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#0891b2;stop-opacity:1" />
-    </linearGradient>
-    <linearGradient id="iconCurve" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#ec4899;stop-opacity:1" />
-      <stop offset="50%" style="stop-color:#a855f7;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
-    </linearGradient>
-    <linearGradient id="iconArrow" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#1e40af;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#10b981;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#8b5cf6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ec4899;stop-opacity:1" />
     </linearGradient>
   </defs>
   
-  <!-- Curved line -->
-  <path d="M 5 35 Q 8 33, 11 31 Q 14 29, 17 28" stroke="url(#iconCurve)" stroke-width="2" fill="none" opacity="0.8"/>
-  
-  <!-- Bars -->
-  <rect x="9" y="28" width="3" height="12" rx="1.5" fill="url(#iconBar1)"/>
-  <rect x="15" y="22" width="3" height="18" rx="1.5" fill="url(#iconBar2)"/>
-  <rect x="21" y="18" width="3" height="22" rx="1.5" fill="url(#iconBar3)"/>
-  
-  <!-- Arrow -->
-  <path d="M 24 28 L 32 18" stroke="url(#iconArrow)" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-  <path d="M 30 20 L 32 18 L 31 21" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-  
-  <!-- Red circle -->
-  <circle cx="32" cy="18" r="2" fill="#ef4444"/>
-  
-  <!-- Wavy lines -->
-  <path d="M 10 15 Q 12 14, 14 15 Q 16 16, 18 15" stroke="#a855f7" stroke-width="1" fill="none" opacity="0.6"/>
+  <!-- Minimal connection icon -->
+  <circle cx="10" cy="20" r="3" fill="url(#iconGrad)"/>
+  <circle cx="20" cy="20" r="3" fill="url(#iconGrad)" opacity="0.7"/>
+  <circle cx="30" cy="20" r="3" fill="url(#iconGrad)" opacity="0.5"/>
+  <line x1="13" y1="20" x2="17" y2="20" stroke="url(#iconGrad)" stroke-width="1.5" opacity="0.5"/>
+  <line x1="23" y1="20" x2="27" y2="20" stroke="url(#iconGrad)" stroke-width="1.5" opacity="0.5"/>
 </svg>

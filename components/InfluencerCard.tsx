@@ -48,18 +48,16 @@ export default function InfluencerCard({
   categories = [],
 }: InfluencerCardProps) {
   return (
-    <div className="group bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 transform hover:-translate-y-2 h-full flex flex-col cursor-pointer">
+    <div className="group bg-white rounded-lg border border-slate-200 overflow-hidden hover:shadow-md transition-shadow h-full flex flex-col cursor-pointer">
       
       {/* Header Background */}
-      <div className="h-28 bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-pink-500/10 group-hover:from-blue-500/20 group-hover:via-purple-500/20 group-hover:to-pink-500/20 transition-all duration-300 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-400/0 via-white/20 to-purple-400/0 group-hover:from-blue-400/10 group-hover:via-white/30 group-hover:to-purple-400/10 transform -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
-      </div>
+      <div className="h-20 bg-slate-50"></div>
       
       <div className="px-5 pb-5 flex-1 flex flex-col">
         
         {/* Avatar & Verified Badge */}
-        <div className="relative -mt-16 mb-4">
-          <div className="relative w-24 h-24 rounded-full border-4 border-white shadow-xl overflow-hidden bg-white group-hover:scale-110 transition-transform duration-300">
+        <div className="relative -mt-12 mb-4">
+          <div className="relative w-20 h-20 rounded-full border-2 border-white shadow-md overflow-hidden bg-white">
             <Image
               src={avatar}
               alt={name}
@@ -68,24 +66,24 @@ export default function InfluencerCard({
             />
           </div>
           {verified && (
-            <div className="absolute bottom-0 left-16 bg-gradient-to-br from-blue-500 to-blue-600 text-white p-1.5 rounded-full border-4 border-white shadow-lg" title="Verified">
-               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
+            <div className="absolute bottom-0 left-14 bg-blue-600 text-white p-1 rounded-full border-2 border-white" title="Verified">
+               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
             </div>
           )}
         </div>
 
         {/* Name & Bio */}
-        <div className="mb-4">
-            <h4 className="text-lg font-bold text-slate-900 truncate group-hover:text-blue-600 transition-colors mb-1">{name}</h4>
-            <p className="text-slate-500 text-xs line-clamp-2 h-8 leading-relaxed">{bio}</p>
+        <div className="mb-3">
+            <h4 className="text-base font-semibold text-slate-900 truncate mb-1">{name}</h4>
+            <p className="text-slate-600 text-xs line-clamp-2 h-8 leading-relaxed">{bio}</p>
         </div>
 
         {/* Categories (Tags) */}
-        <div className="flex flex-wrap gap-2 mb-5">
+        <div className="flex flex-wrap gap-1.5 mb-4">
           {categories.slice(0, 3).map((cat, i) => (
             <span
               key={i}
-              className="text-[10px] uppercase font-bold tracking-wider bg-gradient-to-br from-slate-100 to-slate-200 text-slate-700 px-3 py-1 rounded-lg border border-slate-200 shadow-sm"
+              className="text-[10px] uppercase font-medium bg-slate-100 text-slate-600 px-2 py-0.5 rounded"
             >
               {cat}
             </span>
@@ -93,19 +91,19 @@ export default function InfluencerCard({
         </div>
 
         {/* Footer: Social Stats */}
-        <div className="mt-auto pt-4 border-t border-slate-200 grid grid-cols-2 gap-2.5">
+        <div className="mt-auto pt-3 border-t border-slate-200 grid grid-cols-2 gap-2">
             
             {/* Instagram */}
             {socials.instagram && (
-                <div className="flex items-center gap-2 text-slate-700 text-xs bg-gradient-to-br from-pink-50 to-rose-50 p-2 rounded-lg border border-pink-100 group-hover:shadow-sm transition-all">
+                <div className="flex items-center gap-1.5 text-slate-600 text-xs bg-slate-50 p-1.5 rounded">
                     <span className="text-pink-600"><InstagramIcon /></span>
-                    <span className="font-bold">{formatNum(followers.instagram)}</span>
+                    <span className="font-medium">{formatNum(followers.instagram)}</span>
                 </div>
             )}
             
             {/* TikTok */}
             {socials.tiktok && (
-                <div className="flex items-center gap-2 text-slate-700 text-xs bg-gradient-to-br from-slate-50 to-gray-50 p-2 rounded-lg border border-slate-200 group-hover:shadow-sm transition-all">
+                <div className="flex items-center gap-1.5 text-slate-600 text-xs bg-slate-50 p-1.5 rounded">
                     <span className="text-black"><TiktokIcon /></span>
                     <span className="font-bold">{formatNum(followers.tiktok)}</span>
                 </div>
@@ -113,25 +111,25 @@ export default function InfluencerCard({
             
             {/* YouTube */}
             {socials.youtube && (
-                <div className="flex items-center gap-2 text-slate-700 text-xs bg-gradient-to-br from-red-50 to-rose-50 p-2 rounded-lg border border-red-100 group-hover:shadow-sm transition-all">
+                <div className="flex items-center gap-1.5 text-slate-600 text-xs bg-slate-50 p-1.5 rounded">
                     <span className="text-red-600"><YoutubeIcon /></span>
-                    <span className="font-bold">{formatNum(followers.youtube)}</span>
+                    <span className="font-medium">{formatNum(followers.youtube)}</span>
                 </div>
             )}
 
             {/* Facebook (NEW) */}
             {socials.facebook && (
-                <div className="flex items-center gap-2 text-slate-700 text-xs bg-gradient-to-br from-blue-50 to-indigo-50 p-2 rounded-lg border border-blue-100 group-hover:shadow-sm transition-all">
+                <div className="flex items-center gap-1.5 text-slate-600 text-xs bg-slate-50 p-1.5 rounded">
                     <span className="text-blue-700"><FacebookIcon /></span>
-                    <span className="font-bold">{formatNum(followers.facebook)}</span>
+                    <span className="font-medium">{formatNum(followers.facebook)}</span>
                 </div>
             )}
 
              {/* Twitter/X (NEW) */}
             {socials.twitter && (
-                <div className="flex items-center gap-2 text-slate-700 text-xs bg-gradient-to-br from-slate-50 to-gray-50 p-2 rounded-lg border border-slate-200 group-hover:shadow-sm transition-all">
+                <div className="flex items-center gap-1.5 text-slate-600 text-xs bg-slate-50 p-1.5 rounded">
                     <span className="text-slate-800"><TwitterIcon /></span>
-                    <span className="font-bold">{formatNum(followers.twitter)}</span>
+                    <span className="font-medium">{formatNum(followers.twitter)}</span>
                 </div>
             )}
 
