@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { supabase } from '@/lib/supabaseClient'; 
 import { useRouter } from 'next/navigation';
 
@@ -46,7 +47,14 @@ export default function LoginPage() {
             <div className="bg-white/90 backdrop-blur-xl p-8 md:p-10 rounded-2xl shadow-2xl w-full max-w-md border border-slate-200/50">
                 {/* Logo/Brand */}
                 <div className="flex items-center justify-center gap-3 mb-8">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-blue-500/30">I</div>
+                    <Image 
+                      src="/logo-icon.svg" 
+                      alt="Influo Logo" 
+                      width={48} 
+                      height={48} 
+                      className="w-12 h-12"
+                      priority
+                    />
                     <h1 className="text-2xl font-extrabold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Influo</h1>
                 </div>
                 
