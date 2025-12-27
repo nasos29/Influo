@@ -122,8 +122,8 @@ export default function Home() {
                 <li><a href="#directory" className="hover:text-slate-900 transition-colors">
                   {txt.nav_directory}
                 </a></li>
-                <li><a href="/admin" className="hover:text-slate-900 transition-colors">
-                  {txt.nav_admin}
+                <li><a href="/login" className="hover:text-slate-900 transition-colors">
+                  {lang === "el" ? "Σύνδεση" : "Sign In"}
                 </a></li>
               </ul>
               {/* Lang Toggle */}
