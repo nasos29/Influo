@@ -11,6 +11,7 @@ export default function LoginPage() {
     const [password, setPassword] = useState(''); 
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
+    const [lang, setLang] = useState<'el' | 'en'>('el');
     const router = useRouter();
 
     const handleLogin = async (e: React.FormEvent) => {
@@ -48,7 +49,7 @@ export default function LoginPage() {
                 {/* Back to Site Link */}
                 <div className="mb-4">
                     <a href="/" className="text-sm text-slate-600 hover:text-slate-900 flex items-center gap-1 transition-colors">
-                        ← Back to Site
+                        ← {lang === 'el' ? 'Πίσω στο Site' : 'Back to Site'}
                     </a>
                 </div>
                 

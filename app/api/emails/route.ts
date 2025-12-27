@@ -11,6 +11,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { type, email, name, location, brandName, influencerName, proposalType } = body;
+    const host = req.headers.get('host') || 'influo.gr';
 
     // Validation
     if (!type || !email) {
@@ -57,7 +58,7 @@ export async function POST(req: Request) {
             <p>Email: ${email}</p>
             <p>Location: ${location || 'N/A'}</p>
             <p>Παρακαλώ μπες στο Admin Dashboard για έγκριση:</p>
-            <a href="https://${req.headers.get('host')}/admin" style="display: inline-block; padding: 10px 20px; background-color: #1e40af; color: white; text-decoration: none; border-radius: 5px;">Πήγαινε στο Admin Dashboard</a>
+            <a href="https://${host}/admin" style="display: inline-block; padding: 10px 20px; background-color: #1e40af; color: white; text-decoration: none; border-radius: 5px;">Πήγαινε στο Admin Dashboard</a>
         </div>
       `;
     }
@@ -85,6 +86,21 @@ export async function POST(req: Request) {
                 <p>Ο/Η ${influencerName} θα λάβει την πρότασή σου και θα σου απαντήσει άμεσα.</p>
                 <br/>
                 <p>Μείνετε συντονισμένοι,<br/>Η ομάδα του Influo</p>
+            </div>
+        `;
+    }
+    else if (type === 'profile_edit_admin') {
+        toEmail = ADMIN_RECEIVING_EMAIL;
+        subject = `🔔 Επεξεργασία Προφίλ: ${name}`;
+        html = `
+            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #f59e0b; border-radius: 8px; background-color: #fffbeb;">
+                <h1 style="color: #d97706;">Προφίλ Επεξεργάστηκε - Απαιτείται Επαν-Επαλήθευση!</h1>
+                <p>Ο/Η <strong>${name}</strong> (${email}) μόλις επεξεργάστηκε το προφίλ του/της.</p>
+                <p>Location: ${location || 'N/A'}</p>
+                <p><strong>Το προφίλ έχει μεταβεί σε "Pending" status και απαιτείται επαν-επαλήθευση.</strong></p>
+                <br/>
+                <p>Παρακαλώ μπες στο Admin Dashboard για έλεγχο:</p>
+                <a href="https://${host}/admin" style="display: inline-block; padding: 10px 20px; background-color: #1e40af; color: white; text-decoration: none; border-radius: 5px; margin-top: 10px;">Πήγαινε στο Admin Dashboard</a>
             </div>
         `;
     }

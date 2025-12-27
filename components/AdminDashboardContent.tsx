@@ -346,24 +346,71 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                 </div>
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-900 mb-1">Top Age Group</label>
-                                    <input type="text" value={topAge} onChange={e => setTopAge(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" placeholder="e.g. 18-24" />
+                                    <input 
+                                        type="text" 
+                                        value={topAge} 
+                                        onChange={(e) => {
+                                            let value = e.target.value;
+                                            // Allow only numbers and dashes
+                                            value = value.replace(/[^0-9-]/g, '');
+                                            // Auto-add dash after 2 digits if not already present
+                                            if (value.length === 2 && !value.includes('-')) {
+                                                value = value + '-';
+                                            }
+                                            setTopAge(value);
+                                        }}
+                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" 
+                                        placeholder="e.g. 18-24" 
+                                        maxLength={6}
+                                    />
                                 </div>
                             </div>
                         </div>
 
                         {/* Videos */}
                         <div>
-                            <h3 className="text-sm font-bold text-slate-900 uppercase mb-3">Video Links</h3>
-                            {videos.map((video, i) => (
-                                <div key={i} className="flex gap-2 mb-3 items-end">
-                                    <div className="flex-1">
-                                        <label className="block text-xs font-semibold text-slate-700 mb-1">Video URL</label>
-                                        <input type="url" value={video} onChange={e => handleVideoChange(i, e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" placeholder="https://..." />
+                            <h3 className="text-sm font-bold text-slate-900 uppercase mb-3">Video Links / Φωτογραφίες</h3>
+                            {videos.map((video, i) => {
+                                // Try to get thumbnail for YouTube videos
+                                const isYoutube = video && /youtube\.com|youtu\.be/.test(video);
+                                const youtubeId = video?.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/)?.[1];
+                                const thumbnail = youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : null;
+                                const isVideo = video && /youtube\.com|youtu\.be|tiktok\.com|instagram\.com.*reel/.test(video.toLowerCase());
+                                return (
+                                    <div key={i} className="mb-3">
+                                        <div className="flex gap-2 items-end">
+                                            <div className="flex-1">
+                                                <label className="block text-xs font-semibold text-slate-700 mb-1">Video/Photo URL</label>
+                                                <input type="url" value={video} onChange={e => handleVideoChange(i, e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" placeholder="https://..." />
+                                            </div>
+                                            <button type="button" onClick={() => removeVideo(i)} className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">✕</button>
+                                        </div>
+                                        {video && (
+                                            <div className="mt-2 relative w-full h-32 rounded-lg overflow-hidden border border-slate-200 bg-slate-100">
+                                                {thumbnail ? (
+                                                    <>
+                                                        <img src={thumbnail} alt="Video thumbnail" className="w-full h-full object-cover" />
+                                                        {isVideo && (
+                                                            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                                                                <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center">
+                                                                    <span className="text-2xl text-slate-900">▶</span>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                ) : video.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                                                    <img src={video} alt="Photo" className="w-full h-full object-cover" />
+                                                ) : video && (
+                                                    <div className="absolute inset-0 flex items-center justify-center text-slate-400 text-sm">
+                                                        {isVideo ? "Video link (no preview)" : "Image/Video link"}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
-                                    <button type="button" onClick={() => removeVideo(i)} className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">✕</button>
-                                </div>
-                            ))}
-                            <button type="button" onClick={addVideo} className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm">+ Add Video</button>
+                                );
+                            })}
+                            <button type="button" onClick={addVideo} className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm">+ Προσθήκη Video Link / Φωτογραφίας</button>
                         </div>
 
                         {/* Insights Screenshots */}

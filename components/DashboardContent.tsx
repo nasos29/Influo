@@ -53,6 +53,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
     const [malePercent, setMalePercent] = useState(user.audience_male_percent?.toString() || "");
     const [femalePercent, setFemalePercent] = useState(user.audience_female_percent?.toString() || "");
     const [topAge, setTopAge] = useState(user.audience_top_age || "");
+    const [videos, setVideos] = useState<string[]>(Array.isArray(user.videos) ? user.videos : [""]);
     const [loading, setLoading] = useState(false);
 
     const handleAccountChange = (i: number, field: keyof Account, value: string) => {
@@ -70,6 +71,20 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
             const copy = [...accounts];
             copy.splice(i, 1);
             setAccounts(copy);
+        }
+    };
+
+    const handleVideoChange = (i: number, value: string) => {
+        const copy = [...videos];
+        copy[i] = value;
+        setVideos(copy);
+    };
+    const addVideo = () => setVideos([...videos, ""]);
+    const removeVideo = (i: number) => {
+        if (videos.length > 1) {
+            const copy = [...videos];
+            copy.splice(i, 1);
+            setVideos(copy);
         }
     };
 
@@ -98,6 +113,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                     languages: languages,
                     gender: gender,
                     accounts: accounts.filter(acc => acc.username && acc.platform),
+                    videos: videos.filter(v => v !== ""),
                     audience_male_percent: malePercent ? parseInt(malePercent) : null,
                     audience_female_percent: femalePercent ? parseInt(femalePercent) : null,
                     audience_top_age: topAge || null,
@@ -112,6 +128,22 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
             if (error) {
                 alert("Σφάλμα: " + error.message);
             } else if (data) {
+                // Send email notification to admin
+                try {
+                    await fetch('/api/emails', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            type: 'profile_edit_admin',
+                            email: user.contact_email,
+                            name: data.display_name,
+                            location: data.location || 'N/A'
+                        })
+                    });
+                } catch (mailError) {
+                    console.error("Email notification failed:", mailError);
+                }
+
                 onSave(data as InfluencerData);
                 alert("Το προφίλ σου ενημερώθηκε! Θα ελέγξουμε τις αλλαγές και θα σε ενημερώσουμε όταν εγκριθεί ξανά.");
                 onClose();
@@ -223,8 +255,75 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                             </div>
                             <div>
                                 <label className="block text-sm font-semibold text-slate-900 mb-1">Κύρια Ηλικιακή Ομάδα</label>
-                                <input type="text" value={topAge} onChange={e => setTopAge(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" placeholder="18-24" />
+                                <input 
+                                    type="text" 
+                                    value={topAge} 
+                                    onChange={(e) => {
+                                        let value = e.target.value;
+                                        // Allow only numbers and dashes
+                                        value = value.replace(/[^0-9-]/g, '');
+                                        // Auto-add dash after 2 digits if not already present
+                                        if (value.length === 2 && !value.includes('-')) {
+                                            value = value + '-';
+                                        }
+                                        setTopAge(value);
+                                    }}
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" 
+                                    placeholder="18-24" 
+                                    maxLength={6}
+                                />
                             </div>
+                        </div>
+                    </div>
+
+                    {/* Videos */}
+                    <div>
+                        <h3 className="text-sm font-bold text-slate-900 mb-4 uppercase">Video Links / Φωτογραφίες</h3>
+                        <p className="text-xs text-slate-600 mb-3">Μπορείτε να προσθέσετε links από TikTok, Reels, YouTube ή φωτογραφίες από δουλειές σας.</p>
+                        <div className="space-y-3">
+                            {videos.map((video, i) => {
+                                const thumbnail = getVideoThumbnail(video);
+                                const isVideo = isVideoUrl(video);
+                                return (
+                                    <div key={i} className="flex gap-3 items-start">
+                                        <div className="flex-1">
+                                            <input 
+                                                type="url" 
+                                                value={video} 
+                                                onChange={e => handleVideoChange(i, e.target.value)} 
+                                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" 
+                                                placeholder="https://youtube.com/... ή https://image.com/..." 
+                                            />
+                                            {video && (
+                                                <div className="mt-2 relative w-full h-32 rounded-lg overflow-hidden border border-slate-200 bg-slate-100">
+                                                    {thumbnail ? (
+                                                        <>
+                                                            <Image src={thumbnail} alt="Video thumbnail" fill className="object-cover" unoptimized />
+                                                            {isVideo && (
+                                                                <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                                                                    <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center">
+                                                                        <span className="text-2xl">▶</span>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    ) : video.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                                                        <Image src={video} alt="Photo" fill className="object-cover" unoptimized />
+                                                    ) : video && (
+                                                        <div className="absolute inset-0 flex items-center justify-center text-slate-400 text-sm">
+                                                            {isVideo ? "Video link (no preview)" : "Image/Video link"}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                        {videos.length > 1 && (
+                                            <button type="button" onClick={() => removeVideo(i)} className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg mt-8">✕</button>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                            <button type="button" onClick={addVideo} className="text-sm text-blue-600 hover:text-blue-700 font-medium">+ Προσθήκη Video Link / Φωτογραφίας</button>
                         </div>
                     </div>
 
