@@ -16,6 +16,7 @@ CREATE TABLE conversations (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   last_message_at TIMESTAMPTZ DEFAULT NOW(),
+  last_digest_sent_at TIMESTAMPTZ, -- When last digest email was sent (throttling)
   UNIQUE(influencer_id, brand_email)
 );
 

@@ -89,6 +89,19 @@ export async function POST(req: Request) {
           .single();
 
         if (conv) {
+          // Check if digest was sent in the last 60 minutes (throttling)
+          const lastDigestSent = conv.last_digest_sent_at ? new Date(conv.last_digest_sent_at) : null;
+          const now = new Date();
+          const minutesSinceLastDigest = lastDigestSent 
+            ? (now.getTime() - lastDigestSent.getTime()) / (60 * 1000)
+            : 999; // If never sent, allow sending
+
+          // Only send digest if at least 60 minutes have passed since last digest
+          if (minutesSinceLastDigest < 60) {
+            console.log(`Digest throttled: last sent ${Math.round(minutesSinceLastDigest)} minutes ago`);
+            return NextResponse.json({ success: true, message, conversationId: convId });
+          }
+
           // Get unread messages from last hour for this conversation
           const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
           const { data: recentMessages } = await supabaseAdmin
@@ -169,6 +182,12 @@ export async function POST(req: Request) {
               .from('messages')
               .update({ email_sent: true })
               .in('id', recentMessages.map(m => m.id));
+
+            // Update last_digest_sent_at
+            await supabaseAdmin
+              .from('conversations')
+              .update({ last_digest_sent_at: new Date().toISOString() })
+              .eq('id', convId);
           }
         }
       } catch (emailError) {
@@ -212,6 +231,19 @@ export async function POST(req: Request) {
           .single();
 
         if (conv) {
+          // Check if digest was sent in the last 60 minutes (throttling)
+          const lastDigestSent = conv.last_digest_sent_at ? new Date(conv.last_digest_sent_at) : null;
+          const now = new Date();
+          const minutesSinceLastDigest = lastDigestSent 
+            ? (now.getTime() - lastDigestSent.getTime()) / (60 * 1000)
+            : 999; // If never sent, allow sending
+
+          // Only send digest if at least 60 minutes have passed since last digest
+          if (minutesSinceLastDigest < 60) {
+            console.log(`Digest throttled: last sent ${Math.round(minutesSinceLastDigest)} minutes ago`);
+            return NextResponse.json({ success: true, message });
+          }
+
           // Get unread messages from last hour for this conversation
           const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
           const { data: recentMessages } = await supabaseAdmin
@@ -292,6 +324,12 @@ export async function POST(req: Request) {
               .from('messages')
               .update({ email_sent: true })
               .in('id', recentMessages.map(m => m.id));
+
+            // Update last_digest_sent_at
+            await supabaseAdmin
+              .from('conversations')
+              .update({ last_digest_sent_at: new Date().toISOString() })
+              .eq('id', conversationId);
           }
         }
       } catch (emailError) {

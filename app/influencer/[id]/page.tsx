@@ -132,6 +132,40 @@ export default function InfluencerProfile(props: { params: Params }) {
   const [messageBrandEmail, setMessageBrandEmail] = useState("");
   const [messageContent, setMessageContent] = useState("");
   const [messageSending, setMessageSending] = useState(false);
+  const [isOnline, setIsOnline] = useState(false);
+
+  // Check online status
+  useEffect(() => {
+    if (!id || id.toString().includes("dummy")) return;
+
+    const checkOnlineStatus = async () => {
+      try {
+        const { data } = await supabase
+          .from('influencer_presence')
+          .select('is_online, last_seen')
+          .eq('influencer_id', id)
+          .single();
+
+        if (data) {
+          // Consider online if last seen within 5 minutes
+          const lastSeen = new Date(data.last_seen);
+          const now = new Date();
+          const minutesSinceLastSeen = (now.getTime() - lastSeen.getTime()) / 60000;
+          setIsOnline(data.is_online && minutesSinceLastSeen < 5);
+        } else {
+          setIsOnline(false);
+        }
+      } catch (error) {
+        console.error('Error checking online status:', error);
+        setIsOnline(false);
+      }
+    };
+
+    checkOnlineStatus();
+    // Check every 30 seconds
+    const interval = setInterval(checkOnlineStatus, 30000);
+    return () => clearInterval(interval);
+  }, [id]);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -522,7 +556,15 @@ export default function InfluencerProfile(props: { params: Params }) {
                 <h1 className="text-3xl font-bold text-slate-900 flex items-center justify-center md:justify-start gap-2">
                     {profile.name} {profile.verified && <span className="text-blue-500 text-xl" title={txt.verified}>✔️</span>}
                 </h1>
-                <p className="text-slate-500">{profile.location} • {profile.gender === "Male" ? txt.male : txt.female}</p>
+                <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-1">
+                    <p className="text-slate-500">{profile.location} • {profile.gender === "Male" ? txt.male : txt.female}</p>
+                    {isOnline && (
+                        <span className="inline-flex items-center gap-1.5 bg-green-50 border border-green-200 text-green-700 px-3 py-1 rounded-full text-xs font-semibold animate-pulse">
+                            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                            {lang === 'el' ? 'Online Τώρα !' : 'Online Now !'}
+                        </span>
+                    )}
+                </div>
                 <div className="flex flex-wrap justify-center md:justify-start gap-2 mt-3">
                     {profile.languages?.split(",").map((l,i) => <span key={i} className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-600">{l.trim()}</span>)}
                 </div>
