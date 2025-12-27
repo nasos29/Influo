@@ -12,6 +12,22 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { type, email, name, location, brandName, influencerName, proposalType } = body;
 
+    // Validation
+    if (!type || !email) {
+      return NextResponse.json(
+        { success: false, error: 'Missing required fields: type and email' },
+        { status: 400 }
+      );
+    }
+
+    // Check if RESEND_API_KEY is set
+    if (!process.env.RESEND_API_KEY) {
+      return NextResponse.json(
+        { success: false, error: 'Email service not configured. RESEND_API_KEY missing.' },
+        { status: 500 }
+      );
+    }
+
     let subject = "";
     let html = "";
     let toEmail = email; 
@@ -73,6 +89,14 @@ export async function POST(req: Request) {
         `;
     }
 
+    // Validation: Check if subject and html are set
+    if (!subject || !html) {
+      return NextResponse.json(
+        { success: false, error: `Invalid email type: ${type}` },
+        { status: 400 }
+      );
+    }
+
     // --- SEND ---
     const data = await resend.emails.send({
       from: `Influo <${VERIFIED_SENDER_EMAIL}>`, 
@@ -82,8 +106,14 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ success: true, data });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Resend Error:", error);
-    return NextResponse.json({ success: false, error }, { status: 500 });
+    return NextResponse.json(
+      { 
+        success: false, 
+        error: error?.message || 'Unknown error occurred'
+      }, 
+      { status: 500 }
+    );
   }
 }

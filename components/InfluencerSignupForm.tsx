@@ -402,7 +402,7 @@ export default function InfluencerSignupForm() {
           throw insertError;
       }
 
-      // 5. Send Emails 
+      // 5. Send Emails
       try {
         // Mail 1: Στον Influencer (Confirmation)
         await fetch('/api/emails', {

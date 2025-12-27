@@ -304,7 +304,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     body: JSON.stringify({ type: 'approved', email: userEmail, name: userName })
                 });
              } catch (e) {
-                 console.error(e);
+                 console.error('Email sending error:', e);
              }
         }
     }
