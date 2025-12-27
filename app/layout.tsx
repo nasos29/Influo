@@ -15,11 +15,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.com'),
   title: {
-    default: "Influo - Connect Your Talent with Top Brands | Influencer Marketing Platform",
+    default: "Influo - Σύνδεσε το Ταλέντο σου με κορυφαία Brands | Πλατφόρμα Influencer Marketing",
     template: "%s | Influo"
   },
-  description: "The most modern Influencer Marketing platform in Greece. Connect talented creators with top brands. Create your professional profile and get hired today.",
-  keywords: ["influencer marketing", "brand collaborations", "content creators", "Greece", "influencer platform", "social media marketing", "brand partnerships", "creator economy"],
+  description: "Η πιο σύγχρονη πλατφόρμα Influencer Marketing στην Ελλάδα. Σύνδεσε το ταλέντο σου με κορυφαία Brands. Δημιούργησε το επαγγελματικό σου προφίλ και κλείσε συνεργασίες σήμερα.",
+  keywords: ["influencer marketing", "influencer marketing Ελλάδα", "brand collaborations", "content creators", "Ελλάδα", "πλατφόρμα influencers", "διαφήμιση στα social media", "συνεργασίες με brands", "creator economy", "διαφημίσεις influencers", "προώθηση προϊόντων", "influencer Ελλάδα"],
   authors: [{ name: "Influo" }],
   creator: "Influo",
   publisher: "Influo",
@@ -30,25 +30,25 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    locale: "en_US",
-    alternateLocale: ["el_GR"],
+    locale: "el_GR",
+    alternateLocale: ["en_US"],
     url: "/",
     siteName: "Influo",
-    title: "Influo - Connect Your Talent with Top Brands",
-    description: "The most modern Influencer Marketing platform in Greece. Connect talented creators with top brands.",
+    title: "Influo - Σύνδεσε το Ταλέντο σου με κορυφαία Brands",
+    description: "Η πιο σύγχρονη πλατφόρμα Influencer Marketing στην Ελλάδα. Σύνδεσε το ταλέντο σου με κορυφαία Brands.",
     images: [
       {
         url: "/logo.svg",
         width: 1200,
         height: 630,
-        alt: "Influo - Influencer Marketing Platform",
+        alt: "Influo - Πλατφόρμα Influencer Marketing",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Influo - Connect Your Talent with Top Brands",
-    description: "The most modern Influencer Marketing platform in Greece.",
+    title: "Influo - Σύνδεσε το Ταλέντο σου με κορυφαία Brands",
+    description: "Η πιο σύγχρονη πλατφόρμα Influencer Marketing στην Ελλάδα.",
     images: ["/logo.svg"],
     creator: "@influo",
   },
@@ -69,8 +69,8 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/",
     languages: {
-      "en": "/",
-      "el": "/?lang=el",
+      "el": "/",
+      "en": "/?lang=en",
     },
   },
 };
@@ -86,7 +86,8 @@ export default function RootLayout({
     "name": "Influo",
     "url": process.env.NEXT_PUBLIC_SITE_URL || "https://influo.com",
     "logo": `${process.env.NEXT_PUBLIC_SITE_URL || "https://influo.com"}/logo.svg`,
-    "description": "The most modern Influencer Marketing platform in Greece. Connect talented creators with top brands.",
+    "description": "Η πιο σύγχρονη πλατφόρμα Influencer Marketing στην Ελλάδα. Σύνδεσε το ταλέντο σου με κορυφαία Brands.",
+    "inLanguage": "el",
     "sameAs": [
       "https://www.instagram.com/influo",
       "https://www.facebook.com/influo",
@@ -95,7 +96,8 @@ export default function RootLayout({
     "contactPoint": {
       "@type": "ContactPoint",
       "contactType": "customer service",
-      "email": "contact@influo.com"
+      "email": "contact@influo.com",
+      "availableLanguage": ["el", "en"]
     }
   };
 
@@ -104,6 +106,7 @@ export default function RootLayout({
     "@type": "WebSite",
     "name": "Influo",
     "url": process.env.NEXT_PUBLIC_SITE_URL || "https://influo.com",
+    "inLanguage": "el",
     "potentialAction": {
       "@type": "SearchAction",
       "target": {
@@ -115,7 +118,7 @@ export default function RootLayout({
   };
 
   return (
-    <html lang="en">
+    <html lang="el">
       <head>
         <script
           type="application/ld+json"

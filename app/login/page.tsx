@@ -43,7 +43,7 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/30 p-4">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white via-blue-50/15 to-purple-50/15 p-4">
             <div className="bg-white/90 backdrop-blur-xl p-8 md:p-10 rounded-2xl shadow-2xl w-full max-w-md border border-slate-200/50">
                 {/* Logo/Brand */}
                 <div className="flex items-center justify-center gap-3 mb-8">

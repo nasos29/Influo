@@ -306,7 +306,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   if (loading) return <div className="p-10 text-center">Loading...</div>;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-purple-50/20 p-6 md:p-8 text-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-white via-blue-50/10 to-purple-50/10 p-6 md:p-8 text-slate-900">
       
       {/* Header & Lang Toggle */}
       <div className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">

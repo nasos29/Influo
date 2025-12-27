@@ -106,7 +106,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     };
 
     return (
-        <div className="min-h-screen p-6 md:p-8 bg-gradient-to-br from-slate-50 via-blue-50/20 to-purple-50/20">
+        <div className="min-h-screen p-6 md:p-8 bg-gradient-to-br from-white via-blue-50/10 to-purple-50/10">
             <div className="max-w-5xl mx-auto">
                 <div className="mb-8">
                     <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-2">

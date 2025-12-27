@@ -74,18 +74,23 @@ export default function Home() {
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "WebPage",
-            "name": "Influo - Influencer Marketing Platform",
-            "description": "Connect your talent with top brands. The most modern Influencer Marketing platform in Greece.",
+            "name": "Influo - Πλατφόρμα Influencer Marketing",
+            "description": "Η πιο σύγχρονη πλατφόρμα Influencer Marketing στην Ελλάδα. Σύνδεσε το ταλέντο σου με κορυφαία Brands.",
             "url": process.env.NEXT_PUBLIC_SITE_URL || "https://influo.com",
-            "inLanguage": ["en", "el"],
+            "inLanguage": "el",
+            "alternateName": {
+              "en": "Influo - Influencer Marketing Platform",
+              "el": "Influo - Πλατφόρμα Influencer Marketing"
+            },
             "isPartOf": {
               "@type": "WebSite",
               "name": "Influo",
-              "url": process.env.NEXT_PUBLIC_SITE_URL || "https://influo.com"
+              "url": process.env.NEXT_PUBLIC_SITE_URL || "https://influo.com",
+              "inLanguage": "el"
             },
             "about": {
               "@type": "Service",
-              "serviceType": "Influencer Marketing Platform",
+              "serviceType": "Πλατφόρμα Influencer Marketing",
               "provider": {
                 "@type": "Organization",
                 "name": "Influo"
@@ -95,7 +100,7 @@ export default function Home() {
         }}
       />
       
-      <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/30 font-sans text-slate-900 selection:bg-blue-100">
+      <div className="min-h-screen flex flex-col bg-gradient-to-br from-white via-blue-50/20 to-purple-50/20 font-sans text-slate-900 selection:bg-blue-100">
         {/* Header */}
         <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-slate-200/50 shadow-sm">
           <div className="max-w-7xl mx-auto flex justify-between items-center px-6 py-4">
@@ -188,7 +193,7 @@ export default function Home() {
         </section>
 
         {/* Directory Section */}
-        <section className="py-24 px-6 bg-white/80 backdrop-blur-sm" id="directory">
+        <section className="py-24 px-6 bg-white" id="directory">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-16">
               <h3 className="text-3xl md:text-4xl font-extrabold text-slate-900 mb-4 bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">{txt.dir_title}</h3>
@@ -200,7 +205,7 @@ export default function Home() {
         </section>
 
         {/* Features Section */}
-        <section className="py-24 px-6 bg-gradient-to-br from-slate-50 via-blue-50/20 to-purple-50/20" id="features">
+        <section className="py-24 px-6 bg-gradient-to-br from-white via-blue-50/10 to-purple-50/10" id="features">
           <div className="max-w-7xl mx-auto">
             <div className="grid md:grid-cols-3 gap-8">
               <div className="group bg-white p-8 rounded-2xl shadow-md border border-slate-100 hover:shadow-xl hover:-translate-y-2 transition-all duration-300 hover:border-blue-200">

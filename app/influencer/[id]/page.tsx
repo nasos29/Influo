@@ -229,7 +229,7 @@ export default function InfluencerProfile(props: { params: Params }) {
   if (!profile) return <div className="min-h-screen flex items-center justify-center text-slate-500">Influencer not found.</div>;
 
   return (
-    <div className="bg-slate-50 min-h-screen pb-20 font-sans relative text-slate-900">
+    <div className="bg-white min-h-screen pb-20 font-sans relative text-slate-900">
       
       {/* LANG TOGGLE */}
       <div className="fixed top-6 right-6 z-50">
