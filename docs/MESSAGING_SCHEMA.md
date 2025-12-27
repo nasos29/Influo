@@ -36,6 +36,7 @@ CREATE TABLE messages (
   content TEXT NOT NULL,
   read BOOLEAN DEFAULT FALSE,
   sent_via_email BOOLEAN DEFAULT FALSE, -- True if sent via email because influencer was offline
+  email_sent BOOLEAN DEFAULT FALSE, -- True if included in digest email
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(id)
 );
@@ -58,6 +59,7 @@ CREATE INDEX idx_presence_last_seen ON influencer_presence(last_seen);
 CREATE INDEX idx_messages_conversation ON messages(conversation_id);
 CREATE INDEX idx_messages_created ON messages(created_at DESC);
 CREATE INDEX idx_messages_unread ON messages(conversation_id, read) WHERE read = FALSE;
+CREATE INDEX idx_messages_email_sent ON messages(conversation_id, email_sent, created_at) WHERE email_sent = FALSE;
 ```
 
 ### 3. Enable Row Level Security (RLS)

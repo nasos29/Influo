@@ -10,7 +10,7 @@ const ADMIN_RECEIVING_EMAIL = process.env.ADMIN_EMAIL || 'nd.6@hotmail.com';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { type, email, name, location, brandName, influencerName, proposalType, influencerId, budget, message, conversationId } = body;
+    const { type, email, name, location, brandName, influencerName, proposalType, influencerId, budget, message, conversationId, messages } = body;
     const host = req.headers.get('host') || 'influo.gr';
 
     // Validation - email is optional for admin notifications
@@ -164,6 +164,43 @@ export async function POST(req: Request) {
                 </div>
                 <p>Παρακαλώ συνδεθείτε στο dashboard σας για να δείτε όλη τη συνομιλία.</p>
                 <a href="https://${host}/dashboard" style="display: inline-block; padding: 10px 20px; background-color: #0ea5e9; color: white; text-decoration: none; border-radius: 5px; margin-top: 10px;">Πήγαινε στο Dashboard</a>
+            </div>
+        `;
+    }
+    else if (type === 'conversation_digest') {
+        toEmail = email;
+        const messageCount = messages?.length || 0;
+        subject = `💬 ${messageCount} νέα μηνύματα στη συνομιλία: ${influencerName} ↔ ${brandName}`;
+        
+        const messagesHtml = messages && messages.length > 0 ? messages.map((msg: any) => `
+            <div style="background-color: ${msg.senderType === 'influencer' ? '#f0f9ff' : '#fef3c7'}; padding: 12px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid ${msg.senderType === 'influencer' ? '#0ea5e9' : '#f59e0b'};">
+                <div style="font-weight: bold; color: ${msg.senderType === 'influencer' ? '#0284c7' : '#d97706'}; margin-bottom: 6px;">
+                    ${msg.senderName} ${msg.senderType === 'influencer' ? '(Influencer)' : '(Brand)'}
+                </div>
+                <div style="color: #1e293b; white-space: pre-wrap; margin-bottom: 4px;">${msg.content.replace(/\n/g, '<br/>')}</div>
+                <div style="font-size: 11px; color: #64748b; margin-top: 4px;">
+                    ${new Date(msg.createdAt).toLocaleString('el-GR')}
+                </div>
+            </div>
+        `).join('') : '<p>Δεν υπάρχουν νέα μηνύματα.</p>';
+        
+        html = `
+            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #6366f1; border-radius: 8px; background-color: #faf5ff;">
+                <h1 style="color: #7c3aed;">Νέα Μηνύματα στη Συνομιλία</h1>
+                <p>Έχετε ${messageCount} ${messageCount === 1 ? 'νέο μήνυμα' : 'νέα μηνύματα'} στη συνομιλία:</p>
+                <div style="background-color: white; padding: 10px; border-radius: 8px; margin: 15px 0;">
+                    <strong>${influencerName}</strong> ↔ <strong>${brandName}</strong>
+                </div>
+                <div style="max-height: 500px; overflow-y: auto; margin: 15px 0;">
+                    ${messagesHtml}
+                </div>
+                <p>Παρακαλώ συνδεθείτε στο dashboard σας για να δείτε όλη τη συνομιλία και να απαντήσετε:</p>
+                <div style="margin-top: 15px;">
+                    ${email === (process.env.ADMIN_EMAIL || 'nd.6@hotmail.com') ? 
+                      `<a href="https://${host}/admin?conversation=${conversationId}" style="display: inline-block; padding: 10px 20px; background-color: #6366f1; color: white; text-decoration: none; border-radius: 5px; margin-right: 10px;">Πήγαινε στο Admin Dashboard</a>` 
+                      : `<a href="https://${host}/dashboard" style="display: inline-block; padding: 10px 20px; background-color: #6366f1; color: white; text-decoration: none; border-radius: 5px;">Πήγαινε στο Dashboard</a>`
+                    }
+                </div>
             </div>
         `;
     }

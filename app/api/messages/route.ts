@@ -65,6 +65,7 @@ export async function POST(req: Request) {
           sender_type: senderType,
           content: content,
           sent_via_email: sendViaEmail || false,
+          email_sent: false, // Will be set to true when digest email is sent
         }])
         .select()
         .single();
@@ -79,7 +80,7 @@ export async function POST(req: Request) {
         .update({ last_message_at: new Date().toISOString() })
         .eq('id', convId);
 
-      // Send email notification to admin
+      // Queue email digest (sends to all: admin, influencer, brand) - one email per conversation per hour
       try {
         const { data: conv } = await supabaseAdmin
           .from('conversations')
@@ -88,39 +89,90 @@ export async function POST(req: Request) {
           .single();
 
         if (conv) {
-          const origin = req.headers.get('origin') || req.headers.get('host') || 'localhost:3000';
-          const protocol = origin.includes('localhost') ? 'http' : 'https';
-          const baseUrl = origin.startsWith('http') ? origin : `${protocol}://${origin}`;
-          
-          console.log('Sending admin email notification (new conversation):', {
-            baseUrl,
-            conversationId: convId,
-            senderType
-          });
-          
-          const emailResponse = await fetch(`${baseUrl}/api/emails`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: 'message_admin_notification',
-              email: conv.influencer_email, // Required field
-              senderName: senderType === 'brand' ? (brandName || brandEmail) : conv.influencer_name,
-              senderType: senderType,
-              recipientName: senderType === 'brand' ? conv.influencer_name : (brandName || brandEmail),
-              conversationId: convId,
-              messageContent: content,
-            })
-          });
-          
-          const emailResult = await emailResponse.json();
-          if (!emailResult.success) {
-            console.error('Admin email notification failed:', emailResult.error);
-          } else {
-            console.log('Admin email notification sent successfully');
+          // Get unread messages from last hour for this conversation
+          const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+          const { data: recentMessages } = await supabaseAdmin
+            .from('messages')
+            .select('*')
+            .eq('conversation_id', convId)
+            .gte('created_at', oneHourAgo)
+            .eq('email_sent', false)
+            .order('created_at', { ascending: true });
+
+          if (recentMessages && recentMessages.length > 0) {
+            const origin = req.headers.get('origin') || req.headers.get('host') || 'localhost:3000';
+            const protocol = origin.includes('localhost') ? 'http' : 'https';
+            const baseUrl = origin.startsWith('http') ? origin : `${protocol}://${origin}`;
+
+            // Send digest email to admin, influencer, and brand
+            const emailPromises = [
+              // Admin email
+              fetch(`${baseUrl}/api/emails`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'conversation_digest',
+                  email: process.env.ADMIN_EMAIL || 'nd.6@hotmail.com',
+                  influencerName: conv.influencer_name,
+                  brandName: conv.brand_name || conv.brand_email,
+                  conversationId: convId,
+                  messages: recentMessages.map(m => ({
+                    senderName: m.sender_type === 'influencer' ? conv.influencer_name : (conv.brand_name || conv.brand_email),
+                    senderType: m.sender_type,
+                    content: m.content,
+                    createdAt: m.created_at
+                  }))
+                })
+              }),
+              // Influencer email
+              fetch(`${baseUrl}/api/emails`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'conversation_digest',
+                  email: conv.influencer_email,
+                  influencerName: conv.influencer_name,
+                  brandName: conv.brand_name || conv.brand_email,
+                  conversationId: convId,
+                  messages: recentMessages.map(m => ({
+                    senderName: m.sender_type === 'influencer' ? conv.influencer_name : (conv.brand_name || conv.brand_email),
+                    senderType: m.sender_type,
+                    content: m.content,
+                    createdAt: m.created_at
+                  }))
+                })
+              }),
+              // Brand email
+              fetch(`${baseUrl}/api/emails`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'conversation_digest',
+                  email: conv.brand_email,
+                  influencerName: conv.influencer_name,
+                  brandName: conv.brand_name || conv.brand_email,
+                  conversationId: convId,
+                  messages: recentMessages.map(m => ({
+                    senderName: m.sender_type === 'influencer' ? conv.influencer_name : (conv.brand_name || conv.brand_email),
+                    senderType: m.sender_type,
+                    content: m.content,
+                    createdAt: m.created_at
+                  }))
+                })
+              })
+            ];
+
+            await Promise.all(emailPromises);
+
+            // Mark messages as email_sent
+            await supabaseAdmin
+              .from('messages')
+              .update({ email_sent: true })
+              .in('id', recentMessages.map(m => m.id));
           }
         }
       } catch (emailError) {
-        console.error('Admin email notification failed:', emailError);
+        console.error('Email digest failed:', emailError);
       }
 
       return NextResponse.json({ success: true, message, conversationId: convId });
@@ -136,6 +188,7 @@ export async function POST(req: Request) {
           sender_type: senderType,
           content: content,
           sent_via_email: sendViaEmail || false,
+          email_sent: false, // Will be set to true when digest email is sent
         }])
         .select()
         .single();
@@ -150,7 +203,7 @@ export async function POST(req: Request) {
         .update({ last_message_at: new Date().toISOString() })
         .eq('id', conversationId);
 
-      // Send email notification to admin
+      // Queue email digest (sends to all: admin, influencer, brand) - one email per conversation per hour
       try {
         const { data: conv } = await supabaseAdmin
           .from('conversations')
@@ -159,39 +212,90 @@ export async function POST(req: Request) {
           .single();
 
         if (conv) {
-          const origin = req.headers.get('origin') || req.headers.get('host') || 'localhost:3000';
-          const protocol = origin.includes('localhost') ? 'http' : 'https';
-          const baseUrl = origin.startsWith('http') ? origin : `${protocol}://${origin}`;
-          
-          console.log('Sending admin email notification:', {
-            baseUrl,
-            conversationId,
-            senderType
-          });
-          
-          const emailResponse = await fetch(`${baseUrl}/api/emails`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: 'message_admin_notification',
-              email: conv.influencer_email, // Required field
-              senderName: senderType === 'brand' ? (conv.brand_name || conv.brand_email) : conv.influencer_name,
-              senderType: senderType,
-              recipientName: senderType === 'brand' ? conv.influencer_name : (conv.brand_name || conv.brand_email),
-              conversationId: conversationId,
-              messageContent: content,
-            })
-          });
-          
-          const emailResult = await emailResponse.json();
-          if (!emailResult.success) {
-            console.error('Admin email notification failed:', emailResult.error);
-          } else {
-            console.log('Admin email notification sent successfully');
+          // Get unread messages from last hour for this conversation
+          const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+          const { data: recentMessages } = await supabaseAdmin
+            .from('messages')
+            .select('*')
+            .eq('conversation_id', conversationId)
+            .gte('created_at', oneHourAgo)
+            .eq('email_sent', false)
+            .order('created_at', { ascending: true });
+
+          if (recentMessages && recentMessages.length > 0) {
+            const origin = req.headers.get('origin') || req.headers.get('host') || 'localhost:3000';
+            const protocol = origin.includes('localhost') ? 'http' : 'https';
+            const baseUrl = origin.startsWith('http') ? origin : `${protocol}://${origin}`;
+
+            // Send digest email to admin, influencer, and brand
+            const emailPromises = [
+              // Admin email
+              fetch(`${baseUrl}/api/emails`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'conversation_digest',
+                  email: process.env.ADMIN_EMAIL || 'nd.6@hotmail.com',
+                  influencerName: conv.influencer_name,
+                  brandName: conv.brand_name || conv.brand_email,
+                  conversationId: conversationId,
+                  messages: recentMessages.map(m => ({
+                    senderName: m.sender_type === 'influencer' ? conv.influencer_name : (conv.brand_name || conv.brand_email),
+                    senderType: m.sender_type,
+                    content: m.content,
+                    createdAt: m.created_at
+                  }))
+                })
+              }),
+              // Influencer email
+              fetch(`${baseUrl}/api/emails`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'conversation_digest',
+                  email: conv.influencer_email,
+                  influencerName: conv.influencer_name,
+                  brandName: conv.brand_name || conv.brand_email,
+                  conversationId: conversationId,
+                  messages: recentMessages.map(m => ({
+                    senderName: m.sender_type === 'influencer' ? conv.influencer_name : (conv.brand_name || conv.brand_email),
+                    senderType: m.sender_type,
+                    content: m.content,
+                    createdAt: m.created_at
+                  }))
+                })
+              }),
+              // Brand email
+              fetch(`${baseUrl}/api/emails`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'conversation_digest',
+                  email: conv.brand_email,
+                  influencerName: conv.influencer_name,
+                  brandName: conv.brand_name || conv.brand_email,
+                  conversationId: conversationId,
+                  messages: recentMessages.map(m => ({
+                    senderName: m.sender_type === 'influencer' ? conv.influencer_name : (conv.brand_name || conv.brand_email),
+                    senderType: m.sender_type,
+                    content: m.content,
+                    createdAt: m.created_at
+                  }))
+                })
+              })
+            ];
+
+            await Promise.all(emailPromises);
+
+            // Mark messages as email_sent
+            await supabaseAdmin
+              .from('messages')
+              .update({ email_sent: true })
+              .in('id', recentMessages.map(m => m.id));
           }
         }
       } catch (emailError) {
-        console.error('Admin email notification failed:', emailError);
+        console.error('Email digest failed:', emailError);
       }
 
       return NextResponse.json({ success: true, message });

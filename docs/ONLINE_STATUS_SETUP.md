@@ -27,6 +27,12 @@ CREATE POLICY "Allow all for authenticated users" ON influencer_presence
 ```sql
 -- Add sent_via_email column
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS sent_via_email BOOLEAN DEFAULT FALSE;
+
+-- Add email_sent column for digest tracking
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS email_sent BOOLEAN DEFAULT FALSE;
+
+-- Index for digest queries
+CREATE INDEX IF NOT EXISTS idx_messages_email_sent ON messages(conversation_id, email_sent, created_at) WHERE email_sent = FALSE;
 ```
 
 ## Features Implemented:
