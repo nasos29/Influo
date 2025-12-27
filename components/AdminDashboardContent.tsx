@@ -144,7 +144,41 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
     const [location, setLocation] = useState(user.location || "");
     const [avgLikes, setAvgLikes] = useState(user.avg_likes || "");
     const [engage, setEngage] = useState(user.engagement_rate || "");
+    const [gender, setGender] = useState(user.gender || "Female");
+    const [category, setCategory] = useState(user.category || "Lifestyle");
+    const [languages, setLanguages] = useState(user.languages || "");
+    const [accounts, setAccounts] = useState<{ platform: string; username: string; followers: string }[]>(user.accounts || [{ platform: "Instagram", username: "", followers: "" }]);
+    const [videos, setVideos] = useState<string[]>(Array.isArray(user.videos) ? user.videos : []);
+    const [malePercent, setMalePercent] = useState(user.audience_male_percent?.toString() || "");
+    const [femalePercent, setFemalePercent] = useState(user.audience_female_percent?.toString() || "");
+    const [topAge, setTopAge] = useState(user.audience_top_age || "");
     const [loading, setLoading] = useState(false);
+
+    const CATEGORIES = ["Lifestyle", "Beauty", "Fashion", "Food", "Travel", "Gaming", "Tech", "Fitness", "Education", "Comedy", "Music", "Art", "Photography", "DIY", "Business", "Family", "Animals", "Sports", "Other"];
+
+    const handleAccountChange = (i: number, field: keyof typeof accounts[0], value: string) => {
+        const copy = [...accounts]; 
+        copy[i][field] = value; 
+        setAccounts(copy);
+    };
+    const addAccount = () => setAccounts([...accounts, { platform: "Instagram", username: "", followers: "" }]);
+    const removeAccount = (i: number) => { 
+        const copy = [...accounts]; 
+        copy.splice(i, 1); 
+        setAccounts(copy); 
+    };
+
+    const handleVideoChange = (i: number, value: string) => {
+        const copy = [...videos]; 
+        copy[i] = value; 
+        setVideos(copy);
+    };
+    const addVideo = () => setVideos([...videos, ""]);
+    const removeVideo = (i: number) => { 
+        const copy = [...videos]; 
+        copy.splice(i, 1); 
+        setVideos(copy); 
+    };
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -159,6 +193,14 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                 location: location, 
                 avg_likes: avgLikes, 
                 engagement_rate: engage,
+                gender: gender,
+                category: category,
+                languages: languages,
+                accounts: accounts,
+                videos: videos.filter(v => v !== ""),
+                audience_male_percent: parseInt(malePercent) || 0,
+                audience_female_percent: parseInt(femalePercent) || 0,
+                audience_top_age: topAge,
             })
             .eq('id', user.id)
             .select()
@@ -176,43 +218,176 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
                 <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-                    <h2 className="text-xl font-semibold text-slate-900">Edit Profile</h2>
+                    <h2 className="text-xl font-semibold text-slate-900">Edit Profile - {user.display_name}</h2>
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-600">✕</button>
                 </div>
                 <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-6">
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
-                                <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required />
+                    <div className="space-y-6">
+                        {/* Avatar Preview */}
+                        {user.avatar_url && (
+                            <div className="flex items-center gap-4 pb-4 border-b border-slate-200">
+                                <div className="relative w-20 h-20 rounded-full overflow-hidden bg-slate-200">
+                                    <Image 
+                                        src={user.avatar_url} 
+                                        alt={user.display_name} 
+                                        width={80} 
+                                        height={80} 
+                                        className="object-cover w-full h-full"
+                                        unoptimized
+                                    />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-slate-900">Profile Photo</p>
+                                    <p className="text-xs text-slate-500">Current avatar</p>
+                                </div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Location</label>
-                                <input type="text" value={location} onChange={e => setLocation(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Min Rate (€)</label>
-                                <input type="text" value={minRate} onChange={e => setMinRate(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Engagement Rate (%)</label>
-                                <input type="text" value={engage} onChange={e => setEngage(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Avg Likes/Views</label>
-                                <input type="text" value={avgLikes} onChange={e => setAvgLikes(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-                            </div>
-                        </div>
+                        )}
+
+                        {/* Basic Info */}
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Bio</label>
-                            <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none" />
+                            <h3 className="text-sm font-bold text-slate-900 uppercase mb-3">Basic Information</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-900 mb-1">Full Name</label>
+                                    <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" required />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-900 mb-1">Location</label>
+                                    <input type="text" value={location} onChange={e => setLocation(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-900 mb-1">Gender</label>
+                                    <select value={gender} onChange={e => setGender(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900">
+                                        <option value="Female">Female</option>
+                                        <option value="Male">Male</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-900 mb-1">Category</label>
+                                    <select value={category} onChange={e => setCategory(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900">
+                                        {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-900 mb-1">Languages</label>
+                                    <input type="text" value={languages} onChange={e => setLanguages(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" placeholder="e.g. Greek, English" />
+                                </div>
+                            </div>
                         </div>
+
+                        {/* Bio */}
+                        <div>
+                            <label className="block text-sm font-semibold text-slate-900 mb-1">Bio</label>
+                            <textarea value={bio} onChange={e => setBio(e.target.value)} rows={4} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900" />
+                        </div>
+
+                        {/* Social Accounts */}
+                        <div>
+                            <h3 className="text-sm font-bold text-slate-900 uppercase mb-3">Social Accounts</h3>
+                            {accounts.map((account, i) => (
+                                <div key={i} className="flex gap-2 mb-3 items-end">
+                                    <div className="flex-1">
+                                        <label className="block text-xs font-semibold text-slate-700 mb-1">Platform</label>
+                                        <select value={account.platform} onChange={e => handleAccountChange(i, 'platform', e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900">
+                                            <option value="Instagram">Instagram</option>
+                                            <option value="TikTok">TikTok</option>
+                                            <option value="YouTube">YouTube</option>
+                                            <option value="Facebook">Facebook</option>
+                                            <option value="Twitter">Twitter/X</option>
+                                        </select>
+                                    </div>
+                                    <div className="flex-1">
+                                        <label className="block text-xs font-semibold text-slate-700 mb-1">Username</label>
+                                        <input type="text" value={account.username} onChange={e => handleAccountChange(i, 'username', e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" placeholder="username" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <label className="block text-xs font-semibold text-slate-700 mb-1">Followers</label>
+                                        <input type="text" value={account.followers} onChange={e => handleAccountChange(i, 'followers', e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" placeholder="e.g. 15k" />
+                                    </div>
+                                    <button type="button" onClick={() => removeAccount(i)} className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">✕</button>
+                                </div>
+                            ))}
+                            <button type="button" onClick={addAccount} className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm">+ Add Account</button>
+                        </div>
+
+                        {/* Analytics */}
+                        <div>
+                            <h3 className="text-sm font-bold text-slate-900 uppercase mb-3">Analytics</h3>
+                            <div className="grid grid-cols-3 gap-4">
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-900 mb-1">Min Rate (€)</label>
+                                    <input type="text" value={minRate} onChange={e => setMinRate(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-900 mb-1">Engagement Rate (%)</label>
+                                    <input type="text" value={engage} onChange={e => setEngage(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-900 mb-1">Avg Likes/Views</label>
+                                    <input type="text" value={avgLikes} onChange={e => setAvgLikes(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Audience Data */}
+                        <div>
+                            <h3 className="text-sm font-bold text-slate-900 uppercase mb-3">Audience Demographics</h3>
+                            <div className="grid grid-cols-3 gap-4">
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-900 mb-1">Male (%)</label>
+                                    <input type="number" value={malePercent} onChange={e => setMalePercent(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" min="0" max="100" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-900 mb-1">Female (%)</label>
+                                    <input type="number" value={femalePercent} onChange={e => setFemalePercent(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" min="0" max="100" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-900 mb-1">Top Age Group</label>
+                                    <input type="text" value={topAge} onChange={e => setTopAge(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" placeholder="e.g. 18-24" />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Videos */}
+                        <div>
+                            <h3 className="text-sm font-bold text-slate-900 uppercase mb-3">Video Links</h3>
+                            {videos.map((video, i) => (
+                                <div key={i} className="flex gap-2 mb-3 items-end">
+                                    <div className="flex-1">
+                                        <label className="block text-xs font-semibold text-slate-700 mb-1">Video URL</label>
+                                        <input type="url" value={video} onChange={e => handleVideoChange(i, e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" placeholder="https://..." />
+                                    </div>
+                                    <button type="button" onClick={() => removeVideo(i)} className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">✕</button>
+                                </div>
+                            ))}
+                            <button type="button" onClick={addVideo} className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm">+ Add Video</button>
+                        </div>
+
+                        {/* Insights Screenshots */}
+                        {user.insights_urls && user.insights_urls.length > 0 && (
+                            <div>
+                                <h3 className="text-sm font-bold text-slate-900 uppercase mb-3">Insights Screenshots</h3>
+                                <div className="grid grid-cols-3 gap-4">
+                                    {user.insights_urls.map((url, i) => (
+                                        <div key={i} className="relative aspect-[3/4] rounded-lg overflow-hidden border border-slate-300">
+                                            <Image 
+                                                src={url} 
+                                                alt={`Insight ${i + 1}`} 
+                                                fill
+                                                className="object-cover"
+                                                unoptimized
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                     <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-200">
-                        <button type="button" onClick={onClose} className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg font-medium transition-colors">Cancel</button>
-                        <button type="submit" disabled={loading} className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium disabled:opacity-50 transition-colors">
+                        <button type="button" onClick={onClose} className="px-6 py-2 text-slate-900 hover:bg-slate-100 rounded-lg font-semibold transition-colors border border-slate-300">Cancel</button>
+                        <button type="submit" disabled={loading} className="px-6 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-semibold disabled:opacity-50 transition-colors">
                             {loading ? 'Saving...' : 'Save Changes'}
                         </button>
                     </div>
@@ -638,19 +813,28 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-3">
-                              {u.avatar_url && (
+                              {u.avatar_url ? (
                                 <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200">
-                                  <Image src={u.avatar_url} alt={u.display_name} width={40} height={40} className="object-cover" />
+                                  <Image 
+                                    src={u.avatar_url} 
+                                    alt={u.display_name} 
+                                    width={40} 
+                                    height={40} 
+                                    className="object-cover w-full h-full"
+                                    unoptimized
+                                  />
                                 </div>
+                              ) : (
+                                <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200 flex items-center justify-center text-slate-400 text-xs">No Photo</div>
                               )}
                               <div>
                                 <div className="font-medium text-slate-900">{u.display_name}</div>
-                                {u.category && <div className="text-xs text-slate-500">{u.category}</div>}
+                                {u.category && <div className="text-xs text-slate-600">{u.category}</div>}
                               </div>
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-sm text-slate-600">{u.contact_email || '-'}</td>
-                          <td className="px-4 py-3 text-sm text-slate-600">{u.location || '-'}</td>
+                          <td className="px-4 py-3 text-sm text-slate-900">{u.contact_email || '-'}</td>
+                          <td className="px-4 py-3 text-sm text-slate-900">{u.location || '-'}</td>
                           <td className="px-4 py-3">
                             {u.verified ? (
                               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">Verified</span>

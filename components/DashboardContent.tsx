@@ -138,16 +138,16 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                         <h3 className="text-sm font-semibold text-slate-700 mb-4 uppercase">Βασικές Πληροφορίες</h3>
                         <div className="grid md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Ονοματεπώνυμο *</label>
-                                <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required />
+                                <label className="block text-sm font-semibold text-slate-900 mb-1">Ονοματεπώνυμο *</label>
+                                <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" required />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Τοποθεσία</label>
-                                <input type="text" value={location} onChange={e => setLocation(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                                <label className="block text-sm font-semibold text-slate-900 mb-1">Τοποθεσία</label>
+                                <input type="text" value={location} onChange={e => setLocation(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Κατηγορία</label>
-                                <select value={category} onChange={e => setCategory(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <label className="block text-sm font-semibold text-slate-900 mb-1">Κατηγορία</label>
+                                <select value={category} onChange={e => setCategory(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900">
                                     <option>Lifestyle</option>
                                     <option>Fashion</option>
                                     <option>Beauty</option>
@@ -159,47 +159,47 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Φύλο</label>
-                                <select value={gender} onChange={e => setGender(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <label className="block text-sm font-semibold text-slate-900 mb-1">Φύλο</label>
+                                <select value={gender} onChange={e => setGender(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900">
                                     <option>Female</option>
                                     <option>Male</option>
                                     <option>Other</option>
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Min Rate (€)</label>
-                                <input type="text" value={minRate} onChange={e => setMinRate(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="250" />
+                                <label className="block text-sm font-semibold text-slate-900 mb-1">Min Rate (€)</label>
+                                <input type="text" value={minRate} onChange={e => setMinRate(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" placeholder="250" />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Engagement Rate (%)</label>
-                                <input type="text" value={engage} onChange={e => setEngage(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="5.2" />
+                                <label className="block text-sm font-semibold text-slate-900 mb-1">Engagement Rate (%)</label>
+                                <input type="text" value={engage} onChange={e => setEngage(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" placeholder="5.2" />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Avg Likes/Views</label>
-                                <input type="text" value={likes} onChange={e => setLikes(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="3.2k" />
+                                <label className="block text-sm font-semibold text-slate-900 mb-1">Avg Likes/Views</label>
+                                <input type="text" value={likes} onChange={e => setLikes(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" placeholder="3.2k" />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Γλώσσες</label>
-                                <input type="text" value={languages} onChange={e => setLanguages(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Ελληνικά, Αγγλικά" />
+                                <label className="block text-sm font-semibold text-slate-900 mb-1">Γλώσσες</label>
+                                <input type="text" value={languages} onChange={e => setLanguages(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" placeholder="Ελληνικά, Αγγλικά" />
                             </div>
                         </div>
                         <div className="mt-4">
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Bio</label>
-                            <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none" />
+                            <label className="block text-sm font-semibold text-slate-900 mb-1">Bio</label>
+                            <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900" />
                         </div>
                     </div>
 
                     {/* Social Accounts */}
                     <div>
-                        <h3 className="text-sm font-semibold text-slate-700 mb-4 uppercase">Κανάλια Social Media</h3>
+                        <h3 className="text-sm font-bold text-slate-900 mb-4 uppercase">Κανάλια Social Media</h3>
                         <div className="space-y-3">
                             {accounts.map((acc, i) => (
                                 <div key={i} className="flex gap-3 items-start p-3 border border-slate-200 rounded-lg">
-                                    <select value={acc.platform} onChange={e => handleAccountChange(i, 'platform', e.target.value)} className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    <select value={acc.platform} onChange={e => handleAccountChange(i, 'platform', e.target.value)} className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900">
                                         {platforms.map(p => <option key={p}>{p}</option>)}
                                     </select>
-                                    <input type="text" placeholder="Username" value={acc.username} onChange={e => handleAccountChange(i, 'username', e.target.value)} className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
-                                    <input type="text" placeholder="Followers" value={acc.followers} onChange={e => handleAccountChange(i, 'followers', e.target.value)} className="w-32 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                                    <input type="text" placeholder="Username" value={acc.username} onChange={e => handleAccountChange(i, 'username', e.target.value)} className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" />
+                                    <input type="text" placeholder="Followers" value={acc.followers} onChange={e => handleAccountChange(i, 'followers', e.target.value)} className="w-32 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" />
                                     {accounts.length > 1 && (
                                         <button type="button" onClick={() => removeAccount(i)} className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg">✕</button>
                                     )}
@@ -211,19 +211,19 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
 
                     {/* Audience */}
                     <div>
-                        <h3 className="text-sm font-semibold text-slate-700 mb-4 uppercase">Κοινό</h3>
+                        <h3 className="text-sm font-bold text-slate-900 mb-4 uppercase">Κοινό</h3>
                         <div className="grid md:grid-cols-3 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Άνδρες (%)</label>
-                                <input type="number" value={malePercent} onChange={e => setMalePercent(e.target.value)} min="0" max="100" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                                <label className="block text-sm font-semibold text-slate-900 mb-1">Άνδρες (%)</label>
+                                <input type="number" value={malePercent} onChange={e => setMalePercent(e.target.value)} min="0" max="100" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Γυναίκες (%)</label>
-                                <input type="number" value={femalePercent} onChange={e => setFemalePercent(e.target.value)} min="0" max="100" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                                <label className="block text-sm font-semibold text-slate-900 mb-1">Γυναίκες (%)</label>
+                                <input type="number" value={femalePercent} onChange={e => setFemalePercent(e.target.value)} min="0" max="100" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Κύρια Ηλικιακή Ομάδα</label>
-                                <input type="text" value={topAge} onChange={e => setTopAge(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="18-24" />
+                                <label className="block text-sm font-semibold text-slate-900 mb-1">Κύρια Ηλικιακή Ομάδα</label>
+                                <input type="text" value={topAge} onChange={e => setTopAge(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" placeholder="18-24" />
                             </div>
                         </div>
                     </div>
