@@ -10,7 +10,7 @@ const ADMIN_RECEIVING_EMAIL = process.env.ADMIN_EMAIL || 'nd.6@hotmail.com';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { type, email, name, location, brandName, influencerName, proposalType, influencerId, budget, message } = body;
+    const { type, email, name, location, brandName, influencerName, proposalType, influencerId, budget, message, toEmail, conversationId } = body;
     const host = req.headers.get('host') || 'influo.gr';
 
     // Validation
@@ -138,6 +138,21 @@ export async function POST(req: Request) {
                 </div>
                 <p>Παρακαλώ μπες στο Admin Dashboard για να δεις τη συνομιλία:</p>
                 <a href="https://${host}/admin?conversation=${conversationId}" style="display: inline-block; padding: 10px 20px; background-color: #0ea5e9; color: white; text-decoration: none; border-radius: 5px; margin-top: 10px;">Πήγαινε στο Admin Dashboard</a>
+            </div>
+        `;
+    }
+    else if (type === 'message_offline') {
+        toEmail = toEmail || email;
+        subject = `💬 Νέο μήνυμα από ${brandName}`;
+        html = `
+            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #0ea5e9; border-radius: 8px; background-color: #f0f9ff;">
+                <h1 style="color: #0284c7;">Νέο Μήνυμα</h1>
+                <p>Έχετε λάβει ένα νέο μήνυμα από το brand <strong>${brandName}</strong>.</p>
+                <div style="background-color: white; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #0ea5e9;">
+                    <p style="white-space: pre-wrap;">${message}</p>
+                </div>
+                <p>Παρακαλώ συνδεθείτε στο dashboard σας για να δείτε όλη τη συνομιλία.</p>
+                <a href="https://${host}/dashboard" style="display: inline-block; padding: 10px 20px; background-color: #0ea5e9; color: white; text-decoration: none; border-radius: 5px; margin-top: 10px;">Πήγαινε στο Dashboard</a>
             </div>
         `;
     }

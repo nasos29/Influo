@@ -35,9 +35,24 @@ CREATE TABLE messages (
   sender_type TEXT NOT NULL CHECK (sender_type IN ('influencer', 'brand')),
   content TEXT NOT NULL,
   read BOOLEAN DEFAULT FALSE,
+  sent_via_email BOOLEAN DEFAULT FALSE, -- True if sent via email because influencer was offline
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(id)
 );
+```
+
+### 2.5. `influencer_presence` table (for online/offline status)
+
+```sql
+CREATE TABLE influencer_presence (
+  influencer_id UUID PRIMARY KEY REFERENCES influencers(id) ON DELETE CASCADE,
+  last_seen TIMESTAMPTZ DEFAULT NOW(),
+  is_online BOOLEAN DEFAULT FALSE,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_presence_last_seen ON influencer_presence(last_seen);
+```
 
 -- Indexes
 CREATE INDEX idx_messages_conversation ON messages(conversation_id);

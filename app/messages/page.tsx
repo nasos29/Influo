@@ -62,9 +62,9 @@ function MessagesContent() {
         <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md text-center">
           <h1 className="text-2xl font-bold text-slate-900 mb-4">Messages</h1>
           <p className="text-slate-600 mb-6">
-            Please provide influencer ID and brand email to start messaging.
+            Παρακαλώ δώστε influencer ID και brand email για να ξεκινήσετε τη συνομιλία.
           </p>
-          <a href="/" className="text-blue-600 hover:underline">Go back home</a>
+          <a href="/" className="text-blue-600 hover:underline">Πίσω στην αρχική</a>
         </div>
       </div>
     );
@@ -74,8 +74,8 @@ function MessagesContent() {
     <div className="min-h-screen bg-slate-50 p-6">
       <div className="max-w-6xl mx-auto">
         <div className="mb-6">
-          <a href="/" className="text-blue-600 hover:underline mb-4 inline-block">← Back to Site</a>
-          <h1 className="text-3xl font-bold text-slate-900">Messages with {influencerData.name}</h1>
+          <a href="/" className="text-blue-600 hover:underline mb-4 inline-block">← Πίσω στο Site</a>
+          <h1 className="text-3xl font-bold text-slate-900">Μηνύματα με {influencerData.name}</h1>
         </div>
         <Messaging
           influencerId={influencerData.id}

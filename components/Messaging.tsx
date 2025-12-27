@@ -46,12 +46,33 @@ export default function Messaging({
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [isInfluencerOnline, setIsInfluencerOnline] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Load conversations
   useEffect(() => {
     loadConversations();
+    if (mode === 'brand') {
+      checkInfluencerStatus();
+      // Poll every 30 seconds to check online status
+      const interval = setInterval(checkInfluencerStatus, 30000);
+      return () => clearInterval(interval);
+    }
   }, [influencerId, mode]);
+
+  // Track online status for influencer mode
+  useEffect(() => {
+    if (mode === 'influencer') {
+      updateOnlineStatus();
+      // Update status every 30 seconds
+      const interval = setInterval(updateOnlineStatus, 30000);
+      // Mark as offline when component unmounts
+      return () => {
+        clearInterval(interval);
+        markOffline();
+      };
+    }
+  }, [mode, influencerId]);
 
   // Load messages when conversation is selected
   useEffect(() => {
@@ -190,6 +211,58 @@ export default function Messaging({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const checkInfluencerStatus = async () => {
+    try {
+      const { data } = await supabase
+        .from('influencer_presence')
+        .select('is_online, last_seen')
+        .eq('influencer_id', influencerId)
+        .single();
+
+      if (data) {
+        // Consider online if last seen within 5 minutes
+        const lastSeen = new Date(data.last_seen);
+        const now = new Date();
+        const minutesSinceLastSeen = (now.getTime() - lastSeen.getTime()) / 60000;
+        setIsInfluencerOnline(data.is_online && minutesSinceLastSeen < 5);
+      }
+    } catch (error) {
+      console.error('Error checking influencer status:', error);
+    }
+  };
+
+  const updateOnlineStatus = async () => {
+    try {
+      await supabase
+        .from('influencer_presence')
+        .upsert({
+          influencer_id: influencerId,
+          is_online: true,
+          last_seen: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'influencer_id'
+        });
+    } catch (error) {
+      console.error('Error updating online status:', error);
+    }
+  };
+
+  const markOffline = async () => {
+    try {
+      await supabase
+        .from('influencer_presence')
+        .update({
+          is_online: false,
+          last_seen: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('influencer_id', influencerId);
+    } catch (error) {
+      console.error('Error marking offline:', error);
+    }
+  };
+
   const currentConversation = conversations.find(c => c.id === selectedConversation);
   const otherPartyName = mode === 'influencer' 
     ? currentConversation?.brand_name || currentConversation?.brand_email
@@ -237,7 +310,22 @@ export default function Messaging({
             <>
               {/* Chat Header */}
               <div className="px-6 py-4 border-b border-slate-200 bg-white">
-                <h3 className="font-semibold text-slate-900">{otherPartyName}</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-slate-900">{otherPartyName}</h3>
+                  {mode === 'brand' && (
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${isInfluencerOnline ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                      <span className="text-xs text-slate-500">
+                        {isInfluencerOnline ? 'Online' : 'Offline'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                {mode === 'brand' && !isInfluencerOnline && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    💬 Ο influencer είναι offline. Το μήνυμα θα σταλεί ως email.
+                  </p>
+                )}
               </div>
 
               {/* Messages */}

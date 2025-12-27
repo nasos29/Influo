@@ -10,7 +10,7 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { conversationId, senderId, senderType, content, influencerId, brandEmail, brandName } = body;
+    const { conversationId, senderId, senderType, content, influencerId, brandEmail, brandName, proposalId } = body;
 
     // If creating a new conversation
     if (!conversationId && influencerId && brandEmail) {
@@ -44,6 +44,7 @@ export async function POST(req: Request) {
             influencer_email: influencer.contact_email,
             brand_email: brandEmail,
             brand_name: brandName || brandEmail,
+            proposal_id: proposalId || null,
           }])
           .select()
           .single();
@@ -63,6 +64,7 @@ export async function POST(req: Request) {
           sender_id: senderType === 'brand' ? brandEmail : influencerId,
           sender_type: senderType,
           content: content,
+          sent_via_email: sendViaEmail || false,
         }])
         .select()
         .single();
@@ -115,6 +117,7 @@ export async function POST(req: Request) {
           sender_id: senderId,
           sender_type: senderType,
           content: content,
+          sent_via_email: sendViaEmail || false,
         }])
         .select()
         .single();

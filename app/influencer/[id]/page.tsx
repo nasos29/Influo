@@ -54,7 +54,12 @@ const t = {
     modal_success: "Η πρόταση στάλθηκε!",
     modal_success_desc: "Η αίτησή σου καταχωρήθηκε. Θα λάβεις απάντηση στο email σου.",
     modal_close: "Κλείσιμο",
-    modal_sending: "Αποστολή..."
+    modal_sending: "Αποστολή...",
+    message_btn: "Μήνυμα",
+    message_prompt_email: "Εισάγετε το email του brand σας για να ξεκινήσετε τη συνομιλία:",
+    message_prompt_name: "Εισάγετε το όνομα του brand σας:",
+    message_title: "Στείλτε Μήνυμα",
+    message_desc: "Ξεκινήστε μια συνομιλία με αυτόν/αυτήν τον influencer"
   },
   en: {
     back: "← Back",
@@ -93,7 +98,12 @@ const t = {
     modal_success: "Proposal Sent!",
     modal_success_desc: "This request has been logged. You will receive an update via email.",
     modal_close: "Close Window",
-    modal_sending: "Sending..."
+    modal_sending: "Sending...",
+    message_btn: "Message",
+    message_prompt_email: "Enter your brand email to start messaging:",
+    message_prompt_name: "Enter your brand name:",
+    message_title: "Send Message",
+    message_desc: "Start a conversation with this influencer"
   }
 };
 
@@ -110,6 +120,7 @@ export default function InfluencerProfile(props: { params: Params }) {
 
   // MODAL STATE
   const [showProposalModal, setShowProposalModal] = useState(false);
+  const [showMessageModal, setShowMessageModal] = useState(false);
   const [proposalType, setProposalType] = useState("Instagram Story");
   const [brandName, setBrandName] = useState("");
   const [brandEmail, setBrandEmail] = useState("");
@@ -117,6 +128,10 @@ export default function InfluencerProfile(props: { params: Params }) {
   const [message, setMessage] = useState("");
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
+  const [messageBrandName, setMessageBrandName] = useState("");
+  const [messageBrandEmail, setMessageBrandEmail] = useState("");
+  const [messageContent, setMessageContent] = useState("");
+  const [messageSending, setMessageSending] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -219,13 +234,34 @@ export default function InfluencerProfile(props: { params: Params }) {
             status: 'pending'
         };
         
-        const { error } = await supabase.from("proposals").insert([proposalData]);
+        const { data: proposalResult, error } = await supabase.from("proposals").insert([proposalData]).select().single();
         
         if (error) {
             console.error(error);
             alert("Something went wrong. Please try again.");
             setSending(false);
             return;
+        }
+
+        // 1.5. Auto-create conversation from proposal
+        if (proposalResult && proposalResult.id) {
+            try {
+                await fetch('/api/messages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        influencerId: id,
+                        brandEmail: brandEmail,
+                        brandName: brandName,
+                        senderType: 'brand',
+                        content: `Νέα πρόταση: ${proposalType} | Budget: €${budget}\n\n${message}`,
+                        proposalId: proposalResult.id
+                    })
+                });
+            } catch (convError) {
+                console.error("Auto-create conversation failed:", convError);
+                // Don't fail the proposal if conversation creation fails
+            }
         }
 
         // 2. Send Brand Confirmation Email
@@ -271,6 +307,43 @@ export default function InfluencerProfile(props: { params: Params }) {
         alert("Something went wrong. Please try again.");
     } finally {
         setSending(false);
+    }
+  };
+
+  // --- HANDLER: SEND MESSAGE ---
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!messageBrandEmail || !messageContent.trim()) {
+      alert(lang === 'el' ? 'Παρακαλώ συμπληρώστε email και μήνυμα' : 'Please fill in email and message');
+      return;
+    }
+
+    setMessageSending(true);
+    try {
+      const response = await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          influencerId: id,
+          brandEmail: messageBrandEmail,
+          brandName: messageBrandName || messageBrandEmail,
+          senderType: 'brand',
+          content: messageContent,
+        })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        alert(lang === 'el' ? 'Το μήνυμα στάλθηκε! Θα μεταφερθείτε στη σελίδα συνομιλιών.' : 'Message sent! Redirecting to conversation...');
+        window.location.href = `/messages?influencer=${id}&brandEmail=${encodeURIComponent(messageBrandEmail)}&brandName=${encodeURIComponent(messageBrandName || messageBrandEmail)}`;
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (err: any) {
+      console.error('Error sending message:', err);
+      alert(lang === 'el' ? 'Σφάλμα: ' + err.message : 'Error: ' + err.message);
+    } finally {
+      setMessageSending(false);
     }
   };
 
@@ -358,6 +431,80 @@ export default function InfluencerProfile(props: { params: Params }) {
         </div>
       )}
 
+      {/* MESSAGE MODAL */}
+      {showMessageModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden relative">
+                <button 
+                    onClick={() => { 
+                      setShowMessageModal(false); 
+                      setMessageBrandEmail("");
+                      setMessageBrandName("");
+                      setMessageContent("");
+                    }}
+                    className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-xl z-10"
+                >✕</button>
+
+                <div className="p-8">
+                    <h2 className="text-2xl font-bold text-slate-900 mb-2">{txt.message_title}</h2>
+                    <p className="text-slate-500 mb-6">{txt.message_desc}</p>
+                    
+                    <form onSubmit={handleSendMessage} className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                                {txt.modal_brand}
+                            </label>
+                            <input 
+                                required 
+                                type="text" 
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-900" 
+                                placeholder={txt.modal_brand}
+                                value={messageBrandName}
+                                onChange={e => setMessageBrandName(e.target.value)}
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                                {txt.modal_email}
+                            </label>
+                            <input 
+                                required 
+                                type="email" 
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-900" 
+                                placeholder={txt.modal_email}
+                                value={messageBrandEmail}
+                                onChange={e => setMessageBrandEmail(e.target.value)}
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                                {txt.modal_desc}
+                            </label>
+                            <textarea 
+                                required 
+                                rows={4} 
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-900 resize-none" 
+                                placeholder="..."
+                                value={messageContent}
+                                onChange={e => setMessageContent(e.target.value)}
+                            />
+                        </div>
+
+                        <button 
+                            type="submit" 
+                            disabled={messageSending} 
+                            className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg disabled:opacity-50"
+                        >
+                            {messageSending ? txt.modal_sending : txt.message_btn}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+      )}
+
       {/* COVER & HEADER (Keep the rest of the code as is) */}
       <div className="h-72 w-full relative bg-slate-900">
          <Image src="https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=1500&q=80" alt="Cover" fill className="object-cover opacity-50" />
@@ -385,16 +532,10 @@ export default function InfluencerProfile(props: { params: Params }) {
                     <span>⚡</span> {txt.contact}
                 </button>
                 <button 
-                    onClick={() => {
-                        const brandEmail = prompt("Enter your brand email to start messaging:");
-                        const brandNameInput = prompt("Enter your brand name:");
-                        if (brandEmail) {
-                            window.location.href = `/messages?influencer=${id}&brandEmail=${encodeURIComponent(brandEmail)}&brandName=${encodeURIComponent(brandNameInput || brandEmail)}`;
-                        }
-                    }}
+                    onClick={() => setShowMessageModal(true)}
                     className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-transform hover:-translate-y-1 flex items-center gap-2"
                 >
-                    <span>💬</span> Message
+                    <span>💬</span> {txt.message_btn}
                 </button>
             </div>
         </div>

@@ -39,6 +39,29 @@ interface Proposal {
   influencers: { display_name: string };
 }
 
+interface Conversation {
+  id: string;
+  influencer_id: string;
+  influencer_name: string;
+  influencer_email: string;
+  brand_email: string;
+  brand_name: string | null;
+  proposal_id: number | null;
+  created_at: string;
+  last_message_at: string;
+}
+
+interface Message {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  sender_type: 'influencer' | 'brand';
+  content: string;
+  read: boolean;
+  sent_via_email: boolean;
+  created_at: string;
+}
+
 const t = {
   el: {
     title: "Admin Dashboard",
@@ -452,6 +475,9 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [activeTab, setActiveTab] = useState("influencers");
   const [users, setUsers] = useState<DbInfluencer[]>([]);
   const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const [conversationMessages, setConversationMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "verified" | "pending">("all");
@@ -512,7 +538,14 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
 
   useEffect(() => {
     fetchData();
+    fetchConversations();
   }, []);
+
+  useEffect(() => {
+    if (selectedConversation) {
+      fetchConversationMessages(selectedConversation.id);
+    }
+  }, [selectedConversation]);
 
   const toggleStatus = async (id: number, currentStatus: boolean, userEmail: string, userName: string) => {
     const { error } = await supabase.from("influencers").update({ verified: !currentStatus }).eq("id", id);
