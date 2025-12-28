@@ -929,7 +929,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                 <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-lg">⭐</span>
-                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">{txt.stat_rating}</span>
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{txt.stat_rating}</span>
                   </div>
                   <p className="text-2xl font-extrabold text-amber-600">{profile.avg_rating.toFixed(1)}</p>
                   <p className="text-xs text-slate-500">{profile.total_reviews} {txt.stat_reviews}</p>
@@ -938,7 +938,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                 <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm opacity-50">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-lg">⭐</span>
-                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">{txt.stat_rating}</span>
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{txt.stat_rating}</span>
                   </div>
                   <p className="text-2xl font-extrabold text-slate-400">{lang === 'el' ? '-' : '-'}</p>
                   <p className="text-xs text-slate-400">{lang === 'el' ? 'Δεν υπάρχουν αξιολογήσεις' : 'No reviews yet'}</p>
