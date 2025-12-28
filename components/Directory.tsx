@@ -49,6 +49,8 @@ const t = {
     follAll: "Followers: Όλοι",
     budAll: "Budget: Όλα",
     engAll: "Engage: Όλα",
+    ratingAll: "Rating: Όλα",
+    ratingMin: "Min Rating",
     noResults: "Δεν βρέθηκαν influencers",
     adjust: "Δοκίμασε διαφορετικά φίλτρα.",
     reset: "Επαναφορά"
@@ -67,6 +69,8 @@ const t = {
     follAll: "Followers: Any",
     budAll: "Budget: Any",
     engAll: "Engage: Any",
+    ratingAll: "Rating: Any",
+    ratingMin: "Min Rating",
     noResults: "No influencers found",
     adjust: "Try adjusting your filters.",
     reset: "Reset Filters"
@@ -241,6 +245,7 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
   const [followerRange, setFollowerRange] = useState("All");
   const [budgetMax, setBudgetMax] = useState("All");
   const [minEngagement, setMinEngagement] = useState("All");
+  const [minRating, setMinRating] = useState("All");
 
   useEffect(() => {
     const fetchReal = async () => {
@@ -276,7 +281,11 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
             min_rate: inf.min_rate,
             avg_likes: inf.avg_likes,
             engagement_rate: inf.engagement_rate,
-            videos: Array.isArray(inf.videos) ? inf.videos : []
+            videos: Array.isArray(inf.videos) ? inf.videos : [],
+            avg_rating: inf.avg_rating || 0,
+            total_reviews: inf.total_reviews || 0,
+            avg_response_time: inf.avg_response_time || 24,
+            completion_rate: inf.completion_rate || 100
           };
         });
         setInfluencers([...dummyInfluencers, ...realInfluencers]);
@@ -319,13 +328,20 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
         if (rate < min) engageMatch = false;
     }
 
-    return searchMatch && locationMatch && platformMatch && categoryMatch && genderMatch && followerMatch && budgetMatch && engageMatch;
+    let ratingMatch = true;
+    if (minRating !== "All") {
+        const min = parseFloat(minRating);
+        const rating = (inf as any).avg_rating || 0;
+        if (rating < min) ratingMatch = false;
+    }
+
+    return searchMatch && locationMatch && platformMatch && categoryMatch && genderMatch && followerMatch && budgetMatch && engageMatch && ratingMatch;
   });
 
   const clearFilters = () => {
     setSearchQuery(""); setLocationQuery(""); setPlatformFilter("All");
     setCategoryFilter("All"); setGenderFilter("All"); setFollowerRange("All");
-    setBudgetMax("All"); setMinEngagement("All");
+    setBudgetMax("All"); setMinEngagement("All"); setMinRating("All");
   };
 
   const selectClass = "w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 cursor-pointer";
@@ -397,6 +413,13 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
                     <option value="1">Min 1%</option>
                     <option value="3">Min 3% (Good)</option>
                     <option value="5">Min 5% (High)</option>
+                </select>
+                
+                <select value={minRating} onChange={(e) => setMinRating(e.target.value)} className={`${selectClass} !bg-amber-50 !border-amber-100 !text-amber-800`}>
+                    <option value="All">{txt.ratingAll}</option>
+                    <option value="3">Min 3★</option>
+                    <option value="4">Min 4★</option>
+                    <option value="4.5">Min 4.5★</option>
                 </select>
             </div>
             

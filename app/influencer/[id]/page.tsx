@@ -14,6 +14,14 @@ interface ProInfluencer extends Influencer {
   audience_data?: { male: number; female: number; top_age: string };
   rate_card?: { story: string; post: string; reel: string };
   past_brands?: string[];
+  avg_rating?: number;
+  total_reviews?: number;
+  avg_response_time?: number;
+  completion_rate?: number;
+  availability_status?: string;
+  skills?: string[];
+  certifications?: string[];
+  service_packages?: Array<{ name: string; description: string; price: string; includes: string[] }>;
 }
 
 const t = {
@@ -35,10 +43,30 @@ const t = {
     tab_over: "Επισκοπηση",
     tab_aud: "Κοινο",
     tab_price: "Τιμες",
+    tab_reviews: "Αξιολογήσεις",
     stat_eng: "Αλληλεπίδραση",
     stat_likes: "Μ.Ο. Likes",
+    stat_rating: "Αξιολόγηση",
+    stat_reviews: "Αξιολογήσεις",
+    stat_response: "Χρόνος Απάντησης",
+    stat_completion: "Ποσοστό Ολοκλήρωσης",
     aud_gen: "Φύλο Κοινού",
     aud_age: "Ηλικιακό Group",
+    reviews_title: "Αξιολογήσεις",
+    reviews_empty: "Δεν υπάρχουν αξιολογήσεις ακόμα.",
+    reviews_add: "Προσθήκη Αξιολόγησης",
+    reviews_rating: "Βαθμολογία",
+    reviews_comment: "Σχόλια",
+    reviews_project: "Τύπος Project",
+    reviews_submit: "Υποβολή",
+    badges_verified: "Επαληθευμένος",
+    badges_top: "Top Performer",
+    badges_premium: "Premium Creator",
+    badges_multi: "Multi-Platform",
+    badges_expert: "Niche Expert",
+    availability_available: "Διαθέσιμος",
+    availability_busy: "Απασχολημένος",
+    availability_away: "Ανενεργός",
     price_story: "Instagram Story (24h)",
     price_post: "Instagram Post",
     price_reel: "Reel / TikTok",
@@ -79,10 +107,30 @@ const t = {
     tab_over: "Overview",
     tab_aud: "Audience",
     tab_price: "Pricing",
+    tab_reviews: "Reviews",
     stat_eng: "Engagement",
     stat_likes: "Avg Likes",
+    stat_rating: "Rating",
+    stat_reviews: "Reviews",
+    stat_response: "Response Time",
+    stat_completion: "Completion Rate",
     aud_gen: "Audience Gender",
     aud_age: "Top Age Group",
+    reviews_title: "Reviews",
+    reviews_empty: "No reviews yet.",
+    reviews_add: "Add Review",
+    reviews_rating: "Rating",
+    reviews_comment: "Comment",
+    reviews_project: "Project Type",
+    reviews_submit: "Submit",
+    badges_verified: "Verified",
+    badges_top: "Top Performer",
+    badges_premium: "Premium Creator",
+    badges_multi: "Multi-Platform",
+    badges_expert: "Niche Expert",
+    availability_available: "Available",
+    availability_busy: "Busy",
+    availability_away: "Away",
     price_story: "Instagram Story (24h)",
     price_post: "Instagram Post",
     price_reel: "Reel / TikTok",
@@ -133,6 +181,13 @@ export default function InfluencerProfile(props: { params: Params }) {
   const [messageContent, setMessageContent] = useState("");
   const [messageSending, setMessageSending] = useState(false);
   const [isOnline, setIsOnline] = useState(false);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewText, setReviewText] = useState("");
+  const [reviewProjectType, setReviewProjectType] = useState("");
+  const [reviewBrandName, setReviewBrandName] = useState("");
+  const [reviewBrandEmail, setReviewBrandEmail] = useState("");
 
   // Check online status
   useEffect(() => {
@@ -241,12 +296,37 @@ export default function InfluencerProfile(props: { params: Params }) {
             top_age: data.audience_top_age || "?"
           },
           rate_card: data.rate_card || { story: "Ask", post: "Ask", reel: "Ask" },
-          past_brands: data.past_brands || []
+          past_brands: data.past_brands || [],
+          avg_rating: data.avg_rating || 0,
+          total_reviews: data.total_reviews || 0,
+          avg_response_time: data.avg_response_time || 24,
+          completion_rate: data.completion_rate || 100,
+          availability_status: data.availability_status || 'available',
+          skills: data.skills || [],
+          certifications: data.certifications || [],
+          service_packages: data.service_packages || []
         });
       }
       setLoading(false);
     };
     fetchProfile();
+  }, [id]);
+
+  // Load reviews
+  useEffect(() => {
+    const loadReviews = async () => {
+      if (!id || id.toString().includes("dummy")) return;
+      try {
+        const response = await fetch(`/api/reviews?influencerId=${id}`);
+        const data = await response.json();
+        if (data.reviews) {
+          setReviews(data.reviews);
+        }
+      } catch (error) {
+        console.error('Error loading reviews:', error);
+      }
+    };
+    loadReviews();
   }, [id]);
 
   // --- HANDLER: SEND PROPOSAL (UPDATED) ---
@@ -341,6 +421,52 @@ export default function InfluencerProfile(props: { params: Params }) {
         alert("Something went wrong. Please try again.");
     } finally {
         setSending(false);
+    }
+  };
+
+  // --- HANDLER: SUBMIT REVIEW ---
+  const handleSubmitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reviewBrandEmail || !reviewRating) {
+      alert(lang === 'el' ? 'Παρακαλώ συμπληρώστε email και βαθμολογία' : 'Please fill in email and rating');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          influencerId: id,
+          brandEmail: reviewBrandEmail,
+          brandName: reviewBrandName || reviewBrandEmail,
+          rating: reviewRating,
+          reviewText: reviewText,
+          projectType: reviewProjectType,
+        })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        alert(lang === 'el' ? 'Η αξιολόγηση υποβλήθηκε!' : 'Review submitted!');
+        setShowReviewModal(false);
+        setReviewRating(5);
+        setReviewText("");
+        setReviewProjectType("");
+        setReviewBrandName("");
+        setReviewBrandEmail("");
+        // Reload reviews
+        const reloadResponse = await fetch(`/api/reviews?influencerId=${id}`);
+        const reloadData = await reloadResponse.json();
+        if (reloadData.reviews) setReviews(reloadData.reviews);
+        // Reload profile to update stats
+        window.location.reload();
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (err: any) {
+      console.error('Error submitting review:', err);
+      alert(lang === 'el' ? 'Σφάλμα: ' + err.message : 'Error: ' + err.message);
     }
   };
 
@@ -465,6 +591,107 @@ export default function InfluencerProfile(props: { params: Params }) {
         </div>
       )}
 
+      {/* REVIEW MODAL */}
+      {showReviewModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden relative">
+            <button 
+              onClick={() => { 
+                setShowReviewModal(false); 
+                setReviewRating(5);
+                setReviewText("");
+                setReviewProjectType("");
+                setReviewBrandName("");
+                setReviewBrandEmail("");
+              }}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-xl z-10"
+            >✕</button>
+
+            <div className="p-8">
+              <h2 className="text-2xl font-bold text-slate-900 mb-2">{txt.reviews_add}</h2>
+              <p className="text-slate-500 mb-6">{lang === 'el' ? 'Αξιολόγησε αυτόν τον influencer' : 'Rate this influencer'}</p>
+              
+              <form onSubmit={handleSubmitReview} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.modal_brand}</label>
+                  <input 
+                    required 
+                    type="text" 
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-900" 
+                    placeholder={txt.modal_brand}
+                    value={reviewBrandName}
+                    onChange={e => setReviewBrandName(e.target.value)}
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.modal_email}</label>
+                  <input 
+                    required 
+                    type="email" 
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-900" 
+                    placeholder={txt.modal_email}
+                    value={reviewBrandEmail}
+                    onChange={e => setReviewBrandEmail(e.target.value)}
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{txt.reviews_rating}</label>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setReviewRating(star)}
+                        className={`text-4xl transition-transform hover:scale-110 ${
+                          star <= reviewRating ? 'text-amber-400' : 'text-slate-300'
+                        }`}
+                      >
+                        ★
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.reviews_project}</label>
+                  <select 
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-900"
+                    value={reviewProjectType}
+                    onChange={e => setReviewProjectType(e.target.value)}
+                  >
+                    <option value="">{lang === 'el' ? 'Επιλέξτε...' : 'Select...'}</option>
+                    <option value="Instagram Story">Instagram Story</option>
+                    <option value="Instagram Post">Instagram Post</option>
+                    <option value="Reel / TikTok">Reel / TikTok</option>
+                    <option value="Campaign">{lang === 'el' ? 'Καμπάνια' : 'Campaign'}</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.reviews_comment}</label>
+                  <textarea 
+                    rows={4} 
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-900 resize-none" 
+                    placeholder={lang === 'el' ? 'Γράψτε την άποψή σας...' : 'Write your review...'}
+                    value={reviewText}
+                    onChange={e => setReviewText(e.target.value)}
+                  />
+                </div>
+
+                <button 
+                  type="submit" 
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg"
+                >
+                  {txt.reviews_submit}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MESSAGE MODAL */}
       {showMessageModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -548,7 +775,9 @@ export default function InfluencerProfile(props: { params: Params }) {
       </div>
 
       <div className="max-w-6xl mx-auto px-6 relative -mt-24 z-10">
-        <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 flex flex-col md:flex-row items-center md:items-end gap-6">
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+          {/* Top Section: Avatar, Name, Info */}
+          <div className="p-6 md:p-8 flex flex-col md:flex-row items-center md:items-end gap-6 border-b border-slate-100">
             <div className="relative w-40 h-40 rounded-full border-4 border-white shadow-lg overflow-hidden bg-slate-200 -mt-20 md:mb-0">
                 <Image src={profile.avatar} alt={profile.name} fill className="object-cover" />
             </div>
@@ -567,7 +796,19 @@ export default function InfluencerProfile(props: { params: Params }) {
                 </div>
                 <div className="flex flex-wrap justify-center md:justify-start gap-2 mt-3">
                     {profile.languages?.split(",").map((l,i) => <span key={i} className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-600">{l.trim()}</span>)}
+                    {profile.skills && profile.skills.length > 0 && profile.skills.map((skill, i) => (
+                      <span key={`skill-${i}`} className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded font-medium">{skill}</span>
+                    ))}
                 </div>
+                {profile.certifications && profile.certifications.length > 0 && (
+                  <div className="flex flex-wrap justify-center md:justify-start gap-2 mt-2">
+                    {profile.certifications.map((cert, i) => (
+                      <span key={`cert-${i}`} className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded font-medium">
+                        🎓 {cert}
+                      </span>
+                    ))}
+                  </div>
+                )}
             </div>
             <div className="flex gap-3">
                 <button onClick={() => setShowProposalModal(true)} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-transform hover:-translate-y-1 flex items-center gap-2">
@@ -580,14 +821,134 @@ export default function InfluencerProfile(props: { params: Params }) {
                     <span>💬</span> {txt.message_btn}
                 </button>
             </div>
+          </div>
+          
+          {/* Statistics Section */}
+          <div className="px-6 md:px-8 py-6 bg-gradient-to-br from-slate-50 to-blue-50/30">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {/* Engagement Rate */}
+              <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">📈</span>
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{lang === 'el' ? 'Αλληλεπίδραση' : 'Engagement'}</span>
+                </div>
+                <p className="text-2xl font-extrabold text-blue-600">{profile.engagement_rate || '-'}</p>
+              </div>
+              
+              {/* Followers */}
+              <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">👥</span>
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{lang === 'el' ? 'Ακόλουθοι' : 'Followers'}</span>
+                </div>
+                <p className="text-2xl font-extrabold text-slate-900">
+                  {profile.followers?.instagram ? 
+                    (profile.followers.instagram >= 1000000 
+                      ? (profile.followers.instagram / 1000000).toFixed(1) + 'M' 
+                      : (profile.followers.instagram / 1000).toFixed(1) + 'k') 
+                    : '-'}
+                </p>
+              </div>
+              
+              {/* Avg Likes */}
+              <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">❤️</span>
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{lang === 'el' ? 'Μ.Ο. Likes' : 'Avg Likes'}</span>
+                </div>
+                <p className="text-2xl font-extrabold text-slate-900">{profile.avg_likes || '-'}</p>
+              </div>
+              
+              {/* Collaborations */}
+              <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">🤝</span>
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{lang === 'el' ? 'Συνεργασίες' : 'Collabs'}</span>
+                </div>
+                <p className="text-2xl font-extrabold text-purple-600">{profile.past_brands?.length || 0}</p>
+              </div>
+            </div>
+            
+            {/* Additional Stats Row */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+              {/* Rating */}
+              {profile.avg_rating && profile.avg_rating > 0 && (
+                <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-lg">⭐</span>
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{txt.stat_rating}</span>
+                  </div>
+                  <p className="text-2xl font-extrabold text-amber-600">{profile.avg_rating.toFixed(1)}</p>
+                  <p className="text-xs text-slate-500">{profile.total_reviews || 0} {txt.stat_reviews}</p>
+                </div>
+              )}
+              
+              {/* Response Time */}
+              <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">⚡</span>
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{txt.stat_response}</span>
+                </div>
+                <p className="text-2xl font-extrabold text-green-600">{profile.avg_response_time || 24}h</p>
+              </div>
+              
+              {/* Completion Rate */}
+              <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">✅</span>
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{txt.stat_completion}</span>
+                </div>
+                <p className="text-2xl font-extrabold text-emerald-600">{profile.completion_rate || 100}%</p>
+              </div>
+              
+              {/* Availability */}
+              <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">📅</span>
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{lang === 'el' ? 'Κατάσταση' : 'Status'}</span>
+                </div>
+                <p className={`text-lg font-bold ${profile.availability_status === 'available' ? 'text-green-600' : profile.availability_status === 'busy' ? 'text-amber-600' : 'text-slate-400'}`}>
+                  {profile.availability_status === 'available' ? txt.availability_available : 
+                   profile.availability_status === 'busy' ? txt.availability_busy : txt.availability_away}
+                </p>
+              </div>
+            </div>
+            
+            {/* Badges */}
+            {profile.verified && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {profile.verified && (
+                  <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold">
+                    ✓ {txt.badges_verified}
+                  </span>
+                )}
+                {profile.engagement_rate && parseFloat(profile.engagement_rate.replace('%', '')) > 5 && (
+                  <span className="inline-flex items-center gap-1 bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-bold">
+                    🏆 {txt.badges_top}
+                  </span>
+                )}
+                {profile.past_brands && profile.past_brands.length > 5 && (
+                  <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs font-bold">
+                    ⭐ {txt.badges_premium}
+                  </span>
+                )}
+                {profile.socials && Object.keys(profile.socials).length > 2 && (
+                  <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">
+                    📱 {txt.badges_multi}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* TABS */}
         <div className="mt-8 border-b border-slate-200">
-            <nav className="flex gap-8">
-                <button onClick={() => setActiveTab("overview")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors ${activeTab === "overview" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}>{txt.tab_over}</button>
-                <button onClick={() => setActiveTab("audience")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors ${activeTab === "audience" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}>{txt.tab_aud}</button>
-                <button onClick={() => setActiveTab("pricing")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors ${activeTab === "pricing" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}>{txt.tab_price}</button>
+            <nav className="flex gap-8 overflow-x-auto">
+                <button onClick={() => setActiveTab("overview")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === "overview" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}>{txt.tab_over}</button>
+                <button onClick={() => setActiveTab("audience")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === "audience" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}>{txt.tab_aud}</button>
+                <button onClick={() => setActiveTab("pricing")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === "pricing" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}>{txt.tab_price}</button>
+                <button onClick={() => setActiveTab("reviews")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === "reviews" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}>{txt.tab_reviews} {profile.total_reviews ? `(${profile.total_reviews})` : ''}</button>
             </nav>
         </div>
 
@@ -700,6 +1061,35 @@ export default function InfluencerProfile(props: { params: Params }) {
                 {activeTab === "pricing" && (
                      <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
                         <h2 className="text-xl font-bold text-slate-900 mb-6">{txt.tab_price}</h2>
+                        
+                        {/* Service Packages */}
+                        {profile.service_packages && profile.service_packages.length > 0 && (
+                          <div className="mb-8">
+                            <h3 className="text-lg font-semibold text-slate-900 mb-4">{lang === 'el' ? 'Προσφορές Πακέτων' : 'Service Packages'}</h3>
+                            <div className="grid md:grid-cols-2 gap-4">
+                              {profile.service_packages.map((pkg: any, i: number) => (
+                                <div key={i} className="border-2 border-blue-200 rounded-xl p-6 bg-gradient-to-br from-blue-50 to-white">
+                                  <h4 className="font-bold text-slate-900 text-lg mb-2">{pkg.name}</h4>
+                                  <p className="text-slate-600 text-sm mb-4">{pkg.description}</p>
+                                  <p className="text-2xl font-extrabold text-blue-600 mb-4">{pkg.price}</p>
+                                  {pkg.includes && Array.isArray(pkg.includes) && (
+                                    <ul className="space-y-2 mb-4">
+                                      {pkg.includes.map((item: string, j: number) => (
+                                        <li key={j} className="flex items-center gap-2 text-sm text-slate-700">
+                                          <span className="text-green-600">✓</span> {item}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                  <button onClick={() => setShowProposalModal(true)} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg transition-colors">
+                                    {lang === 'el' ? 'Επιλογή Πακέτου' : 'Select Package'}
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
                         <div className="space-y-4">
                             <div className="flex justify-between items-center p-4 border-b border-slate-100">
                                 <span className="font-medium text-slate-700">{txt.price_story}</span>
@@ -719,6 +1109,52 @@ export default function InfluencerProfile(props: { params: Params }) {
                             {txt.contact_btn}
                         </button>
                      </div>
+                )}
+                
+                {activeTab === "reviews" && (
+                  <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
+                    <div className="flex justify-between items-center mb-6">
+                      <h2 className="text-xl font-bold text-slate-900">{txt.reviews_title}</h2>
+                      <button 
+                        onClick={() => setShowReviewModal(true)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-lg transition-colors text-sm"
+                      >
+                        + {txt.reviews_add}
+                      </button>
+                    </div>
+                    
+                    {reviews.length === 0 ? (
+                      <div className="text-center py-12 text-slate-400">
+                        <p className="text-lg">{txt.reviews_empty}</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        {reviews.map((review: any) => (
+                          <div key={review.id} className="border border-slate-200 rounded-xl p-6 hover:shadow-md transition-shadow">
+                            <div className="flex items-start justify-between mb-3">
+                              <div>
+                                <h4 className="font-bold text-slate-900">{review.brand_name || review.brand_email}</h4>
+                                <p className="text-xs text-slate-500">{new Date(review.created_at).toLocaleDateString()}</p>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                {[...Array(5)].map((_, i) => (
+                                  <span key={i} className={`text-xl ${i < review.rating ? 'text-amber-400' : 'text-slate-300'}`}>★</span>
+                                ))}
+                              </div>
+                            </div>
+                            {review.project_type && (
+                              <span className="inline-block bg-blue-50 text-blue-700 text-xs font-bold px-2 py-1 rounded mb-3">
+                                {review.project_type}
+                              </span>
+                            )}
+                            {review.review_text && (
+                              <p className="text-slate-700 leading-relaxed">{review.review_text}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
             </div>
             <div className="space-y-6">
