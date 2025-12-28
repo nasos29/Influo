@@ -929,7 +929,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                 <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-lg">⭐</span>
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{txt.stat_rating}</span>
+                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">{txt.stat_rating}</span>
                   </div>
                   <p className="text-2xl font-extrabold text-amber-600">{profile.avg_rating.toFixed(1)}</p>
                   <p className="text-xs text-slate-500">{profile.total_reviews} {txt.stat_reviews}</p>
@@ -938,7 +938,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                 <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm opacity-50">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-lg">⭐</span>
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{txt.stat_rating}</span>
+                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">{txt.stat_rating}</span>
                   </div>
                   <p className="text-2xl font-extrabold text-slate-400">{lang === 'el' ? '-' : '-'}</p>
                   <p className="text-xs text-slate-400">{lang === 'el' ? 'Δεν υπάρχουν αξιολογήσεις' : 'No reviews yet'}</p>
@@ -1012,7 +1012,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                 <button onClick={() => setActiveTab("overview")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === "overview" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-700 hover:text-slate-900"}`}>{txt.tab_over}</button>
                 <button onClick={() => setActiveTab("audience")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === "audience" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-700 hover:text-slate-900"}`}>{txt.tab_aud}</button>
                 <button onClick={() => setActiveTab("pricing")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === "pricing" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-700 hover:text-slate-900"}`}>{txt.tab_price}</button>
-                <button onClick={() => setActiveTab("reviews")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === "reviews" ? "border-blue-600 text-blue-600 font-extrabold" : "border-transparent text-slate-900 hover:text-slate-900 font-bold"}`}>⭐ {txt.tab_reviews} {profile.total_reviews ? `(${profile.total_reviews})` : ''}</button>
+                <button onClick={() => setActiveTab("reviews")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === "reviews" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-700 hover:text-slate-900"}`}>{txt.tab_reviews} {profile.total_reviews ? `(${profile.total_reviews})` : ''}</button>
             </nav>
         </div>
 
