@@ -18,6 +18,7 @@ export async function GET(req: Request) {
       .from('influencer_reviews')
       .select('*')
       .eq('influencer_id', influencerId)
+      .eq('verified', true) // Only show verified reviews
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -40,6 +41,34 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    // Verify that brand has a completed proposal with this influencer
+    const { data: completedProposals } = await supabaseAdmin
+      .from('proposals')
+      .select('id')
+      .eq('influencer_id', influencerId)
+      .eq('brand_email', brandEmail)
+      .in('status', ['completed', 'accepted']);
+
+    if (!completedProposals || completedProposals.length === 0) {
+      return NextResponse.json({ 
+        error: 'You can only review influencers you have worked with. Please complete a collaboration first.' 
+      }, { status: 403 });
+    }
+
+    // Check if review already exists
+    const { data: existingReview } = await supabaseAdmin
+      .from('influencer_reviews')
+      .select('id')
+      .eq('influencer_id', influencerId)
+      .eq('brand_email', brandEmail)
+      .single();
+
+    if (existingReview) {
+      return NextResponse.json({ 
+        error: 'You have already reviewed this influencer. You can only submit one review per collaboration.' 
+      }, { status: 400 });
+    }
+
     // Insert review
     const { data: review, error: insertError } = await supabaseAdmin
       .from('influencer_reviews')
@@ -50,7 +79,7 @@ export async function POST(req: Request) {
         rating: parseInt(rating),
         review_text: reviewText || null,
         project_type: projectType || null,
-        verified: true // Can add verification logic later
+        verified: true // Verified because we checked for completed proposals above
       }])
       .select()
       .single();

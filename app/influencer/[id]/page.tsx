@@ -22,6 +22,7 @@ interface ProInfluencer extends Influencer {
   skills?: string[];
   certifications?: string[];
   service_packages?: Array<{ name: string; description: string; price: string; includes: string[] }>;
+  calculatedCompletionRate?: number;
 }
 
 const t = {
@@ -246,6 +247,22 @@ export default function InfluencerProfile(props: { params: Params }) {
       // 2. REAL CHECK - Works with both UUIDs (new influencers) and numeric IDs (if any)
       // Try to fetch by id (works for both UUIDs and numeric IDs)
       const { data, error } = await supabase.from("influencers").select("*").eq("id", id).single();
+      
+      // Calculate completion rate from proposals
+      let calculatedCompletionRate: number | undefined;
+      if (data && !error) {
+        const { data: proposals } = await supabase
+          .from("proposals")
+          .select("status")
+          .eq("influencer_id", id);
+        
+        if (proposals && proposals.length > 0) {
+          const total = proposals.length;
+          const completed = proposals.filter((p: any) => p.status === 'completed' || p.status === 'accepted').length;
+          calculatedCompletionRate = Math.round((completed / total) * 100);
+        }
+      }
+      
       if (data && !error) {
         const socialsObj: { [key: string]: string } = {};
         if (Array.isArray(data.accounts)) {
@@ -304,7 +321,8 @@ export default function InfluencerProfile(props: { params: Params }) {
           availability_status: data.availability_status || 'available',
           skills: data.skills || [],
           certifications: data.certifications || [],
-          service_packages: data.service_packages || []
+          service_packages: data.service_packages || [],
+          calculatedCompletionRate: calculatedCompletionRate
         });
       }
       setLoading(false);
@@ -871,15 +889,24 @@ export default function InfluencerProfile(props: { params: Params }) {
             
             {/* Additional Stats Row */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-              {/* Rating */}
-              {profile.avg_rating && profile.avg_rating > 0 && (
+              {/* Rating - Only show if there are reviews */}
+              {profile.total_reviews && profile.total_reviews > 0 && profile.avg_rating && profile.avg_rating > 0 ? (
                 <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-lg">⭐</span>
                     <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{txt.stat_rating}</span>
                   </div>
                   <p className="text-2xl font-extrabold text-amber-600">{profile.avg_rating.toFixed(1)}</p>
-                  <p className="text-xs text-slate-500">{profile.total_reviews || 0} {txt.stat_reviews}</p>
+                  <p className="text-xs text-slate-500">{profile.total_reviews} {txt.stat_reviews}</p>
+                </div>
+              ) : (
+                <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm opacity-50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-lg">⭐</span>
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{txt.stat_rating}</span>
+                  </div>
+                  <p className="text-2xl font-extrabold text-slate-400">{lang === 'el' ? '-' : '-'}</p>
+                  <p className="text-xs text-slate-400">{lang === 'el' ? 'Δεν υπάρχουν αξιολογήσεις' : 'No reviews yet'}</p>
                 </div>
               )}
               
@@ -892,13 +919,15 @@ export default function InfluencerProfile(props: { params: Params }) {
                 <p className="text-2xl font-extrabold text-green-600">{profile.avg_response_time || 24}h</p>
               </div>
               
-              {/* Completion Rate */}
+              {/* Completion Rate - Calculate from proposals */}
               <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-lg">✅</span>
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{txt.stat_completion}</span>
                 </div>
-                <p className="text-2xl font-extrabold text-emerald-600">{profile.completion_rate || 100}%</p>
+                <p className="text-2xl font-extrabold text-emerald-600">
+                  {profile.calculatedCompletionRate !== undefined ? `${profile.calculatedCompletionRate}%` : '-'}
+                </p>
               </div>
               
               {/* Availability */}
@@ -1114,7 +1143,14 @@ export default function InfluencerProfile(props: { params: Params }) {
                 {activeTab === "reviews" && (
                   <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
                     <div className="flex justify-between items-center mb-6">
-                      <h2 className="text-xl font-bold text-slate-900">{txt.reviews_title}</h2>
+                      <div>
+                        <h2 className="text-xl font-bold text-slate-900">{txt.reviews_title}</h2>
+                        <p className="text-sm text-slate-500 mt-1">
+                          {lang === 'el' 
+                            ? 'Μόνο brands που έχουν ολοκληρώσει συνεργασία μπορούν να αξιολογήσουν' 
+                            : 'Only brands who have completed collaborations can review'}
+                        </p>
+                      </div>
                       <button 
                         onClick={() => setShowReviewModal(true)}
                         className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-lg transition-colors text-sm"
