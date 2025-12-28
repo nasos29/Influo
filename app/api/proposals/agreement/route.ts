@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { Resend } from 'resend';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+const VERIFIED_SENDER_EMAIL = 'noreply@influo.gr';
 
 export async function POST(req: Request) {
   try {
@@ -72,19 +76,32 @@ export async function POST(req: Request) {
             .eq('id', proposal.influencer_id)
             .single();
 
-          if (influencerData) {
-            await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/emails`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                type: 'collaboration_complete',
-                email: influencerData.contact_email,
-                influencerName: influencerData.display_name,
-                brandName: proposal.brand_name
-              })
+          if (influencerData && process.env.RESEND_API_KEY) {
+            const subject = `✅ Η συνεργασία με ${proposal.brand_name} ολοκληρώθηκε!`;
+            const html = `
+              <div style="font-family: sans-serif; padding: 20px; border: 1px solid #10b981; border-radius: 8px; background-color: #ecfdf5;">
+                  <h1 style="color: #047857;">Συνεργασία Ολοκληρώθηκε!</h1>
+                  <p>Γεια σου ${influencerData.display_name},</p>
+                  <p>Η συνεργασία με το brand <strong>${proposal.brand_name}</strong> έχει ολοκληρωθεί και το brand προστέθηκε στις συνεργασίες σου!</p>
+                  <p>Το brand ${proposal.brand_name} εμφανίζεται πλέον στο προφίλ σου στο tab "Συνεργασίες".</p>
+                  <br/>
+                  <p>Συγχαρητήρια για την επιτυχημένη συνεργασία! 🎉</p>
+                  <p>Η ομάδα του Influo</p>
+              </div>
+            `;
+            
+            console.log('Sending collaboration complete email to:', influencerData.contact_email);
+            
+            await resend.emails.send({
+              from: `Influo <${VERIFIED_SENDER_EMAIL}>`,
+              to: [influencerData.contact_email],
+              subject: subject,
+              html: html,
             });
+            
+            console.log('Collaboration complete email sent successfully');
           }
-        } catch (emailError) {
+        } catch (emailError: any) {
           console.error('Email notification failed:', emailError);
         }
       }
