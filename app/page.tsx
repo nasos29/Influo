@@ -336,9 +336,9 @@ export default function Home() {
           <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center text-sm">
             <p className="mb-4 md:mb-0">© {new Date().getFullYear()} Influo Inc. {txt.footer_rights}</p>
             <div className="flex gap-6">
-              <a href="#" className="hover:text-white transition-colors">{txt.footer_privacy}</a>
-              <a href="#" className="hover:text-white transition-colors">{txt.footer_terms}</a>
-              <a href="#" className="hover:text-white transition-colors">{txt.footer_contact}</a>
+              <a href="/privacy" className="hover:text-white transition-colors">{txt.footer_privacy}</a>
+              <a href="/terms" className="hover:text-white transition-colors">{txt.footer_terms}</a>
+              <a href="/contact" className="hover:text-white transition-colors">{txt.footer_contact}</a>
           </div>
         </div>
       </footer>
