@@ -381,8 +381,10 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     const [counterMessage, setCounterMessage] = useState('');
     const [savingCounterProposal, setSavingCounterProposal] = useState(false);
     const [selectedProposalForMessaging, setSelectedProposalForMessaging] = useState<Proposal | null>(null);
+    const [pendingProposalsCount, setPendingProposalsCount] = useState(0);
+    const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
 
-    // Load proposals
+    // Load proposals and counts
     useEffect(() => {
         const loadProposals = async () => {
             const { data: { user } } = await supabase.auth.getUser();
@@ -395,10 +397,55 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                 
                 if (data) {
                     setProposals(data as Proposal[]);
+                    // Count pending proposals
+                    const pending = data.filter(p => p.status === 'pending').length;
+                    setPendingProposalsCount(pending);
                 }
             }
         };
+        
+        const loadUnreadMessages = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                // Get all conversations for this influencer
+                const { data: conversations } = await supabase
+                    .from('conversations')
+                    .select('id')
+                    .eq('influencer_id', user.id);
+                
+                if (conversations && conversations.length > 0) {
+                    const conversationIds = conversations.map(c => c.id);
+                    
+                    // Count unread messages from brands (sender_type = 'brand' and read = false)
+                    const { count, error } = await supabase
+                        .from('messages')
+                        .select('*', { count: 'exact', head: true })
+                        .in('conversation_id', conversationIds)
+                        .eq('sender_type', 'brand')
+                        .eq('read', false);
+                    
+                    if (!error && count !== null) {
+                        setUnreadMessagesCount(count);
+                    } else if (error) {
+                        console.error('Error counting unread messages:', error);
+                        setUnreadMessagesCount(0);
+                    }
+                } else {
+                    setUnreadMessagesCount(0);
+                }
+            }
+        };
+        
         loadProposals();
+        loadUnreadMessages();
+        
+        // Refresh counts every 30 seconds
+        const interval = setInterval(() => {
+            loadProposals();
+            loadUnreadMessages();
+        }, 30000);
+        
+        return () => clearInterval(interval);
     }, []);
 
     useEffect(() => {
@@ -560,23 +607,33 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                             </button>
                             <button
                                 onClick={() => setActiveTab('proposals')}
-                                className={`px-6 py-4 font-medium border-b-2 transition-colors ${
+                                className={`px-4 md:px-6 py-4 font-medium border-b-2 transition-colors relative ${
                                     activeTab === 'proposals'
                                         ? 'border-slate-900 text-slate-900'
                                         : 'border-transparent text-slate-500 hover:text-slate-700'
                                 }`}
                             >
-                                📋 Προσφορές
+                                <span className="hidden md:inline">📋 </span>Προσφορές
+                                {pendingProposalsCount > 0 && (
+                                    <span className="absolute top-1.5 right-1 md:top-2 md:right-2 bg-red-500 text-white text-[10px] md:text-xs font-bold rounded-full min-w-[18px] md:min-w-[20px] h-[18px] md:h-5 flex items-center justify-center px-0.5 md:px-1">
+                                        {pendingProposalsCount > 99 ? '99+' : pendingProposalsCount > 9 ? '9+' : pendingProposalsCount}
+                                    </span>
+                                )}
                             </button>
                             <button
                                 onClick={() => setActiveTab('messages')}
-                                className={`px-6 py-4 font-medium border-b-2 transition-colors ${
+                                className={`px-4 md:px-6 py-4 font-medium border-b-2 transition-colors relative ${
                                     activeTab === 'messages'
                                         ? 'border-slate-900 text-slate-900'
                                         : 'border-transparent text-slate-500 hover:text-slate-700'
                                 }`}
                             >
-                                💬 Μηνύματα
+                                <span className="hidden md:inline">💬 </span>Μηνύματα
+                                {unreadMessagesCount > 0 && (
+                                    <span className="absolute top-1.5 right-1 md:top-2 md:right-2 bg-red-500 text-white text-[10px] md:text-xs font-bold rounded-full min-w-[18px] md:min-w-[20px] h-[18px] md:h-5 flex items-center justify-center px-0.5 md:px-1">
+                                        {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
+                                    </span>
+                                )}
                             </button>
                         </div>
                     </div>

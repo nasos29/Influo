@@ -45,26 +45,48 @@ export async function POST(req: Request) {
     // Send email to brand about counter-proposal
     try {
       const host = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-      await fetch(`${host}/api/emails`, {
+      
+      // Get influencer name
+      let influencerName = 'Influencer';
+      if (proposal.influencer_id) {
+        const { data: influencerData } = await supabaseAdmin
+          .from('influencers')
+          .select('display_name')
+          .eq('id', proposal.influencer_id)
+          .single();
+        if (influencerData) {
+          influencerName = influencerData.display_name || 'Influencer';
+        }
+      }
+      
+      const emailPayload = {
+        type: 'counter_proposal_notification',
+        email: proposal.brand_email,
+        brandName: proposal.brand_name,
+        influencerName: influencerName,
+        influencerId: proposal.influencer_id,
+        originalBudget: proposal.budget,
+        counterBudget: counterBudget,
+        counterMessage: counterMessage || '',
+        serviceType: proposal.service_type,
+        proposalId: proposalId
+      };
+      
+      console.log('Sending counter-proposal email to:', proposal.brand_email);
+      const emailResponse = await fetch(`${host}/api/emails`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'counter_proposal_notification',
-          email: proposal.brand_email,
-          brandName: proposal.brand_name,
-          influencerName: proposal.influencer_id ? 
-            (await supabaseAdmin.from('influencers').select('display_name').eq('id', proposal.influencer_id).single()).data?.display_name || 'Influencer'
-            : 'Influencer',
-          influencerId: proposal.influencer_id,
-          originalBudget: proposal.budget,
-          counterBudget: counterBudget,
-          counterMessage: counterMessage,
-          serviceType: proposal.service_type,
-          proposalId: proposalId
-        })
+        body: JSON.stringify(emailPayload)
       });
-    } catch (emailError) {
-      console.error('Counter-proposal email failed:', emailError);
+      
+      const emailResult = await emailResponse.json();
+      if (!emailResponse.ok || !emailResult.success) {
+        console.error('Counter-proposal email failed:', emailResult);
+      } else {
+        console.log('Counter-proposal email sent successfully');
+      }
+    } catch (emailError: any) {
+      console.error('Counter-proposal email error:', emailError);
       // Don't fail the request if email fails
     }
 
