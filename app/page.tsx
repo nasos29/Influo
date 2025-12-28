@@ -10,7 +10,7 @@ type Lang = "el" | "en";
 const t = {
   el: {
     nav_join: "Εγγραφή Influencer",
-    nav_brand: "Γίνε Brand",
+    nav_brand: "Εγγραφή Επιχείρησης",
     nav_directory: "Κατάλογος",
     nav_features: "Δυνατότητες",
     nav_admin: "Admin",
@@ -19,7 +19,7 @@ const t = {
     hero_title_2: "με κορυφαία Brands",
     hero_desc: "Η πιο σύγχρονη πλατφόρμα Influencer Marketing στην Ελλάδα. Δημιούργησε το επαγγελματικό σου προφίλ και κλείσε συνεργασίες σήμερα.",
     hero_btn_primary: "Ξεκίνα Δωρεάν",
-    hero_btn_brand: "Γίνε Brand",
+    hero_btn_brand: "Εγγραφή Επιχείρησης",
     hero_btn_secondary: "Εξερεύνηση",
     brand_section_title: "Είστε Επιχείρηση;",
     brand_section_desc: "Βρείτε τους καλύτερους influencers για την εταιρεία σας. Αναζητήστε, επικοινωνήστε και συνεργαστείτε με verified creators.",
