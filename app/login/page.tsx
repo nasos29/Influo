@@ -63,7 +63,18 @@ export default function LoginPage() {
         });
 
         if (error) {
-            setMessage(error.message);
+            // Translate common error messages
+            let translatedMessage = error.message;
+            if (error.message.includes('Invalid login credentials') || error.message.toLowerCase().includes('invalid')) {
+                translatedMessage = lang === 'el' 
+                    ? 'Μη έγκυρα στοιχεία σύνδεσης. Παρακαλώ ελέγξτε το email και τον κωδικό πρόσβασης.' 
+                    : 'Invalid login credentials. Please check your email and password.';
+            } else if (error.message.includes('Email not confirmed')) {
+                translatedMessage = lang === 'el' 
+                    ? 'Το email σας δεν έχει επιβεβαιωθεί. Παρακαλώ ελέγξτε το inbox σας.' 
+                    : 'Your email has not been confirmed. Please check your inbox.';
+            }
+            setMessage(translatedMessage);
             setMessageType('error');
             setLoading(false);
             return;
