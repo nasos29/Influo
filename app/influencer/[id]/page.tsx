@@ -817,12 +817,60 @@ export default function InfluencerProfile(props: { params: Params }) {
         </div>
       )}
 
-      {/* COVER & HEADER (Keep the rest of the code as is) */}
-      <div className="h-72 w-full relative bg-slate-900">
-         <Image src="https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=1500&q=80" alt="Cover" fill className="object-cover opacity-50" />
-         <div className="absolute top-6 left-6 z-20">
-             <a href="/" className="text-white bg-white/20 backdrop-blur-md px-4 py-2 rounded-lg font-medium hover:bg-white/30 transition">{txt.back}</a>
-         </div>
+      {/* MODERN HERO HEADER */}
+      <div className="relative w-full bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 overflow-hidden">
+        {/* Modern geometric shapes background */}
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl transform translate-x-1/4 -translate-y-1/4"></div>
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl transform -translate-x-1/4 translate-y-1/4"></div>
+          <div className="absolute top-1/2 left-1/2 w-[500px] h-[500px] bg-white rounded-full blur-3xl transform -translate-x-1/2 -translate-y-1/2"></div>
+        </div>
+        
+        {/* Connection/Collaboration visual elements */}
+        <div className="absolute inset-0 flex items-center justify-center opacity-10">
+          <svg width="100%" height="100%" viewBox="0 0 1200 400" className="absolute">
+            <defs>
+              <linearGradient id="connectionGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="white" stopOpacity="0.3" />
+                <stop offset="100%" stopColor="white" stopOpacity="0.1" />
+              </linearGradient>
+            </defs>
+            {/* Network nodes and connections */}
+            <circle cx="200" cy="200" r="8" fill="white" />
+            <circle cx="600" cy="150" r="12" fill="white" />
+            <circle cx="1000" cy="200" r="8" fill="white" />
+            <circle cx="300" cy="300" r="8" fill="white" />
+            <circle cx="900" cy="300" r="8" fill="white" />
+            {/* Connection lines */}
+            <line x1="200" y1="200" x2="600" y2="150" stroke="url(#connectionGradient)" strokeWidth="2" />
+            <line x1="600" y1="150" x2="1000" y2="200" stroke="url(#connectionGradient)" strokeWidth="2" />
+            <line x1="200" y1="200" x2="300" y2="300" stroke="url(#connectionGradient)" strokeWidth="2" />
+            <line x1="1000" y1="200" x2="900" y2="300" stroke="url(#connectionGradient)" strokeWidth="2" />
+            <line x1="300" y1="300" x2="600" y2="150" stroke="url(#connectionGradient)" strokeWidth="2" />
+            <line x1="900" y1="300" x2="600" y2="150" stroke="url(#connectionGradient)" strokeWidth="2" />
+          </svg>
+        </div>
+
+        <div className="relative z-10 h-64 md:h-72 flex flex-col justify-between">
+          {/* Back button */}
+          <div className="absolute top-6 left-6 z-20">
+            <a href="/" className="text-white bg-white/20 backdrop-blur-md px-4 py-2 rounded-lg font-medium hover:bg-white/30 transition shadow-lg">
+              {txt.back}
+            </a>
+          </div>
+          
+          {/* Center content - Subtle call to action */}
+          <div className="flex-1 flex items-center justify-center px-6">
+            <div className="text-center text-white">
+              <div className="flex items-center justify-center gap-2 mb-2 opacity-90">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                </svg>
+                <span className="text-sm font-medium uppercase tracking-wider">Σύνδεση & Συνεργασία</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="max-w-6xl mx-auto px-6 relative -mt-24 z-10">
