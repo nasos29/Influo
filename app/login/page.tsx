@@ -63,25 +63,47 @@ export default function LoginPage() {
         });
 
         if (error) {
-            // Translate common error messages
+            // Translate common error messages - be more specific to avoid false positives
             let translatedMessage = error.message;
-            if (error.message.includes('Invalid login credentials') || error.message.toLowerCase().includes('invalid')) {
+            
+            // Check for exact error messages from Supabase
+            if (error.message === 'Invalid login credentials' || 
+                error.message.toLowerCase().includes('invalid login credentials') ||
+                error.message.toLowerCase().includes('email not found') ||
+                error.message.toLowerCase().includes('incorrect password')) {
                 translatedMessage = lang === 'el' 
                     ? 'Μη έγκυρα στοιχεία σύνδεσης. Παρακαλώ ελέγξτε το email και τον κωδικό πρόσβασης.' 
                     : 'Invalid login credentials. Please check your email and password.';
-            } else if (error.message.includes('Email not confirmed')) {
+            } else if (error.message.includes('Email not confirmed') || 
+                       error.message.includes('email_not_confirmed')) {
                 translatedMessage = lang === 'el' 
                     ? 'Το email σας δεν έχει επιβεβαιωθεί. Παρακαλώ ελέγξτε το inbox σας.' 
                     : 'Your email has not been confirmed. Please check your inbox.';
+            } else {
+                // For any other errors, show the original message
+                translatedMessage = error.message;
             }
+            
             setMessage(translatedMessage);
             setMessageType('error');
             setLoading(false);
             return;
         }
 
-        // Admin check by email
-        const isAdmin = data.user?.email === 'nd.6@hotmail.com';
+        // Check if user exists but login succeeded
+        if (!data.user) {
+            setMessage(lang === 'el' 
+                ? 'Σφάλμα: Δεν μπόρεσε να γίνει σύνδεση. Παρακαλώ δοκιμάστε ξανά.' 
+                : 'Error: Could not sign in. Please try again.');
+            setMessageType('error');
+            setLoading(false);
+            return;
+        }
+
+        // Admin check by email (case-insensitive and trimmed)
+        const userEmail = data.user?.email?.toLowerCase().trim();
+        const adminEmail = 'nd.6@hotmail.com'.toLowerCase().trim();
+        const isAdmin = userEmail === adminEmail;
 
         if (isAdmin) {
             router.push('/admin');

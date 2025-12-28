@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import Image from "next/image";
 
@@ -131,6 +131,8 @@ export default function InfluencerSignupForm() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(""); 
   const [showPassword, setShowPassword] = useState(false);
+  const [emailError, setEmailError] = useState("");
+  const [checkingEmail, setCheckingEmail] = useState(false);
 
   // Data States
   const [displayName, setDisplayName] = useState("");
@@ -196,6 +198,50 @@ export default function InfluencerSignupForm() {
       if (val >= 0 && val <= 100) setMalePercent((100 - val).toString());
   };
 
+  // Email check on change (debounced)
+  useEffect(() => {
+    if (!email || step !== 1) {
+      setEmailError("");
+      return;
+    }
+
+    // Basic email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setEmailError("");
+      return;
+    }
+
+    // Debounce check
+    const timeoutId = setTimeout(async () => {
+      setCheckingEmail(true);
+      setEmailError("");
+      
+      try {
+        // Check if email exists in influencers table
+        const { count, error: checkError } = await supabase
+          .from('influencers')
+          .select('id', { count: 'exact', head: true }) 
+          .eq('contact_email', email);
+
+        if (count && count > 0) {
+          setEmailError(lang === "el" 
+            ? "Αυτό το Email είναι ήδη καταχωρημένο. Παρακαλώ χρησιμοποιήστε άλλο." 
+            : "This email is already registered. Please use a different one.");
+        } else {
+          setEmailError("");
+        }
+      } catch (err: any) {
+        console.error('Email check error:', err);
+        // Don't show error on network issues, only on duplicates
+      } finally {
+        setCheckingEmail(false);
+      }
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [email, step, lang]);
+
   // --- EMAIL CHECK AND NEXT STEP (STEP 1) ---
   const handleCheckEmailAndNext = async () => {
       setMessage(""); 
@@ -206,16 +252,23 @@ export default function InfluencerSignupForm() {
               throw new Error(lang === "el" ? "Ο κωδικός πρέπει να έχει τουλάχιστον 6 χαρακτήρες." : "Password must be at least 6 characters long.");
           }
 
-          // Έλεγχος στο influencers table (πρώτα εδώ γιατί είναι πιο γρήγορος)
+          // Check if email error exists (from real-time check)
+          if (emailError) {
+              throw new Error(emailError);
+          }
+
+          // Double-check email (in case debounce didn't complete)
           const { count, error: checkError } = await supabase
               .from('influencers')
               .select('id', { count: 'exact', head: true }) 
               .eq('contact_email', email);
 
           if (count && count > 0) { 
-              throw new Error(lang === "el" 
+              const errorMsg = lang === "el" 
                   ? "Αυτό το Email είναι ήδη καταχωρημένο. Παρακαλώ χρησιμοποιήστε άλλο." 
-                  : "This email is already registered. Please use a different one.");
+                  : "This email is already registered. Please use a different one.";
+              setEmailError(errorMsg);
+              throw new Error(errorMsg);
           }
 
           // Προ-έλεγχος: Προσπαθούμε να καθαρίσουμε orphaned auth users (αν υπάρχουν)
@@ -521,7 +574,26 @@ export default function InfluencerSignupForm() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label className={labelClass}>{txt.emailLabel}</label>
-                        <input type="email" className={inputClass} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="brands@example.com" />
+                        <div className="relative">
+                          <input 
+                            type="email" 
+                            className={`${inputClass} ${emailError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`} 
+                            value={email} 
+                            onChange={(e) => setEmail(e.target.value)} 
+                            placeholder="brands@example.com" 
+                          />
+                          {checkingEmail && (
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                              <svg className="animate-spin h-4 w-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                        {emailError && (
+                          <p className="text-red-600 text-xs mt-1 font-medium">{emailError}</p>
+                        )}
                     </div>
                     {/* PASSWORD FIELD WITH TOGGLE */}
                     <div className="relative">
@@ -549,10 +621,10 @@ export default function InfluencerSignupForm() {
                 <div className="mt-8 pt-6 border-t border-slate-200">
                   <button 
                     onClick={handleCheckEmailAndNext} 
-                    disabled={!displayName || !email || !password || loading} 
+                    disabled={!displayName || !email || !password || loading || !!emailError || checkingEmail} 
                     className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-blue-500/30 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {loading ? "Checking..." : txt.next}
+                    {loading ? (lang === "el" ? "Έλεγχος..." : "Checking...") : txt.next}
                   </button>
                 </div>
             </div>
