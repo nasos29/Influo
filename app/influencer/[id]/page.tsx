@@ -826,12 +826,18 @@ export default function InfluencerProfile(props: { params: Params }) {
           {/* Top Section: Avatar, Name, Info */}
           <div className="p-6 md:p-8 flex flex-col md:flex-row items-center md:items-end gap-6 border-b border-slate-100">
             <div className="relative w-40 h-40 rounded-full border-4 border-white shadow-lg overflow-hidden bg-slate-200 -mt-20 md:mb-0">
-                <Image src={profile.avatar} alt={profile.name} fill className="object-cover" />
+                <Image src={profile.avatar} alt={profile.name} fill className="object-contain" />
             </div>
             <div className="flex-1 text-center md:text-left">
                 <h1 className="text-3xl font-bold text-slate-900 flex items-center justify-center md:justify-start gap-2">
-                    {profile.name} {profile.verified && <span className="text-blue-500 text-xl" title={txt.verified}>✔️</span>}
+                    {profile.name}
                 </h1>
+                {profile.verified && (
+                  <div className="flex items-center justify-center md:justify-start gap-1 mt-1">
+                    <span className="text-blue-500 text-sm">✓</span>
+                    <span className="text-xs text-blue-600 font-medium">{txt.verified}</span>
+                  </div>
+                )}
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-1">
                     <p className="text-slate-500">{profile.location} • {profile.gender === "Male" ? txt.male : txt.female}</p>
                     {isOnline && (
@@ -1006,7 +1012,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                 <button onClick={() => setActiveTab("overview")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === "overview" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-700 hover:text-slate-900"}`}>{txt.tab_over}</button>
                 <button onClick={() => setActiveTab("audience")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === "audience" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-700 hover:text-slate-900"}`}>{txt.tab_aud}</button>
                 <button onClick={() => setActiveTab("pricing")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === "pricing" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-700 hover:text-slate-900"}`}>{txt.tab_price}</button>
-                <button onClick={() => setActiveTab("reviews")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === "reviews" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-700 hover:text-slate-900"}`}>{txt.tab_reviews} {profile.total_reviews ? `(${profile.total_reviews})` : ''}</button>
+                <button onClick={() => setActiveTab("reviews")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === "reviews" ? "border-blue-600 text-blue-600 font-extrabold" : "border-transparent text-slate-900 hover:text-slate-900 font-bold"}`}>⭐ {txt.tab_reviews} {profile.total_reviews ? `(${profile.total_reviews})` : ''}</button>
             </nav>
         </div>
 
