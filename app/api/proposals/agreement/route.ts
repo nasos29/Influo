@@ -50,6 +50,17 @@ export async function POST(req: Request) {
             .single();
 
           if (influencerData) {
+            // Check if brand has an account
+            const { data: brandData } = await supabaseAdmin
+              .from('brands')
+              .select('id')
+              .eq('contact_email', proposal.brand_email.toLowerCase().trim())
+              .maybeSingle();
+
+            const brandLink = brandData 
+              ? `${SITE_URL}/brand/login?redirect=dashboard`
+              : `${SITE_URL}/brand/signup?email=${encodeURIComponent(proposal.brand_email)}`;
+
             const subject = `✅ Η συμφωνία για ${influencerData.display_name} έγινε αποδεκτή!`;
             const html = `
               <div style="font-family: sans-serif; padding: 20px; border: 1px solid #10b981; border-radius: 8px; background-color: #ecfdf5;">
@@ -59,12 +70,22 @@ export async function POST(req: Request) {
                   
                   <div style="background-color: white; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #10b981;">
                       <p><strong>Υπηρεσία:</strong> ${proposal.service_type}</p>
-                      <p><strong>Budget:</strong> €${proposal.budget}</p>
+                      <p><strong>Budget:</strong> €${proposal.counter_proposal_budget || proposal.budget}</p>
                   </div>
 
                   <p>Για να ολοκληρωθεί η συνεργασία, παρακαλώ αποδεχτείτε και εσείς τους όρους χρήσης.</p>
                   
-                  <p>Παρακαλώ επισκεφτείτε το <a href="${SITE_URL}/influencer/${proposal.influencer_id}" style="color: #10b981; font-weight: bold;">προφίλ του influencer</a> για να αποδεχτείτε την συμφωνία.</p>
+                  <p style="margin: 20px 0;">
+                    <a href="${brandLink}" style="display: inline-block; padding: 12px 24px; background-color: #10b981; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                      ${brandData ? 'Συνδεθείτε για να αποδεχτείτε' : 'Δημιουργήστε λογαριασμό για να αποδεχτείτε'}
+                    </a>
+                  </p>
+                  
+                  <p style="color: #6b7280; font-size: 14px;">
+                    ${brandData 
+                      ? 'Έχετε ήδη λογαριασμό; Κάντε login για να αποδεχτείτε τη συμφωνία από το dashboard σας.' 
+                      : 'Δημιουργήστε λογαριασμό επιχείρησης (γρήγορη διαδικασία) για να αποδεχτείτε τη συμφωνία και να διαχειριστείτε όλες τις συνεργασίες σας.'}
+                  </p>
                   
                   <p>Η ομάδα του Influo</p>
               </div>
@@ -95,7 +116,7 @@ export async function POST(req: Request) {
               <div style="font-family: sans-serif; padding: 20px; border: 1px solid #10b981; border-radius: 8px; background-color: #ecfdf5;">
                   <h1 style="color: #047857;">Συμφωνία Αποδεκτή!</h1>
                   <p>Γεια σου ${influencerData.display_name},</p>
-                  <p>Το brand <strong>${proposal.brand_name}</strong> αποδέχθηκε τη συμφωνία συνεργασίας!</p>
+                  <p>Η επιχείρηση <strong>${proposal.brand_name}</strong> αποδέχθηκε τη συμφωνία συνεργασίας!</p>
                   
                   <div style="background-color: white; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #10b981;">
                       <p><strong>Υπηρεσία:</strong> ${proposal.service_type}</p>
@@ -173,8 +194,8 @@ export async function POST(req: Request) {
               <div style="font-family: sans-serif; padding: 20px; border: 1px solid #10b981; border-radius: 8px; background-color: #ecfdf5;">
                   <h1 style="color: #047857;">Συνεργασία Ολοκληρώθηκε!</h1>
                   <p>Γεια σου ${influencerData.display_name},</p>
-                  <p>Η συνεργασία με το brand <strong>${proposal.brand_name}</strong> έχει ολοκληρωθεί και το brand προστέθηκε στις συνεργασίες σου!</p>
-                  <p>Το brand ${proposal.brand_name} εμφανίζεται πλέον στο προφίλ σου στο tab "Συνεργασίες".</p>
+                  <p>Η συνεργασία με την επιχείρηση <strong>${proposal.brand_name}</strong> έχει ολοκληρωθεί και η επιχείρηση προστέθηκε στις συνεργασίες σου!</p>
+                  <p>Η επιχείρηση ${proposal.brand_name} εμφανίζεται πλέον στο προφίλ σου στο tab "Συνεργασίες".</p>
                   <br/>
                   <p>Συγχαρητήρια για την επιτυχημένη συνεργασία! 🎉</p>
                   <p>Η ομάδα του Influo</p>

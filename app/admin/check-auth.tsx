@@ -33,7 +33,11 @@ export default function AdminAuthWrapper() {
                 .maybeSingle();
 
             // 2. Έλεγχος: Αν δεν έχει role 'admin' ΚΑΙ το email δεν είναι το Admin Email
-            if (roleData?.role !== 'admin' && user.email !== ADMIN_EMAIL) {
+            // Case-insensitive email check
+            const userEmail = user.email?.toLowerCase().trim();
+            const adminEmail = ADMIN_EMAIL.toLowerCase().trim();
+            
+            if (roleData?.role !== 'admin' && userEmail !== adminEmail) {
                 // Not Admin: Send to Dashboard
                 router.replace('/dashboard?error=unauthorized');
             } else {

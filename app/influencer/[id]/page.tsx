@@ -76,11 +76,13 @@ const t = {
     price_post: "Instagram Post",
     price_reel: "Reel / TikTok",
     price_note: "* Οι τιμές ενδέχεται να αλλάξουν ανάλογα το project.",
+    min_rate: "Ελάχιστη Χρέωση",
+    min_rate_desc: "Η ελάχιστη χρέωση για κάθε συνεργασία",
     modal_title: "Συνεργασία με",
     modal_sub: "Στείλε την πρότασή σου. Θα ειδοποιηθούν άμεσα.",
     modal_srv: "Επιλογή Υπηρεσίας",
-    modal_brand: "Όνομα Brand",
-    modal_email: "Email Brand",
+    modal_brand: "Όνομα Επιχείρησης",
+    modal_email: "Email Επιχείρησης",
     modal_bud: "Budget (€)",
     modal_desc: "Περιγραφή Project",
     modal_btn: "Αποστολή Πρότασης",
@@ -89,8 +91,8 @@ const t = {
     modal_close: "Κλείσιμο",
     modal_sending: "Αποστολή...",
     message_btn: "Μήνυμα",
-    message_prompt_email: "Εισάγετε το email του brand σας για να ξεκινήσετε τη συνομιλία:",
-    message_prompt_name: "Εισάγετε το όνομα του brand σας:",
+    message_prompt_email: "Εισάγετε το email της επιχείρησής σας για να ξεκινήσετε τη συνομιλία:",
+    message_prompt_name: "Εισάγετε το όνομα της επιχείρησής σας:",
     message_title: "Στείλτε Μήνυμα",
     message_desc: "Ξεκινήστε μια συνομιλία με αυτόν/αυτήν τον influencer"
   },
@@ -106,7 +108,7 @@ const t = {
     about: "About",
     portfolio: "Portfolio / Highlights",
     connect: "Connect",
-    collabs: "Brand Collabs",
+    collabs: "Συνεργασίες",
     no_bio: "No bio available.",
     no_vid: "No videos uploaded.",
     tab_over: "Overview",
@@ -142,11 +144,13 @@ const t = {
     price_post: "Instagram Post",
     price_reel: "Reel / TikTok",
     price_note: "* Prices may vary depending on project scope.",
+    min_rate: "Minimum Rate",
+    min_rate_desc: "The minimum charge for each collaboration",
     modal_title: "Work with",
     modal_sub: "Send a proposal. We'll notify them instantly.",
     modal_srv: "Select Service",
-    modal_brand: "Brand Name",
-    modal_email: "Brand Email",
+    modal_brand: "Company Name",
+    modal_email: "Company Email",
     modal_bud: "Budget (€)",
     modal_desc: "Project Details",
     modal_btn: "Send Proposal",
@@ -155,8 +159,8 @@ const t = {
     modal_close: "Close Window",
     modal_sending: "Sending...",
     message_btn: "Message",
-    message_prompt_email: "Enter your brand email to start messaging:",
-    message_prompt_name: "Enter your brand name:",
+    message_prompt_email: "Enter your company email to start messaging:",
+    message_prompt_name: "Enter your company name:",
     message_title: "Send Message",
     message_desc: "Start a conversation with this influencer"
   }
@@ -1137,6 +1141,18 @@ export default function InfluencerProfile(props: { params: Params }) {
                    profile.availability_status === 'busy' ? txt.availability_busy : txt.availability_away}
                 </p>
               </div>
+              
+              {/* Minimum Rate */}
+              {profile.min_rate && (
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 p-4 rounded-xl border-2 border-blue-200 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-lg">💰</span>
+                    <span className="text-xs font-bold text-blue-700 uppercase tracking-wider">{txt.min_rate}</span>
+                  </div>
+                  <p className="text-2xl font-extrabold text-blue-700">{profile.min_rate}€</p>
+                  <p className="text-xs text-blue-600 mt-1">{txt.min_rate_desc}</p>
+                </div>
+              )}
             </div>
             
             {/* Badges */}
@@ -1283,6 +1299,18 @@ export default function InfluencerProfile(props: { params: Params }) {
                 {activeTab === "pricing" && (
                      <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
                         <h2 className="text-xl font-bold text-slate-900 mb-6">{txt.tab_price}</h2>
+                        
+                        {/* Minimum Rate - Prominent Display */}
+                        {profile.min_rate && (
+                          <div className="mb-8 p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 shadow-md">
+                            <div className="flex items-center gap-3 mb-2">
+                              <span className="text-2xl">💰</span>
+                              <h3 className="text-lg font-bold text-slate-900">{txt.min_rate}</h3>
+                            </div>
+                            <p className="text-4xl font-extrabold text-blue-700 mb-2">{profile.min_rate}€</p>
+                            <p className="text-sm text-slate-600">{txt.min_rate_desc}</p>
+                          </div>
+                        )}
                         
                         {/* Service Packages */}
                         {profile.service_packages && profile.service_packages.length > 0 && (

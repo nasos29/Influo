@@ -26,7 +26,11 @@ export default function AdminPage() {
             }
 
             // 1. Έλεγχος: Αν δεν είναι το Admin Email, τον πετάμε έξω!
-            if (user.email !== ADMIN_EMAIL) {
+            // Case-insensitive email check
+            const userEmail = user.email?.toLowerCase().trim();
+            const adminEmail = ADMIN_EMAIL.toLowerCase().trim();
+            
+            if (userEmail !== adminEmail) {
                 router.replace('/dashboard?error=unauthorized');
             } else {
                 setUserRole('admin');

@@ -1,0 +1,365 @@
+"use client";
+
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabaseClient';
+import { useRouter } from 'next/navigation';
+
+type Lang = "el" | "en";
+
+const t = {
+  el: {
+    headerTitle: "Εγγραφή Επιχείρησης",
+    headerDesc: "Δημιούργησε λογαριασμό για να συνεργαστείς με influencers",
+    brandNameLabel: "Όνομα Επιχείρησης",
+    brandNamePlace: "π.χ. Acme Corporation",
+    contactPersonLabel: "Επικοινωνία (Προαιρετικό)",
+    contactPersonPlace: "π.χ. Γιάννης Παπαδόπουλος",
+    emailLabel: "Email",
+    emailPlace: "epixeirisi@example.com",
+    passwordLabel: "Κωδικός (τουλάχιστον 6 χαρακτήρες)",
+    passwordShow: "Εμφάνιση",
+    passwordHide: "Απόκρυψη",
+    afmLabel: "ΑΦΜ (9 ψηφία)",
+    afmPlace: "123456789",
+    websiteLabel: "Ιστοσελίδα (Προαιρετικό)",
+    websitePlace: "https://example.com",
+    industryLabel: "Κλάδος (Προαιρετικό)",
+    industryPlace: "π.χ. Fashion, Tech, Food",
+    submit: "Δημιουργία Λογαριασμού",
+    loading: "Δημιουργία...",
+    successTitle: "Καλώς ήρθατε!",
+    successDesc: "Ο λογαριασμός σας δημιουργήθηκε. Μπορείτε να συνδεθείτε τώρα.",
+    close: "Σύνδεση",
+    back: "← Πίσω",
+    error_required: "Παρακαλώ συμπληρώστε όλα τα απαραίτητα πεδία",
+    error_email_exists: "Αυτό το email χρησιμοποιείται ήδη",
+    error_afm_invalid: "Το ΑΦΜ πρέπει να έχει 9 ψηφία",
+    error_signup: "Σφάλμα κατά την εγγραφή"
+  },
+  en: {
+    headerTitle: "Company Registration",
+    headerDesc: "Create an account to collaborate with influencers",
+    brandNameLabel: "Company Name",
+    brandNamePlace: "e.g. Acme Corporation",
+    contactPersonLabel: "Contact Person (Optional)",
+    contactPersonPlace: "e.g. John Doe",
+    emailLabel: "Email",
+    emailPlace: "company@example.com",
+    passwordLabel: "Password (min 6 characters)",
+    passwordShow: "Show",
+    passwordHide: "Hide",
+    afmLabel: "Tax ID (9 digits)",
+    afmPlace: "123456789",
+    websiteLabel: "Website (Optional)",
+    websitePlace: "https://example.com",
+    industryLabel: "Industry (Optional)",
+    industryPlace: "e.g. Fashion, Tech, Food",
+    submit: "Create Account",
+    loading: "Creating...",
+    successTitle: "Welcome!",
+    successDesc: "Your account has been created. You can log in now.",
+    close: "Sign In",
+    back: "← Back",
+    error_required: "Please fill in all required fields",
+    error_email_exists: "This email is already in use",
+    error_afm_invalid: "Tax ID must have 9 digits",
+    error_signup: "Error during registration"
+  }
+};
+
+export default function BrandSignupForm() {
+  const [lang, setLang] = useState<Lang>("el");
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [success, setSuccess] = useState(false);
+  
+  const router = useRouter();
+  const txt = t[lang];
+
+  // Form states
+  const [brandName, setBrandName] = useState("");
+  const [contactPerson, setContactPerson] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [afm, setAfm] = useState("");
+  const [website, setWebsite] = useState("");
+  const [industry, setIndustry] = useState("");
+
+  // Pre-fill email from URL parameter
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const emailParam = params.get('email');
+      if (emailParam) {
+        setEmail(emailParam);
+      }
+    }
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMessage("");
+    setLoading(true);
+
+    try {
+      // Validation
+      if (!brandName.trim() || !email.trim() || !password.trim() || password.length < 6 || !afm.trim()) {
+        setMessage(txt.error_required);
+        setLoading(false);
+        return;
+      }
+
+      // Validate AFM (9 digits)
+      const afmClean = afm.replace(/\D/g, '');
+      if (afmClean.length !== 9) {
+        setMessage(txt.error_afm_invalid);
+        setLoading(false);
+        return;
+      }
+
+      // Check if email already exists in brands
+      const { count } = await supabase
+        .from('brands')
+        .select('id', { count: 'exact', head: true })
+        .eq('contact_email', email.toLowerCase().trim());
+
+      if (count && count > 0) {
+        setMessage(txt.error_email_exists);
+        setLoading(false);
+        return;
+      }
+
+      // Create auth user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: email.toLowerCase().trim(),
+        password: password,
+      });
+
+      if (authError) throw authError;
+
+      if (!authData.user) {
+        throw new Error('User creation failed');
+      }
+
+      // Create brand record
+      const { error: brandError } = await supabase
+        .from('brands')
+        .insert({
+          id: authData.user.id,
+          brand_name: brandName.trim(),
+          contact_email: email.toLowerCase().trim(),
+          contact_person: contactPerson.trim() || null,
+          afm: afmClean,
+          website: website.trim() || null,
+          industry: industry.trim() || null,
+        });
+
+      if (brandError) {
+        // If brand insert fails, we should clean up the auth user
+        // But this requires admin access, so we'll just show error
+        throw brandError;
+      }
+
+      // Link existing proposals to this brand (by email)
+      await supabase
+        .from('proposals')
+        .update({ brand_id: authData.user.id })
+        .eq('brand_email', email.toLowerCase().trim())
+        .is('brand_id', null);
+
+      setSuccess(true);
+      
+      // Redirect to dashboard after a short delay
+      setTimeout(() => {
+        router.push('/brand/dashboard');
+      }, 2000);
+    } catch (err: any) {
+      console.error('Signup error:', err);
+      setMessage(err.message || txt.error_signup);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (success) {
+    return (
+      <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full mx-auto">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-3xl">✓</span>
+          </div>
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">{txt.successTitle}</h2>
+          <p className="text-slate-600 mb-6">{txt.successDesc}</p>
+          <button
+            onClick={() => router.push('/brand/login')}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors"
+          >
+            {txt.close}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full mx-auto">
+      <div className="flex justify-between items-center mb-6">
+        <button
+          onClick={() => router.back()}
+          className="text-slate-600 hover:text-slate-900 transition-colors"
+        >
+          {txt.back}
+        </button>
+        <button
+          onClick={() => setLang(lang === 'el' ? 'en' : 'el')}
+          className="text-sm font-medium text-blue-600 hover:text-blue-700 px-3 py-1 rounded-lg hover:bg-blue-50 transition-colors"
+        >
+          {lang === 'el' ? 'EN' : 'ΕΛ'}
+        </button>
+      </div>
+
+      <div className="text-center mb-6">
+        <h1 className="text-2xl font-bold text-slate-900 mb-2">{txt.headerTitle}</h1>
+        <p className="text-slate-600 text-sm">{txt.headerDesc}</p>
+      </div>
+
+      {message && (
+        <div className={`mb-4 p-3 rounded-lg text-sm ${
+          message.includes('✓') || message.includes('success') 
+            ? 'bg-green-50 text-green-700' 
+            : 'bg-red-50 text-red-700'
+        }`}>
+          {message}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            {txt.brandNameLabel} *
+          </label>
+          <input
+            type="text"
+            value={brandName}
+            onChange={(e) => setBrandName(e.target.value)}
+            placeholder={txt.brandNamePlace}
+            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            {txt.contactPersonLabel}
+          </label>
+          <input
+            type="text"
+            value={contactPerson}
+            onChange={(e) => setContactPerson(e.target.value)}
+            placeholder={txt.contactPersonPlace}
+            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            {txt.emailLabel} *
+          </label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder={txt.emailPlace}
+            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            {txt.passwordLabel} *
+          </label>
+          <div className="relative">
+            <input
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 pr-12"
+              required
+              minLength={6}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 text-sm"
+            >
+              {showPassword ? txt.passwordHide : txt.passwordShow}
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            {txt.afmLabel} *
+          </label>
+          <input
+            type="text"
+            value={afm}
+            onChange={(e) => {
+              const value = e.target.value.replace(/\D/g, '').slice(0, 9);
+              setAfm(value);
+            }}
+            placeholder={txt.afmPlace}
+            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900"
+            required
+            maxLength={9}
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            {txt.websiteLabel}
+          </label>
+          <input
+            type="url"
+            value={website}
+            onChange={(e) => setWebsite(e.target.value)}
+            placeholder={txt.websitePlace}
+            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            {txt.industryLabel}
+          </label>
+          <input
+            type="text"
+            value={industry}
+            onChange={(e) => setIndustry(e.target.value)}
+            placeholder={txt.industryPlace}
+            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold py-3 px-6 rounded-lg transition-colors"
+        >
+          {loading ? txt.loading : txt.submit}
+        </button>
+      </form>
+
+      <p className="mt-6 text-center text-sm text-slate-600">
+        {lang === 'el' ? 'Έχετε ήδη λογαριασμό; ' : 'Already have an account? '}
+        <a href="/brand/login" className="text-blue-600 hover:text-blue-700 font-medium">
+          {lang === 'el' ? 'Συνδεθείτε' : 'Sign In'}
+        </a>
+      </p>
+    </div>
+  );
+}
+

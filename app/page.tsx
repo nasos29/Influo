@@ -10,6 +10,7 @@ type Lang = "el" | "en";
 const t = {
   el: {
     nav_join: "Εγγραφή Influencer",
+    nav_brand: "Γίνε Brand",
     nav_directory: "Κατάλογος",
     nav_features: "Δυνατότητες",
     nav_admin: "Admin",
@@ -18,7 +19,11 @@ const t = {
     hero_title_2: "με κορυφαία Brands",
     hero_desc: "Η πιο σύγχρονη πλατφόρμα Influencer Marketing στην Ελλάδα. Δημιούργησε το επαγγελματικό σου προφίλ και κλείσε συνεργασίες σήμερα.",
     hero_btn_primary: "Ξεκίνα Δωρεάν",
+    hero_btn_brand: "Γίνε Brand",
     hero_btn_secondary: "Εξερεύνηση",
+    brand_section_title: "Είστε Επιχείρηση;",
+    brand_section_desc: "Βρείτε τους καλύτερους influencers για την εταιρεία σας. Αναζητήστε, επικοινωνήστε και συνεργαστείτε με verified creators.",
+    brand_section_btn: "Δημιούργησε Λογαριασμό Επιχείρησης",
     trusted_by: "ΤΗΝ ΕΜΠΙΣΤΕΥΟΝΤΑΙ CREATORS",
     dir_title: "Κατάλογος Influencers",
     dir_desc: "Ανακάλυψε τους πιο δημιουργικούς content creators ανά κατηγορία και πλατφόρμα.",
@@ -35,6 +40,7 @@ const t = {
   },
   en: {
     nav_join: "Become an Influencer",
+    nav_brand: "For Brands",
     nav_directory: "Directory",
     nav_features: "Features",
     nav_admin: "Admin",
@@ -43,7 +49,11 @@ const t = {
     hero_title_2: "with top Brands",
     hero_desc: "The most modern Influencer Marketing platform in Greece. Create your professional profile and get hired today.",
     hero_btn_primary: "Start for Free",
+    hero_btn_brand: "For Brands",
     hero_btn_secondary: "Explore",
+    brand_section_title: "Are you a Company?",
+    brand_section_desc: "Find the best influencers for your company. Search, connect and collaborate with verified creators.",
+    brand_section_btn: "Create Company Account",
     trusted_by: "TRUSTED BY CREATORS",
     dir_title: "Influencer Directory",
     dir_desc: "Discover the most creative content creators by category and platform.",
@@ -76,7 +86,7 @@ export default function Home() {
             "@context": "https://schema.org",
             "@type": "WebPage",
             "name": "Influo.gr - Πλατφόρμα Influencer Marketing",
-            "description": "Η πιο σύγχρονη πλατφόρμα Influencer Marketing στην Ελλάδα. Σύνδεσε το ταλέντο σου με κορυφαία Brands.",
+            "description": "Η πιο σύγχρονη πλατφόρμα Influencer Marketing στην Ελλάδα. Σύνδεσε το ταλέντο σου με κορυφαίες Επιχειρήσεις.",
             "url": process.env.NEXT_PUBLIC_SITE_URL || "https://influo.gr",
             "inLanguage": "el",
             "alternateName": {
@@ -122,6 +132,9 @@ export default function Home() {
                 <li><button onClick={() => setShowModal(true)} className="hover:text-slate-900 transition-colors">
                   {txt.nav_join}
                 </button></li>
+                <li><a href="/brand/signup" className="hover:text-slate-900 transition-colors">
+                  {txt.nav_brand}
+                </a></li>
                 <li><a href="#directory" className="hover:text-slate-900 transition-colors">
                   {txt.nav_directory}
                 </a></li>
@@ -180,6 +193,13 @@ export default function Home() {
               >
                 {txt.nav_join}
               </button>
+              <a 
+                href="/brand/signup"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors"
+              >
+                {txt.nav_brand}
+              </a>
               <a 
                 href="#directory"
                 onClick={() => setMobileMenuOpen(false)}
@@ -245,6 +265,12 @@ export default function Home() {
                     {txt.hero_btn_primary}
                   </button>
                   <a 
+                    href="/brand/signup"
+                    className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-all transform hover:scale-105 shadow-lg hover:shadow-xl text-lg"
+                  >
+                    {txt.hero_btn_brand}
+                  </a>
+                  <a 
                     href="#directory" 
                     className="px-8 py-4 bg-white hover:bg-slate-50 text-slate-900 font-semibold border-2 border-slate-200 rounded-xl transition-all transform hover:scale-105 shadow-md hover:shadow-lg text-lg"
                   >
@@ -257,7 +283,7 @@ export default function Home() {
               <div className="hidden lg:block relative h-[500px] rounded-2xl overflow-hidden shadow-2xl">
                 <Image 
                   src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&q=80"
-                  alt="Brand collaboration"
+                  alt="Company collaboration"
                   fill
                   className="object-cover"
                   priority
@@ -280,7 +306,7 @@ export default function Home() {
               <div className="relative h-[300px] rounded-2xl overflow-hidden shadow-xl">
                 <Image 
                   src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&q=80"
-                  alt="Brand collaboration"
+                  alt="Company collaboration"
                   fill
                   className="object-cover"
                 />
@@ -305,6 +331,39 @@ export default function Home() {
           <Directory lang={lang} /> 
         </div>
       </section>
+
+      {/* Brand Section */}
+        <section className="relative py-20 px-6 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50" id="brands">
+          <div className="max-w-6xl mx-auto relative">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">{txt.brand_section_title}</h2>
+              <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-8">{txt.brand_section_desc}</p>
+              <a 
+                href="/brand/signup"
+                className="inline-block px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-all transform hover:scale-105 shadow-lg hover:shadow-xl text-lg"
+              >
+                {txt.brand_section_btn}
+              </a>
+            </div>
+            <div className="grid md:grid-cols-3 gap-8">
+              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-2xl mb-4">🔍</div>
+                <h4 className="text-lg font-semibold text-slate-900 mb-2">{lang === "el" ? "Αναζήτηση" : "Search"}</h4>
+                <p className="text-slate-600 text-sm leading-relaxed">{lang === "el" ? "Βρείτε influencers ανά κατηγορία, engagement rate και budget." : "Find influencers by category, engagement rate and budget."}</p>
+              </div>
+              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center text-2xl mb-4">💼</div>
+                <h4 className="text-lg font-semibold text-slate-900 mb-2">{lang === "el" ? "Διαχείριση" : "Management"}</h4>
+                <p className="text-slate-600 text-sm leading-relaxed">{lang === "el" ? "Διαχειριστείτε όλες τις συνεργασίες σας από ένα μέρος." : "Manage all your collaborations from one place."}</p>
+              </div>
+              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center text-2xl mb-4">✅</div>
+                <h4 className="text-lg font-semibold text-slate-900 mb-2">{lang === "el" ? "Verified" : "Verified"}</h4>
+                <p className="text-slate-600 text-sm leading-relaxed">{lang === "el" ? "Όλοι οι influencers είναι verified με πραγματικά στοιχεία." : "All influencers are verified with real stats."}</p>
+              </div>
+            </div>
+          </div>
+        </section>
 
       {/* Features Section */}
         <section className="relative py-20 px-6 bg-gradient-to-br from-slate-50 via-white to-purple-50/20" id="features">
