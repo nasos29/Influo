@@ -200,43 +200,95 @@ export default function Home() {
       </header>
 
       {/* Hero Section */}
-        <section className="relative pt-24 pb-32 px-6 overflow-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50/40">
-          {/* Background image overlay - subtle */}
-          <div 
-            className="absolute inset-0 opacity-[0.03] bg-cover bg-center bg-no-repeat"
-            style={{
-              backgroundImage: `url('https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1200&q=80')`,
-            }}
-          ></div>
+        <section className="relative pt-16 pb-24 md:pt-24 md:pb-32 px-6 overflow-hidden bg-gradient-to-br from-slate-50 via-white to-slate-100">
+          {/* Gray background with handshake pattern */}
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-100 via-slate-50 to-slate-100"></div>
           
           {/* Decorative background elements */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-blue-100/20 rounded-full blur-3xl"></div>
-            <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-100/20 rounded-full blur-3xl"></div>
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-blue-50/30 via-purple-50/30 to-pink-50/30 rounded-full blur-3xl"></div>
+            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-100/10 rounded-full blur-3xl"></div>
+            <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-purple-100/10 rounded-full blur-3xl"></div>
           </div>
           
-          <div className="relative z-10 max-w-6xl mx-auto text-center">
-            <h2 className="text-5xl md:text-6xl lg:text-7xl font-bold text-slate-900 mb-6 leading-tight tracking-tight">
-            {txt.hero_title_1} <br />
-              <span className="text-slate-900">
-              {txt.hero_title_2}
-            </span>
-          </h2>
-          <p className="text-lg md:text-xl text-slate-600 max-w-2xl mx-auto mb-10 leading-relaxed">
-            {txt.hero_desc}
-          </p>
-          
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-              <button onClick={() => setShowModal(true)} className="px-8 py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg transition-colors">
-              {txt.hero_btn_primary}
-            </button>
-              <a href="#directory" className="px-8 py-3.5 bg-white hover:bg-slate-50 text-slate-900 font-semibold border border-slate-200 rounded-lg transition-colors">
-              {txt.hero_btn_secondary}
-            </a>
+          <div className="relative z-10 max-w-7xl mx-auto">
+            <div className="grid lg:grid-cols-3 gap-8 lg:gap-12 items-center">
+              
+              {/* Left Image */}
+              <div className="hidden lg:block relative h-[500px] rounded-2xl overflow-hidden shadow-2xl">
+                <Image 
+                  src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&q=80"
+                  alt="Creative content creator"
+                  fill
+                  className="object-cover"
+                  priority
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+              </div>
+              
+              {/* Center Content */}
+              <div className="lg:col-span-1 text-center lg:text-left">
+                <h1 className="text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-bold text-slate-900 mb-6 leading-[1.1] tracking-tight">
+                  <span className="block">{txt.hero_title_1}</span>
+                  <span className="block bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                    {txt.hero_title_2}
+                  </span>
+                </h1>
+                <p className="text-lg md:text-xl lg:text-2xl text-slate-600 mb-10 leading-relaxed max-w-xl mx-auto lg:mx-0">
+                  {txt.hero_desc}
+                </p>
+                
+                <div className="flex flex-col sm:flex-row justify-center lg:justify-start gap-4">
+                  <button 
+                    onClick={() => setShowModal(true)} 
+                    className="px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl transition-all transform hover:scale-105 shadow-lg hover:shadow-xl text-lg"
+                  >
+                    {txt.hero_btn_primary}
+                  </button>
+                  <a 
+                    href="#directory" 
+                    className="px-8 py-4 bg-white hover:bg-slate-50 text-slate-900 font-semibold border-2 border-slate-200 rounded-xl transition-all transform hover:scale-105 shadow-md hover:shadow-lg text-lg"
+                  >
+                    {txt.hero_btn_secondary}
+                  </a>
+                </div>
+              </div>
+              
+              {/* Right Image */}
+              <div className="hidden lg:block relative h-[500px] rounded-2xl overflow-hidden shadow-2xl">
+                <Image 
+                  src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&q=80"
+                  alt="Brand collaboration"
+                  fill
+                  className="object-cover"
+                  priority
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+              </div>
+            </div>
+            
+            {/* Mobile Images - Stack below */}
+            <div className="lg:hidden grid grid-cols-2 gap-4 mt-12">
+              <div className="relative h-[300px] rounded-2xl overflow-hidden shadow-xl">
+                <Image 
+                  src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&q=80"
+                  alt="Creative content creator"
+                  fill
+                  className="object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+              </div>
+              <div className="relative h-[300px] rounded-2xl overflow-hidden shadow-xl">
+                <Image 
+                  src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&q=80"
+                  alt="Brand collaboration"
+                  fill
+                  className="object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+              </div>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
       {/* Directory Section */}
         <section className="relative py-20 px-6 bg-white" id="directory">

@@ -89,21 +89,21 @@ export async function POST(req: Request) {
           .single();
 
         if (conv) {
-          // Check if digest was sent in the last 60 minutes (throttling)
+          // Check if digest was sent in the last 30 minutes (throttling)
           const lastDigestSent = conv.last_digest_sent_at ? new Date(conv.last_digest_sent_at) : null;
           const now = new Date();
           const minutesSinceLastDigest = lastDigestSent 
             ? (now.getTime() - lastDigestSent.getTime()) / (60 * 1000)
             : 999; // If never sent, allow sending
 
-          // Only send digest if at least 60 minutes have passed since last digest OR if never sent before
-          if (lastDigestSent && minutesSinceLastDigest < 60) {
+          // Only send digest if at least 30 minutes have passed since last digest OR if never sent before
+          if (lastDigestSent && minutesSinceLastDigest < 30) {
             console.log(`[Email Digest] Throttled: last sent ${Math.round(minutesSinceLastDigest)} minutes ago`);
             return NextResponse.json({ success: true, message, conversationId: convId });
           }
 
           // Get unread messages from last 24 hours (expanded window to catch any missed messages)
-          // This ensures we don't miss messages that were sent more than 1 hour ago but never got a digest
+          // This ensures we don't miss messages that were sent more than 30 minutes ago but never got a digest
           const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
           const { data: recentMessages } = await supabaseAdmin
             .from('messages')
@@ -248,21 +248,21 @@ export async function POST(req: Request) {
           .single();
 
         if (conv) {
-          // Check if digest was sent in the last 60 minutes (throttling)
+          // Check if digest was sent in the last 30 minutes (throttling)
           const lastDigestSent = conv.last_digest_sent_at ? new Date(conv.last_digest_sent_at) : null;
           const now = new Date();
           const minutesSinceLastDigest = lastDigestSent 
             ? (now.getTime() - lastDigestSent.getTime()) / (60 * 1000)
             : 999; // If never sent, allow sending
 
-          // Only send digest if at least 60 minutes have passed since last digest OR if never sent before
-          if (lastDigestSent && minutesSinceLastDigest < 60) {
+          // Only send digest if at least 30 minutes have passed since last digest OR if never sent before
+          if (lastDigestSent && minutesSinceLastDigest < 30) {
             console.log(`[Email Digest] Throttled: last sent ${Math.round(minutesSinceLastDigest)} minutes ago`);
             return NextResponse.json({ success: true, message });
           }
 
           // Get unread messages from last 24 hours (expanded window to catch any missed messages)
-          // This ensures we don't miss messages that were sent more than 1 hour ago but never got a digest
+          // This ensures we don't miss messages that were sent more than 30 minutes ago but never got a digest
           const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
           const { data: recentMessages } = await supabaseAdmin
             .from('messages')

@@ -979,13 +979,10 @@ export default function InfluencerProfile(props: { params: Params }) {
             </div>
             
             {/* Badges */}
-            {profile.verified && (
+            {(profile.engagement_rate && parseFloat(profile.engagement_rate.replace('%', '')) > 5) ||
+             (profile.past_brands && profile.past_brands.length > 5) ||
+             (profile.socials && Object.keys(profile.socials).length > 2) ? (
               <div className="mt-4 flex flex-wrap gap-2">
-                {profile.verified && (
-                  <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold">
-                    ✓ {txt.badges_verified}
-                  </span>
-                )}
                 {profile.engagement_rate && parseFloat(profile.engagement_rate.replace('%', '')) > 5 && (
                   <span className="inline-flex items-center gap-1 bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-bold">
                     🏆 {txt.badges_top}
@@ -1002,7 +999,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                   </span>
                 )}
               </div>
-            )}
+            ) : null}
           </div>
         </div>
 
