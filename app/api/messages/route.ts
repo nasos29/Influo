@@ -96,21 +96,24 @@ export async function POST(req: Request) {
             ? (now.getTime() - lastDigestSent.getTime()) / (60 * 1000)
             : 999; // If never sent, allow sending
 
-          // Only send digest if at least 60 minutes have passed since last digest
-          if (minutesSinceLastDigest < 60) {
-            console.log(`Digest throttled: last sent ${Math.round(minutesSinceLastDigest)} minutes ago`);
+          // Only send digest if at least 60 minutes have passed since last digest OR if never sent before
+          if (lastDigestSent && minutesSinceLastDigest < 60) {
+            console.log(`[Email Digest] Throttled: last sent ${Math.round(minutesSinceLastDigest)} minutes ago`);
             return NextResponse.json({ success: true, message, conversationId: convId });
           }
 
-          // Get unread messages from last hour for this conversation
-          const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+          // Get unread messages from last 24 hours (expanded window to catch any missed messages)
+          // This ensures we don't miss messages that were sent more than 1 hour ago but never got a digest
+          const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
           const { data: recentMessages } = await supabaseAdmin
             .from('messages')
             .select('*')
             .eq('conversation_id', convId)
-            .gte('created_at', oneHourAgo)
+            .gte('created_at', oneDayAgo)
             .eq('email_sent', false)
             .order('created_at', { ascending: true });
+
+          console.log(`[Email Digest] Found ${recentMessages?.length || 0} unsent messages for conversation ${convId}, minutes since last digest: ${Math.round(minutesSinceLastDigest)}`);
 
           if (recentMessages && recentMessages.length > 0) {
             const origin = req.headers.get('origin') || req.headers.get('host') || 'localhost:3000';
@@ -175,7 +178,17 @@ export async function POST(req: Request) {
               })
             ];
 
-            await Promise.all(emailPromises);
+            const emailResults = await Promise.allSettled(emailPromises);
+            
+            // Log email sending results
+            emailResults.forEach((result, index) => {
+              const recipient = index === 0 ? 'admin' : index === 1 ? 'influencer' : 'brand';
+              if (result.status === 'fulfilled') {
+                console.log(`[Email Digest] Successfully sent digest to ${recipient}`);
+              } else {
+                console.error(`[Email Digest] Failed to send digest to ${recipient}:`, result.reason);
+              }
+            });
 
             // Mark messages as email_sent
             await supabaseAdmin
@@ -188,10 +201,14 @@ export async function POST(req: Request) {
               .from('conversations')
               .update({ last_digest_sent_at: new Date().toISOString() })
               .eq('id', convId);
+              
+            console.log(`[Email Digest] Marked ${recentMessages.length} messages as sent and updated last_digest_sent_at`);
+          } else {
+            console.log(`[Email Digest] No unsent messages found for conversation ${convId}`);
           }
         }
       } catch (emailError) {
-        console.error('Email digest failed:', emailError);
+        console.error('[Email Digest] Error:', emailError);
       }
 
       return NextResponse.json({ success: true, message, conversationId: convId });
@@ -238,21 +255,24 @@ export async function POST(req: Request) {
             ? (now.getTime() - lastDigestSent.getTime()) / (60 * 1000)
             : 999; // If never sent, allow sending
 
-          // Only send digest if at least 60 minutes have passed since last digest
-          if (minutesSinceLastDigest < 60) {
-            console.log(`Digest throttled: last sent ${Math.round(minutesSinceLastDigest)} minutes ago`);
+          // Only send digest if at least 60 minutes have passed since last digest OR if never sent before
+          if (lastDigestSent && minutesSinceLastDigest < 60) {
+            console.log(`[Email Digest] Throttled: last sent ${Math.round(minutesSinceLastDigest)} minutes ago`);
             return NextResponse.json({ success: true, message });
           }
 
-          // Get unread messages from last hour for this conversation
-          const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+          // Get unread messages from last 24 hours (expanded window to catch any missed messages)
+          // This ensures we don't miss messages that were sent more than 1 hour ago but never got a digest
+          const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
           const { data: recentMessages } = await supabaseAdmin
             .from('messages')
             .select('*')
             .eq('conversation_id', conversationId)
-            .gte('created_at', oneHourAgo)
+            .gte('created_at', oneDayAgo)
             .eq('email_sent', false)
             .order('created_at', { ascending: true });
+
+          console.log(`[Email Digest] Found ${recentMessages?.length || 0} unsent messages for conversation ${conversationId}, minutes since last digest: ${Math.round(minutesSinceLastDigest)}`);
 
           if (recentMessages && recentMessages.length > 0) {
             const origin = req.headers.get('origin') || req.headers.get('host') || 'localhost:3000';
@@ -317,7 +337,17 @@ export async function POST(req: Request) {
               })
             ];
 
-            await Promise.all(emailPromises);
+            const emailResults = await Promise.allSettled(emailPromises);
+            
+            // Log email sending results
+            emailResults.forEach((result, index) => {
+              const recipient = index === 0 ? 'admin' : index === 1 ? 'influencer' : 'brand';
+              if (result.status === 'fulfilled') {
+                console.log(`[Email Digest] Successfully sent digest to ${recipient}`);
+              } else {
+                console.error(`[Email Digest] Failed to send digest to ${recipient}:`, result.reason);
+              }
+            });
 
             // Mark messages as email_sent
             await supabaseAdmin
@@ -330,10 +360,14 @@ export async function POST(req: Request) {
               .from('conversations')
               .update({ last_digest_sent_at: new Date().toISOString() })
               .eq('id', conversationId);
+              
+            console.log(`[Email Digest] Marked ${recentMessages.length} messages as sent and updated last_digest_sent_at`);
+          } else {
+            console.log(`[Email Digest] No unsent messages found for conversation ${conversationId}`);
           }
         }
       } catch (emailError) {
-        console.error('Email digest failed:', emailError);
+        console.error('[Email Digest] Error:', emailError);
       }
 
       return NextResponse.json({ success: true, message });
