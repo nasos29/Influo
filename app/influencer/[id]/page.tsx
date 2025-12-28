@@ -562,8 +562,12 @@ export default function InfluencerProfile(props: { params: Params }) {
       
       {/* LANG TOGGLE */}
       <div className="fixed top-6 right-6 z-50">
-          <button onClick={() => setLang(lang === "el" ? "en" : "el")} className="bg-white/20 backdrop-blur text-white px-3 py-1 rounded font-bold border border-white/30 hover:bg-white/40 shadow-sm">
-            {lang === "el" ? "🇬🇧 EN" : "🇬🇷 EL"}
+          <button 
+            onClick={() => setLang(lang === "el" ? "en" : "el")} 
+            className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors bg-white shadow-sm"
+            aria-label="Toggle language"
+          >
+            {lang === "el" ? "EN" : "EL"}
           </button>
       </div>
 

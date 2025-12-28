@@ -472,9 +472,10 @@ export default function InfluencerSignupForm() {
           </div>
           <button 
               onClick={() => setLang(lang === "el" ? "en" : "el")}
-              className="text-xs font-bold border-2 border-white/30 px-4 py-2 rounded-lg hover:bg-white/20 transition-all backdrop-blur-sm"
+              className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors bg-white"
+              aria-label="Toggle language"
           >
-              {lang === "el" ? "🇬🇧 EN" : "🇬🇷 EL"}
+              {lang === "el" ? "EN" : "EL"}
           </button>
         </div>
       </div>

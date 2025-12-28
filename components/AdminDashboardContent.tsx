@@ -770,7 +770,11 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
               <button onClick={handleCleanupTestUsers} className="px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors">
                 {txt.cleanup_test}
               </button>
-              <button onClick={() => setLang(lang === "el" ? "en" : "el")} className="px-3 py-1.5 text-sm border border-slate-300 rounded-lg hover:bg-slate-50">
+              <button 
+                onClick={() => setLang(lang === "el" ? "en" : "el")} 
+                className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
+                aria-label="Toggle language"
+              >
                 {lang === "el" ? "EN" : "EL"}
               </button>
               <a href="/logout" className="px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors">Logout</a>
