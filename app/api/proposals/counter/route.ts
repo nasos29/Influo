@@ -79,15 +79,16 @@ export async function POST(req: Request) {
                   ${counterMessage ? `<p style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;"><strong>Σχόλιο:</strong><br/>${counterMessage.replace(/\n/g, '<br/>')}</p>` : ''}
               </div>
 
-              <p>Μπορείτε να:</p>
-              <ul style="margin: 15px 0; padding-left: 20px;">
-                  <li>✅ Αποδεχτείτε την αντιπρόταση</li>
-                  <li>❌ Απορρίψετε την αντιπρόταση</li>
-                  <li>💬 Συζητήσετε περισσότερες λεπτομέρειες μέσω μηνυμάτων</li>
-              </ul>
-
-              <p>Παρακαλώ επισκεφτείτε το προφίλ του influencer για να δράσετε:</p>
-              <a href="${SITE_URL}/influencer/${proposal.influencer_id || ''}" style="display: inline-block; padding: 10px 20px; background-color: #f59e0b; color: white; text-decoration: none; border-radius: 5px; margin-top: 10px;">Δείτε το Προφίλ</a>
+              <div style="margin: 20px 0;">
+                  <p style="margin-bottom: 15px; font-weight: bold;">Επιλέξτε μια ενέργεια:</p>
+                  <div style="display: flex; flex-direction: column; gap: 10px;">
+                      <a href="${SITE_URL}/influencer/${proposal.influencer_id || ''}?counterProposal=${proposalId}&action=accept" style="display: inline-block; padding: 12px 24px; background-color: #10b981; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; text-align: center;">✅ Αποδοχή Αντιπρότασης</a>
+                      <a href="${SITE_URL}/influencer/${proposal.influencer_id || ''}?counterProposal=${proposalId}&action=reject" style="display: inline-block; padding: 12px 24px; background-color: #ef4444; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; text-align: center;">❌ Απόρριψη Αντιπρότασης</a>
+                      <a href="${SITE_URL}/influencer/${proposal.influencer_id || ''}?counterProposal=${proposalId}&action=message" style="display: inline-block; padding: 12px 24px; background-color: #3b82f6; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; text-align: center;">💬 Στείλε Μήνυμα</a>
+                  </div>
+              </div>
+              
+              <p style="margin-top: 20px; font-size: 12px; color: #6b7280;">Ή επισκεφτείτε το <a href="${SITE_URL}/influencer/${proposal.influencer_id || ''}?counterProposal=${proposalId}" style="color: #f59e0b;">προφίλ του influencer</a> για περισσότερες πληροφορίες.</p>
           </div>
         `;
         

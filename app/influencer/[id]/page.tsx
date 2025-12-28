@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState, use, Suspense } from "react";
 import Image from "next/image";
+import { useSearchParams, useRouter } from "next/navigation";
 import { dummyInfluencers, Influencer } from "@/components/Directory"; 
 import { supabase } from "@/lib/supabaseClient";
 import { getVideoThumbnail, isVideoUrl } from "@/lib/videoThumbnail";
@@ -164,6 +165,8 @@ const t = {
 export default function InfluencerProfile(props: { params: Params }) {
   const params = use(props.params);
   const id = params.id;
+  const searchParams = useSearchParams();
+  const router = useRouter();
   
   const [lang, setLang] = useState<"el" | "en">("el");
   const txt = t[lang];
@@ -171,6 +174,13 @@ export default function InfluencerProfile(props: { params: Params }) {
   const [activeTab, setActiveTab] = useState("overview");
   const [profile, setProfile] = useState<ProInfluencer | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Counter proposal state
+  const [counterProposalId, setCounterProposalId] = useState<string | null>(null);
+  const [counterProposalAction, setCounterProposalAction] = useState<string | null>(null);
+  const [counterProposal, setCounterProposal] = useState<any>(null);
+  const [showCounterProposalModal, setShowCounterProposalModal] = useState(false);
+  const [processingAction, setProcessingAction] = useState(false);
 
   // MODAL STATE
   const [showProposalModal, setShowProposalModal] = useState(false);
@@ -227,6 +237,101 @@ export default function InfluencerProfile(props: { params: Params }) {
     const interval = setInterval(checkOnlineStatus, 30000);
     return () => clearInterval(interval);
   }, [id]);
+
+  // Load counter proposal data if query params exist
+  useEffect(() => {
+    const propId = searchParams?.get('counterProposal') || null;
+    const action = searchParams?.get('action') || null;
+    
+    if (propId) {
+      setCounterProposalId(propId);
+      setCounterProposalAction(action);
+      setShowCounterProposalModal(true);
+      loadCounterProposal(propId);
+    }
+  }, [searchParams]);
+
+  const loadCounterProposal = async (proposalId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('proposals')
+        .select('*')
+        .eq('id', proposalId)
+        .single();
+      
+      if (!error && data) {
+        setCounterProposal(data);
+        
+        // Auto-execute action if specified
+        const action = searchParams?.get('action');
+        if (action === 'accept') {
+          handleAcceptCounterProposal(proposalId);
+        } else if (action === 'reject') {
+          handleRejectCounterProposal(proposalId);
+        } else if (action === 'message') {
+          // Open message modal with brand email
+          setMessageBrandEmail(data.brand_email);
+          setMessageBrandName(data.brand_name);
+          setShowMessageModal(true);
+          setShowCounterProposalModal(false);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading counter proposal:', error);
+    }
+  };
+
+  const handleAcceptCounterProposal = async (proposalId: string) => {
+    setProcessingAction(true);
+    try {
+      const response = await fetch('/api/proposals/counter/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ proposalId })
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        alert('Η αντιπρόταση αποδεχτήθηκε! Η πρόταση ενημερώθηκε με την νέα τιμή.');
+        setShowCounterProposalModal(false);
+        // Remove query params
+        router.push(`/influencer/${id}`);
+      } else {
+        alert('Σφάλμα: ' + (result.error || 'Αποτυχία αποδοχής αντιπρότασης'));
+      }
+    } catch (error: any) {
+      console.error('Error accepting counter proposal:', error);
+      alert('Σφάλμα: ' + error.message);
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
+  const handleRejectCounterProposal = async (proposalId: string) => {
+    setProcessingAction(true);
+    try {
+      const response = await fetch('/api/proposals/counter/reject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ proposalId })
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        alert('Η αντιπρόταση απορρίφθηκε. Η αρχική πρόταση παραμένει ενεργή.');
+        setShowCounterProposalModal(false);
+        // Remove query params
+        router.push(`/influencer/${id}`);
+      } else {
+        alert('Σφάλμα: ' + (result.error || 'Αποτυχία απόρριψης αντιπρότασης'));
+      }
+    } catch (error: any) {
+      console.error('Error rejecting counter proposal:', error);
+      alert('Σφάλμα: ' + error.message);
+    } finally {
+      setProcessingAction(false);
+    }
+  };
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -1306,6 +1411,83 @@ export default function InfluencerProfile(props: { params: Params }) {
             </div>
         </div>
       </div>
+      
+      {/* Counter Proposal Modal */}
+      {showCounterProposalModal && counterProposal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-8 max-h-[90vh] overflow-y-auto">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-slate-900 mb-2">💰 Αντιπρόταση</h2>
+              <p className="text-slate-600">
+                Ο/Η <strong>{profile?.name}</strong> σας έστειλε μια αντιπρόταση για τη συνεργασία:
+              </p>
+            </div>
+            
+            <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-6 mb-6">
+              <div className="space-y-3">
+                <div>
+                  <span className="text-sm font-semibold text-slate-600">Υπηρεσία:</span>
+                  <p className="text-lg font-bold text-slate-900">{counterProposal.service_type}</p>
+                </div>
+                <div className="flex items-center justify-between border-t border-amber-300 pt-3">
+                  <div>
+                    <span className="text-sm text-slate-600">Προσφερόμενη Τιμή:</span>
+                    <p className="text-lg text-slate-500 line-through">€{counterProposal.budget}</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-sm font-semibold text-amber-700">Αντιπρόταση:</span>
+                    <p className="text-2xl font-extrabold text-amber-600">€{counterProposal.counter_proposal_budget}</p>
+                  </div>
+                </div>
+                {counterProposal.counter_proposal_message && (
+                  <div className="border-t border-amber-300 pt-3">
+                    <span className="text-sm font-semibold text-slate-600">Σχόλιο:</span>
+                    <p className="text-slate-700 mt-1 whitespace-pre-wrap">{counterProposal.counter_proposal_message}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={() => handleAcceptCounterProposal(counterProposal.id)}
+                disabled={processingAction}
+                className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-bold py-3 px-6 rounded-lg transition-colors"
+              >
+                {processingAction ? 'Επεξεργασία...' : '✅ Αποδοχή Αντιπρότασης'}
+              </button>
+              <button
+                onClick={() => handleRejectCounterProposal(counterProposal.id)}
+                disabled={processingAction}
+                className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white font-bold py-3 px-6 rounded-lg transition-colors"
+              >
+                {processingAction ? 'Επεξεργασία...' : '❌ Απόρριψη Αντιπρότασης'}
+              </button>
+              <button
+                onClick={() => {
+                  setMessageBrandEmail(counterProposal.brand_email);
+                  setMessageBrandName(counterProposal.brand_name);
+                  setShowCounterProposalModal(false);
+                  setShowMessageModal(true);
+                }}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors"
+              >
+                💬 Στείλε Μήνυμα
+              </button>
+            </div>
+            
+            <button
+              onClick={() => {
+                setShowCounterProposalModal(false);
+                router.push(`/influencer/${id}`);
+              }}
+              className="mt-4 w-full text-slate-500 hover:text-slate-700 py-2"
+            >
+              Κλείσιμο
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
