@@ -819,40 +819,61 @@ export default function InfluencerProfile(props: { params: Params }) {
 
       {/* PROFESSIONAL HERO HEADER */}
       <div className="relative w-full h-64 md:h-80 bg-slate-900 overflow-hidden">
-        {/* Real collaboration image - showing young influencers with cameras, entrepreneurs, handshakes, happy people */}
+        {/* Real collaboration image - happy young people, influencers, business collaboration */}
         <Image 
-          src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=2000&q=80" 
+          src="https://images.unsplash.com/photo-1559136555-9303baea8ebd?auto=format&fit=crop&w=2000&q=80" 
           alt="Influencer & Brand Collaboration" 
           fill 
-          className="object-cover opacity-70" 
+          className="object-cover opacity-75" 
           priority
         />
         
         {/* Subtle overlay for better text readability */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/70 via-slate-900/40 to-slate-900/20"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/50 to-slate-900/30"></div>
+        
+        {/* Network circles visualization overlay - showing connections like in chemistry */}
+        <div className="absolute inset-0 z-10 opacity-30">
+          <svg width="100%" height="100%" viewBox="0 0 1200 400" preserveAspectRatio="xMidYMid slice" className="absolute inset-0">
+            <defs>
+              <linearGradient id="circleGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.6" />
+                <stop offset="100%" stopColor="#ffffff" stopOpacity="0.3" />
+              </linearGradient>
+            </defs>
+            
+            {/* Network nodes - circles */}
+            <circle cx="150" cy="100" r="8" fill="url(#circleGradient)" stroke="white" strokeWidth="1.5" />
+            <circle cx="350" cy="120" r="6" fill="url(#circleGradient)" stroke="white" strokeWidth="1.5" />
+            <circle cx="600" cy="80" r="10" fill="url(#circleGradient)" stroke="white" strokeWidth="2" />
+            <circle cx="850" cy="100" r="6" fill="url(#circleGradient)" stroke="white" strokeWidth="1.5" />
+            <circle cx="1050" cy="120" r="8" fill="url(#circleGradient)" stroke="white" strokeWidth="1.5" />
+            <circle cx="250" cy="250" r="6" fill="url(#circleGradient)" stroke="white" strokeWidth="1.5" />
+            <circle cx="750" cy="280" r="7" fill="url(#circleGradient)" stroke="white" strokeWidth="1.5" />
+            <circle cx="450" cy="300" r="6" fill="url(#circleGradient)" stroke="white" strokeWidth="1.5" />
+            <circle cx="950" cy="300" r="6" fill="url(#circleGradient)" stroke="white" strokeWidth="1.5" />
+            
+            {/* Connection lines between circles */}
+            <line x1="150" y1="100" x2="350" y2="120" stroke="white" strokeWidth="2" strokeOpacity="0.4" />
+            <line x1="350" y1="120" x2="600" y2="80" stroke="white" strokeWidth="2" strokeOpacity="0.4" />
+            <line x1="600" y1="80" x2="850" y2="100" stroke="white" strokeWidth="2" strokeOpacity="0.4" />
+            <line x1="850" y1="100" x2="1050" y2="120" stroke="white" strokeWidth="2" strokeOpacity="0.4" />
+            <line x1="150" y1="100" x2="250" y2="250" stroke="white" strokeWidth="2" strokeOpacity="0.4" />
+            <line x1="600" y1="80" x2="450" y2="300" stroke="white" strokeWidth="2" strokeOpacity="0.4" />
+            <line x1="850" y1="100" x2="750" y2="280" stroke="white" strokeWidth="2" strokeOpacity="0.4" />
+            <line x1="1050" y1="120" x2="950" y2="300" stroke="white" strokeWidth="2" strokeOpacity="0.4" />
+            <line x1="250" y1="250" x2="450" y2="300" stroke="white" strokeWidth="2" strokeOpacity="0.4" />
+            <line x1="450" y1="300" x2="750" y2="280" stroke="white" strokeWidth="2" strokeOpacity="0.4" />
+            <line x1="750" y1="280" x2="950" y2="300" stroke="white" strokeWidth="2" strokeOpacity="0.4" />
+            <line x1="350" y1="120" x2="450" y2="300" stroke="white" strokeWidth="2" strokeOpacity="0.3" />
+            <line x1="600" y1="80" x2="750" y2="280" stroke="white" strokeWidth="2" strokeOpacity="0.3" />
+          </svg>
+        </div>
         
         {/* Back button */}
         <div className="absolute top-6 left-6 z-20">
           <a href="/" className="text-white bg-white/20 backdrop-blur-md px-4 py-2 rounded-lg font-medium hover:bg-white/30 transition shadow-lg">
             {txt.back}
           </a>
-        </div>
-        
-        {/* Optional: Subtle connection/networking icon overlay at bottom right */}
-        <div className="absolute bottom-6 right-6 z-10 opacity-20">
-          <svg width="120" height="120" viewBox="0 0 100 100" fill="none" className="text-white">
-            {/* Network nodes */}
-            <circle cx="20" cy="20" r="4" fill="currentColor" />
-            <circle cx="80" cy="20" r="4" fill="currentColor" />
-            <circle cx="50" cy="50" r="6" fill="currentColor" />
-            <circle cx="20" cy="80" r="4" fill="currentColor" />
-            <circle cx="80" cy="80" r="4" fill="currentColor" />
-            {/* Connection lines */}
-            <line x1="20" y1="20" x2="50" y2="50" stroke="currentColor" strokeWidth="1.5" />
-            <line x1="80" y1="20" x2="50" y2="50" stroke="currentColor" strokeWidth="1.5" />
-            <line x1="20" y1="80" x2="50" y2="50" stroke="currentColor" strokeWidth="1.5" />
-            <line x1="80" y1="80" x2="50" y2="50" stroke="currentColor" strokeWidth="1.5" />
-          </svg>
         </div>
       </div>
 
