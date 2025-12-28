@@ -935,7 +935,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                   <p className="text-xs text-slate-500">{profile.total_reviews} {txt.stat_reviews}</p>
                 </div>
               ) : (
-                <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm opacity-50">
+                <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-lg">⭐</span>
                     <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{txt.stat_rating}</span>
