@@ -76,6 +76,7 @@ export default function Messaging({
   const [sending, setSending] = useState(false);
   const [isInfluencerOnline, setIsInfluencerOnline] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastSentMessageRef = useRef<string>('');
 
   // Load conversations
   useEffect(() => {
@@ -115,10 +116,20 @@ export default function Messaging({
           table: 'messages',
           filter: `conversation_id=eq.${selectedConversation}`
         }, (payload) => {
-          setMessages((prev) => [...prev, payload.new as Message]);
+          const newMsg = payload.new as Message;
+          // Only play sound if this is not the message we just sent (to avoid double beep)
+          const isOurMessage = lastSentMessageRef.current && 
+            newMsg.content.trim() === lastSentMessageRef.current;
+          
+          if (!isOurMessage) {
+            playNotificationSound();
+          } else {
+            // Clear the ref after checking
+            lastSentMessageRef.current = '';
+          }
+          
+          setMessages((prev) => [...prev, newMsg]);
           scrollToBottom();
-          // Play notification sound
-          playNotificationSound();
         })
         .subscribe();
 
@@ -245,8 +256,9 @@ export default function Messaging({
         const result = await response.json();
         if (!result.success) throw new Error(result.error);
         
-        // Play sound when message is sent
-        playNotificationSound();
+        // Play sound when message is sent (single beep)
+        lastSentMessageRef.current = newMessage.trim();
+        playSendSound();
       }
 
       setNewMessage('');
@@ -265,9 +277,9 @@ export default function Messaging({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Sound when receiving a message
   const playNotificationSound = () => {
     try {
-      // Create a simple notification sound using Web Audio API
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
@@ -275,17 +287,42 @@ export default function Messaging({
       oscillator.connect(gainNode);
       gainNode.connect(audioContext.destination);
       
-      oscillator.frequency.value = 800; // Higher pitch
+      // Soft, pleasant tone for incoming messages
+      oscillator.frequency.value = 700;
       oscillator.type = 'sine';
       
-      gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+      gainNode.gain.setValueAtTime(0.08, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.12);
       
       oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.1);
+      oscillator.stop(audioContext.currentTime + 0.12);
     } catch (error) {
-      // Fallback: Use browser beep if Web Audio API is not available
       console.log('Sound notification');
+    }
+  };
+
+  // Sound when sending a message - single, distinct beep
+  const playSendSound = () => {
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      // Distinct, slightly higher tone for sent messages
+      oscillator.frequency.value = 800;
+      oscillator.type = 'sine';
+      
+      // Quick, crisp beep
+      gainNode.gain.setValueAtTime(0.06, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.08);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.08);
+    } catch (error) {
+      console.log('Send sound notification');
     }
   };
 
