@@ -201,10 +201,10 @@ export default function PrivacyPage() {
             </ul>
           </section>
 
-          <section className="bg-red-50 p-6 rounded-lg border-2 border-red-200 shadow-sm">
-            <h2 className="text-2xl font-bold text-red-900 mb-4">{txt.section7_title}</h2>
-            <p className="text-red-800 font-semibold mb-3">{txt.section7_text}</p>
-            <ul className="list-disc list-inside space-y-2 text-red-800 ml-4">
+          <section className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
+            <h2 className="text-2xl font-bold text-slate-900 mb-4">{txt.section7_title}</h2>
+            <p className="text-slate-700 font-semibold mb-3">{txt.section7_text}</p>
+            <ul className="list-disc list-inside space-y-2 text-slate-700 ml-4">
               <li>{txt.section7_list1}</li>
               <li>{txt.section7_list2}</li>
               <li>{txt.section7_list3}</li>
@@ -212,7 +212,7 @@ export default function PrivacyPage() {
               <li>{txt.section7_list5}</li>
               <li>{txt.section7_list6}</li>
             </ul>
-            <p className="text-red-800 mt-4 font-semibold leading-relaxed">{txt.section7_text2}</p>
+            <p className="text-slate-700 mt-4 font-semibold leading-relaxed">{txt.section7_text2}</p>
           </section>
 
           <section className="bg-blue-50 p-6 rounded-lg border-2 border-blue-200 shadow-sm">

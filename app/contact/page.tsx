@@ -28,22 +28,10 @@ export default function ContactPage() {
       form_success: "Το μήνυμά σας στάλθηκε επιτυχώς! Θα σας απαντήσουμε το συντομότερο δυνατό.",
       
       info_title: "Πληροφορίες Επικοινωνίας",
-      info_email: "Email:",
-      info_email_value: "contact@influo.gr",
       info_response: "Χρόνος Απάντησης:",
       info_response_value: "48-72 ώρες",
       info_hours: "Ώρες Λειτουργίας:",
       info_hours_value: "Δευτέρα - Παρασκευή, 9:00 - 18:00 (EET)",
-      
-      note_title: "Σημαντική Σημείωση",
-      note_text: "Η πλατφόρμα Influo.gr είναι μια δωρεάν υπηρεσία που παρέχεται χωρίς οικονομικό όφελος. Δεν έχουμε κάνει εγκατάσταση στην εφορία και δεν λειτουργούμε ως εμπορική επιχείρηση. Πρόκειται για προσωπικό project για εκπαιδευτικούς/τεχνικούς σκοπούς. Θα προσπαθήσουμε να απαντήσουμε σε όλα τα μηνύματα, αλλά δεν μπορούμε να εγγυηθούμε άμεση ή πάντα διαθέσιμη υποστήριξη.",
-      
-      disclaimer_title: "Αποποίηση Ευθυνών",
-      disclaimer_text: "Σημειώνουμε ότι δεν φέρουμε καμία ευθύνη για:",
-      disclaimer_list1: "Αποτελέσματα συνεργασιών μεταξύ influencers και brands",
-      disclaimer_list2: "Πληρωμές, συμβάσεις ή διαπραγματεύσεις μεταξύ χρηστών",
-      disclaimer_list3: "Τεχνικά προβλήματα ή διακοπές λειτουργίας",
-      disclaimer_list4: "Απώλεια δεδομένων ή άλλες ζημίες",
       
       back: "← Επιστροφή στην Αρχική",
     },
@@ -60,22 +48,10 @@ export default function ContactPage() {
       form_success: "Your message has been sent successfully! We'll get back to you as soon as possible.",
       
       info_title: "Contact Information",
-      info_email: "Email:",
-      info_email_value: "contact@influo.gr",
       info_response: "Response Time:",
       info_response_value: "48-72 hours",
       info_hours: "Business Hours:",
       info_hours_value: "Monday - Friday, 9:00 AM - 6:00 PM (EET)",
-      
-      note_title: "Important Note",
-      note_text: "The Influo.gr platform is a free service provided without financial benefit. We have not registered with tax authorities and do not operate as a commercial business. This is a personal project for educational/technical purposes. We will try to respond to all messages, but we cannot guarantee immediate or always available support.",
-      
-      disclaimer_title: "Liability Disclaimer",
-      disclaimer_text: "We note that we bear no responsibility for:",
-      disclaimer_list1: "Outcomes of collaborations between influencers and brands",
-      disclaimer_list2: "Payments, contracts, or negotiations between users",
-      disclaimer_list3: "Technical problems or service interruptions",
-      disclaimer_list4: "Data loss or other damages",
       
       back: "← Back to Home",
     }
@@ -86,14 +62,33 @@ export default function ContactPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Here you would normally send the form data to a backend API
-    // For now, we'll just show a success message
-    console.log('Form submitted:', formData);
-    setSubmitted(true);
-    setFormData({ name: '', email: '', subject: '', message: '' });
-    
-    // Reset success message after 5 seconds
-    setTimeout(() => setSubmitted(false), 5000);
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setSubmitted(true);
+        setFormData({ name: '', email: '', subject: '', message: '' });
+        // Reset success message after 5 seconds
+        setTimeout(() => setSubmitted(false), 5000);
+      } else {
+        alert(lang === 'el' 
+          ? `Σφάλμα: ${result.error || 'Αποτυχία αποστολής μηνύματος'}` 
+          : `Error: ${result.error || 'Failed to send message'}`);
+      }
+    } catch (error) {
+      console.error('Error submitting contact form:', error);
+      alert(lang === 'el' 
+        ? 'Σφάλμα: Αποτυχία αποστολής μηνύματος. Παρακαλώ δοκιμάστε ξανά.' 
+        : 'Error: Failed to send message. Please try again.');
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -214,12 +209,6 @@ export default function ContactPage() {
               <h2 className="text-2xl font-bold text-slate-900 mb-6">{txt.info_title}</h2>
               <div className="space-y-4 text-slate-700">
                 <div>
-                  <p className="font-semibold mb-1">{txt.info_email}</p>
-                  <a href={`mailto:${txt.info_email_value}`} className="text-blue-600 hover:text-blue-700">
-                    {txt.info_email_value}
-                  </a>
-                </div>
-                <div>
                   <p className="font-semibold mb-1">{txt.info_response}</p>
                   <p>{txt.info_response_value}</p>
                 </div>
@@ -230,21 +219,6 @@ export default function ContactPage() {
               </div>
             </div>
 
-            <div className="bg-blue-50 p-6 rounded-lg border border-blue-200 shadow-sm">
-              <h3 className="text-xl font-bold text-blue-900 mb-4">{txt.note_title}</h3>
-              <p className="text-blue-800 leading-relaxed text-sm">{txt.note_text}</p>
-            </div>
-
-            <div className="bg-yellow-50 p-6 rounded-lg border border-yellow-200 shadow-sm">
-              <h3 className="text-xl font-bold text-yellow-900 mb-4">{txt.disclaimer_title}</h3>
-              <p className="text-yellow-800 mb-3 text-sm">{txt.disclaimer_text}</p>
-              <ul className="list-disc list-inside space-y-1 text-yellow-800 text-sm ml-4">
-                <li>{txt.disclaimer_list1}</li>
-                <li>{txt.disclaimer_list2}</li>
-                <li>{txt.disclaimer_list3}</li>
-                <li>{txt.disclaimer_list4}</li>
-              </ul>
-            </div>
           </div>
         </div>
 
