@@ -30,6 +30,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Proposal not found' }, { status: 404 });
     }
 
+    // Check if agreement already exists or counter-proposal already processed - if so, don't send email
+    const hasAgreement = proposal.influencer_agreement_accepted || proposal.brand_agreement_accepted;
+    const counterAlreadyProcessed = proposal.counter_proposal_status === 'accepted' || proposal.counter_proposal_status === 'rejected';
+    
+    if (hasAgreement || counterAlreadyProcessed) {
+      // Still allow updating the counter-proposal, but don't send email
+      console.warn('Counter-proposal email skipped: agreement exists or already processed', { 
+        hasAgreement, 
+        counterAlreadyProcessed,
+        proposalId 
+      });
+    }
+
     // Update proposal with counter-proposal
     const { data: updatedProposal, error: updateError } = await supabaseAdmin
       .from('proposals')
@@ -62,7 +75,10 @@ export async function POST(req: Request) {
         }
       }
       
-      if (!process.env.RESEND_API_KEY) {
+      // Only send email if no agreement exists and counter-proposal not already processed
+      if (hasAgreement || counterAlreadyProcessed) {
+        console.log('Skipping counter-proposal email - agreement exists or already processed');
+      } else if (!process.env.RESEND_API_KEY) {
         console.warn('RESEND_API_KEY not set, skipping email');
       } else {
         const subject = `💰 Αντιπρόταση από ${influencerName}`;

@@ -8,6 +8,7 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const VERIFIED_SENDER_EMAIL = 'noreply@influo.gr';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr';
 
 export async function POST(req: Request) {
   try {
@@ -35,6 +36,96 @@ export async function POST(req: Request) {
       updateData.influencer_agreement_accepted = accepted;
     } else if (userType === 'brand') {
       updateData.brand_agreement_accepted = accepted;
+    }
+
+    // Send notification email when one party accepts (before both accept)
+    if (accepted && process.env.RESEND_API_KEY) {
+      try {
+        if (userType === 'influencer') {
+          // Influencer accepted - notify brand
+          const { data: influencerData } = await supabaseAdmin
+            .from('influencers')
+            .select('display_name')
+            .eq('id', proposal.influencer_id)
+            .single();
+
+          if (influencerData) {
+            const subject = `✅ Η συμφωνία για ${influencerData.display_name} έγινε αποδεκτή!`;
+            const html = `
+              <div style="font-family: sans-serif; padding: 20px; border: 1px solid #10b981; border-radius: 8px; background-color: #ecfdf5;">
+                  <h1 style="color: #047857;">Συμφωνία Αποδεκτή!</h1>
+                  <p>Γεια σας ${proposal.brand_name},</p>
+                  <p>Ο/Η <strong>${influencerData.display_name}</strong> αποδέχθηκε τη συμφωνία συνεργασίας!</p>
+                  
+                  <div style="background-color: white; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #10b981;">
+                      <p><strong>Υπηρεσία:</strong> ${proposal.service_type}</p>
+                      <p><strong>Budget:</strong> €${proposal.budget}</p>
+                  </div>
+
+                  <p>Για να ολοκληρωθεί η συνεργασία, παρακαλώ αποδεχτείτε και εσείς τους όρους χρήσης.</p>
+                  
+                  <p>Παρακαλώ επισκεφτείτε το <a href="${SITE_URL}/influencer/${proposal.influencer_id}" style="color: #10b981; font-weight: bold;">προφίλ του influencer</a> για να αποδεχτείτε την συμφωνία.</p>
+                  
+                  <p>Η ομάδα του Influo</p>
+              </div>
+            `;
+            
+            console.log('Sending agreement accepted email to brand:', proposal.brand_email);
+            
+            await resend.emails.send({
+              from: `Influo <${VERIFIED_SENDER_EMAIL}>`,
+              to: [proposal.brand_email],
+              subject: subject,
+              html: html,
+            });
+            
+            console.log('Agreement accepted email sent successfully to brand');
+          }
+        } else if (userType === 'brand') {
+          // Brand accepted - notify influencer
+          const { data: influencerData } = await supabaseAdmin
+            .from('influencers')
+            .select('contact_email, display_name')
+            .eq('id', proposal.influencer_id)
+            .single();
+
+          if (influencerData) {
+            const subject = `✅ Η συμφωνία για ${proposal.brand_name} έγινε αποδεκτή!`;
+            const html = `
+              <div style="font-family: sans-serif; padding: 20px; border: 1px solid #10b981; border-radius: 8px; background-color: #ecfdf5;">
+                  <h1 style="color: #047857;">Συμφωνία Αποδεκτή!</h1>
+                  <p>Γεια σου ${influencerData.display_name},</p>
+                  <p>Το brand <strong>${proposal.brand_name}</strong> αποδέχθηκε τη συμφωνία συνεργασίας!</p>
+                  
+                  <div style="background-color: white; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #10b981;">
+                      <p><strong>Υπηρεσία:</strong> ${proposal.service_type}</p>
+                      <p><strong>Budget:</strong> €${proposal.budget}</p>
+                  </div>
+
+                  <p>Για να ολοκληρωθεί η συνεργασία, παρακαλώ αποδεχτείτε και εσείς τους όρους χρήσης.</p>
+                  
+                  <p>Παρακαλώ επισκεφτείτε το <a href="${SITE_URL}/dashboard" style="color: #10b981; font-weight: bold;">dashboard σας</a> για να αποδεχτείτε την συμφωνία.</p>
+                  
+                  <p>Η ομάδα του Influo</p>
+              </div>
+            `;
+            
+            console.log('Sending agreement accepted email to influencer:', influencerData.contact_email);
+            
+            await resend.emails.send({
+              from: `Influo <${VERIFIED_SENDER_EMAIL}>`,
+              to: [influencerData.contact_email],
+              subject: subject,
+              html: html,
+            });
+            
+            console.log('Agreement accepted email sent successfully to influencer');
+          }
+        }
+      } catch (emailError: any) {
+        console.error('Error sending agreement acceptance email:', emailError);
+        // Don't fail the request if email fails
+      }
     }
 
     // If both accepted, mark agreement as complete
