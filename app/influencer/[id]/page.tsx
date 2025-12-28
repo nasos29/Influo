@@ -9,6 +9,7 @@ import { getVideoThumbnail, isVideoUrl } from "@/lib/videoThumbnail";
 type Params = Promise<{ id: string }>;
 
 interface ProInfluencer extends Influencer {
+  contact_email?: string;
   engagement_rate?: string;
   avg_likes?: string;
   audience_data?: { male: number; female: number; top_age: string };
@@ -300,6 +301,7 @@ export default function InfluencerProfile(props: { params: Params }) {
           bio: data.bio || "",
           avatar: data.avatar_url || "https://images.unsplash.com/photo-1633332755192-727a05c4013d?auto=format&fit=crop&w=400&q=80",
           verified: data.verified,
+          contact_email: data.contact_email,
           socials: socialsObj,
           followers: followersObj,
           categories: data.category ? [data.category] : ["Creator"],
