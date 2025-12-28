@@ -615,7 +615,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                             >
                                 <span className="hidden md:inline">📋 </span>Προσφορές
                                 {pendingProposalsCount > 0 && (
-                                    <span className="absolute top-1.5 right-1 md:top-2 md:right-2 bg-red-500 text-white text-[10px] md:text-xs font-bold rounded-full min-w-[18px] md:min-w-[20px] h-[18px] md:h-5 flex items-center justify-center px-0.5 md:px-1">
+                                    <span className="absolute top-1 right-1 md:top-1.5 md:right-1.5 bg-red-500 text-white text-[9px] md:text-[10px] font-bold rounded-full min-w-[14px] md:min-w-[16px] h-[14px] md:h-[16px] flex items-center justify-center px-0.5">
                                         {pendingProposalsCount > 99 ? '99+' : pendingProposalsCount > 9 ? '9+' : pendingProposalsCount}
                                     </span>
                                 )}
@@ -630,7 +630,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                             >
                                 <span className="hidden md:inline">💬 </span>Μηνύματα
                                 {unreadMessagesCount > 0 && (
-                                    <span className="absolute top-1.5 right-1 md:top-2 md:right-2 bg-red-500 text-white text-[10px] md:text-xs font-bold rounded-full min-w-[18px] md:min-w-[20px] h-[18px] md:h-5 flex items-center justify-center px-0.5 md:px-1">
+                                    <span className="absolute top-1 right-1 md:top-1.5 md:right-1.5 bg-red-500 text-white text-[9px] md:text-[10px] font-bold rounded-full min-w-[14px] md:min-w-[16px] h-[14px] md:h-[16px] flex items-center justify-center px-0.5">
                                         {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
                                     </span>
                                 )}

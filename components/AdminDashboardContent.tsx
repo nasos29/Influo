@@ -493,6 +493,8 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     reach: "0",
     pipeline: "0€" 
   });
+  const [pendingProposalsCount, setPendingProposalsCount] = useState(0);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
 
   const fetchConversations = async () => {
     try {
@@ -546,12 +548,15 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       let formattedReach = totalReachNum > 1000000 ? (totalReachNum / 1000000).toFixed(1) + 'M' : (totalReachNum / 1000).toFixed(1) + 'k';
 
       let pipelineSum = 0;
+      let pendingProps = 0;
       if (propData) {
           setProposals(propData as any);
           propData.forEach(p => {
               const val = parseFloat(p.budget);
               if (!isNaN(val)) pipelineSum += val;
+              if (p.status === 'pending') pendingProps++;
           });
+          setPendingProposalsCount(pendingProps);
       }
 
       setStats({ 
@@ -564,10 +569,49 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     }
     setLoading(false);
   };
+  
+  // Load unread messages count for admin
+  useEffect(() => {
+    const loadUnreadMessages = async () => {
+      try {
+        // Count all unread messages from both brands and influencers
+        const { count, error } = await supabase
+          .from('messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('read', false);
+        
+        if (!error && count !== null) {
+          setUnreadMessagesCount(count);
+        } else if (error) {
+          console.error('Error counting unread messages:', error);
+          setUnreadMessagesCount(0);
+        }
+      } catch (error) {
+        console.error('Error loading unread messages count:', error);
+      }
+    };
+    
+    loadUnreadMessages();
+    
+    // Refresh every 30 seconds
+    const interval = setInterval(() => {
+      loadUnreadMessages();
+    }, 30000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     fetchData();
     fetchConversations();
+    
+    // Refresh counts periodically
+    const interval = setInterval(() => {
+      fetchData();
+      fetchConversations();
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -825,23 +869,33 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
               </button>
               <button 
                 onClick={() => setActiveTab("proposals")} 
-                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors relative ${
                   activeTab === "proposals" 
                     ? "border-slate-900 text-slate-900" 
                     : "border-transparent text-slate-500 hover:text-slate-700"
                 }`}
               >
                 {txt.tab_deals} ({proposals.length})
+                {pendingProposalsCount > 0 && (
+                  <span className="absolute top-1 right-1 md:top-1.5 md:right-1.5 bg-red-500 text-white text-[9px] md:text-[10px] font-bold rounded-full min-w-[14px] md:min-w-[16px] h-[14px] md:h-[16px] flex items-center justify-center px-0.5">
+                    {pendingProposalsCount > 99 ? '99+' : pendingProposalsCount > 9 ? '9+' : pendingProposalsCount}
+                  </span>
+                )}
               </button>
               <button 
                 onClick={() => setActiveTab("conversations")} 
-                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors relative ${
                   activeTab === "conversations" 
                     ? "border-slate-900 text-slate-900" 
                     : "border-transparent text-slate-500 hover:text-slate-700"
                 }`}
               >
                 💬 Συνομιλίες ({conversations.length})
+                {unreadMessagesCount > 0 && (
+                  <span className="absolute top-1 right-1 md:top-1.5 md:right-1.5 bg-red-500 text-white text-[9px] md:text-[10px] font-bold rounded-full min-w-[14px] md:min-w-[16px] h-[14px] md:h-[16px] flex items-center justify-center px-0.5">
+                    {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
+                  </span>
+                )}
               </button>
             </div>
           </div>

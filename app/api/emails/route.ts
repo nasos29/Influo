@@ -218,7 +218,7 @@ export async function POST(req: Request) {
     }
     else if (type === 'counter_proposal_notification') {
         toEmail = email;
-        const { influencerName, influencerId, originalBudget, counterBudget, counterMessage, serviceType } = body;
+        const { brandName, influencerName, influencerId, originalBudget, counterBudget, counterMessage, serviceType } = body;
         subject = `💰 Αντιπρόταση από ${influencerName}`;
         html = `
             <div style="font-family: sans-serif; padding: 20px; border: 1px solid #f59e0b; border-radius: 8px; background-color: #fffbeb;">
