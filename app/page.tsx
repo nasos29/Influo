@@ -9,7 +9,7 @@ type Lang = "el" | "en";
 
 const t = {
   el: {
-    nav_join: "Γίνε Influencer",
+    nav_join: "Εγγραφή Influencer",
     nav_directory: "Κατάλογος",
     nav_features: "Δυνατότητες",
     nav_admin: "Admin",
