@@ -361,6 +361,9 @@ interface Proposal {
   influencer_agreement_accepted: boolean | null;
   brand_agreement_accepted: boolean | null;
   brand_added_to_past_brands: boolean | null;
+  counter_proposal_budget?: string | null;
+  counter_proposal_status?: string | null;
+  counter_proposal_message?: string | null;
 }
 
 export default function DashboardContent({ profile: initialProfile }: { profile: InfluencerData }) {
@@ -373,6 +376,11 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     const [showAgreementModal, setShowAgreementModal] = useState(false);
     const [agreementAccepted, setAgreementAccepted] = useState(false);
     const [savingAgreement, setSavingAgreement] = useState(false);
+    const [showCounterProposalModal, setShowCounterProposalModal] = useState(false);
+    const [counterBudget, setCounterBudget] = useState('');
+    const [counterMessage, setCounterMessage] = useState('');
+    const [savingCounterProposal, setSavingCounterProposal] = useState(false);
+    const [selectedProposalForMessaging, setSelectedProposalForMessaging] = useState<Proposal | null>(null);
 
     // Load proposals
     useEffect(() => {
@@ -416,6 +424,54 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     const handleProfileSave = (updatedUser: InfluencerData) => {
         setProfile(updatedUser);
         setShowEditModal(false);
+    };
+
+    const handleSubmitCounterProposal = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedProposal || !counterBudget) return;
+
+        setSavingCounterProposal(true);
+        try {
+            const response = await fetch('/api/proposals/counter', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    proposalId: selectedProposal.id,
+                    counterBudget: counterBudget,
+                    counterMessage: counterMessage
+                })
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                // Refresh proposals
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                    const { data } = await supabase
+                        .from('proposals')
+                        .select('*')
+                        .eq('influencer_id', user.id)
+                        .order('created_at', { ascending: false });
+                    
+                    if (data) {
+                        setProposals(data as Proposal[]);
+                    }
+                }
+
+                setShowCounterProposalModal(false);
+                setSelectedProposal(null);
+                setCounterBudget('');
+                setCounterMessage('');
+                alert('Η αντιπρόταση στάλθηκε! Το brand θα λάβει email με τις λεπτομέρειες.');
+            } else {
+                throw new Error(result.error || 'Σφάλμα αποστολής αντιπρότασης');
+            }
+        } catch (err: any) {
+            console.error('Error submitting counter-proposal:', err);
+            alert('Σφάλμα: ' + err.message);
+        } finally {
+            setSavingCounterProposal(false);
+        }
     };
 
     const handleAcceptAgreement = async () => {
@@ -578,6 +634,16 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                             {prop.message && (
                                                                 <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg mt-2">{prop.message}</p>
                                                             )}
+                                                            {prop.counter_proposal_budget && prop.counter_proposal_status === 'pending' && (
+                                                                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                                                    <p className="text-sm font-semibold text-blue-900 mb-1">💰 Αντιπρόταση στάλθηκε</p>
+                                                                    <p className="text-xs text-blue-700">Νέα προτεινόμενη τιμή: <strong>{prop.counter_proposal_budget}€</strong></p>
+                                                                    {prop.counter_proposal_message && (
+                                                                        <p className="text-xs text-blue-600 mt-1 italic">"{prop.counter_proposal_message}"</p>
+                                                                    )}
+                                                                    <p className="text-xs text-blue-500 mt-2">⏳ Αναμένεται απάντηση από το brand</p>
+                                                                </div>
+                                                            )}
                                                             <p className="text-xs text-slate-500 mt-2">
                                                                 {new Date(prop.created_at).toLocaleDateString('el-GR', { 
                                                                     day: 'numeric', 
@@ -586,22 +652,52 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                 })}
                                                             </p>
                                                         </div>
-                                                        {needsAgreement && (
-                                                            <button
-                                                                onClick={() => {
-                                                                    setSelectedProposal(prop);
-                                                                    setShowAgreementModal(true);
-                                                                }}
-                                                                className="ml-4 px-5 py-2.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-semibold rounded-lg transition-all text-sm whitespace-nowrap shadow-lg hover:shadow-xl transform hover:scale-105"
-                                                            >
-                                                                ⚠️ Αποδοχή Συμφωνίας
-                                                            </button>
-                                                        )}
-                                                        {hasAgreement && (
-                                                            <div className="ml-4 px-4 py-2 bg-green-100 text-green-700 font-medium rounded-lg text-sm whitespace-nowrap">
-                                                                ✅ Συμφωνία Ολοκληρωμένη
-                                                            </div>
-                                                        )}
+                                                        <div className="ml-4 flex flex-col gap-2">
+                                                            {needsAgreement && (
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setSelectedProposal(prop);
+                                                                        setShowAgreementModal(true);
+                                                                    }}
+                                                                    className="px-4 py-2 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-semibold rounded-lg transition-all text-xs whitespace-nowrap shadow-lg hover:shadow-xl"
+                                                                >
+                                                                    ⚠️ Συμφωνία
+                                                                </button>
+                                                            )}
+                                                            {prop.status === 'pending' && !prop.counter_proposal_budget && (
+                                                                <>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setSelectedProposal(prop);
+                                                                            setCounterBudget('');
+                                                                            setCounterMessage('');
+                                                                            setShowCounterProposalModal(true);
+                                                                        }}
+                                                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all text-xs whitespace-nowrap"
+                                                                    >
+                                                                        💰 Αντιπρόταση
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setSelectedProposalForMessaging(prop);
+                                                                            setActiveTab('messages');
+                                                                            // Auto-select conversation for this brand
+                                                                            setTimeout(() => {
+                                                                                // Will be handled by Messaging component
+                                                                            }, 100);
+                                                                        }}
+                                                                        className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white font-semibold rounded-lg transition-all text-xs whitespace-nowrap"
+                                                                    >
+                                                                        💬 Συζήτησε το
+                                                                    </button>
+                                                                </>
+                                                            )}
+                                                            {hasAgreement && (
+                                                                <div className="px-4 py-2 bg-green-100 text-green-700 font-medium rounded-lg text-xs whitespace-nowrap text-center">
+                                                                    ✅ Συμφωνία
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             );
@@ -661,6 +757,9 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 influencerId={profile.id}
                                 influencerName={profile.display_name}
                                 influencerEmail={profile.contact_email}
+                                brandEmail={selectedProposalForMessaging?.brand_email}
+                                brandName={selectedProposalForMessaging?.brand_name}
+                                proposalId={selectedProposalForMessaging?.id}
                                 mode="influencer"
                                 lang="el"
                             />
@@ -821,6 +920,98 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 </button>
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Counter-Proposal Modal */}
+            {showCounterProposalModal && selectedProposal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+                        <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+                            <h2 className="text-xl font-bold text-slate-900">💰 Υποβολή Αντιπρότασης</h2>
+                            <button 
+                                onClick={() => {
+                                    setShowCounterProposalModal(false);
+                                    setSelectedProposal(null);
+                                    setCounterBudget('');
+                                    setCounterMessage('');
+                                }}
+                                className="text-slate-400 hover:text-slate-600 text-2xl"
+                            >
+                                ×
+                            </button>
+                        </div>
+                        
+                        <form onSubmit={handleSubmitCounterProposal} className="p-6 space-y-6">
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <p className="text-sm text-blue-900 font-medium mb-2">
+                                    Αυτή τη στιγμή: <strong>{selectedProposal.brand_name}</strong> προτείνει
+                                </p>
+                                <p className="text-sm text-blue-800">
+                                    <strong>{selectedProposal.service_type}</strong> • <strong>{selectedProposal.budget}€</strong>
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-900 mb-2">
+                                    Προτεινόμενη Τιμή (€) *
+                                </label>
+                                <input
+                                    type="text"
+                                    value={counterBudget}
+                                    onChange={(e) => setCounterBudget(e.target.value)}
+                                    placeholder={selectedProposal.budget}
+                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900"
+                                    required
+                                />
+                                <p className="text-xs text-slate-500 mt-1">
+                                    Προσφέρετε την τιμή που θεωρείτε δίκαιη για αυτή τη συνεργασία
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-900 mb-2">
+                                    Μήνυμα (Προαιρετικό)
+                                </label>
+                                <textarea
+                                    value={counterMessage}
+                                    onChange={(e) => setCounterMessage(e.target.value)}
+                                    placeholder="Εξηγήστε γιατί η αντιπρότασή σας είναι δίκαιη..."
+                                    rows={4}
+                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900"
+                                />
+                            </div>
+
+                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                                <p className="text-xs text-amber-800">
+                                    💡 <strong>Συμβουλή:</strong> Η αντιπρόταση σας θα σταλεί ως email στο brand. 
+                                    Μπορείτε να συζητήσετε περισσότερες λεπτομέρειες μέσω των μηνυμάτων.
+                                </p>
+                            </div>
+
+                            <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowCounterProposalModal(false);
+                                        setSelectedProposal(null);
+                                        setCounterBudget('');
+                                        setCounterMessage('');
+                                    }}
+                                    className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg font-medium transition-colors"
+                                >
+                                    Ακύρωση
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={!counterBudget || savingCounterProposal}
+                                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    {savingCounterProposal ? 'Αποστολή...' : 'Αποστολή Αντιπρότασης'}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

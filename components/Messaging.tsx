@@ -23,12 +23,24 @@ interface Conversation {
   last_message_at: string;
 }
 
+interface ProposalInfo {
+  id: number;
+  brand_name: string;
+  brand_email: string;
+  budget: string;
+  service_type: string;
+  status: string;
+  counter_proposal_budget?: string | null;
+  counter_proposal_status?: string | null;
+}
+
 interface MessagingProps {
   influencerId: string;
   influencerName: string;
   influencerEmail: string;
   brandEmail?: string;
   brandName?: string;
+  proposalId?: number;
   mode: 'influencer' | 'brand';
   lang?: 'el' | 'en';
 }
@@ -64,6 +76,7 @@ export default function Messaging({
   influencerEmail,
   brandEmail,
   brandName,
+  proposalId,
   mode,
   lang = 'el'
 }: MessagingProps) {
@@ -77,6 +90,14 @@ export default function Messaging({
   const [isInfluencerOnline, setIsInfluencerOnline] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastSentMessageRef = useRef<string>('');
+  const [proposalInfo, setProposalInfo] = useState<ProposalInfo | null>(null);
+
+  // Load proposal info if proposalId is provided
+  useEffect(() => {
+    if (proposalId) {
+      loadProposalInfo();
+    }
+  }, [proposalId]);
 
   // Load conversations
   useEffect(() => {
@@ -88,6 +109,16 @@ export default function Messaging({
       return () => clearInterval(interval);
     }
   }, [influencerId, mode]);
+
+  // Auto-select conversation when proposalId and brandEmail are provided
+  useEffect(() => {
+    if (proposalId && brandEmail && conversations.length > 0) {
+      const matchingConv = conversations.find(c => c.brand_email === brandEmail);
+      if (matchingConv) {
+        setSelectedConversation(matchingConv.id);
+      }
+    }
+  }, [proposalId, brandEmail, conversations]);
 
   // Track online status for influencer mode
   useEffect(() => {
@@ -168,6 +199,24 @@ export default function Messaging({
       console.error('Error loading conversations:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadProposalInfo = async () => {
+    if (!proposalId) return;
+    try {
+      const { data, error } = await supabase
+        .from('proposals')
+        .select('id, brand_name, brand_email, budget, service_type, status, counter_proposal_budget, counter_proposal_status')
+        .eq('id', proposalId)
+        .single();
+
+      if (error) throw error;
+      if (data) {
+        setProposalInfo(data as ProposalInfo);
+      }
+    } catch (error) {
+      console.error('Error loading proposal info:', error);
     }
   };
 
@@ -440,6 +489,29 @@ export default function Messaging({
                   <p className="text-xs text-amber-600 mt-1">
                     {txt.offlineNotice}
                   </p>
+                )}
+                
+                {/* Proposal Info Card */}
+                {proposalInfo && (
+                  <div className="mt-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-semibold text-blue-900 mb-1">📋 Προσφορά Συνεργασίας</p>
+                        <p className="text-sm text-blue-800">
+                          <strong>{proposalInfo.service_type}</strong> • 
+                          <span className="ml-1">Προσφερόμενη: <strong>{proposalInfo.budget}€</strong></span>
+                          {proposalInfo.counter_proposal_budget && proposalInfo.counter_proposal_status === 'pending' && (
+                            <span className="ml-2 text-amber-700">
+                              • Αντιπρόταση: <strong>{proposalInfo.counter_proposal_budget}€</strong> ⏳
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-xs text-blue-600 mt-1">
+                          Status: <span className="capitalize">{proposalInfo.status}</span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
 

@@ -216,6 +216,35 @@ export async function POST(req: Request) {
             </div>
         `;
     }
+    else if (type === 'counter_proposal_notification') {
+        toEmail = email;
+        const { influencerName, influencerId, originalBudget, counterBudget, counterMessage, serviceType } = body;
+        subject = `💰 Αντιπρόταση από ${influencerName}`;
+        html = `
+            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #f59e0b; border-radius: 8px; background-color: #fffbeb;">
+                <h1 style="color: #d97706;">Νέα Αντιπρόταση</h1>
+                <p>Γεια σας ${brandName},</p>
+                <p>Ο/Η <strong>${influencerName}</strong> σας έστειλε μια αντιπρόταση για τη συνεργασία:</p>
+                
+                <div style="background-color: white; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #f59e0b;">
+                    <p><strong>Υπηρεσία:</strong> ${serviceType}</p>
+                    <p><strong>Προσφερόμενη Τιμή:</strong> <span style="color: #6b7280;">€${originalBudget}</span></p>
+                    <p><strong>Αντιπρόταση:</strong> <span style="color: #d97706; font-size: 18px; font-weight: bold;">€${counterBudget}</span></p>
+                    ${counterMessage ? `<p style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;"><strong>Σχόλιο:</strong><br/>${counterMessage.replace(/\n/g, '<br/>')}</p>` : ''}
+                </div>
+
+                <p>Μπορείτε να:</p>
+                <ul style="margin: 15px 0; padding-left: 20px;">
+                    <li>✅ Αποδεχτείτε την αντιπρόταση</li>
+                    <li>❌ Απορρίψετε την αντιπρόταση</li>
+                    <li>💬 Συζητήσετε περισσότερες λεπτομέρειες μέσω μηνυμάτων</li>
+                </ul>
+
+                <p>Παρακαλώ επισκεφτείτε το προφίλ του influencer για να δράσετε:</p>
+                <a href="https://${host}/influencer/${influencerId || ''}" style="display: inline-block; padding: 10px 20px; background-color: #f59e0b; color: white; text-decoration: none; border-radius: 5px; margin-top: 10px;">Δείτε το Προφίλ</a>
+            </div>
+        `;
+    }
     else if (type === 'conversation_digest') {
         toEmail = email;
         const messageCount = messages?.length || 0;
