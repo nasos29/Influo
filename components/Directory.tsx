@@ -33,6 +33,30 @@ const CATEGORIES = [
   "DIY & Crafts", "Sustainability & Eco", "Cars & Automotive"
 ];
 
+// Category translations
+const categoryTranslations: { [key: string]: { el: string; en: string } } = {
+  "Lifestyle": { el: "Lifestyle", en: "Lifestyle" },
+  "Fashion & Style": { el: "Μόδα & Στυλ", en: "Fashion & Style" },
+  "Beauty & Makeup": { el: "Ομορφιά & Μακιγιάζ", en: "Beauty & Makeup" },
+  "Travel": { el: "Ταξίδια", en: "Travel" },
+  "Food & Drink": { el: "Φαγητό & Ποτά", en: "Food & Drink" },
+  "Health & Fitness": { el: "Υγεία & Fitness", en: "Health & Fitness" },
+  "Tech & Gadgets": { el: "Τεχνολογία & Gadgets", en: "Tech & Gadgets" },
+  "Business & Finance": { el: "Επιχειρήσεις & Οικονομικά", en: "Business & Finance" },
+  "Gaming & Esports": { el: "Gaming & Esports", en: "Gaming & Esports" },
+  "Parenting & Family": { el: "Οικογένεια & Παιδιά", en: "Parenting & Family" },
+  "Home & Decor": { el: "Σπίτι & Διακόσμηση", en: "Home & Decor" },
+  "Pets & Animals": { el: "Κατοικίδια & Ζώα", en: "Pets & Animals" },
+  "Comedy & Entertainment": { el: "Κωμωδία & Ψυχαγωγία", en: "Comedy & Entertainment" },
+  "Art & Photography": { el: "Τέχνη & Φωτογραφία", en: "Art & Photography" },
+  "Music & Dance": { el: "Μουσική & Χορός", en: "Music & Dance" },
+  "Education & Coaching": { el: "Εκπαίδευση & Coaching", en: "Education & Coaching" },
+  "Sports & Athletes": { el: "Αθλήματα & Αθλητές", en: "Sports & Athletes" },
+  "DIY & Crafts": { el: "DIY & Χειροτεχνίες", en: "DIY & Crafts" },
+  "Sustainability & Eco": { el: "Βιωσιμότητα & Οικολογία", en: "Sustainability & Eco" },
+  "Cars & Automotive": { el: "Αυτοκίνητα", en: "Cars & Automotive" },
+};
+
 // --- FULL TRANSLATIONS ---
 const t = {
   el: {
@@ -46,11 +70,19 @@ const t = {
     genAll: "Φύλο: Όλα",
     genFem: "Γυναίκα",
     genMal: "Άνδρας",
-    follAll: "Followers: Όλοι",
-    budAll: "Budget: Όλα",
-    engAll: "Engage: Όλα",
-    ratingAll: "Rating: Όλα",
-    ratingMin: "Min Rating",
+    follAll: "Ακόλουθοι: Όλοι",
+    follNano: "Nano (1k-10k)",
+    follMicro: "Micro (10k-100k)",
+    follMacro: "Macro (100k+)",
+    budAll: "Προϋπολογισμός: Όλα",
+    budUpTo: "Έως",
+    budUnlimited: "5000€+ (VIP)",
+    engAll: "Αλληλεπίδραση: Όλα",
+    engMin: "Ελάχ.",
+    engGood: "Καλό",
+    engHigh: "Υψηλό",
+    ratingAll: "Αξιολόγηση: Όλες",
+    ratingMin: "Ελάχ.",
     noResults: "Δεν βρέθηκαν influencers",
     adjust: "Δοκίμασε διαφορετικά φίλτρα.",
     reset: "Επαναφορά"
@@ -67,10 +99,18 @@ const t = {
     genFem: "Female",
     genMal: "Male",
     follAll: "Followers: Any",
+    follNano: "Nano (1k-10k)",
+    follMicro: "Micro (10k-100k)",
+    follMacro: "Macro (100k+)",
     budAll: "Budget: Any",
+    budUpTo: "Up to",
+    budUnlimited: "5000€+ (VIP)",
     engAll: "Engage: Any",
+    engMin: "Min",
+    engGood: "Good",
+    engHigh: "High",
     ratingAll: "Rating: Any",
-    ratingMin: "Min Rating",
+    ratingMin: "Min",
     noResults: "No influencers found",
     adjust: "Try adjusting your filters.",
     reset: "Reset Filters"
@@ -314,7 +354,7 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
     if (budgetMax !== "All") {
         const rate = parsePrice(inf.min_rate);
         if (budgetMax === "Unlimited") {
-            budgetMatch = rate >= 1000;
+            budgetMatch = rate >= 5000;
         } else {
             const max = parseInt(budgetMax);
             if (rate > max) budgetMatch = false;
@@ -382,7 +422,9 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
                 <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className={selectClass}>
                     <option value="All">{txt.catAll}</option>
                     {CATEGORIES.map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
+                        <option key={cat} value={cat}>
+                            {categoryTranslations[cat] ? categoryTranslations[cat][lang] : cat}
+                        </option>
                     ))}
                 </select>
 
@@ -394,32 +436,40 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
 
                 <select value={followerRange} onChange={(e) => setFollowerRange(e.target.value)} className={`${selectClass} !bg-blue-50 !border-blue-100 !text-blue-800`}>
                     <option value="All">{txt.follAll}</option>
-                    <option value="Nano">Nano (1k-10k)</option>
-                    <option value="Micro">Micro (10k-100k)</option>
-                    <option value="Macro">Macro (100k+)</option>
+                    <option value="Nano">{txt.follNano}</option>
+                    <option value="Micro">{txt.follMicro}</option>
+                    <option value="Macro">{txt.follMacro}</option>
                 </select>
 
                 <select value={budgetMax} onChange={(e) => setBudgetMax(e.target.value)} className={`${selectClass} !bg-green-50 !border-green-100 !text-green-800`}>
                     <option value="All">{txt.budAll}</option>
-                    <option value="100">Up to 100€</option>
-                    <option value="200">Up to 200€</option>
-                    <option value="500">Up to 500€</option>
-                    <option value="1000">Up to 1000€</option>
-                    <option value="Unlimited">5000€+ (VIP)</option>
+                    <option value="100">{txt.budUpTo} 100€</option>
+                    <option value="200">{txt.budUpTo} 200€</option>
+                    <option value="500">{txt.budUpTo} 500€</option>
+                    <option value="1000">{txt.budUpTo} 1000€</option>
+                    <option value="1500">{txt.budUpTo} 1500€</option>
+                    <option value="2000">{txt.budUpTo} 2000€</option>
+                    <option value="2500">{txt.budUpTo} 2500€</option>
+                    <option value="3000">{txt.budUpTo} 3000€</option>
+                    <option value="3500">{txt.budUpTo} 3500€</option>
+                    <option value="4000">{txt.budUpTo} 4000€</option>
+                    <option value="4500">{txt.budUpTo} 4500€</option>
+                    <option value="5000">{txt.budUpTo} 5000€</option>
+                    <option value="Unlimited">{txt.budUnlimited}</option>
                 </select>
 
                 <select value={minEngagement} onChange={(e) => setMinEngagement(e.target.value)} className={`${selectClass} !bg-purple-50 !border-purple-100 !text-purple-800`}>
                     <option value="All">{txt.engAll}</option>
-                    <option value="1">Min 1%</option>
-                    <option value="3">Min 3% (Good)</option>
-                    <option value="5">Min 5% (High)</option>
+                    <option value="1">{txt.engMin} 1%</option>
+                    <option value="3">{txt.engMin} 3% ({txt.engGood})</option>
+                    <option value="5">{txt.engMin} 5% ({txt.engHigh})</option>
                 </select>
                 
                 <select value={minRating} onChange={(e) => setMinRating(e.target.value)} className={`${selectClass} !bg-amber-50 !border-amber-100 !text-amber-800`}>
                     <option value="All">{txt.ratingAll}</option>
-                    <option value="3">Min 3★</option>
-                    <option value="4">Min 4★</option>
-                    <option value="4.5">Min 4.5★</option>
+                    <option value="3">{txt.ratingMin} 3★</option>
+                    <option value="4">{txt.ratingMin} 4★</option>
+                    <option value="4.5">{txt.ratingMin} 4.5★</option>
                 </select>
             </div>
             
