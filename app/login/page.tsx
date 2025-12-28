@@ -93,6 +93,29 @@ export default function LoginPage() {
             return;
         }
 
+        // Check if email exists in database (influencers or admin)
+        const ADMIN_EMAIL = 'nd.6@hotmail.com';
+        const isAdmin = email === ADMIN_EMAIL;
+
+        if (!isAdmin) {
+            // Check if email exists in influencers table
+            const { data: influencer, error: checkError } = await supabase
+                .from('influencers')
+                .select('contact_email')
+                .eq('contact_email', email)
+                .single();
+
+            if (checkError || !influencer) {
+                setMessage(lang === 'el' 
+                    ? 'Το email που εισάγατε δεν βρέθηκε στη βάση δεδομένων. Παρακαλώ ελέγξτε το email σας ή επικοινωνήστε με την υποστήριξη.' 
+                    : 'The email you entered was not found in our database. Please check your email or contact support.');
+                setMessageType('error');
+                setResetLoading(false);
+                return;
+            }
+        }
+
+        // Email exists, send reset password email
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
             redirectTo: `${window.location.origin}/reset-password`,
         });
