@@ -60,6 +60,8 @@ const t = {
     reviews_comment: "Σχόλια",
     reviews_project: "Τύπος Project",
     reviews_submit: "Υποβολή",
+    review_error_no_collab: "Μπορείτε να αξιολογήσετε μόνο influencers με τους οποίους έχετε συνεργαστεί. Παρακαλώ ολοκληρώστε πρώτα μια συνεργασία.",
+    review_error_already: "Έχετε ήδη αξιολογήσει αυτόν τον influencer. Μπορείτε να υποβάλετε μόνο μια αξιολόγηση ανά συνεργασία.",
     badges_verified: "Επαληθευμένος",
     badges_top: "Top Performer",
     badges_premium: "Premium Creator",
@@ -124,6 +126,8 @@ const t = {
     reviews_comment: "Comment",
     reviews_project: "Project Type",
     reviews_submit: "Submit",
+    review_error_no_collab: "You can only review influencers you have worked with. Please complete a collaboration first.",
+    review_error_already: "You have already reviewed this influencer. You can only submit one review per collaboration.",
     badges_verified: "Verified",
     badges_top: "Top Performer",
     badges_premium: "Premium Creator",
@@ -370,9 +374,29 @@ export default function InfluencerProfile(props: { params: Params }) {
         
         if (error) {
             console.error(error);
-            alert("Something went wrong. Please try again.");
+            alert(lang === 'el' ? "Κάτι πήγε στραβά. Παρακαλώ δοκιμάστε ξανά." : "Something went wrong. Please try again.");
             setSending(false);
             return;
+        }
+        
+        // Send email to influencer about new proposal
+        try {
+            await fetch('/api/emails', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    type: 'proposal_influencer_notification',
+                    email: profile?.contact_email || '',
+                    influencerName: profile?.name || 'Influencer',
+                    brandName: brandName,
+                    brandEmail: brandEmail,
+                    proposalType: proposalType,
+                    budget: budget,
+                    message: message
+                })
+            });
+        } catch (emailError) {
+            console.error("Influencer notification email failed:", emailError);
         }
 
         // 1.5. Auto-create conversation from proposal
@@ -461,6 +485,7 @@ export default function InfluencerProfile(props: { params: Params }) {
           rating: reviewRating,
           reviewText: reviewText,
           projectType: reviewProjectType,
+          lang: lang
         })
       });
 
@@ -480,7 +505,9 @@ export default function InfluencerProfile(props: { params: Params }) {
         // Reload profile to update stats
         window.location.reload();
       } else {
-        throw new Error(result.error);
+        // Use translated error message from API or fallback to translation keys
+        const errorMsg = result.error || (lang === 'el' ? txt.review_error_no_collab : 'Error submitting review');
+        throw new Error(errorMsg);
       }
     } catch (err: any) {
       console.error('Error submitting review:', err);
@@ -974,10 +1001,10 @@ export default function InfluencerProfile(props: { params: Params }) {
         {/* TABS */}
         <div className="mt-8 border-b border-slate-200">
             <nav className="flex gap-8 overflow-x-auto">
-                <button onClick={() => setActiveTab("overview")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === "overview" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}>{txt.tab_over}</button>
-                <button onClick={() => setActiveTab("audience")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === "audience" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}>{txt.tab_aud}</button>
-                <button onClick={() => setActiveTab("pricing")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === "pricing" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}>{txt.tab_price}</button>
-                <button onClick={() => setActiveTab("reviews")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === "reviews" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}>{txt.tab_reviews} {profile.total_reviews ? `(${profile.total_reviews})` : ''}</button>
+                <button onClick={() => setActiveTab("overview")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === "overview" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-700 hover:text-slate-900"}`}>{txt.tab_over}</button>
+                <button onClick={() => setActiveTab("audience")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === "audience" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-700 hover:text-slate-900"}`}>{txt.tab_aud}</button>
+                <button onClick={() => setActiveTab("pricing")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === "pricing" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-700 hover:text-slate-900"}`}>{txt.tab_price}</button>
+                <button onClick={() => setActiveTab("reviews")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === "reviews" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-700 hover:text-slate-900"}`}>{txt.tab_reviews} {profile.total_reviews ? `(${profile.total_reviews})` : ''}</button>
             </nav>
         </div>
 

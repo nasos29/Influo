@@ -349,11 +349,49 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
 };
 
 // --- MAIN DASHBOARD CONTENT ---
+interface Proposal {
+  id: number;
+  brand_name: string;
+  brand_email: string;
+  budget: string;
+  service_type: string;
+  status: string;
+  message: string;
+  created_at: string;
+  influencer_agreement_accepted: boolean | null;
+  brand_agreement_accepted: boolean | null;
+  brand_added_to_past_brands: boolean | null;
+}
+
 export default function DashboardContent({ profile: initialProfile }: { profile: InfluencerData }) {
     const [profile, setProfile] = useState(initialProfile);
     const [showEditModal, setShowEditModal] = useState(false);
-    const [activeTab, setActiveTab] = useState<'profile' | 'messages'>('profile');
+    const [activeTab, setActiveTab] = useState<'profile' | 'messages' | 'proposals'>('profile');
     const [loading, setLoading] = useState(false);
+    const [proposals, setProposals] = useState<Proposal[]>([]);
+    const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
+    const [showAgreementModal, setShowAgreementModal] = useState(false);
+    const [agreementAccepted, setAgreementAccepted] = useState(false);
+    const [savingAgreement, setSavingAgreement] = useState(false);
+
+    // Load proposals
+    useEffect(() => {
+        const loadProposals = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { data } = await supabase
+                    .from('proposals')
+                    .select('*')
+                    .eq('influencer_id', user.id)
+                    .order('created_at', { ascending: false });
+                
+                if (data) {
+                    setProposals(data as Proposal[]);
+                }
+            }
+        };
+        loadProposals();
+    }, []);
 
     useEffect(() => {
         // Refresh profile data periodically
@@ -378,6 +416,66 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     const handleProfileSave = (updatedUser: InfluencerData) => {
         setProfile(updatedUser);
         setShowEditModal(false);
+    };
+
+    const handleAcceptAgreement = async () => {
+        if (!selectedProposal || !agreementAccepted) {
+            alert('Παρακαλώ διαβάστε και αποδεχτείτε τους όρους χρήσης');
+            return;
+        }
+
+        setSavingAgreement(true);
+        try {
+            const response = await fetch('/api/proposals/agreement', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    proposalId: selectedProposal.id,
+                    userType: 'influencer',
+                    accepted: true
+                })
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                // Refresh proposals
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                    const { data } = await supabase
+                        .from('proposals')
+                        .select('*')
+                        .eq('influencer_id', user.id)
+                        .order('created_at', { ascending: false });
+                    
+                    if (data) {
+                        setProposals(data as Proposal[]);
+                    }
+
+                    // Refresh profile to get updated past_brands
+                    const { data: profileData } = await supabase
+                        .from('influencers')
+                        .select('*')
+                        .eq('id', user.id)
+                        .single();
+                    
+                    if (profileData) {
+                        setProfile(profileData as InfluencerData);
+                    }
+                }
+
+                setShowAgreementModal(false);
+                setSelectedProposal(null);
+                setAgreementAccepted(false);
+                alert('Η συμφωνία αποδεχτήθηκε! Το brand θα προστεθεί στις συνεργασίες σας όταν και το brand αποδεχτεί.');
+            } else {
+                throw new Error(result.error || 'Σφάλμα αποδοχής συμφωνίας');
+            }
+        } catch (err: any) {
+            console.error('Error accepting agreement:', err);
+            alert('Σφάλμα: ' + err.message);
+        } finally {
+            setSavingAgreement(false);
+        }
     };
 
     return (
@@ -405,6 +503,16 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 Προφίλ
                             </button>
                             <button
+                                onClick={() => setActiveTab('proposals')}
+                                className={`px-6 py-4 font-medium border-b-2 transition-colors ${
+                                    activeTab === 'proposals'
+                                        ? 'border-slate-900 text-slate-900'
+                                        : 'border-transparent text-slate-500 hover:text-slate-700'
+                                }`}
+                            >
+                                📋 Προσφορές
+                            </button>
+                            <button
                                 onClick={() => setActiveTab('messages')}
                                 className={`px-6 py-4 font-medium border-b-2 transition-colors ${
                                     activeTab === 'messages'
@@ -418,7 +526,90 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                     </div>
 
                     <div className="p-6">
-                        {activeTab === 'profile' ? (
+                        {activeTab === 'proposals' ? (
+                            <div className="space-y-4">
+                                <h2 className="text-xl font-semibold text-slate-900">Προσφορές από Brands</h2>
+                                
+                                {proposals.length === 0 ? (
+                                    <div className="text-center py-12 text-slate-500">
+                                        <p>Δεν υπάρχουν προσφορές ακόμα.</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {proposals.map((prop) => {
+                                            const needsAgreement = (prop.status === 'accepted' || prop.status === 'completed') 
+                                                && !prop.influencer_agreement_accepted;
+                                            const hasAgreement = prop.influencer_agreement_accepted && prop.brand_agreement_accepted;
+                                            
+                                            return (
+                                                <div key={prop.id} className={`border rounded-lg p-4 ${needsAgreement ? 'border-amber-400 bg-gradient-to-r from-amber-50 to-yellow-50 shadow-md' : hasAgreement ? 'border-green-200 bg-green-50' : 'border-slate-200 bg-white'}`}>
+                                                    {needsAgreement && (
+                                                        <div className="mb-3 p-3 bg-amber-100 border border-amber-300 rounded-lg">
+                                                            <p className="text-sm font-semibold text-amber-900 flex items-center gap-2">
+                                                                💡 <span>Γιατί να αποδεχτείτε τη συμφωνία;</span>
+                                                            </p>
+                                                            <ul className="text-xs text-amber-800 mt-2 space-y-1 ml-5 list-disc">
+                                                                <li>Θα μπορείτε να λάβετε αξιολογήσεις που βελτιώνουν την αξιοπιστία σας</li>
+                                                                <li>Το brand θα εμφανίζεται στις συνεργασίες σας, αυξάνοντας την προβολή</li>
+                                                                <li>Περισσότερες συνεργασίες = πιο επαγγελματικό προφίλ</li>
+                                                            </ul>
+                                                        </div>
+                                                    )}
+                                                    <div className="flex items-start justify-between">
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center gap-3 mb-2">
+                                                                <h3 className="font-bold text-slate-900">{prop.brand_name}</h3>
+                                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                                    prop.status === 'accepted' || prop.status === 'completed' 
+                                                                        ? hasAgreement ? 'bg-green-100 text-green-700' : 'bg-green-100 text-green-700'
+                                                                        : prop.status === 'rejected' 
+                                                                        ? 'bg-red-100 text-red-700'
+                                                                        : 'bg-blue-100 text-blue-700'
+                                                                }`}>
+                                                                    {prop.status === 'pending' ? 'Εκκρεμεί' : 
+                                                                     prop.status === 'accepted' ? (hasAgreement ? '✅ Συμφωνία Αποδεκτή' : 'Αποδεκτή - Αναμένεται Συμφωνία') :
+                                                                     prop.status === 'completed' ? (hasAgreement ? '✅ Ολοκληρωμένη' : 'Ολοκληρωμένη - Αναμένεται Συμφωνία') :
+                                                                     prop.status === 'rejected' ? 'Απορρίφθηκε' : prop.status}
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-sm text-slate-600 mb-2">
+                                                                <strong>Υπηρεσία:</strong> {prop.service_type} • <strong>Budget:</strong> {prop.budget}€
+                                                            </p>
+                                                            {prop.message && (
+                                                                <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg mt-2">{prop.message}</p>
+                                                            )}
+                                                            <p className="text-xs text-slate-500 mt-2">
+                                                                {new Date(prop.created_at).toLocaleDateString('el-GR', { 
+                                                                    day: 'numeric', 
+                                                                    month: 'long', 
+                                                                    year: 'numeric' 
+                                                                })}
+                                                            </p>
+                                                        </div>
+                                                        {needsAgreement && (
+                                                            <button
+                                                                onClick={() => {
+                                                                    setSelectedProposal(prop);
+                                                                    setShowAgreementModal(true);
+                                                                }}
+                                                                className="ml-4 px-5 py-2.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-semibold rounded-lg transition-all text-sm whitespace-nowrap shadow-lg hover:shadow-xl transform hover:scale-105"
+                                                            >
+                                                                ⚠️ Αποδοχή Συμφωνίας
+                                                            </button>
+                                                        )}
+                                                        {hasAgreement && (
+                                                            <div className="ml-4 px-4 py-2 bg-green-100 text-green-700 font-medium rounded-lg text-sm whitespace-nowrap">
+                                                                ✅ Συμφωνία Ολοκληρωμένη
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        ) : activeTab === 'profile' ? (
                             <div className="space-y-6">
                                 <div className="flex items-center justify-between">
                                     <h2 className="text-xl font-semibold text-slate-900">Επισκόπηση Προφίλ</h2>
@@ -484,6 +675,154 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                     onClose={() => setShowEditModal(false)}
                     onSave={handleProfileSave}
                 />
+            )}
+
+            {/* Agreement Modal */}
+            {showAgreementModal && selectedProposal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                        <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+                            <h2 className="text-xl font-bold text-slate-900">Συμφωνία Συνεργασίας</h2>
+                            <button 
+                                onClick={() => {
+                                    setShowAgreementModal(false);
+                                    setSelectedProposal(null);
+                                    setAgreementAccepted(false);
+                                }}
+                                className="text-slate-400 hover:text-slate-600 text-2xl"
+                            >
+                                ×
+                            </button>
+                        </div>
+                        
+                        <div className="p-6 space-y-6">
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <p className="text-sm text-blue-900 font-medium mb-2">
+                                    Συνεργασία με: <strong>{selectedProposal.brand_name}</strong>
+                                </p>
+                                <p className="text-sm text-blue-800">
+                                    Υπηρεσία: {selectedProposal.service_type} • Budget: {selectedProposal.budget}€
+                                </p>
+                            </div>
+
+                            {/* Benefits Section */}
+                            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-5 space-y-3">
+                                <h3 className="font-bold text-blue-900 text-lg flex items-center gap-2">
+                                    ✨ Γιατί να αποδεχτείτε τη συμφωνία;
+                                </h3>
+                                <div className="grid md:grid-cols-2 gap-3">
+                                    <div className="flex items-start gap-2">
+                                        <span className="text-2xl">⭐</span>
+                                        <div>
+                                            <p className="font-semibold text-blue-900">Αξιολογήσεις & Reviews</p>
+                                            <p className="text-sm text-blue-700">Θα μπορείτε να λάβετε αξιολογήσεις από το brand, που θα βελτιώσουν την αξιοπιστία σας</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-2">
+                                        <span className="text-2xl">📈</span>
+                                        <div>
+                                            <p className="font-semibold text-blue-900">Μεγαλύτερη Προβολή</p>
+                                            <p className="text-sm text-blue-700">Το brand θα εμφανίζεται στις συνεργασίες σας, αυξάνοντας την προβολή σας</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-2">
+                                        <span className="text-2xl">🎯</span>
+                                        <div>
+                                            <p className="font-semibold text-blue-900">Επαγγελματικός Προφίλ</p>
+                                            <p className="text-sm text-blue-700">Περισσότερες συνεργασίες = πιο επαγγελματικό και αξιόπιστο προφίλ</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-2">
+                                        <span className="text-2xl">💼</span>
+                                        <div>
+                                            <p className="font-semibold text-blue-900">Περισσότερες Ευκαιρίες</p>
+                                            <p className="text-sm text-blue-700">Το portfolio σας μεγάλωνει και ελκύει περισσότερα brands</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="mt-3 pt-3 border-t border-blue-200">
+                                    <p className="text-sm font-medium text-blue-900">
+                                        💡 <strong>Συμβουλή:</strong> Οι influencers με πολλές αποδεκτές συνεργασίες εμφανίζονται πρώτοι στις αναζητήσεις!
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <h3 className="font-bold text-slate-900">Όροι Χρήσης & Συμφωνία</h3>
+                                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 max-h-64 overflow-y-auto text-sm text-slate-700 space-y-3">
+                                    <p><strong>1. Υποχρεώσεις Influencer:</strong></p>
+                                    <ul className="list-disc list-inside ml-2 space-y-1">
+                                        <li>Παροχή υψηλής ποιότητας περιεχομένου σύμφωνα με τις προδιαγραφές</li>
+                                        <li>Σεβασμός προθεσμιών και deadlines</li>
+                                        <li>Επικοινωνία με το brand για οποιαδήποτε απορία</li>
+                                        <li>Χρήση προϊόντων/υπηρεσιών όπως συμφωνήθηκε</li>
+                                    </ul>
+
+                                    <p><strong>2. Πληρωμή:</strong></p>
+                                    <ul className="list-disc list-inside ml-2 space-y-1">
+                                        <li>Η πληρωμή θα γίνει σύμφωνα με τις προδιαγραφές της προσφοράς</li>
+                                        <li>Ο influencer θα λάβει πληρωμή μετά την ολοκλήρωση και έγκριση του περιεχομένου</li>
+                                    </ul>
+
+                                    <p><strong>3. Δικαιώματα:</strong></p>
+                                    <ul className="list-disc list-inside ml-2 space-y-1">
+                                        <li>Το brand έχει δικαίωμα έγκρισης/απόρριψης περιεχομένου</li>
+                                        <li>Το brand μπορεί να χρησιμοποιήσει το περιεχόμενο για marketing σκοπούς</li>
+                                    </ul>
+
+                                    <p><strong>4. Confidentiality:</strong></p>
+                                    <ul className="list-disc list-inside ml-2 space-y-1">
+                                        <li>Ο influencer δεσμεύεται να διατηρήσει εμπιστευτικότητα για προσωπικά στοιχεία του brand</li>
+                                    </ul>
+
+                                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-4">
+                                        <p className="text-xs font-medium text-amber-900">
+                                            ⚠️ <strong>Σημαντικό:</strong> Με την αποδοχή αυτής της συμφωνίας:
+                                        </p>
+                                        <ul className="text-xs text-amber-800 mt-2 space-y-1 list-disc list-inside ml-2">
+                                            <li>Συμφωνείτε με τους παραπάνω όρους χρήσης</li>
+                                            <li>Το όνομα του brand θα προστεθεί στις συνεργασίες σας (public)</li>
+                                            <li>Το brand θα μπορεί να σας αξιολογήσει μετά την ολοκλήρωση</li>
+                                            <li>Η συνεργασία θα εμφανίζεται στο προφίλ σας</li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <label className="flex items-start gap-3 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={agreementAccepted}
+                                        onChange={(e) => setAgreementAccepted(e.target.checked)}
+                                        className="mt-1 w-5 h-5 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+                                    />
+                                    <span className="text-sm text-slate-700">
+                                        <strong>Αποδέχομαι τους όρους χρήσης</strong> και συμφωνώ να προστεθεί το brand <strong>{selectedProposal.brand_name}</strong> στις συνεργασίες μου
+                                    </span>
+                                </label>
+                            </div>
+
+                            <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                                <button
+                                    onClick={() => {
+                                        setShowAgreementModal(false);
+                                        setSelectedProposal(null);
+                                        setAgreementAccepted(false);
+                                    }}
+                                    className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg font-medium transition-colors"
+                                >
+                                    Ακύρωση
+                                </button>
+                                <button
+                                    onClick={handleAcceptAgreement}
+                                    disabled={!agreementAccepted || savingAgreement}
+                                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    {savingAgreement ? 'Αποθήκευση...' : 'Αποδοχή Συμφωνίας'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

@@ -167,6 +167,55 @@ export async function POST(req: Request) {
             </div>
         `;
     }
+    else if (type === 'proposal_influencer_notification') {
+        toEmail = email;
+        subject = `📨 Νέα Πρόταση από ${brandName}`;
+        html = `
+            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #10b981; border-radius: 8px; background-color: #ecfdf5;">
+                <h1 style="color: #047857;">Νέα Πρόταση Συνεργασίας!</h1>
+                <p>Γεια σου ${influencerName},</p>
+                <p>Έχεις λάβει μια νέα πρόταση συνεργασίας από το brand <strong>${brandName}</strong>.</p>
+                <div style="background-color: white; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #10b981;">
+                    <p><strong>Υπηρεσία:</strong> ${proposalType}</p>
+                    <p><strong>Budget:</strong> €${budget}</p>
+                    ${message ? `<p><strong>Μήνυμα:</strong><br/>${message.replace(/\n/g, '<br/>')}</p>` : ''}
+                </div>
+                <p>Συνδέσου στο dashboard σου για να δεις την πρόταση:</p>
+                <a href="https://${host}/dashboard" style="display: inline-block; padding: 10px 20px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px; margin-top: 10px;">Πήγαινε στο Dashboard</a>
+            </div>
+        `;
+    }
+    else if (type === 'collaboration_complete') {
+        toEmail = email;
+        subject = `✅ Η συνεργασία με ${brandName} ολοκληρώθηκε!`;
+        html = `
+            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #10b981; border-radius: 8px; background-color: #ecfdf5;">
+                <h1 style="color: #047857;">Συνεργασία Ολοκληρώθηκε!</h1>
+                <p>Γεια σου ${influencerName},</p>
+                <p>Η συνεργασία με το brand <strong>${brandName}</strong> έχει ολοκληρωθεί και το brand προστέθηκε στις συνεργασίες σου!</p>
+                <p>Το brand ${brandName} εμφανίζεται πλέον στο προφίλ σου στο tab "Συνεργασίες".</p>
+                <br/>
+                <p>Συγχαρητήρια για την επιτυχημένη συνεργασία! 🎉</p>
+                <p>Η ομάδα του Influo</p>
+            </div>
+        `;
+    }
+    else if (type === 'proposal_accepted_brand') {
+        toEmail = email;
+        subject = `✅ Η πρόταση σας για ${influencerName} έγινε αποδεκτή!`;
+        html = `
+            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #10b981; border-radius: 8px; background-color: #ecfdf5;">
+                <h1 style="color: #047857;">Πρόταση Αποδεκτή!</h1>
+                <p>Γεια σας ${brandName},</p>
+                <p>Η πρότασή σας προς τον/την <strong>${influencerName}</strong> έχει γίνει αποδεκτή!</p>
+                <p>Για να ολοκληρωθεί η συνεργασία, παρακαλώ αποδεχτείτε τους όρους χρήσης.</p>
+                <p>Μόλις και οι δύο πλευρές αποδεχτούν, το όνομα σας θα προστεθεί στις συνεργασίες του influencer.</p>
+                <br/>
+                <p>Παρακαλώ επισκεφτείτε τη σελίδα του influencer για να αποδεχτείτε την συμφωνία:</p>
+                <a href="https://${host}/influencer/${body.influencerId}" style="display: inline-block; padding: 10px 20px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px; margin-top: 10px;">Δείτε το Προφίλ</a>
+            </div>
+        `;
+    }
     else if (type === 'conversation_digest') {
         toEmail = email;
         const messageCount = messages?.length || 0;

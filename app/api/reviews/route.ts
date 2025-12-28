@@ -35,23 +35,40 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { influencerId, brandEmail, brandName, rating, reviewText, projectType } = body;
+    const { influencerId, brandEmail, brandName, rating, reviewText, projectType, lang } = body;
 
     if (!influencerId || !brandEmail || !rating) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Verify that brand has a completed proposal with this influencer
+    // Verify that brand has a completed proposal WITH ACCEPTED AGREEMENT with this influencer
     const { data: completedProposals } = await supabaseAdmin
       .from('proposals')
-      .select('id')
+      .select('id, influencer_agreement_accepted, brand_agreement_accepted, brand_added_to_past_brands')
       .eq('influencer_id', influencerId)
       .eq('brand_email', brandEmail)
       .in('status', ['completed', 'accepted']);
 
     if (!completedProposals || completedProposals.length === 0) {
+      const errorMsg = lang === 'el' 
+        ? 'Μπορείτε να αξιολογήσετε μόνο influencers με τους οποίους έχετε συνεργαστεί. Παρακαλώ ολοκληρώστε πρώτα μια συνεργασία.'
+        : 'You can only review influencers you have worked with. Please complete a collaboration first.';
       return NextResponse.json({ 
-        error: 'You can only review influencers you have worked with. Please complete a collaboration first.' 
+        error: errorMsg 
+      }, { status: 403 });
+    }
+
+    // Check if at least one proposal has both agreements accepted (collaboration confirmed)
+    const hasAcceptedAgreement = completedProposals.some(
+      (p: any) => p.influencer_agreement_accepted === true && p.brand_agreement_accepted === true
+    );
+
+    if (!hasAcceptedAgreement) {
+      const errorMsg = lang === 'el'
+        ? 'Μπορείτε να αξιολογήσετε μόνο μετά την αποδοχή της συμφωνίας συνεργασίας. Παρακαλώ περιμένετε να αποδεχτούν και οι δύο πλευρές την συμφωνία.'
+        : 'You can only review after the collaboration agreement has been accepted. Please wait for both parties to accept the agreement.';
+      return NextResponse.json({ 
+        error: errorMsg 
       }, { status: 403 });
     }
 
@@ -64,8 +81,11 @@ export async function POST(req: Request) {
       .single();
 
     if (existingReview) {
+      const errorMsg = lang === 'el'
+        ? 'Έχετε ήδη αξιολογήσει αυτόν τον influencer. Μπορείτε να υποβάλετε μόνο μια αξιολόγηση ανά συνεργασία.'
+        : 'You have already reviewed this influencer. You can only submit one review per collaboration.';
       return NextResponse.json({ 
-        error: 'You have already reviewed this influencer. You can only submit one review per collaboration.' 
+        error: errorMsg 
       }, { status: 400 });
     }
 
