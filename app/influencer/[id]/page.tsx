@@ -14,7 +14,7 @@ interface ProInfluencer extends Influencer {
   engagement_rate?: string;
   avg_likes?: string;
   audience_data?: { male: number; female: number; top_age: string };
-  rate_card?: { story: string; post: string; reel: string };
+  rate_card?: { story?: string; post?: string; reel?: string; facebook?: string };
   past_brands?: string[];
   avg_rating?: number;
   total_reviews?: number;
@@ -352,7 +352,17 @@ export default function InfluencerProfile(props: { params: Params }) {
             engagement_rate: found.engagement_rate || "5.2%",
             avg_likes: found.avg_likes || "3.2k",
             audience_data: { male: 35, female: 65, top_age: "18-34" },
-            rate_card: found.rate_card || { story: lang === 'el' ? "Ρώτησε" : "Ask", post: lang === 'el' ? "Ρώτησε" : "Ask", reel: lang === 'el' ? "Ρώτησε" : "Ask", facebook: lang === 'el' ? "Ρώτησε" : "Ask" },
+            rate_card: found.rate_card ? {
+              story: found.rate_card.story || (lang === 'el' ? "Ρώτησε" : "Ask"),
+              post: found.rate_card.post || (lang === 'el' ? "Ρώτησε" : "Ask"),
+              reel: found.rate_card.reel || (lang === 'el' ? "Ρώτησε" : "Ask"),
+              facebook: found.rate_card.facebook || (lang === 'el' ? "Ρώτησε" : "Ask")
+            } : {
+              story: lang === 'el' ? "Ρώτησε" : "Ask",
+              post: lang === 'el' ? "Ρώτησε" : "Ask",
+              reel: lang === 'el' ? "Ρώτησε" : "Ask",
+              facebook: lang === 'el' ? "Ρώτησε" : "Ask"
+            },
             past_brands: ["Zara", "Vodafone", "e-Food"]
           });
           setLoading(false);
@@ -1342,65 +1352,28 @@ export default function InfluencerProfile(props: { params: Params }) {
                           </div>
                         )}
                         
-                        {/* Pricing Table by Platform and Service Type */}
+                        {/* Pricing Table - Single unified table */}
                         <div className="space-y-4">
-                            {/* Get platforms from accounts */}
-                            {(() => {
-                                const platforms = profile.socials ? Object.keys(profile.socials) : [];
-                                if (platforms.length === 0) {
-                                    // Fallback to default display if no platforms
-                                    return (
-                                        <>
-                                            <div className="flex justify-between items-center p-4 border-b border-slate-100">
-                                                <span className="font-medium text-slate-700">{txt.price_story}</span>
-                                                <span className="font-bold text-xl text-slate-900">{profile.rate_card?.story || (lang === 'el' ? 'Ρώτησε' : 'Ask')}</span>
-                                            </div>
-                                            <div className="flex justify-between items-center p-4 border-b border-slate-100">
-                                                <span className="font-medium text-slate-700">{txt.price_post}</span>
-                                                <span className="font-bold text-xl text-slate-900">{profile.rate_card?.post || (lang === 'el' ? 'Ρώτησε' : 'Ask')}</span>
-                                            </div>
-                                            <div className="flex justify-between items-center p-4 border-b border-slate-100">
-                                                <span className="font-medium text-slate-700">{txt.price_reel}</span>
-                                                <span className="font-bold text-xl text-slate-900">{profile.rate_card?.reel || (lang === 'el' ? 'Ρώτησε' : 'Ask')}</span>
-                                            </div>
-                                            <div className="flex justify-between items-center p-4 border-b border-slate-100">
-                                                <span className="font-medium text-slate-700">{txt.price_facebook}</span>
-                                                <span className="font-bold text-xl text-slate-900">{profile.rate_card?.facebook || (lang === 'el' ? 'Ρώτησε' : 'Ask')}</span>
-                                            </div>
-                                        </>
-                                    );
-                                }
-                                
-                                // Show pricing for each platform
-                                const services = [
-                                    { key: 'story', label: txt.price_story },
-                                    { key: 'post', label: txt.price_post },
-                                    { key: 'reel', label: txt.price_reel },
-                                    { key: 'facebook', label: txt.price_facebook }
-                                ];
-                                
-                                return (
-                                    <div className="space-y-2">
-                                        {platforms.map((platform) => (
-                                            <div key={platform} className="border border-slate-200 rounded-lg overflow-hidden">
-                                                <div className="bg-slate-50 px-4 py-2 border-b border-slate-200">
-                                                    <h4 className="font-bold text-slate-900 capitalize">{platform}</h4>
-                                                </div>
-                                                <div className="divide-y divide-slate-100">
-                                                    {services.map((service) => (
-                                                        <div key={service.key} className="flex justify-between items-center px-4 py-3 hover:bg-slate-50 transition-colors">
-                                                            <span className="font-medium text-slate-700">{service.label}</span>
-                                                            <span className="font-bold text-lg text-slate-900">
-                                                                {profile.rate_card?.[service.key as keyof typeof profile.rate_card] || (lang === 'el' ? 'Ρώτησε' : 'Ask')}
-                                                            </span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        ))}
+                            <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+                                <div className="divide-y divide-slate-100">
+                                    <div className="flex justify-between items-center px-4 py-3 hover:bg-slate-50 transition-colors">
+                                        <span className="font-medium text-slate-700">{txt.price_story}</span>
+                                        <span className="font-bold text-xl text-slate-900">{profile.rate_card?.story || (lang === 'el' ? 'Ρώτησε' : 'Ask')}</span>
                                     </div>
-                                );
-                            })()}
+                                    <div className="flex justify-between items-center px-4 py-3 hover:bg-slate-50 transition-colors">
+                                        <span className="font-medium text-slate-700">{txt.price_post}</span>
+                                        <span className="font-bold text-xl text-slate-900">{profile.rate_card?.post || (lang === 'el' ? 'Ρώτησε' : 'Ask')}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center px-4 py-3 hover:bg-slate-50 transition-colors">
+                                        <span className="font-medium text-slate-700">{txt.price_reel}</span>
+                                        <span className="font-bold text-xl text-slate-900">{profile.rate_card?.reel || (lang === 'el' ? 'Ρώτησε' : 'Ask')}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center px-4 py-3 hover:bg-slate-50 transition-colors">
+                                        <span className="font-medium text-slate-700">{txt.price_facebook}</span>
+                                        <span className="font-bold text-xl text-slate-900">{profile.rate_card?.facebook || (lang === 'el' ? 'Ρώτησε' : 'Ask')}</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <p className="mt-6 text-xs text-slate-400 text-center">{txt.price_note}</p>
                         <button onClick={() => setShowProposalModal(true)} className="w-full mt-6 bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-black transition-colors">
