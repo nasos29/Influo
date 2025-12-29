@@ -1002,12 +1002,12 @@ export default function InfluencerProfile(props: { params: Params }) {
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
           {/* Top Section: Avatar, Name, Info */}
           <div className="p-6 md:p-8 flex flex-col md:flex-row items-center md:items-end gap-6 border-b border-slate-100">
-            <div className="relative w-40 h-40 rounded-full border-4 border-white shadow-lg overflow-hidden bg-slate-100 -mt-20 md:mb-0 flex-shrink-0">
+            <div className="relative w-40 h-40 rounded-full border-4 border-white shadow-lg overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 -mt-20 md:mb-0 flex-shrink-0">
                 <Image 
                     src={profile.avatar} 
                     alt={profile.name} 
                     fill 
-                    className="object-cover rounded-full" 
+                    className="object-contain rounded-full p-1" 
                     sizes="160px"
                     priority
                 />
