@@ -121,8 +121,8 @@ export function getBadges(metrics: InfluencerMetrics, lang: 'el' | 'en' = 'el'):
   if (accountAgeDays < 30) {
     badges.push({
       type: 'new',
-      label: BADGE_LABELS_EL.new,
       ...BADGE_DEFINITIONS.new,
+      label: lang === 'el' ? BADGE_LABELS_EL.new : BADGE_DEFINITIONS.new.label,
     });
   }
 
@@ -130,8 +130,8 @@ export function getBadges(metrics: InfluencerMetrics, lang: 'el' | 'en' = 'el'):
   if (accountAgeDays >= 30 && accountAgeDays < 90 && engagementRate > 3 && maxFollowers < 50000) {
     badges.push({
       type: 'rising',
-      label: BADGE_LABELS_EL.rising,
       ...BADGE_DEFINITIONS.rising,
+      label: lang === 'el' ? BADGE_LABELS_EL.rising : BADGE_DEFINITIONS.rising.label,
     });
   }
 
@@ -139,8 +139,8 @@ export function getBadges(metrics: InfluencerMetrics, lang: 'el' | 'en' = 'el'):
   if (metrics.verified) {
     badges.push({
       type: 'verified',
-      label: BADGE_LABELS_EL.verified,
       ...BADGE_DEFINITIONS.verified,
+      label: lang === 'el' ? BADGE_LABELS_EL.verified : BADGE_DEFINITIONS.verified.label,
     });
   }
 
@@ -148,8 +148,8 @@ export function getBadges(metrics: InfluencerMetrics, lang: 'el' | 'en' = 'el'):
   if (engagementRate > 5 && maxFollowers > 10000) {
     badges.push({
       type: 'top_performer',
-      label: BADGE_LABELS_EL.top_performer,
       ...BADGE_DEFINITIONS.top_performer,
+      label: lang === 'el' ? BADGE_LABELS_EL.top_performer : BADGE_DEFINITIONS.top_performer.label,
     });
   }
 
@@ -157,8 +157,8 @@ export function getBadges(metrics: InfluencerMetrics, lang: 'el' | 'en' = 'el'):
   if (numBrands >= 5 || (totalReviews >= 10 && avgRating >= 4.0)) {
     badges.push({
       type: 'pro',
-      label: BADGE_LABELS_EL.pro,
       ...BADGE_DEFINITIONS.pro,
+      label: lang === 'el' ? BADGE_LABELS_EL.pro : BADGE_DEFINITIONS.pro.label,
     });
   }
 
@@ -166,8 +166,8 @@ export function getBadges(metrics: InfluencerMetrics, lang: 'el' | 'en' = 'el'):
   if (maxFollowers >= 500000 || (numBrands >= 20 && avgRating >= 4.5)) {
     badges.push({
       type: 'elite',
-      label: BADGE_LABELS_EL.elite,
       ...BADGE_DEFINITIONS.elite,
+      label: lang === 'el' ? BADGE_LABELS_EL.elite : BADGE_DEFINITIONS.elite.label,
     });
   }
 
@@ -175,8 +175,8 @@ export function getBadges(metrics: InfluencerMetrics, lang: 'el' | 'en' = 'el'):
   if (maxFollowers >= 1000000 || minRate >= 5000 || (numBrands >= 50 && avgRating >= 4.8)) {
     badges.push({
       type: 'vip',
-      label: BADGE_LABELS_EL.vip,
       ...BADGE_DEFINITIONS.vip,
+      label: lang === 'el' ? BADGE_LABELS_EL.vip : BADGE_DEFINITIONS.vip.label,
     });
   }
 
