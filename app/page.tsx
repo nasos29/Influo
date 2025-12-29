@@ -374,38 +374,36 @@ export default function Home() {
           {/* Slideshow Container */}
           <div className="relative overflow-hidden">
             <div className="flex animate-scroll gap-16 items-center">
-              {/* Greek Company Logos - Tech & Fashion Brands */}
+              {/* Greek Company Logos - Tech & Fashion Brands - Mixed Order */}
               {[
-                { name: 'Autodrome', domain: 'autodrome.gr', url: 'https://autodrome.gr' },
+                { name: 'Nike', domain: 'nike.com', url: 'https://www.nike.com' },
+                { name: 'Apple', domain: 'apple.com', url: 'https://www.apple.com' },
                 { name: 'Skroutz', domain: 'skroutz.gr', url: 'https://www.skroutz.gr' },
-                { name: 'Public', domain: 'public.gr', url: 'https://www.public.gr' },
-                { name: 'Cosmote', domain: 'cosmote.gr', url: 'https://www.cosmote.gr' },
+                { name: 'Samsung', domain: 'samsung.com', url: 'https://www.samsung.com' },
+                { name: 'Zara', domain: 'zara.com', url: 'https://www.zara.com' },
+                { name: 'Microsoft', domain: 'microsoft.com', url: 'https://www.microsoft.com' },
                 { name: 'Vodafone', domain: 'vodafone.gr', url: 'https://www.vodafone.gr' },
-                { name: 'Alpha Bank', domain: 'alpha.gr', url: 'https://www.alpha.gr' },
-                { name: 'OTE', domain: 'ote.gr', url: 'https://www.ote.gr' },
-                { name: 'Coffee Island', domain: 'coffeeisland.gr', url: 'https://www.coffeeisland.gr' },
-                { name: 'Everest', domain: 'everest.gr', url: 'https://www.everest.gr' },
-                { name: 'Plaisio', domain: 'plaisio.gr', url: 'https://www.plaisio.gr' },
+                { name: 'Adidas', domain: 'adidas.com', url: 'https://www.adidas.com' },
+                { name: 'Google', domain: 'google.com', url: 'https://www.google.com' },
+                { name: 'Cosmote', domain: 'cosmote.gr', url: 'https://www.cosmote.gr' },
+                { name: 'H&M', domain: 'hm.com', url: 'https://www.hm.com' },
+                { name: 'Dell', domain: 'dell.com', url: 'https://www.dell.com' },
+                { name: 'Mango', domain: 'mango.com', url: 'https://www.mango.com' },
+                { name: 'HP', domain: 'hp.com', url: 'https://www.hp.com' },
                 { name: 'Kotsovolos', domain: 'kotsovolos.gr', url: 'https://www.kotsovolos.gr' },
+                { name: 'Lenovo', domain: 'lenovo.com', url: 'https://www.lenovo.com' },
+                { name: 'Alpha Bank', domain: 'alpha.gr', url: 'https://www.alpha.gr' },
+                { name: 'Asus', domain: 'asus.com', url: 'https://www.asus.com' },
+                { name: 'Coffee Island', domain: 'coffeeisland.gr', url: 'https://www.coffeeisland.gr' },
+                { name: 'Temu', domain: 'temu.com', url: 'https://www.temu.com' },
+                { name: 'you.gr', domain: 'you.gr', url: 'https://www.you.gr' },
+                { name: 'Everest', domain: 'everest.gr', url: 'https://www.everest.gr' },
+                { name: 'Wolt', domain: 'wolt.com', url: 'https://wolt.com' },
+                { name: 'e-Food', domain: 'e-food.gr', url: 'https://www.e-food.gr' },
                 { name: 'MyMarket', domain: 'mymarket.gr', url: 'https://www.mymarket.gr' },
                 { name: 'Gregory\'s', domain: 'gregorys.gr', url: 'https://www.gregorys.gr' },
-                { name: 'e-Food', domain: 'e-food.gr', url: 'https://www.e-food.gr' },
-                { name: 'Wolt', domain: 'wolt.com', url: 'https://wolt.com' },
                 { name: 'Aegean Airlines', domain: 'aegeanair.com', url: 'https://www.aegeanair.com' },
-                { name: 'Hellenic Petroleum', domain: 'helpe.gr', url: 'https://www.helpe.gr' },
-                { name: 'Nike', domain: 'nike.com', url: 'https://www.nike.com' },
-                { name: 'Adidas', domain: 'adidas.com', url: 'https://www.adidas.com' },
-                { name: 'Zara', domain: 'zara.com', url: 'https://www.zara.com' },
-                { name: 'H&M', domain: 'hm.com', url: 'https://www.hm.com' },
-                { name: 'Mango', domain: 'mango.com', url: 'https://www.mango.com' },
-                { name: 'Apple', domain: 'apple.com', url: 'https://www.apple.com' },
-                { name: 'Samsung', domain: 'samsung.com', url: 'https://www.samsung.com' },
-                { name: 'Microsoft', domain: 'microsoft.com', url: 'https://www.microsoft.com' },
-                { name: 'Google', domain: 'google.com', url: 'https://www.google.com' },
-                { name: 'Dell', domain: 'dell.com', url: 'https://www.dell.com' },
-                { name: 'HP', domain: 'hp.com', url: 'https://www.hp.com' },
-                { name: 'Lenovo', domain: 'lenovo.com', url: 'https://www.lenovo.com' },
-                { name: 'Asus', domain: 'asus.com', url: 'https://www.asus.com' }
+                { name: 'Hellenic Petroleum', domain: 'helpe.gr', url: 'https://www.helpe.gr' }
               ].map((brand, idx) => {
                 const brandfetchUrl = `https://cdn.brandfetch.io/${brand.domain}?c=1idGP6EnrL-eVdz6PLO`;
                 return (
@@ -436,38 +434,36 @@ export default function Home() {
                   </a>
                 );
               })}
-              {/* Duplicate for seamless loop */}
+              {/* Duplicate for seamless loop - Mixed Order */}
               {[
-                { name: 'Autodrome', domain: 'autodrome.gr', url: 'https://autodrome.gr' },
+                { name: 'Nike', domain: 'nike.com', url: 'https://www.nike.com' },
+                { name: 'Apple', domain: 'apple.com', url: 'https://www.apple.com' },
                 { name: 'Skroutz', domain: 'skroutz.gr', url: 'https://www.skroutz.gr' },
-                { name: 'Public', domain: 'public.gr', url: 'https://www.public.gr' },
-                { name: 'Cosmote', domain: 'cosmote.gr', url: 'https://www.cosmote.gr' },
+                { name: 'Samsung', domain: 'samsung.com', url: 'https://www.samsung.com' },
+                { name: 'Zara', domain: 'zara.com', url: 'https://www.zara.com' },
+                { name: 'Microsoft', domain: 'microsoft.com', url: 'https://www.microsoft.com' },
                 { name: 'Vodafone', domain: 'vodafone.gr', url: 'https://www.vodafone.gr' },
-                { name: 'Alpha Bank', domain: 'alpha.gr', url: 'https://www.alpha.gr' },
-                { name: 'OTE', domain: 'ote.gr', url: 'https://www.ote.gr' },
-                { name: 'Coffee Island', domain: 'coffeeisland.gr', url: 'https://www.coffeeisland.gr' },
-                { name: 'Everest', domain: 'everest.gr', url: 'https://www.everest.gr' },
-                { name: 'Plaisio', domain: 'plaisio.gr', url: 'https://www.plaisio.gr' },
+                { name: 'Adidas', domain: 'adidas.com', url: 'https://www.adidas.com' },
+                { name: 'Google', domain: 'google.com', url: 'https://www.google.com' },
+                { name: 'Cosmote', domain: 'cosmote.gr', url: 'https://www.cosmote.gr' },
+                { name: 'H&M', domain: 'hm.com', url: 'https://www.hm.com' },
+                { name: 'Dell', domain: 'dell.com', url: 'https://www.dell.com' },
+                { name: 'Mango', domain: 'mango.com', url: 'https://www.mango.com' },
+                { name: 'HP', domain: 'hp.com', url: 'https://www.hp.com' },
                 { name: 'Kotsovolos', domain: 'kotsovolos.gr', url: 'https://www.kotsovolos.gr' },
+                { name: 'Lenovo', domain: 'lenovo.com', url: 'https://www.lenovo.com' },
+                { name: 'Alpha Bank', domain: 'alpha.gr', url: 'https://www.alpha.gr' },
+                { name: 'Asus', domain: 'asus.com', url: 'https://www.asus.com' },
+                { name: 'Coffee Island', domain: 'coffeeisland.gr', url: 'https://www.coffeeisland.gr' },
+                { name: 'Temu', domain: 'temu.com', url: 'https://www.temu.com' },
+                { name: 'you.gr', domain: 'you.gr', url: 'https://www.you.gr' },
+                { name: 'Everest', domain: 'everest.gr', url: 'https://www.everest.gr' },
+                { name: 'Wolt', domain: 'wolt.com', url: 'https://wolt.com' },
+                { name: 'e-Food', domain: 'e-food.gr', url: 'https://www.e-food.gr' },
                 { name: 'MyMarket', domain: 'mymarket.gr', url: 'https://www.mymarket.gr' },
                 { name: 'Gregory\'s', domain: 'gregorys.gr', url: 'https://www.gregorys.gr' },
-                { name: 'e-Food', domain: 'e-food.gr', url: 'https://www.e-food.gr' },
-                { name: 'Wolt', domain: 'wolt.com', url: 'https://wolt.com' },
                 { name: 'Aegean Airlines', domain: 'aegeanair.com', url: 'https://www.aegeanair.com' },
-                { name: 'Hellenic Petroleum', domain: 'helpe.gr', url: 'https://www.helpe.gr' },
-                { name: 'Nike', domain: 'nike.com', url: 'https://www.nike.com' },
-                { name: 'Adidas', domain: 'adidas.com', url: 'https://www.adidas.com' },
-                { name: 'Zara', domain: 'zara.com', url: 'https://www.zara.com' },
-                { name: 'H&M', domain: 'hm.com', url: 'https://www.hm.com' },
-                { name: 'Mango', domain: 'mango.com', url: 'https://www.mango.com' },
-                { name: 'Apple', domain: 'apple.com', url: 'https://www.apple.com' },
-                { name: 'Samsung', domain: 'samsung.com', url: 'https://www.samsung.com' },
-                { name: 'Microsoft', domain: 'microsoft.com', url: 'https://www.microsoft.com' },
-                { name: 'Google', domain: 'google.com', url: 'https://www.google.com' },
-                { name: 'Dell', domain: 'dell.com', url: 'https://www.dell.com' },
-                { name: 'HP', domain: 'hp.com', url: 'https://www.hp.com' },
-                { name: 'Lenovo', domain: 'lenovo.com', url: 'https://www.lenovo.com' },
-                { name: 'Asus', domain: 'asus.com', url: 'https://www.asus.com' }
+                { name: 'Hellenic Petroleum', domain: 'helpe.gr', url: 'https://www.helpe.gr' }
               ].map((brand, idx) => {
                 const brandfetchUrl = `https://cdn.brandfetch.io/${brand.domain}?c=1idGP6EnrL-eVdz6PLO`;
                 return (
