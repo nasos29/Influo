@@ -62,6 +62,19 @@ interface Message {
   created_at: string;
 }
 
+interface Brand {
+  id: string;
+  brand_name: string;
+  contact_email: string;
+  contact_person: string | null;
+  website: string | null;
+  industry: string | null;
+  afm: string;
+  logo_url: string | null;
+  verified: boolean;
+  created_at: string;
+}
+
 const t = {
   el: {
     title: "Admin Dashboard",
@@ -74,6 +87,7 @@ const t = {
     pipeline: "Pipeline",
     tab_inf: "Influencers",
     tab_deals: "Proposals",
+    tab_brands: "Companies",
     col_inf: "Influencer",
     col_loc: "Τοποθεσία",
     col_status: "Status",
@@ -122,6 +136,7 @@ const t = {
     pipeline: "Pipeline",
     tab_inf: "Influencers",
     tab_deals: "Proposals",
+    tab_brands: "Companies",
     col_inf: "Influencer",
     col_loc: "Location",
     col_status: "Status",
@@ -476,6 +491,8 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [users, setUsers] = useState<DbInfluencer[]>([]);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [brandSearchQuery, setBrandSearchQuery] = useState("");
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [conversationMessages, setConversationMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
@@ -522,6 +539,20 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       setConversationMessages(data || []);
     } catch (error) {
       console.error('Error fetching messages:', error);
+    }
+  };
+
+  const fetchBrands = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('brands')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setBrands(data || []);
+    } catch (error) {
+      console.error('Error fetching brands:', error);
     }
   };
 
@@ -604,6 +635,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   useEffect(() => {
     fetchData();
     fetchConversations();
+    fetchBrands();
     
     // Refresh counts periodically
     const interval = setInterval(() => {
@@ -897,6 +929,16 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                   </span>
                 )}
               </button>
+              <button 
+                onClick={() => setActiveTab("brands")} 
+                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === "brands" 
+                    ? "border-slate-900 text-slate-900" 
+                    : "border-transparent text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                {txt.tab_brands} ({brands.length})
+              </button>
             </div>
           </div>
 
@@ -1082,6 +1124,84 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                 </tbody>
               </table>
             </div>
+          )}
+
+          {activeTab === "brands" && (
+            <>
+              {/* Search */}
+              <div className="p-4 border-b border-slate-200">
+                <input
+                  type="text"
+                  placeholder={lang === 'el' ? 'Αναζήτηση επιχείρησης...' : 'Search company...'}
+                  value={brandSearchQuery}
+                  onChange={(e) => setBrandSearchQuery(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              {/* Brands Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{lang === 'el' ? 'Εταιρεία' : 'Company'}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{lang === 'el' ? 'Email' : 'Email'}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{lang === 'el' ? 'ΑΦΜ' : 'Tax ID'}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{lang === 'el' ? 'Κλάδος' : 'Industry'}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{lang === 'el' ? 'Ημερομηνία' : 'Date'}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{lang === 'el' ? 'Κατάσταση' : 'Status'}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {brands.filter(b => 
+                      brandSearchQuery === "" || 
+                      b.brand_name.toLowerCase().includes(brandSearchQuery.toLowerCase()) ||
+                      b.contact_email.toLowerCase().includes(brandSearchQuery.toLowerCase())
+                    ).length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-8 text-center text-slate-500">{txt.no_data}</td>
+                      </tr>
+                    ) : (
+                      brands.filter(b => 
+                        brandSearchQuery === "" || 
+                        b.brand_name.toLowerCase().includes(brandSearchQuery.toLowerCase()) ||
+                        b.contact_email.toLowerCase().includes(brandSearchQuery.toLowerCase())
+                      ).map(b => (
+                        <tr key={b.id} className="hover:bg-slate-50">
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              {b.logo_url ? (
+                                <img src={b.logo_url} alt={b.brand_name} className="w-8 h-8 rounded object-cover" />
+                              ) : (
+                                <div className="w-8 h-8 rounded bg-slate-200 flex items-center justify-center text-slate-400 text-xs font-bold">
+                                  {b.brand_name.charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                              <span className="font-medium text-slate-900">{b.brand_name}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-slate-600">{b.contact_email}</td>
+                          <td className="px-4 py-3 text-slate-600">{b.afm}</td>
+                          <td className="px-4 py-3 text-slate-600">{b.industry || '-'}</td>
+                          <td className="px-4 py-3 text-slate-600 text-sm">
+                            {new Date(b.created_at).toLocaleDateString('el-GR')}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                              b.verified 
+                                ? 'bg-green-100 text-green-700' 
+                                : 'bg-yellow-100 text-yellow-700'
+                            }`}>
+                              {b.verified ? (lang === 'el' ? 'Επαληθευμένη' : 'Verified') : (lang === 'el' ? 'Εκκρεμεί' : 'Pending')}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
 
           {activeTab === "conversations" && (

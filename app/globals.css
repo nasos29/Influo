@@ -137,3 +137,24 @@ button, a, input, textarea, select {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
+
+/* Slideshow animation */
+@keyframes scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-scroll {
+  animation: scroll 40s linear infinite;
+  display: flex;
+  width: max-content;
+  will-change: transform;
+}
+
+.animate-scroll:hover {
+  animation-play-state: paused;
+}

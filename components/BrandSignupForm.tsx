@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 type Lang = "el" | "en";
 
@@ -21,6 +22,9 @@ const t = {
     passwordHide: "Απόκρυψη",
     afmLabel: "ΑΦΜ (9 ψηφία)",
     afmPlace: "123456789",
+    logoLabel: "Λογότυπο (Προαιρετικό)",
+    logoUpload: "Ανέβασμα Λογοτύπου",
+    logoRemove: "Αφαίρεση",
     websiteLabel: "Ιστοσελίδα (Προαιρετικό)",
     websitePlace: "https://example.com",
     industryLabel: "Κλάδος (Προαιρετικό)",
@@ -50,6 +54,9 @@ const t = {
     passwordHide: "Hide",
     afmLabel: "Tax ID (9 digits)",
     afmPlace: "123456789",
+    logoLabel: "Logo (Optional)",
+    logoUpload: "Upload Logo",
+    logoRemove: "Remove",
     websiteLabel: "Website (Optional)",
     websitePlace: "https://example.com",
     industryLabel: "Industry (Optional)",
@@ -85,6 +92,9 @@ export default function BrandSignupForm() {
   const [afm, setAfm] = useState("");
   const [website, setWebsite] = useState("");
   const [industry, setIndustry] = useState("");
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   // Pre-fill email from URL parameter
   useEffect(() => {
@@ -142,6 +152,37 @@ export default function BrandSignupForm() {
         throw new Error('User creation failed');
       }
 
+      // Upload logo if provided
+      let logoUrl = null;
+      if (logoFile) {
+        setUploadingLogo(true);
+        try {
+          const fileExt = logoFile.name.split('.').pop();
+          const fileName = `${authData.user.id}-${Date.now()}.${fileExt}`;
+          const filePath = `brand-logos/${fileName}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('brand-assets')
+            .upload(filePath, logoFile, {
+              cacheControl: '3600',
+              upsert: false
+            });
+
+          if (uploadError) throw uploadError;
+
+          const { data: { publicUrl } } = supabase.storage
+            .from('brand-assets')
+            .getPublicUrl(filePath);
+
+          logoUrl = publicUrl;
+        } catch (uploadErr: any) {
+          console.error('Logo upload error:', uploadErr);
+          // Continue without logo if upload fails
+        } finally {
+          setUploadingLogo(false);
+        }
+      }
+
       // Create brand record
       const { error: brandError } = await supabase
         .from('brands')
@@ -153,6 +194,7 @@ export default function BrandSignupForm() {
           afm: afmClean,
           website: website.trim() || null,
           industry: industry.trim() || null,
+          logo_url: logoUrl,
         });
 
       if (brandError) {
@@ -316,6 +358,65 @@ export default function BrandSignupForm() {
             required
             maxLength={9}
           />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            {txt.logoLabel}
+          </label>
+          {logoPreview ? (
+            <div className="relative inline-block">
+              <div className="w-24 h-24 rounded-lg overflow-hidden border-2 border-slate-200 mb-2">
+                <Image
+                  src={logoPreview}
+                  alt="Logo preview"
+                  width={96}
+                  height={96}
+                  className="object-cover w-full h-full"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setLogoFile(null);
+                  setLogoPreview(null);
+                }}
+                className="text-xs text-red-600 hover:text-red-700 font-medium"
+              >
+                {txt.logoRemove}
+              </button>
+            </div>
+          ) : (
+            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer hover:bg-slate-50 transition-colors">
+              <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                <svg className="w-8 h-8 mb-2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                <p className="mb-2 text-sm text-slate-500">{txt.logoUpload}</p>
+                <p className="text-xs text-slate-400">PNG, JPG ή SVG (max. 2MB)</p>
+              </div>
+              <input
+                type="file"
+                className="hidden"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    if (file.size > 2 * 1024 * 1024) {
+                      setMessage(lang === 'el' ? 'Το αρχείο είναι πολύ μεγάλο. Μέγιστο μέγεθος: 2MB' : 'File is too large. Maximum size: 2MB');
+                      return;
+                    }
+                    setLogoFile(file);
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      setLogoPreview(reader.result as string);
+                    };
+                    reader.readAsDataURL(file);
+                  }
+                }}
+              />
+            </label>
+          )}
         </div>
 
         <div>

@@ -359,6 +359,68 @@ export default function Home() {
           </div>
         </section>
 
+      {/* Brands Logos Slideshow */}
+      <section className="py-12 bg-gradient-to-br from-white to-slate-50 border-y border-slate-200">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-8">
+            <h3 className="text-2xl font-bold text-slate-900 mb-2">
+              {lang === "el" ? "Συνεργάζονται μαζί μας" : "Trusted by"}
+            </h3>
+            <p className="text-slate-600 text-sm">
+              {lang === "el" ? "Αξιόπιστα brands που συνεργάζονται με influencers μέσω της πλατφόρμας μας" : "Trusted brands collaborating with influencers through our platform"}
+            </p>
+          </div>
+          
+          {/* Slideshow Container */}
+          <div className="relative overflow-hidden">
+            <div className="flex animate-scroll gap-12 items-center">
+              {/* Logo 1 - Cosmos */}
+              <div className="flex-shrink-0 flex items-center justify-center h-16 w-32 opacity-60 hover:opacity-100 transition-opacity">
+                <img src="https://logos-world.net/wp-content/uploads/2021/02/Cosmos-Logo.png" alt="Cosmos" className="max-h-full max-w-full object-contain filter grayscale hover:grayscale-0 transition-all" />
+              </div>
+              {/* Logo 2 - Μύλοι Αγίου Γεωργίου */}
+              <div className="flex-shrink-0 flex items-center justify-center h-16 w-32 opacity-60 hover:opacity-100 transition-opacity">
+                <img src="https://www.saintgeorge.gr/wp-content/themes/saintgeorge/assets/images/logo.png" alt="Μύλοι Αγίου Γεωργίου" className="max-h-full max-w-full object-contain filter grayscale hover:grayscale-0 transition-all" />
+              </div>
+              {/* Logo 3 - Fage */}
+              <div className="flex-shrink-0 flex items-center justify-center h-16 w-32 opacity-60 hover:opacity-100 transition-opacity">
+                <img src="https://logos-world.net/wp-content/uploads/2020/04/Fage-Logo.png" alt="Fage" className="max-h-full max-w-full object-contain filter grayscale hover:grayscale-0 transition-all" />
+              </div>
+              {/* Logo 4 - Ελληνικά Προϊόντα */}
+              <div className="flex-shrink-0 flex items-center justify-center h-16 w-32 opacity-60 hover:opacity-100 transition-opacity">
+                <img src="https://www.vivartia.com/sites/default/files/2021-11/vivartia_logo.png" alt="Vivartia" className="max-h-full max-w-full object-contain filter grayscale hover:grayscale-0 transition-all" />
+              </div>
+              {/* Logo 5 - Public */}
+              <div className="flex-shrink-0 flex items-center justify-center h-16 w-32 opacity-60 hover:opacity-100 transition-opacity">
+                <img src="https://www.public.gr/images/logo.png" alt="Public" className="max-h-full max-w-full object-contain filter grayscale hover:grayscale-0 transition-all" />
+              </div>
+              {/* Logo 6 - Skroutz */}
+              <div className="flex-shrink-0 flex items-center justify-center h-16 w-32 opacity-60 hover:opacity-100 transition-opacity">
+                <img src="https://assets.skroutz.gr/assets/logo-sk-e73c17e4ed8a19bea4e9b50c8c7c47e4f0f3e8c93fd7a1fc6f6c6e6c6e6e6e6e.png" alt="Skroutz" className="max-h-full max-w-full object-contain filter grayscale hover:grayscale-0 transition-all" />
+              </div>
+              {/* Duplicate for seamless loop */}
+              <div className="flex-shrink-0 flex items-center justify-center h-16 w-32 opacity-60 hover:opacity-100 transition-opacity">
+                <img src="https://logos-world.net/wp-content/uploads/2021/02/Cosmos-Logo.png" alt="Cosmos" className="max-h-full max-w-full object-contain filter grayscale hover:grayscale-0 transition-all" />
+              </div>
+              <div className="flex-shrink-0 flex items-center justify-center h-16 w-32 opacity-60 hover:opacity-100 transition-opacity">
+                <img src="https://www.saintgeorge.gr/wp-content/themes/saintgeorge/assets/images/logo.png" alt="Μύλοι Αγίου Γεωργίου" className="max-h-full max-w-full object-contain filter grayscale hover:grayscale-0 transition-all" />
+              </div>
+              <div className="flex-shrink-0 flex items-center justify-center h-16 w-32 opacity-60 hover:opacity-100 transition-opacity">
+                <img src="https://logos-world.net/wp-content/uploads/2020/04/Fage-Logo.png" alt="Fage" className="max-h-full max-w-full object-contain filter grayscale hover:grayscale-0 transition-all" />
+              </div>
+              <div className="flex-shrink-0 flex items-center justify-center h-16 w-32 opacity-60 hover:opacity-100 transition-opacity">
+                <img src="https://www.vivartia.com/sites/default/files/2021-11/vivartia_logo.png" alt="Vivartia" className="max-h-full max-w-full object-contain filter grayscale hover:grayscale-0 transition-all" />
+              </div>
+              <div className="flex-shrink-0 flex items-center justify-center h-16 w-32 opacity-60 hover:opacity-100 transition-opacity">
+                <img src="https://www.public.gr/images/logo.png" alt="Public" className="max-h-full max-w-full object-contain filter grayscale hover:grayscale-0 transition-all" />
+              </div>
+              <div className="flex-shrink-0 flex items-center justify-center h-16 w-32 opacity-60 hover:opacity-100 transition-opacity">
+                <img src="https://assets.skroutz.gr/assets/logo-sk-e73c17e4ed8a19bea4e9b50c8c7c47e4f0f3e8c93fd7a1fc6f6c6e6c6e6e6e6e.png" alt="Skroutz" className="max-h-full max-w-full object-contain filter grayscale hover:grayscale-0 transition-all" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Footer */}
         <footer className="bg-gradient-to-br from-slate-900 to-slate-800 border-t border-slate-700 py-12 text-slate-300">
