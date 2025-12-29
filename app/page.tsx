@@ -374,23 +374,32 @@ export default function Home() {
           {/* Slideshow Container */}
           <div className="relative overflow-hidden">
             <div className="flex animate-scroll gap-16 items-center">
-              {/* Greek Company Logos - Mixed Order using Brandfetch */}
+              {/* Greek Company Logos - Using Brandfetch API with Logopedia list */}
               {[
                 { name: 'Autodrome', domain: 'autodrome.gr' },
-                { name: 'Coffee Island', domain: 'coffeeisland.gr' },
-                { name: 'Goody\'s', domain: 'goodys.gr' },
-                { name: 'Plaisio', domain: 'plaisio.gr' },
+                { name: 'Aegean Airlines', domain: 'aegeanair.com' },
+                { name: 'Alpha Bank', domain: 'alpha.gr' },
                 { name: 'Jumbo', domain: 'jumbo.gr' },
                 { name: 'Skroutz', domain: 'skroutz.gr' },
-                { name: 'Everest', domain: 'everest.gr' },
                 { name: 'Public', domain: 'public.gr' },
-                { name: 'Gregory\'s', domain: 'gregorys.gr' },
-                { name: 'MyMarket', domain: 'mymarket.gr' },
-                { name: 'Cosmos', domain: 'cosmosgr.com' },
-                { name: 'Vodafone', domain: 'vodafone.gr' },
                 { name: 'Cosmote', domain: 'cosmote.gr' },
+                { name: 'Vodafone', domain: 'vodafone.gr' },
+                { name: 'Eurobank', domain: 'eurobank.gr' },
+                { name: 'National Bank', domain: 'nbg.gr' },
+                { name: 'Piraeus Bank', domain: 'piraeusbank.gr' },
+                { name: 'OTE', domain: 'ote.gr' },
+                { name: 'Coffee Island', domain: 'coffeeisland.gr' },
+                { name: 'Goody\'s', domain: 'goodys.gr' },
+                { name: 'Everest', domain: 'everest.gr' },
+                { name: 'Plaisio', domain: 'plaisio.gr' },
+                { name: 'Kotsovolos', domain: 'kotsovolos.gr' },
+                { name: 'MyMarket', domain: 'mymarket.gr' },
+                { name: 'Gregory\'s', domain: 'gregorys.gr' },
                 { name: 'e-Food', domain: 'e-food.gr' },
-                { name: 'Wolt', domain: 'wolt.com' }
+                { name: 'Wolt', domain: 'wolt.com' },
+                { name: 'OPAP', domain: 'opap.gr' },
+                { name: 'Hellenic Petroleum', domain: 'helpe.gr' },
+                { name: 'Cosmos', domain: 'cosmosgr.com' }
               ].map((brand, idx) => {
                 const brandfetchUrl = `https://cdn.brandfetch.io/${brand.domain}`;
                 return (
@@ -401,13 +410,13 @@ export default function Home() {
                       className="h-14 w-auto max-w-full object-contain filter grayscale hover:grayscale-0 transition-all bg-white p-2 rounded"
                       loading="lazy"
                       onError={(e) => {
-                        // Fallback to text if image fails to load
+                        // Fallback to large text if image fails to load
                         const target = e.target as HTMLImageElement;
                         target.style.display = 'none';
                         if (!target.nextElementSibling) {
                           const textFallback = document.createElement('div');
                           textFallback.className = 'font-bold text-xl text-slate-700 px-6 py-3 whitespace-nowrap bg-white rounded-lg border-2 border-slate-300 shadow-sm';
-                          textFallback.textContent = brand.name;
+                          textFallback.textContent = brand.name.toUpperCase();
                           target.parentElement?.appendChild(textFallback);
                         }
                       }}
@@ -415,23 +424,32 @@ export default function Home() {
                   </div>
                 );
               })}
-              {/* Duplicate for seamless loop - Mixed Order */}
+              {/* Duplicate for seamless loop */}
               {[
                 { name: 'Autodrome', domain: 'autodrome.gr' },
-                { name: 'Coffee Island', domain: 'coffeeisland.gr' },
-                { name: 'Goody\'s', domain: 'goodys.gr' },
-                { name: 'Plaisio', domain: 'plaisio.gr' },
+                { name: 'Aegean Airlines', domain: 'aegeanair.com' },
+                { name: 'Alpha Bank', domain: 'alpha.gr' },
                 { name: 'Jumbo', domain: 'jumbo.gr' },
                 { name: 'Skroutz', domain: 'skroutz.gr' },
-                { name: 'Everest', domain: 'everest.gr' },
                 { name: 'Public', domain: 'public.gr' },
-                { name: 'Gregory\'s', domain: 'gregorys.gr' },
-                { name: 'MyMarket', domain: 'mymarket.gr' },
-                { name: 'Cosmos', domain: 'cosmosgr.com' },
-                { name: 'Vodafone', domain: 'vodafone.gr' },
                 { name: 'Cosmote', domain: 'cosmote.gr' },
+                { name: 'Vodafone', domain: 'vodafone.gr' },
+                { name: 'Eurobank', domain: 'eurobank.gr' },
+                { name: 'National Bank', domain: 'nbg.gr' },
+                { name: 'Piraeus Bank', domain: 'piraeusbank.gr' },
+                { name: 'OTE', domain: 'ote.gr' },
+                { name: 'Coffee Island', domain: 'coffeeisland.gr' },
+                { name: 'Goody\'s', domain: 'goodys.gr' },
+                { name: 'Everest', domain: 'everest.gr' },
+                { name: 'Plaisio', domain: 'plaisio.gr' },
+                { name: 'Kotsovolos', domain: 'kotsovolos.gr' },
+                { name: 'MyMarket', domain: 'mymarket.gr' },
+                { name: 'Gregory\'s', domain: 'gregorys.gr' },
                 { name: 'e-Food', domain: 'e-food.gr' },
-                { name: 'Wolt', domain: 'wolt.com' }
+                { name: 'Wolt', domain: 'wolt.com' },
+                { name: 'OPAP', domain: 'opap.gr' },
+                { name: 'Hellenic Petroleum', domain: 'helpe.gr' },
+                { name: 'Cosmos', domain: 'cosmosgr.com' }
               ].map((brand, idx) => {
                 const brandfetchUrl = `https://cdn.brandfetch.io/${brand.domain}`;
                 return (
@@ -447,7 +465,7 @@ export default function Home() {
                         if (!target.nextElementSibling) {
                           const textFallback = document.createElement('div');
                           textFallback.className = 'font-bold text-xl text-slate-700 px-6 py-3 whitespace-nowrap bg-white rounded-lg border-2 border-slate-300 shadow-sm';
-                          textFallback.textContent = brand.name;
+                          textFallback.textContent = brand.name.toUpperCase();
                           target.parentElement?.appendChild(textFallback);
                         }
                       }}
