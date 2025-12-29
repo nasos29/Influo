@@ -195,18 +195,6 @@ export default function DocsPage() {
                 </p>
               </div>
             </div>
-
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mt-8">
-              <h4 className="font-bold text-blue-900 mb-3 flex items-center gap-2">
-                <span>⚙️</span>
-                {lang === 'el' ? 'Κανόνες Badges' : 'Badge Rules'}
-              </h4>
-              <ul className="list-disc list-inside space-y-2 text-slate-700">
-                <li>{lang === 'el' ? 'Μόνο 1 badge (εκτός από "Επαληθευμένος" που μένει πάντα)' : 'Only 1 badge (except "Verified" which stays permanently)'}</li>
-                <li>{lang === 'el' ? 'Το σύστημα επιλέγει αυτόματα το badge με την υψηλότερη προτεραιότητα' : 'The system automatically selects the badge with highest priority'}</li>
-                <li>{lang === 'el' ? 'Τα badges ενημερώνονται αυτόματα βάσει των δεδομένων σας' : 'Badges are automatically updated based on your data'}</li>
-              </ul>
-            </div>
           </section>
 
           {/* Proposals Section */}
@@ -277,7 +265,7 @@ export default function DocsPage() {
                 {lang === 'el' ? '💡 Συμβουλές για Αντιπροσφορές' : '💡 Tips for Counter-Proposals'}
               </h4>
               <ul className="space-y-2 text-slate-700 list-disc list-inside">
-                <li>{lang === 'el' ? 'Ναιίστε δίκαιες τιμές βάσει του engagement rate και των followers σας' : 'Request fair prices based on your engagement rate and followers'}</li>
+                <li>{lang === 'el' ? 'Ζητήστε δίκαιες τιμές βάσει του engagement rate και των followers σας' : 'Request fair prices based on your engagement rate and followers'}</li>
                 <li>{lang === 'el' ? 'Εξηγήστε γιατί ζητάτε περισσότερο (π.χ. περισσότερο content, exclusivity)' : 'Explain why you\'re asking for more (e.g., more content, exclusivity)'}</li>
                 <li>{lang === 'el' ? 'Είστε ευγενικοί - η αντιπροσφορά είναι συνήθης πρακτική' : 'Be polite - counter-proposal is common practice'}</li>
               </ul>
@@ -432,7 +420,7 @@ export default function DocsPage() {
                   {lang === 'el' ? 'Q: Πώς μπορώ να αυξήσω το engagement rate μου;' : 'Q: How can I increase my engagement rate?'}
                 </h4>
                 <p className="text-slate-700">
-                  {lang === 'el' ? 'A: Consistent posting, quality content, interaction με followers, hashtags.' : 'A: Consistent posting, quality content, interaction with followers, hashtags.'}
+                  {lang === 'el' ? 'Α: Συνεπής δημοσίευση, ποιοτικό περιεχόμενο, αλληλεπίδραση με τους followers, hashtags.' : 'A: Consistent posting, quality content, interaction with followers, hashtags.'}
                 </p>
               </div>
 
