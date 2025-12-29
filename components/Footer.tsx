@@ -89,9 +89,7 @@ export default function Footer({ lang = "el" }: FooterProps) {
             {/* Social Links */}
             <div className="flex gap-4">
               <a 
-                href="https://www.instagram.com/influo" 
-                target="_blank" 
-                rel="noopener noreferrer"
+                href="#" 
                 className="text-slate-400 hover:text-white transition-colors"
                 aria-label="Instagram"
               >
@@ -100,9 +98,7 @@ export default function Footer({ lang = "el" }: FooterProps) {
                 </svg>
               </a>
               <a 
-                href="https://www.facebook.com/influo" 
-                target="_blank" 
-                rel="noopener noreferrer"
+                href="#" 
                 className="text-slate-400 hover:text-white transition-colors"
                 aria-label="Facebook"
               >
@@ -111,9 +107,7 @@ export default function Footer({ lang = "el" }: FooterProps) {
                 </svg>
               </a>
               <a 
-                href="https://twitter.com/influo" 
-                target="_blank" 
-                rel="noopener noreferrer"
+                href="#" 
                 className="text-slate-400 hover:text-white transition-colors"
                 aria-label="Twitter"
               >
@@ -122,9 +116,7 @@ export default function Footer({ lang = "el" }: FooterProps) {
                 </svg>
               </a>
               <a 
-                href="https://www.linkedin.com/company/influo" 
-                target="_blank" 
-                rel="noopener noreferrer"
+                href="#" 
                 className="text-slate-400 hover:text-white transition-colors"
                 aria-label="LinkedIn"
               >
@@ -140,7 +132,7 @@ export default function Footer({ lang = "el" }: FooterProps) {
             <h3 className="text-white font-semibold mb-4">{txt.company}</h3>
             <ul className="space-y-3">
               <li>
-                <Link href="/about" className="text-slate-400 hover:text-white transition-colors text-sm">
+                <Link href="#" className="text-slate-400 hover:text-white transition-colors text-sm">
                   {txt.about}
                 </Link>
               </li>
@@ -150,12 +142,12 @@ export default function Footer({ lang = "el" }: FooterProps) {
                 </Link>
               </li>
               <li>
-                <Link href="/careers" className="text-slate-400 hover:text-white transition-colors text-sm">
+                <Link href="#" className="text-slate-400 hover:text-white transition-colors text-sm">
                   {txt.careers}
                 </Link>
               </li>
               <li>
-                <Link href="/press" className="text-slate-400 hover:text-white transition-colors text-sm">
+                <Link href="#" className="text-slate-400 hover:text-white transition-colors text-sm">
                   {txt.press}
                 </Link>
               </li>
@@ -167,12 +159,12 @@ export default function Footer({ lang = "el" }: FooterProps) {
             <h3 className="text-white font-semibold mb-4">{txt.platform}</h3>
             <ul className="space-y-3">
               <li>
-                <Link href="/brand/signup" className="text-slate-400 hover:text-white transition-colors text-sm">
+                <Link href="/for-influencers" className="text-slate-400 hover:text-white transition-colors text-sm">
                   {txt.forInfluencers}
                 </Link>
               </li>
               <li>
-                <Link href="/brand/signup" className="text-slate-400 hover:text-white transition-colors text-sm">
+                <Link href="/for-brands" className="text-slate-400 hover:text-white transition-colors text-sm">
                   {txt.forBrands}
                 </Link>
               </li>
@@ -194,7 +186,7 @@ export default function Footer({ lang = "el" }: FooterProps) {
             <h3 className="text-white font-semibold mb-4">{txt.support}</h3>
             <ul className="space-y-3">
               <li>
-                <Link href="/help" className="text-slate-400 hover:text-white transition-colors text-sm">
+                <Link href="#" className="text-slate-400 hover:text-white transition-colors text-sm">
                   {txt.help}
                 </Link>
               </li>
