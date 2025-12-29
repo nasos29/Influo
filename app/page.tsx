@@ -374,42 +374,73 @@ export default function Home() {
           {/* Slideshow Container */}
           <div className="relative overflow-hidden">
             <div className="flex animate-scroll gap-16 items-center">
-              {/* Greek Company Logos - Text Based */}
+              {/* Greek Company Logos from Clearbit API */}
               {[
-                { name: 'COSMOS', color: 'text-blue-600' },
-                { name: 'FAGE', color: 'text-green-600' },
-                { name: 'VIVARTIA', color: 'text-red-600' },
-                { name: 'PUBLIC', color: 'text-orange-600' },
-                { name: 'SKROUTZ', color: 'text-purple-600' },
-                { name: 'COCA-COLA', color: 'text-red-500' },
-                { name: 'PEPSI', color: 'text-blue-500' },
-                { name: 'NESTLE', color: 'text-blue-800' },
-                { name: 'UNILEVER', color: 'text-indigo-600' },
-                { name: 'PROCTER & GAMBLE', color: 'text-cyan-600' }
+                { name: 'Cosmos', logo: 'https://logo.clearbit.com/cosmosgr.com' },
+                { name: 'Fage', logo: 'https://logo.clearbit.com/fage.com' },
+                { name: 'Vivartia', logo: 'https://logo.clearbit.com/vivartia.com' },
+                { name: 'Public', logo: 'https://logo.clearbit.com/public.gr' },
+                { name: 'Skroutz', logo: 'https://logo.clearbit.com/skroutz.gr' },
+                { name: 'Coca-Cola', logo: 'https://logo.clearbit.com/coca-cola.com' },
+                { name: 'Pepsi', logo: 'https://logo.clearbit.com/pepsi.com' },
+                { name: 'Nestle', logo: 'https://logo.clearbit.com/nestle.com' },
+                { name: 'Unilever', logo: 'https://logo.clearbit.com/unilever.com' },
+                { name: 'Procter & Gamble', logo: 'https://logo.clearbit.com/pg.com' },
+                { name: 'Adidas', logo: 'https://logo.clearbit.com/adidas.com' },
+                { name: 'Nike', logo: 'https://logo.clearbit.com/nike.com' }
               ].map((brand, idx) => (
-                <div key={idx} className="flex-shrink-0 flex items-center justify-center h-20 min-w-[180px] opacity-70 hover:opacity-100 transition-all">
-                  <div className={`${brand.color} font-bold text-xl px-8 py-4 border-2 border-slate-200 hover:border-slate-400 rounded-xl bg-white shadow-sm hover:shadow-md transition-all whitespace-nowrap`}>
-                    {brand.name}
-                  </div>
+                <div key={idx} className="flex-shrink-0 flex items-center justify-center h-20 w-48 opacity-70 hover:opacity-100 transition-all">
+                  <img 
+                    src={brand.logo}
+                    alt={brand.name}
+                    className="h-12 w-auto max-w-full object-contain filter grayscale hover:grayscale-0 transition-all"
+                    loading="lazy"
+                    onError={(e) => {
+                      // Fallback to text if image fails to load
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      if (!target.nextElementSibling) {
+                        const textFallback = document.createElement('div');
+                        textFallback.className = 'font-bold text-lg text-slate-600 px-4 py-2 whitespace-nowrap';
+                        textFallback.textContent = brand.name;
+                        target.parentElement?.appendChild(textFallback);
+                      }
+                    }}
+                  />
                 </div>
               ))}
               {/* Duplicate for seamless loop */}
               {[
-                { name: 'COSMOS', color: 'text-blue-600' },
-                { name: 'FAGE', color: 'text-green-600' },
-                { name: 'VIVARTIA', color: 'text-red-600' },
-                { name: 'PUBLIC', color: 'text-orange-600' },
-                { name: 'SKROUTZ', color: 'text-purple-600' },
-                { name: 'COCA-COLA', color: 'text-red-500' },
-                { name: 'PEPSI', color: 'text-blue-500' },
-                { name: 'NESTLE', color: 'text-blue-800' },
-                { name: 'UNILEVER', color: 'text-indigo-600' },
-                { name: 'PROCTER & GAMBLE', color: 'text-cyan-600' }
+                { name: 'Cosmos', logo: 'https://logo.clearbit.com/cosmosgr.com' },
+                { name: 'Fage', logo: 'https://logo.clearbit.com/fage.com' },
+                { name: 'Vivartia', logo: 'https://logo.clearbit.com/vivartia.com' },
+                { name: 'Public', logo: 'https://logo.clearbit.com/public.gr' },
+                { name: 'Skroutz', logo: 'https://logo.clearbit.com/skroutz.gr' },
+                { name: 'Coca-Cola', logo: 'https://logo.clearbit.com/coca-cola.com' },
+                { name: 'Pepsi', logo: 'https://logo.clearbit.com/pepsi.com' },
+                { name: 'Nestle', logo: 'https://logo.clearbit.com/nestle.com' },
+                { name: 'Unilever', logo: 'https://logo.clearbit.com/unilever.com' },
+                { name: 'Procter & Gamble', logo: 'https://logo.clearbit.com/pg.com' },
+                { name: 'Adidas', logo: 'https://logo.clearbit.com/adidas.com' },
+                { name: 'Nike', logo: 'https://logo.clearbit.com/nike.com' }
               ].map((brand, idx) => (
-                <div key={`dup-${idx}`} className="flex-shrink-0 flex items-center justify-center h-20 min-w-[180px] opacity-70 hover:opacity-100 transition-all">
-                  <div className={`${brand.color} font-bold text-xl px-8 py-4 border-2 border-slate-200 hover:border-slate-400 rounded-xl bg-white shadow-sm hover:shadow-md transition-all whitespace-nowrap`}>
-                    {brand.name}
-                  </div>
+                <div key={`dup-${idx}`} className="flex-shrink-0 flex items-center justify-center h-20 w-48 opacity-70 hover:opacity-100 transition-all">
+                  <img 
+                    src={brand.logo}
+                    alt={brand.name}
+                    className="h-12 w-auto max-w-full object-contain filter grayscale hover:grayscale-0 transition-all"
+                    loading="lazy"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      if (!target.nextElementSibling) {
+                        const textFallback = document.createElement('div');
+                        textFallback.className = 'font-bold text-lg text-slate-600 px-4 py-2 whitespace-nowrap';
+                        textFallback.textContent = brand.name;
+                        target.parentElement?.appendChild(textFallback);
+                      }
+                    }}
+                  />
                 </div>
               ))}
             </div>
