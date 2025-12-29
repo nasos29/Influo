@@ -192,8 +192,8 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                 <form onSubmit={handleSave} className="p-6 space-y-6">
                     {/* Basic Info */}
                     <div>
-                        <h3 className="text-sm font-semibold text-slate-700 mb-4 uppercase">Βασικές Πληροφορίες</h3>
-                        <div className="grid md:grid-cols-2 gap-4">
+                        <h3 className="text-sm font-semibold text-slate-700 mb-3 uppercase">Βασικές Πληροφορίες</h3>
+                        <div className="grid md:grid-cols-2 gap-3">
                             <div>
                                 <label className="block text-sm font-semibold text-slate-900 mb-1">Ονοματεπώνυμο *</label>
                                 <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" required />
@@ -203,8 +203,8 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                 <input type="text" value={location} onChange={e => setLocation(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" />
                             </div>
                             <div>
-                                <label className="block text-sm font-semibold text-slate-900 mb-1">Κατηγορία</label>
-                                <select value={category} onChange={e => setCategory(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900">
+                                <label className="block text-xs font-semibold text-slate-900 mb-1">Κατηγορία</label>
+                                <select value={category} onChange={e => setCategory(e.target.value)} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900">
                                     <option>Lifestyle</option>
                                     <option>Fashion</option>
                                     <option>Beauty</option>
@@ -216,69 +216,70 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-sm font-semibold text-slate-900 mb-1">Φύλο</label>
-                                <select value={gender} onChange={e => setGender(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900">
+                                <label className="block text-xs font-semibold text-slate-900 mb-1">Φύλο</label>
+                                <select value={gender} onChange={e => setGender(e.target.value)} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900">
                                     <option>Female</option>
                                     <option>Male</option>
                                     <option>Other</option>
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-sm font-semibold text-slate-900 mb-1">Min Rate (€)</label>
-                                <input type="text" value={minRate} onChange={e => setMinRate(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" placeholder="250" />
+                                <label className="block text-xs font-semibold text-slate-900 mb-1">Min Rate (€)</label>
+                                <input type="text" value={minRate} onChange={e => setMinRate(e.target.value)} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" placeholder="250" />
                             </div>
+                        </div>
+                        <div className="mt-3">
+                            <label className="block text-xs font-semibold text-slate-900 mb-1">Bio</label>
+                            <textarea value={bio} onChange={e => setBio(e.target.value)} rows={2} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900" />
                         </div>
                     </div>
 
-                    {/* Pricing Section */}
+                    {/* Pricing Section - Compact */}
                     <div>
-                        <h3 className="text-sm font-semibold text-slate-700 mb-4 uppercase">Τιμές Ανά Υπηρεσία</h3>
-                        <p className="text-xs text-slate-600 mb-4">Οι τιμές θα εμφανίζονται στο προφίλ σου. Αφήστε κενό για "Ρώτησε".</p>
-                        <div className="grid md:grid-cols-4 gap-4">
+                        <h3 className="text-sm font-semibold text-slate-700 mb-3 uppercase">Τιμές Ανά Υπηρεσία</h3>
+                        <p className="text-xs text-slate-600 mb-3">Αφήστε κενό για "Ρώτησε".</p>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
                             <div>
-                                <label className="block text-sm font-semibold text-slate-900 mb-1">Instagram Story (€)</label>
+                                <label className="block text-xs font-semibold text-slate-900 mb-1">Instagram Story (€)</label>
                                 <input 
                                     type="text" 
                                     value={priceStory} 
                                     onChange={e => setPriceStory(e.target.value)} 
-                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" 
-                                    placeholder="100 ή Ρώτησε" 
+                                    className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" 
+                                    placeholder="100" 
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-semibold text-slate-900 mb-1">Instagram Post (€)</label>
+                                <label className="block text-xs font-semibold text-slate-900 mb-1">Instagram Post (€)</label>
                                 <input 
                                     type="text" 
                                     value={pricePost} 
                                     onChange={e => setPricePost(e.target.value)} 
-                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" 
-                                    placeholder="200 ή Ρώτησε" 
+                                    className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" 
+                                    placeholder="200" 
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-semibold text-slate-900 mb-1">Reel / TikTok (€)</label>
+                                <label className="block text-xs font-semibold text-slate-900 mb-1">Reel / TikTok (€)</label>
                                 <input 
                                     type="text" 
                                     value={priceReel} 
                                     onChange={e => setPriceReel(e.target.value)} 
-                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" 
-                                    placeholder="300 ή Ρώτησε" 
+                                    className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" 
+                                    placeholder="300" 
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-semibold text-slate-900 mb-1">Facebook Post (€)</label>
+                                <label className="block text-xs font-semibold text-slate-900 mb-1">Facebook Post (€)</label>
                                 <input 
                                     type="text" 
                                     value={priceFacebook} 
                                     onChange={e => setPriceFacebook(e.target.value)} 
-                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" 
-                                    placeholder="150 ή Ρώτησε" 
+                                    className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" 
+                                    placeholder="150" 
                                 />
                             </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-900 mb-1">Engagement Rate (%)</label>
-                                <input type="text" value={engage} onChange={e => setEngage(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" placeholder="5.2" />
-                            </div>
+                        </div>
                             <div>
                                 <label className="block text-sm font-semibold text-slate-900 mb-1">Avg Likes/Views</label>
                                 <input type="text" value={likes} onChange={e => setLikes(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" placeholder="3.2k" />
@@ -288,16 +289,11 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                 <input type="text" value={languages} onChange={e => setLanguages(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" placeholder="Ελληνικά, Αγγλικά" />
                             </div>
                         </div>
-                        <div className="mt-4">
-                            <label className="block text-sm font-semibold text-slate-900 mb-1">Bio</label>
-                            <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900" />
-                        </div>
-                    </div>
 
                     {/* Social Accounts */}
                     <div>
-                        <h3 className="text-sm font-bold text-slate-900 mb-4 uppercase">Κανάλια Social Media</h3>
-                        <div className="space-y-3">
+                        <h3 className="text-sm font-bold text-slate-900 mb-3 uppercase">Κανάλια Social Media</h3>
+                        <div className="space-y-2">
                             {accounts.map((acc, i) => (
                                 <div key={i} className="flex gap-3 items-start p-3 border border-slate-200 rounded-lg">
                                     <select value={acc.platform} onChange={e => handleAccountChange(i, 'platform', e.target.value)} className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900">
@@ -316,18 +312,18 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
 
                     {/* Audience */}
                     <div>
-                        <h3 className="text-sm font-bold text-slate-900 mb-4 uppercase">Κοινό</h3>
-                        <div className="grid md:grid-cols-3 gap-4">
+                        <h3 className="text-sm font-bold text-slate-900 mb-3 uppercase">Κοινό</h3>
+                        <div className="grid md:grid-cols-3 gap-3">
                             <div>
-                                <label className="block text-sm font-semibold text-slate-900 mb-1">Άνδρες (%)</label>
-                                <input type="number" value={malePercent} onChange={e => setMalePercent(e.target.value)} min="0" max="100" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" />
+                                <label className="block text-xs font-semibold text-slate-900 mb-1">Άνδρες (%)</label>
+                                <input type="number" value={malePercent} onChange={e => setMalePercent(e.target.value)} min="0" max="100" className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" />
                             </div>
                             <div>
-                                <label className="block text-sm font-semibold text-slate-900 mb-1">Γυναίκες (%)</label>
-                                <input type="number" value={femalePercent} onChange={e => setFemalePercent(e.target.value)} min="0" max="100" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" />
+                                <label className="block text-xs font-semibold text-slate-900 mb-1">Γυναίκες (%)</label>
+                                <input type="number" value={femalePercent} onChange={e => setFemalePercent(e.target.value)} min="0" max="100" className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" />
                             </div>
                             <div>
-                                <label className="block text-sm font-semibold text-slate-900 mb-1">Κύρια Ηλικιακή Ομάδα</label>
+                                <label className="block text-xs font-semibold text-slate-900 mb-1">Κύρια Ηλικιακή Ομάδα</label>
                                 <input 
                                     type="text" 
                                     value={topAge} 
@@ -341,7 +337,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                         }
                                         setTopAge(value);
                                     }}
-                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" 
+                                    className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" 
                                     placeholder="18-24" 
                                     maxLength={6}
                                 />
@@ -351,9 +347,9 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
 
                     {/* Videos */}
                     <div>
-                        <h3 className="text-sm font-bold text-slate-900 mb-4 uppercase">Video Links / Φωτογραφίες</h3>
-                        <p className="text-xs text-slate-600 mb-3">Μπορείτε να προσθέσετε links από TikTok, Reels, YouTube ή φωτογραφίες από δουλειές σας.</p>
-                        <div className="space-y-3">
+                        <h3 className="text-sm font-bold text-slate-900 mb-3 uppercase">Video Links / Φωτογραφίες</h3>
+                        <p className="text-xs text-slate-600 mb-2">Μπορείτε να προσθέσετε links από TikTok, Reels, YouTube ή φωτογραφίες από δουλειές σας.</p>
+                        <div className="space-y-2">
                             {videos.map((video, i) => {
                                 const thumbnail = getVideoThumbnail(video);
                                 const isVideo = isVideoUrl(video);

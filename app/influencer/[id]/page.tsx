@@ -1352,26 +1352,82 @@ export default function InfluencerProfile(props: { params: Params }) {
                           </div>
                         )}
                         
-                        {/* Pricing Table - Single unified table */}
+                        {/* Pricing Table - Dynamic based on platforms */}
                         <div className="space-y-4">
                             <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
                                 <div className="divide-y divide-slate-100">
-                                    <div className="flex justify-between items-center px-4 py-3 hover:bg-slate-50 transition-colors">
-                                        <span className="font-medium text-slate-700">{txt.price_story}</span>
-                                        <span className="font-bold text-xl text-slate-900">{profile.rate_card?.story || (lang === 'el' ? 'Ρώτησε' : 'Ask')}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center px-4 py-3 hover:bg-slate-50 transition-colors">
-                                        <span className="font-medium text-slate-700">{txt.price_post}</span>
-                                        <span className="font-bold text-xl text-slate-900">{profile.rate_card?.post || (lang === 'el' ? 'Ρώτησε' : 'Ask')}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center px-4 py-3 hover:bg-slate-50 transition-colors">
-                                        <span className="font-medium text-slate-700">{txt.price_reel}</span>
-                                        <span className="font-bold text-xl text-slate-900">{profile.rate_card?.reel || (lang === 'el' ? 'Ρώτησε' : 'Ask')}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center px-4 py-3 hover:bg-slate-50 transition-colors">
-                                        <span className="font-medium text-slate-700">{txt.price_facebook}</span>
-                                        <span className="font-bold text-xl text-slate-900">{profile.rate_card?.facebook || (lang === 'el' ? 'Ρώτησε' : 'Ask')}</span>
-                                    </div>
+                                    {(() => {
+                                        const platforms = profile.socials ? Object.keys(profile.socials).map(p => p.toLowerCase()) : [];
+                                        const serviceMap = new Map<string, { key: keyof typeof profile.rate_card; label: string }>();
+                                        
+                                        // Instagram services
+                                        if (platforms.includes('instagram')) {
+                                            serviceMap.set('story', { key: 'story', label: txt.price_story });
+                                            serviceMap.set('post-instagram', { key: 'post', label: txt.price_post });
+                                            serviceMap.set('reel', { key: 'reel', label: txt.price_reel });
+                                        }
+                                        
+                                        // TikTok services (uses reel key)
+                                        if (platforms.includes('tiktok')) {
+                                            serviceMap.set('reel', { key: 'reel', label: lang === 'el' ? 'TikTok Video' : 'TikTok Video' });
+                                        }
+                                        
+                                        // YouTube services (uses reel key)
+                                        if (platforms.includes('youtube')) {
+                                            serviceMap.set('reel', { key: 'reel', label: lang === 'el' ? 'YouTube Video' : 'YouTube Video' });
+                                        }
+                                        
+                                        // Facebook services
+                                        if (platforms.includes('facebook')) {
+                                            if (!serviceMap.has('story')) {
+                                                serviceMap.set('story-fb', { key: 'story', label: lang === 'el' ? 'Facebook Story' : 'Facebook Story' });
+                                            }
+                                            if (!serviceMap.has('post-instagram')) {
+                                                serviceMap.set('post', { key: 'post', label: txt.price_facebook });
+                                            } else {
+                                                serviceMap.set('post-fb', { key: 'facebook', label: txt.price_facebook });
+                                            }
+                                        }
+                                        
+                                        // Twitter services
+                                        if (platforms.includes('twitter')) {
+                                            if (!serviceMap.has('post-instagram') && !serviceMap.has('post')) {
+                                                serviceMap.set('post', { key: 'post', label: lang === 'el' ? 'Twitter Post' : 'Twitter Post' });
+                                            }
+                                        }
+                                        
+                                        // If no platforms, show default services
+                                        if (serviceMap.size === 0) {
+                                            serviceMap.set('story', { key: 'story', label: txt.price_story });
+                                            serviceMap.set('post', { key: 'post', label: txt.price_post });
+                                            serviceMap.set('reel', { key: 'reel', label: txt.price_reel });
+                                            serviceMap.set('facebook', { key: 'facebook', label: txt.price_facebook });
+                                        }
+                                        
+                                        return Array.from(serviceMap.values()).map((service, idx) => {
+                                            const price = profile.rate_card?.[service.key];
+                                            const isAsk = !price || price.toLowerCase() === 'ask' || price.toLowerCase() === 'ρώτησε' || price.trim() === '';
+                                            
+                                            return (
+                                                <div key={idx} className="flex justify-between items-center px-4 py-2.5 hover:bg-slate-50 transition-colors">
+                                                    <span className="font-medium text-slate-700 text-sm">{service.label}</span>
+                                                    {isAsk ? (
+                                                        <button
+                                                            onClick={() => {
+                                                                setShowMessageModal(true);
+                                                                setMessageContent(lang === 'el' ? `Ερώτηση σχετικά με ${service.label.toLowerCase()}` : `Question about ${service.label.toLowerCase()}`);
+                                                            }}
+                                                            className="text-xs px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-md font-medium transition-colors"
+                                                        >
+                                                            {lang === 'el' ? 'Ρώτησε' : 'Ask'}
+                                                        </button>
+                                                    ) : (
+                                                        <span className="font-bold text-lg text-slate-900">{price}</span>
+                                                    )}
+                                                </div>
+                                            );
+                                        });
+                                    })()}
                                 </div>
                             </div>
                         </div>
