@@ -1340,19 +1340,60 @@ export default function InfluencerProfile(props: { params: Params }) {
                           </div>
                         )}
                         
+                        {/* Pricing Table by Platform and Service Type */}
                         <div className="space-y-4">
-                            <div className="flex justify-between items-center p-4 border-b border-slate-100">
-                                <span className="font-medium text-slate-700">{txt.price_story}</span>
-                                <span className="font-bold text-xl text-slate-900">{profile.rate_card?.story}</span>
-                            </div>
-                            <div className="flex justify-between items-center p-4 border-b border-slate-100">
-                                <span className="font-medium text-slate-700">{txt.price_post}</span>
-                                <span className="font-bold text-xl text-slate-900">{profile.rate_card?.post}</span>
-                            </div>
-                            <div className="flex justify-between items-center p-4 border-b border-slate-100">
-                                <span className="font-medium text-slate-700">{txt.price_reel}</span>
-                                <span className="font-bold text-xl text-slate-900">{profile.rate_card?.reel}</span>
-                            </div>
+                            {/* Get platforms from accounts */}
+                            {(() => {
+                                const platforms = profile.socials ? Object.keys(profile.socials) : [];
+                                if (platforms.length === 0) {
+                                    // Fallback to default display if no platforms
+                                    return (
+                                        <>
+                                            <div className="flex justify-between items-center p-4 border-b border-slate-100">
+                                                <span className="font-medium text-slate-700">{txt.price_story}</span>
+                                                <span className="font-bold text-xl text-slate-900">{profile.rate_card?.story || 'Ask'}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center p-4 border-b border-slate-100">
+                                                <span className="font-medium text-slate-700">{txt.price_post}</span>
+                                                <span className="font-bold text-xl text-slate-900">{profile.rate_card?.post || 'Ask'}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center p-4 border-b border-slate-100">
+                                                <span className="font-medium text-slate-700">{txt.price_reel}</span>
+                                                <span className="font-bold text-xl text-slate-900">{profile.rate_card?.reel || 'Ask'}</span>
+                                            </div>
+                                        </>
+                                    );
+                                }
+                                
+                                // Show pricing for each platform
+                                const services = [
+                                    { key: 'story', label: txt.price_story },
+                                    { key: 'post', label: txt.price_post },
+                                    { key: 'reel', label: txt.price_reel }
+                                ];
+                                
+                                return (
+                                    <div className="space-y-2">
+                                        {platforms.map((platform) => (
+                                            <div key={platform} className="border border-slate-200 rounded-lg overflow-hidden">
+                                                <div className="bg-slate-50 px-4 py-2 border-b border-slate-200">
+                                                    <h4 className="font-bold text-slate-900 capitalize">{platform}</h4>
+                                                </div>
+                                                <div className="divide-y divide-slate-100">
+                                                    {services.map((service) => (
+                                                        <div key={service.key} className="flex justify-between items-center px-4 py-3 hover:bg-slate-50 transition-colors">
+                                                            <span className="font-medium text-slate-700">{service.label}</span>
+                                                            <span className="font-bold text-lg text-slate-900">
+                                                                {profile.rate_card?.[service.key as keyof typeof profile.rate_card] || 'Ask'}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                );
+                            })()}
                         </div>
                         <p className="mt-6 text-xs text-slate-400 text-center">{txt.price_note}</p>
                         <button onClick={() => setShowProposalModal(true)} className="w-full mt-6 bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-black transition-colors">

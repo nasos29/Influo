@@ -57,6 +57,22 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
     const [topAge, setTopAge] = useState(user.audience_top_age || "");
     const [videos, setVideos] = useState<string[]>(Array.isArray(user.videos) ? user.videos : [""]);
     const [loading, setLoading] = useState(false);
+    
+    // Rate card prices - get from user.rate_card if exists
+    const getRateCardPrice = (service: 'story' | 'post' | 'reel') => {
+        try {
+            const rateCard = (user as any).rate_card;
+            if (rateCard && typeof rateCard === 'object') {
+                return rateCard[service] || '';
+            }
+        } catch (e) {
+            // ignore
+        }
+        return '';
+    };
+    const [priceStory, setPriceStory] = useState(getRateCardPrice('story'));
+    const [pricePost, setPricePost] = useState(getRateCardPrice('post'));
+    const [priceReel, setPriceReel] = useState(getRateCardPrice('reel'));
 
     const handleAccountChange = (i: number, field: keyof Account, value: string) => {
         const copy = [...accounts];
@@ -119,6 +135,11 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                     audience_male_percent: malePercent ? parseInt(malePercent) : null,
                     audience_female_percent: femalePercent ? parseInt(femalePercent) : null,
                     audience_top_age: topAge || null,
+                    rate_card: {
+                        story: priceStory || 'Ask',
+                        post: pricePost || 'Ask',
+                        reel: priceReel || 'Ask'
+                    },
                     verified: false, // Reset verification status
                 })
                 .eq('id', user.id)
@@ -203,6 +224,44 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                             <div>
                                 <label className="block text-sm font-semibold text-slate-900 mb-1">Min Rate (€)</label>
                                 <input type="text" value={minRate} onChange={e => setMinRate(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" placeholder="250" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Pricing Section */}
+                    <div>
+                        <h3 className="text-sm font-semibold text-slate-700 mb-4 uppercase">Τιμές Ανά Υπηρεσία</h3>
+                        <p className="text-xs text-slate-600 mb-4">Οι τιμές θα εμφανίζονται στο προφίλ σου. Αφήστε κενό για "Ask".</p>
+                        <div className="grid md:grid-cols-3 gap-4">
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-900 mb-1">Instagram Story (€)</label>
+                                <input 
+                                    type="text" 
+                                    value={priceStory} 
+                                    onChange={e => setPriceStory(e.target.value)} 
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" 
+                                    placeholder="100 ή Ask" 
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-900 mb-1">Instagram Post (€)</label>
+                                <input 
+                                    type="text" 
+                                    value={pricePost} 
+                                    onChange={e => setPricePost(e.target.value)} 
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" 
+                                    placeholder="200 ή Ask" 
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-900 mb-1">Reel / TikTok (€)</label>
+                                <input 
+                                    type="text" 
+                                    value={priceReel} 
+                                    onChange={e => setPriceReel(e.target.value)} 
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" 
+                                    placeholder="300 ή Ask" 
+                                />
                             </div>
                             <div>
                                 <label className="block text-sm font-semibold text-slate-900 mb-1">Engagement Rate (%)</label>
