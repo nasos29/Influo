@@ -373,7 +373,7 @@ export default function Home() {
           
           {/* Slideshow Container */}
           <div className="relative overflow-hidden">
-            <div className="flex animate-scroll gap-16 items-center">
+            <div className="flex animate-scroll gap-8 md:gap-12 lg:gap-16 items-center">
               {/* Greek Company Logos - Tech & Fashion Brands - Mixed Order */}
               {[
                 { name: 'Nike', domain: 'nike.com', url: 'https://www.nike.com' },
@@ -412,12 +412,12 @@ export default function Home() {
                     href={brand.url}
                     target="_blank"
                     rel="nofollow noopener noreferrer"
-                    className="flex-shrink-0 flex items-center justify-center h-36 w-96 opacity-70 hover:opacity-100 transition-all"
+                    className="flex-shrink-0 flex items-center justify-center h-20 md:h-28 lg:h-36 w-48 md:w-64 lg:w-96 opacity-70 hover:opacity-100 transition-all"
                   >
                     <img 
                       src={brandfetchUrl}
                       alt={brand.name}
-                      className="h-28 w-auto max-w-full object-contain filter grayscale hover:grayscale-0 transition-all bg-white p-5 rounded-lg shadow-md"
+                      className="h-16 md:h-20 lg:h-28 w-auto max-w-full object-contain filter grayscale hover:grayscale-0 transition-all bg-white p-3 md:p-4 lg:p-5 rounded-lg shadow-md"
                       loading="lazy"
                       onError={(e) => {
                         // Fallback to large text if image fails to load
@@ -425,7 +425,7 @@ export default function Home() {
                         target.style.display = 'none';
                         if (!target.nextElementSibling) {
                           const textFallback = document.createElement('div');
-                          textFallback.className = 'font-bold text-2xl text-slate-700 px-8 py-4 whitespace-nowrap bg-white rounded-lg border-2 border-slate-300 shadow-md';
+                          textFallback.className = 'font-bold text-sm md:text-lg lg:text-2xl text-slate-700 px-4 md:px-6 lg:px-8 py-2 md:py-3 lg:py-4 whitespace-nowrap bg-white rounded-lg border-2 border-slate-300 shadow-md';
                           textFallback.textContent = brand.name.toUpperCase();
                           target.parentElement?.appendChild(textFallback);
                         }
@@ -472,19 +472,19 @@ export default function Home() {
                     href={brand.url}
                     target="_blank"
                     rel="nofollow noopener noreferrer"
-                    className="flex-shrink-0 flex items-center justify-center h-36 w-96 opacity-70 hover:opacity-100 transition-all"
+                    className="flex-shrink-0 flex items-center justify-center h-20 md:h-28 lg:h-36 w-48 md:w-64 lg:w-96 opacity-70 hover:opacity-100 transition-all"
                   >
                     <img 
                       src={brandfetchUrl}
                       alt={brand.name}
-                      className="h-28 w-auto max-w-full object-contain filter grayscale hover:grayscale-0 transition-all bg-white p-5 rounded-lg shadow-md"
+                      className="h-16 md:h-20 lg:h-28 w-auto max-w-full object-contain filter grayscale hover:grayscale-0 transition-all bg-white p-3 md:p-4 lg:p-5 rounded-lg shadow-md"
                       loading="lazy"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
                         target.style.display = 'none';
                         if (!target.nextElementSibling) {
                           const textFallback = document.createElement('div');
-                          textFallback.className = 'font-bold text-2xl text-slate-700 px-8 py-4 whitespace-nowrap bg-white rounded-lg border-2 border-slate-300 shadow-md';
+                          textFallback.className = 'font-bold text-sm md:text-lg lg:text-2xl text-slate-700 px-4 md:px-6 lg:px-8 py-2 md:py-3 lg:py-4 whitespace-nowrap bg-white rounded-lg border-2 border-slate-300 shadow-md';
                           textFallback.textContent = brand.name.toUpperCase();
                           target.parentElement?.appendChild(textFallback);
                         }

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { supabase } from "../lib/supabaseClient";
 import InfluencerCard from "./InfluencerCard";
+import { getBadges } from "../lib/badges";
 
 export interface Influencer {
   id: string | number;
@@ -23,6 +24,10 @@ export interface Influencer {
   avg_likes?: string; 
   engagement_rate?: string;
   rate_card?: { story?: string; post?: string; reel?: string; facebook?: string };
+  past_brands?: any[] | number;
+  total_reviews?: number;
+  avg_rating?: number;
+  created_at?: string;
 }
 
 // --- FULL CATEGORY LIST ---
@@ -135,7 +140,11 @@ export const dummyInfluencers: Influencer[] = [
     min_rate: "150",
     rate_card: { story: "80€", post: "150€", reel: "200€", facebook: "120€" },
     engagement_rate: "4.5%",
-    avg_likes: "2.5k"
+    avg_likes: "2.5k",
+    past_brands: 8,
+    total_reviews: 12,
+    avg_rating: 4.8,
+    created_at: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString(), // 120 days ago
   },
   {
     id: "dummy-2",
@@ -152,7 +161,11 @@ export const dummyInfluencers: Influencer[] = [
     min_rate: "300",
     rate_card: { story: "200€", post: "300€", reel: "400€", facebook: "250€" },
     engagement_rate: "2.1%",
-    avg_likes: "15k"
+    avg_likes: "15k",
+    past_brands: 15,
+    total_reviews: 25,
+    avg_rating: 4.6,
+    created_at: new Date(Date.now() - 300 * 24 * 60 * 60 * 1000).toISOString(), // 300 days ago
   },
   {
     id: "dummy-3",
@@ -169,7 +182,11 @@ export const dummyInfluencers: Influencer[] = [
     min_rate: "100",
     rate_card: { story: "50€", post: "100€", reel: "150€", facebook: "80€" },
     engagement_rate: "6.8%",
-    avg_likes: "1.2k"
+    avg_likes: "1.2k",
+    past_brands: 3,
+    total_reviews: 5,
+    avg_rating: 4.2,
+    created_at: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(), // 45 days ago - Rising
   },
   {
     id: "dummy-4",
@@ -186,7 +203,11 @@ export const dummyInfluencers: Influencer[] = [
     min_rate: "500",
     rate_card: { story: "300€", post: "500€", reel: "700€", facebook: "400€" },
     engagement_rate: "3.2%",
-    avg_likes: "5k"
+    avg_likes: "5k",
+    past_brands: 22,
+    total_reviews: 35,
+    avg_rating: 4.7,
+    created_at: new Date(Date.now() - 450 * 24 * 60 * 60 * 1000).toISOString(), // 450 days ago
   },
    {
     id: "dummy-5",
@@ -203,7 +224,11 @@ export const dummyInfluencers: Influencer[] = [
     min_rate: "250",
     rate_card: { story: "150€", post: "250€", reel: "350€", facebook: "200€" },
     engagement_rate: "5.5%",
-    avg_likes: "12k"
+    avg_likes: "12k",
+    past_brands: 6,
+    total_reviews: 10,
+    avg_rating: 4.5,
+    created_at: new Date(Date.now() - 200 * 24 * 60 * 60 * 1000).toISOString(), // 200 days ago
   },
   {
     id: "dummy-6",
@@ -220,7 +245,11 @@ export const dummyInfluencers: Influencer[] = [
     min_rate: "200",
     rate_card: { story: "120€", post: "200€", reel: "280€", facebook: "160€" },
     engagement_rate: "4.1%",
-    avg_likes: "3k"
+    avg_likes: "3k",
+    past_brands: 4,
+    total_reviews: 7,
+    avg_rating: 4.3,
+    created_at: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString(), // 180 days ago
   },
   {
     id: "dummy-7",
@@ -237,7 +266,11 @@ export const dummyInfluencers: Influencer[] = [
     min_rate: "400",
     rate_card: { story: "250€", post: "400€", reel: "550€", facebook: "320€" },
     engagement_rate: "8.5%",
-    avg_likes: "1.5k"
+    avg_likes: "1.5k",
+    past_brands: 12,
+    total_reviews: 18,
+    avg_rating: 4.9,
+    created_at: new Date(Date.now() - 250 * 24 * 60 * 60 * 1000).toISOString(), // 250 days ago
   },
   {
     id: "dummy-8",
@@ -254,7 +287,11 @@ export const dummyInfluencers: Influencer[] = [
     min_rate: "1500",
     rate_card: { story: "800€", post: "1500€", reel: "2000€", facebook: "1000€" },
     engagement_rate: "3.5%",
-    avg_likes: "45k"
+    avg_likes: "45k",
+    past_brands: 55,
+    total_reviews: 85,
+    avg_rating: 4.9,
+    created_at: new Date(Date.now() - 600 * 24 * 60 * 60 * 1000).toISOString(), // 600 days ago - VIP
   }
 ];
 
@@ -334,7 +371,9 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
             avg_rating: inf.avg_rating || 0,
             total_reviews: inf.total_reviews || 0,
             avg_response_time: inf.avg_response_time || 24,
-            completion_rate: inf.completion_rate || 100
+            completion_rate: inf.completion_rate || 100,
+            past_brands: inf.past_brands || 0,
+            created_at: inf.created_at,
           };
         });
         setInfluencers([...dummyInfluencers, ...realInfluencers]);
@@ -492,11 +531,26 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
       {/* Grid */}
       {filtered.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
-            {filtered.map((inf) => (
-             <Link href={`/influencer/${inf.id}`} key={inf.id} className="block h-full group">
-                <InfluencerCard {...inf} />
-            </Link>
-            ))}
+            {filtered.map((inf) => {
+              // Calculate badges
+              const accountAgeDays = inf.created_at ? Math.floor((new Date().getTime() - new Date(inf.created_at).getTime()) / (1000 * 60 * 60 * 24)) : 999;
+              const badges = getBadges({
+                verified: inf.verified,
+                followers: inf.followers,
+                engagement_rate: inf.engagement_rate,
+                total_reviews: inf.total_reviews || 0,
+                avg_rating: (inf as any).avg_rating || 0,
+                past_brands: inf.past_brands || 0,
+                account_created_days: accountAgeDays,
+                min_rate: inf.min_rate,
+              }, lang);
+              
+              return (
+                <Link href={`/influencer/${inf.id}`} key={inf.id} className="block h-full group">
+                  <InfluencerCard {...inf} badges={badges} lang={lang} />
+                </Link>
+              );
+            })}
         </div>
       ) : (
         <div className="text-center py-20 bg-slate-50 rounded-2xl border border-dashed border-slate-300">

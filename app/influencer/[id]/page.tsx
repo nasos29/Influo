@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { dummyInfluencers, Influencer } from "@/components/Directory"; 
 import { supabase } from "@/lib/supabaseClient";
 import { getVideoThumbnail, isVideoUrl } from "@/lib/videoThumbnail";
+import { getBadges, getBadgeStyles } from "@/lib/badges";
 
 type Params = Promise<{ id: string }>;
 
@@ -25,6 +26,7 @@ interface ProInfluencer extends Influencer {
   certifications?: string[];
   service_packages?: Array<{ name: string; description: string; price: string; includes: string[] }>;
   calculatedCompletionRate?: number;
+  created_at?: string;
 }
 
 const t = {
@@ -449,7 +451,8 @@ export default function InfluencerProfile(props: { params: Params }) {
           skills: data.skills || [],
           certifications: data.certifications || [],
           service_packages: data.service_packages || [],
-          calculatedCompletionRate: calculatedCompletionRate
+          calculatedCompletionRate: calculatedCompletionRate,
+          created_at: data.created_at,
         });
       }
       setLoading(false);
@@ -1047,7 +1050,38 @@ export default function InfluencerProfile(props: { params: Params }) {
                   </div>
                 )}
             </div>
-            <div className="flex gap-3">
+            <div className="relative flex flex-col items-end gap-3">
+              {/* Badges - Top Right above buttons */}
+              {(() => {
+                const accountAgeDays = profile.created_at ? Math.floor((new Date().getTime() - new Date(profile.created_at).getTime()) / (1000 * 60 * 60 * 24)) : 999;
+                const badges = getBadges({
+                  verified: profile.verified,
+                  followers: profile.followers,
+                  engagement_rate: profile.engagement_rate,
+                  total_reviews: profile.total_reviews || 0,
+                  avg_rating: profile.avg_rating || 0,
+                  past_brands: profile.past_brands || [],
+                  account_created_days: accountAgeDays,
+                  min_rate: profile.min_rate,
+                }, lang);
+                
+                return badges.length > 0 ? (
+                  <div className="flex flex-wrap gap-2 justify-end mb-2">
+                    {badges.map((badge, idx) => (
+                      <span
+                        key={idx}
+                        className={getBadgeStyles(badge) + " text-xs px-3 py-1.5"}
+                        title={badge.label}
+                      >
+                        <span>{badge.icon}</span>
+                        <span>{badge.label}</span>
+                      </span>
+                    ))}
+                  </div>
+                ) : null;
+              })()}
+              {/* Action Buttons */}
+              <div className="flex gap-3">
                 <button onClick={() => setShowProposalModal(true)} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-transform hover:-translate-y-1 flex items-center gap-2">
                     <span>⚡</span> {txt.contact}
                 </button>
@@ -1057,6 +1091,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                 >
                     <span>💬</span> {txt.message_btn}
                 </button>
+              </div>
             </div>
           </div>
           
@@ -1174,28 +1209,6 @@ export default function InfluencerProfile(props: { params: Params }) {
               )}
             </div>
             
-            {/* Badges */}
-            {(profile.engagement_rate && parseFloat(profile.engagement_rate.replace('%', '')) > 5) ||
-             (profile.past_brands && profile.past_brands.length > 5) ||
-             (profile.socials && Object.keys(profile.socials).length > 2) ? (
-              <div className="mt-4 flex flex-wrap gap-2">
-                {profile.engagement_rate && parseFloat(profile.engagement_rate.replace('%', '')) > 5 && (
-                  <span className="inline-flex items-center gap-1 bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-bold">
-                    🏆 {txt.badges_top}
-                  </span>
-                )}
-                {profile.past_brands && profile.past_brands.length > 5 && (
-                  <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs font-bold">
-                    ⭐ {txt.badges_premium}
-                  </span>
-                )}
-                {profile.socials && Object.keys(profile.socials).length > 2 && (
-                  <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">
-                    📱 {txt.badges_multi}
-                  </span>
-                )}
-              </div>
-            ) : null}
           </div>
         </div>
 

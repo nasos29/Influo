@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { Badge, getBadgeStyles } from "../lib/badges";
 
 interface InfluencerCardProps {
   name: string;
@@ -10,6 +11,8 @@ interface InfluencerCardProps {
   socials: { [key: string]: string | undefined };
   followers: { [key: string]: number | undefined };
   categories?: string[];
+  badges?: Badge[];
+  lang?: 'el' | 'en';
 }
 
 // --- FULL ICONS ---
@@ -46,12 +49,30 @@ export default function InfluencerCard({
   socials,
   followers,
   categories = [],
+  badges = [],
+  lang = 'el',
 }: InfluencerCardProps) {
   return (
-    <div className="group bg-white rounded-lg border border-slate-200 overflow-hidden hover:shadow-md transition-shadow h-full flex flex-col cursor-pointer">
+    <div className="group bg-white rounded-lg border border-slate-200 overflow-hidden hover:shadow-md transition-shadow h-full flex flex-col cursor-pointer relative">
       
       {/* Header Background */}
-      <div className="h-20 bg-slate-50"></div>
+      <div className="h-20 bg-slate-50 relative">
+        {/* Badges - Top Right */}
+        {badges.length > 0 && (
+          <div className="absolute top-2 right-2 flex flex-col gap-1.5 z-10">
+            {badges.slice(0, 2).map((badge, idx) => (
+              <span
+                key={idx}
+                className={getBadgeStyles(badge)}
+                title={badge.label}
+              >
+                <span className="text-[10px]">{badge.icon}</span>
+                <span className="text-[9px] leading-none">{badge.label}</span>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
       
       <div className="px-5 pb-5 flex-1 flex flex-col">
         
