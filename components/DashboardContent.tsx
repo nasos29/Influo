@@ -59,7 +59,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
     const [loading, setLoading] = useState(false);
     
     // Rate card prices - get from user.rate_card if exists
-    const getRateCardPrice = (service: 'story' | 'post' | 'reel') => {
+    const getRateCardPrice = (service: 'story' | 'post' | 'reel' | 'facebook') => {
         try {
             const rateCard = (user as any).rate_card;
             if (rateCard && typeof rateCard === 'object') {
@@ -73,6 +73,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
     const [priceStory, setPriceStory] = useState(getRateCardPrice('story'));
     const [pricePost, setPricePost] = useState(getRateCardPrice('post'));
     const [priceReel, setPriceReel] = useState(getRateCardPrice('reel'));
+    const [priceFacebook, setPriceFacebook] = useState(getRateCardPrice('facebook'));
 
     const handleAccountChange = (i: number, field: keyof Account, value: string) => {
         const copy = [...accounts];
@@ -136,9 +137,10 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                     audience_female_percent: femalePercent ? parseInt(femalePercent) : null,
                     audience_top_age: topAge || null,
                     rate_card: {
-                        story: priceStory || 'Ask',
-                        post: pricePost || 'Ask',
-                        reel: priceReel || 'Ask'
+                        story: priceStory || 'Ρώτησε',
+                        post: pricePost || 'Ρώτησε',
+                        reel: priceReel || 'Ρώτησε',
+                        facebook: priceFacebook || 'Ρώτησε'
                     },
                     verified: false, // Reset verification status
                 })
@@ -231,8 +233,8 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                     {/* Pricing Section */}
                     <div>
                         <h3 className="text-sm font-semibold text-slate-700 mb-4 uppercase">Τιμές Ανά Υπηρεσία</h3>
-                        <p className="text-xs text-slate-600 mb-4">Οι τιμές θα εμφανίζονται στο προφίλ σου. Αφήστε κενό για "Ask".</p>
-                        <div className="grid md:grid-cols-3 gap-4">
+                        <p className="text-xs text-slate-600 mb-4">Οι τιμές θα εμφανίζονται στο προφίλ σου. Αφήστε κενό για "Ρώτησε".</p>
+                        <div className="grid md:grid-cols-4 gap-4">
                             <div>
                                 <label className="block text-sm font-semibold text-slate-900 mb-1">Instagram Story (€)</label>
                                 <input 
@@ -240,7 +242,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                     value={priceStory} 
                                     onChange={e => setPriceStory(e.target.value)} 
                                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" 
-                                    placeholder="100 ή Ask" 
+                                    placeholder="100 ή Ρώτησε" 
                                 />
                             </div>
                             <div>
@@ -250,7 +252,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                     value={pricePost} 
                                     onChange={e => setPricePost(e.target.value)} 
                                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" 
-                                    placeholder="200 ή Ask" 
+                                    placeholder="200 ή Ρώτησε" 
                                 />
                             </div>
                             <div>
@@ -260,7 +262,17 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                     value={priceReel} 
                                     onChange={e => setPriceReel(e.target.value)} 
                                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" 
-                                    placeholder="300 ή Ask" 
+                                    placeholder="300 ή Ρώτησε" 
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-900 mb-1">Facebook Post (€)</label>
+                                <input 
+                                    type="text" 
+                                    value={priceFacebook} 
+                                    onChange={e => setPriceFacebook(e.target.value)} 
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" 
+                                    placeholder="150 ή Ρώτησε" 
                                 />
                             </div>
                             <div>

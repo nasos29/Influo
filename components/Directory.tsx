@@ -22,6 +22,7 @@ export interface Influencer {
   min_rate?: string;
   avg_likes?: string; 
   engagement_rate?: string;
+  rate_card?: { story?: string; post?: string; reel?: string; facebook?: string };
 }
 
 // --- FULL CATEGORY LIST ---
@@ -131,7 +132,8 @@ export const dummyInfluencers: Influencer[] = [
     platform: "Instagram",
     gender: "Female",
     location: "Athens, Greece",
-    min_rate: "150€",
+    min_rate: "150",
+    rate_card: { story: "80€", post: "150€", reel: "200€", facebook: "120€" },
     engagement_rate: "4.5%",
     avg_likes: "2.5k"
   },
@@ -147,7 +149,8 @@ export const dummyInfluencers: Influencer[] = [
     platform: "YouTube",
     gender: "Male",
     location: "Thessaloniki, Greece",
-    min_rate: "300€",
+    min_rate: "300",
+    rate_card: { story: "200€", post: "300€", reel: "400€", facebook: "250€" },
     engagement_rate: "2.1%",
     avg_likes: "15k"
   },
@@ -163,7 +166,8 @@ export const dummyInfluencers: Influencer[] = [
     platform: "Instagram",
     gender: "Female",
     location: "Athens, Greece",
-    min_rate: "100€",
+    min_rate: "100",
+    rate_card: { story: "50€", post: "100€", reel: "150€", facebook: "80€" },
     engagement_rate: "6.8%",
     avg_likes: "1.2k"
   },
@@ -179,7 +183,8 @@ export const dummyInfluencers: Influencer[] = [
     platform: "YouTube",
     gender: "Male",
     location: "Remote",
-    min_rate: "500€",
+    min_rate: "500",
+    rate_card: { story: "300€", post: "500€", reel: "700€", facebook: "400€" },
     engagement_rate: "3.2%",
     avg_likes: "5k"
   },
@@ -195,7 +200,8 @@ export const dummyInfluencers: Influencer[] = [
     platform: "TikTok",
     gender: "Female",
     location: "Athens, GR",
-    min_rate: "250€",
+    min_rate: "250",
+    rate_card: { story: "150€", post: "250€", reel: "350€", facebook: "200€" },
     engagement_rate: "5.5%",
     avg_likes: "12k"
   },
@@ -211,7 +217,8 @@ export const dummyInfluencers: Influencer[] = [
     platform: "YouTube",
     gender: "Female",
     location: "Athens, GR",
-    min_rate: "200€",
+    min_rate: "200",
+    rate_card: { story: "120€", post: "200€", reel: "280€", facebook: "160€" },
     engagement_rate: "4.1%",
     avg_likes: "3k"
   },
@@ -227,7 +234,8 @@ export const dummyInfluencers: Influencer[] = [
     platform: "YouTube",
     gender: "Male",
     location: "Cyprus",
-    min_rate: "400€",
+    min_rate: "400",
+    rate_card: { story: "250€", post: "400€", reel: "550€", facebook: "320€" },
     engagement_rate: "8.5%",
     avg_likes: "1.5k"
   },
@@ -243,7 +251,8 @@ export const dummyInfluencers: Influencer[] = [
     platform: "Instagram",
     gender: "Female",
     location: "Athens, GR",
-    min_rate: "1500€",
+    min_rate: "1500",
+    rate_card: { story: "800€", post: "1500€", reel: "2000€", facebook: "1000€" },
     engagement_rate: "3.5%",
     avg_likes: "45k"
   }

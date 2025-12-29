@@ -75,6 +75,7 @@ const t = {
     price_story: "Instagram Story (24h)",
     price_post: "Instagram Post",
     price_reel: "Reel / TikTok",
+    price_facebook: "Facebook Post",
     price_note: "* Οι τιμές ενδέχεται να αλλάξουν ανάλογα το project.",
     min_rate: "Ελάχιστη Χρέωση",
     min_rate_desc: "Η ελάχιστη χρέωση για κάθε συνεργασία",
@@ -143,6 +144,7 @@ const t = {
     price_story: "Instagram Story (24h)",
     price_post: "Instagram Post",
     price_reel: "Reel / TikTok",
+    price_facebook: "Facebook Post",
     price_note: "* Prices may vary depending on project scope.",
     min_rate: "Minimum Rate",
     min_rate_desc: "The minimum charge for each collaboration",
@@ -350,7 +352,7 @@ export default function InfluencerProfile(props: { params: Params }) {
             engagement_rate: found.engagement_rate || "5.2%",
             avg_likes: found.avg_likes || "3.2k",
             audience_data: { male: 35, female: 65, top_age: "18-34" },
-            rate_card: { story: "80€", post: "150€", reel: "250€" },
+            rate_card: found.rate_card || { story: lang === 'el' ? "Ρώτησε" : "Ask", post: lang === 'el' ? "Ρώτησε" : "Ask", reel: lang === 'el' ? "Ρώτησε" : "Ask", facebook: lang === 'el' ? "Ρώτησε" : "Ask" },
             past_brands: ["Zara", "Vodafone", "e-Food"]
           });
           setLoading(false);
@@ -427,7 +429,7 @@ export default function InfluencerProfile(props: { params: Params }) {
             female: data.audience_female_percent || 50,
             top_age: data.audience_top_age || "?"
           },
-          rate_card: data.rate_card || { story: "Ask", post: "Ask", reel: "Ask" },
+          rate_card: data.rate_card || { story: "Ρώτησε", post: "Ρώτησε", reel: "Ρώτησε", facebook: "Ρώτησε" },
           past_brands: data.past_brands || [],
           avg_rating: data.avg_rating || 0,
           total_reviews: data.total_reviews || 0,
@@ -1351,15 +1353,19 @@ export default function InfluencerProfile(props: { params: Params }) {
                                         <>
                                             <div className="flex justify-between items-center p-4 border-b border-slate-100">
                                                 <span className="font-medium text-slate-700">{txt.price_story}</span>
-                                                <span className="font-bold text-xl text-slate-900">{profile.rate_card?.story || 'Ask'}</span>
+                                                <span className="font-bold text-xl text-slate-900">{profile.rate_card?.story || (lang === 'el' ? 'Ρώτησε' : 'Ask')}</span>
                                             </div>
                                             <div className="flex justify-between items-center p-4 border-b border-slate-100">
                                                 <span className="font-medium text-slate-700">{txt.price_post}</span>
-                                                <span className="font-bold text-xl text-slate-900">{profile.rate_card?.post || 'Ask'}</span>
+                                                <span className="font-bold text-xl text-slate-900">{profile.rate_card?.post || (lang === 'el' ? 'Ρώτησε' : 'Ask')}</span>
                                             </div>
                                             <div className="flex justify-between items-center p-4 border-b border-slate-100">
                                                 <span className="font-medium text-slate-700">{txt.price_reel}</span>
-                                                <span className="font-bold text-xl text-slate-900">{profile.rate_card?.reel || 'Ask'}</span>
+                                                <span className="font-bold text-xl text-slate-900">{profile.rate_card?.reel || (lang === 'el' ? 'Ρώτησε' : 'Ask')}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center p-4 border-b border-slate-100">
+                                                <span className="font-medium text-slate-700">{txt.price_facebook}</span>
+                                                <span className="font-bold text-xl text-slate-900">{profile.rate_card?.facebook || (lang === 'el' ? 'Ρώτησε' : 'Ask')}</span>
                                             </div>
                                         </>
                                     );
@@ -1369,7 +1375,8 @@ export default function InfluencerProfile(props: { params: Params }) {
                                 const services = [
                                     { key: 'story', label: txt.price_story },
                                     { key: 'post', label: txt.price_post },
-                                    { key: 'reel', label: txt.price_reel }
+                                    { key: 'reel', label: txt.price_reel },
+                                    { key: 'facebook', label: txt.price_facebook }
                                 ];
                                 
                                 return (
@@ -1384,7 +1391,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                                                         <div key={service.key} className="flex justify-between items-center px-4 py-3 hover:bg-slate-50 transition-colors">
                                                             <span className="font-medium text-slate-700">{service.label}</span>
                                                             <span className="font-bold text-lg text-slate-900">
-                                                                {profile.rate_card?.[service.key as keyof typeof profile.rate_card] || 'Ask'}
+                                                                {profile.rate_card?.[service.key as keyof typeof profile.rate_card] || (lang === 'el' ? 'Ρώτησε' : 'Ask')}
                                                             </span>
                                                         </div>
                                                     ))}
