@@ -340,18 +340,18 @@ export default function Home() {
               </a>
             </div>
             <div className="grid md:grid-cols-3 gap-8">
-              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-2xl mb-4">🔍</div>
+              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm transition-all duration-300 hover:shadow-lg hover:border-blue-300 hover:-translate-y-1">
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-2xl mb-4 transition-transform duration-300 hover:scale-110">🔍</div>
                 <h4 className="text-lg font-semibold text-slate-900 mb-2">{lang === "el" ? "Αναζήτηση" : "Search"}</h4>
                 <p className="text-slate-600 text-sm leading-relaxed">{lang === "el" ? "Βρείτε influencers ανά κατηγορία, engagement rate και budget." : "Find influencers by category, engagement rate and budget."}</p>
               </div>
-              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center text-2xl mb-4">💼</div>
+              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm transition-all duration-300 hover:shadow-lg hover:border-indigo-300 hover:-translate-y-1">
+                <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center text-2xl mb-4 transition-transform duration-300 hover:scale-110">💼</div>
                 <h4 className="text-lg font-semibold text-slate-900 mb-2">{lang === "el" ? "Διαχείριση" : "Management"}</h4>
                 <p className="text-slate-600 text-sm leading-relaxed">{lang === "el" ? "Διαχειριστείτε όλες τις συνεργασίες σας από ένα μέρος." : "Manage all your collaborations from one place."}</p>
               </div>
-              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center text-2xl mb-4">✅</div>
+              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm transition-all duration-300 hover:shadow-lg hover:border-purple-300 hover:-translate-y-1">
+                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center text-2xl mb-4 transition-transform duration-300 hover:scale-110">✅</div>
                 <h4 className="text-lg font-semibold text-slate-900 mb-2">{lang === "el" ? "Verified" : "Verified"}</h4>
                 <p className="text-slate-600 text-sm leading-relaxed">{lang === "el" ? "Όλοι οι influencers είναι verified με πραγματικά στοιχεία." : "All influencers are verified with real stats."}</p>
               </div>
@@ -359,30 +359,6 @@ export default function Home() {
           </div>
         </section>
 
-      {/* Features Section */}
-        <section className="relative py-20 px-6 bg-gradient-to-br from-slate-50 via-white to-purple-50/20" id="features">
-          {/* Gradient accents */}
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-200 via-purple-200 to-pink-200"></div>
-          <div className="max-w-6xl mx-auto relative">
-            <div className="grid md:grid-cols-3 gap-8">
-              <div className="bg-white p-8 rounded-lg border border-slate-200">
-                  <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-xl mb-4">📈</div>
-                  <h4 className="text-lg font-semibold text-slate-900 mb-2">{txt.feat_1_title}</h4>
-                  <p className="text-slate-600 text-sm leading-relaxed">{txt.feat_1_desc}</p>
-              </div>
-              <div className="bg-white p-8 rounded-lg border border-slate-200">
-                  <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-xl mb-4">🤝</div>
-                  <h4 className="text-lg font-semibold text-slate-900 mb-2">{txt.feat_2_title}</h4>
-                  <p className="text-slate-600 text-sm leading-relaxed">{txt.feat_2_desc}</p>
-            </div>
-              <div className="bg-white p-8 rounded-lg border border-slate-200">
-                  <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-xl mb-4">💳</div>
-                  <h4 className="text-lg font-semibold text-slate-900 mb-2">{txt.feat_3_title}</h4>
-                  <p className="text-slate-600 text-sm leading-relaxed">{txt.feat_3_desc}</p>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* Footer */}
         <footer className="bg-gradient-to-br from-slate-900 to-slate-800 border-t border-slate-700 py-12 text-slate-300">

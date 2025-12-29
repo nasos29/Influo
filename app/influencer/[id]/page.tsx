@@ -1358,7 +1358,8 @@ export default function InfluencerProfile(props: { params: Params }) {
                                 <div className="divide-y divide-slate-100">
                                     {(() => {
                                         const platforms = profile.socials ? Object.keys(profile.socials).map(p => p.toLowerCase()) : [];
-                                        const serviceMap = new Map<string, { key: keyof typeof profile.rate_card; label: string }>();
+                                        type RateCardKey = 'story' | 'post' | 'reel' | 'facebook';
+                                        const serviceMap = new Map<string, { key: RateCardKey; label: string }>();
                                         
                                         // Instagram services
                                         if (platforms.includes('instagram')) {

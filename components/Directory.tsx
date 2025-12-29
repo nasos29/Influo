@@ -397,7 +397,7 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
 
   return (
     <div>
-      <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 mb-10 transition-all duration-300">
+      <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 mb-10 transition-all duration-300 hover:shadow-xl hover:border-blue-200">
         
         {/* Search Row */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
