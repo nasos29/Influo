@@ -374,10 +374,9 @@ export default function Home() {
           {/* Slideshow Container */}
           <div className="relative overflow-hidden">
             <div className="flex animate-scroll gap-16 items-center">
-              {/* Greek Company Logos - Using Brandfetch API with Client ID */}
+              {/* Greek Company Logos - Tech & Fashion Brands */}
               {[
                 { name: 'Autodrome', domain: 'autodrome.gr', url: 'https://autodrome.gr' },
-                { name: 'Jumbo', domain: 'jumbo.gr', url: 'https://www.jumbo.gr' },
                 { name: 'Skroutz', domain: 'skroutz.gr', url: 'https://www.skroutz.gr' },
                 { name: 'Public', domain: 'public.gr', url: 'https://www.public.gr' },
                 { name: 'Cosmote', domain: 'cosmote.gr', url: 'https://www.cosmote.gr' },
@@ -385,7 +384,6 @@ export default function Home() {
                 { name: 'Alpha Bank', domain: 'alpha.gr', url: 'https://www.alpha.gr' },
                 { name: 'OTE', domain: 'ote.gr', url: 'https://www.ote.gr' },
                 { name: 'Coffee Island', domain: 'coffeeisland.gr', url: 'https://www.coffeeisland.gr' },
-                { name: 'Goody\'s', domain: 'goodys.gr', url: 'https://www.goodys.gr' },
                 { name: 'Everest', domain: 'everest.gr', url: 'https://www.everest.gr' },
                 { name: 'Plaisio', domain: 'plaisio.gr', url: 'https://www.plaisio.gr' },
                 { name: 'Kotsovolos', domain: 'kotsovolos.gr', url: 'https://www.kotsovolos.gr' },
@@ -393,13 +391,21 @@ export default function Home() {
                 { name: 'Gregory\'s', domain: 'gregorys.gr', url: 'https://www.gregorys.gr' },
                 { name: 'e-Food', domain: 'e-food.gr', url: 'https://www.e-food.gr' },
                 { name: 'Wolt', domain: 'wolt.com', url: 'https://wolt.com' },
-                { name: 'OPAP', domain: 'opap.gr', url: 'https://www.opap.gr' },
                 { name: 'Aegean Airlines', domain: 'aegeanair.com', url: 'https://www.aegeanair.com' },
                 { name: 'Hellenic Petroleum', domain: 'helpe.gr', url: 'https://www.helpe.gr' },
-                { name: 'Cosmos', domain: 'cosmosgr.com', url: 'https://www.cosmosgr.com' },
                 { name: 'Nike', domain: 'nike.com', url: 'https://www.nike.com' },
                 { name: 'Adidas', domain: 'adidas.com', url: 'https://www.adidas.com' },
-                { name: 'Coca-Cola', domain: 'coca-cola.com', url: 'https://www.coca-cola.com' }
+                { name: 'Zara', domain: 'zara.com', url: 'https://www.zara.com' },
+                { name: 'H&M', domain: 'hm.com', url: 'https://www.hm.com' },
+                { name: 'Mango', domain: 'mango.com', url: 'https://www.mango.com' },
+                { name: 'Apple', domain: 'apple.com', url: 'https://www.apple.com' },
+                { name: 'Samsung', domain: 'samsung.com', url: 'https://www.samsung.com' },
+                { name: 'Microsoft', domain: 'microsoft.com', url: 'https://www.microsoft.com' },
+                { name: 'Google', domain: 'google.com', url: 'https://www.google.com' },
+                { name: 'Dell', domain: 'dell.com', url: 'https://www.dell.com' },
+                { name: 'HP', domain: 'hp.com', url: 'https://www.hp.com' },
+                { name: 'Lenovo', domain: 'lenovo.com', url: 'https://www.lenovo.com' },
+                { name: 'Asus', domain: 'asus.com', url: 'https://www.asus.com' }
               ].map((brand, idx) => {
                 const brandfetchUrl = `https://cdn.brandfetch.io/${brand.domain}?c=1idGP6EnrL-eVdz6PLO`;
                 return (
@@ -408,12 +414,12 @@ export default function Home() {
                     href={brand.url}
                     target="_blank"
                     rel="nofollow noopener noreferrer"
-                    className="flex-shrink-0 flex items-center justify-center h-32 w-72 opacity-70 hover:opacity-100 transition-all"
+                    className="flex-shrink-0 flex items-center justify-center h-36 w-96 opacity-70 hover:opacity-100 transition-all"
                   >
                     <img 
                       src={brandfetchUrl}
                       alt={brand.name}
-                      className="h-24 w-auto max-w-full object-contain filter grayscale hover:grayscale-0 transition-all bg-white p-4 rounded-lg shadow-md"
+                      className="h-28 w-auto max-w-full object-contain filter grayscale hover:grayscale-0 transition-all bg-white p-5 rounded-lg shadow-md"
                       loading="lazy"
                       onError={(e) => {
                         // Fallback to large text if image fails to load
@@ -433,7 +439,6 @@ export default function Home() {
               {/* Duplicate for seamless loop */}
               {[
                 { name: 'Autodrome', domain: 'autodrome.gr', url: 'https://autodrome.gr' },
-                { name: 'Jumbo', domain: 'jumbo.gr', url: 'https://www.jumbo.gr' },
                 { name: 'Skroutz', domain: 'skroutz.gr', url: 'https://www.skroutz.gr' },
                 { name: 'Public', domain: 'public.gr', url: 'https://www.public.gr' },
                 { name: 'Cosmote', domain: 'cosmote.gr', url: 'https://www.cosmote.gr' },
@@ -441,7 +446,6 @@ export default function Home() {
                 { name: 'Alpha Bank', domain: 'alpha.gr', url: 'https://www.alpha.gr' },
                 { name: 'OTE', domain: 'ote.gr', url: 'https://www.ote.gr' },
                 { name: 'Coffee Island', domain: 'coffeeisland.gr', url: 'https://www.coffeeisland.gr' },
-                { name: 'Goody\'s', domain: 'goodys.gr', url: 'https://www.goodys.gr' },
                 { name: 'Everest', domain: 'everest.gr', url: 'https://www.everest.gr' },
                 { name: 'Plaisio', domain: 'plaisio.gr', url: 'https://www.plaisio.gr' },
                 { name: 'Kotsovolos', domain: 'kotsovolos.gr', url: 'https://www.kotsovolos.gr' },
@@ -449,13 +453,21 @@ export default function Home() {
                 { name: 'Gregory\'s', domain: 'gregorys.gr', url: 'https://www.gregorys.gr' },
                 { name: 'e-Food', domain: 'e-food.gr', url: 'https://www.e-food.gr' },
                 { name: 'Wolt', domain: 'wolt.com', url: 'https://wolt.com' },
-                { name: 'OPAP', domain: 'opap.gr', url: 'https://www.opap.gr' },
                 { name: 'Aegean Airlines', domain: 'aegeanair.com', url: 'https://www.aegeanair.com' },
                 { name: 'Hellenic Petroleum', domain: 'helpe.gr', url: 'https://www.helpe.gr' },
-                { name: 'Cosmos', domain: 'cosmosgr.com', url: 'https://www.cosmosgr.com' },
                 { name: 'Nike', domain: 'nike.com', url: 'https://www.nike.com' },
                 { name: 'Adidas', domain: 'adidas.com', url: 'https://www.adidas.com' },
-                { name: 'Coca-Cola', domain: 'coca-cola.com', url: 'https://www.coca-cola.com' }
+                { name: 'Zara', domain: 'zara.com', url: 'https://www.zara.com' },
+                { name: 'H&M', domain: 'hm.com', url: 'https://www.hm.com' },
+                { name: 'Mango', domain: 'mango.com', url: 'https://www.mango.com' },
+                { name: 'Apple', domain: 'apple.com', url: 'https://www.apple.com' },
+                { name: 'Samsung', domain: 'samsung.com', url: 'https://www.samsung.com' },
+                { name: 'Microsoft', domain: 'microsoft.com', url: 'https://www.microsoft.com' },
+                { name: 'Google', domain: 'google.com', url: 'https://www.google.com' },
+                { name: 'Dell', domain: 'dell.com', url: 'https://www.dell.com' },
+                { name: 'HP', domain: 'hp.com', url: 'https://www.hp.com' },
+                { name: 'Lenovo', domain: 'lenovo.com', url: 'https://www.lenovo.com' },
+                { name: 'Asus', domain: 'asus.com', url: 'https://www.asus.com' }
               ].map((brand, idx) => {
                 const brandfetchUrl = `https://cdn.brandfetch.io/${brand.domain}?c=1idGP6EnrL-eVdz6PLO`;
                 return (
@@ -464,12 +476,12 @@ export default function Home() {
                     href={brand.url}
                     target="_blank"
                     rel="nofollow noopener noreferrer"
-                    className="flex-shrink-0 flex items-center justify-center h-32 w-72 opacity-70 hover:opacity-100 transition-all"
+                    className="flex-shrink-0 flex items-center justify-center h-36 w-96 opacity-70 hover:opacity-100 transition-all"
                   >
                     <img 
                       src={brandfetchUrl}
                       alt={brand.name}
-                      className="h-24 w-auto max-w-full object-contain filter grayscale hover:grayscale-0 transition-all bg-white p-4 rounded-lg shadow-md"
+                      className="h-28 w-auto max-w-full object-contain filter grayscale hover:grayscale-0 transition-all bg-white p-5 rounded-lg shadow-md"
                       loading="lazy"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
