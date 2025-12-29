@@ -374,81 +374,87 @@ export default function Home() {
           {/* Slideshow Container */}
           <div className="relative overflow-hidden">
             <div className="flex animate-scroll gap-16 items-center">
-              {/* Greek Company Logos - Mixed Order */}
+              {/* Greek Company Logos - Mixed Order using Brandfetch */}
               {[
-                { name: 'Autodrome', logo: 'https://autodrome.gr/wp-content/uploads/2021/03/logo-autodrome.png' },
-                { name: 'Coffee Island', logo: 'https://www.coffeeisland.gr/wp-content/themes/coffeeisland/assets/images/logo.svg' },
-                { name: 'Goody\'s', logo: 'https://www.goodys.gr/sites/default/files/logo_0.png' },
-                { name: 'Plaisio', logo: 'https://www.plaisio.gr/assets/images/logo-plaisio.svg' },
-                { name: 'Jumbo', logo: 'https://www.jumbo.gr/images/jumbo-logo.svg' },
-                { name: 'Skroutz', logo: 'https://a.skroutz.gr/assets/skroutz-logo-red.svg' },
-                { name: 'Everest', logo: 'https://www.everest.gr/sites/default/files/logo.png' },
-                { name: 'Public', logo: 'https://www.public.gr/themes/custom/public/images/logo.svg' },
-                { name: 'Gregory\'s', logo: 'https://www.gregorys.gr/wp-content/uploads/2019/09/gregorys-logo.png' },
-                { name: 'MyMarket', logo: 'https://www.mymarket.gr/sites/default/files/logo-mymarket.png' },
-                { name: 'Cosmos', logo: 'https://logos-world.net/wp-content/uploads/2021/02/Cosmos-Logo.png' },
-                { name: 'Vodafone', logo: 'https://www.vodafone.gr/cs/groups/public/documents/webassets/vf_gr_logo.svg' },
-                { name: 'Cosmote', logo: 'https://www.cosmote.gr/cs/idcplg?IdcService=GET_FILE&dDocName=cosmote_logo' },
-                { name: 'e-Food', logo: 'https://www.e-food.gr/images/logo.svg' },
-                { name: 'Wolt', logo: 'https://wolt.com/favicon.ico' }
-              ].map((brand, idx) => (
-                <div key={idx} className="flex-shrink-0 flex items-center justify-center h-20 w-52 opacity-70 hover:opacity-100 transition-all">
-                  <img 
-                    src={brand.logo}
-                    alt={brand.name}
-                    className="h-12 w-auto max-w-full object-contain filter grayscale hover:grayscale-0 transition-all bg-white p-2 rounded"
-                    loading="lazy"
-                    onError={(e) => {
-                      // Fallback to text if image fails to load
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                      if (!target.nextElementSibling) {
-                        const textFallback = document.createElement('div');
-                        textFallback.className = 'font-bold text-xl text-slate-700 px-6 py-3 whitespace-nowrap bg-white rounded-lg border-2 border-slate-300 shadow-sm';
-                        textFallback.textContent = brand.name;
-                        target.parentElement?.appendChild(textFallback);
-                      }
-                    }}
-                  />
-                </div>
-              ))}
+                { name: 'Autodrome', domain: 'autodrome.gr' },
+                { name: 'Coffee Island', domain: 'coffeeisland.gr' },
+                { name: 'Goody\'s', domain: 'goodys.gr' },
+                { name: 'Plaisio', domain: 'plaisio.gr' },
+                { name: 'Jumbo', domain: 'jumbo.gr' },
+                { name: 'Skroutz', domain: 'skroutz.gr' },
+                { name: 'Everest', domain: 'everest.gr' },
+                { name: 'Public', domain: 'public.gr' },
+                { name: 'Gregory\'s', domain: 'gregorys.gr' },
+                { name: 'MyMarket', domain: 'mymarket.gr' },
+                { name: 'Cosmos', domain: 'cosmosgr.com' },
+                { name: 'Vodafone', domain: 'vodafone.gr' },
+                { name: 'Cosmote', domain: 'cosmote.gr' },
+                { name: 'e-Food', domain: 'e-food.gr' },
+                { name: 'Wolt', domain: 'wolt.com' }
+              ].map((brand, idx) => {
+                const brandfetchUrl = `https://cdn.brandfetch.io/${brand.domain}`;
+                return (
+                  <div key={idx} className="flex-shrink-0 flex items-center justify-center h-20 w-52 opacity-70 hover:opacity-100 transition-all">
+                    <img 
+                      src={brandfetchUrl}
+                      alt={brand.name}
+                      className="h-14 w-auto max-w-full object-contain filter grayscale hover:grayscale-0 transition-all bg-white p-2 rounded"
+                      loading="lazy"
+                      onError={(e) => {
+                        // Fallback to text if image fails to load
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        if (!target.nextElementSibling) {
+                          const textFallback = document.createElement('div');
+                          textFallback.className = 'font-bold text-xl text-slate-700 px-6 py-3 whitespace-nowrap bg-white rounded-lg border-2 border-slate-300 shadow-sm';
+                          textFallback.textContent = brand.name;
+                          target.parentElement?.appendChild(textFallback);
+                        }
+                      }}
+                    />
+                  </div>
+                );
+              })}
               {/* Duplicate for seamless loop - Mixed Order */}
               {[
-                { name: 'Autodrome', logo: 'https://autodrome.gr/wp-content/uploads/2021/03/logo-autodrome.png' },
-                { name: 'Coffee Island', logo: 'https://www.coffeeisland.gr/wp-content/themes/coffeeisland/assets/images/logo.svg' },
-                { name: 'Goody\'s', logo: 'https://www.goodys.gr/sites/default/files/logo_0.png' },
-                { name: 'Plaisio', logo: 'https://www.plaisio.gr/assets/images/logo-plaisio.svg' },
-                { name: 'Jumbo', logo: 'https://www.jumbo.gr/images/jumbo-logo.svg' },
-                { name: 'Skroutz', logo: 'https://a.skroutz.gr/assets/skroutz-logo-red.svg' },
-                { name: 'Everest', logo: 'https://www.everest.gr/sites/default/files/logo.png' },
-                { name: 'Public', logo: 'https://www.public.gr/themes/custom/public/images/logo.svg' },
-                { name: 'Gregory\'s', logo: 'https://www.gregorys.gr/wp-content/uploads/2019/09/gregorys-logo.png' },
-                { name: 'MyMarket', logo: 'https://www.mymarket.gr/sites/default/files/logo-mymarket.png' },
-                { name: 'Cosmos', logo: 'https://logos-world.net/wp-content/uploads/2021/02/Cosmos-Logo.png' },
-                { name: 'Vodafone', logo: 'https://www.vodafone.gr/cs/groups/public/documents/webassets/vf_gr_logo.svg' },
-                { name: 'Cosmote', logo: 'https://www.cosmote.gr/cs/idcplg?IdcService=GET_FILE&dDocName=cosmote_logo' },
-                { name: 'e-Food', logo: 'https://www.e-food.gr/images/logo.svg' },
-                { name: 'Wolt', logo: 'https://wolt.com/favicon.ico' }
-              ].map((brand, idx) => (
-                <div key={`dup-${idx}`} className="flex-shrink-0 flex items-center justify-center h-20 w-52 opacity-70 hover:opacity-100 transition-all">
-                  <img 
-                    src={brand.logo}
-                    alt={brand.name}
-                    className="h-12 w-auto max-w-full object-contain filter grayscale hover:grayscale-0 transition-all bg-white p-2 rounded"
-                    loading="lazy"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                      if (!target.nextElementSibling) {
-                        const textFallback = document.createElement('div');
-                        textFallback.className = 'font-bold text-xl text-slate-700 px-6 py-3 whitespace-nowrap bg-white rounded-lg border-2 border-slate-300 shadow-sm';
-                        textFallback.textContent = brand.name;
-                        target.parentElement?.appendChild(textFallback);
-                      }
-                    }}
-                  />
-                </div>
-              ))}
+                { name: 'Autodrome', domain: 'autodrome.gr' },
+                { name: 'Coffee Island', domain: 'coffeeisland.gr' },
+                { name: 'Goody\'s', domain: 'goodys.gr' },
+                { name: 'Plaisio', domain: 'plaisio.gr' },
+                { name: 'Jumbo', domain: 'jumbo.gr' },
+                { name: 'Skroutz', domain: 'skroutz.gr' },
+                { name: 'Everest', domain: 'everest.gr' },
+                { name: 'Public', domain: 'public.gr' },
+                { name: 'Gregory\'s', domain: 'gregorys.gr' },
+                { name: 'MyMarket', domain: 'mymarket.gr' },
+                { name: 'Cosmos', domain: 'cosmosgr.com' },
+                { name: 'Vodafone', domain: 'vodafone.gr' },
+                { name: 'Cosmote', domain: 'cosmote.gr' },
+                { name: 'e-Food', domain: 'e-food.gr' },
+                { name: 'Wolt', domain: 'wolt.com' }
+              ].map((brand, idx) => {
+                const brandfetchUrl = `https://cdn.brandfetch.io/${brand.domain}`;
+                return (
+                  <div key={`dup-${idx}`} className="flex-shrink-0 flex items-center justify-center h-20 w-52 opacity-70 hover:opacity-100 transition-all">
+                    <img 
+                      src={brandfetchUrl}
+                      alt={brand.name}
+                      className="h-14 w-auto max-w-full object-contain filter grayscale hover:grayscale-0 transition-all bg-white p-2 rounded"
+                      loading="lazy"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        if (!target.nextElementSibling) {
+                          const textFallback = document.createElement('div');
+                          textFallback.className = 'font-bold text-xl text-slate-700 px-6 py-3 whitespace-nowrap bg-white rounded-lg border-2 border-slate-300 shadow-sm';
+                          textFallback.textContent = brand.name;
+                          target.parentElement?.appendChild(textFallback);
+                        }
+                      }}
+                    />
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
