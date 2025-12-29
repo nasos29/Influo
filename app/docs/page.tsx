@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import Footer from "../../components/Footer";
 
 type Lang = "el" | "en";
 
@@ -466,11 +467,7 @@ export default function DocsPage() {
       </div>
 
       {/* Footer */}
-      <footer className="bg-gradient-to-br from-slate-900 to-slate-800 border-t border-slate-700 py-12 text-slate-300 mt-12">
-        <div className="max-w-7xl mx-auto px-6 text-center text-sm">
-          <p>© {new Date().getFullYear()} Influo Inc. {lang === 'el' ? 'Με επιφύλαξη παντός δικαιώματος.' : 'All rights reserved.'}</p>
-        </div>
-      </footer>
+      <Footer lang={lang} />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Directory from "../components/Directory";
 import InfluencerSignupForm from "../components/InfluencerSignupForm";
+import Footer from "../components/Footer";
 
 type Lang = "el" | "en";
 
@@ -383,7 +384,7 @@ export default function Home() {
           
           {/* Slideshow Container */}
           <div className="relative overflow-hidden">
-            <div className="flex animate-scroll gap-8 md:gap-12 lg:gap-16 items-center">
+            <div className="flex animate-scroll gap-3 md:gap-4 lg:gap-5 items-center">
               {/* Greek Company Logos - Tech & Fashion Brands - Mixed Order */}
               {[
                 { name: 'Nike', domain: 'nike.com', url: 'https://www.nike.com' },
@@ -510,16 +511,7 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-        <footer className="bg-gradient-to-br from-slate-900 to-slate-800 border-t border-slate-700 py-12 text-slate-300">
-          <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center text-sm">
-            <p className="mb-4 md:mb-0">© {new Date().getFullYear()} Influo Inc. {txt.footer_rights}</p>
-            <div className="flex gap-6">
-              <a href="/privacy" className="hover:text-white transition-colors">{txt.footer_privacy}</a>
-              <a href="/terms" className="hover:text-white transition-colors">{txt.footer_terms}</a>
-              <a href="/contact" className="hover:text-white transition-colors">{txt.footer_contact}</a>
-          </div>
-        </div>
-      </footer>
+      <Footer lang={lang} />
 
       {/* Modal */}
       {showModal && (
