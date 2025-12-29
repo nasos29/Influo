@@ -373,50 +373,45 @@ export default function Home() {
           
           {/* Slideshow Container */}
           <div className="relative overflow-hidden">
-            <div className="flex animate-scroll gap-12 items-center">
-              {/* Logo 1 - Cosmos */}
-              <div className="flex-shrink-0 flex items-center justify-center h-16 w-32 opacity-60 hover:opacity-100 transition-opacity">
-                <img src="https://logos-world.net/wp-content/uploads/2021/02/Cosmos-Logo.png" alt="Cosmos" className="max-h-full max-w-full object-contain filter grayscale hover:grayscale-0 transition-all" />
-              </div>
-              {/* Logo 2 - Μύλοι Αγίου Γεωργίου */}
-              <div className="flex-shrink-0 flex items-center justify-center h-16 w-32 opacity-60 hover:opacity-100 transition-opacity">
-                <img src="https://www.saintgeorge.gr/wp-content/themes/saintgeorge/assets/images/logo.png" alt="Μύλοι Αγίου Γεωργίου" className="max-h-full max-w-full object-contain filter grayscale hover:grayscale-0 transition-all" />
-              </div>
-              {/* Logo 3 - Fage */}
-              <div className="flex-shrink-0 flex items-center justify-center h-16 w-32 opacity-60 hover:opacity-100 transition-opacity">
-                <img src="https://logos-world.net/wp-content/uploads/2020/04/Fage-Logo.png" alt="Fage" className="max-h-full max-w-full object-contain filter grayscale hover:grayscale-0 transition-all" />
-              </div>
-              {/* Logo 4 - Ελληνικά Προϊόντα */}
-              <div className="flex-shrink-0 flex items-center justify-center h-16 w-32 opacity-60 hover:opacity-100 transition-opacity">
-                <img src="https://www.vivartia.com/sites/default/files/2021-11/vivartia_logo.png" alt="Vivartia" className="max-h-full max-w-full object-contain filter grayscale hover:grayscale-0 transition-all" />
-              </div>
-              {/* Logo 5 - Public */}
-              <div className="flex-shrink-0 flex items-center justify-center h-16 w-32 opacity-60 hover:opacity-100 transition-opacity">
-                <img src="https://www.public.gr/images/logo.png" alt="Public" className="max-h-full max-w-full object-contain filter grayscale hover:grayscale-0 transition-all" />
-              </div>
-              {/* Logo 6 - Skroutz */}
-              <div className="flex-shrink-0 flex items-center justify-center h-16 w-32 opacity-60 hover:opacity-100 transition-opacity">
-                <img src="https://assets.skroutz.gr/assets/logo-sk-e73c17e4ed8a19bea4e9b50c8c7c47e4f0f3e8c93fd7a1fc6f6c6e6c6e6e6e6e.png" alt="Skroutz" className="max-h-full max-w-full object-contain filter grayscale hover:grayscale-0 transition-all" />
-              </div>
+            <div className="flex animate-scroll gap-16 items-center">
+              {/* Greek Company Logos - Text Based */}
+              {[
+                { name: 'COSMOS', color: 'text-blue-600' },
+                { name: 'FAGE', color: 'text-green-600' },
+                { name: 'VIVARTIA', color: 'text-red-600' },
+                { name: 'PUBLIC', color: 'text-orange-600' },
+                { name: 'SKROUTZ', color: 'text-purple-600' },
+                { name: 'COCA-COLA', color: 'text-red-500' },
+                { name: 'PEPSI', color: 'text-blue-500' },
+                { name: 'NESTLE', color: 'text-blue-800' },
+                { name: 'UNILEVER', color: 'text-indigo-600' },
+                { name: 'PROCTER & GAMBLE', color: 'text-cyan-600' }
+              ].map((brand, idx) => (
+                <div key={idx} className="flex-shrink-0 flex items-center justify-center h-20 min-w-[180px] opacity-70 hover:opacity-100 transition-all">
+                  <div className={`${brand.color} font-bold text-xl px-8 py-4 border-2 border-slate-200 hover:border-slate-400 rounded-xl bg-white shadow-sm hover:shadow-md transition-all whitespace-nowrap`}>
+                    {brand.name}
+                  </div>
+                </div>
+              ))}
               {/* Duplicate for seamless loop */}
-              <div className="flex-shrink-0 flex items-center justify-center h-16 w-32 opacity-60 hover:opacity-100 transition-opacity">
-                <img src="https://logos-world.net/wp-content/uploads/2021/02/Cosmos-Logo.png" alt="Cosmos" className="max-h-full max-w-full object-contain filter grayscale hover:grayscale-0 transition-all" />
-              </div>
-              <div className="flex-shrink-0 flex items-center justify-center h-16 w-32 opacity-60 hover:opacity-100 transition-opacity">
-                <img src="https://www.saintgeorge.gr/wp-content/themes/saintgeorge/assets/images/logo.png" alt="Μύλοι Αγίου Γεωργίου" className="max-h-full max-w-full object-contain filter grayscale hover:grayscale-0 transition-all" />
-              </div>
-              <div className="flex-shrink-0 flex items-center justify-center h-16 w-32 opacity-60 hover:opacity-100 transition-opacity">
-                <img src="https://logos-world.net/wp-content/uploads/2020/04/Fage-Logo.png" alt="Fage" className="max-h-full max-w-full object-contain filter grayscale hover:grayscale-0 transition-all" />
-              </div>
-              <div className="flex-shrink-0 flex items-center justify-center h-16 w-32 opacity-60 hover:opacity-100 transition-opacity">
-                <img src="https://www.vivartia.com/sites/default/files/2021-11/vivartia_logo.png" alt="Vivartia" className="max-h-full max-w-full object-contain filter grayscale hover:grayscale-0 transition-all" />
-              </div>
-              <div className="flex-shrink-0 flex items-center justify-center h-16 w-32 opacity-60 hover:opacity-100 transition-opacity">
-                <img src="https://www.public.gr/images/logo.png" alt="Public" className="max-h-full max-w-full object-contain filter grayscale hover:grayscale-0 transition-all" />
-              </div>
-              <div className="flex-shrink-0 flex items-center justify-center h-16 w-32 opacity-60 hover:opacity-100 transition-opacity">
-                <img src="https://assets.skroutz.gr/assets/logo-sk-e73c17e4ed8a19bea4e9b50c8c7c47e4f0f3e8c93fd7a1fc6f6c6e6c6e6e6e6e.png" alt="Skroutz" className="max-h-full max-w-full object-contain filter grayscale hover:grayscale-0 transition-all" />
-              </div>
+              {[
+                { name: 'COSMOS', color: 'text-blue-600' },
+                { name: 'FAGE', color: 'text-green-600' },
+                { name: 'VIVARTIA', color: 'text-red-600' },
+                { name: 'PUBLIC', color: 'text-orange-600' },
+                { name: 'SKROUTZ', color: 'text-purple-600' },
+                { name: 'COCA-COLA', color: 'text-red-500' },
+                { name: 'PEPSI', color: 'text-blue-500' },
+                { name: 'NESTLE', color: 'text-blue-800' },
+                { name: 'UNILEVER', color: 'text-indigo-600' },
+                { name: 'PROCTER & GAMBLE', color: 'text-cyan-600' }
+              ].map((brand, idx) => (
+                <div key={`dup-${idx}`} className="flex-shrink-0 flex items-center justify-center h-20 min-w-[180px] opacity-70 hover:opacity-100 transition-all">
+                  <div className={`${brand.color} font-bold text-xl px-8 py-4 border-2 border-slate-200 hover:border-slate-400 rounded-xl bg-white shadow-sm hover:shadow-md transition-all whitespace-nowrap`}>
+                    {brand.name}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
