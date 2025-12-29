@@ -376,34 +376,40 @@ export default function Home() {
             <div className="flex animate-scroll gap-16 items-center">
               {/* Greek Company Logos - Using Brandfetch API with Client ID */}
               {[
-                { name: 'Autodrome', domain: 'autodrome.gr' },
-                { name: 'Aegean Airlines', domain: 'aegeanair.com' },
-                { name: 'Alpha Bank', domain: 'alpha.gr' },
-                { name: 'Jumbo', domain: 'jumbo.gr' },
-                { name: 'Skroutz', domain: 'skroutz.gr' },
-                { name: 'Public', domain: 'public.gr' },
-                { name: 'Cosmote', domain: 'cosmote.gr' },
-                { name: 'Vodafone', domain: 'vodafone.gr' },
-                { name: 'Eurobank', domain: 'eurobank.gr' },
-                { name: 'National Bank', domain: 'nbg.gr' },
-                { name: 'Piraeus Bank', domain: 'piraeusbank.gr' },
-                { name: 'OTE', domain: 'ote.gr' },
-                { name: 'Coffee Island', domain: 'coffeeisland.gr' },
-                { name: 'Goody\'s', domain: 'goodys.gr' },
-                { name: 'Everest', domain: 'everest.gr' },
-                { name: 'Plaisio', domain: 'plaisio.gr' },
-                { name: 'Kotsovolos', domain: 'kotsovolos.gr' },
-                { name: 'MyMarket', domain: 'mymarket.gr' },
-                { name: 'Gregory\'s', domain: 'gregorys.gr' },
-                { name: 'e-Food', domain: 'e-food.gr' },
-                { name: 'Wolt', domain: 'wolt.com' },
-                { name: 'OPAP', domain: 'opap.gr' },
-                { name: 'Hellenic Petroleum', domain: 'helpe.gr' },
-                { name: 'Cosmos', domain: 'cosmosgr.com' }
+                { name: 'Autodrome', domain: 'autodrome.gr', url: 'https://autodrome.gr' },
+                { name: 'Jumbo', domain: 'jumbo.gr', url: 'https://www.jumbo.gr' },
+                { name: 'Skroutz', domain: 'skroutz.gr', url: 'https://www.skroutz.gr' },
+                { name: 'Public', domain: 'public.gr', url: 'https://www.public.gr' },
+                { name: 'Cosmote', domain: 'cosmote.gr', url: 'https://www.cosmote.gr' },
+                { name: 'Vodafone', domain: 'vodafone.gr', url: 'https://www.vodafone.gr' },
+                { name: 'Alpha Bank', domain: 'alpha.gr', url: 'https://www.alpha.gr' },
+                { name: 'OTE', domain: 'ote.gr', url: 'https://www.ote.gr' },
+                { name: 'Coffee Island', domain: 'coffeeisland.gr', url: 'https://www.coffeeisland.gr' },
+                { name: 'Goody\'s', domain: 'goodys.gr', url: 'https://www.goodys.gr' },
+                { name: 'Everest', domain: 'everest.gr', url: 'https://www.everest.gr' },
+                { name: 'Plaisio', domain: 'plaisio.gr', url: 'https://www.plaisio.gr' },
+                { name: 'Kotsovolos', domain: 'kotsovolos.gr', url: 'https://www.kotsovolos.gr' },
+                { name: 'MyMarket', domain: 'mymarket.gr', url: 'https://www.mymarket.gr' },
+                { name: 'Gregory\'s', domain: 'gregorys.gr', url: 'https://www.gregorys.gr' },
+                { name: 'e-Food', domain: 'e-food.gr', url: 'https://www.e-food.gr' },
+                { name: 'Wolt', domain: 'wolt.com', url: 'https://wolt.com' },
+                { name: 'OPAP', domain: 'opap.gr', url: 'https://www.opap.gr' },
+                { name: 'Aegean Airlines', domain: 'aegeanair.com', url: 'https://www.aegeanair.com' },
+                { name: 'Hellenic Petroleum', domain: 'helpe.gr', url: 'https://www.helpe.gr' },
+                { name: 'Cosmos', domain: 'cosmosgr.com', url: 'https://www.cosmosgr.com' },
+                { name: 'Nike', domain: 'nike.com', url: 'https://www.nike.com' },
+                { name: 'Adidas', domain: 'adidas.com', url: 'https://www.adidas.com' },
+                { name: 'Coca-Cola', domain: 'coca-cola.com', url: 'https://www.coca-cola.com' }
               ].map((brand, idx) => {
                 const brandfetchUrl = `https://cdn.brandfetch.io/${brand.domain}?c=1idGP6EnrL-eVdz6PLO`;
                 return (
-                  <div key={idx} className="flex-shrink-0 flex items-center justify-center h-32 w-72 opacity-70 hover:opacity-100 transition-all">
+                  <a 
+                    key={idx}
+                    href={brand.url}
+                    target="_blank"
+                    rel="nofollow noopener noreferrer"
+                    className="flex-shrink-0 flex items-center justify-center h-32 w-72 opacity-70 hover:opacity-100 transition-all"
+                  >
                     <img 
                       src={brandfetchUrl}
                       alt={brand.name}
@@ -421,39 +427,45 @@ export default function Home() {
                         }
                       }}
                     />
-                  </div>
+                  </a>
                 );
               })}
               {/* Duplicate for seamless loop */}
               {[
-                { name: 'Autodrome', domain: 'autodrome.gr' },
-                { name: 'Aegean Airlines', domain: 'aegeanair.com' },
-                { name: 'Alpha Bank', domain: 'alpha.gr' },
-                { name: 'Jumbo', domain: 'jumbo.gr' },
-                { name: 'Skroutz', domain: 'skroutz.gr' },
-                { name: 'Public', domain: 'public.gr' },
-                { name: 'Cosmote', domain: 'cosmote.gr' },
-                { name: 'Vodafone', domain: 'vodafone.gr' },
-                { name: 'Eurobank', domain: 'eurobank.gr' },
-                { name: 'National Bank', domain: 'nbg.gr' },
-                { name: 'Piraeus Bank', domain: 'piraeusbank.gr' },
-                { name: 'OTE', domain: 'ote.gr' },
-                { name: 'Coffee Island', domain: 'coffeeisland.gr' },
-                { name: 'Goody\'s', domain: 'goodys.gr' },
-                { name: 'Everest', domain: 'everest.gr' },
-                { name: 'Plaisio', domain: 'plaisio.gr' },
-                { name: 'Kotsovolos', domain: 'kotsovolos.gr' },
-                { name: 'MyMarket', domain: 'mymarket.gr' },
-                { name: 'Gregory\'s', domain: 'gregorys.gr' },
-                { name: 'e-Food', domain: 'e-food.gr' },
-                { name: 'Wolt', domain: 'wolt.com' },
-                { name: 'OPAP', domain: 'opap.gr' },
-                { name: 'Hellenic Petroleum', domain: 'helpe.gr' },
-                { name: 'Cosmos', domain: 'cosmosgr.com' }
+                { name: 'Autodrome', domain: 'autodrome.gr', url: 'https://autodrome.gr' },
+                { name: 'Jumbo', domain: 'jumbo.gr', url: 'https://www.jumbo.gr' },
+                { name: 'Skroutz', domain: 'skroutz.gr', url: 'https://www.skroutz.gr' },
+                { name: 'Public', domain: 'public.gr', url: 'https://www.public.gr' },
+                { name: 'Cosmote', domain: 'cosmote.gr', url: 'https://www.cosmote.gr' },
+                { name: 'Vodafone', domain: 'vodafone.gr', url: 'https://www.vodafone.gr' },
+                { name: 'Alpha Bank', domain: 'alpha.gr', url: 'https://www.alpha.gr' },
+                { name: 'OTE', domain: 'ote.gr', url: 'https://www.ote.gr' },
+                { name: 'Coffee Island', domain: 'coffeeisland.gr', url: 'https://www.coffeeisland.gr' },
+                { name: 'Goody\'s', domain: 'goodys.gr', url: 'https://www.goodys.gr' },
+                { name: 'Everest', domain: 'everest.gr', url: 'https://www.everest.gr' },
+                { name: 'Plaisio', domain: 'plaisio.gr', url: 'https://www.plaisio.gr' },
+                { name: 'Kotsovolos', domain: 'kotsovolos.gr', url: 'https://www.kotsovolos.gr' },
+                { name: 'MyMarket', domain: 'mymarket.gr', url: 'https://www.mymarket.gr' },
+                { name: 'Gregory\'s', domain: 'gregorys.gr', url: 'https://www.gregorys.gr' },
+                { name: 'e-Food', domain: 'e-food.gr', url: 'https://www.e-food.gr' },
+                { name: 'Wolt', domain: 'wolt.com', url: 'https://wolt.com' },
+                { name: 'OPAP', domain: 'opap.gr', url: 'https://www.opap.gr' },
+                { name: 'Aegean Airlines', domain: 'aegeanair.com', url: 'https://www.aegeanair.com' },
+                { name: 'Hellenic Petroleum', domain: 'helpe.gr', url: 'https://www.helpe.gr' },
+                { name: 'Cosmos', domain: 'cosmosgr.com', url: 'https://www.cosmosgr.com' },
+                { name: 'Nike', domain: 'nike.com', url: 'https://www.nike.com' },
+                { name: 'Adidas', domain: 'adidas.com', url: 'https://www.adidas.com' },
+                { name: 'Coca-Cola', domain: 'coca-cola.com', url: 'https://www.coca-cola.com' }
               ].map((brand, idx) => {
                 const brandfetchUrl = `https://cdn.brandfetch.io/${brand.domain}?c=1idGP6EnrL-eVdz6PLO`;
                 return (
-                  <div key={`dup-${idx}`} className="flex-shrink-0 flex items-center justify-center h-32 w-72 opacity-70 hover:opacity-100 transition-all">
+                  <a 
+                    key={`dup-${idx}`}
+                    href={brand.url}
+                    target="_blank"
+                    rel="nofollow noopener noreferrer"
+                    className="flex-shrink-0 flex items-center justify-center h-32 w-72 opacity-70 hover:opacity-100 transition-all"
+                  >
                     <img 
                       src={brandfetchUrl}
                       alt={brand.name}
@@ -470,7 +482,7 @@ export default function Home() {
                         }
                       }}
                     />
-                  </div>
+                  </a>
                 );
               })}
 
