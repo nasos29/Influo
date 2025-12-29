@@ -374,26 +374,26 @@ export default function Home() {
           {/* Slideshow Container */}
           <div className="relative overflow-hidden">
             <div className="flex animate-scroll gap-16 items-center">
-              {/* Greek Company Logos from Clearbit API */}
+              {/* Greek Company Logos */}
               {[
-                { name: 'Cosmos', logo: 'https://logo.clearbit.com/cosmosgr.com' },
-                { name: 'Fage', logo: 'https://logo.clearbit.com/fage.com' },
-                { name: 'Vivartia', logo: 'https://logo.clearbit.com/vivartia.com' },
-                { name: 'Public', logo: 'https://logo.clearbit.com/public.gr' },
-                { name: 'Skroutz', logo: 'https://logo.clearbit.com/skroutz.gr' },
-                { name: 'Coca-Cola', logo: 'https://logo.clearbit.com/coca-cola.com' },
-                { name: 'Pepsi', logo: 'https://logo.clearbit.com/pepsi.com' },
-                { name: 'Nestle', logo: 'https://logo.clearbit.com/nestle.com' },
-                { name: 'Unilever', logo: 'https://logo.clearbit.com/unilever.com' },
-                { name: 'Procter & Gamble', logo: 'https://logo.clearbit.com/pg.com' },
-                { name: 'Adidas', logo: 'https://logo.clearbit.com/adidas.com' },
-                { name: 'Nike', logo: 'https://logo.clearbit.com/nike.com' }
+                { name: 'Autodrome', logo: 'https://autodrome.gr/wp-content/uploads/2021/03/logo-autodrome.png' },
+                { name: 'Cosmos', logo: 'https://logos-world.net/wp-content/uploads/2021/02/Cosmos-Logo.png' },
+                { name: 'Fage', logo: 'https://logos-world.net/wp-content/uploads/2020/04/Fage-Logo.png' },
+                { name: 'Public', logo: 'https://www.public.gr/themes/custom/public/images/logo.svg' },
+                { name: 'Skroutz', logo: 'https://a.skroutz.gr/assets/skroutz-logo-red.svg' },
+                { name: 'Goody\'s', logo: 'https://www.goodys.gr/sites/default/files/logo_0.png' },
+                { name: 'Everest', logo: 'https://www.everest.gr/sites/default/files/logo.png' },
+                { name: 'Gregory\'s', logo: 'https://www.gregorys.gr/wp-content/uploads/2019/09/gregorys-logo.png' },
+                { name: 'Coffee Island', logo: 'https://www.coffeeisland.gr/wp-content/themes/coffeeisland/assets/images/logo.svg' },
+                { name: 'Jumbo', logo: 'https://www.jumbo.gr/images/jumbo-logo.svg' },
+                { name: 'Plaisio', logo: 'https://www.plaisio.gr/assets/images/logo-plaisio.svg' },
+                { name: 'MyMarket', logo: 'https://www.mymarket.gr/sites/default/files/logo-mymarket.png' }
               ].map((brand, idx) => (
                 <div key={idx} className="flex-shrink-0 flex items-center justify-center h-20 w-48 opacity-70 hover:opacity-100 transition-all">
                   <img 
                     src={brand.logo}
                     alt={brand.name}
-                    className="h-12 w-auto max-w-full object-contain filter grayscale hover:grayscale-0 transition-all"
+                    className="h-12 w-auto max-w-full object-contain filter grayscale hover:grayscale-0 transition-all bg-white p-2 rounded"
                     loading="lazy"
                     onError={(e) => {
                       // Fallback to text if image fails to load
@@ -401,7 +401,7 @@ export default function Home() {
                       target.style.display = 'none';
                       if (!target.nextElementSibling) {
                         const textFallback = document.createElement('div');
-                        textFallback.className = 'font-bold text-lg text-slate-600 px-4 py-2 whitespace-nowrap';
+                        textFallback.className = 'font-bold text-sm text-slate-600 px-4 py-2 whitespace-nowrap bg-white rounded border border-slate-200';
                         textFallback.textContent = brand.name;
                         target.parentElement?.appendChild(textFallback);
                       }
@@ -411,31 +411,31 @@ export default function Home() {
               ))}
               {/* Duplicate for seamless loop */}
               {[
-                { name: 'Cosmos', logo: 'https://logo.clearbit.com/cosmosgr.com' },
-                { name: 'Fage', logo: 'https://logo.clearbit.com/fage.com' },
-                { name: 'Vivartia', logo: 'https://logo.clearbit.com/vivartia.com' },
-                { name: 'Public', logo: 'https://logo.clearbit.com/public.gr' },
-                { name: 'Skroutz', logo: 'https://logo.clearbit.com/skroutz.gr' },
-                { name: 'Coca-Cola', logo: 'https://logo.clearbit.com/coca-cola.com' },
-                { name: 'Pepsi', logo: 'https://logo.clearbit.com/pepsi.com' },
-                { name: 'Nestle', logo: 'https://logo.clearbit.com/nestle.com' },
-                { name: 'Unilever', logo: 'https://logo.clearbit.com/unilever.com' },
-                { name: 'Procter & Gamble', logo: 'https://logo.clearbit.com/pg.com' },
-                { name: 'Adidas', logo: 'https://logo.clearbit.com/adidas.com' },
-                { name: 'Nike', logo: 'https://logo.clearbit.com/nike.com' }
+                { name: 'Autodrome', logo: 'https://autodrome.gr/wp-content/uploads/2021/03/logo-autodrome.png' },
+                { name: 'Cosmos', logo: 'https://logos-world.net/wp-content/uploads/2021/02/Cosmos-Logo.png' },
+                { name: 'Fage', logo: 'https://logos-world.net/wp-content/uploads/2020/04/Fage-Logo.png' },
+                { name: 'Public', logo: 'https://www.public.gr/themes/custom/public/images/logo.svg' },
+                { name: 'Skroutz', logo: 'https://a.skroutz.gr/assets/skroutz-logo-red.svg' },
+                { name: 'Goody\'s', logo: 'https://www.goodys.gr/sites/default/files/logo_0.png' },
+                { name: 'Everest', logo: 'https://www.everest.gr/sites/default/files/logo.png' },
+                { name: 'Gregory\'s', logo: 'https://www.gregorys.gr/wp-content/uploads/2019/09/gregorys-logo.png' },
+                { name: 'Coffee Island', logo: 'https://www.coffeeisland.gr/wp-content/themes/coffeeisland/assets/images/logo.svg' },
+                { name: 'Jumbo', logo: 'https://www.jumbo.gr/images/jumbo-logo.svg' },
+                { name: 'Plaisio', logo: 'https://www.plaisio.gr/assets/images/logo-plaisio.svg' },
+                { name: 'MyMarket', logo: 'https://www.mymarket.gr/sites/default/files/logo-mymarket.png' }
               ].map((brand, idx) => (
                 <div key={`dup-${idx}`} className="flex-shrink-0 flex items-center justify-center h-20 w-48 opacity-70 hover:opacity-100 transition-all">
                   <img 
                     src={brand.logo}
                     alt={brand.name}
-                    className="h-12 w-auto max-w-full object-contain filter grayscale hover:grayscale-0 transition-all"
+                    className="h-12 w-auto max-w-full object-contain filter grayscale hover:grayscale-0 transition-all bg-white p-2 rounded"
                     loading="lazy"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.style.display = 'none';
                       if (!target.nextElementSibling) {
                         const textFallback = document.createElement('div');
-                        textFallback.className = 'font-bold text-lg text-slate-600 px-4 py-2 whitespace-nowrap';
+                        textFallback.className = 'font-bold text-sm text-slate-600 px-4 py-2 whitespace-nowrap bg-white rounded border border-slate-200';
                         textFallback.textContent = brand.name;
                         target.parentElement?.appendChild(textFallback);
                       }
