@@ -138,6 +138,9 @@ export default function Home() {
                 <li><a href="#directory" className="hover:text-slate-900 transition-colors">
                   {txt.nav_directory}
                 </a></li>
+                <li><a href="/docs" className="hover:text-slate-900 transition-colors">
+                  {lang === "el" ? "Οδηγός" : "Guide"}
+                </a></li>
                 <li><a href="/login" className="hover:text-slate-900 transition-colors">
                   {lang === "el" ? "Σύνδεση" : "Sign In"}
                 </a></li>
@@ -206,6 +209,13 @@ export default function Home() {
                 className="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors"
               >
                 {txt.nav_directory}
+              </a>
+              <a 
+                href="/docs"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors"
+              >
+                {lang === "el" ? "Οδηγός" : "Guide"}
               </a>
               <a 
                 href="/login"

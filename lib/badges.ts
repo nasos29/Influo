@@ -183,8 +183,20 @@ export function getBadges(metrics: InfluencerMetrics, lang: 'el' | 'en' = 'el'):
   // Sort by priority (highest first)
   badges.sort((a, b) => b.priority - a.priority);
 
-  // Return only top 2-3 badges για να μην γεμίσει η κάρτα
-  return badges.slice(0, 3);
+  // Επαληθευμένος badge μένει πάντα αν υπάρχει
+  const verifiedBadge = badges.find(b => b.type === 'verified');
+  const otherBadges = badges.filter(b => b.type !== 'verified');
+  
+  // Return verified badge + μόνο το top άλλο badge (1 badge εκτός από verified)
+  const result: Badge[] = [];
+  if (verifiedBadge) {
+    result.push(verifiedBadge);
+  }
+  if (otherBadges.length > 0) {
+    result.push(otherBadges[0]); // Μόνο το πρώτο (υψηλότερο priority)
+  }
+  
+  return result;
 }
 
 // Export badge styling function
