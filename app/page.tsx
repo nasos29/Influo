@@ -374,105 +374,82 @@ export default function Home() {
           {/* Slideshow Container */}
           <div className="relative overflow-hidden">
             <div className="flex animate-scroll gap-16 items-center">
-              {/* Greek Company Logos - Using Brandfetch API with Logopedia list */}
+              {/* Greek Company Logos - Using Wikimedia Commons */}
               {[
-                { name: 'Autodrome', domain: 'autodrome.gr' },
-                { name: 'Aegean Airlines', domain: 'aegeanair.com' },
-                { name: 'Alpha Bank', domain: 'alpha.gr' },
-                { name: 'Jumbo', domain: 'jumbo.gr' },
-                { name: 'Skroutz', domain: 'skroutz.gr' },
-                { name: 'Public', domain: 'public.gr' },
-                { name: 'Cosmote', domain: 'cosmote.gr' },
-                { name: 'Vodafone', domain: 'vodafone.gr' },
-                { name: 'Eurobank', domain: 'eurobank.gr' },
-                { name: 'National Bank', domain: 'nbg.gr' },
-                { name: 'Piraeus Bank', domain: 'piraeusbank.gr' },
-                { name: 'OTE', domain: 'ote.gr' },
-                { name: 'Coffee Island', domain: 'coffeeisland.gr' },
-                { name: 'Goody\'s', domain: 'goodys.gr' },
-                { name: 'Everest', domain: 'everest.gr' },
-                { name: 'Plaisio', domain: 'plaisio.gr' },
-                { name: 'Kotsovolos', domain: 'kotsovolos.gr' },
-                { name: 'MyMarket', domain: 'mymarket.gr' },
-                { name: 'Gregory\'s', domain: 'gregorys.gr' },
-                { name: 'e-Food', domain: 'e-food.gr' },
-                { name: 'Wolt', domain: 'wolt.com' },
-                { name: 'OPAP', domain: 'opap.gr' },
-                { name: 'Hellenic Petroleum', domain: 'helpe.gr' },
-                { name: 'Cosmos', domain: 'cosmosgr.com' }
-              ].map((brand, idx) => {
-                const brandfetchUrl = `https://cdn.brandfetch.io/${brand.domain}`;
-                return (
-                  <div key={idx} className="flex-shrink-0 flex items-center justify-center h-20 w-52 opacity-70 hover:opacity-100 transition-all">
-                    <img 
-                      src={brandfetchUrl}
-                      alt={brand.name}
-                      className="h-14 w-auto max-w-full object-contain filter grayscale hover:grayscale-0 transition-all bg-white p-2 rounded"
-                      loading="lazy"
-                      onError={(e) => {
-                        // Fallback to large text if image fails to load
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                        if (!target.nextElementSibling) {
-                          const textFallback = document.createElement('div');
-                          textFallback.className = 'font-bold text-xl text-slate-700 px-6 py-3 whitespace-nowrap bg-white rounded-lg border-2 border-slate-300 shadow-sm';
-                          textFallback.textContent = brand.name.toUpperCase();
-                          target.parentElement?.appendChild(textFallback);
-                        }
-                      }}
-                    />
-                  </div>
-                );
-              })}
+                { name: 'Autodrome', logo: 'https://autodrome.gr/wp-content/uploads/2021/03/logo-autodrome.png' },
+                { name: 'Goody\'s', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Goody%27s_Burger_House_logo.png/400px-Goody%27s_Burger_House_logo.png' },
+                { name: 'Jumbo', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Jumbo.png/400px-Jumbo.png' },
+                { name: 'Kotsovolos', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/54/Kotsovolos_logo_454x280.png/400px-Kotsovolos_logo_454x280.png' },
+                { name: 'Korres', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Korres_logo.png/400px-Korres_logo.png' },
+                { name: 'Viva Wallet', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/VIVA_WALLET_logo.jpg/400px-VIVA_WALLET_logo.jpg' },
+                { name: 'Beat', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Beat_app_logo.png/400px-Beat_app_logo.png' },
+                { name: 'Betano', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Betano_logo.png/400px-Betano_logo.png' },
+                { name: 'Grecotel', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Grecotel_logo.svg/400px-Grecotel_logo.svg.png' },
+                { name: 'Intrakat', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7f/Intrakat_logo.png/400px-Intrakat_logo.png' },
+                { name: 'Mytilineos', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/Mytilineos.png/400px-Mytilineos.png' },
+                { name: 'Papastratos', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Papastratos_logo.png/400px-Papastratos_logo.png' },
+                { name: 'DEH', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/%CE%94%CE%95%CE%97_logo.jpg/400px-%CE%94%CE%95%CE%97_logo.jpg' },
+                { name: 'Workable', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Workable_logo.png/400px-Workable_logo.png' },
+                { name: 'BSB Fashion', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/BSB_Fashion_logo_%28as_of_2022%29.svg/400px-BSB_Fashion_logo_%28as_of_2022%29.svg.png' }
+              ].map((brand, idx) => (
+                <div key={idx} className="flex-shrink-0 flex items-center justify-center h-28 w-64 opacity-70 hover:opacity-100 transition-all">
+                  <img 
+                    src={brand.logo}
+                    alt={brand.name}
+                    className="h-20 w-auto max-w-full object-contain filter grayscale hover:grayscale-0 transition-all bg-white p-3 rounded-lg shadow-sm"
+                    loading="lazy"
+                    onError={(e) => {
+                      // Fallback to large text if image fails to load
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      if (!target.nextElementSibling) {
+                        const textFallback = document.createElement('div');
+                        textFallback.className = 'font-bold text-2xl text-slate-700 px-8 py-4 whitespace-nowrap bg-white rounded-lg border-2 border-slate-300 shadow-md';
+                        textFallback.textContent = brand.name.toUpperCase();
+                        target.parentElement?.appendChild(textFallback);
+                      }
+                    }}
+                  />
+                </div>
+              ))}
               {/* Duplicate for seamless loop */}
               {[
-                { name: 'Autodrome', domain: 'autodrome.gr' },
-                { name: 'Aegean Airlines', domain: 'aegeanair.com' },
-                { name: 'Alpha Bank', domain: 'alpha.gr' },
-                { name: 'Jumbo', domain: 'jumbo.gr' },
-                { name: 'Skroutz', domain: 'skroutz.gr' },
-                { name: 'Public', domain: 'public.gr' },
-                { name: 'Cosmote', domain: 'cosmote.gr' },
-                { name: 'Vodafone', domain: 'vodafone.gr' },
-                { name: 'Eurobank', domain: 'eurobank.gr' },
-                { name: 'National Bank', domain: 'nbg.gr' },
-                { name: 'Piraeus Bank', domain: 'piraeusbank.gr' },
-                { name: 'OTE', domain: 'ote.gr' },
-                { name: 'Coffee Island', domain: 'coffeeisland.gr' },
-                { name: 'Goody\'s', domain: 'goodys.gr' },
-                { name: 'Everest', domain: 'everest.gr' },
-                { name: 'Plaisio', domain: 'plaisio.gr' },
-                { name: 'Kotsovolos', domain: 'kotsovolos.gr' },
-                { name: 'MyMarket', domain: 'mymarket.gr' },
-                { name: 'Gregory\'s', domain: 'gregorys.gr' },
-                { name: 'e-Food', domain: 'e-food.gr' },
-                { name: 'Wolt', domain: 'wolt.com' },
-                { name: 'OPAP', domain: 'opap.gr' },
-                { name: 'Hellenic Petroleum', domain: 'helpe.gr' },
-                { name: 'Cosmos', domain: 'cosmosgr.com' }
-              ].map((brand, idx) => {
-                const brandfetchUrl = `https://cdn.brandfetch.io/${brand.domain}`;
-                return (
-                  <div key={`dup-${idx}`} className="flex-shrink-0 flex items-center justify-center h-20 w-52 opacity-70 hover:opacity-100 transition-all">
-                    <img 
-                      src={brandfetchUrl}
-                      alt={brand.name}
-                      className="h-14 w-auto max-w-full object-contain filter grayscale hover:grayscale-0 transition-all bg-white p-2 rounded"
-                      loading="lazy"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                        if (!target.nextElementSibling) {
-                          const textFallback = document.createElement('div');
-                          textFallback.className = 'font-bold text-xl text-slate-700 px-6 py-3 whitespace-nowrap bg-white rounded-lg border-2 border-slate-300 shadow-sm';
-                          textFallback.textContent = brand.name.toUpperCase();
-                          target.parentElement?.appendChild(textFallback);
-                        }
-                      }}
-                    />
-                  </div>
-                );
-              })}
+                { name: 'Autodrome', logo: 'https://autodrome.gr/wp-content/uploads/2021/03/logo-autodrome.png' },
+                { name: 'Goody\'s', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Goody%27s_Burger_House_logo.png/400px-Goody%27s_Burger_House_logo.png' },
+                { name: 'Jumbo', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Jumbo.png/400px-Jumbo.png' },
+                { name: 'Kotsovolos', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/54/Kotsovolos_logo_454x280.png/400px-Kotsovolos_logo_454x280.png' },
+                { name: 'Korres', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Korres_logo.png/400px-Korres_logo.png' },
+                { name: 'Viva Wallet', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/VIVA_WALLET_logo.jpg/400px-VIVA_WALLET_logo.jpg' },
+                { name: 'Beat', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Beat_app_logo.png/400px-Beat_app_logo.png' },
+                { name: 'Betano', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Betano_logo.png/400px-Betano_logo.png' },
+                { name: 'Grecotel', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Grecotel_logo.svg/400px-Grecotel_logo.svg.png' },
+                { name: 'Intrakat', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7f/Intrakat_logo.png/400px-Intrakat_logo.png' },
+                { name: 'Mytilineos', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/Mytilineos.png/400px-Mytilineos.png' },
+                { name: 'Papastratos', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Papastratos_logo.png/400px-Papastratos_logo.png' },
+                { name: 'DEH', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/%CE%94%CE%95%CE%97_logo.jpg/400px-%CE%94%CE%95%CE%97_logo.jpg' },
+                { name: 'Workable', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Workable_logo.png/400px-Workable_logo.png' },
+                { name: 'BSB Fashion', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/BSB_Fashion_logo_%28as_of_2022%29.svg/400px-BSB_Fashion_logo_%28as_of_2022%29.svg.png' }
+              ].map((brand, idx) => (
+                <div key={`dup-${idx}`} className="flex-shrink-0 flex items-center justify-center h-28 w-64 opacity-70 hover:opacity-100 transition-all">
+                  <img 
+                    src={brand.logo}
+                    alt={brand.name}
+                    className="h-20 w-auto max-w-full object-contain filter grayscale hover:grayscale-0 transition-all bg-white p-3 rounded-lg shadow-sm"
+                    loading="lazy"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      if (!target.nextElementSibling) {
+                        const textFallback = document.createElement('div');
+                        textFallback.className = 'font-bold text-2xl text-slate-700 px-8 py-4 whitespace-nowrap bg-white rounded-lg border-2 border-slate-300 shadow-md';
+                        textFallback.textContent = brand.name.toUpperCase();
+                        target.parentElement?.appendChild(textFallback);
+                      }
+                    }}
+                  />
+                </div>
+              ))}
+
             </div>
           </div>
         </div>
