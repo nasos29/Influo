@@ -1003,7 +1003,7 @@ export default function InfluencerProfile(props: { params: Params }) {
           {/* Top Section: Avatar, Name, Info */}
           <div className="p-6 md:p-8 flex flex-col md:flex-row items-center md:items-end gap-6 border-b border-slate-100">
             <div className="relative w-40 h-40 rounded-full border-4 border-white shadow-lg overflow-hidden bg-slate-200 -mt-20 md:mb-0">
-                <Image src={profile.avatar} alt={profile.name} fill className="object-cover object-top" />
+                <Image src={profile.avatar} alt={profile.name} fill className="object-cover object-center" />
             </div>
             <div className="flex-1 text-center md:text-left">
                 <h1 className="text-3xl font-bold text-slate-900 flex items-center justify-center md:justify-start gap-2">
