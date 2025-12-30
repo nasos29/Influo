@@ -1,54 +1,17 @@
-"use client";
+// Shared blog posts data - can be migrated to Supabase later
 
-import { useState, useEffect } from "react";
-import Image from "next/image";
-import Link from "next/link";
-import Footer from "../../components/Footer";
-import { initializeBlogPosts, getBlogPosts, type BlogPost } from "@/lib/blogPosts";
+export interface BlogPost {
+  slug: string;
+  title: { el: string; en: string };
+  excerpt: { el: string; en: string };
+  date: string;
+  category: { el: string; en: string };
+  readTime: { el: string; en: string };
+  image: string;
+  content?: { el: string; en: string };
+}
 
-type Lang = "el" | "en";
-
-export default function BlogPage() {
-  const [lang, setLang] = useState<Lang>("el");
-  const [posts, setPosts] = useState<BlogPost[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Initialize and load posts
-    initializeBlogPosts();
-    const loadedPosts = getBlogPosts();
-    setPosts(loadedPosts);
-    setLoading(false);
-  }, []);
-
-  // Listen for localStorage changes (when admin updates posts)
-  useEffect(() => {
-    const handleStorageChange = () => {
-      const loadedPosts = getBlogPosts();
-      setPosts(loadedPosts);
-    };
-
-    // Listen for custom event from admin dashboard
-    window.addEventListener('blogPostsUpdated', handleStorageChange);
-    // Also check periodically (every 2 seconds) for changes
-    const interval = setInterval(handleStorageChange, 2000);
-
-    return () => {
-      window.removeEventListener('blogPostsUpdated', handleStorageChange);
-      clearInterval(interval);
-    };
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 flex items-center justify-center">
-        <div className="text-slate-600">Loading...</div>
-      </div>
-    );
-  }
-
-  // Fallback posts if localStorage is empty (initial load)
-  const initialPosts: BlogPost[] = [
+export const initialBlogPosts: BlogPost[] = [
   {
     slug: "influencer-marketing-guide-2025",
     title: {
@@ -82,8 +45,8 @@ export default function BlogPage() {
   {
     slug: "micro-vs-macro-influencers",
     title: {
-      el: "Micro vs Macro Influencers: Ποιοι Είναι Καλύτεροι για το Brand σας;",
-      en: "Micro vs Macro Influencers: Which Are Better for Your Brand?"
+      el: "Micro vs Macro Influencers: Ποιοι Είναι Καλύτεροι;",
+      en: "Micro vs Macro Influencers: Which Are Better?"
     },
     excerpt: {
       el: "Συγκρίνετε micro και macro influencers. Μάθετε πότε να επιλέξετε τον καθένα, τα pros και cons, και πώς να μεγιστοποιήσετε το ROI σας.",
@@ -201,107 +164,28 @@ export default function BlogPage() {
   }
 ];
 
-  // Use posts from localStorage, or fallback to initial posts
-  const displayPosts = posts.length > 0 ? posts : initialPosts;
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-200/50 shadow-sm">
-        <div className="max-w-7xl mx-auto flex justify-between items-center px-4 sm:px-6 py-4">
-          <Link href="/" className="flex items-center gap-2">
-            <Image src="/logo.svg" alt="Influo.gr Logo" width={160} height={64} className="h-10 w-auto" priority />
-          </Link>
-          <div className="flex items-center gap-6">
-            <Link href="/" className="text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors">
-              {lang === "el" ? "← Επιστροφή" : "← Back"}
-            </Link>
-            <button 
-              onClick={() => setLang(lang === "el" ? "en" : "el")}
-              className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
-            >
-              {lang === "el" ? "EN" : "EL"}
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Hero */}
-      <section className="py-16 px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
-        <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">
-            {lang === "el" ? "Blog Influencer Marketing" : "Influencer Marketing Blog"}
-          </h1>
-          <p className="text-xl text-blue-100">
-            {lang === "el" 
-              ? "Μάθετε τα τελευταία trends, tips και strategies"
-              : "Learn the latest trends, tips and strategies"}
-          </p>
-        </div>
-      </section>
-
-      {/* Blog Posts */}
-      <section className="py-16 px-6">
-        <div className="max-w-6xl mx-auto">
-          {displayPosts.length === 0 ? (
-            <div className="text-center py-16">
-              <p className="text-slate-600">{lang === "el" ? "Δεν υπάρχουν άρθρα ακόμα." : "No articles yet."}</p>
-            </div>
-          ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {displayPosts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((post) => (
-              <Link 
-                key={post.slug} 
-                href={`/blog/${post.slug}`}
-                className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden hover:shadow-xl transition-all group"
-              >
-                <div className="relative h-48 overflow-hidden">
-                  <Image
-                    src={post.image}
-                    alt={post.title[lang]}
-                    fill
-                    className="object-cover group-hover:scale-110 transition-transform duration-300"
-                  />
-                  <div className="absolute top-4 left-4">
-                    <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold">
-                      {post.category[lang]}
-                    </span>
-                  </div>
-                </div>
-                <div className="p-6">
-                  <div className="flex items-center gap-4 text-sm text-slate-500 mb-3">
-                    <span>{new Date(post.date).toLocaleDateString(lang === "el" ? "el-GR" : "en-US", { 
-                      year: "numeric", 
-                      month: "long", 
-                      day: "numeric" 
-                    })}</span>
-                    <span>•</span>
-                    <span>{post.readTime[lang]}</span>
-                  </div>
-                  <h2 className="text-xl font-bold text-slate-900 mb-3 group-hover:text-blue-600 transition-colors">
-                    {post.title[lang]}
-                  </h2>
-                  <p className="text-slate-600 text-sm leading-relaxed">
-                    {post.excerpt[lang]}
-                  </p>
-                  <div className="mt-4 text-blue-600 font-semibold text-sm group-hover:underline">
-                    {lang === "el" ? "Διαβάστε περισσότερα →" : "Read more →"}
-                  </div>
-                </div>
-              </Link>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-
-      <Footer lang={lang} />
-    </div>
-  );
+// Initialize localStorage with initial posts if empty
+export function initializeBlogPosts() {
+  if (typeof window === 'undefined') return;
+  
+  const stored = localStorage.getItem('blogPosts');
+  if (!stored) {
+    localStorage.setItem('blogPosts', JSON.stringify(initialBlogPosts));
+  }
 }
 
-const t = {
-  el: {},
-  en: {}
-};
+// Get blog posts from localStorage
+export function getBlogPosts(): BlogPost[] {
+  if (typeof window === 'undefined') return initialBlogPosts;
+  
+  const stored = localStorage.getItem('blogPosts');
+  if (stored) {
+    try {
+      return JSON.parse(stored);
+    } catch {
+      return initialBlogPosts;
+    }
+  }
+  return initialBlogPosts;
+}
 

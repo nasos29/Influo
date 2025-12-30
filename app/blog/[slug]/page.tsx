@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { use } from "react";
 import Footer from "../../../components/Footer";
 import React from "react";
+import { getBlogPosts, type BlogPost as BlogPostType } from "@/lib/blogPosts";
 
 type Lang = "el" | "en";
 
@@ -2542,13 +2543,76 @@ Long-term relationships with influencers are win-win. Takes effort, but rewards 
   }
 };
 
+interface PostData {
+  title: { el: string; en: string };
+  content?: { el: string; en: string };
+}
+
 export default function BlogPostPage({ params }: { params: Promise<{ slug: string }> }) {
   const resolvedParams = use(params);
   const [lang, setLang] = useState<Lang>("el");
-  const post = posts[resolvedParams.slug as keyof typeof posts];
+  const [post, setPost] = useState<PostData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadPost = () => {
+      const slug = resolvedParams.slug;
+      
+      // Try to load from localStorage first
+      const storedPosts = getBlogPosts();
+      const storedPost = storedPosts.find(p => p.slug === slug);
+      
+      // Always check hardcoded posts for content fallback
+      const hardcodedPost = (posts as any)[slug];
+      
+      if (storedPost) {
+        // Use post from localStorage, but merge content from hardcoded if missing
+        setPost({
+          title: storedPost.title,
+          content: storedPost.content || hardcodedPost?.content || { el: '', en: '' }
+        } as PostData);
+      } else if (hardcodedPost) {
+        // Use hardcoded post
+        setPost(hardcodedPost as PostData);
+      } else {
+        // Post not found at all
+        setPost(null);
+      }
+      setLoading(false);
+    };
+
+    loadPost();
+
+    // Listen for updates
+    const handleUpdate = () => loadPost();
+    window.addEventListener('blogPostsUpdated', handleUpdate);
+    const interval = setInterval(loadPost, 2000);
+
+    return () => {
+      window.removeEventListener('blogPostsUpdated', handleUpdate);
+      clearInterval(interval);
+    };
+  }, [resolvedParams.slug]);
   
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 flex items-center justify-center">
+        <div className="text-slate-600">Loading...</div>
+      </div>
+    );
+  }
+
   if (!post) {
-    return <div>Post not found</div>;
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-slate-900 mb-4">Article not found</h1>
+          <Link href="/blog" className="text-blue-600 hover:underline">
+            ← Back to Blog
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -2573,10 +2637,16 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
       </header>
 
       <article className="max-w-4xl mx-auto px-4 sm:px-6 py-12">
-        <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-8">{post.title[lang]}</h1>
+        <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-8">{post.title?.[lang] || 'Untitled'}</h1>
         <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-8 md:p-12">
           <div className="prose prose-lg max-w-none">
-            <BlogContent content={post.content[lang]} />
+            {post.content?.[lang] ? (
+              <BlogContent content={post.content[lang]} />
+            ) : (
+              <div className="text-slate-600">
+                {lang === 'el' ? 'Το περιεχόμενο δεν είναι διαθέσιμο.' : 'Content not available.'}
+              </div>
+            )}
           </div>
         </div>
       </article>

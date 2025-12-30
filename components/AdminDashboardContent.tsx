@@ -75,6 +75,17 @@ interface Brand {
   created_at: string;
 }
 
+interface BlogPost {
+  slug: string;
+  title: { el: string; en: string };
+  excerpt: { el: string; en: string };
+  date: string;
+  category: { el: string; en: string };
+  readTime: { el: string; en: string };
+  image: string;
+  content?: { el: string; en: string };
+}
+
 const t = {
   el: {
     title: "Admin Dashboard",
@@ -88,6 +99,7 @@ const t = {
     tab_inf: "Influencers",
     tab_deals: "Proposals",
     tab_brands: "Companies",
+    tab_blog: "Blog",
     col_inf: "Influencer",
     col_loc: "Τοποθεσία",
     col_status: "Status",
@@ -123,7 +135,15 @@ const t = {
     col_brand: "Brand",
     col_bud: "Budget",
     col_srv: "Υπηρεσία",
-    col_date: "Ημερομηνία"
+    col_date: "Ημερομηνία",
+    blog_add: "Νέο Άρθρο",
+    blog_edit: "Επεξεργασία",
+    blog_delete: "Διαγραφή",
+    blog_title: "Τίτλος",
+    blog_slug: "Slug",
+    blog_category: "Κατηγορία",
+    blog_date: "Ημερομηνία",
+    blog_actions: "Ενέργειες"
   },
   en: {
     title: "Admin Dashboard",
@@ -137,6 +157,7 @@ const t = {
     tab_inf: "Influencers",
     tab_deals: "Proposals",
     tab_brands: "Companies",
+    tab_blog: "Blog",
     col_inf: "Influencer",
     col_loc: "Location",
     col_status: "Status",
@@ -172,7 +193,15 @@ const t = {
     col_brand: "Brand",
     col_bud: "Budget",
     col_srv: "Service",
-    col_date: "Date"
+    col_date: "Date",
+    blog_add: "New Article",
+    blog_edit: "Edit",
+    blog_delete: "Delete",
+    blog_title: "Title",
+    blog_slug: "Slug",
+    blog_category: "Category",
+    blog_date: "Date",
+    blog_actions: "Actions"
   }
 };
 
@@ -495,6 +524,11 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [brandSearchQuery, setBrandSearchQuery] = useState("");
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [conversationMessages, setConversationMessages] = useState<Message[]>([]);
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
+  const [blogSearchQuery, setBlogSearchQuery] = useState("");
+  const [selectedBlogPost, setSelectedBlogPost] = useState<BlogPost | null>(null);
+  const [showBlogEditModal, setShowBlogEditModal] = useState(false);
+  const [isNewBlogPost, setIsNewBlogPost] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "verified" | "pending">("all");
@@ -554,6 +588,96 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     } catch (error) {
       console.error('Error fetching brands:', error);
     }
+  };
+
+  const fetchBlogPosts = async () => {
+    try {
+      // Initialize with initial posts if localStorage is empty
+      const { initializeBlogPosts, getBlogPosts } = await import('@/lib/blogPosts');
+      initializeBlogPosts();
+      const posts = getBlogPosts();
+      setBlogPosts(posts);
+    } catch (error) {
+      console.error('Error fetching blog posts:', error);
+      // Fallback to localStorage
+      const stored = localStorage.getItem('blogPosts');
+      if (stored) {
+        try {
+          setBlogPosts(JSON.parse(stored));
+        } catch {
+          setBlogPosts([]);
+        }
+      } else {
+        setBlogPosts([]);
+      }
+    }
+  };
+
+  const saveBlogPost = async (post: BlogPost) => {
+    try {
+      const updated = isNewBlogPost 
+        ? [...blogPosts, post]
+        : blogPosts.map(p => p.slug === post.slug ? post : p);
+      
+      setBlogPosts(updated);
+      localStorage.setItem('blogPosts', JSON.stringify(updated));
+      // Dispatch event to notify blog pages
+      window.dispatchEvent(new Event('blogPostsUpdated'));
+      setShowBlogEditModal(false);
+      setSelectedBlogPost(null);
+      setIsNewBlogPost(false);
+      alert(lang === 'el' ? 'Το άρθρο αποθηκεύτηκε!' : 'Article saved!');
+    } catch (error) {
+      console.error('Error saving blog post:', error);
+      alert(lang === 'el' ? 'Σφάλμα κατά την αποθήκευση' : 'Error saving');
+    }
+  };
+
+  const deleteBlogPost = async (slug: string) => {
+    if (!confirm(lang === 'el' ? 'Είστε σίγουροι ότι θέλετε να διαγράψετε αυτό το άρθρο;' : 'Are you sure you want to delete this article?')) {
+      return;
+    }
+    try {
+      const updated = blogPosts.filter(p => p.slug !== slug);
+      setBlogPosts(updated);
+      localStorage.setItem('blogPosts', JSON.stringify(updated));
+      // Dispatch event to notify blog pages
+      window.dispatchEvent(new Event('blogPostsUpdated'));
+      alert(lang === 'el' ? 'Το άρθρο διαγράφηκε!' : 'Article deleted!');
+    } catch (error) {
+      console.error('Error deleting blog post:', error);
+      alert(lang === 'el' ? 'Σφάλμα κατά τη διαγραφή' : 'Error deleting');
+    }
+  };
+
+  const loadBlogPostContent = async (post: BlogPost): Promise<BlogPost> => {
+    // If post already has content, return as is
+    if (post.content?.el && post.content?.en) {
+      return post;
+    }
+
+    // Try to load content from hardcoded posts
+    try {
+      // Dynamic import of posts from blog page (this will work on client side)
+      const blogSlugModule = await import('@/app/blog/[slug]/page');
+      const posts = (blogSlugModule as any).posts;
+      
+      if (posts && posts[post.slug]) {
+        const hardcodedPost = posts[post.slug];
+        return {
+          ...post,
+          content: hardcodedPost.content || { el: '', en: '' }
+        };
+      }
+    } catch (error) {
+      console.error('Error loading content from hardcoded posts:', error);
+    }
+
+    // Return with empty content if not found
+    return {
+      ...post,
+      content: post.content || { el: '', en: '' }
+    };
   };
 
   const fetchData = async () => {
@@ -636,6 +760,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     fetchData();
     fetchConversations();
     fetchBrands();
+    fetchBlogPosts();
     
     // Refresh counts periodically
     const interval = setInterval(() => {
@@ -939,6 +1064,16 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
               >
                 {txt.tab_brands} ({brands.length})
               </button>
+              <button 
+                onClick={() => setActiveTab("blog")} 
+                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === "blog" 
+                    ? "border-slate-900 text-slate-900" 
+                    : "border-transparent text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                {txt.tab_blog} ({blogPosts.length})
+              </button>
             </div>
           </div>
 
@@ -1204,6 +1339,108 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
             </>
           )}
 
+          {activeTab === "blog" && (
+            <>
+              {/* Search & Add */}
+              <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row gap-3">
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    placeholder={lang === 'el' ? "Αναζήτηση άρθρων..." : "Search articles..."}
+                    value={blogSearchQuery}
+                    onChange={(e) => setBlogSearchQuery(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <button
+                  onClick={() => {
+                    setIsNewBlogPost(true);
+                    setSelectedBlogPost({
+                      slug: '',
+                      title: { el: '', en: '' },
+                      excerpt: { el: '', en: '' },
+                      date: new Date().toISOString().split('T')[0],
+                      category: { el: '', en: '' },
+                      readTime: { el: '', en: '' },
+                      image: '',
+                      content: { el: '', en: '' }
+                    });
+                    setShowBlogEditModal(true);
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  + {txt.blog_add}
+                </button>
+              </div>
+
+              {/* Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{txt.blog_title}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{txt.blog_slug}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{txt.blog_category}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{txt.blog_date}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{txt.blog_actions}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {blogPosts.filter(p => 
+                      blogSearchQuery === "" ||
+                      p.title.el.toLowerCase().includes(blogSearchQuery.toLowerCase()) ||
+                      p.title.en.toLowerCase().includes(blogSearchQuery.toLowerCase()) ||
+                      p.slug.toLowerCase().includes(blogSearchQuery.toLowerCase())
+                    ).length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-8 text-center text-slate-500">{txt.no_data}</td>
+                      </tr>
+                    ) : (
+                      blogPosts.filter(p => 
+                        blogSearchQuery === "" ||
+                        p.title.el.toLowerCase().includes(blogSearchQuery.toLowerCase()) ||
+                        p.title.en.toLowerCase().includes(blogSearchQuery.toLowerCase()) ||
+                        p.slug.toLowerCase().includes(blogSearchQuery.toLowerCase())
+                      ).map(post => (
+                        <tr key={post.slug} className="hover:bg-slate-50">
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-slate-900">{post.title[lang]}</div>
+                            <div className="text-sm text-slate-500 line-clamp-1">{post.excerpt[lang]}</div>
+                          </td>
+                          <td className="px-4 py-3 text-slate-600 text-sm font-mono">{post.slug}</td>
+                          <td className="px-4 py-3 text-slate-600">{post.category[lang]}</td>
+                          <td className="px-4 py-3 text-slate-600 text-sm">{post.date}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex gap-2">
+                              <button
+                                onClick={async () => {
+                                  // Load content if missing
+                                  const postWithContent = await loadBlogPostContent(post);
+                                  setSelectedBlogPost(postWithContent);
+                                  setIsNewBlogPost(false);
+                                  setShowBlogEditModal(true);
+                                }}
+                                className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                              >
+                                {txt.blog_edit}
+                              </button>
+                              <button
+                                onClick={() => deleteBlogPost(post.slug)}
+                                className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded transition-colors"
+                              >
+                                {txt.blog_delete}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+
           {activeTab === "conversations" && (
             <div className="bg-white rounded-lg border border-slate-200">
               {loading ? (
@@ -1298,6 +1535,232 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
           onClose={() => setShowEditModal(false)}
           onSave={handleUserUpdate}
         />
+      )}
+
+      {/* Blog Post Edit Modal */}
+      {showBlogEditModal && selectedBlogPost && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[95vh] overflow-y-auto">
+            <div className="p-6 border-b border-slate-200 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-slate-900">
+                {isNewBlogPost ? (lang === 'el' ? 'Νέο Άρθρο' : 'New Article') : (lang === 'el' ? 'Επεξεργασία Άρθρου' : 'Edit Article')}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowBlogEditModal(false);
+                  setSelectedBlogPost(null);
+                  setIsNewBlogPost(false);
+                }}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                ✕
+              </button>
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (selectedBlogPost) {
+                  saveBlogPost(selectedBlogPost);
+                }
+              }}
+              className="p-6 space-y-6"
+            >
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{lang === 'el' ? 'Slug' : 'Slug'}</label>
+                  <input
+                    type="text"
+                    value={selectedBlogPost.slug}
+                    onChange={(e) => setSelectedBlogPost({...selectedBlogPost, slug: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{lang === 'el' ? 'Ημερομηνία' : 'Date'}</label>
+                  <input
+                    type="date"
+                    value={selectedBlogPost.date}
+                    onChange={(e) => setSelectedBlogPost({...selectedBlogPost, date: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{lang === 'el' ? 'Τίτλος (Ελληνικά)' : 'Title (Greek)'}</label>
+                <input
+                  type="text"
+                  value={selectedBlogPost.title.el}
+                  onChange={(e) => setSelectedBlogPost({...selectedBlogPost, title: {...selectedBlogPost.title, el: e.target.value}})}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{lang === 'el' ? 'Τίτλος (Αγγλικά)' : 'Title (English)'}</label>
+                <input
+                  type="text"
+                  value={selectedBlogPost.title.en}
+                  onChange={(e) => setSelectedBlogPost({...selectedBlogPost, title: {...selectedBlogPost.title, en: e.target.value}})}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{lang === 'el' ? 'Περίληψη (Ελληνικά)' : 'Excerpt (Greek)'}</label>
+                <textarea
+                  value={selectedBlogPost.excerpt.el}
+                  onChange={(e) => setSelectedBlogPost({...selectedBlogPost, excerpt: {...selectedBlogPost.excerpt, el: e.target.value}})}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  rows={3}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{lang === 'el' ? 'Περίληψη (Αγγλικά)' : 'Excerpt (English)'}</label>
+                <textarea
+                  value={selectedBlogPost.excerpt.en}
+                  onChange={(e) => setSelectedBlogPost({...selectedBlogPost, excerpt: {...selectedBlogPost.excerpt, en: e.target.value}})}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  rows={3}
+                  required
+                />
+              </div>
+
+              <div className="border-t border-slate-200 pt-6">
+                <h3 className="text-lg font-semibold text-slate-900 mb-4">{lang === 'el' ? 'Περιεχόμενο Άρθρου' : 'Article Content'}</h3>
+                <p className="text-sm text-slate-600 mb-4">{lang === 'el' ? 'Χρησιμοποιήστε Markdown format. Π.χ. # για headers, ** για bold, - για lists κτλ.' : 'Use Markdown format. E.g. # for headers, ** for bold, - for lists etc.'}</p>
+                
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{lang === 'el' ? 'Περιεχόμενο (Ελληνικά)' : 'Content (Greek)'}</label>
+                  <textarea
+                    value={selectedBlogPost.content?.el || ''}
+                    onChange={(e) => setSelectedBlogPost({
+                      ...selectedBlogPost, 
+                      content: {
+                        el: e.target.value,
+                        en: selectedBlogPost.content?.en || ''
+                      }
+                    })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono text-sm"
+                    rows={20}
+                    placeholder={lang === 'el' ? '# Τίτλος\n\nΠεριεχόμενο άρθρου σε Markdown format...' : '# Title\n\nArticle content in Markdown format...'}
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    {selectedBlogPost.content?.el?.split('\n').length || 0} {lang === 'el' ? 'γραμμές' : 'lines'}
+                  </p>
+                </div>
+
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{lang === 'el' ? 'Περιεχόμενο (Αγγλικά)' : 'Content (English)'}</label>
+                  <textarea
+                    value={selectedBlogPost.content?.en || ''}
+                    onChange={(e) => setSelectedBlogPost({
+                      ...selectedBlogPost, 
+                      content: {
+                        el: selectedBlogPost.content?.el || '',
+                        en: e.target.value
+                      }
+                    })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono text-sm"
+                    rows={20}
+                    placeholder={lang === 'el' ? '# Title\n\nArticle content in Markdown format...' : '# Title\n\nArticle content in Markdown format...'}
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    {selectedBlogPost.content?.en?.split('\n').length || 0} {lang === 'el' ? 'γραμμές' : 'lines'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{lang === 'el' ? 'Κατηγορία (Ελληνικά)' : 'Category (Greek)'}</label>
+                  <input
+                    type="text"
+                    value={selectedBlogPost.category.el}
+                    onChange={(e) => setSelectedBlogPost({...selectedBlogPost, category: {...selectedBlogPost.category, el: e.target.value}})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{lang === 'el' ? 'Κατηγορία (Αγγλικά)' : 'Category (English)'}</label>
+                  <input
+                    type="text"
+                    value={selectedBlogPost.category.en}
+                    onChange={(e) => setSelectedBlogPost({...selectedBlogPost, category: {...selectedBlogPost.category, en: e.target.value}})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{lang === 'el' ? 'Χρόνος Ανάγνωσης (Ελληνικά)' : 'Read Time (Greek)'}</label>
+                  <input
+                    type="text"
+                    value={selectedBlogPost.readTime.el}
+                    onChange={(e) => setSelectedBlogPost({...selectedBlogPost, readTime: {...selectedBlogPost.readTime, el: e.target.value}})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                    placeholder="8 λεπτά"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{lang === 'el' ? 'Χρόνος Ανάγνωσης (Αγγλικά)' : 'Read Time (English)'}</label>
+                  <input
+                    type="text"
+                    value={selectedBlogPost.readTime.en}
+                    onChange={(e) => setSelectedBlogPost({...selectedBlogPost, readTime: {...selectedBlogPost.readTime, en: e.target.value}})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                    placeholder="8 min"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{lang === 'el' ? 'URL Εικόνας' : 'Image URL'}</label>
+                <input
+                  type="url"
+                  value={selectedBlogPost.image}
+                  onChange={(e) => setSelectedBlogPost({...selectedBlogPost, image: e.target.value})}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                />
+              </div>
+
+              {selectedBlogPost.image && (
+                <div>
+                  <img src={selectedBlogPost.image} alt="Preview" className="w-full h-48 object-cover rounded-lg" />
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowBlogEditModal(false);
+                    setSelectedBlogPost(null);
+                    setIsNewBlogPost(false);
+                  }}
+                  className="px-6 py-2 text-slate-900 hover:bg-slate-100 rounded-lg font-semibold transition-colors border border-slate-300"
+                >
+                  {lang === 'el' ? 'Ακύρωση' : 'Cancel'}
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
+                >
+                  {lang === 'el' ? 'Αποθήκευση' : 'Save'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );
