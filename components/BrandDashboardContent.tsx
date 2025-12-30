@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { recommendInfluencers, type InfluencerProfile, type BrandProfile } from '@/lib/recommendations';
+import { dummyInfluencers } from './Directory';
 
 // Categories (same as Directory)
 const CATEGORIES = [
@@ -294,7 +295,7 @@ export default function BrandDashboardContent() {
   const loadRecommendations = async (brand: any) => {
     setRecommendationsLoading(true);
     try {
-      // Fetch all verified influencers
+      // Fetch all verified influencers from database
       const { data: influencersData, error } = await supabase
         .from('influencers')
         .select('id, display_name, category, engagement_rate, followers_count, min_rate, location, gender, avg_rating, total_reviews, past_brands, verified, accounts, avatar_url, audience_male_percent, audience_female_percent, audience_top_age, bio, rate_card')
@@ -303,28 +304,89 @@ export default function BrandDashboardContent() {
       
       if (error) throw error;
       
-      if (influencersData && influencersData.length > 0) {
-        // Convert to InfluencerProfile format
-        const influencerProfiles: InfluencerProfile[] = influencersData.map((inf: any) => ({
-          id: inf.id,
-          display_name: inf.display_name || 'Unknown',
-          category: inf.category,
-          engagement_rate: inf.engagement_rate,
-          followers_count: inf.followers_count,
-          min_rate: inf.min_rate,
-          location: inf.location,
-          gender: inf.gender,
-          avg_rating: inf.avg_rating,
-          total_reviews: inf.total_reviews || 0,
-          past_brands: inf.past_brands,
-          verified: inf.verified,
-          accounts: inf.accounts,
-          audience_male_percent: inf.audience_male_percent,
-          audience_female_percent: inf.audience_female_percent,
-          audience_top_age: inf.audience_top_age,
-          bio: inf.bio,
-          rate_card: inf.rate_card,
-        }));
+      // Convert database influencers to InfluencerProfile format
+      const dbInfluencerProfiles: InfluencerProfile[] = (influencersData || []).map((inf: any) => ({
+        id: inf.id,
+        display_name: inf.display_name || 'Unknown',
+        category: inf.category,
+        engagement_rate: inf.engagement_rate,
+        followers_count: inf.followers_count,
+        min_rate: inf.min_rate,
+        location: inf.location,
+        gender: inf.gender,
+        avg_rating: inf.avg_rating,
+        total_reviews: inf.total_reviews || 0,
+        past_brands: inf.past_brands,
+        verified: inf.verified,
+        accounts: inf.accounts,
+        audience_male_percent: inf.audience_male_percent,
+        audience_female_percent: inf.audience_female_percent,
+        audience_top_age: inf.audience_top_age,
+        bio: inf.bio,
+        rate_card: inf.rate_card,
+      }));
+      
+      // Category mapping from dummy data to standard categories
+      const categoryMapping: { [key: string]: string } = {
+        'Beauty': 'Beauty & Makeup',
+        'Fitness': 'Health & Fitness',
+        'Tech': 'Tech & Gadgets',
+        'Travel': 'Travel',
+        'Gaming': 'Gaming & Esports',
+        'Business': 'Business & Finance',
+        'Fashion': 'Fashion & Style',
+        'Lifestyle': 'Lifestyle',
+      };
+      
+      // Convert dummy influencers to InfluencerProfile format
+      const dummyProfiles: InfluencerProfile[] = dummyInfluencers
+        .filter(dummy => dummy.verified) // Only verified dummy influencers
+        .map((dummy) => {
+          // Get primary platform and followers
+          const primaryPlatform = dummy.platform?.toLowerCase() || 'instagram';
+          const primaryFollowers = dummy.followers?.[primaryPlatform] || 0;
+          const followersStr = primaryFollowers >= 1000000 
+            ? `${(primaryFollowers / 1000000).toFixed(1)}M`
+            : primaryFollowers >= 1000 
+            ? `${(primaryFollowers / 1000).toFixed(0)}K`
+            : primaryFollowers.toString();
+          
+          // Build accounts array
+          const accounts = Object.entries(dummy.socials || {})
+            .filter(([_, username]) => username)
+            .map(([platform, username]) => ({
+              platform: platform.charAt(0).toUpperCase() + platform.slice(1),
+              followers: dummy.followers?.[platform]?.toString() || '0'
+            }));
+          
+          // Map category from dummy data to standard category
+          const dummyCategory = dummy.categories?.[0] || 'Lifestyle';
+          const mappedCategory = categoryMapping[dummyCategory] || dummyCategory;
+          
+          return {
+            id: dummy.id,
+            display_name: dummy.name,
+            category: mappedCategory,
+            engagement_rate: dummy.engagement_rate || '3.5%',
+            followers_count: followersStr,
+            min_rate: dummy.min_rate ? `€${dummy.min_rate}` : undefined,
+            location: dummy.location,
+            gender: dummy.gender,
+            avg_rating: dummy.avg_rating,
+            total_reviews: dummy.total_reviews || 0,
+            past_brands: dummy.past_brands || 0,
+            verified: dummy.verified || false,
+            accounts: accounts.length > 0 ? accounts : undefined,
+            avatar_url: dummy.avatar,
+            bio: dummy.bio,
+            rate_card: dummy.rate_card,
+          };
+        });
+      
+      // Combine database and dummy influencers
+      const influencerProfiles: InfluencerProfile[] = [...dbInfluencerProfiles, ...dummyProfiles];
+      
+      if (influencerProfiles.length > 0) {
         
         // Get brand profile
         const brandProfile: BrandProfile = {
@@ -339,7 +401,7 @@ export default function BrandDashboardContent() {
         
         if (recommendationFilters.category) {
           filteredProfiles = filteredProfiles.filter(inf => 
-            inf.category?.toLowerCase().includes(recommendationFilters.category.toLowerCase())
+            inf.category === recommendationFilters.category
           );
         }
         
