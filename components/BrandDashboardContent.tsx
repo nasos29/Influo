@@ -1138,22 +1138,7 @@ export default function BrandDashboardContent() {
           </div>
         </div>
 
-      {/* Edit Profile Modal */}
-      {showEditModal && brandData && (
-        <EditBrandModal
-          brand={brandData}
-          onClose={() => setShowEditModal(false)}
-          onSave={handleUpdateProfile}
-          updating={updating}
-          lang={lang}
-          txt={txt}
-          categories={CATEGORIES}
-          categoryTranslations={categoryTranslations}
-        />
-      )}
-    </div>
-  );
-}
+        {/* Pending Agreements Section */}
         <div className="mb-6">
           <h2 className="text-xl font-bold text-slate-900 mb-4">{txt.pending_agreements}</h2>
           
@@ -1210,7 +1195,20 @@ export default function BrandDashboardContent() {
             </div>
           )}
         </div>
-      </div>
+
+        {/* Edit Profile Modal */}
+        {showEditModal && brandData && (
+          <EditBrandModal
+            brand={brandData}
+            onClose={() => setShowEditModal(false)}
+            onSave={handleUpdateProfile}
+            updating={updating}
+            lang={lang}
+            txt={txt}
+            categories={CATEGORIES}
+            categoryTranslations={categoryTranslations}
+          />
+        )}
 
       {/* Agreement Modal */}
       {showAgreementModal && selectedProposal && (
