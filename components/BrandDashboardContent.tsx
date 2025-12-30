@@ -471,7 +471,7 @@ export default function BrandDashboardContent() {
                     max="100"
                     value={recommendationFilters.minScore}
                     onChange={(e) => setRecommendationFilters({...recommendationFilters, minScore: parseInt(e.target.value) || 40})}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white"
                   />
                 </div>
                 <div>
@@ -482,7 +482,7 @@ export default function BrandDashboardContent() {
                     value={recommendationFilters.maxPrice || ''}
                     onChange={(e) => setRecommendationFilters({...recommendationFilters, maxPrice: e.target.value ? parseInt(e.target.value) : null})}
                     placeholder="Όχι όριο"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white placeholder:text-slate-400"
                   />
                 </div>
                 <div>
@@ -492,7 +492,7 @@ export default function BrandDashboardContent() {
                     value={recommendationFilters.category}
                     onChange={(e) => setRecommendationFilters({...recommendationFilters, category: e.target.value})}
                     placeholder="π.χ. Fashion"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white placeholder:text-slate-400"
                   />
                 </div>
                 <div>
@@ -504,7 +504,7 @@ export default function BrandDashboardContent() {
                     step="0.1"
                     value={recommendationFilters.minEngagement}
                     onChange={(e) => setRecommendationFilters({...recommendationFilters, minEngagement: parseFloat(e.target.value) || 0})}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white"
                   />
                 </div>
                 <div>
@@ -516,7 +516,7 @@ export default function BrandDashboardContent() {
                     step="0.1"
                     value={recommendationFilters.minRating}
                     onChange={(e) => setRecommendationFilters({...recommendationFilters, minRating: parseFloat(e.target.value) || 0})}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white"
                   />
                 </div>
               </div>
