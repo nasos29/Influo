@@ -65,6 +65,18 @@ interface Influencer {
   avatar_url?: string;
 }
 
+// Edit Brand Modal Component Props
+type EditBrandModalProps = {
+  brand: any;
+  onClose: () => void;
+  onSave: (updatedData: any) => void;
+  updating: boolean;
+  lang: 'el' | 'en';
+  txt: any;
+  categories: string[];
+  categoryTranslations: { [key: string]: { el: string; en: string } };
+};
+
 const t = {
   el: {
     title: "Dashboard Επιχείρησης",
@@ -895,18 +907,7 @@ export default function BrandDashboardContent() {
 }
 
 // Edit Brand Modal Component
-interface EditBrandModalProps {
-  brand: any;
-  onClose: () => void;
-  onSave: (updatedData: any) => void;
-  updating: boolean;
-  lang: 'el' | 'en';
-  txt: any;
-  categories: string[];
-  categoryTranslations: { [key: string]: { el: string; en: string } };
-}
-
-const EditBrandModal = ({ brand, onClose, onSave, updating, lang, txt, categories, categoryTranslations }: EditBrandModalProps) => {
+function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, categories, categoryTranslations }: EditBrandModalProps) {
   const [brandName, setBrandName] = useState(brand.brand_name || '');
   const [contactPerson, setContactPerson] = useState(brand.contact_person || '');
   const [website, setWebsite] = useState(brand.website || '');
