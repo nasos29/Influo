@@ -198,6 +198,248 @@ const t = {
   }
 };
 
+// Edit Brand Modal Component
+function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, categories, categoryTranslations }: EditBrandModalProps) {
+  const [brandName, setBrandName] = useState(brand.brand_name || '');
+  const [contactPerson, setContactPerson] = useState(brand.contact_person || '');
+  const [website, setWebsite] = useState(brand.website || '');
+  const [category, setCategory] = useState(brand.industry || brand.category || '');
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(brand.logo_url || null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setLogoFile(file);
+      setLogoPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setLogoFile(null);
+    setLogoPreview(null);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    let logoUrl = brand.logo_url || null;
+    
+    // Upload new logo if selected
+    if (logoFile) {
+      setUploadingLogo(true);
+      try {
+        const fileExt = logoFile.name.split('.').pop();
+        const fileName = `${brand.id}-${Date.now()}.${fileExt}`;
+        const filePath = `brand-logos/${fileName}`;
+
+        // Delete old logo if exists
+        if (brand.logo_url) {
+          const oldPath = brand.logo_url.split('/').slice(-2).join('/');
+          await supabase.storage.from('brand-assets').remove([oldPath]);
+        }
+
+        // Upload new logo
+        const { error: uploadError } = await supabase.storage
+          .from('brand-assets')
+          .upload(filePath, logoFile, { upsert: true });
+
+        if (uploadError) throw uploadError;
+
+        const { data } = supabase.storage
+          .from('brand-assets')
+          .getPublicUrl(filePath);
+
+        logoUrl = data.publicUrl;
+      } catch (err: any) {
+        console.error('Error uploading logo:', err);
+        alert(lang === 'el' ? 'Σφάλμα κατά το ανέβασμα λογοτύπου' : 'Error uploading logo');
+        setUploadingLogo(false);
+        return;
+      } finally {
+        setUploadingLogo(false);
+      }
+    } else if (!logoPreview && brand.logo_url) {
+      // Remove logo if preview was cleared
+      try {
+        const oldPath = brand.logo_url.split('/').slice(-2).join('/');
+        await supabase.storage.from('brand-assets').remove([oldPath]);
+        logoUrl = null;
+      } catch (err) {
+        console.error('Error removing logo:', err);
+      }
+    }
+
+    onSave({
+      brand_name: brandName.trim(),
+      contact_person: contactPerson.trim() || null,
+      website: website.trim() || null,
+      category: category.trim() || null,
+      logo_url: logoUrl,
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white rounded-t-2xl">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold">{txt.edit_profile}</h2>
+            <button
+              onClick={onClose}
+              className="text-white hover:text-gray-200 text-2xl font-bold"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Brand Name */}
+          <div>
+            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
+              {txt.edit_brand_name} *
+            </label>
+            <input
+              type="text"
+              value={brandName}
+              onChange={(e) => setBrandName(e.target.value)}
+              required
+              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+            />
+          </div>
+
+          {/* Contact Person */}
+          <div>
+            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
+              {txt.edit_contact_person}
+            </label>
+            <input
+              type="text"
+              value={contactPerson}
+              onChange={(e) => setContactPerson(e.target.value)}
+              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+            />
+          </div>
+
+          {/* Email (Read-only) */}
+          <div>
+            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
+              {txt.edit_contact_email}
+            </label>
+            <input
+              type="email"
+              value={brand.contact_email || ''}
+              disabled
+              className="w-full px-4 py-3 bg-slate-100 text-slate-600 border-2 border-slate-200 rounded-xl cursor-not-allowed"
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              {lang === 'el' ? 'Το email δεν μπορεί να αλλάξει' : 'Email cannot be changed'}
+            </p>
+          </div>
+
+          {/* AFM (Read-only) */}
+          <div>
+            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
+              {txt.edit_afm}
+            </label>
+            <input
+              type="text"
+              value={brand.afm || ''}
+              disabled
+              className="w-full px-4 py-3 bg-slate-100 text-slate-600 border-2 border-slate-200 rounded-xl cursor-not-allowed"
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              {lang === 'el' ? 'Το ΑΦΜ δεν μπορεί να αλλάξει' : 'Tax ID cannot be changed'}
+            </p>
+          </div>
+
+          {/* Category */}
+          <div>
+            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
+              {txt.edit_category} *
+            </label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              required
+              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+            >
+              {categories.map(cat => (
+                <option key={cat} value={cat}>
+                  {lang === 'el' ? (categoryTranslations[cat]?.el || cat) : (categoryTranslations[cat]?.en || cat)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Website */}
+          <div>
+            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
+              {txt.edit_website}
+            </label>
+            <input
+              type="url"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              placeholder="https://example.com"
+              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+            />
+          </div>
+
+          {/* Logo */}
+          <div>
+            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
+              {txt.edit_logo}
+            </label>
+            {logoPreview && (
+              <div className="mb-4 relative inline-block">
+                <img
+                  src={logoPreview}
+                  alt="Logo preview"
+                  className="w-32 h-32 object-contain border-2 border-slate-200 rounded-lg"
+                />
+                <button
+                  type="button"
+                  onClick={handleRemoveLogo}
+                  className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600"
+                >
+                  ×
+                </button>
+              </div>
+            )}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleLogoChange}
+              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+            />
+          </div>
+
+          {/* Buttons */}
+          <div className="flex gap-4 pt-4 border-t border-slate-200">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-6 py-3 bg-slate-100 text-slate-700 font-medium rounded-xl hover:bg-slate-200 transition-colors"
+            >
+              {txt.cancel}
+            </button>
+            <button
+              type="submit"
+              disabled={updating || uploadingLogo}
+              className="flex-1 px-6 py-3 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {updating || uploadingLogo ? (lang === 'el' ? 'Αποθήκευση...' : 'Saving...') : txt.save_changes}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function BrandDashboardContent() {
   const [lang, setLang] = useState<'el' | 'en'>('el');
   const [proposals, setProposals] = useState<Proposal[]>([]);
@@ -886,8 +1128,14 @@ export default function BrandDashboardContent() {
                         >
                           {txt.send_proposal}
                         </Link>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
       {/* Edit Profile Modal */}
       {showEditModal && brandData && (
@@ -905,253 +1153,6 @@ export default function BrandDashboardContent() {
     </div>
   );
 }
-
-// Edit Brand Modal Component
-function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, categories, categoryTranslations }: EditBrandModalProps) {
-  const [brandName, setBrandName] = useState(brand.brand_name || '');
-  const [contactPerson, setContactPerson] = useState(brand.contact_person || '');
-  const [website, setWebsite] = useState(brand.website || '');
-  const [category, setCategory] = useState(brand.industry || brand.category || '');
-  const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [logoPreview, setLogoPreview] = useState<string | null>(brand.logo_url || null);
-  const [uploadingLogo, setUploadingLogo] = useState(false);
-
-  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setLogoFile(file);
-      setLogoPreview(URL.createObjectURL(file));
-    }
-  };
-
-  const handleRemoveLogo = () => {
-    setLogoFile(null);
-    setLogoPreview(null);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    let logoUrl = brand.logo_url || null;
-    
-    // Upload new logo if selected
-    if (logoFile) {
-      setUploadingLogo(true);
-      try {
-        const fileExt = logoFile.name.split('.').pop();
-        const fileName = `${brand.id}-${Date.now()}.${fileExt}`;
-        const filePath = `brand-logos/${fileName}`;
-
-        // Delete old logo if exists
-        if (brand.logo_url) {
-          const oldPath = brand.logo_url.split('/').slice(-2).join('/');
-          await supabase.storage.from('brand-assets').remove([oldPath]);
-        }
-
-        // Upload new logo
-        const { error: uploadError } = await supabase.storage
-          .from('brand-assets')
-          .upload(filePath, logoFile, { upsert: true });
-
-        if (uploadError) throw uploadError;
-
-        const { data } = supabase.storage
-          .from('brand-assets')
-          .getPublicUrl(filePath);
-
-        logoUrl = data.publicUrl;
-      } catch (err: any) {
-        console.error('Error uploading logo:', err);
-        alert(lang === 'el' ? 'Σφάλμα κατά το ανέβασμα λογοτύπου' : 'Error uploading logo');
-        setUploadingLogo(false);
-        return;
-      } finally {
-        setUploadingLogo(false);
-      }
-    } else if (!logoPreview && brand.logo_url) {
-      // Remove logo if preview was cleared
-      try {
-        const oldPath = brand.logo_url.split('/').slice(-2).join('/');
-        await supabase.storage.from('brand-assets').remove([oldPath]);
-        logoUrl = null;
-      } catch (err) {
-        console.error('Error removing logo:', err);
-      }
-    }
-
-    onSave({
-      brand_name: brandName.trim(),
-      contact_person: contactPerson.trim() || null,
-      website: website.trim() || null,
-      category: category.trim() || null,
-      logo_url: logoUrl,
-    });
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white rounded-t-2xl">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold">{txt.edit_profile}</h2>
-            <button
-              onClick={onClose}
-              className="text-white hover:text-gray-200 text-2xl font-bold"
-            >
-              ×
-            </button>
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Brand Name */}
-          <div>
-            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
-              {txt.edit_brand_name} *
-            </label>
-            <input
-              type="text"
-              value={brandName}
-              onChange={(e) => setBrandName(e.target.value)}
-              required
-              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-            />
-          </div>
-
-          {/* Contact Person */}
-          <div>
-            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
-              {txt.edit_contact_person}
-            </label>
-            <input
-              type="text"
-              value={contactPerson}
-              onChange={(e) => setContactPerson(e.target.value)}
-              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-            />
-          </div>
-
-          {/* Email (Read-only) */}
-          <div>
-            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
-              {txt.edit_contact_email}
-            </label>
-            <input
-              type="email"
-              value={brand.contact_email || ''}
-              disabled
-              className="w-full px-4 py-3 bg-slate-100 text-slate-600 border-2 border-slate-200 rounded-xl cursor-not-allowed"
-            />
-            <p className="text-xs text-slate-500 mt-1">
-              {lang === 'el' ? 'Το email δεν μπορεί να αλλάξει' : 'Email cannot be changed'}
-            </p>
-          </div>
-
-          {/* AFM (Read-only) */}
-          <div>
-            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
-              {txt.edit_afm}
-            </label>
-            <input
-              type="text"
-              value={brand.afm || ''}
-              disabled
-              className="w-full px-4 py-3 bg-slate-100 text-slate-600 border-2 border-slate-200 rounded-xl cursor-not-allowed"
-            />
-            <p className="text-xs text-slate-500 mt-1">
-              {lang === 'el' ? 'Το ΑΦΜ δεν μπορεί να αλλάξει' : 'Tax ID cannot be changed'}
-            </p>
-          </div>
-
-          {/* Category */}
-          <div>
-            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
-              {txt.edit_category} *
-            </label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              required
-              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-            >
-              {categories.map(cat => (
-                <option key={cat} value={cat}>
-                  {lang === 'el' ? (categoryTranslations[cat]?.el || cat) : (categoryTranslations[cat]?.en || cat)}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Website */}
-          <div>
-            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
-              {txt.edit_website}
-            </label>
-            <input
-              type="url"
-              value={website}
-              onChange={(e) => setWebsite(e.target.value)}
-              placeholder="https://example.com"
-              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-            />
-          </div>
-
-          {/* Logo */}
-          <div>
-            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
-              {txt.edit_logo}
-            </label>
-            {logoPreview && (
-              <div className="mb-4 relative inline-block">
-                <img
-                  src={logoPreview}
-                  alt="Logo preview"
-                  className="w-32 h-32 object-contain border-2 border-slate-200 rounded-lg"
-                />
-                <button
-                  type="button"
-                  onClick={handleRemoveLogo}
-                  className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600"
-                >
-                  ×
-                </button>
-              </div>
-            )}
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleLogoChange}
-              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-            />
-          </div>
-
-          {/* Buttons */}
-          <div className="flex gap-4 pt-4 border-t border-slate-200">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-6 py-3 bg-slate-100 text-slate-700 font-medium rounded-xl hover:bg-slate-200 transition-colors"
-            >
-              {txt.cancel}
-            </button>
-            <button
-              type="submit"
-              disabled={updating || uploadingLogo}
-              className="flex-1 px-6 py-3 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {updating || uploadingLogo ? (lang === 'el' ? 'Αποθήκευση...' : 'Saving...') : txt.save_changes}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};)}
-            </div>
-          )}
-        </div>
-
-        {/* Pending Agreements Section */}
         <div className="mb-6">
           <h2 className="text-xl font-bold text-slate-900 mb-4">{txt.pending_agreements}</h2>
           
