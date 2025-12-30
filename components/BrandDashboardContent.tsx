@@ -1131,7 +1131,8 @@ export default function BrandDashboardContent() {
                       </div>
                     </div>
                   </div>
-                ))}
+                );
+              })}
               </div>
             )}
           </div>
