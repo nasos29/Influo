@@ -76,7 +76,7 @@ const posts: BlogPost[] = [
     date: "2024-12-28",
     category: { el: "Platforms", en: "Platforms" },
     readTime: { el: "9 λεπτά", en: "9 min" },
-    image: "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=800&q=80"
+    image: "https://images.unsplash.com/photo-1611262588024-d12430b98920?w=800&q=80"
   },
   {
     slug: "measuring-influencer-marketing-roi",

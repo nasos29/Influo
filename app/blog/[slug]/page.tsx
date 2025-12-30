@@ -78,51 +78,51 @@ const posts = {
       en: "The Complete Influencer Marketing Guide 2025"
     },
     content: {
-      el: `# Ο Ολοκληρωμένος Οδηγός Influencer Marketing 2025
+      el: `# Ο Ολοκληρωμένος Οδηγός Μάρκετινγκ από Influencers 2025
 
-Το influencer marketing έχει μετατραπεί σε ένα από τα πιο αποτελεσματικά digital marketing channels της σύγχρονης εποχής. Το 2025, οι brands επενδύουν περισσότερα από ποτέ σε influencer collaborations, αναγνωρίζοντας την αξία αυτού του μάρκετινγκ τρόπου. Η βιομηχανία έχει ωριμάσει και οι marketers αναζητούν πιο στρατηγικές προσσεγγίσεις.
+Το μάρκετινγκ από influencers έχει μετατραπεί σε ένα από τα πιο αποτελεσματικά κανάλια ψηφιακού μάρκετινγκ της σύγχρονης εποχής. Το 2025, οι επιχειρήσεις επενδύουν περισσότερα από ποτέ σε συνεργασίες με influencers, αναγνωρίζοντας την αξία αυτού του μάρκετινγκ τρόπου. Η βιομηχανία έχει ωριμάσει και οι ειδικοί μάρκετινγκ αναζητούν πιο στρατηγικές προσσεγγίσεις.
 
-## Τι είναι το Influencer Marketing;
+## Τι είναι το Μάρκετινγκ από Influencers;
 
-Το influencer marketing είναι η πρακτική της συνεργασίας με άτομα που έχουν χτίσει έναν πιστό και ενεργό audience στα social media platforms για να προωθήσουν προϊόντα ή υπηρεσίες. Αντίθετα με την παραδοσιακή διαφήμιση, το influencer marketing βασίζεται στην εμπιστοσύνη και την αυθεντικότητα που έχουν οι creators με το κοινό τους.
+Το μάρκετινγκ από influencers είναι η πρακτική της συνεργασίας με άτομα που έχουν χτίσει έναν πιστό και ενεργό ακροατήριο στα κοινωνικά δίκτυα για να προωθήσουν προϊόντα ή υπηρεσίες. Αντίθετα με την παραδοσιακή διαφήμιση, το μάρκετινγκ από influencers βασίζεται στην εμπιστοσύνη και την αυθεντικότητα που έχουν οι δημιουργοί με το κοινό τους.
 
-Η δύναμη του influencer marketing έγκειται στο γεγονός ότι οι influencers έχουν ήδη χτίσει μια σχέση εμπιστοσύνης με τους followers τους. Όταν ένας influencer προτείνει ένα προϊόν, το audience του το αντιλαμβάνεται ως προσωπική σύσταση και όχι ως διαφημιστικό μήνυμα.
+Η δύναμη του μάρκετινγκ από influencers έγκειται στο γεγονός ότι οι influencers έχουν ήδη χτίσει μια σχέση εμπιστοσύνης με τους ακολούθους τους. Όταν ένας influencer προτείνει ένα προϊόν, το ακροατήριό του το αντιλαμβάνεται ως προσωπική σύσταση και όχι ως διαφημιστικό μήνυμα.
 
-## Τα Κύρια Trends του 2025
+## Τα Κύρια Τάσεις του 2025
 
-1. **Micro-Influencers**: Οι brands προτιμούν όλο και περισσότερο creators με 10k-100k followers, καθώς αυτοί παρουσιάζουν υψηλότερο engagement rate. Οι micro-influencers έχουν πιο targeted audience και πιο αυθεντικές συμβουλές.
+1. **Μικρο-Influencers**: Οι επιχειρήσεις προτιμούν όλο και περισσότερο δημιουργούς με 10.000-100.000 ακολούθους, καθώς αυτοί παρουσιάζουν υψηλότερο ποσοστό αλληλεπίδρασης. Οι μικρο-influencers έχουν πιο στοχευμένο ακροατήριο και πιο αυθεντικές συμβουλές.
 
-2. **Authenticity**: Οι χρήστες είναι πιο σκεπτικοί από ποτέ. Θέλουν genuine recommendations από influencers που πραγματικά χρησιμοποιούν τα προϊόντα, όχι απλά paid advertisements. Η αυθεντικότητα έχει γίνει το κλειδί για επιτυχημένες campaigns.
+2. **Αυθεντικότητα**: Οι χρήστες είναι πιο σκεπτικοί από ποτέ. Θέλουν γνησίες συστάσεις από influencers που πραγματικά χρησιμοποιούν τα προϊόντα, όχι απλά πληρωμένες διαφημίσεις. Η αυθεντικότητα έχει γίνει το κλειδί για επιτυχημένες καμπάνιες.
 
-3. **Video Content**: Το short-form video content (TikTok, Instagram Reels, YouTube Shorts) κυριαρχεί. Οι brands επενδύουν σε video collaborations γιατί έχουν υψηλότερο engagement και viral potential.
+3. **Video Περιεχόμενο**: Το βίντεο μικρής διάρκειας (TikTok, Instagram Reels, YouTube Shorts) κυριαρχεί. Οι επιχειρήσεις επενδύουν σε συνεργασίες βίντεο γιατί έχουν υψηλότερη αλληλεπίδραση και δυνατότητα να γίνουν viral.
 
-4. **Long-term Partnerships**: Οι brands απομακρύνονται από one-off collaborations και αναζητούν ongoing relationships με influencers. Αυτό οδηγεί σε πιο αυθεντικό content και καλύτερο ROI.
+4. **Μακροπρόθεσμες Συνεργασίες**: Οι επιχειρήσεις απομακρύνονται από εφάπαξ συνεργασίες και αναζητούν συνεχείς σχέσεις με influencers. Αυτό οδηγεί σε πιο αυθεντικό περιεχόμενο και καλύτερη απόδοση επένδυσης.
 
-5. **Nano-Influencers**: Creators με 1k-10k followers γίνονται δημοφιλείς για hyper-local campaigns και niche markets. Έχουν το υψηλότερο engagement rate από όλες τις κατηγορίες.
+5. **Νάνο-Influencers**: Δημιουργοί με 1.000-10.000 ακολούθους γίνονται δημοφιλείς για υπερ-τοπικές καμπάνιες και εξειδικευμένες αγορές. Έχουν το υψηλότερο ποσοστό αλληλεπίδρασης από όλες τις κατηγορίες.
 
-## Best Practices για Brands
+## Καλύτερες Πρακτικές για Επιχειρήσεις
 
-- Επιλέξτε influencers που ταιριάζουν με τα brand values σας και το target audience σας. Η ευθυγράμμιση είναι κρίσιμη.
+- Επιλέξτε influencers που ταιριάζουν με τις αξίες της επιχείρησής σας και το στόχο ακροατηρίου σας. Η ευθυγράμμιση είναι κρίσιμη.
 
-- Δώστε creative freedom στους creators. Το authentic content είναι πιο αποτελεσματικό από scripted advertisements.
+- Δώστε δημιουργική ελευθερία στους δημιουργούς. Το αυθεντικό περιεχόμενο είναι πιο αποτελεσματικό από σενάρια διαφημίσεων.
 
-- Μετρήστε το ROI σας με clear metrics: engagement rate, conversions, reach, brand awareness. Χρησιμοποιήστε analytics tools.
+- Μετρήστε την απόδοση επένδυσής σας με σαφείς μετρικές: ποσοστό αλληλεπίδρασης, μετατροπές, εμβέλεια, γνωριμία με το brand. Χρησιμοποιήστε εργαλεία αναλυτικής.
 
-- Build genuine relationships. Το influencer marketing είναι long-term game. Αντιμετωπίστε τους influencers ως partners, όχι ως advertising channels.
+- Χτίστε γνησίες σχέσεις. Το μάρκετινγκ από influencers είναι μακροπρόθεσμο παιχνίδι. Αντιμετωπίστε τους influencers ως συνεργάτες, όχι ως διαφημιστικά κανάλια.
 
-- Invest in diverse creator types. Mix micro, macro και nano influencers για comprehensive reach.
+- Επενδύστε σε διαφορετικούς τύπους δημιουργών. Συνδυάστε μικρο, μεγάλους και νάνο influencers για ολοκληρωμένη εμβέλεια.
 
-## Best Practices για Influencers
+## Καλύτερες Πρακτικές για Influencers
 
-- Επιλέξτε collaborations που ταιριάζουν με το brand σας και το niche σας. Η consistency είναι σημαντική.
+- Επιλέξτε συνεργασίες που ταιριάζουν με την επιχείρηση σας και την εξειδίκευσή σας. Η συνέπεια είναι σημαντική.
 
-- Δημιουργήστε authentic content. Το audience σας θα αναγνωρίσει αν δεν είστε genuine.
+- Δημιουργήστε αυθεντικό περιεχόμενο. Το ακροατήριό σας θα αναγνωρίσει αν δεν είστε γνήσιοι.
 
-- Communicate clearly με τα brands. Καθορίστε expectations, deliverables και timelines από την αρχή.
+- Επικοινωνήστε σαφώς με τις επιχειρήσεις. Καθορίστε προσδοκίες, παραδόσιμα αποτελέσματα και χρονοδιαγράμματα από την αρχή.
 
-- Track your performance. Χρησιμοποιήστε analytics για να δείτε ποια collaborations λειτουργούν καλύτερα.
+- Παρακολουθήστε την απόδοσή σας. Χρησιμοποιήστε αναλυτικά για να δείτε ποιες συνεργασίες λειτουργούν καλύτερα.
 
-- Build long-term relationships με brands που σας αξίζουν. Οι recurring collaborations είναι πιο profitable.`,
+- Χτίστε μακροπρόθεσμες σχέσεις με επιχειρήσεις που σας αξίζουν. Οι επαναλαμβανόμενες συνεργασίες είναι πιο κερδοφόρες.`,
       en: `# The Complete Influencer Marketing Guide 2025
 
 Influencer marketing has transformed into one of the most effective digital marketing channels of the modern era. In 2025, brands are investing more than ever in influencer collaborations, recognizing the value of this marketing approach. The industry has matured and marketers are seeking more strategic approaches.
@@ -178,67 +178,67 @@ The power of influencer marketing lies in the fact that influencers have already
     content: {
       el: `# Πώς να Γίνετε Επιτυχημένος Influencer: 10 Σημαντικές Συμβουλές
 
-Η καριέρα του influencer είναι πιο προσιτή από ποτέ, χάρη στην ανάπτυξη των social media platforms και της creator economy. Ωστόσο, για να επιτύχετε στην πλατφόρμα, χρειάζεται strategy, consistency και dedication. Δεν είναι αρκετό απλά να post-άρετε φωτογραφίες - χρειάζεται να χτίσετε μια genuine connection με το audience σας.
+Η καριέρα του influencer είναι πιο προσιτή από ποτέ, χάρη στην ανάπτυξη των πλατφορμών κοινωνικών δικτύων και της οικονομίας των δημιουργών. Ωστόσο, για να επιτύχετε στην πλατφόρμα, χρειάζεστε στρατηγική, συνέπεια και αφοσίωση. Δεν είναι αρκετό απλά να δημοσιεύετε φωτογραφίες - χρειάζεται να χτίσετε μια γνήσια σχέση με το ακροατήριό σας.
 
-## 1. Βρείτε το Niche σας
+## 1. Βρείτε την Εξειδίκευσή σας
 
-Το πρώτο βήμα για να γίνετε επιτυχημένος influencer είναι να βρείτε το niche σας. Εστιάστε σε ένα niche που σας παθιάζει και έχετε γνώσεις. Μην προσπαθείτε να είστε "everything to everyone" - είναι καλύτερο να είστε "something special to someone specific". Αυτό θα σας βοηθήσει να ξεχωρίσετε από τους ανταγωνιστές σας.
+Το πρώτο βήμα για να γίνετε επιτυχημένος influencer είναι να βρείτε την εξειδίκευσή σας. Εστιάστε σε έναν τομέα που σας παθιάζει και έχετε γνώσεις. Μην προσπαθείτε να είστε "τα πάντα για όλους" - είναι καλύτερο να είστε "κάτι ιδιαίτερο για κάποιον συγκεκριμένο". Αυτό θα σας βοηθήσει να ξεχωρίσετε από τους ανταγωνιστές σας.
 
-Έρευνα σας δείχνει ότι οι influencers με clear niche έχουν 200% υψηλότερο engagement rate από αυτούς που post-άρουν γενικό content. Οι followers προτιμούν να ακολουθούν creators που είναι experts σε συγκεκριμένα θέματα.
+Η έρευνα δείχνει ότι οι influencers με σαφή εξειδίκευση έχουν 200% υψηλότερο ποσοστό αλληλεπίδρασης από αυτούς που δημοσιεύουν γενικό περιεχόμενο. Οι ακόλουθοι προτιμούν να ακολουθούν δημιουργούς που είναι ειδικοί σε συγκεκριμένα θέματα.
 
-## 2. Δημιουργήστε Quality Content
+## 2. Δημιουργήστε Ποιότητα Περιεχομένου
 
-Η ποιότητα του content σας είναι πολύ πιο σημαντική από την ποσότητα. Επενδύστε σε καλό equipment (camera, lighting, microphone) και μάθετε basic editing skills. Το high-quality content θα σας ξεχωρίσει και θα αυξήσει το engagement rate σας.
+Η ποιότητα του περιεχομένου σας είναι πολύ πιο σημαντική από την ποσότητα. Επενδύστε σε καλό εξοπλισμό (κάμερα, φωτισμός, μικρόφωνο) και μάθετε βασικές δεξιότητες επεξεργασίας. Το υψηλής ποιότητας περιεχόμενο θα σας ξεχωρίσει και θα αυξήσει το ποσοστό αλληλεπίδρασής σας.
 
-Μη φοβάστε να ξοδέψετε χρόνο σε κάθε post. Είναι καλύτερο να post-άρετε 3 φορές την εβδομάδα με excellent content παρά καθημερινά με mediocre posts. Το audience σας θα το εκτιμήσει.
+Μη φοβάστε να ξοδέψετε χρόνο σε κάθε δημοσίευση. Είναι καλύτερο να δημοσιεύετε 3 φορές την εβδομάδα με εξαιρετικό περιεχόμενο παρά καθημερινά με μέτριες δημοσιεύσεις. Το ακροατήριό σας θα το εκτιμήσει.
 
-## 3. Be Consistent
+## 3. Να είστε Συνεπείς
 
-Η consistency είναι κλειδί για long-term success. Post regularly - αυτό βοηθάει το algorithm να σας προβάλει και το audience σας να σας αναμένει. Δημιουργήστε ένα content calendar και προσπαθήστε να το ακολουθήσετε.
+Η συνέπεια είναι το κλειδί για μακροπρόθεσμη επιτυχία. Δημοσιεύετε τακτικά - αυτό βοηθά τον αλγόριθμο να σας προβάλει και το ακροατήριό σας να σας περιμένει. Δημιουργήστε ένα ημερολόγιο περιεχομένου και προσπαθήστε να το ακολουθήσετε.
 
-Η consistency δεν σημαίνει μόνο posting frequency - σημαίνει επίσης consistent brand voice, aesthetic, και messaging. Το audience σας πρέπει να ξέρει τι να περιμένει από εσάς.
+Η συνέπεια δεν σημαίνει μόνο συχνότητα δημοσίευσης - σημαίνει επίσης συνεπής φωνή brand, αισθητική και μηνύματα. Το ακροατήριό σας πρέπει να ξέρει τι να περιμένει από εσάς.
 
-## 4. Engage με το Audience
+## 4. Αλληλεπιδράστε με το Ακροατήριο
 
-Το engagement είναι ένα two-way street. Απαντάτε σε comments, DMs και δημιουργείτε μια genuine community. Οι followers σας θέλουν να αισθάνονται ότι ακούγονται και ότι είστε accessible.
+Η αλληλεπίδραση είναι δρόμος δύο κατευθύνσεων. Απαντάτε σε σχόλια, προσωπικά μηνύματα και δημιουργείτε μια γνήσια κοινότητα. Οι ακόλουθοί σας θέλουν να αισθάνονται ότι ακούγονται και ότι είστε προσιτοί.
 
-Host Q&A sessions, polls, και live streams. Αυτό βοηθάει να δημιουργήσετε deeper connections. Το engagement rate είναι ένας από τους πιο σημαντικούς metrics που βλέπουν τα brands.
+Οργανώστε συνεδρίες ερωτήσεων-απαντήσεων, δημοσκοπήσεις και ζωντανές μεταδόσεις. Αυτό βοηθά να δημιουργήσετε βαθύτερες συνδέσεις. Το ποσοστό αλληλεπίδρασης είναι μια από τις πιο σημαντικές μετρικές που εξετάζουν οι επιχειρήσεις.
 
-## 5. Collaborate με Άλλους Creators
+## 5. Συνεργαστείτε με Άλλους Δημιουργούς
 
-Το networking είναι crucial. Collaborations με άλλους creators expand your reach και introduce you to new audiences. Επιλέξτε creators με similar niche αλλά όχι direct competitors.
+Το δίκτυο επαφών είναι κρίσιμο. Οι συνεργασίες με άλλους δημιουργούς επεκτείνουν την εμβέλειά σας και σας εισάγουν σε νέα ακροατήρια. Επιλέξτε δημιουργούς με παρόμοια εξειδίκευση αλλά όχι άμεσους ανταγωνιστές.
 
-Collaborations μπορούν να είναι guest posts, joint videos, shoutouts, ή co-hosted events. Αυτό είναι ένας αποτελεσματικός τρόπος για growth χωρίς να ξοδέψετε advertising budget.
+Οι συνεργασίες μπορούν να είναι επισκέψεις posts, κοινά βίντεο, αναφορές ή συνδιοργανωμένες εκδηλώσεις. Αυτός είναι ένας αποτελεσματικός τρόπος για ανάπτυξη χωρίς να ξοδέψετε διαφημιστικό budget.
 
-## 6. Χρησιμοποιήστε Hashtags Strategically
+## 6. Χρησιμοποιήστε Hashtags Στρατηγικά
 
-Τα hashtags είναι powerful tools για discovery. Research trending hashtags στο niche σας και χρησιμοποιήστε ένα mix από popular και niche-specific tags. Μην χρησιμοποιείτε μόνο generic hashtags - είστε πιο πιθανό να χάσετε μέσα στο noise.
+Τα hashtags είναι ισχυρά εργαλεία για ανακάλυψη. Ερευνήστε τάσεις hashtags στον τομέα σας και χρησιμοποιήστε ένα μείγμα από δημοφιλή και ειδικά hashtags. Μην χρησιμοποιείτε μόνο γενικά hashtags - είναι πιο πιθανό να χαθείτε στο θόρυβο.
 
-Instagram και TikTok έχουν different hashtag strategies. Στο Instagram, 10-15 hashtags είναι ideal, ενώ στο TikTok 3-5 trending hashtags λειτουργούν καλύτερα.
+Το Instagram και το TikTok έχουν διαφορετικές στρατηγικές hashtags. Στο Instagram, 10-15 hashtags είναι ιδανικά, ενώ στο TikTok 3-5 δημοφιλή hashtags λειτουργούν καλύτερα.
 
-## 7. Analyze Your Performance
+## 7. Αναλύστε την Απόδοσή σας
 
-Χρησιμοποιήστε analytics tools (Instagram Insights, TikTok Analytics, YouTube Analytics) για να δείτε τι λειτουργεί. Ποια posts έχουν highest engagement; Ποια ώρες έχουν best performance; Ποιο content type (photos, videos, reels) λειτουργεί καλύτερα;
+Χρησιμοποιήστε εργαλεία αναλυτικής (Instagram Insights, TikTok Analytics, YouTube Analytics) για να δείτε τι λειτουργεί. Ποιες δημοσιεύσεις έχουν την υψηλότερη αλληλεπίδραση; Ποιες ώρες έχουν την καλύτερη απόδοση; Ποιος τύπος περιεχομένου (φωτογραφίες, βίντεο, reels) λειτουργεί καλύτερα;
 
-Με βάση τα analytics, adjust your strategy. Double down σε ό,τι λειτουργεί και experiment με variations.
+Με βάση την αναλυτική, προσαρμόστε τη στρατηγική σας. Ενισχύστε ό,τι λειτουργεί και πειραματιστείτε με παραλλαγές.
 
-## 8. Build Email List
+## 8. Χτίστε Λίστα Email
 
-Don't rely μόνο στα social platforms. Οι algorithms αλλάζουν συνεχώς και μπορεί να χάσετε access στο audience σας. Build an email list από νωρίς - αυτό είναι το μόνο asset που σας ανήκει 100%.
+Μην βασίζεστε μόνο στις πλατφόρμες κοινωνικών δικτύων. Οι αλγόριθμοι αλλάζουν συνεχώς και μπορεί να χάσετε πρόσβαση στο ακροατήριό σας. Χτίστε μια λίστα email από νωρίς - αυτό είναι το μόνο περιουσιακό στοιχείο που σας ανήκει 100%.
 
-Χρησιμοποιήστε lead magnets (freebies, guides, templates) για να συγκεντρώσετε emails. Το email marketing έχει πολύ υψηλότερο conversion rate από social media.
+Χρησιμοποιήστε προσελκυστικά εργαλεία (δωρεάν προϊόντα, οδηγούς, πρότυπα) για να συγκεντρώσετε emails. Το email marketing έχει πολύ υψηλότερο ποσοστό μετατροπής από τα κοινωνικά δίκτυα.
 
-## 9. Stay Authentic
+## 9. Μείνετε Αυθεντικοί
 
-Η authenticity builds trust και long-term success. Το audience σας μπορεί να αναγνωρίσει fake content από miles away. Μην προσποιείστε ότι είστε κάτι που δεν είστε. Το genuine content είναι πιο sustainable και rewarding.
+Η αυθεντικότητα χτίζει εμπιστοσύνη και μακροπρόθεσμη επιτυχία. Το ακροατήριό σας μπορεί να αναγνωρίσει ψεύτικο περιεχόμενο από μακριά. Μην προσποιείστε ότι είστε κάτι που δεν είστε. Το γνήσιο περιεχόμενο είναι πιο βιώσιμο και ανταμοιβαιτικό.
 
-Work με brands που πραγματικά σας ενδιαφέρουν και προϊόντα που πραγματικά χρησιμοποιείτε. Η credibility σας είναι το πιο valuable asset σας.
+Συνεργαστείτε με επιχειρήσεις που πραγματικά σας ενδιαφέρουν και προϊόντα που πραγματικά χρησιμοποιείτε. Η αξιοπιστία σας είναι το πιο πολύτιμο περιουσιακό σας στοιχείο.
 
-## 10. Be Patient
+## 10. Να είστε Υπομονετικοί
 
-Το success takes time. Μην περιμένετε να γίνετε famous σε μία βδομάδα. Η πλειοψηφία των επιτυχημένων influencers χρειάστηκε 1-2 χρόνια consistent work. Stay consistent, focused, και μην τα παρατήσετε όταν τα things get tough.
+Η επιτυχία χρειάζεται χρόνο. Μην περιμένετε να γίνετε διάσημοι σε μία βδομάδα. Η πλειοψηφία των επιτυχημένων influencers χρειάστηκε 1-2 χρόνια συνεπής δουλειά. Μείνετε συνεπείς, εστιασμένοι και μην τα παρατήσετε όταν τα πράγματα γίνονται δύσκολα.
 
-Celebrate small wins - τα πρώτα 1,000 followers, το πρώτο brand collaboration, το πρώτο viral post. Κάθε milestone είναι ένα achievement.`,
+Γιορτάστε τις μικρές νίκες - τους πρώτους 1.000 ακόλουθους, την πρώτη συνεργασία με brand, την πρώτη viral δημοσίευση. Κάθε ορόσημο είναι ένα επίτευγμα.`,
       en: `# How to Become a Successful Influencer: 10 Important Tips
 
 The influencer career is more accessible than ever, thanks to the growth of social media platforms and the creator economy. However, to succeed on the platform, you need strategy, consistency and dedication. It's not enough to just post photos - you need to build a genuine connection with your audience.
@@ -310,57 +310,57 @@ Celebrate small wins - the first 1,000 followers, the first brand collaboration,
       en: "Micro vs Macro Influencers: Which Are Better?"
     },
     content: {
-      el: `# Micro vs Macro Influencers: Ποιοι Είναι Καλύτεροι για το Brand σας;
+      el: `# Μικρο vs Μακρο Influencers: Ποιοι Είναι Καλύτεροι για την Επιχείρησή σας;
 
-Η επιλογή μεταξύ micro και macro influencers είναι ένα από τα πιο σημαντικά decisions που θα κάνετε στο influencer marketing strategy σας. Κάθε τύπος έχει τα δικά του advantages και disadvantages, και η επιλογή εξαρτάται από το budget σας, τους marketing goals σας, και το target audience σας.
+Η επιλογή μεταξύ μικρο και μακρο influencers είναι ένα από τα πιο σημαντικά αποφάσεις που θα πάρετε στη στρατηγική μάρκετινγκ από influencers σας. Κάθε τύπος έχει τα δικά του πλεονεκτήματα και μειονεκτήματα, και η επιλογή εξαρτάται από τον προϋπολογισμό σας, τους στόχους μάρκετινγκ σας, και το στόχο ακροατηρίου σας.
 
 ## Micro-Influencers (10k-100k followers)
 
 Οι micro-influencers είναι creators με 10,000 έως 100,000 followers. Αυτή η κατηγορία έχει γίνει εξαιρετικά δημοφιλής μεταξύ των brands τα τελευταία χρόνια, και για πολλούς λόγους.
 
 **Πλεονεκτήματα:**
-- **Υψηλότερο engagement rate**: Οι micro-influencers έχουν κατά μέσο όρο 3-7% engagement rate, σε αντίθεση με τους macro που έχουν 1-3%. Αυτό σημαίνει πιο active audience.
-- **Lower cost**: Η συνεργασία με micro-influencers κοστίζει σημαντικά λιγότερο, επιτρέποντας σε μικρότερα brands να εισέλθουν στο influencer marketing.
-- **Niche audience**: Έχουν πολύ targeted και specific audience, ideal για niche products.
-- **More authentic**: Το content τους είναι πιο genuine και less polished, κάτι που το audience εκτιμά.
-- **Better conversion rates**: Λόγω της authenticity και του trust, έχουν καλύτερες conversion rates.
-- **Accessibility**: Είναι πιο accessible και responsive σε brand communications.
+- **Υψηλότερο ποσοστό αλληλεπίδρασης**: Οι μικρο-influencers έχουν κατά μέσο όρο 3-7% ποσοστό αλληλεπίδρασης, σε αντίθεση με τους μακρο που έχουν 1-3%. Αυτό σημαίνει πιο ενεργό ακροατήριο.
+- **Χαμηλότερο κόστος**: Η συνεργασία με μικρο-influencers κοστίζει σημαντικά λιγότερο, επιτρέποντας σε μικρότερες επιχειρήσεις να εισέλθουν στο μάρκετινγκ από influencers.
+- **Στοχευμένο ακροατήριο**: Έχουν πολύ στοχευμένο και συγκεκριμένο ακροατήριο, ιδανικό για εξειδικευμένα προϊόντα.
+- **Πιο αυθεντικό**: Το περιεχόμενό τους είναι πιο γνήσιο και λιγότερο επεξεργασμένο, κάτι που το ακροατήριο εκτιμά.
+- **Καλύτερα ποσοστά μετατροπής**: Λόγω της αυθεντικότητας και της εμπιστοσύνης, έχουν καλύτερα ποσοστά μετατροπής.
+- **Προσιτότητα**: Είναι πιο προσιτοί και ανταποκρίνονται γρηγορότερα στις επικοινωνίες της επιχείρησης.
 
 **Μειονεκτήματα:**
-- **Smaller reach**: Προφανώς, έχουν μικρότερη reach από macro influencers.
-- **Less brand recognition**: Το brand name recognition μπορεί να είναι μικρότερο.
-- **More management**: Χρειάζεστε περισσότερες collaborations για να καλύψετε το ίδιο reach.
+- **Μικρότερη εμβέλεια**: Προφανώς, έχουν μικρότερη εμβέλεια από τους μακρο-influencers.
+- **Λιγότερη αναγνώριση brand**: Η αναγνώριση του ονόματος της επιχείρησης μπορεί να είναι μικρότερη.
+- **Περισσότερη διαχείριση**: Χρειάζεστε περισσότερες συνεργασίες για να καλύψετε την ίδια εμβέλεια.
 
-## Macro-Influencers (100k+ followers)
+## Μακρο-Influencers (100.000+ ακόλουθοι)
 
-Οι macro-influencers είναι οι "big names" - creators με 100,000+ followers, συχνά celebrities ή established personalities.
+Οι μακρο-influencers είναι τα "μεγάλα ονόματα" - δημιουργοί με 100.000+ ακόλουθους, συχνά διασημότητες ή καθιερωμένα πρόσωπα.
 
 **Πλεονεκτήματα:**
-- **Massive reach**: Μία collaboration μπορεί να φτάσει εκατομμύρια users.
-- **High brand awareness**: Το brand σας θα γίνει visible σε massive audience.
-- **Professional content**: Έχουν production teams και high-quality content.
-- **Credibility**: Η association με well-known influencer προσδίδει credibility στο brand σας.
-- **Viral potential**: Περισσότερες πιθανότητες για viral content.
+- **Τεράστια εμβέλεια**: Μία συνεργασία μπορεί να φτάσει εκατομμύρια χρήστες.
+- **Υψηλή γνωριμία brand**: Η επιχείρησή σας θα γίνει ορατή σε τεράστιο ακροατήριο.
+- **Επαγγελματικό περιεχόμενο**: Έχουν ομάδες παραγωγής και υψηλής ποιότητας περιεχόμενο.
+- **Αξιοπιστία**: Η σχέση με γνωστό influencer προσδίδει αξιοπιστία στην επιχείρησή σας.
+- **Δυνατότητα viral**: Περισσότερες πιθανότητες για viral περιεχόμενο.
 
 **Μειονεκτήματα:**
-- **Higher cost**: Οι macro-influencers κοστίζουν πολύ - μπορεί να είναι €5,000-50,000+ per post.
-- **Lower engagement rate**: Λόγω του μεγάλου audience, το engagement rate είναι χαμηλότερο.
-- **Less personalized**: Το content είναι πιο generic και less personalized.
-- **Less authentic**: Το audience μπορεί να αντιλαμβάνεται το content ως απλά advertising.
+- **Υψηλότερο κόστος**: Οι μακρο-influencers κοστίζουν πολύ - μπορεί να είναι €5.000-50.000+ ανά δημοσίευση.
+- **Χαμηλότερο ποσοστό αλληλεπίδρασης**: Λόγω του μεγάλου ακροατηρίου, το ποσοστό αλληλεπίδρασης είναι χαμηλότερο.
+- **Λιγότερο εξατομικευμένο**: Το περιεχόμενο είναι πιο γενικό και λιγότερο εξατομικευμένο.
+- **Λιγότερο αυθεντικό**: Το ακροατήριο μπορεί να αντιλαμβάνεται το περιεχόμενο ως απλά διαφήμιση.
 
 ## Ποιον να Επιλέξετε;
 
-Η επιλογή εξαρτάται από τους marketing goals σας:
+Η επιλογή εξαρτάται από τους στόχους μάρκετινγκ σας:
 
-- **Επιλέξτε Micro-Influencers** αν: έχετε limited budget, target niche audience, θέλετε higher engagement, θέλετε authentic content, ή είστε local business.
+- **Επιλέξτε Μικρο-Influencers** αν: έχετε περιορισμένο προϋπολογισμό, στοχεύετε εξειδικευμένο ακροατήριο, θέλετε υψηλότερη αλληλεπίδραση, θέλετε αυθεντικό περιεχόμενο, ή είστε τοπική επιχείρηση.
 
-- **Επιλέξτε Macro-Influencers** αν: θέλετε massive brand awareness, έχετε large budget, target mass market, ή θέλετε celebrity endorsement.
+- **Επιλέξτε Μακρο-Influencers** αν: θέλετε τεράστια γνωριμία brand, έχετε μεγάλο προϋπολογισμό, στοχεύετε μαζική αγορά, ή θέλετε υποστήριξη διασημοτήτων.
 
-**Pro Tip**: Πολλά brands χρησιμοποιούν hybrid approach - mix macro για awareness και micro για conversions. Αυτό δίνει το best of both worlds.
+**Συμβουλή Εξπέρ**: Πολλές επιχειρήσεις χρησιμοποιούν υβριδική προσέγγιση - συνδυασμός μακρο για γνωριμία και μικρο για μετατροπές. Αυτό δίνει το καλύτερο από τα δύο.
 
-## Το Rising Star: Nano-Influencers
+## Το Αναδυόμενο Αστέρι: Νάνο-Influencers
 
-Υπάρχει και μια τρίτη κατηγορία που γίνεται όλο και πιο δημοφιλής - οι nano-influencers (1k-10k followers). Αυτοί έχουν το υψηλότερο engagement rate (7-10%) και είναι ideal για hyper-local campaigns ή niche markets με limited budget.`,
+Υπάρχει και μια τρίτη κατηγορία που γίνεται όλο και πιο δημοφιλής - οι νάνο-influencers (1.000-10.000 ακόλουθοι). Αυτοί έχουν το υψηλότερο ποσοστό αλληλεπίδρασης (7-10%) και είναι ιδανικοί για υπερ-τοπικές καμπάνιες ή εξειδικευμένες αγορές με περιορισμένο προϋπολογισμό.`,
       en: `# Micro vs Macro Influencers: Which Are Better for Your Brand?
 
 The choice between micro and macro influencers is one of the most important decisions you'll make in your influencer marketing strategy. Each type has its own advantages and disadvantages, and the choice depends on your budget, marketing goals, and target audience.
@@ -420,133 +420,133 @@ There's also a third category that's becoming increasingly popular - nano-influe
       en: "Instagram vs TikTok vs YouTube: Which Platform?"
     },
     content: {
-      el: `# Instagram vs TikTok vs YouTube: Ποια Πλατφόρμα για Influencer Marketing;
+      el: `# Instagram vs TikTok vs YouTube: Ποια Πλατφόρμα για Μάρκετινγκ από Influencers;
 
-Κάθε social media platform έχει τα δικά του advantages και unique characteristics για influencer marketing. Η επιλογή της πλατφόρμας εξαρτάται από το target audience σας, το type του content, και τους marketing goals σας. Ας δούμε τις διαφορές και πότε να χρησιμοποιήσετε την κάθε μία.
+Κάθε πλατφόρμα κοινωνικών δικτύων έχει τα δικά της πλεονεκτήματα και μοναδικά χαρακτηριστικά για μάρκετινγκ από influencers. Η επιλογή της πλατφόρμας εξαρτάται από το στόχο ακροατηρίου σας, τον τύπο περιεχομένου, και τους στόχους μάρκετινγκ σας. Ας δούμε τις διαφορές και πότε να χρησιμοποιήσετε την κάθε μία.
 
 ## Instagram: Το Visual Storytelling Platform
 
 Το Instagram παραμένει ένα από τα πιο δημοφιλή platforms για influencer marketing, με over 1 billion active users worldwide.
 
-**Ideal για:**
-- **Visual products**: Fashion, beauty, food, travel, lifestyle brands. Το Instagram είναι primarily visual platform, perfect για products που look good.
-- **Lifestyle brands**: Brands που θέλουν να showcase ένα lifestyle ή aesthetic.
-- **Story ads**: Instagram Stories έχουν 500M+ daily users - ideal για time-sensitive promotions.
-- **Shopping features**: Instagram Shopping integration makes it easy για direct purchases.
+**Ιδανικό για:**
+- **Οπτικά προϊόντα**: Μόδα, ομορφιά, φαγητό, ταξίδια, lifestyle brands. Το Instagram είναι πρωτίστως οπτική πλατφόρμα, τέλεια για προϊόντα που φαίνονται καλά.
+- **Lifestyle brands**: Επιχειρήσεις που θέλουν να επιδείξουν ένα lifestyle ή αισθητική.
+- **Story διαφημίσεις**: Τα Instagram Stories έχουν 500M+ καθημερινούς χρήστες - ιδανικό για προωθήσεις που είναι time-sensitive.
+- **Χαρακτηριστικά αγορών**: Η ενσωμάτωση Instagram Shopping διευκολύνει τις άμεσες αγορές.
 
-**Target Audience:**
-- Κύρια ηλικία: 18-34 years old
-- 60% women, 40% men
-- Urban, educated, middle to upper-middle class
+**Στόχος Ακροατηρίου:**
+- Κύρια ηλικία: 18-34 ετών
+- 60% γυναίκες, 40% άνδρες
+- Αστικό, μορφωμένο, μεσαίο έως ανώτερο μεσαίο κοινωνικό στρώμα
 
-**Content Types:**
-- Static posts (photos, carousels)
-- Reels (short videos)
-- Stories (24-hour content)
-- IGTV (longer videos)
-- Live streams
+**Τύποι Περιεχομένου:**
+- Στατικές δημοσιεύσεις (φωτογραφίες, carousels)
+- Reels (βίντεο μικρής διάρκειας)
+- Stories (περιεχόμενο 24ωρου)
+- IGTV (μακρότερα βίντεο)
+- Ζωντανές μεταδόσεις
 
-**Engagement:**
-- Average engagement rate: 1-3%
-- Best posting times: 11am-1pm, 7-9pm
+**Αλληλεπίδραση:**
+- Μέσο ποσοστό αλληλεπίδρασης: 1-3%
+- Καλύτερες ώρες δημοσίευσης: 11πμ-1μμ, 7-9μμ
 
-**Cost:**
-- Micro-influencers: €100-500 per post
-- Macro-influencers: €5,000-25,000 per post
+**Κόστος:**
+- Μικρο-influencers: €100-500 ανά δημοσίευση
+- Μακρο-influencers: €5.000-25.000 ανά δημοσίευση
 
-## TikTok: Το Trend-Setting Platform
+## TikTok: Η Πλατφόρμα που Ορίζει Τάσεις
 
-Το TikTok είναι το fastest-growing platform και έχει revolutionized το influencer marketing με το short-form video content.
+Το TikTok είναι η πλατφόρμα που αναπτύσσεται ταχύτερα και έχει επαναστατήσει το μάρκετινγκ από influencers με βίντεο μικρής διάρκειας.
 
-**Ideal για:**
-- **Trendy products**: Products που μπορούν να γίνουν viral trends.
-- **Gen Z audience**: Perfect για brands που target 16-24 years old.
-- **Entertainment-focused brands**: Products που είναι fun και shareable.
-- **Challenges & Trends**: Brands που μπορούν να create ή join trends.
+**Ιδανικό για:**
+- **Τάσεις προϊόντα**: Προϊόντα που μπορούν να γίνουν viral τάσεις.
+- **Ακροατήριο Gen Z**: Τέλειο για επιχειρήσεις που στοχεύουν 16-24 ετών.
+- **Επιχειρήσεις με επίκεντρο την ψυχαγωγία**: Προϊόντα που είναι διασκεδαστικά και μοιραστά.
+- **Προκλήσεις & Τάσεις**: Επιχειρήσεις που μπορούν να δημιουργήσουν ή να ενταχθούν σε τάσεις.
 
-**Target Audience:**
-- Κύρια ηλικία: 16-24 years old (Gen Z)
-- 60% women, 40% men
-- Highly engaged, trend-aware audience
+**Στόχος Ακροατηρίου:**
+- Κύρια ηλικία: 16-24 ετών (Gen Z)
+- 60% γυναίκες, 40% άνδρες
+- Πολύ ενεργό ακροατήριο, ενήμερο για τάσεις
 
-**Content Types:**
-- Short videos (15-60 seconds)
-- Hashtag challenges
-- Duets and stitches
-- Live streams
+**Τύποι Περιεχομένου:**
+- Βίντεο μικρής διάρκειας (15-60 δευτερόλεπτα)
+- Προκλήσεις hashtag
+- Duets και stitches
+- Ζωντανές μεταδόσεις
 
-**Engagement:**
-- Average engagement rate: 5-10% (highest among platforms)
-- Algorithm favors authentic, creative content
+**Αλληλεπίδραση:**
+- Μέσο ποσοστό αλληλεπίδρασης: 5-10% (υψηλότερο μεταξύ των πλατφορμών)
+- Ο αλγόριθμος ευνοεί αυθεντικό, δημιουργικό περιεχόμενο
 
-**Cost:**
-- Micro-influencers: €200-800 per video
-- Macro-influencers: €5,000-50,000 per video
+**Κόστος:**
+- Μικρο-influencers: €200-800 ανά βίντεο
+- Μακρο-influencers: €5.000-50.000 ανά βίντεο
 
-**Pros:**
-- Highest engagement rates
-- Viral potential
-- Younger, highly engaged audience
-- Creative, authentic content
+**Πλεονεκτήματα:**
+- Υψηλότερα ποσοστά αλληλεπίδρασης
+- Δυνατότητα viral
+- Νεότερο, πολύ ενεργό ακροατήριο
+- Δημιουργικό, αυθεντικό περιεχόμενο
 
-**Cons:**
-- Requires video production skills
-- Content has short lifespan
-- Less direct shopping features
-- Younger audience (limited purchasing power)
+**Μειονεκτήματα:**
+- Απαιτεί δεξιότητες παραγωγής βίντεο
+- Το περιεχόμενο έχει σύντομη διάρκεια ζωής
+- Λιγότερα άμεσα χαρακτηριστικά αγορών
+- Νεότερο ακροατήριο (περιορισμένη αγοραστική δύναμη)
 
-## YouTube: Το Educational & Long-Form Platform
+## YouTube: Η Εκπαιδευτική & Μακρόμηνη Πλατφόρμα
 
-Το YouTube είναι το largest video platform και ideal για detailed, educational content και long-form storytelling.
+Το YouTube είναι η μεγαλύτερη πλατφόρμα βίντεο και ιδανική για λεπτομερές, εκπαιδευτικό περιεχόμενο και μακρόμηνη αφήγηση.
 
-**Ideal για:**
-- **Long-form content**: Product reviews, tutorials, unboxings, vlogs.
-- **Educational content**: Brands που θέλουν να educate το audience.
-- **High-consideration products**: Expensive or complex products που need detailed explanation.
-- **B2B marketing**: Professional services, SaaS products.
+**Ιδανικό για:**
+- **Μακρόμηνη περιεχόμενο**: Ανασκοπήσεις προϊόντων, tutorials, unboxings, vlogs.
+- **Εκπαιδευτικό περιεχόμενο**: Επιχειρήσεις που θέλουν να εκπαιδεύσουν το ακροατήριο.
+- **Προϊόντα υψηλής προσοχής**: Ακριβά ή πολύπλοκα προϊόντα που χρειάζονται λεπτομερή εξήγηση.
+- **B2B μάρκετινγκ**: Επαγγελματικές υπηρεσίες, SaaS προϊόντα.
 
-**Target Audience:**
-- All ages (but strongest 25-45)
-- Diverse demographics
-- Higher purchasing power
-- Seeking detailed information
+**Στόχος Ακροατηρίου:**
+- Όλες οι ηλικίες (αλλά ισχυρότερο 25-45)
+- Διάφοροι δημογραφικοί πληθυσμοί
+- Μεγαλύτερη αγοραστική δύναμη
+- Αναζητούν λεπτομερείς πληροφορίες
 
-**Content Types:**
-- Long videos (10+ minutes)
-- Shorts (YouTube's answer to TikTok)
-- Live streams
+**Τύποι Περιεχομένου:**
+- Μακρά βίντεο (10+ λεπτά)
+- Shorts (η απάντηση του YouTube στο TikTok)
+- Ζωντανές μεταδόσεις
 - Premieres
 
-**Engagement:**
-- Average engagement rate: 1-2%
-- But viewers watch longer (higher watch time = better for brand)
-- Comments are more detailed and meaningful
+**Αλληλεπίδραση:**
+- Μέσο ποσοστό αλληλεπίδρασης: 1-2%
+- Αλλά οι θεατές παρακολουθούν περισσότερο (μεγαλύτερος χρόνος παρακολούθησης = καλύτερο για brand)
+- Τα σχόλια είναι πιο λεπτομερή και ουσιαστικά
 
-**Cost:**
-- Micro-influencers: €300-1,000 per video
-- Macro-influencers: €10,000-100,000 per video
+**Κόστος:**
+- Μικρο-influencers: €300-1.000 ανά βίντεο
+- Μακρο-influencers: €10.000-100.000 ανά βίντεο
 
-**Pros:**
-- Detailed content allows for comprehensive product showcasing
-- High SEO value (content indexed by Google)
-- Long content lifespan
-- Higher trust and credibility
+**Πλεονεκτήματα:**
+- Το λεπτομερές περιεχόμενο επιτρέπει ολοκληρωμένη παρουσίαση προϊόντος
+- Υψηλή SEO αξία (το περιεχόμενο index-άρεται από Google)
+- Μεγάλη διάρκεια ζωής περιεχομένου
+- Υψηλότερη εμπιστοσύνη και αξιοπιστία
 
-**Cons:**
-- Higher production costs
-- Time-consuming to create
-- Lower engagement rates
-- Requires editing skills
+**Μειονεκτήματα:**
+- Υψηλότερο κόστος παραγωγής
+- Χρονοβόρο στη δημιουργία
+- Χαμηλότερα ποσοστά αλληλεπίδρασης
+- Απαιτεί δεξιότητες επεξεργασίας
 
-## Συμβουλή: Multi-Platform Strategy
+## Συμβουλή: Στρατηγική Πολλαπλών Πλατφορμών
 
-Η καλύτερη στρατηγική είναι να χρησιμοποιήσετε multiple platforms για maximum reach:
+Η καλύτερη στρατηγική είναι να χρησιμοποιήσετε πολλαπλές πλατφόρμες για μέγιστη εμβέλεια:
 
-1. **Instagram** για visual storytelling και shopping features
-2. **TikTok** για viral trends και Gen Z audience
-3. **YouTube** για detailed reviews και educational content
+1. **Instagram** για οπτική αφήγηση και χαρακτηριστικά αγορών
+2. **TikTok** για viral τάσεις και ακροατήριο Gen Z
+3. **YouTube** για λεπτομερείς ανασκοπήσεις και εκπαιδευτικό περιεχόμενο
 
-Αυτό επιτρέπει να reach different audiences και maximize το ROI σας. Πολλά brands χρησιμοποιούν influencers που είναι active σε multiple platforms.`,
+Αυτό επιτρέπει να φτάσετε σε διαφορετικά ακροατήρια και να μεγιστοποιήσετε την απόδοση επένδυσής σας. Πολλές επιχειρήσεις χρησιμοποιούν influencers που είναι ενεργοί σε πολλαπλές πλατφόρμες.`,
       en: `# Instagram vs TikTok vs YouTube: Which Platform for Influencer Marketing?
 
 Each social media platform has its own advantages and unique characteristics for influencer marketing. Platform choice depends on your target audience, content type, and marketing goals. Let's see the differences and when to use each one.
@@ -688,7 +688,7 @@ This allows you to reach different audiences and maximize your ROI. Many brands 
 
 ## Γιατί είναι Σημαντικό το ROI Measurement;
 
-Το influencer marketing δεν είναι free - κοστίζει χρόνο, resources, και budget. Για να justify τα expenses και να optimize τα future campaigns, χρειάζεστε clear metrics. Χωρίς proper measurement, δεν μπορείτε να ξέρετε αν τα campaigns σας είναι successful ή αν πρέπει να change strategy.
+Το μάρκετινγκ από influencers δεν είναι δωρεάν - κοστίζει χρόνο, πόρους, και προϋπολογισμό. Για να δικαιολογήσετε τα έξοδα και να βελτιστοποιήσετε τις μελλοντικές καμπάνιες, χρειάζεστε σαφή μετρικά στοιχεία. Χωρίς σωστή μέτρηση, δεν μπορείτε να ξέρετε αν οι καμπάνιές σας είναι επιτυχημένες ή αν πρέπει να αλλάξετε στρατηγική.
 
 Επιπλέον, το ROI measurement σας βοηθάει να:
 - Prove the value στον CEO και stakeholders
@@ -1004,27 +1004,27 @@ ROI measurement is essential for successful influencer marketing. With the right
     content: {
       el: `# Engagement Rate: Τι Είναι και Πώς να το Υπολογίσετε
 
-Το engagement rate είναι ένας από τους πιο σημαντικούς metrics στο influencer marketing. Είναι ο indicator για το πόσο active και engaged είναι το audience ενός influencer. Πολλά brands βασίζονται σε αυτό το metric για να αποφασίσουν με ποιον influencer θα συνεργαστούν.
+Το ποσοστό αλληλεπίδρασης είναι ένα από τα πιο σημαντικά μετρήσιμα στοιχεία στο μάρκετινγκ από influencers. Είναι ο δείκτης για το πόσο ενεργό και αλληλεπιδραστικό είναι το ακροατήριο ενός influencer. Πολλές επιχειρήσεις βασίζονται σε αυτό το μετρήσιμο στοιχείο για να αποφασίσουν με ποιον influencer θα συνεργαστούν.
 
 ## Τι είναι το Engagement Rate;
 
-Το engagement rate είναι το ποσοστό των followers που αλληλεπιδρούν με το content ενός influencer. Μετράει likes, comments, shares, saves, και άλλες forms of interaction. Ένας υψηλός engagement rate σημαίνει ότι το audience είναι active, ενδιαφέρεται, και πιθανώς να δράσει στις brand recommendations.
+Το ποσοστό αλληλεπίδρασης είναι το ποσοστό των ακολούθων που αλληλεπιδρούν με το περιεχόμενο ενός influencer. Μετράει likes, comments, shares, saves, και άλλες μορφές αλληλεπίδρασης. Ένα υψηλό ποσοστό αλληλεπίδρασης σημαίνει ότι το ακροατήριο είναι ενεργό, ενδιαφέρεται, και πιθανώς να δράσει στις συστάσεις της επιχείρησης.
 
 ## Γιατί είναι Σημαντικό;
 
 Ένας influencer με 100,000 followers αλλά 0.5% engagement rate είναι λιγότερο valuable από έναν με 50,000 followers και 5% engagement rate. Το engagement rate σας λέει αν οι followers είναι real, active, και interested στο content.
 
-**High engagement rate** σημαίνει:
-- Real, active followers
-- Interested audience
-- Higher conversion potential
-- Better ROI για brands
+**Υψηλό ποσοστό αλληλεπίδρασης** σημαίνει:
+- Πραγματικοί, ενεργοί ακόλουθοι
+- Ενδιαφερόμενο ακροατήριο
+- Μεγαλύτερη δυνατότητα μετατροπής
+- Καλύτερη απόδοση επένδυσης για επιχειρήσεις
 
-**Low engagement rate** μπορεί να σημαίνει:
-- Fake followers
-- Inactive audience
-- Wrong content strategy
-- Poor influencer-audience fit
+**Χαμηλό ποσοστό αλληλεπίδρασης** μπορεί να σημαίνει:
+- Ψεύτικοι ακόλουθοι
+- Ανενεργό ακροατήριο
+- Λάθος στρατηγική περιεχομένου
+- Κακή ταίριασμα influencer-ακροατηρίου
 
 ## Πώς να Υπολογίσετε το Engagement Rate
 
@@ -1122,7 +1122,7 @@ Platforms όπως η Influo.gr υπολογίζουν αυτόματα engageme
 
 ## Συμπέρασμα
 
-Το engagement rate είναι ένας crucial metric για επιτυχημένο influencer marketing. Κατανοώντας πώς να το υπολογίσετε και να το interpret-άρετε, μπορείτε να κάνετε better decisions και να maximize το ROI σας. Μην βασίζεστε μόνο στο followers count - το engagement rate είναι πιο important.`,
+Το ποσοστό αλληλεπίδρασης είναι ένα κρίσιμο μετρήσιμο στοιχείο για επιτυχημένο μάρκετινγκ από influencers. Κατανοώντας πώς να το υπολογίσετε και να το ερμηνεύσετε, μπορείτε να πάρετε καλύτερες αποφάσεις και να μεγιστοποιήσετε την απόδοση επένδυσής σας. Μην βασίζεστε μόνο στον αριθμό ακολούθων - το ποσοστό αλληλεπίδρασης είναι πιο σημαντικό.`,
       en: `# Engagement Rate: What It Is and How to Calculate It
 
 Engagement rate is one of the most important metrics in influencer marketing. It's the indicator of how active and engaged an influencer's audience is. Many brands rely on this metric to decide which influencer to collaborate with.
@@ -1536,7 +1536,7 @@ Negotiation is an art, not a battle. The goal is to reach an agreement that work
     content: {
       el: `# Πώς να Ανιχνεύσετε Fake Followers: Οδηγός για Brands
 
-Το πρόβλημα των fake followers είναι real και cost-effective για brands. Influencers με fake followers έχουν low engagement rates και δεν deliver real value. Μάθετε πώς να detect fake followers και να protect το brand σας.
+Το πρόβλημα των ψεύτικων ακολούθων είναι πραγματικό και κοστοβόρο για επιχειρήσεις. Οι influencers με ψεύτικους ακόλουθους έχουν χαμηλά ποσοστά αλληλεπίδρασης και δεν προσφέρουν πραγματική αξία. Μάθετε πώς να εντοπίσετε ψεύτικους ακόλουθους και να προστατέψετε την επιχείρησή σας.
 
 ## Τι είναι τα Fake Followers;
 
@@ -1643,7 +1643,7 @@ Track campaign performance closely. Εάν results don't match expectations, inv
 
 ## Συμπέρασμα
 
-Fake followers are a serious problem στο influencer marketing. Κατανοώντας τα warning signs και using proper tools, μπορείτε να protect το brand σας και να ensure ότι get real value από collaborations. Always prioritize engagement rate over follower count.`,
+Οι ψεύτικοι ακόλουθοι είναι ένα σοβαρό πρόβλημα στο μάρκετινγκ από influencers. Κατανοώντας τα σημάδια προειδοποίησης και χρησιμοποιώντας τα κατάλληλα εργαλεία, μπορείτε να προστατέψετε την επιχείρησή σας και να διασφαλίσετε ότι λαμβάνετε πραγματική αξία από συνεργασίες. Πάντα δώστε προτεραιότητα στο ποσοστό αλληλεπίδρασης έναντι του αριθμού ακολούθων.`,
       en: `# How to Detect Fake Followers: Guide for Brands
 
 The fake follower problem is real and costly for brands. Influencers with fake followers have low engagement rates and don't deliver real value. Learn how to detect fake followers and protect your brand.
