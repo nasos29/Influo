@@ -164,6 +164,15 @@ export const initialBlogPosts: BlogPost[] = [
   }
 ];
 
+// Helper function to merge content from hardcoded posts
+export function mergeContentFromHardcoded(posts: BlogPost[]): BlogPost[] {
+  // This function will be called to merge content from hardcoded posts
+  // when available. For now, it just returns the posts as-is.
+  // The actual content will be loaded from the blog page's hardcoded posts
+  // when the page loads.
+  return posts;
+}
+
 // Initialize localStorage with initial posts if empty
 export function initializeBlogPosts() {
   if (typeof window === 'undefined') return;
@@ -171,6 +180,33 @@ export function initializeBlogPosts() {
   const stored = localStorage.getItem('blogPosts');
   if (!stored) {
     localStorage.setItem('blogPosts', JSON.stringify(initialBlogPosts));
+  } else {
+    // Try to merge content from hardcoded posts if available
+    // This happens when blog page loads and exposes its posts
+    try {
+      const storedPosts: BlogPost[] = JSON.parse(stored);
+      const needsUpdate = storedPosts.some(p => !p.content || (!p.content.el && !p.content.en));
+      
+      if (needsUpdate) {
+        // Try to get hardcoded posts from window object if blog page has set it
+        const hardcodedPosts = (window as any).__blogPostsContent;
+        if (hardcodedPosts) {
+          const updatedPosts = storedPosts.map(storedPost => {
+            const hardcodedPost = hardcodedPosts[storedPost.slug];
+            if (hardcodedPost && hardcodedPost.content && (!storedPost.content || (!storedPost.content.el && !storedPost.content.en))) {
+              return {
+                ...storedPost,
+                content: hardcodedPost.content
+              };
+            }
+            return storedPost;
+          });
+          localStorage.setItem('blogPosts', JSON.stringify(updatedPosts));
+        }
+      }
+    } catch (error) {
+      console.error('Error merging content:', error);
+    }
   }
 }
 

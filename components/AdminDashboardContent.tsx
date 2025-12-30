@@ -656,24 +656,87 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       return post;
     }
 
-    // Try to load content from hardcoded posts
+    // First, try to get the post from localStorage which should have content if it was saved before
     try {
-      // Dynamic import of posts from blog page (this will work on client side)
-      const blogSlugModule = await import('@/app/blog/[slug]/page');
-      const posts = (blogSlugModule as any).posts;
+      const stored = localStorage.getItem('blogPosts');
+      if (stored) {
+        const allPosts: BlogPost[] = JSON.parse(stored);
+        const storedPost = allPosts.find(p => p.slug === post.slug);
+        
+        // If stored post has content, use it
+        if (storedPost && storedPost.content && (storedPost.content.el || storedPost.content.en)) {
+          return {
+            ...post,
+            content: {
+              el: storedPost.content.el || '',
+              en: storedPost.content.en || ''
+            }
+          };
+        }
+      }
+    } catch (error) {
+      console.error('Error loading from localStorage:', error);
+    }
+
+    // Try to load from getBlogPosts as well
+    try {
+      const { getBlogPosts } = await import('@/lib/blogPosts');
+      const allPosts = getBlogPosts();
+      const storedPost = allPosts.find(p => p.slug === post.slug);
       
-      if (posts && posts[post.slug]) {
-        const hardcodedPost = posts[post.slug];
+      if (storedPost && storedPost.content && (storedPost.content.el || storedPost.content.en)) {
         return {
           ...post,
-          content: hardcodedPost.content || { el: '', en: '' }
+          content: {
+            el: storedPost.content.el || '',
+            en: storedPost.content.en || ''
+          }
         };
       }
     } catch (error) {
-      console.error('Error loading content from hardcoded posts:', error);
+      console.error('Error loading from getBlogPosts:', error);
     }
 
-    // Return with empty content if not found
+    // Try to load from hardcoded posts exposed by blog page via window object
+    try {
+      const hardcodedPosts = (window as any).__blogPostsContent;
+      if (hardcodedPosts && hardcodedPosts[post.slug]) {
+        const hardcodedPost = hardcodedPosts[post.slug];
+        if (hardcodedPost && hardcodedPost.content) {
+          // Also update localStorage with this content for future use
+          try {
+            const stored = localStorage.getItem('blogPosts');
+            if (stored) {
+              const allPosts: BlogPost[] = JSON.parse(stored);
+              const updatedPosts = allPosts.map(p => {
+                if (p.slug === post.slug && (!p.content || (!p.content.el && !p.content.en))) {
+                  return {
+                    ...p,
+                    content: hardcodedPost.content
+                  };
+                }
+                return p;
+              });
+              localStorage.setItem('blogPosts', JSON.stringify(updatedPosts));
+            }
+          } catch (error) {
+            console.error('Error updating localStorage with content:', error);
+          }
+          
+          return {
+            ...post,
+            content: {
+              el: hardcodedPost.content.el || '',
+              en: hardcodedPost.content.en || ''
+            }
+          };
+        }
+      }
+    } catch (error) {
+      console.error('Error loading from hardcoded posts:', error);
+    }
+    
+    // If we still don't have content, return with empty content
     return {
       ...post,
       content: post.content || { el: '', en: '' }
@@ -1415,7 +1478,33 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               <button
                                 onClick={async () => {
                                   // Load content if missing
-                                  const postWithContent = await loadBlogPostContent(post);
+                                  let postWithContent = await loadBlogPostContent(post);
+                                  
+                                  // If still no content, try to fetch from the blog page's hardcoded posts
+                                  // by making a request to load the blog page and extract content
+                                  if ((!postWithContent.content?.el && !postWithContent.content?.en)) {
+                                    try {
+                                      // Try to get content from window object if blog page has exposed it
+                                      // Or load directly from localStorage which might have been updated
+                                      const stored = localStorage.getItem('blogPosts');
+                                      if (stored) {
+                                        const allPosts: BlogPost[] = JSON.parse(stored);
+                                        const foundPost = allPosts.find(p => p.slug === post.slug);
+                                        if (foundPost && foundPost.content) {
+                                          postWithContent = {
+                                            ...post,
+                                            content: {
+                                              el: foundPost.content.el || '',
+                                              en: foundPost.content.en || ''
+                                            }
+                                          };
+                                        }
+                                      }
+                                    } catch (error) {
+                                      console.error('Error loading content fallback:', error);
+                                    }
+                                  }
+                                  
                                   setSelectedBlogPost(postWithContent);
                                   setIsNewBlogPost(false);
                                   setShowBlogEditModal(true);

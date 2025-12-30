@@ -2581,6 +2581,11 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
       setLoading(false);
     };
 
+    // Expose hardcoded posts to window for admin dashboard to access
+    if (typeof window !== 'undefined') {
+      (window as any).__blogPostsContent = posts;
+    }
+
     loadPost();
 
     // Listen for updates
