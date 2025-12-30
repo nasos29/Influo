@@ -107,7 +107,7 @@ const t = {
     profiles_clicked: "Profiles Viewed",
     proposals_sent: "Proposals Sent",
     smart_service_title: "🤖 Smart Recommendation Service",
-    smart_service_desc: "Our AI analyzes your brand and suggests the best influencers. Free for all registered businesses!"
+    smart_service_desc: "Our AI analyzes your brand and suggests the best influencers. Free for all registered businesses!",
     proposal_details: "Proposal Details",
     influencer: "Influencer",
     service: "Service",
