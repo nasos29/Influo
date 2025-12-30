@@ -7,6 +7,39 @@ import Image from 'next/image';
 
 type Lang = "el" | "en";
 
+// Categories (same as influencers)
+const CATEGORIES = [
+  "Lifestyle", "Fashion & Style", "Beauty & Makeup", "Travel", "Food & Drink",
+  "Health & Fitness", "Tech & Gadgets", "Business & Finance", "Gaming & Esports",
+  "Parenting & Family", "Home & Decor", "Pets & Animals", "Comedy & Entertainment",
+  "Art & Photography", "Music & Dance", "Education & Coaching", "Sports & Athletes",
+  "DIY & Crafts", "Sustainability & Eco", "Cars & Automotive"
+];
+
+// Category translations
+const categoryTranslations: { [key: string]: { el: string; en: string } } = {
+  "Lifestyle": { el: "Lifestyle", en: "Lifestyle" },
+  "Fashion & Style": { el: "Μόδα & Στυλ", en: "Fashion & Style" },
+  "Beauty & Makeup": { el: "Ομορφιά & Μακιγιάζ", en: "Beauty & Makeup" },
+  "Travel": { el: "Ταξίδια", en: "Travel" },
+  "Food & Drink": { el: "Φαγητό & Ποτά", en: "Food & Drink" },
+  "Health & Fitness": { el: "Υγεία & Fitness", en: "Health & Fitness" },
+  "Tech & Gadgets": { el: "Τεχνολογία & Gadgets", en: "Tech & Gadgets" },
+  "Business & Finance": { el: "Επιχειρήσεις & Οικονομικά", en: "Business & Finance" },
+  "Gaming & Esports": { el: "Gaming & Esports", en: "Gaming & Esports" },
+  "Parenting & Family": { el: "Οικογένεια & Παιδιά", en: "Parenting & Family" },
+  "Home & Decor": { el: "Σπίτι & Διακόσμηση", en: "Home & Decor" },
+  "Pets & Animals": { el: "Κατοικίδια & Ζώα", en: "Pets & Animals" },
+  "Comedy & Entertainment": { el: "Κωμωδία & Ψυχαγωγία", en: "Comedy & Entertainment" },
+  "Art & Photography": { el: "Τέχνη & Φωτογραφία", en: "Art & Photography" },
+  "Music & Dance": { el: "Μουσική & Χορός", en: "Music & Dance" },
+  "Education & Coaching": { el: "Εκπαίδευση & Coaching", en: "Education & Coaching" },
+  "Sports & Athletes": { el: "Αθλήματα & Αθλητές", en: "Sports & Athletes" },
+  "DIY & Crafts": { el: "DIY & Χειροτεχνίες", en: "DIY & Crafts" },
+  "Sustainability & Eco": { el: "Βιωσιμότητα & Οικολογία", en: "Sustainability & Eco" },
+  "Cars & Automotive": { el: "Αυτοκίνητα", en: "Cars & Automotive" },
+};
+
 const t = {
   el: {
     headerTitle: "Εγγραφή Επιχείρησης",
