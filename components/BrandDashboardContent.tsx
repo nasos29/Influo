@@ -298,33 +298,60 @@ export default function BrandDashboardContent() {
       // Fetch all verified influencers from database
       const { data: influencersData, error } = await supabase
         .from('influencers')
-        .select('id, display_name, category, engagement_rate, followers_count, min_rate, location, gender, avg_rating, total_reviews, past_brands, verified, accounts, avatar_url, audience_male_percent, audience_female_percent, audience_top_age, bio, rate_card')
+        .select('id, display_name, category, engagement_rate, min_rate, location, gender, avg_rating, total_reviews, past_brands, verified, accounts, avatar_url, audience_male_percent, audience_female_percent, audience_top_age, bio, rate_card')
         .eq('verified', true)
         .limit(100); // Limit for performance
       
       if (error) throw error;
       
+      // Helper function to parse follower string
+      const parseFollowerString = (str: string) => {
+        if (!str) return 0;
+        const clean = str.toLowerCase().replace(/,/g, '').trim();
+        if (clean.includes('k')) return parseFloat(clean) * 1000;
+        if (clean.includes('m')) return parseFloat(clean) * 1000000;
+        return parseFloat(clean) || 0;
+      };
+      
       // Convert database influencers to InfluencerProfile format
-      const dbInfluencerProfiles: InfluencerProfile[] = (influencersData || []).map((inf: any) => ({
-        id: inf.id,
-        display_name: inf.display_name || 'Unknown',
-        category: inf.category,
-        engagement_rate: inf.engagement_rate,
-        followers_count: inf.followers_count,
-        min_rate: inf.min_rate,
-        location: inf.location,
-        gender: inf.gender,
-        avg_rating: inf.avg_rating,
-        total_reviews: inf.total_reviews || 0,
-        past_brands: inf.past_brands,
-        verified: inf.verified,
-        accounts: inf.accounts,
-        audience_male_percent: inf.audience_male_percent,
-        audience_female_percent: inf.audience_female_percent,
-        audience_top_age: inf.audience_top_age,
-        bio: inf.bio,
-        rate_card: inf.rate_card,
-      }));
+      const dbInfluencerProfiles: InfluencerProfile[] = (influencersData || []).map((inf: any) => {
+        // Calculate followers_count from accounts array
+        let maxFollowers = 0;
+        let followersStr = '0';
+        
+        if (Array.isArray(inf.accounts)) {
+          inf.accounts.forEach((acc: any) => {
+            if (acc.followers) {
+              const followersNum = parseFollowerString(acc.followers);
+              if (followersNum > maxFollowers) {
+                maxFollowers = followersNum;
+                followersStr = acc.followers; // Keep original format
+              }
+            }
+          });
+        }
+        
+        return {
+          id: inf.id,
+          display_name: inf.display_name || 'Unknown',
+          category: inf.category,
+          engagement_rate: inf.engagement_rate,
+          followers_count: followersStr,
+          min_rate: inf.min_rate,
+          location: inf.location,
+          gender: inf.gender,
+          avg_rating: inf.avg_rating,
+          total_reviews: inf.total_reviews || 0,
+          past_brands: inf.past_brands,
+          verified: inf.verified,
+          accounts: inf.accounts,
+          audience_male_percent: inf.audience_male_percent,
+          audience_female_percent: inf.audience_female_percent,
+          audience_top_age: inf.audience_top_age,
+          bio: inf.bio,
+          rate_card: inf.rate_card,
+        };
+      });
       
       // Category mapping from dummy data to standard categories
       const categoryMapping: { [key: string]: string } = {
