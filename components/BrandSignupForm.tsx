@@ -11,6 +11,7 @@ const t = {
   el: {
     headerTitle: "Εγγραφή Επιχείρησης",
     headerDesc: "Δημιούργησε λογαριασμό για να συνεργαστείς με influencers",
+    smartFeature: "🤖 Έξυπνη Υπηρεσία Προτάσεων: Το AI μας προτείνει αυτόματα τους καλύτερους influencers για το brand σας. ΔΩΡΕΑΝ!",
     brandNameLabel: "Όνομα Επιχείρησης",
     brandNamePlace: "π.χ. Acme Corporation",
     contactPersonLabel: "Επικοινωνία (Προαιρετικό)",
@@ -43,6 +44,7 @@ const t = {
   en: {
     headerTitle: "Company Registration",
     headerDesc: "Create an account to collaborate with influencers",
+    smartFeature: "🤖 Smart Recommendation Service: Our AI automatically suggests the best influencers for your brand. FREE!",
     brandNameLabel: "Company Name",
     brandNamePlace: "e.g. Acme Corporation",
     contactPersonLabel: "Contact Person (Optional)",
@@ -263,7 +265,10 @@ export default function BrandSignupForm() {
 
       <div className="text-center mb-6">
         <h1 className="text-2xl font-bold text-slate-900 mb-2">{txt.headerTitle}</h1>
-        <p className="text-slate-600 text-sm">{txt.headerDesc}</p>
+        <p className="text-slate-600 text-sm mb-3">{txt.headerDesc}</p>
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-3 text-sm">
+          <p className="text-blue-900 font-medium">{txt.smartFeature}</p>
+        </div>
       </div>
 
       {message && (

@@ -103,6 +103,39 @@ const faqs: FAQItem[] = [
     }
   },
   {
+    category: { el: "Για Brands", en: "For Brands" },
+    question: {
+      el: "Τι είναι η Έξυπνη Υπηρεσία Προτάσεων (AI Recommendations);",
+      en: "What is the Smart Recommendation Service (AI Recommendations)?"
+    },
+    answer: {
+      el: "Το AI μας αναλύει το brand σας (industry, προτιμήσεις) και προτείνει αυτόματα τους καλύτερους influencers. Κάθε πρόταση έχει match score (0-100%), προσωποποιημένες αιτιολογίες (γιατί ταιριάζει), και μπορείτε να χρησιμοποιήσετε advanced filters (budget, engagement, rating, κατηγορία). Η υπηρεσία είναι 100% ΔΩΡΕΑΝ για όλες τις εγγεγραμμένες επιχειρήσεις!",
+      en: "Our AI analyzes your brand (industry, preferences) and automatically suggests the best influencers. Each recommendation has a match score (0-100%), personalized reasons (why it matches), and you can use advanced filters (budget, engagement, rating, category). The service is 100% FREE for all registered businesses!"
+    }
+  },
+  {
+    category: { el: "Για Brands", en: "For Brands" },
+    question: {
+      el: "Πώς λειτουργεί το match score;",
+      en: "How does the match score work?"
+    },
+    answer: {
+      el: "Το match score (0-100%) υπολογίζεται από πολλαπλούς παράγοντες: Category Match (30%), Engagement Quality (25%), Rating Quality (20%), Value/Price Ratio (15%), και Verified Status (10%). Score >80% = Excellent Match (πράσινο), 65-80% = Very Good (μπλε), <65% = Good (κίτρινο).",
+      en: "The match score (0-100%) is calculated from multiple factors: Category Match (30%), Engagement Quality (25%), Rating Quality (20%), Value/Price Ratio (15%), and Verified Status (10%). Score >80% = Excellent Match (green), 65-80% = Very Good (blue), <65% = Good (yellow)."
+    }
+  },
+  {
+    category: { el: "Για Brands", en: "For Brands" },
+    question: {
+      el: "Μπορώ να φιλτράρω τις προτάσεις;",
+      en: "Can I filter the recommendations?"
+    },
+    answer: {
+      el: "Ναι! Μπορείτε να φιλτράρετε με: Ελάχιστο Match Score, Μέγιστη Τιμή (€), Κατηγορία, Ελάχιστο Engagement Rate (%), και Ελάχιστο Rating. Υπάρχει επίσης κουμπί ανανέωσης για να λάβετε νέες προτάσεις και stats που δείχνουν πόσες προτάσεις είδατε, πόσα προφίλ επισκεφτήκατε, και πόσες προσφορές στείλατε.",
+      en: "Yes! You can filter by: Minimum Match Score, Maximum Price (€), Category, Minimum Engagement Rate (%), and Minimum Rating. There's also a refresh button to get new recommendations and stats showing how many recommendations you viewed, profiles you visited, and proposals you sent."
+    }
+  },
+  {
     category: { el: "Συνεργασίες", en: "Collaborations" },
     question: {
       el: "Τι συμβαίνει μετά την αποδοχή μιας προσφοράς;",

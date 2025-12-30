@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import Image from 'next/image';
+import { recommendInfluencers, type InfluencerProfile, type BrandProfile } from '@/lib/recommendations';
 
 interface Proposal {
   id: string;
@@ -44,13 +47,67 @@ const t = {
     accepted: "Αποδεκτή",
     pending: "Εκκρεμής",
     loading: "Φόρτωση...",
-    error: "Σφάλμα"
+    error: "Σφάλμα",
+    recommendations_title: "Προτεινόμενοι Influencers για εσάς",
+    recommendations_subtitle: "Βάσει του industry σας, προτείνουμε αυτούς τους influencers",
+    recommendations_loading: "Φόρτωση προτάσεων...",
+    recommendations_empty: "Δεν βρέθηκαν προτάσεις αυτή τη στιγμή",
+    match_score: "Match Score",
+    why_match: "Γιατί ταιριάζει",
+    view_profile: "Δείτε Προφίλ",
+    send_proposal: "Στείλτε Προσφορά",
+    engagement_rate: "Engagement Rate",
+    rating: "Αξιολόγηση",
+    reviews: "Reviews",
+    followers: "Ακόλουθοι",
+    filters: "Φίλτρα",
+    refresh: "Ανανέωση",
+    min_score: "Ελάχιστο Score",
+    max_price: "Μέγιστη Τιμή (€)",
+    category_filter: "Κατηγορία",
+    min_engagement: "Ελάχιστο Engagement (%)",
+    min_rating: "Ελάχιστο Rating",
+    apply_filters: "Εφαρμογή",
+    clear_filters: "Καθαρισμός",
+    stats_title: "Στατιστικά Προτάσεων",
+    total_viewed: "Σύνολο Προτάσεων",
+    profiles_clicked: "Προφίλ που Επισκέφτηκες",
+    proposals_sent: "Προσφορές που Στείλατε",
+    smart_service_title: "🤖 Έξυπνη Υπηρεσία Προτάσεων",
+    smart_service_desc: "Το AI μας αναλύει το brand σας και προτείνει τους καλύτερους influencers. Δωρεάν για όλες τις εγγεγραμμένες επιχειρήσεις!"
   },
   en: {
     title: "Company Dashboard",
     logout: "Logout",
     pending_agreements: "Agreements Pending Acceptance",
     no_pending: "No agreements pending acceptance",
+    recommendations_title: "Recommended Influencers for You",
+    recommendations_subtitle: "Based on your industry, we recommend these influencers",
+    recommendations_loading: "Loading recommendations...",
+    recommendations_empty: "No recommendations found at this time",
+    match_score: "Match Score",
+    why_match: "Why This Match",
+    view_profile: "View Profile",
+    send_proposal: "Send Proposal",
+    engagement_rate: "Engagement Rate",
+    rating: "Rating",
+    reviews: "Reviews",
+    followers: "Followers",
+    filters: "Filters",
+    refresh: "Refresh",
+    min_score: "Min Score",
+    max_price: "Max Price (€)",
+    category_filter: "Category",
+    min_engagement: "Min Engagement (%)",
+    min_rating: "Min Rating",
+    apply_filters: "Apply",
+    clear_filters: "Clear",
+    stats_title: "Recommendation Stats",
+    total_viewed: "Total Recommendations",
+    profiles_clicked: "Profiles Viewed",
+    proposals_sent: "Proposals Sent",
+    smart_service_title: "🤖 Smart Recommendation Service",
+    smart_service_desc: "Our AI analyzes your brand and suggests the best influencers. Free for all registered businesses!"
     proposal_details: "Proposal Details",
     influencer: "Influencer",
     service: "Service",
@@ -75,6 +132,22 @@ export default function BrandDashboardContent() {
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
   const [savingAgreement, setSavingAgreement] = useState(false);
+  const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(false);
+  const [brandData, setBrandData] = useState<any>(null);
+  const [recommendationFilters, setRecommendationFilters] = useState({
+    minScore: 40,
+    maxPrice: null as number | null,
+    category: '',
+    minEngagement: 0,
+    minRating: 0,
+  });
+  const [showFilters, setShowFilters] = useState(false);
+  const [recommendationStats, setRecommendationStats] = useState({
+    totalViewed: 0,
+    profilesClicked: 0,
+    proposalsSent: 0,
+  });
   const router = useRouter();
   const txt = t[lang];
 
@@ -101,6 +174,11 @@ export default function BrandDashboardContent() {
         router.push('/brand/login');
         return;
       }
+
+      setBrandData(brandData);
+      
+      // Load recommendations
+      await loadRecommendations(brandData);
 
       // Get proposals for this brand (by email or brand_id)
       const { data: proposalsData, error: proposalsError } = await supabase
@@ -180,6 +258,101 @@ export default function BrandDashboardContent() {
     }
   };
 
+  const loadRecommendations = async (brand: any) => {
+    setRecommendationsLoading(true);
+    try {
+      // Fetch all verified influencers
+      const { data: influencersData, error } = await supabase
+        .from('influencers')
+        .select('id, display_name, category, engagement_rate, followers_count, min_rate, location, gender, avg_rating, total_reviews, past_brands, verified, accounts, avatar_url, audience_male_percent, audience_female_percent, audience_top_age, bio, rate_card')
+        .eq('verified', true)
+        .limit(100); // Limit for performance
+      
+      if (error) throw error;
+      
+      if (influencersData && influencersData.length > 0) {
+        // Convert to InfluencerProfile format
+        const influencerProfiles: InfluencerProfile[] = influencersData.map((inf: any) => ({
+          id: inf.id,
+          display_name: inf.display_name || 'Unknown',
+          category: inf.category,
+          engagement_rate: inf.engagement_rate,
+          followers_count: inf.followers_count,
+          min_rate: inf.min_rate,
+          location: inf.location,
+          gender: inf.gender,
+          avg_rating: inf.avg_rating,
+          total_reviews: inf.total_reviews || 0,
+          past_brands: inf.past_brands,
+          verified: inf.verified,
+          accounts: inf.accounts,
+          audience_male_percent: inf.audience_male_percent,
+          audience_female_percent: inf.audience_female_percent,
+          audience_top_age: inf.audience_top_age,
+          bio: inf.bio,
+          rate_card: inf.rate_card,
+        }));
+        
+        // Get brand profile
+        const brandProfile: BrandProfile = {
+          id: brand.id,
+          brand_name: brand.brand_name,
+          industry: brand.industry,
+          contact_email: brand.contact_email,
+        };
+        
+        // Apply filters
+        let filteredProfiles = influencerProfiles;
+        
+        if (recommendationFilters.category) {
+          filteredProfiles = filteredProfiles.filter(inf => 
+            inf.category?.toLowerCase().includes(recommendationFilters.category.toLowerCase())
+          );
+        }
+        
+        if (recommendationFilters.maxPrice) {
+          filteredProfiles = filteredProfiles.filter(inf => {
+            const rate = parseFloat(inf.min_rate?.replace(/[€$,\s]/g, '') || '0');
+            return !isNaN(rate) && rate <= recommendationFilters.maxPrice!;
+          });
+        }
+        
+        if (recommendationFilters.minEngagement > 0) {
+          filteredProfiles = filteredProfiles.filter(inf => {
+            const rate = parseFloat(inf.engagement_rate?.replace('%', '').replace(',', '.') || '0');
+            return !isNaN(rate) && rate >= recommendationFilters.minEngagement;
+          });
+        }
+        
+        if (recommendationFilters.minRating > 0) {
+          filteredProfiles = filteredProfiles.filter(inf => 
+            (inf.avg_rating || 0) >= recommendationFilters.minRating
+          );
+        }
+        
+        // Calculate recommendations
+        const matches = recommendInfluencers(brandProfile, filteredProfiles, {
+          limit: 12,
+          minScore: recommendationFilters.minScore,
+          preferVerified: true,
+          preferHighRating: true,
+        });
+        
+        setRecommendations(matches);
+        
+        // Update stats
+        setRecommendationStats(prev => ({
+          ...prev,
+          totalViewed: prev.totalViewed + matches.length,
+        }));
+      }
+    } catch (err) {
+      console.error('Error loading recommendations:', err);
+    } finally {
+      setRecommendationsLoading(false);
+    }
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push('/brand/login');
@@ -225,6 +398,277 @@ export default function BrandDashboardContent() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Recommendations Section */}
+        <div className="mb-12">
+          {/* Smart Service Banner */}
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 mb-6 text-white">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="text-xl font-bold mb-2">{txt.smart_service_title}</h3>
+                <p className="text-blue-100">{txt.smart_service_desc}</p>
+              </div>
+              <div className="text-4xl">🤖</div>
+            </div>
+          </div>
+
+          <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2">{txt.recommendations_title}</h2>
+              <p className="text-slate-600">{txt.recommendations_subtitle}</p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="px-4 py-2 bg-white border-2 border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-2"
+              >
+                <span>🔍</span>
+                {txt.filters}
+              </button>
+              <button
+                onClick={() => brandData && loadRecommendations(brandData)}
+                disabled={recommendationsLoading}
+                className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                <span className={recommendationsLoading ? 'animate-spin' : ''}>🔄</span>
+                {txt.refresh}
+              </button>
+            </div>
+          </div>
+
+          {/* Filters Panel */}
+          {showFilters && (
+            <div className="bg-white rounded-xl p-6 border border-slate-200 mb-6 shadow-sm">
+              <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{txt.min_score}</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={recommendationFilters.minScore}
+                    onChange={(e) => setRecommendationFilters({...recommendationFilters, minScore: parseInt(e.target.value) || 40})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{txt.max_price}</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={recommendationFilters.maxPrice || ''}
+                    onChange={(e) => setRecommendationFilters({...recommendationFilters, maxPrice: e.target.value ? parseInt(e.target.value) : null})}
+                    placeholder="Όχι όριο"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{txt.category_filter}</label>
+                  <input
+                    type="text"
+                    value={recommendationFilters.category}
+                    onChange={(e) => setRecommendationFilters({...recommendationFilters, category: e.target.value})}
+                    placeholder="π.χ. Fashion"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{txt.min_engagement}</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="10"
+                    step="0.1"
+                    value={recommendationFilters.minEngagement}
+                    onChange={(e) => setRecommendationFilters({...recommendationFilters, minEngagement: parseFloat(e.target.value) || 0})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{txt.min_rating}</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="5"
+                    step="0.1"
+                    value={recommendationFilters.minRating}
+                    onChange={(e) => setRecommendationFilters({...recommendationFilters, minRating: parseFloat(e.target.value) || 0})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-4">
+                <button
+                  onClick={() => brandData && loadRecommendations(brandData)}
+                  className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  {txt.apply_filters}
+                </button>
+                <button
+                  onClick={() => {
+                    setRecommendationFilters({
+                      minScore: 40,
+                      maxPrice: null,
+                      category: '',
+                      minEngagement: 0,
+                      minRating: 0,
+                    });
+                    if (brandData) loadRecommendations(brandData);
+                  }}
+                  className="px-6 py-2 bg-slate-200 text-slate-700 font-medium rounded-lg hover:bg-slate-300 transition-colors"
+                >
+                  {txt.clear_filters}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Stats */}
+          {recommendationStats.totalViewed > 0 && (
+            <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl p-6 mb-6 border border-slate-200">
+              <h3 className="text-lg font-bold text-slate-900 mb-4">{txt.stats_title}</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-blue-600">{recommendationStats.totalViewed}</div>
+                  <div className="text-sm text-slate-600">{txt.total_viewed}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-green-600">{recommendationStats.profilesClicked}</div>
+                  <div className="text-sm text-slate-600">{txt.profiles_clicked}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-purple-600">{recommendationStats.proposalsSent}</div>
+                  <div className="text-sm text-slate-600">{txt.proposals_sent}</div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {recommendationsLoading ? (
+            <div className="bg-white rounded-xl p-12 text-center border border-slate-200">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-slate-600">{txt.recommendations_loading}</p>
+            </div>
+          ) : recommendations.length === 0 ? (
+            <div className="bg-white rounded-xl p-8 text-center border border-slate-200">
+              <p className="text-slate-600">{txt.recommendations_empty}</p>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {recommendations.map((match, index) => {
+                const inf = match.influencer;
+                const avatarUrl = inf.avatar_url || (inf.accounts?.[0]?.username 
+                  ? `https://unavatar.io/${inf.accounts?.[0]?.username}` 
+                  : '/default-avatar.png');
+                
+                return (
+                  <div
+                    key={inf.id}
+                    className="bg-white rounded-2xl border-2 border-slate-200 hover:border-blue-300 hover:shadow-xl transition-all overflow-hidden group"
+                  >
+                    {/* Match Score Badge */}
+                    <div className="relative">
+                      <div className="absolute top-3 right-3 z-10">
+                        <div className={`px-3 py-1 rounded-full text-xs font-bold text-white ${
+                          match.score >= 80 ? 'bg-green-500' :
+                          match.score >= 65 ? 'bg-blue-500' :
+                          'bg-amber-500'
+                        }`}>
+                          {match.score}% Match
+                        </div>
+                      </div>
+                      
+                      {/* Avatar */}
+                      <div className="relative h-48 bg-gradient-to-br from-blue-100 to-purple-100">
+                        <Image
+                          src={avatarUrl}
+                          alt={inf.display_name}
+                          fill
+                          className="object-cover"
+                          unoptimized
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                        <div className="absolute bottom-3 left-3 right-3">
+                          <h3 className="text-white font-bold text-lg mb-1">{inf.display_name}</h3>
+                          {inf.category && (
+                            <span className="inline-block px-2 py-1 bg-white/20 backdrop-blur-sm rounded text-xs text-white">
+                              {inf.category}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Content */}
+                    <div className="p-4">
+                      {/* Stats */}
+                      <div className="grid grid-cols-2 gap-3 mb-4 text-xs">
+                        {inf.followers_count && (
+                          <div>
+                            <div className="text-slate-500">{txt.followers}</div>
+                            <div className="font-bold text-slate-900">{inf.followers_count}</div>
+                          </div>
+                        )}
+                        {inf.engagement_rate && (
+                          <div>
+                            <div className="text-slate-500">{txt.engagement_rate}</div>
+                            <div className="font-bold text-slate-900">{inf.engagement_rate}</div>
+                          </div>
+                        )}
+                        {inf.avg_rating && (
+                          <div>
+                            <div className="text-slate-500">{txt.rating}</div>
+                            <div className="font-bold text-slate-900">
+                              {inf.avg_rating.toFixed(1)} ⭐
+                            </div>
+                          </div>
+                        )}
+                        {inf.total_reviews !== undefined && (
+                          <div>
+                            <div className="text-slate-500">{txt.reviews}</div>
+                            <div className="font-bold text-slate-900">{inf.total_reviews || 0}</div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Match Reasons */}
+                      <div className="mb-4">
+                        <div className="text-xs font-semibold text-slate-700 mb-2">{txt.why_match}:</div>
+                        <ul className="space-y-1">
+                          {match.reasons.slice(0, 2).map((reason: string, i: number) => (
+                            <li key={i} className="text-xs text-slate-600 flex items-start gap-1">
+                              <span className="text-green-500 mt-0.5">✓</span>
+                              <span>{reason}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      
+                      {/* Actions */}
+                      <div className="flex gap-2">
+                        <Link
+                          href={`/influencer/${inf.id}`}
+                          onClick={() => setRecommendationStats(prev => ({...prev, profilesClicked: prev.profilesClicked + 1}))}
+                          className="flex-1 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-900 font-medium rounded-lg text-sm text-center transition-colors"
+                        >
+                          {txt.view_profile}
+                        </Link>
+                        <Link
+                          href={`/influencer/${inf.id}#proposal`}
+                          onClick={() => setRecommendationStats(prev => ({...prev, proposalsSent: prev.proposalsSent + 1}))}
+                          className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg text-sm text-center transition-colors"
+                        >
+                          {txt.send_proposal}
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Pending Agreements Section */}
         <div className="mb-6">
           <h2 className="text-xl font-bold text-slate-900 mb-4">{txt.pending_agreements}</h2>
           

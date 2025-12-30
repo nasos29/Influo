@@ -23,7 +23,7 @@ const t = {
     hero_btn_brand: "Εγγραφή Επιχείρησης",
     hero_btn_secondary: "Εξερεύνηση",
     brand_section_title: "Είστε Επιχείρηση;",
-    brand_section_desc: "Βρείτε τους καλύτερους influencers για την εταιρεία σας. Αναζητήστε, επικοινωνήστε και συνεργαστείτε με verified creators.",
+    brand_section_desc: "Βρείτε τους καλύτερους influencers για την εταιρεία σας. Αναζητήστε, επικοινωνήστε και συνεργαστείτε με verified creators. 🤖 Λάβετε AI-powered προτάσεις δωρεάν!",
     brand_section_btn: "Δημιούργησε Λογαριασμό Επιχείρησης",
     trusted_by: "ΤΗΝ ΕΜΠΙΣΤΕΥΟΝΤΑΙ CREATORS",
     dir_title: "Κατάλογος Influencers",
@@ -53,7 +53,7 @@ const t = {
     hero_btn_brand: "For Brands",
     hero_btn_secondary: "Explore",
     brand_section_title: "Are you a Company?",
-    brand_section_desc: "Find the best influencers for your company. Search, connect and collaborate with verified creators.",
+    brand_section_desc: "Find the best influencers for your company. Search, connect and collaborate with verified creators. 🤖 Get AI-powered recommendations for free!",
     brand_section_btn: "Create Company Account",
     trusted_by: "TRUSTED BY CREATORS",
     dir_title: "Influencer Directory",
@@ -340,7 +340,7 @@ export default function Home() {
                 {txt.brand_section_btn}
               </a>
             </div>
-            <div className="grid md:grid-cols-3 gap-8">
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm transition-all duration-300 hover:shadow-lg hover:border-blue-300 hover:-translate-y-1">
                 <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-2xl mb-4 transition-transform duration-300 hover:scale-110">🔍</div>
                 <h4 className="text-lg font-semibold text-slate-900 mb-2">{lang === "el" ? "Αναζήτηση" : "Search"}</h4>
@@ -355,6 +355,12 @@ export default function Home() {
                 <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center text-2xl mb-4 transition-transform duration-300 hover:scale-110">✅</div>
                 <h4 className="text-lg font-semibold text-slate-900 mb-2">{lang === "el" ? "Verified" : "Verified"}</h4>
                 <p className="text-slate-600 text-sm leading-relaxed">{lang === "el" ? "Όλοι οι influencers είναι verified με πραγματικά στοιχεία." : "All influencers are verified with real stats."}</p>
+              </div>
+              <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-6 rounded-xl border-2 border-blue-400 shadow-lg transition-all duration-300 hover:shadow-xl hover:-translate-y-1 text-white md:col-span-2 lg:col-span-1">
+                <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center text-2xl mb-4 transition-transform duration-300 hover:scale-110">🤖</div>
+                <div className="inline-block px-2 py-1 bg-green-500 rounded-full text-xs font-bold mb-2">🎁 {lang === "el" ? "ΔΩΡΕΑΝ" : "FREE"}</div>
+                <h4 className="text-lg font-semibold mb-2">{lang === "el" ? "AI Προτάσεις" : "AI Recommendations"}</h4>
+                <p className="text-blue-100 text-sm leading-relaxed">{lang === "el" ? "Το AI μας προτείνει αυτόματα τους καλύτερους influencers για το brand σας με match scores." : "Our AI automatically suggests the best influencers for your brand with match scores."}</p>
               </div>
             </div>
           </div>

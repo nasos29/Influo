@@ -11,7 +11,7 @@ const t = {
   el: {
     title: "Βρείτε τους Καλύτερους Influencers για την Εταιρεία σας",
     subtitle: "Συνεργαστείτε με Verified Creators",
-    hero_desc: "Η πιο σύγχρονη πλατφόρμα Influencer Marketing στην Ελλάδα. Αναζητήστε, επικοινωνήστε και συνεργαστείτε με επαγγελματίες influencers.",
+    hero_desc: "Η πιο σύγχρονη πλατφόρμα Influencer Marketing στην Ελλάδα. Αναζητήστε, επικοινωνήστε και συνεργαστείτε με επαγγελματίες influencers. 🤖 Χρησιμοποιήστε την έξυπνη υπηρεσία AI προτάσεων για να βρείτε τους καλύτερους influencers - ΔΩΡΕΑΝ!",
     cta_primary: "Εγγραφείτε ως Brand",
     cta_secondary: "Δείτε το Κατάλογο",
     back: "← Επιστροφή",
@@ -34,12 +34,15 @@ const t = {
     feat_6_title: "⚡ Γρήγορη Εύρεση",
     feat_6_desc: "Από την αναζήτηση στην συνεργασία σε λίγες ώρες. Streamlined process για αποτελεσματικά campaigns.",
     
+    feat_7_title: "🤖 Έξυπνη Υπηρεσία Προτάσεων",
+    feat_7_desc: "Το AI μας αναλύει το brand σας και προτείνει αυτόματα τους καλύτερους influencers. Match score, προσωποποιημένες αιτιολογίες και advanced filters. ΔΩΡΕΑΝ για όλες τις εγγεγραμμένες επιχειρήσεις!",
+    
     how_title: "Πώς Λειτουργεί",
     step_1_title: "1. Εγγραφείτε ως Brand",
     step_1_desc: "Δημιουργήστε λογαριασμό brand, συμπληρώστε τα στοιχεία της εταιρείας σας και λάβετε πρόσβαση στο κατάλογο.",
     
     step_2_title: "2. Αναζητήστε Influencers",
-    step_2_desc: "Χρησιμοποιήστε τα φίλτρα για να βρείτε influencers που ταιριάζουν στο niche σας και το budget σας.",
+    step_2_desc: "Χρησιμοποιήστε τα φίλτρα για να βρείτε influencers που ταιριάζουν στο niche σας και το budget σας. Ή αφήστε το AI να σας προτείνει τους καλύτερους matches με match scores!",
     
     step_3_title: "3. Στείλτε Προσφορά",
     step_3_desc: "Κάντε κλικ στο influencer, συμπληρώστε τη φόρμα προσφοράς και στείλτε. Ο influencer θα λάβει ειδοποίηση.",
@@ -67,7 +70,7 @@ const t = {
   en: {
     title: "Find the Best Influencers for Your Company",
     subtitle: "Collaborate with Verified Creators",
-    hero_desc: "The most modern Influencer Marketing platform in Greece. Search, connect and collaborate with professional influencers.",
+    hero_desc: "The most modern Influencer Marketing platform in Greece. Search, connect and collaborate with professional influencers. 🤖 Use our smart AI recommendation service to find the best influencers - FREE!",
     cta_primary: "Sign Up as Brand",
     cta_secondary: "View Directory",
     back: "← Back",
@@ -90,12 +93,15 @@ const t = {
     feat_6_title: "⚡ Quick Discovery",
     feat_6_desc: "From search to collaboration in a few hours. Streamlined process for effective campaigns.",
     
+    feat_7_title: "🤖 Smart Recommendation Service",
+    feat_7_desc: "Our AI analyzes your brand and automatically suggests the best influencers. Match scores, personalized reasons, and advanced filters. FREE for all registered businesses!",
+    
     how_title: "How It Works",
     step_1_title: "1. Sign Up as Brand",
     step_1_desc: "Create a brand account, fill in your company details and get access to the directory.",
     
     step_2_title: "2. Search Influencers",
-    step_2_desc: "Use filters to find influencers that match your niche and budget.",
+    step_2_desc: "Use filters to find influencers that match your niche and budget. Or let AI suggest the best matches with match scores!",
     
     step_3_title: "3. Send Proposal",
     step_3_desc: "Click on influencer, fill the proposal form and send. Influencer will receive notification.",
@@ -342,6 +348,103 @@ export default function ForBrandsPage() {
                   fill
                   className="object-cover opacity-80"
                 />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Smart Recommendation System - Dedicated Section */}
+      <section className="py-24 px-6 bg-gradient-to-br from-blue-600 via-indigo-700 to-purple-800 text-white relative overflow-hidden">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M20 20.5V18H0v-2h20v-2H0v-2h20v-2H0V8h20V6H0V4h20V2H0V0h22v20h2V0h2v20h2V0h2v20h2V0h2v20h2V0h2v22H20v-1.5zM0 20h2v20H0V20zm4 0h2v20H4V20zm4 0h2v20H8V20zm4 0h2v20h-2V20zm4 0h2v20h-2V20zm4 4h20v2H20v-2zm0 4h20v2H20v-2zm0 4h20v2H20v-2zm0 4h20v2H20v-2z'/%3E%3C/g%3E%3C/svg%3E")`,
+          }}></div>
+        </div>
+
+        <div className="max-w-7xl mx-auto relative z-10">
+          <div className="text-center mb-12">
+            <div className="inline-block px-4 py-2 bg-green-500 rounded-full text-sm font-bold mb-4">
+              🎁 100% ΔΩΡΕΑΝ - FREE FOREVER
+            </div>
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">🤖 Έξυπνη Υπηρεσία Προτάσεων AI</h2>
+            <p className="text-xl text-blue-100 max-w-3xl mx-auto">
+              Το AI μας αναλύει το brand σας και προτείνει αυτόματα τους καλύτερους influencers. Δεν χρειάζεται να ψάχνετε - το σύστημα σας βρίσκει τους τέλειους matches!
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+              <div className="text-4xl mb-4">🎯</div>
+              <h3 className="text-xl font-bold mb-2">Match Score</h3>
+              <p className="text-blue-100 text-sm">Κάθε πρόταση έχει score 0-100% που δείχνει πόσο καλά ταιριάζει με το brand σας.</p>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+              <div className="text-4xl mb-4">🧠</div>
+              <h3 className="text-xl font-bold mb-2">AI-Powered</h3>
+              <p className="text-blue-100 text-sm">Το σύστημα αναλύει category, engagement, ratings, και value για προσωποποιημένες προτάσεις.</p>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+              <div className="text-4xl mb-4">🔍</div>
+              <h3 className="text-xl font-bold mb-2">Advanced Filters</h3>
+              <p className="text-blue-100 text-sm">Φιλτράρετε με budget, engagement rate, rating, κατηγορία, και πολλά άλλα.</p>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+              <div className="text-4xl mb-4">📊</div>
+              <h3 className="text-xl font-bold mb-2">Analytics</h3>
+              <p className="text-blue-100 text-sm">Βλέπετε stats: πόσες προτάσεις είδατε, προφίλ που επισκεφτήκατε, προσφορές που στείλατε.</p>
+            </div>
+          </div>
+
+          <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-8 md:p-12 border border-white/20">
+            <div className="grid md:grid-cols-2 gap-8 items-center">
+              <div>
+                <h3 className="text-3xl font-bold mb-4">Πώς λειτουργεί;</h3>
+                <ul className="space-y-3 text-blue-100">
+                  <li className="flex items-start gap-3">
+                    <span className="text-green-400 text-xl flex-shrink-0">✓</span>
+                    <span>Το AI αναλύει το industry και τα προφίλ σας</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-green-400 text-xl flex-shrink-0">✓</span>
+                    <span>Υπολογίζει match score για κάθε influencer</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-green-400 text-xl flex-shrink-0">✓</span>
+                    <span>Προτείνει τους top matches με προσωποποιημένες αιτιολογίες</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-green-400 text-xl flex-shrink-0">✓</span>
+                    <span>Μπορείτε να φιλτράρετε και να ανανεώνετε ανά πάσα στιγμή</span>
+                  </li>
+                </ul>
+                <div className="mt-6">
+                  <Link
+                    href="/brand/signup"
+                    className="inline-block px-8 py-4 bg-white text-blue-600 font-bold rounded-xl hover:bg-blue-50 transition-all transform hover:scale-105 shadow-xl"
+                  >
+                    Ξεκινήστε Δωρεάν →
+                  </Link>
+                </div>
+              </div>
+              <div className="relative h-64 md:h-80 rounded-2xl overflow-hidden bg-gradient-to-br from-white/20 to-white/5 border border-white/30">
+                <Image
+                  src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&q=80"
+                  alt="AI Recommendations"
+                  fill
+                  className="object-cover opacity-80"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-blue-900/50 to-transparent"></div>
+                <div className="absolute bottom-4 left-4 right-4">
+                  <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-bold text-slate-900">Match Score: 92%</span>
+                      <span className="px-2 py-1 bg-green-500 text-white text-xs font-bold rounded">Excellent</span>
+                    </div>
+                    <p className="text-xs text-slate-600">Perfect match for your brand!</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
