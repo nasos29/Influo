@@ -54,7 +54,7 @@ export default function PrivacyPage() {
       section7_text2: "Η πλατφόρμα λειτουργεί ως απλός χώρος σύνδεσης. Δεν είμαστε μέρος σε καμία συμβατική σχέση μεταξύ influencers και brands. Όλες οι συμβάσεις, πληρωμές και υποχρεώσεις είναι αποκλειστική ευθύνη των χρηστών.",
       
       section8_title: "8. ΔΩΡΕΑΝ ΠΛΑΤΦΟΡΜΑ",
-      section8_text: "Η πλατφόρμα Influo.gr παρέχεται εντελώς ΔΩΡΕΑΝ. Δεν επιβάλλουμε καμία χρέωση στους χρήστες. Δεν έχουμε κάνει εγκατάσταση στην εφορία και δεν επιδιώκουμε κανένα οικονομικό όφελος από την πλατφόρμα αυτή τη στιγμή. Η πλατφόρμα είναι προσωπικό project και δεν είναι εμπορική επιχείρηση.",
+      section8_text: "Η πλατφόρμα Influo.gr παρέχεται εντελώς ΔΩΡΕΑΝ. Δεν επιβάλλουμε καμία χρέωση στους χρήστες. Δεν επιδιώκουμε κανένα οικονομικό όφελος από την πλατφόρμα αυτή τη στιγμή. Η πλατφόρμα είναι προσωπικό project και δεν είναι εμπορική επιχείρηση.",
       
       section9_title: "9. ΑΛΛΑΓΕΣ ΣΤΗΝ ΠΟΛΙΤΙΚΗ",
       section9_text: "Διατηρούμε το δικαίωμα να τροποποιούμε αυτήν την πολιτική οποιαδήποτε στιγμή. Οι χρήστες είναι υπεύθυνοι να ελέγχουν περιοδικά αυτήν τη σελίδα.",
@@ -110,7 +110,7 @@ export default function PrivacyPage() {
       section7_text2: "The platform operates as a simple connection space. We are not part of any contractual relationship between influencers and brands. All contracts, payments, and obligations are the sole responsibility of users.",
       
       section8_title: "8. FREE PLATFORM",
-      section8_text: "The Influo.gr platform is provided completely FREE. We do not charge any fees to users. We have not registered with tax authorities and do not seek any financial benefit from this platform at this time. The platform is a personal project and is not a commercial business.",
+      section8_text: "The Influo.gr platform is provided completely FREE. We do not charge any fees to users. We do not seek any financial benefit from this platform at this time. The platform is a personal project and is not a commercial business.",
       
       section9_title: "9. POLICY CHANGES",
       section9_text: "We reserve the right to modify this policy at any time. Users are responsible for periodically checking this page.",

@@ -49,7 +49,7 @@ export default function TermsPage() {
       section5_text2: "ΔΕΝ ΕΙΜΑΣΤΕ ΕΥΘΥΝΟΙ για οτιδήποτε συμβαίνει μεταξύ των χρηστών. Η πλατφόρμα είναι απλά ένα εργαλείο σύνδεσης. Όλες οι συμβάσεις, πληρωμές, υποχρεώσεις και ευθύνες είναι αποκλειστική ευθύνη των χρηστών.",
       
       section6_title: "6. ΔΩΡΕΑΝ ΠΛΑΤΦΟΡΜΑ - ΧΩΡΙΣ ΟΙΚΟΝΟΜΙΚΟ ΟΦΕΛΟΣ",
-      section6_text: "Η πλατφόρμα Influo.gr παρέχεται ΕΝΤΕΛΩΣ ΔΩΡΕΑΝ χωρίς καμία χρέωση για τους χρήστες. ΔΕΝ ΕΧΟΥΜΕ ΚΑΝΕΙ ΕΓΚΑΤΑΣΤΑΣΗ ΣΤΗΝ ΕΦΟΡΙΑ και η πλατφόρμα δεν λειτουργεί ως εμπορική επιχείρηση. ΔΕΝ ΕΠΙΔΙΩΚΟΥΜΕ ΚΑΝΕΝΑ ΟΙΚΟΝΟΜΙΚΟ ΟΦΕΛΟΣ από την πλατφόρμα αυτή τη στιγμή. Πρόκειται για προσωπικό project για εκπαιδευτικούς/τεχνικούς σκοπούς. Δεν φέρουμε καμία ευθύνη για φορολογικά, νομικά ή λογιστικά ζητήματα που μπορεί να προκύψουν από τη χρήση της πλατφόρμας από τους χρήστες.",
+      section6_text: "Η πλατφόρμα Influo.gr παρέχεται ΕΝΤΕΛΩΣ ΔΩΡΕΑΝ χωρίς καμία χρέωση για τους χρήστες. Η πλατφόρμα δεν λειτουργεί ως εμπορική επιχείρηση. ΔΕΝ ΕΠΙΔΙΩΚΟΥΜΕ ΚΑΝΕΝΑ ΟΙΚΟΝΟΜΙΚΟ ΟΦΕΛΟΣ από την πλατφόρμα αυτή τη στιγμή. Πρόκειται για προσωπικό project για εκπαιδευτικούς/τεχνικούς σκοπούς. Δεν φέρουμε καμία ευθύνη για φορολογικά, νομικά ή λογιστικά ζητήματα που μπορεί να προκύψουν από τη χρήση της πλατφόρμας από τους χρήστες.",
       
       section7_title: "7. ΠΝΕΥΜΑΤΙΚΑ ΔΙΚΑΙΩΜΑΤΑ",
       section7_text: "Όλο το περιεχόμενο που αναρτάτε παραμένει δικό σας. Ωστόσο, με την ανάρτηση, μας δίνετε άδεια να το εμφανίζουμε στη πλατφόρμα. Είστε υπεύθυνοι να διασφαλίζετε ότι έχετε τα απαραίτητα δικαιώματα για το περιεχόμενο που αναρτάτε.",
@@ -111,7 +111,7 @@ export default function TermsPage() {
       section5_text2: "WE ARE NOT RESPONSIBLE for anything that happens between users. The platform is simply a connection tool. All contracts, payments, obligations, and responsibilities are the sole responsibility of users.",
       
       section6_title: "6. FREE PLATFORM - NO FINANCIAL BENEFIT",
-      section6_text: "The Influo.gr platform is provided COMPLETELY FREE with no charge to users. WE HAVE NOT REGISTERED WITH TAX AUTHORITIES and the platform does not operate as a commercial business. WE DO NOT SEEK ANY FINANCIAL BENEFIT from the platform at this time. This is a personal project for educational/technical purposes. We bear no responsibility for tax, legal, or accounting issues that may arise from users' use of the platform.",
+      section6_text: "The Influo.gr platform is provided COMPLETELY FREE with no charge to users. The platform does not operate as a commercial business. WE DO NOT SEEK ANY FINANCIAL BENEFIT from the platform at this time. This is a personal project for educational/technical purposes. We bear no responsibility for tax, legal, or accounting issues that may arise from users' use of the platform.",
       
       section7_title: "7. INTELLECTUAL PROPERTY",
       section7_text: "All content you post remains yours. However, by posting, you grant us permission to display it on the platform. You are responsible for ensuring you have the necessary rights to the content you post.",
