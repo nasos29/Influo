@@ -7,6 +7,15 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { recommendInfluencers, type InfluencerProfile, type BrandProfile } from '@/lib/recommendations';
 
+// Categories (same as Directory)
+const CATEGORIES = [
+  "Lifestyle", "Fashion & Style", "Beauty & Makeup", "Travel", "Food & Drink",
+  "Health & Fitness", "Tech & Gadgets", "Business & Finance", "Gaming & Esports",
+  "Parenting & Family", "Home & Decor", "Pets & Animals", "Comedy & Entertainment",
+  "Art & Photography", "Music & Dance", "Education & Coaching", "Sports & Athletes",
+  "DIY & Crafts", "Sustainability & Eco", "Cars & Automotive"
+];
+
 // Category translations (same as Directory)
 const categoryTranslations: { [key: string]: { el: string; en: string } } = {
   "Lifestyle": { el: "Lifestyle", en: "Lifestyle" },
@@ -487,13 +496,18 @@ export default function BrandDashboardContent() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">{txt.category_filter}</label>
-                  <input
-                    type="text"
+                  <select
                     value={recommendationFilters.category}
                     onChange={(e) => setRecommendationFilters({...recommendationFilters, category: e.target.value})}
-                    placeholder="π.χ. Fashion"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white placeholder:text-slate-400"
-                  />
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white"
+                  >
+                    <option value="">{lang === 'el' ? 'Όλες οι κατηγορίες' : 'All Categories'}</option>
+                    {CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {lang === 'el' ? categoryTranslations[cat]?.el || cat : categoryTranslations[cat]?.en || cat}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">{txt.min_engagement}</label>
