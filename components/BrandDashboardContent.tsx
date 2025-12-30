@@ -411,14 +411,8 @@ export default function BrandDashboardContent() {
           };
         });
       
-      console.log('Dummy profiles converted:', dummyProfiles.length, dummyProfiles.map(p => ({ name: p.display_name, category: p.category })));
-      
       // Combine database and dummy influencers
       const influencerProfiles: InfluencerProfile[] = [...dbInfluencerProfiles, ...dummyProfiles];
-      
-      console.log('Total influencer profiles:', influencerProfiles.length);
-      console.log('DB profiles:', dbInfluencerProfiles.length);
-      console.log('Dummy profiles:', dummyProfiles.length);
       
       // Always process recommendations, even if only dummy data exists
       // Get brand profile
@@ -433,15 +427,10 @@ export default function BrandDashboardContent() {
       // Apply filters
       let filteredProfiles = influencerProfiles;
       
-      console.log('Filter category:', recommendationFilters.category);
-      
       if (recommendationFilters.category) {
-        filteredProfiles = filteredProfiles.filter(inf => {
-          const match = inf.category === recommendationFilters.category;
-          console.log(`Checking ${inf.display_name}: category=${inf.category}, filter=${recommendationFilters.category}, match=${match}`);
-          return match;
-        });
-        console.log('After category filter:', filteredProfiles.length);
+        filteredProfiles = filteredProfiles.filter(inf => 
+          inf.category === recommendationFilters.category
+        );
       }
       
       if (recommendationFilters.maxPrice) {
@@ -465,8 +454,6 @@ export default function BrandDashboardContent() {
       }
       
       // Calculate recommendations
-      console.log('Before recommendation, filtered profiles:', filteredProfiles.length, filteredProfiles.map(p => p.display_name));
-      
       const matches = recommendInfluencers(brandProfile, filteredProfiles, {
         limit: 12,
         minScore: recommendationFilters.minScore,
@@ -474,14 +461,12 @@ export default function BrandDashboardContent() {
         preferHighRating: true,
       });
       
-      console.log('Recommendations returned:', matches.length, matches.map(m => ({ name: m.influencer.display_name, score: m.score })));
-      
       setRecommendations(matches);
       
-      // Update stats
+      // Update stats - count only displayed recommendations (not cumulative)
       setRecommendationStats(prev => ({
         ...prev,
-        totalViewed: prev.totalViewed + matches.length,
+        totalViewed: matches.length, // Current session count, not cumulative
       }));
     } catch (err) {
       console.error('Error loading recommendations:', err);

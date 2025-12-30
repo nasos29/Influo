@@ -194,16 +194,23 @@ function calculateValueScore(
   
   if (rate === 0 || engagement === 0 || followerCount === 0) return 0.5; // Neutral if missing data
   
-  // Calculate engagement value (engagement per €100)
-  const engagementValue = (engagement * followerCount) / (rate / 100);
+  // Calculate Cost Per Engagement (CPE) - lower is better
+  // CPE = cost / (engagement_rate * followers / 100)
+  const potentialReach = followerCount;
+  const engagementReach = (engagement / 100) * potentialReach; // Estimated engaged users per post
   
-  // Higher engagement value = better score
-  // This is a simplified calculation - in production, you'd want more sophisticated logic
-  if (engagementValue > 1000) return 1.0;
-  if (engagementValue > 500) return 0.8;
-  if (engagementValue > 200) return 0.6;
-  if (engagementValue > 100) return 0.4;
-  return 0.2;
+  if (engagementReach === 0) return 0.5;
+  
+  const costPerEngagement = rate / engagementReach;
+  
+  // Lower CPE = better value
+  // Ideal CPE < 0.1€, Good < 0.5€, Average < 1€, Poor > 1€
+  if (costPerEngagement < 0.1) return 1.0; // Excellent value
+  if (costPerEngagement < 0.2) return 0.9;
+  if (costPerEngagement < 0.5) return 0.8; // Very good
+  if (costPerEngagement < 1.0) return 0.6; // Good
+  if (costPerEngagement < 2.0) return 0.4; // Average
+  return 0.2; // Poor value
 }
 
 /**
@@ -269,40 +276,91 @@ export function recommendInfluencers(
         verifiedStatus: influencer.verified ? 1.0 : 0.5,
       };
       
-      // Calculate weighted overall score
+      // Calculate weighted overall score with smart adjustments
       let score = 0;
-      score += strengths.categoryMatch * 30; // 30% weight
-      score += strengths.engagementQuality * 25; // 25% weight
-      score += strengths.ratingQuality * 20; // 20% weight (if preferHighRating)
-      score += strengths.valuePrice * 15; // 15% weight
-      score += strengths.verifiedStatus * 10; // 10% weight
       
-      // Generate match reasons
-      const reasons: string[] = [];
+      // Category match is most important (35% weight) - exact match gets bonus
+      score += strengths.categoryMatch * 35;
       
-      if (strengths.categoryMatch >= 0.8) {
-        reasons.push(`Ταιριάζει στο niche ${brand.industry || 'σου'}`);
+      // Engagement quality (25% weight)
+      score += strengths.engagementQuality * 25;
+      
+      // Rating quality (20% weight) - only if has reviews
+      if (influencer.total_reviews && influencer.total_reviews > 0) {
+        score += strengths.ratingQuality * 20;
+      } else {
+        // If no reviews, give neutral score (50%) but lower weight
+        score += 0.5 * 15; // Reduced weight for unrated influencers
       }
       
-      if (strengths.engagementQuality >= 0.8) {
+      // Value/Price ratio (15% weight)
+      score += strengths.valuePrice * 15;
+      
+      // Verified status (5% weight - bonus, not critical)
+      score += strengths.verifiedStatus * 5;
+      
+      // Bonus points for multiple strengths
+      let bonusPoints = 0;
+      if (strengths.categoryMatch >= 0.9 && strengths.engagementQuality >= 0.7) {
+        bonusPoints += 5; // High category match + good engagement
+      }
+      if (influencer.total_reviews && influencer.total_reviews >= 10 && influencer.avg_rating && influencer.avg_rating >= 4.5) {
+        bonusPoints += 3; // Well-reviewed and highly rated
+      }
+      if (strengths.valuePrice >= 0.8 && strengths.engagementQuality >= 0.8) {
+        bonusPoints += 2; // Great value + high engagement
+      }
+      
+      score += bonusPoints;
+      
+      // Cap at 100
+      score = Math.min(score, 100);
+      
+      // Generate match reasons (prioritize most important)
+      const reasons: string[] = [];
+      
+      // Category match is top priority
+      if (strengths.categoryMatch >= 0.9) {
+        reasons.push(`Τέλειο match στο niche ${brand.category || brand.industry || 'σου'} 🎯`);
+      } else if (strengths.categoryMatch >= 0.7) {
+        reasons.push(`Ταιριάζει στο niche ${brand.category || brand.industry || 'σου'}`);
+      }
+      
+      // Engagement quality
+      if (strengths.engagementQuality >= 0.9) {
+        const rate = parseEngagementRate(influencer.engagement_rate);
+        reasons.push(`Εξαιρετικό engagement (${rate.toFixed(1)}%) ⭐`);
+      } else if (strengths.engagementQuality >= 0.7) {
         const rate = parseEngagementRate(influencer.engagement_rate);
         reasons.push(`Υψηλό engagement rate (${rate.toFixed(1)}%)`);
       }
       
-      if (strengths.ratingQuality >= 0.8 && influencer.avg_rating && influencer.total_reviews) {
-        reasons.push(`Εξαιρετική αξιολόγηση (${influencer.avg_rating.toFixed(1)}/5 από ${influencer.total_reviews} reviews)`);
+      // Rating quality (only if has reviews)
+      if (influencer.total_reviews && influencer.total_reviews > 0) {
+        if (strengths.ratingQuality >= 0.9 && influencer.avg_rating && influencer.avg_rating >= 4.5) {
+          reasons.push(`Εξαιρετική αξιολόγηση (${influencer.avg_rating.toFixed(1)}/5 από ${influencer.total_reviews} reviews) 🏆`);
+        } else if (strengths.ratingQuality >= 0.7 && influencer.avg_rating && influencer.avg_rating >= 4.0) {
+          reasons.push(`Καλή αξιολόγηση (${influencer.avg_rating.toFixed(1)}/5)`);
+        }
       }
       
-      if (strengths.valuePrice >= 0.7) {
+      // Value/Price
+      if (strengths.valuePrice >= 0.8) {
+        reasons.push(`Εξαιρετική αναλογία τιμής/ποιοτικότητας 💰`);
+      } else if (strengths.valuePrice >= 0.6) {
         reasons.push(`Καλή αναλογία τιμής/ποιοτικότητας`);
       }
       
-      if (influencer.verified) {
-        reasons.push(`Επαληθευμένος influencer`);
+      // Experience
+      if (influencer.total_reviews && influencer.total_reviews >= 20) {
+        reasons.push(`Έμπειρος με ${influencer.total_reviews}+ συνεργασίες`);
+      } else if (influencer.total_reviews && influencer.total_reviews >= 10) {
+        reasons.push(`Έμπειρος creator`);
       }
       
-      if (influencer.total_reviews && influencer.total_reviews > 5) {
-        reasons.push(`Έμπειρος με ${influencer.total_reviews}+ συνεργασίες`);
+      // Verified (always mention if verified)
+      if (influencer.verified) {
+        reasons.push(`Επαληθευμένος ✅`);
       }
       
       // Add default reason if none
