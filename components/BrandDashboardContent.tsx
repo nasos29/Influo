@@ -8,9 +8,9 @@ import Image from 'next/image';
 import { recommendInfluencers, type InfluencerProfile, type BrandProfile } from '@/lib/recommendations';
 import { dummyInfluencers } from './Directory';
 
-// Categories (same as Directory)
+// Categories (same as Directory and InfluencerSignupForm)
 const CATEGORIES = [
-  "Lifestyle", "Fashion & Style", "Beauty & Makeup", "Travel", "Food & Drink",
+  "Γενικά", "Lifestyle", "Fashion & Style", "Beauty & Makeup", "Travel", "Food & Drink",
   "Health & Fitness", "Tech & Gadgets", "Business & Finance", "Gaming & Esports",
   "Parenting & Family", "Home & Decor", "Pets & Animals", "Comedy & Entertainment",
   "Art & Photography", "Music & Dance", "Education & Coaching", "Sports & Athletes",
@@ -39,6 +39,7 @@ const categoryTranslations: { [key: string]: { el: string; en: string } } = {
   "DIY & Crafts": { el: "DIY & Χειροτεχνίες", en: "DIY & Crafts" },
   "Sustainability & Eco": { el: "Βιωσιμότητα & Οικολογία", en: "Sustainability & Eco" },
   "Cars & Automotive": { el: "Αυτοκίνητα", en: "Cars & Automotive" },
+  "Γενικά": { el: "Γενικά", en: "General" },
 };
 
 interface Proposal {
@@ -331,11 +332,12 @@ export default function BrandDashboardContent() {
           });
         }
         
-        return {
-          id: inf.id,
-          display_name: inf.display_name || 'Unknown',
-          category: inf.category,
-          engagement_rate: inf.engagement_rate,
+          return {
+            id: inf.id,
+            display_name: inf.display_name || 'Unknown',
+            category: inf.category, // Primary category
+            categories: inf.category ? [inf.category] : undefined, // For now, use single category as array
+            engagement_rate: inf.engagement_rate,
           followers_count: followersStr,
           min_rate: inf.min_rate,
           location: inf.location,
@@ -428,9 +430,24 @@ export default function BrandDashboardContent() {
       let filteredProfiles = influencerProfiles;
       
       if (recommendationFilters.category) {
-        filteredProfiles = filteredProfiles.filter(inf => 
-          inf.category === recommendationFilters.category
-        );
+        filteredProfiles = filteredProfiles.filter(inf => {
+          // Support "Γενικά" / "General" - matches all
+          if (recommendationFilters.category === "Γενικά" || recommendationFilters.category === "General") {
+            return true; // Show all
+          }
+          
+          // Check primary category
+          if (inf.category === recommendationFilters.category) {
+            return true;
+          }
+          
+          // Check all categories if available
+          if (inf.categories && inf.categories.includes(recommendationFilters.category)) {
+            return true;
+          }
+          
+          return false;
+        });
       }
       
       if (recommendationFilters.maxPrice) {

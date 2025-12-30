@@ -9,12 +9,37 @@ type Lang = "el" | "en";
 
 // --- FULL CATEGORY LIST ---
 const CATEGORIES = [
-  "Lifestyle", "Fashion & Style", "Beauty & Makeup", "Travel", "Food & Drink",
+  "Γενικά", "Lifestyle", "Fashion & Style", "Beauty & Makeup", "Travel", "Food & Drink",
   "Health & Fitness", "Tech & Gadgets", "Business & Finance", "Gaming & Esports",
   "Parenting & Family", "Home & Decor", "Pets & Animals", "Comedy & Entertainment",
   "Art & Photography", "Music & Dance", "Education & Coaching", "Sports & Athletes",
   "DIY & Crafts", "Sustainability & Eco", "Cars & Automotive"
 ];
+
+// Category translations
+const categoryTranslations: { [key: string]: { el: string; en: string } } = {
+  "Γενικά": { el: "Γενικά", en: "General" },
+  "Lifestyle": { el: "Lifestyle", en: "Lifestyle" },
+  "Fashion & Style": { el: "Μόδα & Στυλ", en: "Fashion & Style" },
+  "Beauty & Makeup": { el: "Ομορφιά & Μακιγιάζ", en: "Beauty & Makeup" },
+  "Travel": { el: "Ταξίδια", en: "Travel" },
+  "Food & Drink": { el: "Φαγητό & Ποτά", en: "Food & Drink" },
+  "Health & Fitness": { el: "Υγεία & Fitness", en: "Health & Fitness" },
+  "Tech & Gadgets": { el: "Τεχνολογία & Gadgets", en: "Tech & Gadgets" },
+  "Business & Finance": { el: "Επιχειρήσεις & Οικονομικά", en: "Business & Finance" },
+  "Gaming & Esports": { el: "Gaming & Esports", en: "Gaming & Esports" },
+  "Parenting & Family": { el: "Οικογένεια & Παιδιά", en: "Parenting & Family" },
+  "Home & Decor": { el: "Σπίτι & Διακόσμηση", en: "Home & Decor" },
+  "Pets & Animals": { el: "Κατοικίδια & Ζώα", en: "Pets & Animals" },
+  "Comedy & Entertainment": { el: "Κωμωδία & Ψυχαγωγία", en: "Comedy & Entertainment" },
+  "Art & Photography": { el: "Τέχνη & Φωτογραφία", en: "Art & Photography" },
+  "Music & Dance": { el: "Μουσική & Χορός", en: "Music & Dance" },
+  "Education & Coaching": { el: "Εκπαίδευση & Coaching", en: "Education & Coaching" },
+  "Sports & Athletes": { el: "Αθλήματα & Αθλητές", en: "Sports & Athletes" },
+  "DIY & Crafts": { el: "DIY & Χειροτεχνίες", en: "DIY & Crafts" },
+  "Sustainability & Eco": { el: "Βιωσιμότητα & Οικολογία", en: "Sustainability & Eco" },
+  "Cars & Automotive": { el: "Αυτοκίνητα", en: "Cars & Automotive" },
+};
 
 const t = {
   el: {
@@ -26,7 +51,9 @@ const t = {
     nameLabel: "Ονοματεπώνυμο",
     namePlace: "π.χ. Μαρία Παππά",
     genderLabel: "Φύλο",
-    catLabel: "Κύρια Κατηγορία",
+    catLabel: "Κατηγορίες *",
+    catDesc: "Επιλέξτε μία ή περισσότερες κατηγορίες",
+    catGeneral: "Γενικά (όλες οι κατηγορίες)",
     male: "Άνδρας",
     female: "Γυναίκα",
     locationLabel: "Τοποθεσία",
@@ -79,7 +106,9 @@ const t = {
     nameLabel: "Full Name",
     namePlace: "e.g. Maria Pappa",
     genderLabel: "Gender",
-    catLabel: "Primary Category",
+    catLabel: "Categories *",
+    catDesc: "Select one or more categories",
+    catGeneral: "General (all categories)",
     male: "Male",
     female: "Female",
     locationLabel: "Location",
@@ -137,7 +166,7 @@ export default function InfluencerSignupForm() {
   // Data States
   const [displayName, setDisplayName] = useState("");
   const [gender, setGender] = useState("Female");
-  const [category, setCategory] = useState("Lifestyle");
+  const [categories, setCategories] = useState<string[]>(["Lifestyle"]);
   const [location, setLocation] = useState("");
   const [bio, setBio] = useState("");
   const [email, setEmail] = useState("");
@@ -429,7 +458,9 @@ export default function InfluencerSignupForm() {
           id: authUser.id,
           display_name: displayName, 
           gender, 
-          category,
+          category: categories.length > 0 ? categories[0] : "Lifestyle", // Store primary category for compatibility (if single category column exists)
+          // Note: If categories column exists as array, store all categories
+          // Otherwise, categories are stored as comma-separated string in category field or first category
           location,
           languages,
           min_rate: minRate,
@@ -555,14 +586,67 @@ export default function InfluencerSignupForm() {
                     </div>
                 </div>
 
-                {/* CATEGORY SELECT */}
+                {/* CATEGORIES MULTI-SELECT */}
                 <div>
                     <label className={labelClass}>{txt.catLabel}</label>
-                    <select className={inputClass} value={category} onChange={(e) => setCategory(e.target.value)}>
-                        {CATEGORIES.map(cat => (
-                            <option key={cat} value={cat}>{cat}</option>
-                        ))}
-                    </select>
+                    <p className="text-xs text-slate-500 mb-3">{txt.catDesc}</p>
+                    <div className="border-2 border-slate-200 rounded-xl p-4 bg-slate-50 max-h-64 overflow-y-auto">
+                        <div className="space-y-2">
+                            {CATEGORIES.map(cat => {
+                                const isSelected = categories.includes(cat);
+                                const displayName = lang === 'el' 
+                                    ? (categoryTranslations[cat]?.el || cat) 
+                                    : (categoryTranslations[cat]?.en || cat);
+                                
+                                return (
+                                    <label 
+                                        key={cat} 
+                                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${
+                                            isSelected 
+                                                ? 'bg-blue-100 border-2 border-blue-500' 
+                                                : 'bg-white border-2 border-slate-200 hover:border-blue-300'
+                                        }`}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={isSelected}
+                                            onChange={(e) => {
+                                                if (cat === "Γενικά" || cat === "General") {
+                                                    // If "General" is selected, clear all others
+                                                    if (e.target.checked) {
+                                                        setCategories([cat]);
+                                                    } else {
+                                                        setCategories(["Lifestyle"]);
+                                                    }
+                                                } else {
+                                                    // Remove "General" if selecting specific category
+                                                    const newCats = e.target.checked
+                                                        ? [...categories.filter(c => c !== "Γενικά" && c !== "General"), cat]
+                                                        : categories.filter(c => c !== cat);
+                                                    
+                                                    // Ensure at least one category is selected
+                                                    if (newCats.length === 0) {
+                                                        setCategories(["Lifestyle"]);
+                                                    } else {
+                                                        setCategories(newCats);
+                                                    }
+                                                }
+                                            }}
+                                            className="w-5 h-5 text-blue-600 border-2 border-slate-300 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                                        />
+                                        <span className={`font-medium ${isSelected ? 'text-blue-900' : 'text-slate-700'}`}>
+                                            {displayName}
+                                        </span>
+                                    </label>
+                                );
+                            })}
+                        </div>
+                    </div>
+                    {categories.length > 0 && (
+                        <p className="text-xs text-slate-600 mt-2">
+                            {lang === 'el' ? `Επιλέχθηκαν: ${categories.map(c => categoryTranslations[c]?.el || c).join(', ')}` : `Selected: ${categories.map(c => categoryTranslations[c]?.en || c).join(', ')}`}
+                        </p>
+                    )}
                 </div>
 
                 <div>

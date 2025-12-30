@@ -12,7 +12,8 @@ export interface BrandProfile {
 export interface InfluencerProfile {
   id: string | number;
   display_name: string;
-  category?: string;
+  category?: string; // Primary category (for compatibility)
+  categories?: string[]; // All categories (if available)
   engagement_rate?: string | null;
   followers_count?: string | null;
   min_rate?: string | null;
@@ -92,21 +93,54 @@ function parseMinRate(rate: string | null | undefined): number {
  */
 function calculateCategoryMatch(
   brandIndustry: string | null | undefined,
-  influencerCategory: string | undefined
+  influencerCategory: string | undefined,
+  influencerCategories?: string[]
 ): number {
-  if (!brandIndustry || !influencerCategory) return 0.5; // Neutral if missing
+  if (!brandIndustry) return 0.5; // Neutral if brand has no category
   
   // Normalize category names for comparison
   const industryLower = brandIndustry.toLowerCase().trim();
-  const categoryLower = influencerCategory.toLowerCase().trim();
   
-  // Exact match
-  if (industryLower === categoryLower) return 1.0;
+  // Check if influencer has "Γενικά" or "General" - matches everything with high score
+  const allCategories = influencerCategories || (influencerCategory ? [influencerCategory] : []);
+  const hasGeneral = allCategories.some(cat => 
+    cat.toLowerCase().trim() === 'γενικά' || cat.toLowerCase().trim() === 'general'
+  );
   
-  // Exact match
-  if (industryLower === categoryLower) return 1.0;
+  if (hasGeneral) {
+    return 0.95; // Very high score for "General" category
+  }
   
-  // Category mapping for better matching
+  // Check all influencer categories against brand category
+  let bestMatch = 0;
+  
+  for (const cat of allCategories) {
+    if (!cat) continue;
+    
+    const categoryLower = cat.toLowerCase().trim();
+    
+    // Exact match - highest priority!
+    if (industryLower === categoryLower) {
+      return 1.0; // Perfect match - return immediately
+    }
+    
+    // Check partial matches
+    if (industryLower.includes(categoryLower) || categoryLower.includes(industryLower)) {
+      bestMatch = Math.max(bestMatch, 0.9);
+    }
+  }
+  
+  // Return best match found if we have one
+  if (bestMatch > 0) return bestMatch;
+  
+  // Fallback: If no match found in multiple categories, try primary category
+  if (influencerCategory) {
+    const categoryLower = influencerCategory.toLowerCase().trim();
+    // Exact match
+    if (industryLower === categoryLower) return 1.0;
+  }
+  
+  // Category mapping for better matching (only if no exact match found)
   const categoryMappings: { [key: string]: string[] } = {
     'fashion': ['fashion & style', 'beauty & makeup', 'lifestyle'],
     'tech': ['tech & gadgets', 'gaming & esports', 'business & finance'],
@@ -118,23 +152,31 @@ function calculateCategoryMatch(
   };
   
   // Check if brand industry matches any mapped categories
-  for (const [industry, categories] of Object.entries(categoryMappings)) {
+  for (const [industry, mappedCats] of Object.entries(categoryMappings)) {
     if (industryLower.includes(industry) || industry.includes(industryLower)) {
-      if (categories.some(cat => categoryLower.includes(cat) || cat.includes(categoryLower))) {
-        return 0.9;
+      for (const cat of allCategories) {
+        const catLower = cat.toLowerCase().trim();
+        if (mappedCats.some(mappedCat => catLower.includes(mappedCat) || mappedCat.includes(catLower))) {
+          bestMatch = Math.max(bestMatch, 0.85);
+        }
       }
     }
   }
   
   // Partial match
-  if (industryLower.includes(categoryLower) || categoryLower.includes(industryLower)) {
-    return 0.7;
+  for (const cat of allCategories) {
+    const catLower = cat.toLowerCase().trim();
+    if (industryLower.includes(catLower) || catLower.includes(industryLower)) {
+      bestMatch = Math.max(bestMatch, 0.75);
+    }
   }
   
   // Lifestyle is a good general match
-  if (categoryLower.includes('lifestyle')) return 0.6;
+  if (allCategories.some(cat => cat.toLowerCase().includes('lifestyle'))) {
+    bestMatch = Math.max(bestMatch, 0.6);
+  }
   
-  return 0.3; // Weak match
+  return bestMatch > 0 ? bestMatch : 0.3; // Weak match if nothing found
 }
 
 /**
@@ -264,7 +306,11 @@ export function recommendInfluencers(
     .filter(inf => inf.verified !== false) // Only verified influencers
     .map(influencer => {
       const strengths = {
-        categoryMatch: calculateCategoryMatch(brand.industry, influencer.category),
+        categoryMatch: calculateCategoryMatch(
+          brand.category || brand.industry, 
+          influencer.category,
+          influencer.categories
+        ),
         engagementQuality: calculateEngagementQuality(influencer.engagement_rate),
         ratingQuality: calculateRatingQuality(influencer.avg_rating, influencer.total_reviews),
         valuePrice: calculateValueScore(
@@ -319,8 +365,10 @@ export function recommendInfluencers(
       // Generate match reasons (prioritize most important)
       const reasons: string[] = [];
       
-      // Category match is top priority
-      if (strengths.categoryMatch >= 0.9) {
+      // Category match is top priority - give extra emphasis for exact matches
+      if (strengths.categoryMatch >= 0.99) {
+        reasons.push(`ΤΕΛΕΙΟ match - Είδος ${brand.category || brand.industry || 'σου'} 🎯⭐`);
+      } else if (strengths.categoryMatch >= 0.9) {
         reasons.push(`Τέλειο match στο niche ${brand.category || brand.industry || 'σου'} 🎯`);
       } else if (strengths.categoryMatch >= 0.7) {
         reasons.push(`Ταιριάζει στο niche ${brand.category || brand.industry || 'σου'}`);

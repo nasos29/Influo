@@ -32,7 +32,7 @@ export interface Influencer {
 
 // --- FULL CATEGORY LIST ---
 const CATEGORIES = [
-  "Lifestyle", "Fashion & Style", "Beauty & Makeup", "Travel", "Food & Drink",
+  "Γενικά", "Lifestyle", "Fashion & Style", "Beauty & Makeup", "Travel", "Food & Drink",
   "Health & Fitness", "Tech & Gadgets", "Business & Finance", "Gaming & Esports",
   "Parenting & Family", "Home & Decor", "Pets & Animals", "Comedy & Entertainment",
   "Art & Photography", "Music & Dance", "Education & Coaching", "Sports & Athletes",
@@ -61,6 +61,7 @@ const categoryTranslations: { [key: string]: { el: string; en: string } } = {
   "DIY & Crafts": { el: "DIY & Χειροτεχνίες", en: "DIY & Crafts" },
   "Sustainability & Eco": { el: "Βιωσιμότητα & Οικολογία", en: "Sustainability & Eco" },
   "Cars & Automotive": { el: "Αυτοκίνητα", en: "Cars & Automotive" },
+  "Γενικά": { el: "Γενικά", en: "General" },
 };
 
 // --- FULL TRANSLATIONS ---
