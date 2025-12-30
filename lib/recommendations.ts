@@ -3,7 +3,8 @@
 export interface BrandProfile {
   id: string;
   brand_name: string;
-  industry?: string | null;
+  industry?: string | null; // Can be category or industry
+  category?: string | null; // Preferred field name
   contact_email: string;
   // We can add more fields later like budget_range, target_audience, etc.
 }
@@ -95,8 +96,12 @@ function calculateCategoryMatch(
 ): number {
   if (!brandIndustry || !influencerCategory) return 0.5; // Neutral if missing
   
+  // Normalize category names for comparison
   const industryLower = brandIndustry.toLowerCase().trim();
   const categoryLower = influencerCategory.toLowerCase().trim();
+  
+  // Exact match
+  if (industryLower === categoryLower) return 1.0;
   
   // Exact match
   if (industryLower === categoryLower) return 1.0;

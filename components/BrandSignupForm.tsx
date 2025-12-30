@@ -28,8 +28,8 @@ const t = {
     logoRemove: "Αφαίρεση",
     websiteLabel: "Ιστοσελίδα (Προαιρετικό)",
     websitePlace: "https://example.com",
-    industryLabel: "Κλάδος (Προαιρετικό)",
-    industryPlace: "π.χ. Fashion, Tech, Food",
+    categoryLabel: "Κατηγορία *",
+    categoryPlace: "Επιλέξτε κατηγορία",
     submit: "Δημιουργία Λογαριασμού",
     loading: "Δημιουργία...",
     successTitle: "Καλώς ήρθατε!",
@@ -61,8 +61,8 @@ const t = {
     logoRemove: "Remove",
     websiteLabel: "Website (Optional)",
     websitePlace: "https://example.com",
-    industryLabel: "Industry (Optional)",
-    industryPlace: "e.g. Fashion, Tech, Food",
+    categoryLabel: "Category *",
+    categoryPlace: "Select category",
     submit: "Create Account",
     loading: "Creating...",
     successTitle: "Welcome!",
@@ -93,7 +93,7 @@ export default function BrandSignupForm() {
   const [password, setPassword] = useState("");
   const [afm, setAfm] = useState("");
   const [website, setWebsite] = useState("");
-  const [industry, setIndustry] = useState("");
+  const [category, setCategory] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -116,7 +116,7 @@ export default function BrandSignupForm() {
 
     try {
       // Validation
-      if (!brandName.trim() || !email.trim() || !password.trim() || password.length < 6 || !afm.trim()) {
+      if (!brandName.trim() || !email.trim() || !password.trim() || password.length < 6 || !afm.trim() || !category.trim()) {
         setMessage(txt.error_required);
         setLoading(false);
         return;
@@ -195,7 +195,7 @@ export default function BrandSignupForm() {
           contact_person: contactPerson.trim() || null,
           afm: afmClean,
           website: website.trim() || null,
-          industry: industry.trim() || null,
+          industry: category.trim() || null, // Keep 'industry' column name in DB for compatibility
           logo_url: logoUrl,
         });
 
@@ -439,15 +439,21 @@ export default function BrandSignupForm() {
 
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">
-            {txt.industryLabel}
+            {txt.categoryLabel}
           </label>
-          <input
-            type="text"
-            value={industry}
-            onChange={(e) => setIndustry(e.target.value)}
-            placeholder={txt.industryPlace}
-            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900"
-          />
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            required
+            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white"
+          >
+            <option value="">{txt.categoryPlace}</option>
+            {CATEGORIES.map((cat) => (
+              <option key={cat} value={cat}>
+                {lang === 'el' ? categoryTranslations[cat]?.el || cat : categoryTranslations[cat]?.en || cat}
+              </option>
+            ))}
+          </select>
         </div>
 
         <button

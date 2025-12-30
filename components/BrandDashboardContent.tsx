@@ -7,6 +7,30 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { recommendInfluencers, type InfluencerProfile, type BrandProfile } from '@/lib/recommendations';
 
+// Category translations (same as Directory)
+const categoryTranslations: { [key: string]: { el: string; en: string } } = {
+  "Lifestyle": { el: "Lifestyle", en: "Lifestyle" },
+  "Fashion & Style": { el: "Μόδα & Στυλ", en: "Fashion & Style" },
+  "Beauty & Makeup": { el: "Ομορφιά & Μακιγιάζ", en: "Beauty & Makeup" },
+  "Travel": { el: "Ταξίδια", en: "Travel" },
+  "Food & Drink": { el: "Φαγητό & Ποτά", en: "Food & Drink" },
+  "Health & Fitness": { el: "Υγεία & Fitness", en: "Health & Fitness" },
+  "Tech & Gadgets": { el: "Τεχνολογία & Gadgets", en: "Tech & Gadgets" },
+  "Business & Finance": { el: "Επιχειρήσεις & Οικονομικά", en: "Business & Finance" },
+  "Gaming & Esports": { el: "Gaming & Esports", en: "Gaming & Esports" },
+  "Parenting & Family": { el: "Οικογένεια & Παιδιά", en: "Parenting & Family" },
+  "Home & Decor": { el: "Σπίτι & Διακόσμηση", en: "Home & Decor" },
+  "Pets & Animals": { el: "Κατοικίδια & Ζώα", en: "Pets & Animals" },
+  "Comedy & Entertainment": { el: "Κωμωδία & Ψυχαγωγία", en: "Comedy & Entertainment" },
+  "Art & Photography": { el: "Τέχνη & Φωτογραφία", en: "Art & Photography" },
+  "Music & Dance": { el: "Μουσική & Χορός", en: "Music & Dance" },
+  "Education & Coaching": { el: "Εκπαίδευση & Coaching", en: "Education & Coaching" },
+  "Sports & Athletes": { el: "Αθλήματα & Αθλητές", en: "Sports & Athletes" },
+  "DIY & Crafts": { el: "DIY & Χειροτεχνίες", en: "DIY & Crafts" },
+  "Sustainability & Eco": { el: "Βιωσιμότητα & Οικολογία", en: "Sustainability & Eco" },
+  "Cars & Automotive": { el: "Αυτοκίνητα", en: "Cars & Automotive" },
+};
+
 interface Proposal {
   id: string;
   influencer_id: string;
@@ -405,7 +429,7 @@ export default function BrandDashboardContent() {
             <div className="flex items-start justify-between">
               <div>
                 <h3 className="text-xl font-bold mb-2">{txt.smart_service_title}</h3>
-                <p className="text-blue-100">{txt.smart_service_desc}</p>
+                <p className="text-blue-50 font-medium">{txt.smart_service_desc}</p>
               </div>
               <div className="text-4xl">🤖</div>
             </div>
@@ -590,8 +614,11 @@ export default function BrandDashboardContent() {
                         <div className="absolute bottom-3 left-3 right-3">
                           <h3 className="text-white font-bold text-lg mb-1">{inf.display_name}</h3>
                           {inf.category && (
-                            <span className="inline-block px-2 py-1 bg-white/20 backdrop-blur-sm rounded text-xs text-white">
-                              {inf.category}
+                            <span className="inline-block px-2 py-1 bg-white/20 backdrop-blur-sm rounded text-xs text-white font-medium">
+                              {lang === 'el' ? 
+                                (categoryTranslations[inf.category]?.el || inf.category) : 
+                                (categoryTranslations[inf.category]?.en || inf.category)
+                              }
                             </span>
                           )}
                         </div>
