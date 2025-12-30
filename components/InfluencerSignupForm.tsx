@@ -783,7 +783,7 @@ export default function InfluencerSignupForm() {
                 {/* Photo */}
                 <div className="flex items-center gap-6 p-4 bg-gray-50 rounded-xl border border-dashed border-gray-300">
                     <div className="relative w-20 h-20 rounded-full bg-white shadow-sm border border-gray-200 overflow-hidden flex items-center justify-center">
-                        {avatarPreview ? <Image src={avatarPreview} alt="Preview" fill className="object-cover" /> : <span className="text-3xl">📸</span>}
+                        {avatarPreview ? <Image src={avatarPreview} alt="Avatar preview" fill className="object-cover" /> : <span className="text-3xl">📸</span>}
                     </div>
                     <div>
                         <p className={`${labelClass} mb-1`}>{txt.photoLabel}</p>

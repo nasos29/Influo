@@ -1,0 +1,24 @@
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: "Επικοινωνία | Influo.gr",
+  description: "Επικοινωνήστε μαζί μας για ερωτήσεις, προτάσεις ή υποστήριξη. Θα σας απαντήσουμε το συντομότερο δυνατό.",
+  keywords: ["επικοινωνία", "contact", "support", "βοήθεια", "επαφή"],
+  openGraph: {
+    title: "Επικοινωνία | Influo.gr",
+    description: "Επικοινωνήστε μαζί μας για ερωτήσεις ή υποστήριξη.",
+    url: "/contact",
+  },
+  alternates: {
+    canonical: "/contact",
+  },
+};
+
+export default function ContactLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return children;
+}
+

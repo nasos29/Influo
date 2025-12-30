@@ -1838,7 +1838,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
 
               {selectedBlogPost.image && (
                 <div>
-                  <img src={selectedBlogPost.image} alt="Preview" className="w-full h-48 object-cover rounded-lg" />
+                  <img src={selectedBlogPost.image} alt={`Blog post preview: ${selectedBlogPost.title?.el || selectedBlogPost.title?.en || 'Preview'}`} className="w-full h-48 object-cover rounded-lg" />
                 </div>
               )}
 
