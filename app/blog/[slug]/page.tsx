@@ -2554,9 +2554,19 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
   const [post, setPost] = useState<PostData | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Expose hardcoded posts to window immediately (before useEffect)
+  if (typeof window !== 'undefined') {
+    (window as any).__blogPostsContent = posts;
+  }
+
   useEffect(() => {
     const loadPost = () => {
       const slug = resolvedParams.slug;
+      
+      // Ensure posts are exposed to window
+      if (typeof window !== 'undefined') {
+        (window as any).__blogPostsContent = posts;
+      }
       
       // Try to load from localStorage first
       const storedPosts = getBlogPosts();
@@ -2566,25 +2576,76 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
       const hardcodedPost = (posts as any)[slug];
       
       if (storedPost) {
-        // Use post from localStorage, but merge content from hardcoded if missing
+        // Merge content from hardcoded if missing in stored post
+        const finalContent = storedPost.content || hardcodedPost?.content || { el: '', en: '' };
+        
+        // If content was missing from stored post but found in hardcoded, save it to localStorage
+        if (hardcodedPost?.content && (!storedPost.content || (!storedPost.content.el && !storedPost.content.en))) {
+          try {
+            const allPosts = getBlogPosts();
+            const updatedPosts = allPosts.map(p => {
+              if (p.slug === slug && (!p.content || (!p.content.el && !p.content.en))) {
+                return {
+                  ...p,
+                  content: hardcodedPost.content
+                };
+              }
+              return p;
+            });
+            localStorage.setItem('blogPosts', JSON.stringify(updatedPosts));
+          } catch (error) {
+            console.error('Error saving content to localStorage:', error);
+          }
+        }
+        
         setPost({
           title: storedPost.title,
-          content: storedPost.content || hardcodedPost?.content || { el: '', en: '' }
+          content: finalContent
         } as PostData);
       } else if (hardcodedPost) {
         // Use hardcoded post
         setPost(hardcodedPost as PostData);
+        
+        // Also save to localStorage for admin dashboard to access
+        try {
+          const allPosts = getBlogPosts();
+          const postExists = allPosts.find(p => p.slug === slug);
+          if (!postExists) {
+            // Add to localStorage if it doesn't exist
+            const newPost = {
+              slug: hardcodedPost.slug || slug,
+              title: hardcodedPost.title || { el: '', en: '' },
+              excerpt: hardcodedPost.excerpt || { el: '', en: '' },
+              date: hardcodedPost.date || new Date().toISOString().split('T')[0],
+              category: hardcodedPost.category || { el: '', en: '' },
+              readTime: hardcodedPost.readTime || { el: '', en: '' },
+              image: hardcodedPost.image || '',
+              content: hardcodedPost.content || { el: '', en: '' }
+            };
+            const updatedPosts = [...allPosts, newPost];
+            localStorage.setItem('blogPosts', JSON.stringify(updatedPosts));
+          } else {
+            // Update existing post with content if missing
+            const updatedPosts = allPosts.map(p => {
+              if (p.slug === slug && (!p.content || (!p.content.el && !p.content.en))) {
+                return {
+                  ...p,
+                  content: hardcodedPost.content || { el: '', en: '' }
+                };
+              }
+              return p;
+            });
+            localStorage.setItem('blogPosts', JSON.stringify(updatedPosts));
+          }
+        } catch (error) {
+          console.error('Error saving to localStorage:', error);
+        }
       } else {
         // Post not found at all
         setPost(null);
       }
       setLoading(false);
     };
-
-    // Expose hardcoded posts to window for admin dashboard to access
-    if (typeof window !== 'undefined') {
-      (window as any).__blogPostsContent = posts;
-    }
 
     loadPost();
 

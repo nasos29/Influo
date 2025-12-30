@@ -225,3 +225,30 @@ export function getBlogPosts(): BlogPost[] {
   return initialBlogPosts;
 }
 
+// Get blog post content by slug - tries to load from hardcoded posts via window object
+export function getBlogPostContent(slug: string): { el: string; en: string } | null {
+  if (typeof window === 'undefined') return null;
+  
+  // Try to get from hardcoded posts exposed by blog page
+  const hardcodedPosts = (window as any).__blogPostsContent;
+  if (hardcodedPosts && hardcodedPosts[slug] && hardcodedPosts[slug].content) {
+    return hardcodedPosts[slug].content;
+  }
+  
+  // Try to get from localStorage
+  const stored = localStorage.getItem('blogPosts');
+  if (stored) {
+    try {
+      const allPosts: BlogPost[] = JSON.parse(stored);
+      const post = allPosts.find(p => p.slug === slug);
+      if (post && post.content) {
+        return post.content;
+      }
+    } catch {
+      // Ignore parse errors
+    }
+  }
+  
+  return null;
+}
+

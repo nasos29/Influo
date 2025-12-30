@@ -697,40 +697,54 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       console.error('Error loading from getBlogPosts:', error);
     }
 
-    // Try to load from hardcoded posts exposed by blog page via window object
+    // Try to load from hardcoded posts using the helper function
     try {
-      const hardcodedPosts = (window as any).__blogPostsContent;
-      if (hardcodedPosts && hardcodedPosts[post.slug]) {
-        const hardcodedPost = hardcodedPosts[post.slug];
-        if (hardcodedPost && hardcodedPost.content) {
-          // Also update localStorage with this content for future use
-          try {
-            const stored = localStorage.getItem('blogPosts');
-            if (stored) {
-              const allPosts: BlogPost[] = JSON.parse(stored);
-              const updatedPosts = allPosts.map(p => {
-                if (p.slug === post.slug && (!p.content || (!p.content.el && !p.content.en))) {
-                  return {
-                    ...p,
-                    content: hardcodedPost.content
-                  };
-                }
-                return p;
-              });
-              localStorage.setItem('blogPosts', JSON.stringify(updatedPosts));
-            }
-          } catch (error) {
-            console.error('Error updating localStorage with content:', error);
-          }
-          
-          return {
-            ...post,
-            content: {
-              el: hardcodedPost.content.el || '',
-              en: hardcodedPost.content.en || ''
-            }
-          };
+      const { getBlogPostContent } = await import('@/lib/blogPosts');
+      
+      // Wait a bit in case blog page hasn't loaded yet and set window.__blogPostsContent
+      let content = getBlogPostContent(post.slug);
+      if (!content || (!content.el && !content.en)) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+        content = getBlogPostContent(post.slug);
+      }
+      
+      // If still no content, wait a bit more and check window directly
+      if (!content || (!content.el && !content.en)) {
+        await new Promise(resolve => setTimeout(resolve, 300));
+        const hardcodedPosts = (window as any).__blogPostsContent;
+        if (hardcodedPosts && hardcodedPosts[post.slug] && hardcodedPosts[post.slug].content) {
+          content = hardcodedPosts[post.slug].content;
         }
+      }
+      
+      if (content && (content.el || content.en)) {
+        // Also update localStorage with this content for future use
+        try {
+          const stored = localStorage.getItem('blogPosts');
+          if (stored) {
+            const allPosts: BlogPost[] = JSON.parse(stored);
+            const updatedPosts = allPosts.map(p => {
+              if (p.slug === post.slug && (!p.content || (!p.content.el && !p.content.en))) {
+                return {
+                  ...p,
+                  content: content
+                };
+              }
+              return p;
+            });
+            localStorage.setItem('blogPosts', JSON.stringify(updatedPosts));
+          }
+        } catch (error) {
+          console.error('Error updating localStorage with content:', error);
+        }
+        
+        return {
+          ...post,
+          content: {
+            el: content.el || '',
+            en: content.en || ''
+          }
+        };
       }
     } catch (error) {
       console.error('Error loading from hardcoded posts:', error);
