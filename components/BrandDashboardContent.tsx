@@ -298,7 +298,7 @@ export default function BrandDashboardContent() {
       // Fetch all verified influencers from database
       const { data: influencersData, error } = await supabase
         .from('influencers')
-        .select('id, display_name, category, engagement_rate, min_rate, location, gender, avg_rating, total_reviews, verified, accounts, avatar_url, audience_male_percent, audience_female_percent, audience_top_age, bio, rate_card')
+        .select('id, display_name, category, engagement_rate, min_rate, location, gender, avg_rating, total_reviews, verified, accounts, avatar_url, audience_male_percent, audience_female_percent, audience_top_age, bio')
         .eq('verified', true)
         .limit(100); // Limit for performance
       
@@ -349,7 +349,7 @@ export default function BrandDashboardContent() {
           audience_female_percent: inf.audience_female_percent,
           audience_top_age: inf.audience_top_age,
           bio: inf.bio,
-          rate_card: inf.rate_card,
+          rate_card: undefined, // rate_card doesn't exist in DB, will be null
         };
       });
       
