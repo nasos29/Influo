@@ -129,7 +129,7 @@ export default function ForBrandsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-200/50 shadow-sm">
+      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-xl border-b border-slate-200/50 shadow-sm">
         <div className="max-w-7xl mx-auto flex justify-between items-center px-4 sm:px-6 py-4">
           <Link href="/" className="flex items-center gap-2">
             <Image src="/logo.svg" alt="Influo.gr Logo" width={160} height={64} className="h-10 w-auto" priority />
@@ -146,170 +146,404 @@ export default function ForBrandsPage() {
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="relative pt-16 pb-24 px-6 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 text-white">
-        <div className="max-w-6xl mx-auto text-center">
-          <h1 className="text-4xl md:text-6xl font-bold mb-6">{txt.title}</h1>
-          <p className="text-xl md:text-2xl text-blue-100 mb-4">{txt.subtitle}</p>
-          <p className="text-lg text-blue-50 max-w-2xl mx-auto mb-8">{txt.hero_desc}</p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link 
-              href="/brand/signup" 
-              className="px-8 py-4 bg-white text-blue-600 font-bold rounded-xl hover:bg-blue-50 transition-all transform hover:scale-105 shadow-lg"
-            >
-              {txt.cta_primary}
-            </Link>
-            <Link 
-              href="/#directory" 
-              className="px-8 py-4 bg-blue-500/20 backdrop-blur-sm text-white font-bold border-2 border-white/30 rounded-xl hover:bg-blue-500/30 transition-all"
-            >
-              {txt.cta_secondary}
-            </Link>
+      {/* Hero Section with Image */}
+      <section className="relative pt-20 pb-32 px-6 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 text-white overflow-hidden">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+          }}></div>
+        </div>
+        
+        <div className="max-w-7xl mx-auto relative z-10">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* Left Content */}
+            <div>
+              <div className="inline-block px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full text-sm font-medium mb-6">
+                🏆 Trusted by 200+ Brands
+              </div>
+              <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
+                {txt.title}
+              </h1>
+              <p className="text-xl md:text-2xl text-blue-100 mb-4 font-medium">
+                {txt.subtitle}
+              </p>
+              <p className="text-lg text-blue-50 mb-10 leading-relaxed">
+                {txt.hero_desc}
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Link 
+                  href="/brand/signup" 
+                  className="px-8 py-4 bg-white text-blue-600 font-bold rounded-xl hover:bg-blue-50 transition-all transform hover:scale-105 shadow-xl text-center"
+                >
+                  {txt.cta_primary}
+                </Link>
+                <Link 
+                  href="/#directory" 
+                  className="px-8 py-4 bg-blue-500/20 backdrop-blur-sm text-white font-bold border-2 border-white/30 rounded-xl hover:bg-blue-500/30 transition-all text-center"
+                >
+                  {txt.cta_secondary}
+                </Link>
+              </div>
+              
+              {/* Stats */}
+              <div className="mt-12 grid grid-cols-3 gap-6">
+                <div>
+                  <div className="text-3xl font-bold">500+</div>
+                  <div className="text-sm text-blue-200">Verified Influencers</div>
+                </div>
+                <div>
+                  <div className="text-3xl font-bold">98%</div>
+                  <div className="text-sm text-blue-200">Success Rate</div>
+                </div>
+                <div>
+                  <div className="text-3xl font-bold">24h</div>
+                  <div className="text-sm text-blue-200">Avg Response Time</div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Right Image */}
+            <div className="relative h-[500px] lg:h-[600px] rounded-3xl overflow-hidden shadow-2xl border-4 border-white/20">
+              <Image 
+                src="https://images.unsplash.com/photo-1556761175-4b46a572b786?w=1200&q=80"
+                alt="Brand collaboration success"
+                fill
+                className="object-cover"
+                priority
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-blue-900/50 to-transparent"></div>
+              {/* Floating Stats Card */}
+              <div className="absolute bottom-6 left-6 right-6 bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-xs text-slate-600 font-medium mb-1">Average Campaign ROI</div>
+                    <div className="text-3xl font-bold text-green-600">340%</div>
+                  </div>
+                  <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-emerald-600 rounded-2xl flex items-center justify-center">
+                    <span className="text-3xl">📈</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Features Grid */}
-      <section className="py-20 px-6">
+      {/* Features Grid with Images */}
+      <section className="py-24 px-6 bg-white">
         <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">
+              Όλα όσα χρειάζεται το Brand σας
+            </h2>
+            <p className="text-xl text-slate-600 max-w-2xl mx-auto">
+              Εργαλεία και features για αποτελεσματική διαχείριση influencer campaigns
+            </p>
+          </div>
+          
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {/* Feature 1 */}
-            <div className="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 hover:shadow-xl transition-all">
-              <div className="text-4xl mb-4">🔍</div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3">{txt.feat_1_title}</h3>
-              <p className="text-slate-600">{txt.feat_1_desc}</p>
+            <div className="group bg-gradient-to-br from-white to-blue-50/50 p-8 rounded-2xl shadow-lg border border-slate-200 hover:shadow-2xl transition-all hover:-translate-y-2">
+              <div className="relative w-20 h-20 bg-gradient-to-br from-blue-400 to-indigo-600 rounded-2xl flex items-center justify-center mb-6 transform group-hover:scale-110 transition-transform">
+                <span className="text-4xl">🔍</span>
+              </div>
+              <h3 className="text-2xl font-bold text-slate-900 mb-3">{txt.feat_1_title.replace('🔍 ', '')}</h3>
+              <p className="text-slate-600 leading-relaxed">{txt.feat_1_desc}</p>
+              <div className="mt-6 relative h-48 rounded-xl overflow-hidden bg-gradient-to-br from-blue-100 to-indigo-100">
+                <Image 
+                  src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&q=80"
+                  alt="Advanced search"
+                  fill
+                  className="object-cover opacity-80"
+                />
+              </div>
             </div>
 
             {/* Feature 2 */}
-            <div className="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 hover:shadow-xl transition-all">
-              <div className="text-4xl mb-4">✅</div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3">{txt.feat_2_title}</h3>
-              <p className="text-slate-600">{txt.feat_2_desc}</p>
+            <div className="group bg-gradient-to-br from-white to-green-50/50 p-8 rounded-2xl shadow-lg border border-slate-200 hover:shadow-2xl transition-all hover:-translate-y-2">
+              <div className="relative w-20 h-20 bg-gradient-to-br from-green-400 to-emerald-600 rounded-2xl flex items-center justify-center mb-6 transform group-hover:scale-110 transition-transform">
+                <span className="text-4xl">✅</span>
+              </div>
+              <h3 className="text-2xl font-bold text-slate-900 mb-3">{txt.feat_2_title.replace('✅ ', '')}</h3>
+              <p className="text-slate-600 leading-relaxed">{txt.feat_2_desc}</p>
+              <div className="mt-6 relative h-48 rounded-xl overflow-hidden bg-gradient-to-br from-green-100 to-emerald-100">
+                <Image 
+                  src="https://images.unsplash.com/photo-1560253023-3ec5d502959f?w=600&q=80"
+                  alt="Verified creators"
+                  fill
+                  className="object-cover opacity-80"
+                />
+              </div>
             </div>
 
             {/* Feature 3 */}
-            <div className="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 hover:shadow-xl transition-all">
-              <div className="text-4xl mb-4">💼</div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3">{txt.feat_3_title}</h3>
-              <p className="text-slate-600">{txt.feat_3_desc}</p>
+            <div className="group bg-gradient-to-br from-white to-purple-50/50 p-8 rounded-2xl shadow-lg border border-slate-200 hover:shadow-2xl transition-all hover:-translate-y-2">
+              <div className="relative w-20 h-20 bg-gradient-to-br from-purple-400 to-pink-600 rounded-2xl flex items-center justify-center mb-6 transform group-hover:scale-110 transition-transform">
+                <span className="text-4xl">💼</span>
+              </div>
+              <h3 className="text-2xl font-bold text-slate-900 mb-3">{txt.feat_3_title.replace('💼 ', '')}</h3>
+              <p className="text-slate-600 leading-relaxed">{txt.feat_3_desc}</p>
+              <div className="mt-6 relative h-48 rounded-xl overflow-hidden bg-gradient-to-br from-purple-100 to-pink-100">
+                <Image 
+                  src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=600&q=80"
+                  alt="Easy management"
+                  fill
+                  className="object-cover opacity-80"
+                />
+              </div>
             </div>
 
             {/* Feature 4 */}
-            <div className="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 hover:shadow-xl transition-all">
-              <div className="text-4xl mb-4">💬</div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3">{txt.feat_4_title}</h3>
-              <p className="text-slate-600">{txt.feat_4_desc}</p>
+            <div className="group bg-gradient-to-br from-white to-cyan-50/50 p-8 rounded-2xl shadow-lg border border-slate-200 hover:shadow-2xl transition-all hover:-translate-y-2">
+              <div className="relative w-20 h-20 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-2xl flex items-center justify-center mb-6 transform group-hover:scale-110 transition-transform">
+                <span className="text-4xl">💬</span>
+              </div>
+              <h3 className="text-2xl font-bold text-slate-900 mb-3">{txt.feat_4_title.replace('💬 ', '')}</h3>
+              <p className="text-slate-600 leading-relaxed">{txt.feat_4_desc}</p>
+              <div className="mt-6 relative h-48 rounded-xl overflow-hidden bg-gradient-to-br from-cyan-100 to-blue-100">
+                <Image 
+                  src="https://images.unsplash.com/photo-1577563908411-5077b6dc7624?w=600&q=80"
+                  alt="Direct messaging"
+                  fill
+                  className="object-cover opacity-80"
+                />
+              </div>
             </div>
 
             {/* Feature 5 */}
-            <div className="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 hover:shadow-xl transition-all">
-              <div className="text-4xl mb-4">📊</div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3">{txt.feat_5_title}</h3>
-              <p className="text-slate-600">{txt.feat_5_desc}</p>
+            <div className="group bg-gradient-to-br from-white to-amber-50/50 p-8 rounded-2xl shadow-lg border border-slate-200 hover:shadow-2xl transition-all hover:-translate-y-2">
+              <div className="relative w-20 h-20 bg-gradient-to-br from-amber-400 to-orange-600 rounded-2xl flex items-center justify-center mb-6 transform group-hover:scale-110 transition-transform">
+                <span className="text-4xl">📊</span>
+              </div>
+              <h3 className="text-2xl font-bold text-slate-900 mb-3">{txt.feat_5_title.replace('📊 ', '')}</h3>
+              <p className="text-slate-600 leading-relaxed">{txt.feat_5_desc}</p>
+              <div className="mt-6 relative h-48 rounded-xl overflow-hidden bg-gradient-to-br from-amber-100 to-orange-100">
+                <Image 
+                  src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=600&q=80"
+                  alt="Detailed analytics"
+                  fill
+                  className="object-cover opacity-80"
+                />
+              </div>
             </div>
 
             {/* Feature 6 */}
-            <div className="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 hover:shadow-xl transition-all">
-              <div className="text-4xl mb-4">⚡</div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3">{txt.feat_6_title}</h3>
-              <p className="text-slate-600">{txt.feat_6_desc}</p>
+            <div className="group bg-gradient-to-br from-white to-indigo-50/50 p-8 rounded-2xl shadow-lg border border-slate-200 hover:shadow-2xl transition-all hover:-translate-y-2">
+              <div className="relative w-20 h-20 bg-gradient-to-br from-indigo-400 to-purple-600 rounded-2xl flex items-center justify-center mb-6 transform group-hover:scale-110 transition-transform">
+                <span className="text-4xl">⚡</span>
+              </div>
+              <h3 className="text-2xl font-bold text-slate-900 mb-3">{txt.feat_6_title.replace('⚡ ', '')}</h3>
+              <p className="text-slate-600 leading-relaxed">{txt.feat_6_desc}</p>
+              <div className="mt-6 relative h-48 rounded-xl overflow-hidden bg-gradient-to-br from-indigo-100 to-purple-100">
+                <Image 
+                  src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=600&q=80"
+                  alt="Quick discovery"
+                  fill
+                  className="object-cover opacity-80"
+                />
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* How It Works */}
-      <section className="py-20 px-6 bg-gradient-to-br from-blue-50 to-indigo-50">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-bold text-center text-slate-900 mb-12">{txt.how_title}</h2>
+      {/* How It Works with Visual Steps */}
+      <section className="py-24 px-6 bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/30">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">{txt.how_title}</h2>
+            <p className="text-xl text-slate-600 max-w-2xl mx-auto">
+              Από την εγγραφή στην πρώτη συνεργασία σε 4 απλά βήματα
+            </p>
+          </div>
+          
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div className="bg-white p-8 rounded-2xl shadow-lg text-center">
-              <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <span className="text-3xl">1️⃣</span>
+            <div className="relative">
+              <div className="relative bg-white p-8 rounded-3xl shadow-xl border border-slate-200 text-center hover:shadow-2xl transition-all">
+                <div className="relative w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                  <span className="text-3xl">1️⃣</span>
+                  <div className="absolute -top-2 -right-2 w-7 h-7 bg-blue-400 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-lg">
+                    1
+                  </div>
+                </div>
+                <div className="relative h-48 rounded-2xl overflow-hidden mb-6 bg-gradient-to-br from-blue-100 to-blue-200">
+                  <Image 
+                    src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=600&q=80"
+                    alt="Sign up"
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-3">{txt.step_1_title}</h3>
+                <p className="text-slate-600 text-sm leading-relaxed">{txt.step_1_desc}</p>
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3">{txt.step_1_title}</h3>
-              <p className="text-slate-600 text-sm">{txt.step_1_desc}</p>
             </div>
-            <div className="bg-white p-8 rounded-2xl shadow-lg text-center">
-              <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <span className="text-3xl">2️⃣</span>
+            
+            <div className="relative">
+              <div className="relative bg-white p-8 rounded-3xl shadow-xl border border-slate-200 text-center hover:shadow-2xl transition-all">
+                <div className="relative w-20 h-20 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                  <span className="text-3xl">2️⃣</span>
+                  <div className="absolute -top-2 -right-2 w-7 h-7 bg-purple-400 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-lg">
+                    2
+                  </div>
+                </div>
+                <div className="relative h-48 rounded-2xl overflow-hidden mb-6 bg-gradient-to-br from-purple-100 to-pink-200">
+                  <Image 
+                    src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&q=80"
+                    alt="Search influencers"
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-3">{txt.step_2_title}</h3>
+                <p className="text-slate-600 text-sm leading-relaxed">{txt.step_2_desc}</p>
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3">{txt.step_2_title}</h3>
-              <p className="text-slate-600 text-sm">{txt.step_2_desc}</p>
             </div>
-            <div className="bg-white p-8 rounded-2xl shadow-lg text-center">
-              <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <span className="text-3xl">3️⃣</span>
+            
+            <div className="relative">
+              <div className="relative bg-white p-8 rounded-3xl shadow-xl border border-slate-200 text-center hover:shadow-2xl transition-all">
+                <div className="relative w-20 h-20 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                  <span className="text-3xl">3️⃣</span>
+                  <div className="absolute -top-2 -right-2 w-7 h-7 bg-indigo-400 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-lg">
+                    3
+                  </div>
+                </div>
+                <div className="relative h-48 rounded-2xl overflow-hidden mb-6 bg-gradient-to-br from-indigo-100 to-blue-200">
+                  <Image 
+                    src="https://images.unsplash.com/photo-1577563908411-5077b6dc7624?w=600&q=80"
+                    alt="Send proposal"
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-3">{txt.step_3_title}</h3>
+                <p className="text-slate-600 text-sm leading-relaxed">{txt.step_3_desc}</p>
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3">{txt.step_3_title}</h3>
-              <p className="text-slate-600 text-sm">{txt.step_3_desc}</p>
             </div>
-            <div className="bg-white p-8 rounded-2xl shadow-lg text-center">
-              <div className="w-20 h-20 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <span className="text-3xl">4️⃣</span>
+            
+            <div className="relative">
+              <div className="relative bg-white p-8 rounded-3xl shadow-xl border border-slate-200 text-center hover:shadow-2xl transition-all">
+                <div className="relative w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                  <span className="text-3xl">4️⃣</span>
+                  <div className="absolute -top-2 -right-2 w-7 h-7 bg-green-400 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-lg">
+                    4
+                  </div>
+                </div>
+                <div className="relative h-48 rounded-2xl overflow-hidden mb-6 bg-gradient-to-br from-green-100 to-emerald-200">
+                  <Image 
+                    src="https://images.unsplash.com/photo-1556761175-4b46a572b786?w=600&q=80"
+                    alt="Close deal"
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-3">{txt.step_4_title}</h3>
+                <p className="text-slate-600 text-sm leading-relaxed">{txt.step_4_desc}</p>
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3">{txt.step_4_title}</h3>
-              <p className="text-slate-600 text-sm">{txt.step_4_desc}</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section className="py-20 px-6">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-bold text-center text-slate-900 mb-12">{txt.testimonials_title}</h2>
+      {/* Testimonials with Photos */}
+      <section className="py-24 px-6 bg-white">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">{txt.testimonials_title}</h2>
+            <p className="text-xl text-slate-600">Ακούστε τι λένε τα brands που μας εμπιστεύονται</p>
+          </div>
+          
           <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-white p-8 rounded-2xl shadow-lg border border-slate-200">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-full flex items-center justify-center text-white text-2xl font-bold">
-                  ΣΑ
+            <div className="bg-gradient-to-br from-white to-blue-50/50 p-8 rounded-3xl shadow-xl border border-slate-200 hover:shadow-2xl transition-all">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="relative w-20 h-20 rounded-2xl overflow-hidden ring-4 ring-blue-200">
+                  <Image 
+                    src="https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=200&q=80"
+                    alt={txt.testimonial_1_name}
+                    fill
+                    className="object-cover"
+                  />
                 </div>
                 <div>
-                  <h4 className="font-bold text-slate-900">{txt.testimonial_1_name}</h4>
+                  <h4 className="font-bold text-slate-900 text-lg">{txt.testimonial_1_name}</h4>
                   <p className="text-sm text-slate-600">{txt.testimonial_1_role}</p>
+                  <div className="flex gap-1 mt-1">
+                    {[...Array(5)].map((_, i) => (
+                      <span key={i} className="text-amber-400">⭐</span>
+                    ))}
+                  </div>
                 </div>
               </div>
-              <p className="text-slate-700 italic">"{txt.testimonial_1_text}"</p>
+              <p className="text-slate-700 italic text-lg leading-relaxed">"{txt.testimonial_1_text}"</p>
             </div>
-            <div className="bg-white p-8 rounded-2xl shadow-lg border border-slate-200">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full flex items-center justify-center text-white text-2xl font-bold">
-                  ΔΚ
+            
+            <div className="bg-gradient-to-br from-white to-purple-50/50 p-8 rounded-3xl shadow-xl border border-slate-200 hover:shadow-2xl transition-all">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="relative w-20 h-20 rounded-2xl overflow-hidden ring-4 ring-purple-200">
+                  <Image 
+                    src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80"
+                    alt={txt.testimonial_2_name}
+                    fill
+                    className="object-cover"
+                  />
                 </div>
                 <div>
-                  <h4 className="font-bold text-slate-900">{txt.testimonial_2_name}</h4>
+                  <h4 className="font-bold text-slate-900 text-lg">{txt.testimonial_2_name}</h4>
                   <p className="text-sm text-slate-600">{txt.testimonial_2_role}</p>
+                  <div className="flex gap-1 mt-1">
+                    {[...Array(5)].map((_, i) => (
+                      <span key={i} className="text-amber-400">⭐</span>
+                    ))}
+                  </div>
                 </div>
               </div>
-              <p className="text-slate-700 italic">"{txt.testimonial_2_text}"</p>
+              <p className="text-slate-700 italic text-lg leading-relaxed">"{txt.testimonial_2_text}"</p>
             </div>
-            <div className="bg-white p-8 rounded-2xl shadow-lg border border-slate-200">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center text-white text-2xl font-bold">
-                  ΜΛ
+            
+            <div className="bg-gradient-to-br from-white to-green-50/50 p-8 rounded-3xl shadow-xl border border-slate-200 hover:shadow-2xl transition-all">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="relative w-20 h-20 rounded-2xl overflow-hidden ring-4 ring-green-200">
+                  <Image 
+                    src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&q=80"
+                    alt={txt.testimonial_3_name}
+                    fill
+                    className="object-cover"
+                  />
                 </div>
                 <div>
-                  <h4 className="font-bold text-slate-900">{txt.testimonial_3_name}</h4>
+                  <h4 className="font-bold text-slate-900 text-lg">{txt.testimonial_3_name}</h4>
                   <p className="text-sm text-slate-600">{txt.testimonial_3_role}</p>
+                  <div className="flex gap-1 mt-1">
+                    {[...Array(5)].map((_, i) => (
+                      <span key={i} className="text-amber-400">⭐</span>
+                    ))}
+                  </div>
                 </div>
               </div>
-              <p className="text-slate-700 italic">"{txt.testimonial_3_text}"</p>
+              <p className="text-slate-700 italic text-lg leading-relaxed">"{txt.testimonial_3_text}"</p>
             </div>
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">{txt.cta_section_title}</h2>
-          <p className="text-xl text-blue-100 mb-8">{txt.cta_section_desc}</p>
+      <section className="relative py-24 px-6 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 text-white overflow-hidden">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+          }}></div>
+        </div>
+        
+        <div className="max-w-4xl mx-auto text-center relative z-10">
+          <h2 className="text-4xl md:text-5xl font-bold mb-6">{txt.cta_section_title}</h2>
+          <p className="text-xl md:text-2xl text-blue-100 mb-10">{txt.cta_section_desc}</p>
           <Link 
             href="/brand/signup" 
-            className="inline-block px-10 py-4 bg-white text-blue-600 font-bold rounded-xl hover:bg-blue-50 transition-all transform hover:scale-105 shadow-lg text-lg"
+            className="inline-block px-12 py-5 bg-white text-blue-600 font-bold rounded-2xl hover:bg-blue-50 transition-all transform hover:scale-105 shadow-2xl text-xl"
           >
-            {txt.cta_button}
+            {txt.cta_button} →
           </Link>
         </div>
       </section>
@@ -318,4 +552,3 @@ export default function ForBrandsPage() {
     </div>
   );
 }
-
