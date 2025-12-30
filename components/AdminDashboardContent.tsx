@@ -1572,7 +1572,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     type="text"
                     value={selectedBlogPost.slug}
                     onChange={(e) => setSelectedBlogPost({...selectedBlogPost, slug: e.target.value})}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-medium"
                     required
                   />
                 </div>
@@ -1582,7 +1582,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     type="date"
                     value={selectedBlogPost.date}
                     onChange={(e) => setSelectedBlogPost({...selectedBlogPost, date: e.target.value})}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-medium"
                     required
                   />
                 </div>
@@ -1594,7 +1594,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                   type="text"
                   value={selectedBlogPost.title.el}
                   onChange={(e) => setSelectedBlogPost({...selectedBlogPost, title: {...selectedBlogPost.title, el: e.target.value}})}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-medium"
                   required
                 />
               </div>
@@ -1605,7 +1605,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                   type="text"
                   value={selectedBlogPost.title.en}
                   onChange={(e) => setSelectedBlogPost({...selectedBlogPost, title: {...selectedBlogPost.title, en: e.target.value}})}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-medium"
                   required
                 />
               </div>
@@ -1615,7 +1615,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                 <textarea
                   value={selectedBlogPost.excerpt.el}
                   onChange={(e) => setSelectedBlogPost({...selectedBlogPost, excerpt: {...selectedBlogPost.excerpt, el: e.target.value}})}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-medium"
                   rows={3}
                   required
                 />
@@ -1626,7 +1626,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                 <textarea
                   value={selectedBlogPost.excerpt.en}
                   onChange={(e) => setSelectedBlogPost({...selectedBlogPost, excerpt: {...selectedBlogPost.excerpt, en: e.target.value}})}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-medium"
                   rows={3}
                   required
                 />
@@ -1647,7 +1647,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                         en: selectedBlogPost.content?.en || ''
                       }
                     })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono text-sm"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono text-sm text-slate-900 font-medium"
                     rows={20}
                     placeholder={lang === 'el' ? '# Τίτλος\n\nΠεριεχόμενο άρθρου σε Markdown format...' : '# Title\n\nArticle content in Markdown format...'}
                   />
@@ -1667,7 +1667,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                         en: e.target.value
                       }
                     })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono text-sm"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono text-sm text-slate-900 font-medium"
                     rows={20}
                     placeholder={lang === 'el' ? '# Title\n\nArticle content in Markdown format...' : '# Title\n\nArticle content in Markdown format...'}
                   />
@@ -1684,7 +1684,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     type="text"
                     value={selectedBlogPost.category.el}
                     onChange={(e) => setSelectedBlogPost({...selectedBlogPost, category: {...selectedBlogPost.category, el: e.target.value}})}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-medium"
                     required
                   />
                 </div>
@@ -1694,7 +1694,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     type="text"
                     value={selectedBlogPost.category.en}
                     onChange={(e) => setSelectedBlogPost({...selectedBlogPost, category: {...selectedBlogPost.category, en: e.target.value}})}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-medium"
                     required
                   />
                 </div>
@@ -1707,7 +1707,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     type="text"
                     value={selectedBlogPost.readTime.el}
                     onChange={(e) => setSelectedBlogPost({...selectedBlogPost, readTime: {...selectedBlogPost.readTime, el: e.target.value}})}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-medium"
                     placeholder="8 λεπτά"
                   />
                 </div>
@@ -1717,7 +1717,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     type="text"
                     value={selectedBlogPost.readTime.en}
                     onChange={(e) => setSelectedBlogPost({...selectedBlogPost, readTime: {...selectedBlogPost.readTime, en: e.target.value}})}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-medium"
                     placeholder="8 min"
                   />
                 </div>
@@ -1729,7 +1729,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                   type="url"
                   value={selectedBlogPost.image}
                   onChange={(e) => setSelectedBlogPost({...selectedBlogPost, image: e.target.value})}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-medium"
                 />
               </div>
 
