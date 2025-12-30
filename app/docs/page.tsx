@@ -11,13 +11,13 @@ const t = {
   el: {
     title: "Οδηγός Χρήστη",
     subtitle: "Για Influencers & Brands",
-    back: "← Επιστροφή",
+    back: "Επιστροφή",
     nav_home: "Αρχική",
   },
   en: {
     title: "User Guide",
     subtitle: "For Influencers & Brands",
-    back: "← Back",
+    back: "Back",
     nav_home: "Home",
   }
 };
@@ -31,24 +31,16 @@ export default function DocsPage() {
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-200/50 shadow-sm">
         <div className="max-w-7xl mx-auto flex justify-between items-center px-4 sm:px-6 py-4">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              {txt.back}
-            </Link>
-            <Link href="/" className="flex items-center gap-2" aria-label="Influo Home">
-              <Image 
-                src="/logo.svg" 
-                alt="Influo.gr Logo" 
-                width={160} 
-                height={64} 
-                className="h-10 w-auto"
-                priority
-              />
-            </Link>
-          </div>
+          <Link href="/" className="flex items-center gap-2" aria-label="Influo Home">
+            <Image 
+              src="/logo.svg" 
+              alt="Influo.gr Logo" 
+              width={160} 
+              height={64} 
+              className="h-10 w-auto"
+              priority
+            />
+          </Link>
           
           <nav className="flex items-center gap-6">
             <Link href="/" className="text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors">
@@ -69,6 +61,12 @@ export default function DocsPage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12">
         {/* Title */}
         <div className="mb-8">
+          <Link href="/" className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium mb-4">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            {txt.back}
+          </Link>
           <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-2">{txt.title}</h1>
           <p className="text-lg text-slate-600">{txt.subtitle}</p>
         </div>

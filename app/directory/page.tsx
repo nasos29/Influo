@@ -12,12 +12,12 @@ const t = {
   el: {
     title: "Κατάλογος Influencers",
     subtitle: "Ανακαλύψτε τους καλύτερους content creators",
-    back: "← Επιστροφή",
+    back: "Επιστροφή",
   },
   en: {
     title: "Influencer Directory",
     subtitle: "Discover the best content creators",
-    back: "← Back",
+    back: "Back",
   }
 };
 
