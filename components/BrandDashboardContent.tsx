@@ -340,7 +340,7 @@ export default function BrandDashboardContent() {
       
       // Convert dummy influencers to InfluencerProfile format
       const dummyProfiles: InfluencerProfile[] = dummyInfluencers
-        .filter(dummy => dummy.verified) // Only verified dummy influencers
+        .filter(dummy => dummy.verified) // Only verified dummy influencers (filters out dummy-3)
         .map((dummy) => {
           // Get primary platform and followers
           const primaryPlatform = dummy.platform?.toLowerCase() || 'instagram';
@@ -360,8 +360,9 @@ export default function BrandDashboardContent() {
             }));
           
           // Map category from dummy data to standard category
+          // Use first category from array and map it
           const dummyCategory = dummy.categories?.[0] || 'Lifestyle';
-          const mappedCategory = categoryMapping[dummyCategory] || dummyCategory;
+          const mappedCategory = categoryMapping[dummyCategory] || 'Lifestyle';
           
           return {
             id: dummy.id,
@@ -383,64 +384,78 @@ export default function BrandDashboardContent() {
           };
         });
       
+      console.log('Dummy profiles converted:', dummyProfiles.length, dummyProfiles.map(p => ({ name: p.display_name, category: p.category })));
+      
       // Combine database and dummy influencers
       const influencerProfiles: InfluencerProfile[] = [...dbInfluencerProfiles, ...dummyProfiles];
       
-      if (influencerProfiles.length > 0) {
-        
-        // Get brand profile
-        const brandProfile: BrandProfile = {
-          id: brand.id,
-          brand_name: brand.brand_name,
-          industry: brand.industry,
-          contact_email: brand.contact_email,
-        };
-        
-        // Apply filters
-        let filteredProfiles = influencerProfiles;
-        
-        if (recommendationFilters.category) {
-          filteredProfiles = filteredProfiles.filter(inf => 
-            inf.category === recommendationFilters.category
-          );
-        }
-        
-        if (recommendationFilters.maxPrice) {
-          filteredProfiles = filteredProfiles.filter(inf => {
-            const rate = parseFloat(inf.min_rate?.replace(/[€$,\s]/g, '') || '0');
-            return !isNaN(rate) && rate <= recommendationFilters.maxPrice!;
-          });
-        }
-        
-        if (recommendationFilters.minEngagement > 0) {
-          filteredProfiles = filteredProfiles.filter(inf => {
-            const rate = parseFloat(inf.engagement_rate?.replace('%', '').replace(',', '.') || '0');
-            return !isNaN(rate) && rate >= recommendationFilters.minEngagement;
-          });
-        }
-        
-        if (recommendationFilters.minRating > 0) {
-          filteredProfiles = filteredProfiles.filter(inf => 
-            (inf.avg_rating || 0) >= recommendationFilters.minRating
-          );
-        }
-        
-        // Calculate recommendations
-        const matches = recommendInfluencers(brandProfile, filteredProfiles, {
-          limit: 12,
-          minScore: recommendationFilters.minScore,
-          preferVerified: true,
-          preferHighRating: true,
+      console.log('Total influencer profiles:', influencerProfiles.length);
+      console.log('DB profiles:', dbInfluencerProfiles.length);
+      console.log('Dummy profiles:', dummyProfiles.length);
+      
+      // Always process recommendations, even if only dummy data exists
+      // Get brand profile
+      const brandProfile: BrandProfile = {
+        id: brand.id,
+        brand_name: brand.brand_name,
+        industry: brand.industry, // This is actually the category
+        category: brand.industry, // For clarity
+        contact_email: brand.contact_email,
+      };
+      
+      // Apply filters
+      let filteredProfiles = influencerProfiles;
+      
+      console.log('Filter category:', recommendationFilters.category);
+      
+      if (recommendationFilters.category) {
+        filteredProfiles = filteredProfiles.filter(inf => {
+          const match = inf.category === recommendationFilters.category;
+          console.log(`Checking ${inf.display_name}: category=${inf.category}, filter=${recommendationFilters.category}, match=${match}`);
+          return match;
         });
-        
-        setRecommendations(matches);
-        
-        // Update stats
-        setRecommendationStats(prev => ({
-          ...prev,
-          totalViewed: prev.totalViewed + matches.length,
-        }));
+        console.log('After category filter:', filteredProfiles.length);
       }
+      
+      if (recommendationFilters.maxPrice) {
+        filteredProfiles = filteredProfiles.filter(inf => {
+          const rate = parseFloat(inf.min_rate?.replace(/[€$,\s]/g, '') || '0');
+          return !isNaN(rate) && rate <= recommendationFilters.maxPrice!;
+        });
+      }
+      
+      if (recommendationFilters.minEngagement > 0) {
+        filteredProfiles = filteredProfiles.filter(inf => {
+          const rate = parseFloat(inf.engagement_rate?.replace('%', '').replace(',', '.') || '0');
+          return !isNaN(rate) && rate >= recommendationFilters.minEngagement;
+        });
+      }
+      
+      if (recommendationFilters.minRating > 0) {
+        filteredProfiles = filteredProfiles.filter(inf => 
+          (inf.avg_rating || 0) >= recommendationFilters.minRating
+        );
+      }
+      
+      // Calculate recommendations
+      console.log('Before recommendation, filtered profiles:', filteredProfiles.length, filteredProfiles.map(p => p.display_name));
+      
+      const matches = recommendInfluencers(brandProfile, filteredProfiles, {
+        limit: 12,
+        minScore: recommendationFilters.minScore,
+        preferVerified: true,
+        preferHighRating: true,
+      });
+      
+      console.log('Recommendations returned:', matches.length, matches.map(m => ({ name: m.influencer.display_name, score: m.score })));
+      
+      setRecommendations(matches);
+      
+      // Update stats
+      setRecommendationStats(prev => ({
+        ...prev,
+        totalViewed: prev.totalViewed + matches.length,
+      }));
     } catch (err) {
       console.error('Error loading recommendations:', err);
     } finally {
