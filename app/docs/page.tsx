@@ -61,12 +61,6 @@ export default function DocsPage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12">
         {/* Title */}
         <div className="mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium mb-4">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            {txt.back}
-          </Link>
           <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-2">{txt.title}</h1>
           <p className="text-lg text-slate-600">{txt.subtitle}</p>
         </div>

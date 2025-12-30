@@ -169,7 +169,7 @@ export default function Footer({ lang = "el" }: FooterProps) {
                 </Link>
               </li>
               <li>
-                <Link href="#directory" className="text-slate-400 hover:text-white transition-colors text-sm">
+                <Link href="/directory" className="text-slate-400 hover:text-white transition-colors text-sm">
                   {txt.directory}
                 </Link>
               </li>
