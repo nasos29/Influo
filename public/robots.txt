@@ -7,7 +7,7 @@ Disallow: /logout/
 Disallow: /login/
 
 # Sitemap
-Sitemap: https://influo.gr/sitemap.xml
+Sitemap: https://www.influo.gr/sitemap.xml
 
 # Crawl-delay
 Crawl-delay: 1

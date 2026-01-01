@@ -70,6 +70,16 @@ export const metadata: Metadata = {
       "en": "/?lang=en",
     },
   },
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/logo-icon.svg", type: "image/svg+xml", sizes: "any" },
+    ],
+    apple: [
+      { url: "/logo-icon.svg", sizes: "180x180", type: "image/svg+xml" },
+    ],
+    shortcut: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
@@ -117,6 +127,10 @@ export default function RootLayout({
   return (
     <html lang="el">
       <head>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" href="/logo-icon.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/logo-icon.svg" />
+        <link rel="manifest" href="/manifest.webmanifest" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

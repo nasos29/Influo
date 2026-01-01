@@ -167,13 +167,13 @@ export default function ForInfluencersPage() {
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link 
-                  href="/#directory" 
+                  href="/directory" 
                   className="px-8 py-4 bg-white text-blue-600 font-bold rounded-xl hover:bg-blue-50 transition-all transform hover:scale-105 shadow-xl text-center"
                 >
                   {txt.cta_primary}
                 </Link>
                 <Link 
-                  href="/#directory" 
+                  href="/directory" 
                   className="px-8 py-4 bg-blue-500/20 backdrop-blur-sm text-white font-bold border-2 border-white/30 rounded-xl hover:bg-blue-500/30 transition-all text-center"
                 >
                   {txt.cta_secondary}
@@ -516,7 +516,7 @@ export default function ForInfluencersPage() {
           <h2 className="text-4xl md:text-5xl font-bold mb-6">{txt.cta_section_title}</h2>
           <p className="text-xl md:text-2xl text-blue-100 mb-10">{txt.cta_section_desc}</p>
           <Link 
-            href="/#directory" 
+            href="/directory" 
             className="inline-block px-12 py-5 bg-white text-blue-600 font-bold rounded-2xl hover:bg-blue-50 transition-all transform hover:scale-105 shadow-2xl text-xl"
           >
             {txt.cta_button} →

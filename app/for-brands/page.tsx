@@ -185,7 +185,7 @@ export default function ForBrandsPage() {
                   {txt.cta_primary}
                 </Link>
                 <Link 
-                  href="/#directory" 
+                  href="/directory" 
                   className="px-8 py-4 bg-blue-500/20 backdrop-blur-sm text-white font-bold border-2 border-white/30 rounded-xl hover:bg-blue-500/30 transition-all text-center"
                 >
                   {txt.cta_secondary}
