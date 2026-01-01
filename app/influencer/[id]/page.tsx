@@ -1019,12 +1019,6 @@ export default function InfluencerProfile(props: { params: Params }) {
                 <h1 className="text-3xl font-bold text-slate-900 flex items-center justify-center md:justify-start gap-2">
                     {profile.name}
                 </h1>
-                {profile.verified && (
-                  <div className="flex items-center justify-center md:justify-start gap-1 mt-1">
-                    <span className="text-blue-500 text-sm">✓</span>
-                    <span className="text-xs text-blue-600 font-medium">{txt.verified}</span>
-                  </div>
-                )}
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-1">
                     <p className="text-slate-500">{profile.location} • {profile.gender === "Male" ? txt.male : txt.female}</p>
                     {isOnline && (

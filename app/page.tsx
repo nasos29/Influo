@@ -321,8 +321,7 @@ export default function Home() {
           }}></div>
           <div className="relative max-w-7xl mx-auto">
             <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">{txt.top_influencers}</h2>
-              <h3 className="text-2xl md:text-3xl font-semibold text-slate-700 mb-3">{txt.dir_title}</h3>
+              <h3 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">{txt.dir_title}</h3>
             <p className="text-slate-600 max-w-2xl mx-auto">{txt.dir_desc}</p>
           </div>
           {/* Περνάμε τη γλώσσα στο Directory */}
