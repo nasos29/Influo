@@ -46,7 +46,10 @@ export async function POST(req: Request) {
     const closedAt = new Date().toISOString();
     const { error: updateError } = await supabaseAdmin
       .from('conversations')
-      .update({ closed_at: closedAt })
+      .update({ 
+        closed_at: closedAt,
+        closed_by_inactivity: autoClose || false
+      })
       .eq('id', conversationId);
 
     if (updateError) {

@@ -62,7 +62,8 @@ const t = {
     endConversation: "Τέλος συνομιλίας",
     endingConversation: "Τερματισμός...",
     inactivityWarning: "⚠️ Η συνομιλία είναι αδρανής και από τις δύο πλευρές. Η συνομιλία θα κλείσει αυτόματα σε 5 λεπτά.",
-    conversationClosed: "Η συνομιλία έχει κλείσει λόγω αδρανότητας."
+    conversationClosed: "Η συνομιλία έκλεισε.",
+    conversationClosedInactivity: "Η συνομιλία έκλεισε λόγω αδράνειας."
   },
   en: {
     placeholder: "Type your message...",
@@ -77,7 +78,8 @@ const t = {
     endConversation: "End Conversation",
     endingConversation: "Ending...",
     inactivityWarning: "⚠️ The conversation is inactive on both sides. The conversation will close automatically in 5 minutes.",
-    conversationClosed: "The conversation has been closed due to inactivity."
+    conversationClosed: "The conversation has been closed.",
+    conversationClosedInactivity: "The conversation has been closed due to inactivity."
   }
 };
 
@@ -106,6 +108,7 @@ export default function Messaging({
   const [lastActivityBrand, setLastActivityBrand] = useState<Date | null>(null);
   const [showInactivityWarning, setShowInactivityWarning] = useState(false);
   const [conversationClosed, setConversationClosed] = useState(false);
+  const [conversationClosedByInactivity, setConversationClosedByInactivity] = useState(false);
   const [endingConversation, setEndingConversation] = useState(false);
   const activityCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -485,13 +488,14 @@ export default function Messaging({
     try {
       const { data: conv } = await supabase
         .from('conversations')
-        .select('last_activity_influencer, last_activity_brand, closed_at')
+        .select('last_activity_influencer, last_activity_brand, closed_at, closed_by_inactivity')
         .eq('id', convId)
         .single();
 
       if (conv) {
         if (conv.closed_at) {
           setConversationClosed(true);
+          setConversationClosedByInactivity(conv.closed_by_inactivity || false);
         }
         if (conv.last_activity_influencer) {
           setLastActivityInfluencer(new Date(conv.last_activity_influencer));
@@ -584,11 +588,16 @@ export default function Messaging({
       if (!result.success) throw new Error(result.error);
 
       setConversationClosed(true);
+      setConversationClosedByInactivity(autoClose);
       setShowInactivityWarning(false);
       if (!autoClose) {
         alert(lang === 'el' 
-          ? 'Η συνομιλία τερματίστηκε. Έχει σταλεί email σε όλους με ολόκληρη τη συνομιλία.'
-          : 'Conversation ended. An email has been sent to everyone with the full conversation.');
+          ? 'Η συνομιλία έκλεισε. Έχει σταλεί email σε όλους με ολόκληρη τη συνομιλία.'
+          : 'Conversation closed. An email has been sent to everyone with the full conversation.');
+      } else {
+        alert(lang === 'el' 
+          ? 'Η συνομιλία έκλεισε λόγω αδράνειας. Έχει σταλεί email σε όλους με ολόκληρη τη συνομιλία.'
+          : 'Conversation closed due to inactivity. An email has been sent to everyone with the full conversation.');
       }
     } catch (error) {
       console.error('Error ending conversation:', error);
@@ -681,7 +690,9 @@ export default function Messaging({
                 )}
                 {conversationClosed && (
                   <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="text-sm text-red-800">{txt.conversationClosed}</p>
+                    <p className="text-sm text-red-800">
+                      {conversationClosedByInactivity ? txt.conversationClosedInactivity : txt.conversationClosed}
+                    </p>
                   </div>
                 )}
                 

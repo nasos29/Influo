@@ -9,7 +9,8 @@
 ALTER TABLE conversations 
 ADD COLUMN IF NOT EXISTS last_activity_influencer TIMESTAMPTZ,
 ADD COLUMN IF NOT EXISTS last_activity_brand TIMESTAMPTZ,
-ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ;
+ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS closed_by_inactivity BOOLEAN DEFAULT FALSE;
 
 -- Add index for activity queries
 CREATE INDEX IF NOT EXISTS idx_conversations_activity_influencer 
@@ -32,7 +33,7 @@ WHERE closed_at IS NOT NULL;
    - Όταν πατηθεί, στέλνει email σε όλους (influencer, brand, admin) με ολόκληρη τη συνομιλία
 
 2. ✅ **Inactivity Detection**:
-   - Έλεγχος κάθε 5 λεπτά για αδρανότητα
+   - Έλεγχος κάθε 5 λεπτά για αδράνεια
    - Tracking `last_activity_influencer` και `last_activity_brand`
    - Ενημέρωση activity timestamp όταν:
      - Στέλνεται μήνυμα
@@ -40,12 +41,13 @@ WHERE closed_at IS NOT NULL;
      - Focus στο input field
 
 3. ✅ **Inactivity Warning**:
-   - Αν υπάρχει αδρανότητα και από τις 2 πλευρές (5+ λεπτά), εμφανίζεται προειδοποιητικό μήνυμα
+   - Αν υπάρχει αδράνεια και από τις 2 πλευρές (5+ λεπτά), εμφανίζεται προειδοποιητικό μήνυμα
    - Το μήνυμα λέει ότι η συνομιλία θα κλείσει σε 5 λεπτά
 
 4. ✅ **Auto-Close**:
-   - Αν μετά από 5 λεπτά ακόμα υπάρχει αδρανότητα, η συνομιλία κλείνει αυτόματα
+   - Αν μετά από 5 λεπτά ακόμα υπάρχει αδράνεια, η συνομιλία κλείνει αυτόματα
    - Στέλνεται email σε όλους με ολόκληρη τη συνομιλία
+   - Το μήνυμα λέει "Η συνομιλία έκλεισε λόγω αδράνειας"
 
 5. ✅ **Email Notifications**:
    - Νέο email type: `conversation_end`
@@ -64,7 +66,7 @@ WHERE closed_at IS NOT NULL;
    - Αν ναι, εμφανίζει προειδοποιητικό μήνυμα
 
 3. **Auto-Close** (μετά από 5 λεπτά warning):
-   - Αν μετά από 5 λεπτά ακόμα υπάρχει αδρανότητα, καλείται το `/api/conversations/end` με `autoClose: true`
+   - Αν μετά από 5 λεπτά ακόμα υπάρχει αδράνεια, καλείται το `/api/conversations/end` με `autoClose: true`
 
 4. **Manual Close**:
    - Ο χρήστης μπορεί να πατήσει "Τέλος συνομιλίας" οποιαδήποτε στιγμή
@@ -98,9 +100,11 @@ Response:
 ## Email Types
 
 ### `conversation_end`
-- **Subject**: `🔒 Η συνομιλία τερματίστηκε: {influencerName} ↔ {brandName}`
+- **Subject**: `🔒 Η συνομιλία έκλεισε: {influencerName} ↔ {brandName}`
 - **Content**: 
-  - Αιτία κλεισίματος (αυτόματο ή χειροκίνητο)
+  - Αιτία κλεισίματος:
+    - "Η συνομιλία έκλεισε" (χειροκίνητο)
+    - "Η συνομιλία έκλεισε λόγω αδράνειας" (αυτόματο)
   - Ολόκληρη η συνομιλία
   - Συνολικό πλήθος μηνυμάτων
 
