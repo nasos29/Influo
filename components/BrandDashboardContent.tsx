@@ -478,7 +478,7 @@ export default function BrandDashboardContent() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        router.push('/brand/login');
+        router.push('/login');
         return;
       }
 
@@ -490,7 +490,7 @@ export default function BrandDashboardContent() {
         .single();
 
       if (!brandData) {
-        router.push('/brand/login');
+        router.push('/login');
         return;
       }
 

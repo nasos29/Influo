@@ -13,7 +13,7 @@ export default function BrandDashboardPage() {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        router.push('/brand/login');
+        router.push('/login');
         return;
       }
 
@@ -25,7 +25,7 @@ export default function BrandDashboardPage() {
         .single();
 
       if (!brandData) {
-        router.push('/brand/login');
+        router.push('/login');
         return;
       }
     };

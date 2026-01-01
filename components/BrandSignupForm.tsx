@@ -269,7 +269,7 @@ export default function BrandSignupForm() {
           <h2 className="text-2xl font-bold text-slate-900 mb-2">{txt.successTitle}</h2>
           <p className="text-slate-600 mb-6">{txt.successDesc}</p>
           <button
-            onClick={() => router.push('/brand/login')}
+            onClick={() => router.push('/login')}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors"
           >
             {txt.close}
@@ -500,7 +500,7 @@ export default function BrandSignupForm() {
 
       <p className="mt-6 text-center text-sm text-slate-600">
         {lang === 'el' ? 'Έχετε ήδη λογαριασμό; ' : 'Already have an account? '}
-        <a href="/brand/login" className="text-blue-600 hover:text-blue-700 font-medium">
+        <a href="/login" className="text-blue-600 hover:text-blue-700 font-medium">
           {lang === 'el' ? 'Συνδεθείτε' : 'Sign In'}
         </a>
       </p>

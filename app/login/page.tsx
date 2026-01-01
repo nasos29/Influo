@@ -17,7 +17,7 @@ const t = {
     forgot_password: "Ξέχασα τον κωδικό μου",
     login_button: "Σύνδεση",
     logging_in: "Σύνδεση...",
-    footer_note: "Για Influencers και Admins.",
+    footer_note: "Για Influencers, Επιχειρήσεις και Admins.",
     back: "Πίσω στο Site",
     reset_email_sent: "Στάλθηκε email επαναφοράς κωδικού. Ελέγξτε το inbox σας.",
     reset_error: "Σφάλμα:",
@@ -32,7 +32,7 @@ const t = {
     forgot_password: "Forgot Password?",
     login_button: "Log In",
     logging_in: "Logging In...",
-    footer_note: "For Influencers and Admins.",
+    footer_note: "For Influencers, Brands and Admins.",
     back: "Back to Site",
     reset_email_sent: "Password reset email sent. Please check your inbox.",
     reset_error: "Error:",
@@ -107,9 +107,26 @@ export default function LoginPage() {
 
         if (isAdmin) {
             router.push('/admin');
-        } else {
-            router.push('/dashboard');
+            setLoading(false);
+            return;
         }
+
+        // Check if user is a brand (has AFM)
+        const { data: brandData, error: brandError } = await supabase
+            .from('brands')
+            .select('id, afm')
+            .eq('contact_email', userEmail)
+            .maybeSingle();
+
+        if (!brandError && brandData && brandData.afm) {
+            // User is a brand (has AFM) -> redirect to brand dashboard
+            router.push('/brand/dashboard');
+            setLoading(false);
+            return;
+        }
+
+        // User is an influencer (no AFM) -> redirect to influencer dashboard
+        router.push('/dashboard');
 
         setLoading(false);
     };
@@ -126,19 +143,26 @@ export default function LoginPage() {
             return;
         }
 
-        // Check if email exists in database (influencers or admin)
+        // Check if email exists in database (influencers, brands or admin)
         const ADMIN_EMAIL = 'nd.6@hotmail.com';
-        const isAdmin = email === ADMIN_EMAIL;
+        const isAdmin = email.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim();
 
         if (!isAdmin) {
             // Check if email exists in influencers table
-            const { data: influencer, error: checkError } = await supabase
+            const { data: influencer, error: influencerError } = await supabase
                 .from('influencers')
                 .select('contact_email')
                 .eq('contact_email', email)
-                .single();
+                .maybeSingle();
 
-            if (checkError || !influencer) {
+            // Check if email exists in brands table
+            const { data: brand, error: brandError } = await supabase
+                .from('brands')
+                .select('contact_email')
+                .eq('contact_email', email)
+                .maybeSingle();
+
+            if ((influencerError || !influencer) && (brandError || !brand)) {
                 setMessage(lang === 'el' 
                     ? 'Το email που εισάγατε δεν βρέθηκε στη βάση δεδομένων. Παρακαλώ ελέγξτε το email σας ή επικοινωνήστε με την υποστήριξη.' 
                     : 'The email you entered was not found in our database. Please check your email or contact support.');

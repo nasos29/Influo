@@ -58,7 +58,7 @@ export async function POST(req: Request) {
               .maybeSingle();
 
             const brandLink = brandData 
-              ? `${SITE_URL}/brand/login?redirect=dashboard`
+              ? `${SITE_URL}/login?redirect=dashboard`
               : `${SITE_URL}/brand/signup?email=${encodeURIComponent(proposal.brand_email)}`;
 
             const subject = `✅ Η συμφωνία για ${influencerData.display_name} έγινε αποδεκτή!`;
