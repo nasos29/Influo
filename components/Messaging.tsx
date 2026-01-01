@@ -21,6 +21,9 @@ interface Conversation {
   brand_email: string;
   brand_name: string | null;
   last_message_at: string;
+  last_activity_influencer?: string | null;
+  last_activity_brand?: string | null;
+  closed_at?: string | null;
 }
 
 interface ProposalInfo {
@@ -55,7 +58,11 @@ const t = {
     send: "Αποστολή",
     messages: "Μηνύματα",
     noConversations: "Δεν υπάρχουν συνομιλίες ακόμα",
-    selectConversation: "Επέλεξε μια συνομιλία για να δεις τα μηνύματα"
+    selectConversation: "Επέλεξε μια συνομιλία για να δεις τα μηνύματα",
+    endConversation: "Τέλος συνομιλίας",
+    endingConversation: "Τερματισμός...",
+    inactivityWarning: "⚠️ Η συνομιλία είναι αδρανής και από τις δύο πλευρές. Η συνομιλία θα κλείσει αυτόματα σε 5 λεπτά.",
+    conversationClosed: "Η συνομιλία έχει κλείσει λόγω αδρανότητας."
   },
   en: {
     placeholder: "Type your message...",
@@ -66,7 +73,11 @@ const t = {
     send: "Send",
     messages: "Messages",
     noConversations: "No conversations yet",
-    selectConversation: "Select a conversation to view messages"
+    selectConversation: "Select a conversation to view messages",
+    endConversation: "End Conversation",
+    endingConversation: "Ending...",
+    inactivityWarning: "⚠️ The conversation is inactive on both sides. The conversation will close automatically in 5 minutes.",
+    conversationClosed: "The conversation has been closed due to inactivity."
   }
 };
 
@@ -91,6 +102,12 @@ export default function Messaging({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastSentMessageRef = useRef<string>('');
   const [proposalInfo, setProposalInfo] = useState<ProposalInfo | null>(null);
+  const [lastActivityInfluencer, setLastActivityInfluencer] = useState<Date | null>(null);
+  const [lastActivityBrand, setLastActivityBrand] = useState<Date | null>(null);
+  const [showInactivityWarning, setShowInactivityWarning] = useState(false);
+  const [conversationClosed, setConversationClosed] = useState(false);
+  const [endingConversation, setEndingConversation] = useState(false);
+  const activityCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load proposal info if proposalId is provided
   useEffect(() => {
@@ -138,6 +155,9 @@ export default function Messaging({
   useEffect(() => {
     if (selectedConversation) {
       loadMessages(selectedConversation);
+      loadActivityTimestamps(selectedConversation);
+      // Update activity timestamp when conversation is opened
+      updateActivityTimestamp();
       // Set up real-time subscription
       const subscription = supabase
         .channel(`messages:${selectedConversation}`)
@@ -169,6 +189,36 @@ export default function Messaging({
       };
     }
   }, [selectedConversation]);
+
+  // Check for inactivity every 5 minutes
+  useEffect(() => {
+    if (selectedConversation) {
+      // Check immediately
+      checkInactivity();
+      
+      // Then check every 5 minutes
+      activityCheckIntervalRef.current = setInterval(() => {
+        checkInactivity();
+      }, 5 * 60 * 1000); // 5 minutes
+
+      return () => {
+        if (activityCheckIntervalRef.current) {
+          clearInterval(activityCheckIntervalRef.current);
+        }
+      };
+    }
+  }, [selectedConversation, lastActivityInfluencer, lastActivityBrand]);
+
+  // Auto-close conversation after 5 minutes of inactivity warning
+  useEffect(() => {
+    if (showInactivityWarning && !conversationClosed) {
+      const closeTimer = setTimeout(() => {
+        endConversation(true); // Auto-close
+      }, 5 * 60 * 1000); // 5 minutes
+
+      return () => clearTimeout(closeTimer);
+    }
+  }, [showInactivityWarning, conversationClosed]);
 
   const loadConversations = async () => {
     setLoading(true);
@@ -238,7 +288,7 @@ export default function Messaging({
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || conversationClosed) return;
 
     setSending(true);
     try {
@@ -308,6 +358,10 @@ export default function Messaging({
         // Play sound when message is sent (single beep)
         lastSentMessageRef.current = newMessage.trim();
         playSendSound();
+        
+        // Update activity timestamp
+        updateActivityTimestamp();
+        setShowInactivityWarning(false); // Reset warning on new activity
       }
 
       setNewMessage('');
@@ -427,6 +481,125 @@ export default function Messaging({
     }
   };
 
+  const loadActivityTimestamps = async (convId: string) => {
+    try {
+      const { data: conv } = await supabase
+        .from('conversations')
+        .select('last_activity_influencer, last_activity_brand, closed_at')
+        .eq('id', convId)
+        .single();
+
+      if (conv) {
+        if (conv.closed_at) {
+          setConversationClosed(true);
+        }
+        if (conv.last_activity_influencer) {
+          setLastActivityInfluencer(new Date(conv.last_activity_influencer));
+        }
+        if (conv.last_activity_brand) {
+          setLastActivityBrand(new Date(conv.last_activity_brand));
+        }
+      }
+    } catch (error) {
+      console.error('Error loading activity timestamps:', error);
+    }
+  };
+
+  const updateActivityTimestamp = async () => {
+    if (!selectedConversation) return;
+    
+    try {
+      const updateField = mode === 'influencer' ? 'last_activity_influencer' : 'last_activity_brand';
+      const now = new Date().toISOString();
+      
+      await supabase
+        .from('conversations')
+        .update({ [updateField]: now })
+        .eq('id', selectedConversation);
+
+      if (mode === 'influencer') {
+        setLastActivityInfluencer(new Date());
+      } else {
+        setLastActivityBrand(new Date());
+      }
+    } catch (error) {
+      console.error('Error updating activity timestamp:', error);
+    }
+  };
+
+  const checkInactivity = async () => {
+    if (!selectedConversation || conversationClosed) return;
+
+    try {
+      const { data: conv } = await supabase
+        .from('conversations')
+        .select('last_activity_influencer, last_activity_brand, closed_at')
+        .eq('id', selectedConversation)
+        .single();
+
+      if (!conv || conv.closed_at) {
+        setConversationClosed(true);
+        return;
+      }
+
+      const now = new Date();
+      const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+
+      const influencerInactive = !conv.last_activity_influencer || 
+        new Date(conv.last_activity_influencer) < fiveMinutesAgo;
+      const brandInactive = !conv.last_activity_brand || 
+        new Date(conv.last_activity_brand) < fiveMinutesAgo;
+
+      if (influencerInactive && brandInactive) {
+        setShowInactivityWarning(true);
+      } else {
+        setShowInactivityWarning(false);
+      }
+    } catch (error) {
+      console.error('Error checking inactivity:', error);
+    }
+  };
+
+  const endConversation = async (autoClose = false) => {
+    if (!selectedConversation || endingConversation) return;
+
+    if (!autoClose && !confirm(lang === 'el' 
+      ? 'Είστε σίγουρος ότι θέλετε να τερματίσετε τη συνομιλία; Θα σταλεί email σε όλους με ολόκληρη τη συνομιλία.'
+      : 'Are you sure you want to end the conversation? An email will be sent to everyone with the full conversation.')) {
+      return;
+    }
+
+    setEndingConversation(true);
+    try {
+      const response = await fetch('/api/conversations/end', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationId: selectedConversation,
+          autoClose,
+        })
+      });
+
+      const result = await response.json();
+      if (!result.success) throw new Error(result.error);
+
+      setConversationClosed(true);
+      setShowInactivityWarning(false);
+      if (!autoClose) {
+        alert(lang === 'el' 
+          ? 'Η συνομιλία τερματίστηκε. Έχει σταλεί email σε όλους με ολόκληρη τη συνομιλία.'
+          : 'Conversation ended. An email has been sent to everyone with the full conversation.');
+      }
+    } catch (error) {
+      console.error('Error ending conversation:', error);
+      alert(lang === 'el' 
+        ? 'Αποτυχία τερματισμού συνομιλίας. Παρακαλώ δοκιμάστε ξανά.'
+        : 'Failed to end conversation. Please try again.');
+    } finally {
+      setEndingConversation(false);
+    }
+  };
+
   const currentConversation = conversations.find(c => c.id === selectedConversation);
   const otherPartyName = mode === 'influencer' 
     ? currentConversation?.brand_name || currentConversation?.brand_email
@@ -476,19 +649,40 @@ export default function Messaging({
               <div className="px-6 py-4 border-b border-slate-200 bg-white">
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold text-slate-900">{otherPartyName}</h3>
-                  {mode === 'brand' && (
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${isInfluencerOnline ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                      <span className="text-xs text-slate-500">
-                        {isInfluencerOnline ? txt.online : txt.offline}
-                      </span>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-3">
+                    {mode === 'brand' && (
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${isInfluencerOnline ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                        <span className="text-xs text-slate-500">
+                          {isInfluencerOnline ? txt.online : txt.offline}
+                        </span>
+                      </div>
+                    )}
+                    {!conversationClosed && (
+                      <button
+                        onClick={() => endConversation(false)}
+                        disabled={endingConversation}
+                        className="px-4 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {endingConversation ? txt.endingConversation : txt.endConversation}
+                      </button>
+                    )}
+                  </div>
                 </div>
-                {mode === 'brand' && !isInfluencerOnline && (
+                {mode === 'brand' && !isInfluencerOnline && !conversationClosed && (
                   <p className="text-xs text-amber-600 mt-1">
                     {txt.offlineNotice}
                   </p>
+                )}
+                {showInactivityWarning && !conversationClosed && (
+                  <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-sm text-amber-800">{txt.inactivityWarning}</p>
+                  </div>
+                )}
+                {conversationClosed && (
+                  <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-sm text-red-800">{txt.conversationClosed}</p>
+                  </div>
                 )}
                 
                 {/* Proposal Info Card */}
@@ -552,24 +746,30 @@ export default function Messaging({
               </div>
 
               {/* Message Input */}
-              <form onSubmit={sendMessage} className="px-6 py-4 border-t border-slate-200 bg-white">
-                <div className="flex gap-3">
-                  <textarea
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder={txt.placeholder}
-                    className="flex-1 px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900"
-                    rows={2}
-                  />
-                  <button
-                    type="submit"
-                    disabled={sending || !newMessage.trim()}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
-                  >
-                    {sending ? txt.sending : txt.send}
-                  </button>
-                </div>
-              </form>
+              {!conversationClosed && (
+                <form onSubmit={sendMessage} className="px-6 py-4 border-t border-slate-200 bg-white">
+                  <div className="flex gap-3">
+                    <textarea
+                      value={newMessage}
+                      onChange={(e) => {
+                        setNewMessage(e.target.value);
+                        updateActivityTimestamp();
+                      }}
+                      onFocus={updateActivityTimestamp}
+                      placeholder={txt.placeholder}
+                      className="flex-1 px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900"
+                      rows={2}
+                    />
+                    <button
+                      type="submit"
+                      disabled={sending || !newMessage.trim()}
+                      className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                    >
+                      {sending ? txt.sending : txt.send}
+                    </button>
+                  </div>
+                </form>
+              )}
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center text-slate-500">

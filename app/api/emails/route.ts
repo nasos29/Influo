@@ -282,6 +282,48 @@ export async function POST(req: Request) {
             </div>
         `;
     }
+    else if (type === 'conversation_end') {
+        toEmail = email;
+        const { autoClose } = body;
+        const messageCount = messages?.length || 0;
+        const closeReason = autoClose 
+            ? 'Η συνομιλία έκλεισε αυτόματα λόγω αδρανότητας (5 λεπτά χωρίς δραστηριότητα και από τις δύο πλευρές).'
+            : 'Η συνομιλία τερματίστηκε από έναν από τους συμμετέχοντες.';
+        
+        subject = `🔒 Η συνομιλία τερματίστηκε: ${influencerName} ↔ ${brandName}`;
+        
+        const messagesHtml = messages && messages.length > 0 ? messages.map((msg: any) => `
+            <div style="background-color: ${msg.senderType === 'influencer' ? '#f0f9ff' : '#fef3c7'}; padding: 12px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid ${msg.senderType === 'influencer' ? '#0ea5e9' : '#f59e0b'};">
+                <div style="font-weight: bold; color: ${msg.senderType === 'influencer' ? '#0284c7' : '#d97706'}; margin-bottom: 6px;">
+                    ${msg.senderName} ${msg.senderType === 'influencer' ? '(Influencer)' : '(Brand)'}
+                </div>
+                <div style="color: #1e293b; white-space: pre-wrap; margin-bottom: 4px;">${msg.content.replace(/\n/g, '<br/>')}</div>
+                <div style="font-size: 11px; color: #64748b; margin-top: 4px;">
+                    ${new Date(msg.createdAt).toLocaleString('el-GR')}
+                </div>
+            </div>
+        `).join('') : '<p>Δεν υπήρχαν μηνύματα στη συνομιλία.</p>';
+        
+        html = `
+            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #dc2626; border-radius: 8px; background-color: #fef2f2;">
+                <h1 style="color: #dc2626;">Η Συνομιλία Τερματίστηκε</h1>
+                <div style="background-color: white; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #dc2626;">
+                    <p style="margin-bottom: 10px;"><strong>Συνομιλία:</strong> ${influencerName} ↔ ${brandName}</p>
+                    <p style="margin-bottom: 10px;"><strong>Αιτία:</strong> ${closeReason}</p>
+                    <p style="margin-bottom: 10px;"><strong>Συνολικό πλήθος μηνυμάτων:</strong> ${messageCount}</p>
+                </div>
+                <div style="background-color: #f9fafb; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                    <h2 style="color: #1e293b; margin-bottom: 15px; font-size: 18px;">Ολόκληρη η Συνομιλία:</h2>
+                    <div style="max-height: 600px; overflow-y: auto; margin: 15px 0;">
+                        ${messagesHtml}
+                    </div>
+                </div>
+                <p style="color: #64748b; font-size: 14px; margin-top: 20px;">
+                    Αυτό το email περιέχει ολόκληρη τη συνομιλία για αρχειοθέτηση.
+                </p>
+            </div>
+        `;
+    }
 
     // Validation: Check if subject and html are set
     if (!subject || !html) {

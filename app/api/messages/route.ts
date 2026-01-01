@@ -74,10 +74,15 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: msgError.message }, { status: 500 });
       }
 
-      // Update conversation last_message_at
+      // Update conversation last_message_at and activity timestamp
+      const now = new Date().toISOString();
+      const updateField = senderType === 'influencer' ? 'last_activity_influencer' : 'last_activity_brand';
       await supabaseAdmin
         .from('conversations')
-        .update({ last_message_at: new Date().toISOString() })
+        .update({ 
+          last_message_at: now,
+          [updateField]: now
+        })
         .eq('id', convId);
 
       // Queue email digest (sends to all: admin, influencer, brand) - one email per conversation per hour
@@ -233,10 +238,15 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: msgError.message }, { status: 500 });
       }
 
-      // Update conversation last_message_at
+      // Update conversation last_message_at and activity timestamp
+      const now = new Date().toISOString();
+      const updateField = senderType === 'influencer' ? 'last_activity_influencer' : 'last_activity_brand';
       await supabaseAdmin
         .from('conversations')
-        .update({ last_message_at: new Date().toISOString() })
+        .update({ 
+          last_message_at: now,
+          [updateField]: now
+        })
         .eq('id', conversationId);
 
       // Queue email digest (sends to all: admin, influencer, brand) - one email per conversation per hour
