@@ -26,6 +26,7 @@ const t = {
     brand_section_desc: "Βρείτε τους καλύτερους influencers για την εταιρεία σας. Αναζητήστε, επικοινωνήστε και συνεργαστείτε με verified creators. 🤖 Λάβετε AI-powered προτάσεις δωρεάν!",
     brand_section_btn: "Δημιούργησε Λογαριασμό Επιχείρησης",
     trusted_by: "ΤΗΝ ΕΜΠΙΣΤΕΥΟΝΤΑΙ CREATORS",
+    top_influencers: "Top Influencers",
     dir_title: "Κατάλογος Influencers",
     dir_desc: "Ανακάλυψε τους πιο δημιουργικούς content creators ανά κατηγορία και πλατφόρμα.",
     feat_1_title: "Analytics",
@@ -56,6 +57,7 @@ const t = {
     brand_section_desc: "Find the best influencers for your company. Search, connect and collaborate with verified creators. 🤖 Get AI-powered recommendations for free!",
     brand_section_btn: "Create Company Account",
     trusted_by: "TRUSTED BY CREATORS",
+    top_influencers: "Top Influencers",
     dir_title: "Influencer Directory",
     dir_desc: "Discover the most creative content creators by category and platform.",
     feat_1_title: "Analytics",
@@ -136,7 +138,7 @@ export default function Home() {
                 <li><a href="/brand/signup" className="hover:text-slate-900 transition-colors">
                   {txt.nav_brand}
                 </a></li>
-                <li><a href="#directory" className="hover:text-slate-900 transition-colors">
+                <li><a href="/directory" className="hover:text-slate-900 transition-colors">
                   {txt.nav_directory}
                 </a></li>
                 <li><a href="/login" className="hover:text-slate-900 transition-colors">
@@ -202,7 +204,7 @@ export default function Home() {
                 {txt.nav_brand}
               </a>
               <a 
-                href="#directory"
+                href="/directory"
                 onClick={() => setMobileMenuOpen(false)}
                 className="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors"
               >
@@ -319,7 +321,8 @@ export default function Home() {
           }}></div>
           <div className="relative max-w-7xl mx-auto">
             <div className="text-center mb-12">
-              <h3 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">{txt.dir_title}</h3>
+              <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">{txt.top_influencers}</h2>
+              <h3 className="text-2xl md:text-3xl font-semibold text-slate-700 mb-3">{txt.dir_title}</h3>
             <p className="text-slate-600 max-w-2xl mx-auto">{txt.dir_desc}</p>
           </div>
           {/* Περνάμε τη γλώσσα στο Directory */}
