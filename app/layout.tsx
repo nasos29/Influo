@@ -72,13 +72,13 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon.svg", type: "image/svg+xml", sizes: "any" },
       { url: "/logo-icon.svg", type: "image/svg+xml", sizes: "any" },
     ],
     apple: [
       { url: "/logo-icon.svg", sizes: "180x180", type: "image/svg+xml" },
     ],
-    shortcut: "/favicon.ico",
+    shortcut: "/favicon.svg",
   },
 };
 
@@ -127,8 +127,9 @@ export default function RootLayout({
   return (
     <html lang="el">
       <head>
-        <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link rel="icon" href="/logo-icon.svg" type="image/svg+xml" />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="icon" href="/logo-icon.svg" type="image/svg+xml" sizes="any" />
+        <link rel="alternate icon" href="/favicon.ico" sizes="32x32" />
         <link rel="apple-touch-icon" href="/logo-icon.svg" />
         <link rel="manifest" href="/manifest.webmanifest" />
         <script
