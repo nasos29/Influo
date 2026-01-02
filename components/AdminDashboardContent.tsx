@@ -1448,11 +1448,11 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                           </td>
                           <td className="px-4 py-3">
                             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                              (b.verified === true || b.verified === 'true') 
+                              b.verified 
                                 ? 'bg-green-100 text-green-700' 
                                 : 'bg-yellow-100 text-yellow-700'
                             }`}>
-                              {(b.verified === true || b.verified === 'true') ? (lang === 'el' ? 'Επαληθευμένη' : 'Verified') : (lang === 'el' ? 'Εκκρεμεί' : 'Pending')}
+                              {b.verified ? (lang === 'el' ? 'Επαληθευμένη' : 'Verified') : (lang === 'el' ? 'Εκκρεμεί' : 'Pending')}
                             </span>
                           </td>
                         </tr>
