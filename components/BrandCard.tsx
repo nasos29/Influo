@@ -43,16 +43,16 @@ export default function BrandCard({
       <div className="px-5 pb-5 flex-1 flex flex-col">
         {/* Logo & Verified Badge */}
         <div className="relative -mt-12 mb-4">
-          <div className="relative w-20 h-20 rounded-full border-2 border-white shadow-md overflow-hidden bg-white flex items-center justify-center">
+          <div className="relative w-20 h-20 rounded-lg border-2 border-white shadow-md overflow-hidden bg-white flex items-center justify-center">
             {logo_url ? (
               <Image
                 src={logo_url}
                 alt={brand_name}
                 fill
-                className="object-cover"
+                className="object-contain p-1"
               />
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-2xl font-bold">
+              <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-2xl font-bold rounded-lg">
                 {brand_name.charAt(0).toUpperCase()}
               </div>
             )}
