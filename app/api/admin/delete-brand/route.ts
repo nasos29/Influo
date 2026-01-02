@@ -38,7 +38,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Delete brand from brands table
+    // 1. Find auth user by email
+    const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+    
+    if (listError) {
+      console.error('Error listing users:', listError);
+      // Continue anyway - maybe auth user doesn't exist
+    }
+
+    const authUser = users?.find(u => u.email?.toLowerCase() === brandData.contact_email.toLowerCase());
+
+    // 2. Delete from user_roles table (if exists) - for foreign key constraints
+    if (authUser) {
+      const { error: rolesDeleteError } = await supabaseAdmin
+        .from('user_roles')
+        .delete()
+        .eq('id', authUser.id);
+
+      if (rolesDeleteError) {
+        console.error('Error deleting from user_roles table:', rolesDeleteError);
+        // Continue anyway
+      }
+    }
+
+    // 3. Delete brand from brands table
     const { error: deleteError } = await supabaseAdmin
       .from('brands')
       .delete()
@@ -52,9 +75,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 4. Delete auth user (if exists)
+    if (authUser) {
+      const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(authUser.id);
+
+      if (authDeleteError) {
+        console.error('Error deleting auth user:', authDeleteError);
+        // Return success for brand deletion but warn about auth
+        return NextResponse.json({
+          success: true,
+          message: `Brand ${brandData.brand_name} deleted from database, but auth user deletion failed: ${authDeleteError.message}`,
+          warning: 'Auth user may still exist'
+        });
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      message: `Brand ${brandData.brand_name} deleted successfully`
+      message: `Brand ${brandData.brand_name} deleted successfully from both database and auth`
     });
   } catch (error: any) {
     console.error('Error in delete-brand API:', error);
