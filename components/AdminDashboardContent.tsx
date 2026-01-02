@@ -523,6 +523,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [brands, setBrands] = useState<Brand[]>([]);
   const [brandSearchQuery, setBrandSearchQuery] = useState("");
   const [updatingBrand, setUpdatingBrand] = useState<string | null>(null);
+  const [deletingBrand, setDeletingBrand] = useState<string | null>(null);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [conversationMessages, setConversationMessages] = useState<Message[]>([]);
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
@@ -982,6 +983,47 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       );
     } finally {
       setUpdatingBrand(null);
+    }
+  };
+
+  const deleteBrand = async (brandId: string, brandName: string) => {
+    if (!confirm(
+      lang === 'el' 
+        ? `Είσαι σίγουρος ότι θες να διαγράψεις την επιχείρηση "${brandName}";`
+        : `Are you sure you want to delete the brand "${brandName}"?`
+    )) {
+      return;
+    }
+
+    setDeletingBrand(brandId);
+    try {
+      const response = await fetch('/api/admin/delete-brand', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brandId }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete brand');
+      }
+
+      // Remove from local state
+      setBrands(prev => prev.filter(b => b.id !== brandId));
+
+      alert(lang === 'el' 
+        ? `Η επιχείρηση "${brandName}" διαγράφηκε επιτυχώς.`
+        : `Brand "${brandName}" deleted successfully.`
+      );
+    } catch (error: any) {
+      console.error('Error deleting brand:', error);
+      alert(lang === 'el' 
+        ? `Σφάλμα: ${error.message}`
+        : `Error: ${error.message}`
+      );
+    } finally {
+      setDeletingBrand(null);
     }
   };
 
@@ -1514,22 +1556,34 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                             </span>
                           </td>
                           <td className="px-4 py-3">
-                            <button
-                              onClick={() => handleToggleBrandVerification(b.id, b.verified)}
-                              disabled={updatingBrand === b.id}
-                              className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
-                                b.verified
-                                  ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                                  : 'bg-green-100 text-green-700 hover:bg-green-200'
-                              } disabled:opacity-50 disabled:cursor-not-allowed`}
-                            >
-                              {updatingBrand === b.id 
-                                ? (lang === 'el' ? 'Επεξεργασία...' : 'Processing...')
-                                : b.verified
-                                  ? (lang === 'el' ? 'Απόρριψη' : 'Reject')
-                                  : (lang === 'el' ? 'Έγκριση' : 'Approve')
-                              }
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleToggleBrandVerification(b.id, b.verified)}
+                                disabled={updatingBrand === b.id || deletingBrand === b.id}
+                                className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                                  b.verified
+                                    ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                                    : 'bg-green-100 text-green-700 hover:bg-green-200'
+                                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                              >
+                                {updatingBrand === b.id 
+                                  ? (lang === 'el' ? 'Επεξεργασία...' : 'Processing...')
+                                  : b.verified
+                                    ? (lang === 'el' ? 'Απόρριψη' : 'Reject')
+                                    : (lang === 'el' ? 'Έγκριση' : 'Approve')
+                                }
+                              </button>
+                              <button
+                                onClick={() => deleteBrand(b.id, b.brand_name)}
+                                disabled={updatingBrand === b.id || deletingBrand === b.id}
+                                className="px-3 py-1.5 text-xs bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              >
+                                {deletingBrand === b.id 
+                                  ? (lang === 'el' ? 'Διαγραφή...' : 'Deleting...')
+                                  : (lang === 'el' ? 'Διαγραφή' : 'Delete')
+                                }
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))
