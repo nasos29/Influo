@@ -193,11 +193,11 @@ export default function BrandSignupForm() {
         setUploadingLogo(true);
         try {
           const fileExt = logoFile.name.split('.').pop();
-          const fileName = `${authData.user.id}-${Date.now()}.${fileExt}`;
-          const filePath = `brand-logos/${fileName}`;
+          const fileName = `brand-${authData.user.id}-${Date.now()}.${fileExt}`;
+          const filePath = fileName;
 
           const { error: uploadError } = await supabase.storage
-            .from('brand-assets')
+            .from('avatars')
             .upload(filePath, logoFile, {
               cacheControl: '3600',
               upsert: false
@@ -206,7 +206,7 @@ export default function BrandSignupForm() {
           if (uploadError) throw uploadError;
 
           const { data: { publicUrl } } = supabase.storage
-            .from('brand-assets')
+            .from('avatars')
             .getPublicUrl(filePath);
 
           logoUrl = publicUrl;

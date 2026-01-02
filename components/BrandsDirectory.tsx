@@ -74,6 +74,10 @@ export default function BrandsDirectory({ lang = "el" }: { lang?: "el" | "en" })
       }
 
       console.log(`[BrandsDirectory] Fetched ${data?.length || 0} verified brands`);
+      if (data && data.length > 0) {
+        console.log('[BrandsDirectory] First brand logo_url:', data[0].logo_url);
+        console.log('[BrandsDirectory] Sample brands:', data.map(b => ({ name: b.brand_name, logo_url: b.logo_url })));
+      }
       setBrands(data || []);
     } catch (error) {
       console.error("Error fetching brands:", error);

@@ -44,12 +44,23 @@ export default function BrandCard({
         {/* Logo & Verified Badge */}
         <div className="relative -mt-12 mb-4">
           <div className="relative w-20 h-20 rounded-lg border-2 border-white shadow-md overflow-hidden bg-white flex items-center justify-center">
-            {logo_url ? (
-              <Image
+            {logo_url && logo_url.trim() !== '' ? (
+              <img
                 src={logo_url}
                 alt={brand_name}
-                fill
-                className="object-contain p-1"
+                className="w-full h-full object-contain p-1"
+                onError={(e) => {
+                  console.error('[BrandCard] Failed to load logo:', logo_url);
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                  const parent = target.parentElement;
+                  if (parent && !parent.querySelector('.fallback-logo')) {
+                    const fallback = document.createElement('div');
+                    fallback.className = 'fallback-logo absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-2xl font-bold rounded-lg';
+                    fallback.textContent = brand_name.charAt(0).toUpperCase();
+                    parent.appendChild(fallback);
+                  }
+                }}
               />
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-2xl font-bold rounded-lg">
