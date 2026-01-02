@@ -522,6 +522,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [brandSearchQuery, setBrandSearchQuery] = useState("");
+  const [updatingBrand, setUpdatingBrand] = useState<string | null>(null);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [conversationMessages, setConversationMessages] = useState<Message[]>([]);
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
@@ -944,6 +945,44 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
       setShowEditModal(false);
       setSelectedUser(updatedUser);
+  };
+
+  const handleToggleBrandVerification = async (brandId: string, currentStatus: boolean) => {
+    setUpdatingBrand(brandId);
+    try {
+      const response = await fetch('/api/admin/brands/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brandId,
+          verified: !currentStatus
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update brand verification');
+      }
+
+      // Update local state
+      setBrands(prev => prev.map(b => 
+        b.id === brandId ? { ...b, verified: !currentStatus } : b
+      ));
+
+      alert(lang === 'el' 
+        ? `Η επιχείρηση ${!currentStatus ? 'εγκρίθηκε' : 'απορρίφθηκε'} επιτυχώς.`
+        : `Brand ${!currentStatus ? 'verified' : 'unverified'} successfully.`
+      );
+    } catch (error: any) {
+      console.error('Error toggling brand verification:', error);
+      alert(lang === 'el' 
+        ? `Σφάλμα: ${error.message}`
+        : `Error: ${error.message}`
+      );
+    } finally {
+      setUpdatingBrand(null);
+    }
   };
 
   const handleCleanupTestUsers = async () => {
@@ -1403,9 +1442,11 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                       <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{lang === 'el' ? 'Εταιρεία' : 'Company'}</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{lang === 'el' ? 'Email' : 'Email'}</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{lang === 'el' ? 'ΑΦΜ' : 'Tax ID'}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{lang === 'el' ? 'Επικοινωνία' : 'Contact'}</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{lang === 'el' ? 'Κλάδος' : 'Industry'}</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{lang === 'el' ? 'Ημερομηνία' : 'Date'}</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{lang === 'el' ? 'Κατάσταση' : 'Status'}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{lang === 'el' ? 'Ενέργειες' : 'Actions'}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
@@ -1415,7 +1456,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                       b.contact_email.toLowerCase().includes(brandSearchQuery.toLowerCase())
                     ).length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                        <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
                           {brands.length === 0 
                             ? (lang === 'el' ? 'Δεν υπάρχουν εγγεγραμμένες επιχειρήσεις' : 'No registered companies')
                             : txt.no_data}
@@ -1441,7 +1482,24 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                             </div>
                           </td>
                           <td className="px-4 py-3 text-slate-600">{b.contact_email}</td>
-                          <td className="px-4 py-3 text-slate-600">{b.afm}</td>
+                          <td className="px-4 py-3 text-slate-600 font-mono text-sm">{b.afm}</td>
+                          <td className="px-4 py-3 text-slate-600">
+                            <div className="flex flex-col gap-1">
+                              {b.contact_person && (
+                                <span className="text-sm">{b.contact_person}</span>
+                              )}
+                              {b.website && (
+                                <a 
+                                  href={b.website.startsWith('http') ? b.website : `https://${b.website}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-blue-600 hover:underline"
+                                >
+                                  {b.website}
+                                </a>
+                              )}
+                            </div>
+                          </td>
                           <td className="px-4 py-3 text-slate-600">{b.industry || '-'}</td>
                           <td className="px-4 py-3 text-slate-600 text-sm">
                             {new Date(b.created_at).toLocaleDateString('el-GR')}
@@ -1452,8 +1510,26 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                 ? 'bg-green-100 text-green-700' 
                                 : 'bg-yellow-100 text-yellow-700'
                             }`}>
-                              {b.verified ? (lang === 'el' ? 'Επαληθευμένη' : 'Verified') : (lang === 'el' ? 'Εκκρεμεί' : 'Pending')}
+                              {b.verified ? (lang === 'el' ? 'Επαληθευμένη' : 'Verified') : (lang === 'el' ? 'Αναμονή για έγκριση' : 'Pending Approval')}
                             </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <button
+                              onClick={() => handleToggleBrandVerification(b.id, b.verified)}
+                              disabled={updatingBrand === b.id}
+                              className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                                b.verified
+                                  ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                                  : 'bg-green-100 text-green-700 hover:bg-green-200'
+                              } disabled:opacity-50 disabled:cursor-not-allowed`}
+                            >
+                              {updatingBrand === b.id 
+                                ? (lang === 'el' ? 'Επεξεργασία...' : 'Processing...')
+                                : b.verified
+                                  ? (lang === 'el' ? 'Απόρριψη' : 'Reject')
+                                  : (lang === 'el' ? 'Έγκριση' : 'Approve')
+                              }
+                            </button>
                           </td>
                         </tr>
                       ))
