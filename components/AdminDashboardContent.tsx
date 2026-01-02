@@ -583,10 +583,21 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         .select('*')
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
-      setBrands(data || []);
+      if (error) {
+        console.error('Error fetching brands:', error);
+        setBrands([]);
+        return;
+      }
+      
+      if (data) {
+        console.log(`[Admin Dashboard] Fetched ${data.length} brands`);
+        setBrands(data);
+      } else {
+        setBrands([]);
+      }
     } catch (error) {
       console.error('Error fetching brands:', error);
+      setBrands([]);
     }
   };
 
@@ -759,13 +770,35 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
 
   const fetchData = async () => {
     setLoading(true);
-    const { data: usersData } = await supabase.from("influencers").select("*").order("created_at", { ascending: false });
-    const { data: propData } = await supabase.from("proposals").select("*, influencers(display_name)").order("created_at", { ascending: false });
+    try {
+      // Only fetch from influencers table - brands should not appear here
+      const { data: usersData, error: influencersError } = await supabase
+        .from("influencers")
+        .select("*")
+        .order("created_at", { ascending: false });
+      
+      if (influencersError) {
+        console.error('Error fetching influencers:', influencersError);
+        setUsers([]);
+      } else if (usersData) {
+        console.log(`[Admin Dashboard] Fetched ${usersData.length} influencers`);
+        setUsers(usersData as any);
+      } else {
+        setUsers([]);
+      }
+      
+      const { data: propData, error: proposalsError } = await supabase
+        .from("proposals")
+        .select("*, influencers(display_name)")
+        .order("created_at", { ascending: false });
 
-    if (usersData) {
-      setUsers(usersData as any);
-      const total = usersData.length;
-      const verified = usersData.filter((u) => u.verified).length;
+      if (proposalsError) {
+        console.error('Error fetching proposals:', proposalsError);
+      }
+
+      if (usersData) {
+        const total = usersData.length;
+        const verified = usersData.filter((u) => u.verified).length;
       
       const totalReachNum = usersData.reduce((acc, curr) => {
          let val = 0;
@@ -791,15 +824,19 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
           setPendingProposalsCount(pendingProps);
       }
 
-      setStats({ 
-        total, 
-        verified, 
-        pending: total - verified, 
-        reach: formattedReach,
-        pipeline: pipelineSum.toLocaleString() + "€"
-      });
+        setStats({ 
+          total, 
+          verified, 
+          pending: total - verified, 
+          reach: formattedReach,
+          pipeline: pipelineSum.toLocaleString() + "€"
+        });
+      }
+    } catch (error) {
+      console.error('Error in fetchData:', error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
   
   // Load unread messages count for admin
