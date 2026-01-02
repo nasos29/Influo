@@ -43,7 +43,7 @@ export default function BrandCard({
       <div className="px-5 pb-5 flex-1 flex flex-col">
         {/* Logo & Verified Badge */}
         <div className="relative -mt-12 mb-4">
-          <div className="relative w-20 h-20 rounded-lg border-2 border-white shadow-md overflow-hidden bg-white flex items-center justify-center">
+          <div className="relative w-full h-24 rounded-lg border-2 border-white shadow-md overflow-hidden bg-white flex items-center justify-center">
             {logo_url && logo_url.trim() !== '' ? (
               <img
                 src={logo_url}

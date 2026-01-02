@@ -231,30 +231,42 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, categorie
       setUploadingLogo(true);
       try {
         const fileExt = logoFile.name.split('.').pop();
-        const fileName = `${brand.id}-${Date.now()}.${fileExt}`;
-        const filePath = `brand-logos/${fileName}`;
+        const fileName = `brand-${brand.id}-${Date.now()}.${fileExt}`;
+        const filePath = fileName;
 
         // Delete old logo if exists
         if (brand.logo_url) {
-          const oldPath = brand.logo_url.split('/').slice(-2).join('/');
-          await supabase.storage.from('brand-assets').remove([oldPath]);
+          try {
+            // Extract filename from full URL
+            const urlParts = brand.logo_url.split('/');
+            const oldFileName = urlParts[urlParts.length - 1];
+            if (oldFileName.startsWith('brand-')) {
+              await supabase.storage.from('avatars').remove([oldFileName]);
+            }
+          } catch (deleteErr) {
+            console.warn('Could not delete old logo:', deleteErr);
+            // Continue anyway
+          }
         }
 
-        // Upload new logo
+        // Upload new logo to avatars bucket
         const { error: uploadError } = await supabase.storage
-          .from('brand-assets')
-          .upload(filePath, logoFile, { upsert: true });
+          .from('avatars')
+          .upload(filePath, logoFile, { 
+            cacheControl: '3600',
+            upsert: false 
+          });
 
         if (uploadError) throw uploadError;
 
-        const { data } = supabase.storage
-          .from('brand-assets')
+        const { data: { publicUrl } } = supabase.storage
+          .from('avatars')
           .getPublicUrl(filePath);
 
-        logoUrl = data.publicUrl;
+        logoUrl = publicUrl;
       } catch (err: any) {
         console.error('Error uploading logo:', err);
-        alert(lang === 'el' ? 'Σφάλμα κατά το ανέβασμα λογοτύπου' : 'Error uploading logo');
+        alert(lang === 'el' ? `Σφάλμα κατά το ανέβασμα λογοτύπου: ${err.message}` : `Error uploading logo: ${err.message}`);
         setUploadingLogo(false);
         return;
       } finally {
@@ -263,8 +275,11 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, categorie
     } else if (!logoPreview && brand.logo_url) {
       // Remove logo if preview was cleared
       try {
-        const oldPath = brand.logo_url.split('/').slice(-2).join('/');
-        await supabase.storage.from('brand-assets').remove([oldPath]);
+        const urlParts = brand.logo_url.split('/');
+        const oldFileName = urlParts[urlParts.length - 1];
+        if (oldFileName.startsWith('brand-')) {
+          await supabase.storage.from('avatars').remove([oldFileName]);
+        }
         logoUrl = null;
       } catch (err) {
         console.error('Error removing logo:', err);
