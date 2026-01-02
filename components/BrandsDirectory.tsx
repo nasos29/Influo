@@ -61,14 +61,19 @@ export default function BrandsDirectory({ lang = "el" }: { lang?: "el" | "en" })
   const fetchBrands = async () => {
     try {
       setLoading(true);
+      console.log("[BrandsDirectory] Fetching verified brands...");
       const { data, error } = await supabase
         .from("brands")
         .select("*")
         .eq("verified", true)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error("[BrandsDirectory] Error fetching brands:", error);
+        throw error;
+      }
 
+      console.log(`[BrandsDirectory] Fetched ${data?.length || 0} verified brands`);
       setBrands(data || []);
     } catch (error) {
       console.error("Error fetching brands:", error);
@@ -170,6 +175,13 @@ export default function BrandsDirectory({ lang = "el" }: { lang?: "el" | "en" })
           <h3 className="text-lg font-semibold text-slate-900">
             {txt.results}: {filteredBrands.length}
           </h3>
+          <button
+            onClick={fetchBrands}
+            disabled={loading}
+            className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {loading ? txt.loading : (lang === "el" ? "Ανανέωση" : "Refresh")}
+          </button>
         </div>
 
         {loading ? (
