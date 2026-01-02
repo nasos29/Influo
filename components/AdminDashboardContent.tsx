@@ -578,24 +578,23 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
 
   const fetchBrands = async () => {
     try {
-      const { data, error } = await supabase
-        .from('brands')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // Use API route with service role key to bypass RLS
+      const response = await fetch('/api/admin/brands');
+      const result = await response.json();
       
-      if (error) {
-        console.error('Error fetching brands:', error);
+      if (!response.ok || !result.success) {
+        console.error('Error fetching brands:', result.error || result.details);
         setBrands([]);
         return;
       }
       
-      if (data) {
-        console.log(`[Admin Dashboard] Fetched ${data.length} brands`);
-        setBrands(data);
+      if (result.brands) {
+        console.log(`[Admin Dashboard] Fetched ${result.brands.length} brands`);
+        setBrands(result.brands);
       } else {
         setBrands([]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching brands:', error);
       setBrands([]);
     }
@@ -1379,13 +1378,21 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
             <>
               {/* Search */}
               <div className="p-4 border-b border-slate-200">
-                <input
-                  type="text"
-                  placeholder={lang === 'el' ? 'Αναζήτηση επιχείρησης...' : 'Search company...'}
-                  value={brandSearchQuery}
-                  onChange={(e) => setBrandSearchQuery(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
+                <div className="flex items-center justify-between gap-4">
+                  <input
+                    type="text"
+                    placeholder={lang === 'el' ? 'Αναζήτηση επιχείρησης...' : 'Search company...'}
+                    value={brandSearchQuery}
+                    onChange={(e) => setBrandSearchQuery(e.target.value)}
+                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <button
+                    onClick={fetchBrands}
+                    className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    {lang === 'el' ? 'Ανανέωση' : 'Refresh'}
+                  </button>
+                </div>
               </div>
 
               {/* Brands Table */}
@@ -1408,7 +1415,11 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                       b.contact_email.toLowerCase().includes(brandSearchQuery.toLowerCase())
                     ).length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-4 py-8 text-center text-slate-500">{txt.no_data}</td>
+                        <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                          {brands.length === 0 
+                            ? (lang === 'el' ? 'Δεν υπάρχουν εγγεγραμμένες επιχειρήσεις' : 'No registered companies')
+                            : txt.no_data}
+                        </td>
                       </tr>
                     ) : (
                       brands.filter(b => 
@@ -1437,11 +1448,11 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                           </td>
                           <td className="px-4 py-3">
                             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                              b.verified 
+                              (b.verified === true || b.verified === 'true') 
                                 ? 'bg-green-100 text-green-700' 
                                 : 'bg-yellow-100 text-yellow-700'
                             }`}>
-                              {b.verified ? (lang === 'el' ? 'Επαληθευμένη' : 'Verified') : (lang === 'el' ? 'Εκκρεμεί' : 'Pending')}
+                              {(b.verified === true || b.verified === 'true') ? (lang === 'el' ? 'Επαληθευμένη' : 'Verified') : (lang === 'el' ? 'Εκκρεμεί' : 'Pending')}
                             </span>
                           </td>
                         </tr>
