@@ -175,7 +175,7 @@ export default function Footer({ lang = "el" }: FooterProps) {
               </li>
               <li>
                 <Link href="/brands" className="text-slate-400 hover:text-white transition-colors text-sm">
-                  {lang === "el" ? "Επιχειρήσεις" : "Brands"}
+                  {lang === "el" ? "Κατάλογος Επιχειρήσεων" : "Brands Directory"}
                 </Link>
               </li>
               <li>
