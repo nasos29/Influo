@@ -505,15 +505,17 @@ export default function Messaging({
         lastSentMessageRef.current = newMessage.trim();
         playSendSound();
         
-        // Reset conversation closed state - backend has reopened it
+        // Reset conversation closed state immediately - backend has reopened it
         setConversationClosed(false);
         setConversationClosedByInactivity(false);
         setShowInactivityWarning(false);
         
         // Refresh conversation state to reflect reopened status
+        // Small delay to ensure backend has processed the update
+        await new Promise(resolve => setTimeout(resolve, 100));
         console.log('[Messaging] Refreshing conversation state...');
         await loadConversations();
-        await loadActivityTimestamps(convId); // This will check if conversation is still closed
+        await loadActivityTimestamps(convId); // This will check if conversation is still closed and update state accordingly
         await loadMessages(convId); // Refresh messages
       } else if (influencerId && brandEmail) {
         // No conversation exists - create new one
