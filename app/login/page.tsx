@@ -11,7 +11,7 @@ const t = {
     title: "Καλώς ήρθατε",
     subtitle: "Συνδεθείτε στον λογαριασμό σας",
     email_label: "Διεύθυνση Email",
-    email_placeholder: "xxxx@email.gr",
+    email_placeholder: "xxxx@email.gr", // Updated placeholder
     password_label: "Κωδικός Πρόσβασης",
     password_placeholder: "••••••••",
     forgot_password: "Ξέχασα τον κωδικό μου",
