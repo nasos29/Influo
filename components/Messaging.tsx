@@ -205,6 +205,67 @@ export default function Messaging({
     }
   }, [selectedConversation, conversationClosed]);
 
+  // Define endConversation BEFORE it's used in useEffect
+  const endConversation = useCallback(async (autoClose = false) => {
+    if (!selectedConversation || endingConversation) {
+      console.log('[End Conversation] Skipping - no selected conversation or already ending');
+      return;
+    }
+
+    console.log('[End Conversation] Called with autoClose:', autoClose, 'conversationId:', selectedConversation);
+
+    if (!autoClose && !confirm(lang === 'el' 
+      ? 'Είστε σίγουρος ότι θέλετε να τερματίσετε τη συνομιλία; Θα σταλεί email σε όλους με ολόκληρη τη συνομιλία.'
+      : 'Are you sure you want to end the conversation? An email will be sent to everyone with the full conversation.')) {
+      return;
+    }
+
+    setEndingConversation(true);
+    try {
+      console.log('[End Conversation] Calling API...');
+      const response = await fetch('/api/conversations/end', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationId: selectedConversation,
+          autoClose,
+        })
+      });
+
+      const result = await response.json();
+      
+      console.log('[End Conversation] API response:', { ok: response.ok, success: result.success, error: result.error });
+      
+      if (!response.ok || !result.success) {
+        const errorMsg = result.error || `HTTP ${response.status}: ${response.statusText}`;
+        console.error('[End Conversation] Error response:', result);
+        throw new Error(errorMsg);
+      }
+
+      setConversationClosed(true);
+      setConversationClosedByInactivity(autoClose);
+      setShowInactivityWarning(false);
+      warningStartTimeRef.current = null;
+      
+      if (!autoClose) {
+        alert(lang === 'el' 
+          ? 'Η συνομιλία έκλεισε. Έχει σταλεί email σε όλους με ολόκληρη τη συνομιλία.'
+          : 'Conversation closed. An email has been sent to everyone with the full conversation.');
+      } else {
+        alert(lang === 'el' 
+          ? 'Η συνομιλία έκλεισε λόγω αδράνειας. Έχει σταλεί email σε όλους με ολόκληρη τη συνομιλία.'
+          : 'Conversation closed due to inactivity. An email has been sent to everyone with the full conversation.');
+      }
+    } catch (error) {
+      console.error('[End Conversation] Error:', error);
+      alert(lang === 'el' 
+        ? 'Αποτυχία τερματισμού συνομιλίας. Παρακαλώ δοκιμάστε ξανά.'
+        : 'Failed to end conversation. Please try again.');
+    } finally {
+      setEndingConversation(false);
+    }
+  }, [selectedConversation, endingConversation, lang]);
+
   // Load messages when conversation is selected
   useEffect(() => {
     if (selectedConversation) {
@@ -816,66 +877,6 @@ export default function Messaging({
       console.error('[Activity] Exception updating activity timestamp:', error);
     }
   };
-
-  const endConversation = useCallback(async (autoClose = false) => {
-    if (!selectedConversation || endingConversation) {
-      console.log('[End Conversation] Skipping - no selected conversation or already ending');
-      return;
-    }
-
-    console.log('[End Conversation] Called with autoClose:', autoClose, 'conversationId:', selectedConversation);
-
-    if (!autoClose && !confirm(lang === 'el' 
-      ? 'Είστε σίγουρος ότι θέλετε να τερματίσετε τη συνομιλία; Θα σταλεί email σε όλους με ολόκληρη τη συνομιλία.'
-      : 'Are you sure you want to end the conversation? An email will be sent to everyone with the full conversation.')) {
-      return;
-    }
-
-    setEndingConversation(true);
-    try {
-      console.log('[End Conversation] Calling API...');
-      const response = await fetch('/api/conversations/end', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          conversationId: selectedConversation,
-          autoClose,
-        })
-      });
-
-      const result = await response.json();
-      
-      console.log('[End Conversation] API response:', { ok: response.ok, success: result.success, error: result.error });
-      
-      if (!response.ok || !result.success) {
-        const errorMsg = result.error || `HTTP ${response.status}: ${response.statusText}`;
-        console.error('[End Conversation] Error response:', result);
-        throw new Error(errorMsg);
-      }
-
-      setConversationClosed(true);
-      setConversationClosedByInactivity(autoClose);
-      setShowInactivityWarning(false);
-      warningStartTimeRef.current = null;
-      
-      if (!autoClose) {
-        alert(lang === 'el' 
-          ? 'Η συνομιλία έκλεισε. Έχει σταλεί email σε όλους με ολόκληρη τη συνομιλία.'
-          : 'Conversation closed. An email has been sent to everyone with the full conversation.');
-      } else {
-        alert(lang === 'el' 
-          ? 'Η συνομιλία έκλεισε λόγω αδράνειας. Έχει σταλεί email σε όλους με ολόκληρη τη συνομιλία.'
-          : 'Conversation closed due to inactivity. An email has been sent to everyone with the full conversation.');
-      }
-    } catch (error) {
-      console.error('[End Conversation] Error:', error);
-      alert(lang === 'el' 
-        ? 'Αποτυχία τερματισμού συνομιλίας. Παρακαλώ δοκιμάστε ξανά.'
-        : 'Failed to end conversation. Please try again.');
-    } finally {
-      setEndingConversation(false);
-    }
-  }, [selectedConversation, endingConversation, lang]);
 
   const currentConversation = conversations.find(c => c.id === selectedConversation);
   const otherPartyName = mode === 'influencer' 
