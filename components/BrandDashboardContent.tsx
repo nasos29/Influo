@@ -1208,7 +1208,7 @@ export default function BrandDashboardContent() {
               influencerEmail=""
               brandEmail={brandData.contact_email}
               brandName={brandData.brand_name}
-              proposalId={null}
+              proposalId={undefined}
               mode="brand"
               lang={lang}
             />
