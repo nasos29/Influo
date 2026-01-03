@@ -114,6 +114,7 @@ export default function Messaging({
   const activityCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastActivityUpdateRef = useRef<number>(0);
   const warningStartTimeRef = useRef<number | null>(null);
+  const autoCloseTimerRef = useRef<NodeJS.Timeout | null>(null);
   const ACTIVITY_UPDATE_THROTTLE = 30000; // Update at most once per 30 seconds
 
   // Load proposal info if proposalId is provided
@@ -207,12 +208,6 @@ export default function Messaging({
   // Load messages when conversation is selected
   useEffect(() => {
     if (selectedConversation) {
-      console.log('[Conversation Selected] useEffect triggered:', {
-        selectedConversation,
-        conversationClosed,
-        timestamp: new Date().toISOString()
-      });
-      
       // Reset flags but don't reset conversationClosed - let loadActivityTimestamps check it
       setConversationClosedByInactivity(false);
       setShowInactivityWarning(false);
@@ -285,17 +280,41 @@ export default function Messaging({
   // When warning appears, both parties have been inactive for 5+ minutes
   // After another 5 minutes, the conversation auto-closes
   useEffect(() => {
+    // Clear any existing timer first
+    if (autoCloseTimerRef.current) {
+      clearTimeout(autoCloseTimerRef.current);
+      autoCloseTimerRef.current = null;
+    }
+
     if (showInactivityWarning && !conversationClosed) {
-      // Record when warning started
+      // Record when warning started (only if not already set)
       if (!warningStartTimeRef.current) {
         warningStartTimeRef.current = Date.now();
       }
       
-      const closeTimer = setTimeout(() => {
+      // Calculate remaining time based on when warning started
+      const elapsed = Date.now() - (warningStartTimeRef.current || Date.now());
+      const remaining = Math.max(0, 5 * 60 * 1000 - elapsed); // 5 minutes total
+      
+      console.log('[Auto-Close] Setting timer:', { 
+        elapsed: Math.round(elapsed / 1000), 
+        remaining: Math.round(remaining / 1000),
+        willCloseIn: Math.round(remaining / 1000) + 's'
+      });
+      
+      // Set timer for remaining time (or full 5 minutes if just started)
+      autoCloseTimerRef.current = setTimeout(() => {
+        console.log('[Auto-Close] Timer fired, closing conversation...');
+        autoCloseTimerRef.current = null;
         endConversation(true); // Auto-close after 5 minutes of warning
-      }, 5 * 60 * 1000); // 5 minutes after warning appears
+      }, remaining);
 
-      return () => clearTimeout(closeTimer);
+      return () => {
+        if (autoCloseTimerRef.current) {
+          clearTimeout(autoCloseTimerRef.current);
+          autoCloseTimerRef.current = null;
+        }
+      };
     } else {
       // Reset warning start time if warning disappears
       warningStartTimeRef.current = null;
@@ -798,8 +817,13 @@ export default function Messaging({
     }
   };
 
-  const endConversation = async (autoClose = false) => {
-    if (!selectedConversation || endingConversation) return;
+  const endConversation = useCallback(async (autoClose = false) => {
+    if (!selectedConversation || endingConversation) {
+      console.log('[End Conversation] Skipping - no selected conversation or already ending');
+      return;
+    }
+
+    console.log('[End Conversation] Called with autoClose:', autoClose, 'conversationId:', selectedConversation);
 
     if (!autoClose && !confirm(lang === 'el' 
       ? 'Είστε σίγουρος ότι θέλετε να τερματίσετε τη συνομιλία; Θα σταλεί email σε όλους με ολόκληρη τη συνομιλία.'
@@ -809,6 +833,7 @@ export default function Messaging({
 
     setEndingConversation(true);
     try {
+      console.log('[End Conversation] Calling API...');
       const response = await fetch('/api/conversations/end', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -820,6 +845,8 @@ export default function Messaging({
 
       const result = await response.json();
       
+      console.log('[End Conversation] API response:', { ok: response.ok, success: result.success, error: result.error });
+      
       if (!response.ok || !result.success) {
         const errorMsg = result.error || `HTTP ${response.status}: ${response.statusText}`;
         console.error('[End Conversation] Error response:', result);
@@ -829,6 +856,8 @@ export default function Messaging({
       setConversationClosed(true);
       setConversationClosedByInactivity(autoClose);
       setShowInactivityWarning(false);
+      warningStartTimeRef.current = null;
+      
       if (!autoClose) {
         alert(lang === 'el' 
           ? 'Η συνομιλία έκλεισε. Έχει σταλεί email σε όλους με ολόκληρη τη συνομιλία.'
@@ -839,14 +868,14 @@ export default function Messaging({
           : 'Conversation closed due to inactivity. An email has been sent to everyone with the full conversation.');
       }
     } catch (error) {
-      console.error('Error ending conversation:', error);
+      console.error('[End Conversation] Error:', error);
       alert(lang === 'el' 
         ? 'Αποτυχία τερματισμού συνομιλίας. Παρακαλώ δοκιμάστε ξανά.'
         : 'Failed to end conversation. Please try again.');
     } finally {
       setEndingConversation(false);
     }
-  };
+  }, [selectedConversation, endingConversation, lang]);
 
   const currentConversation = conversations.find(c => c.id === selectedConversation);
   const otherPartyName = mode === 'influencer' 
