@@ -429,39 +429,10 @@ export default function Messaging({
     try {
       let convId = selectedConversation;
 
-      // If conversation is closed or doesn't exist, send without conversationId
-      // Backend will find/reopen/create the conversation
-      const shouldFindOrReopen = conversationClosed || !convId;
-
-      // Send message - backend will find/reopen/create conversation if needed
-      if (shouldFindOrReopen && influencerId && brandEmail) {
-        const response = await fetch('/api/messages', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            influencerId,
-            brandEmail,
-            brandName: brandName || brandEmail,
-            senderType: mode,
-            content: newMessage,
-          })
-        });
-
-        const result = await response.json();
-        if (!result.success) throw new Error(result.error);
-        
-        convId = result.conversationId;
-        
-        // Refresh conversations list to show reopened conversation
-        await loadConversations();
-        
-        // Select the conversation
-        if (convId) {
-          setSelectedConversation(convId);
-          setConversationClosed(false);
-          setConversationClosedByInactivity(false);
-        }
-      } else if (convId) {
+      // If we have a conversationId (even if closed), send with conversationId so backend can reopen it
+      // Only send without conversationId if we don't have one at all
+      if (convId) {
+        // Send message to existing conversation (backend will reopen if closed)
         // Send message to existing conversation
         const senderId = mode === 'influencer' ? influencerId : brandEmail!;
         
@@ -528,18 +499,51 @@ export default function Messaging({
         const result = await response.json();
         if (!result.success) throw new Error(result.error);
         
+        console.log('[Messaging] ✅ Message sent successfully, conversation should be reopened by backend');
+        
         // Play sound when message is sent (single beep)
         lastSentMessageRef.current = newMessage.trim();
         playSendSound();
         
-        // Update activity timestamp
-        updateActivityTimestamp();
-        setShowInactivityWarning(false); // Reset warning on new activity
-        
-        // If conversation was reopened, refresh conversations list and open it
+        // Reset conversation closed state - backend has reopened it
         setConversationClosed(false);
         setConversationClosedByInactivity(false);
+        setShowInactivityWarning(false);
+        
+        // Refresh conversation state to reflect reopened status
+        console.log('[Messaging] Refreshing conversation state...');
         await loadConversations();
+        await loadActivityTimestamps(convId); // This will check if conversation is still closed
+        await loadMessages(convId); // Refresh messages
+      } else if (influencerId && brandEmail) {
+        // No conversation exists - create new one
+        console.log('[Messaging] Creating new conversation...');
+        const response = await fetch('/api/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            influencerId,
+            brandEmail,
+            brandName: brandName || brandEmail,
+            senderType: mode,
+            content: newMessage,
+          })
+        });
+
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error);
+        
+        convId = result.conversationId;
+        
+        // Refresh conversations list to show new conversation
+        await loadConversations();
+        
+        // Select the new conversation
+        if (convId) {
+          setSelectedConversation(convId);
+          setConversationClosed(false);
+          setConversationClosedByInactivity(false);
+        }
       }
 
       setNewMessage('');
