@@ -503,7 +503,7 @@ export default function Messaging({
     try {
       const { data: conv, error } = await supabase
         .from('conversations')
-        .select('last_activity_influencer, last_activity_brand, closed_at, closed_by_inactivity')
+        .select('last_activity_influencer,last_activity_brand,closed_at,closed_by_inactivity')
         .eq('id', convId)
         .single();
 
@@ -591,7 +591,7 @@ export default function Messaging({
     try {
       const { data: conv, error } = await supabase
         .from('conversations')
-        .select('last_activity_influencer, last_activity_brand, closed_at')
+        .select('last_activity_influencer,last_activity_brand,closed_at')
         .eq('id', selectedConversation)
         .single();
 

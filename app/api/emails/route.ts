@@ -24,6 +24,14 @@ export async function POST(req: Request) {
     // Some email types don't require email field (admin notifications)
     if ((type === 'message_admin_notification' || type === 'proposal_admin_notification' || type === 'profile_edit_admin' || type === 'signup_admin')) {
       // Admin notifications - email is not required from body
+    } else if (type === 'conversation_end') {
+      // conversation_end requires email but it might be in body.email
+      if (!email && !body.toEmail) {
+        return NextResponse.json(
+          { success: false, error: 'Missing required field: email' },
+          { status: 400 }
+        );
+      }
     } else if (!email && !body.toEmail) {
       return NextResponse.json(
         { success: false, error: 'Missing required field: email' },
@@ -283,14 +291,18 @@ export async function POST(req: Request) {
         `;
     }
     else if (type === 'conversation_end') {
-        toEmail = email;
+        toEmail = email || body.toEmail;
         const { autoClose } = body;
         const messageCount = messages?.length || 0;
         const closeReason = autoClose 
             ? 'Η συνομιλία έκλεισε λόγω αδράνειας (5 λεπτά χωρίς δραστηριότητα και από τις δύο πλευρές).'
             : 'Η συνομιλία έκλεισε.';
         
-        subject = `🔒 Η συνομιλία έκλεισε: ${influencerName} ↔ ${brandName}`;
+        // Ensure influencerName and brandName are set
+        const infName = influencerName || 'Influencer';
+        const brName = brandName || 'Brand';
+        
+        subject = `🔒 Η συνομιλία έκλεισε: ${infName} ↔ ${brName}`;
         
         const messagesHtml = messages && messages.length > 0 ? messages.map((msg: any) => `
             <div style="background-color: ${msg.senderType === 'influencer' ? '#f0f9ff' : '#fef3c7'}; padding: 12px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid ${msg.senderType === 'influencer' ? '#0ea5e9' : '#f59e0b'};">
@@ -308,7 +320,7 @@ export async function POST(req: Request) {
             <div style="font-family: sans-serif; padding: 20px; border: 1px solid #dc2626; border-radius: 8px; background-color: #fef2f2;">
                 <h1 style="color: #dc2626;">${autoClose ? 'Η Συνομιλία Έκλεισε Λόγω Αδράνειας' : 'Η Συνομιλία Έκλεισε'}</h1>
                 <div style="background-color: white; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #dc2626;">
-                    <p style="margin-bottom: 10px;"><strong>Συνομιλία:</strong> ${influencerName} ↔ ${brandName}</p>
+                    <p style="margin-bottom: 10px;"><strong>Συνομιλία:</strong> ${infName} ↔ ${brName}</p>
                     <p style="margin-bottom: 10px;"><strong>Αιτία:</strong> ${closeReason}</p>
                     <p style="margin-bottom: 10px;"><strong>Συνολικό πλήθος μηνυμάτων:</strong> ${messageCount}</p>
                 </div>
