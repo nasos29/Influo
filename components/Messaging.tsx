@@ -159,6 +159,101 @@ export default function Messaging({
     }
   }, [mode, influencerId]);
 
+  // Define checkInactivity BEFORE it's used in useEffect
+  const checkInactivity = useCallback(async () => {
+    const currentConv = selectedConversation;
+    const isClosed = conversationClosed;
+    
+    if (!currentConv) {
+      console.log('[Check Inactivity] No selected conversation');
+      return;
+    }
+    
+    if (isClosed) {
+      console.log('[Check Inactivity] Conversation already closed');
+      return;
+    }
+
+    console.log('[Check Inactivity] Starting check for conversation:', currentConv);
+
+    try {
+      const { data: conv, error } = await supabase
+        .from('conversations')
+        .select('last_activity_influencer,last_activity_brand,closed_at')
+        .eq('id', currentConv)
+        .single();
+
+      if (error) {
+        console.error('[Check Inactivity] Database error:', error);
+        return;
+      }
+
+      if (!conv) {
+        console.error('[Check Inactivity] Conversation not found');
+        return;
+      }
+
+      if (conv.closed_at) {
+        console.log('[Check Inactivity] Conversation is already closed');
+        setConversationClosed(true);
+        return;
+      }
+
+      const now = new Date();
+      const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+
+      // Check if both parties have been inactive for 5+ minutes
+      // If timestamp is null/undefined, consider inactive (this handles first-time loads)
+      const influencerInactive = !conv.last_activity_influencer || 
+        new Date(conv.last_activity_influencer) < fiveMinutesAgo;
+      const brandInactive = !conv.last_activity_brand || 
+        new Date(conv.last_activity_brand) < fiveMinutesAgo;
+
+      const influencerMinutesAgo = conv.last_activity_influencer 
+        ? Math.round((now.getTime() - new Date(conv.last_activity_influencer).getTime()) / 60000)
+        : 'never';
+      const brandMinutesAgo = conv.last_activity_brand
+        ? Math.round((now.getTime() - new Date(conv.last_activity_brand).getTime()) / 60000)
+        : 'never';
+
+      console.log('[Check Inactivity] Results:', {
+        conversationId: currentConv,
+        influencerInactive,
+        brandInactive,
+        influencerLastActivity: conv.last_activity_influencer,
+        brandLastActivity: conv.last_activity_brand,
+        influencerMinutesAgo,
+        brandMinutesAgo,
+        fiveMinutesAgo: fiveMinutesAgo.toISOString(),
+        now: now.toISOString()
+      });
+
+      if (influencerInactive && brandInactive) {
+        // Both parties inactive for 5+ minutes - show warning
+        setShowInactivityWarning(prev => {
+          if (!prev) {
+            console.log('[Check Inactivity] ⚠️ Showing warning - both parties inactive for 5+ minutes');
+            warningStartTimeRef.current = Date.now();
+            return true;
+          }
+          return prev;
+        });
+      } else {
+        // At least one party is active - hide warning and reset timer
+        setShowInactivityWarning(prev => {
+          if (prev) {
+            console.log('[Check Inactivity] ✓ Hiding warning - at least one party is active');
+            warningStartTimeRef.current = null;
+            return false;
+          }
+          return prev;
+        });
+      }
+    } catch (error) {
+      console.error('[Check Inactivity] Exception:', error);
+    }
+  }, [selectedConversation, conversationClosed]);
+
   // Load messages when conversation is selected
   useEffect(() => {
     if (selectedConversation) {
@@ -629,13 +724,24 @@ export default function Messaging({
   };
 
   const updateActivityTimestamp = async (force = false) => {
-    if (!selectedConversation) return;
+    if (!selectedConversation) {
+      console.log('[Activity] Skipping update - no selected conversation');
+      return;
+    }
+    
+    // Log stack trace to see where this is called from
+    console.log('[Activity] updateActivityTimestamp called', {
+      force,
+      mode,
+      conversationId: selectedConversation,
+      stackTrace: new Error().stack?.split('\n').slice(1, 4).join('\n')
+    });
     
     // Throttle updates to avoid too many database writes
     const now = Date.now();
     if (!force && (now - lastActivityUpdateRef.current) < ACTIVITY_UPDATE_THROTTLE) {
       // Update local state but skip database update
-      console.log('[Activity] Throttled - skipping database update (last update was', Math.round((now - lastActivityUpdateRef.current) / 1000), 'seconds ago)');
+      console.log('[Activity] ⚠️ Throttled - skipping database update (last update was', Math.round((now - lastActivityUpdateRef.current) / 1000), 'seconds ago)');
       if (mode === 'influencer') {
         setLastActivityInfluencer(new Date());
       } else {
@@ -650,12 +756,17 @@ export default function Messaging({
       const updateField = mode === 'influencer' ? 'last_activity_influencer' : 'last_activity_brand';
       const timestamp = new Date().toISOString();
       
-      console.log('[Activity] Updating', updateField, 'for conversation', selectedConversation);
+      console.log('[Activity] ⚠️⚠️⚠️ UPDATING DATABASE', updateField, 'for conversation', selectedConversation, 'to', timestamp);
       
-      await supabase
+      const { error: updateError } = await supabase
         .from('conversations')
         .update({ [updateField]: timestamp })
         .eq('id', selectedConversation);
+
+      if (updateError) {
+        console.error('[Activity] ❌ Database update error:', updateError);
+        return;
+      }
 
       if (mode === 'influencer') {
         setLastActivityInfluencer(new Date());
@@ -663,105 +774,11 @@ export default function Messaging({
         setLastActivityBrand(new Date());
       }
       
-      console.log('[Activity] Successfully updated', updateField, 'to', timestamp);
+      console.log('[Activity] ✅ Successfully updated', updateField, 'to', timestamp);
     } catch (error) {
-      console.error('[Activity] Error updating activity timestamp:', error);
+      console.error('[Activity] ❌ Exception updating activity timestamp:', error);
     }
   };
-
-  const checkInactivity = useCallback(async () => {
-    const currentConv = selectedConversation;
-    const isClosed = conversationClosed;
-    
-    if (!currentConv) {
-      console.log('[Check Inactivity] No selected conversation');
-      return;
-    }
-    
-    if (isClosed) {
-      console.log('[Check Inactivity] Conversation already closed');
-      return;
-    }
-
-    console.log('[Check Inactivity] Starting check for conversation:', currentConv);
-
-    try {
-      const { data: conv, error } = await supabase
-        .from('conversations')
-        .select('last_activity_influencer,last_activity_brand,closed_at')
-        .eq('id', currentConv)
-        .single();
-
-      if (error) {
-        console.error('[Check Inactivity] Database error:', error);
-        return;
-      }
-
-      if (!conv) {
-        console.error('[Check Inactivity] Conversation not found');
-        return;
-      }
-
-      if (conv.closed_at) {
-        console.log('[Check Inactivity] Conversation is already closed');
-        setConversationClosed(true);
-        return;
-      }
-
-      const now = new Date();
-      const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
-
-      // Check if both parties have been inactive for 5+ minutes
-      // If timestamp is null/undefined, consider inactive (this handles first-time loads)
-      const influencerInactive = !conv.last_activity_influencer || 
-        new Date(conv.last_activity_influencer) < fiveMinutesAgo;
-      const brandInactive = !conv.last_activity_brand || 
-        new Date(conv.last_activity_brand) < fiveMinutesAgo;
-
-      const influencerMinutesAgo = conv.last_activity_influencer 
-        ? Math.round((now.getTime() - new Date(conv.last_activity_influencer).getTime()) / 60000)
-        : 'never';
-      const brandMinutesAgo = conv.last_activity_brand
-        ? Math.round((now.getTime() - new Date(conv.last_activity_brand).getTime()) / 60000)
-        : 'never';
-
-      console.log('[Check Inactivity] Results:', {
-        conversationId: currentConv,
-        influencerInactive,
-        brandInactive,
-        influencerLastActivity: conv.last_activity_influencer,
-        brandLastActivity: conv.last_activity_brand,
-        influencerMinutesAgo,
-        brandMinutesAgo,
-        fiveMinutesAgo: fiveMinutesAgo.toISOString(),
-        now: now.toISOString()
-      });
-
-      if (influencerInactive && brandInactive) {
-        // Both parties inactive for 5+ minutes - show warning
-        setShowInactivityWarning(prev => {
-          if (!prev) {
-            console.log('[Check Inactivity] ⚠️ Showing warning - both parties inactive for 5+ minutes');
-            warningStartTimeRef.current = Date.now();
-            return true;
-          }
-          return prev;
-        });
-      } else {
-        // At least one party is active - hide warning and reset timer
-        setShowInactivityWarning(prev => {
-          if (prev) {
-            console.log('[Check Inactivity] ✓ Hiding warning - at least one party is active');
-            warningStartTimeRef.current = null;
-            return false;
-          }
-          return prev;
-        });
-      }
-    } catch (error) {
-      console.error('[Check Inactivity] Exception:', error);
-    }
-  }, [selectedConversation, conversationClosed]);
 
   const endConversation = async (autoClose = false) => {
     if (!selectedConversation || endingConversation) return;
