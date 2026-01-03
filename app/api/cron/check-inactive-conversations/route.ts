@@ -9,9 +9,10 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 async function endConversationInternal(conversationId: string, autoClose: boolean, origin?: string) {
   try {
     // Get conversation details
+    // Don't use select('*') to avoid issues with missing columns
     const { data: conversation, error: convError } = await supabaseAdmin
       .from('conversations')
-      .select('*')
+      .select('id, influencer_id, influencer_name, influencer_email, brand_email, brand_name, proposal_id, created_at, updated_at, last_message_at, closed_at, last_activity_influencer, last_activity_brand')
       .eq('id', conversationId)
       .single();
 
