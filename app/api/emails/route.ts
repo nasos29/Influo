@@ -13,8 +13,19 @@ export async function POST(req: Request) {
     const { type, email, name, location, brandName, influencerName, proposalType, influencerId, budget, message, conversationId, messages } = body;
     const host = req.headers.get('host') || 'influo.gr';
 
+    // Log incoming request for debugging
+    console.log('[Email API] Received request:', { 
+      type, 
+      hasEmail: !!email, 
+      hasToEmail: !!body.toEmail, 
+      hasBrandName: !!brandName,
+      hasInfluencerName: !!influencerName,
+      hasMessage: !!message
+    });
+
     // Validation - email is optional for admin notifications
     if (!type) {
+      console.error('[Email API] Missing type field');
       return NextResponse.json(
         { success: false, error: 'Missing required field: type' },
         { status: 400 }
@@ -162,11 +173,29 @@ export async function POST(req: Request) {
     else if (type === 'message_offline') {
         // toEmail should come from the body for this type (influencer's email)
         toEmail = body.toEmail || email;
-        subject = `💬 Νέο μήνυμα από ${brandName}`;
+        
+        // Validate required fields for message_offline
+        if (!toEmail) {
+          console.error('[Email API] message_offline missing toEmail');
+          return NextResponse.json(
+            { success: false, error: 'Missing required field: toEmail' },
+            { status: 400 }
+          );
+        }
+        if (!message) {
+          console.error('[Email API] message_offline missing message');
+          return NextResponse.json(
+            { success: false, error: 'Missing required field: message' },
+            { status: 400 }
+          );
+        }
+        
+        const displayBrandName = brandName || body.brandEmail || 'Brand';
+        subject = `💬 Νέο μήνυμα από ${displayBrandName}`;
         html = `
             <div style="font-family: sans-serif; padding: 20px; border: 1px solid #0ea5e9; border-radius: 8px; background-color: #f0f9ff;">
                 <h1 style="color: #0284c7;">Νέο Μήνυμα</h1>
-                <p>Έχετε λάβει ένα νέο μήνυμα από το brand <strong>${brandName}</strong>.</p>
+                <p>Έχετε λάβει ένα νέο μήνυμα από το brand <strong>${displayBrandName}</strong>.</p>
                 <div style="background-color: white; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #0ea5e9;">
                     <p style="white-space: pre-wrap;">${message}</p>
                 </div>
@@ -339,8 +368,18 @@ export async function POST(req: Request) {
 
     // Validation: Check if subject and html are set
     if (!subject || !html) {
+      console.error('[Email API] Missing subject or html for type:', type);
       return NextResponse.json(
-        { success: false, error: `Invalid email type: ${type}` },
+        { success: false, error: `Invalid email type: ${type}`, details: 'Subject or HTML template not found' },
+        { status: 400 }
+      );
+    }
+    
+    // Validation: Check if toEmail is set
+    if (!toEmail) {
+      console.error('[Email API] Missing toEmail after processing');
+      return NextResponse.json(
+        { success: false, error: 'Missing recipient email (toEmail)' },
         { status: 400 }
       );
     }

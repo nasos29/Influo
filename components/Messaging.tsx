@@ -362,22 +362,50 @@ export default function Messaging({
         const senderId = mode === 'influencer' ? influencerId : brandEmail!;
         
         // If brand is sending and influencer is offline, send via email
-        if (mode === 'brand' && !isInfluencerOnline) {
+        // Get influencer email from the current conversation if not provided as prop
+        if (mode === 'brand' && !isInfluencerOnline && selectedConversation) {
           try {
-            await fetch('/api/emails', {
+            // Get influencer email from conversation
+            const currentConv = conversations.find(c => c.id === selectedConversation);
+            const targetInfluencerEmail = currentConv?.influencer_email || influencerEmail;
+            const targetInfluencerName = currentConv?.influencer_name || influencerName;
+            
+            // Only send email if we have a valid influencer email
+            if (!targetInfluencerEmail) {
+              console.warn('[Messaging] Cannot send offline email: influencer email not found');
+              return;
+            }
+            
+            const emailPayload = {
+              type: 'message_offline',
+              toEmail: targetInfluencerEmail,
+              influencerName: targetInfluencerName,
+              brandName: brandName || brandEmail,
+              message: newMessage,
+              conversationId: convId,
+            };
+            
+            console.log('[Messaging] Sending offline email:', {
+              hasToEmail: !!emailPayload.toEmail,
+              hasBrandName: !!emailPayload.brandName,
+              hasMessage: !!emailPayload.message,
+              toEmail: emailPayload.toEmail
+            });
+            
+            const emailResponse = await fetch('/api/emails', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                type: 'message_offline',
-                toEmail: influencerEmail,
-                influencerName: influencerName,
-                brandName: brandName || brandEmail,
-                message: newMessage,
-                conversationId: convId,
-              })
+              body: JSON.stringify(emailPayload)
             });
+            
+            if (!emailResponse.ok) {
+              const errorData = await emailResponse.json();
+              console.error('[Messaging] Offline email failed:', errorData);
+            } else {
+              console.log('[Messaging] Offline email sent successfully');
+            }
           } catch (emailError) {
-            console.error('Offline email failed:', emailError);
+            console.error('[Messaging] Offline email error:', emailError);
           }
         }
         
