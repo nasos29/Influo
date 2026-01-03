@@ -1,4 +1,4 @@
-// app/login/page.tsx
+// app/login/page.tsx - v1.1
 "use client";
 
 import { useState } from 'react';
@@ -9,9 +9,9 @@ import { useRouter } from 'next/navigation';
 const t = {
   el: {
     title: "Καλώς ήρθατε",
-    subtitle: "Συνδεθείτε στον λογαριασμό σας",
+    subtitle: "Συνδεθείτε στον λογαριασμό σας (v1.1)",
     email_label: "Διεύθυνση Email",
-    email_placeholder: "xxxx@email.gr", // Updated placeholder
+    email_placeholder: "xxxx@email.gr",
     password_label: "Κωδικός Πρόσβασης",
     password_placeholder: "••••••••",
     forgot_password: "Ξέχασα τον κωδικό μου",
