@@ -1218,7 +1218,6 @@ export default function BrandDashboardContent() {
         {/* Pending Agreements Section */}
         {activeTab === 'proposals' && (
         <div className="mb-6">
-        <div className="mb-6">
           <h2 className="text-xl font-bold text-slate-900 mb-4">{txt.pending_agreements}</h2>
           
           {pendingAgreements.length === 0 ? (
