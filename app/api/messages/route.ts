@@ -33,7 +33,7 @@ export async function POST(req: Request) {
       let convId = existingConv?.id;
 
       // If conversation exists but is closed, reopen it
-      if (convId && existingConv.closed_at) {
+      if (convId && existingConv && existingConv.closed_at) {
         console.log('[Messages API] Reopening closed conversation:', convId);
         await supabaseAdmin
           .from('conversations')
