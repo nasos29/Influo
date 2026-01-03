@@ -150,11 +150,11 @@ export async function GET(req: Request) {
       fiveMinutesAgo: fiveMinutesAgo.toISOString()
     });
 
-    // Find conversations where both parties have been inactive for 10+ minutes
-    // We need to check both timestamps are either null or older than 10 minutes
+    // SIMPLIFIED: Use last_message_at instead of activity timestamps
+    // Find conversations where no message has been sent for 10+ minutes
     const { data: allConversations, error: fetchError } = await supabaseAdmin
       .from('conversations')
-      .select('id, influencer_name, influencer_email, brand_name, brand_email, last_activity_influencer, last_activity_brand')
+      .select('id, influencer_name, influencer_email, brand_name, brand_email, last_message_at')
       .is('closed_at', null); // Not already closed
 
     if (fetchError) {
@@ -164,23 +164,19 @@ export async function GET(req: Request) {
 
     console.log(`[Cron] Found ${allConversations?.length || 0} open conversations`);
 
-    // Filter conversations where both parties have been inactive for 10+ minutes
+    // Filter conversations where last message was sent 10+ minutes ago (or no messages exist)
     const inactiveConversations = (allConversations || []).filter(conv => {
-      const influencerInactive = !conv.last_activity_influencer || 
-        new Date(conv.last_activity_influencer) < tenMinutesAgo;
-      const brandInactive = !conv.last_activity_brand || 
-        new Date(conv.last_activity_brand) < tenMinutesAgo;
+      const lastMessageTime = conv.last_message_at ? new Date(conv.last_message_at) : null;
+      const isInactive = !lastMessageTime || lastMessageTime < tenMinutesAgo;
       
-      if (influencerInactive && brandInactive) {
+      if (isInactive) {
         console.log(`[Cron] Found inactive conversation: ${conv.id}`, {
-          influencerLastActivity: conv.last_activity_influencer,
-          brandLastActivity: conv.last_activity_brand,
-          influencerInactive,
-          brandInactive
+          lastMessageAt: conv.last_message_at,
+          minutesAgo: lastMessageTime ? Math.round((now.getTime() - lastMessageTime.getTime()) / 60000) : 'never'
         });
       }
       
-      return influencerInactive && brandInactive;
+      return isInactive;
     });
 
     console.log(`[Cron] Found ${inactiveConversations.length} inactive conversations to close`);

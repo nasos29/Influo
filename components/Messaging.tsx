@@ -160,89 +160,41 @@ export default function Messaging({
   }, [mode, influencerId]);
 
   // Define checkInactivity BEFORE it's used in useEffect
+  // SIMPLIFIED APPROACH: Use last_message_at instead of activity timestamps
+  // This avoids all the issues with timestamps being auto-updated
   const checkInactivity = useCallback(async () => {
-    const currentConv = selectedConversation;
-    const isClosed = conversationClosed;
-    
-    if (!currentConv) {
-      console.log('[Check Inactivity] No selected conversation');
-      return;
-    }
-    
-    if (isClosed) {
-      console.log('[Check Inactivity] Conversation already closed');
-      return;
-    }
-
-    console.log('[Check Inactivity] Starting check for conversation:', currentConv);
+    if (!selectedConversation || conversationClosed) return;
 
     try {
+      // Just check last_message_at - if no message for 5+ minutes, show warning
       const { data: conv, error } = await supabase
         .from('conversations')
-        .select('last_activity_influencer,last_activity_brand,closed_at')
-        .eq('id', currentConv)
+        .select('last_message_at,closed_at')
+        .eq('id', selectedConversation)
         .single();
 
-      if (error) {
-        console.error('[Check Inactivity] Database error:', error);
-        return;
-      }
-
-      if (!conv) {
-        console.error('[Check Inactivity] Conversation not found');
-        return;
-      }
-
-      if (conv.closed_at) {
-        console.log('[Check Inactivity] Conversation is already closed');
-        setConversationClosed(true);
+      if (error || !conv || conv.closed_at) {
+        if (conv?.closed_at) setConversationClosed(true);
         return;
       }
 
       const now = new Date();
       const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+      const lastMessageTime = conv.last_message_at ? new Date(conv.last_message_at) : null;
+      const isInactive = !lastMessageTime || lastMessageTime < fiveMinutesAgo;
 
-      // Check if both parties have been inactive for 5+ minutes
-      // If timestamp is null/undefined, consider inactive (this handles first-time loads)
-      const influencerInactive = !conv.last_activity_influencer || 
-        new Date(conv.last_activity_influencer) < fiveMinutesAgo;
-      const brandInactive = !conv.last_activity_brand || 
-        new Date(conv.last_activity_brand) < fiveMinutesAgo;
-
-      const influencerMinutesAgo = conv.last_activity_influencer 
-        ? Math.round((now.getTime() - new Date(conv.last_activity_influencer).getTime()) / 60000)
-        : 'never';
-      const brandMinutesAgo = conv.last_activity_brand
-        ? Math.round((now.getTime() - new Date(conv.last_activity_brand).getTime()) / 60000)
-        : 'never';
-
-      console.log('[Check Inactivity] Results:', {
-        conversationId: currentConv,
-        influencerInactive,
-        brandInactive,
-        influencerLastActivity: conv.last_activity_influencer,
-        brandLastActivity: conv.last_activity_brand,
-        influencerMinutesAgo,
-        brandMinutesAgo,
-        fiveMinutesAgo: fiveMinutesAgo.toISOString(),
-        now: now.toISOString()
-      });
-
-      if (influencerInactive && brandInactive) {
-        // Both parties inactive for 5+ minutes - show warning
+      if (isInactive) {
         setShowInactivityWarning(prev => {
           if (!prev) {
-            console.log('[Check Inactivity] ⚠️ Showing warning - both parties inactive for 5+ minutes');
+            console.log('[Check Inactivity] ⚠️ Warning - no messages for 5+ minutes');
             warningStartTimeRef.current = Date.now();
             return true;
           }
           return prev;
         });
       } else {
-        // At least one party is active - hide warning and reset timer
         setShowInactivityWarning(prev => {
           if (prev) {
-            console.log('[Check Inactivity] ✓ Hiding warning - at least one party is active');
             warningStartTimeRef.current = null;
             return false;
           }
@@ -250,7 +202,7 @@ export default function Messaging({
         });
       }
     } catch (error) {
-      console.error('[Check Inactivity] Exception:', error);
+      console.error('[Check Inactivity] Error:', error);
     }
   }, [selectedConversation, conversationClosed]);
 
