@@ -299,6 +299,29 @@ export default function Messaging({
       if (error) throw error;
       setMessages(data || []);
       scrollToBottom();
+      
+      // Mark messages as read when loaded (only for messages sent by the other party)
+      if (data && data.length > 0) {
+        const unreadMessages = data.filter(msg => 
+          !msg.read && msg.sender_type !== mode
+        );
+        
+        if (unreadMessages.length > 0) {
+          // Mark all unread messages from the other party as read
+          const messageIds = unreadMessages.map(msg => msg.id);
+          await supabase
+            .from('messages')
+            .update({ read: true })
+            .in('id', messageIds);
+          
+          // Trigger a custom event to update unread count in parent component
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('messagesRead', { 
+              detail: { conversationId: convId, count: unreadMessages.length } 
+            }));
+          }
+        }
+      }
     } catch (error) {
       console.error('Error loading messages:', error);
     }
@@ -503,7 +526,7 @@ export default function Messaging({
     try {
       const { data: conv, error } = await supabase
         .from('conversations')
-        .select('last_activity_influencer,last_activity_brand,closed_at,closed_by_inactivity')
+        .select('last_activity_influencer,last_activity_brand,closed_at')
         .eq('id', convId)
         .single();
 
@@ -515,7 +538,8 @@ export default function Messaging({
       if (conv) {
         if (conv.closed_at) {
           setConversationClosed(true);
-          setConversationClosedByInactivity(conv.closed_by_inactivity || false);
+          // Note: closed_by_inactivity column may not exist in database
+          setConversationClosedByInactivity(false);
         }
         
         // Initialize activity timestamps if they don't exist

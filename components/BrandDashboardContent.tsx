@@ -1085,7 +1085,7 @@ export default function BrandDashboardContent() {
                 const inf = match.influencer;
                 const avatarUrl = inf.avatar_url || (inf.accounts?.[0]?.username 
                   ? `https://unavatar.io/${inf.accounts?.[0]?.username}` 
-                  : '/default-avatar.png');
+                  : `https://ui-avatars.com/api/?name=${encodeURIComponent(inf.display_name)}&background=random`);
                 
                 return (
                   <div

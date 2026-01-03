@@ -506,11 +506,22 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
         loadProposals();
         loadUnreadMessages();
         
+        // Listen for messages read event to update count immediately
+        const handleMessagesRead = () => {
+            loadUnreadMessages();
+        };
+        window.addEventListener('messagesRead', handleMessagesRead);
+        
         // Refresh counts every 30 seconds
         const interval = setInterval(() => {
             loadProposals();
             loadUnreadMessages();
         }, 30000);
+        
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener('messagesRead', handleMessagesRead);
+        };
         
         return () => clearInterval(interval);
     }, []);
