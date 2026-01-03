@@ -35,6 +35,8 @@ interface ProposalInfo {
   status: string;
   counter_proposal_budget?: string | null;
   counter_proposal_status?: string | null;
+  influencer_agreement_accepted?: boolean;
+  brand_agreement_accepted?: boolean;
 }
 
 interface MessagingProps {
@@ -63,7 +65,14 @@ const t = {
     endingConversation: "Τερματισμός...",
     inactivityWarning: "⚠️ Η συνομιλία είναι αδρανής και από τις δύο πλευρές. Η συνομιλία θα κλείσει αυτόματα σε 5 λεπτά.",
     conversationClosed: "Η συνομιλία έκλεισε.",
-    conversationClosedInactivity: "Η συνομιλία έκλεισε λόγω αδράνειας."
+    conversationClosedInactivity: "Η συνομιλία έκλεισε λόγω αδράνειας.",
+    acceptAgreement: "✅ Αποδοχή Συμφωνίας",
+    agreementTitle: "Συμφωνία Συνεργασίας",
+    agreementCancel: "Ακύρωση",
+    agreementAccept: "Αποδοχή Συμφωνίας",
+    agreementSaving: "Αποθήκευση...",
+    agreementAccepted: "✅ Συμφωνία Αποδεκτή",
+    agreementPending: "⏳ Αναμονή Αποδοχής"
   },
   en: {
     placeholder: "Type your message...",
@@ -79,7 +88,14 @@ const t = {
     endingConversation: "Ending...",
     inactivityWarning: "⚠️ The conversation is inactive on both sides. The conversation will close automatically in 5 minutes.",
     conversationClosed: "The conversation has been closed.",
-    conversationClosedInactivity: "The conversation has been closed due to inactivity."
+    conversationClosedInactivity: "The conversation has been closed due to inactivity.",
+    acceptAgreement: "✅ Accept Agreement",
+    agreementTitle: "Collaboration Agreement",
+    agreementCancel: "Cancel",
+    agreementAccept: "Accept Agreement",
+    agreementSaving: "Saving...",
+    agreementAccepted: "✅ Agreement Accepted",
+    agreementPending: "⏳ Pending Acceptance"
   }
 };
 
@@ -111,6 +127,9 @@ export default function Messaging({
   const [conversationClosed, setConversationClosed] = useState(false);
   const [conversationClosedByInactivity, setConversationClosedByInactivity] = useState(false);
   const [endingConversation, setEndingConversation] = useState(false);
+  const [showAgreementModal, setShowAgreementModal] = useState(false);
+  const [agreementAccepted, setAgreementAccepted] = useState(false);
+  const [savingAgreement, setSavingAgreement] = useState(false);
   const activityCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastActivityUpdateRef = useRef<number>(0);
   const warningStartTimeRef = useRef<number | null>(null);
@@ -490,7 +509,7 @@ export default function Messaging({
     try {
       const { data, error } = await supabase
         .from('proposals')
-        .select('id, brand_name, brand_email, budget, service_type, status, counter_proposal_budget, counter_proposal_status')
+        .select('id, brand_name, brand_email, budget, service_type, status, counter_proposal_budget, counter_proposal_status, influencer_agreement_accepted, brand_agreement_accepted')
         .eq('id', proposalId)
         .single();
 
@@ -500,6 +519,69 @@ export default function Messaging({
       }
     } catch (error) {
       console.error('Error loading proposal info:', error);
+    }
+  };
+
+  // Check if user needs to accept agreement
+  const needsAgreement = proposalInfo && 
+    (proposalInfo.status === 'accepted' || proposalInfo.status === 'completed') &&
+    ((mode === 'influencer' && !proposalInfo.influencer_agreement_accepted) ||
+     (mode === 'brand' && !proposalInfo.brand_agreement_accepted));
+
+  // Check if agreement is already accepted
+  const hasAgreement = proposalInfo && 
+    (proposalInfo.status === 'accepted' || proposalInfo.status === 'completed') &&
+    ((mode === 'influencer' && proposalInfo.influencer_agreement_accepted) ||
+     (mode === 'brand' && proposalInfo.brand_agreement_accepted));
+
+  // Check if both parties accepted
+  const bothAccepted = proposalInfo && 
+    proposalInfo.influencer_agreement_accepted && 
+    proposalInfo.brand_agreement_accepted;
+
+  const handleAcceptAgreement = async () => {
+    if (!proposalId || !agreementAccepted) {
+      alert(lang === 'el' 
+        ? 'Παρακαλώ διαβάστε και αποδεχτείτε τους όρους χρήσης'
+        : 'Please read and accept the terms of service');
+      return;
+    }
+
+    setSavingAgreement(true);
+    try {
+      const response = await fetch('/api/proposals/agreement', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          proposalId: proposalId,
+          userType: mode, // 'influencer' or 'brand'
+          accepted: true
+        })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        // Reload proposal info to get updated status
+        await loadProposalInfo();
+        setShowAgreementModal(false);
+        setAgreementAccepted(false);
+        alert(lang === 'el'
+          ? mode === 'influencer'
+            ? 'Η συμφωνία αποδεχτήθηκε! Το brand θα προστεθεί στις συνεργασίες σας όταν και το brand αποδεχτεί.'
+            : 'Η συμφωνία αποδεχτήθηκε! Θα προστεθείτε στις συνεργασίες του influencer όταν και ο influencer αποδεχτεί.'
+          : mode === 'influencer'
+            ? 'Agreement accepted! The brand will be added to your collaborations once the brand also accepts.'
+            : 'Agreement accepted! You will be added to the influencer\'s collaborations once the influencer also accepts.');
+      } else {
+        throw new Error(result.error || (lang === 'el' ? 'Σφάλμα αποδοχής συμφωνίας' : 'Error accepting agreement'));
+      }
+    } catch (error: any) {
+      console.error('Error accepting agreement:', error);
+      alert(lang === 'el' 
+        ? 'Σφάλμα: ' + error.message 
+        : 'Error: ' + error.message);
+    } finally {
+      setSavingAgreement(false);
     }
   };
 
@@ -948,6 +1030,25 @@ export default function Messaging({
                         </span>
                       </div>
                     )}
+                    {/* Agreement Button */}
+                    {proposalInfo && needsAgreement && (
+                      <button
+                        onClick={() => setShowAgreementModal(true)}
+                        className="px-4 py-1.5 text-sm bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all"
+                      >
+                        {txt.acceptAgreement}
+                      </button>
+                    )}
+                    {proposalInfo && hasAgreement && !bothAccepted && (
+                      <div className="px-4 py-1.5 text-sm bg-blue-100 text-blue-700 rounded-lg font-medium">
+                        {txt.agreementPending}
+                      </div>
+                    )}
+                    {proposalInfo && bothAccepted && (
+                      <div className="px-4 py-1.5 text-sm bg-green-100 text-green-700 rounded-lg font-medium">
+                        {txt.agreementAccepted}
+                      </div>
+                    )}
                     {!conversationClosed && (
                       <button
                         onClick={() => endConversation(false)}
@@ -1129,6 +1230,173 @@ export default function Messaging({
           )}
         </div>
       </div>
+
+      {/* Agreement Modal */}
+      {showAgreementModal && proposalInfo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-slate-900">{txt.agreementTitle}</h2>
+              <button 
+                onClick={() => {
+                  setShowAgreementModal(false);
+                  setAgreementAccepted(false);
+                }}
+                className="text-slate-400 hover:text-slate-600 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-900 font-medium mb-2">
+                  {lang === 'el' ? 'Συνεργασία με:' : 'Collaboration with:'} <strong>
+                    {mode === 'influencer' ? proposalInfo.brand_name : influencerName}
+                  </strong>
+                </p>
+                <p className="text-sm text-blue-800">
+                  {lang === 'el' ? 'Υπηρεσία:' : 'Service:'} {proposalInfo.service_type} • {lang === 'el' ? 'Budget:' : 'Budget:'} €{proposalInfo.counter_proposal_budget || proposalInfo.budget}
+                </p>
+              </div>
+
+              {/* Benefits Section */}
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-5 space-y-3">
+                <h3 className="font-bold text-blue-900 text-lg flex items-center gap-2">
+                  ✨ {lang === 'el' ? 'Γιατί να αποδεχτείτε τη συμφωνία;' : 'Why accept the agreement?'}
+                </h3>
+                <div className="grid md:grid-cols-2 gap-3">
+                  <div className="flex items-start gap-2">
+                    <span className="text-2xl">⭐</span>
+                    <div>
+                      <p className="font-semibold text-blue-900">{lang === 'el' ? 'Αξιολογήσεις & Reviews' : 'Ratings & Reviews'}</p>
+                      <p className="text-sm text-blue-700">
+                        {lang === 'el' 
+                          ? 'Θα μπορείτε να λάβετε αξιολογήσεις που θα βελτιώσουν την αξιοπιστία σας'
+                          : 'You will be able to receive ratings that will improve your credibility'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-2xl">📈</span>
+                    <div>
+                      <p className="font-semibold text-blue-900">{lang === 'el' ? 'Μεγαλύτερη Προβολή' : 'Greater Visibility'}</p>
+                      <p className="text-sm text-blue-700">
+                        {lang === 'el'
+                          ? mode === 'influencer'
+                            ? 'Το brand θα εμφανίζεται στις συνεργασίες σας, αυξάνοντας την προβολή σας'
+                            : 'Θα εμφανίζεστε στις συνεργασίες του influencer, αυξάνοντας την προβολή σας'
+                          : mode === 'influencer'
+                            ? 'The brand will appear in your collaborations, increasing your visibility'
+                            : 'You will appear in the influencer\'s collaborations, increasing your visibility'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-2xl">🎯</span>
+                    <div>
+                      <p className="font-semibold text-blue-900">{lang === 'el' ? 'Επαγγελματικός Προφίλ' : 'Professional Profile'}</p>
+                      <p className="text-sm text-blue-700">
+                        {lang === 'el' 
+                          ? 'Περισσότερες συνεργασίες = πιο επαγγελματικό και αξιόπιστο προφίλ'
+                          : 'More collaborations = more professional and trustworthy profile'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-2xl">💼</span>
+                    <div>
+                      <p className="font-semibold text-blue-900">{lang === 'el' ? 'Περισσότερες Ευκαιρίες' : 'More Opportunities'}</p>
+                      <p className="text-sm text-blue-700">
+                        {lang === 'el' 
+                          ? 'Το portfolio σας μεγάλωνει και ελκύει περισσότερα brands'
+                          : 'Your portfolio grows and attracts more brands'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="font-bold text-slate-900">{lang === 'el' ? 'Όροι Χρήσης & Συμφωνία' : 'Terms of Service & Agreement'}</h3>
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 max-h-64 overflow-y-auto text-sm text-slate-700 space-y-3">
+                  <p><strong>{lang === 'el' ? '1. Υποχρεώσεις:' : '1. Obligations:'}</strong></p>
+                  <ul className="list-disc list-inside ml-2 space-y-1">
+                    <li>{lang === 'el' ? 'Παροχή υψηλής ποιότητας περιεχομένου σύμφωνα με τις προδιαγραφές' : 'Provide high-quality content according to specifications'}</li>
+                    <li>{lang === 'el' ? 'Σεβασμός προθεσμιών και deadlines' : 'Respect deadlines and timelines'}</li>
+                    <li>{lang === 'el' ? 'Επικοινωνία για οποιαδήποτε απορία' : 'Communication for any questions'}</li>
+                  </ul>
+
+                  <p><strong>{lang === 'el' ? '2. Πληρωμή:' : '2. Payment:'}</strong></p>
+                  <ul className="list-disc list-inside ml-2 space-y-1">
+                    <li>{lang === 'el' ? 'Η πληρωμή θα γίνει σύμφωνα με τις προδιαγραφές της προσφοράς' : 'Payment will be made according to the proposal specifications'}</li>
+                  </ul>
+
+                  <p><strong>{lang === 'el' ? '3. Δικαιώματα:' : '3. Rights:'}</strong></p>
+                  <ul className="list-disc list-inside ml-2 space-y-1">
+                    <li>{lang === 'el' ? 'Δικαίωμα έγκρισης/απόρριψης περιεχομένου' : 'Right to approve/reject content'}</li>
+                  </ul>
+
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-4">
+                    <p className="text-xs font-medium text-amber-900">
+                      ⚠️ <strong>{lang === 'el' ? 'Σημαντικό:' : 'Important:'}</strong> {lang === 'el' ? 'Με την αποδοχή αυτής της συμφωνίας:' : 'By accepting this agreement:'}
+                    </p>
+                    <ul className="text-xs text-amber-800 mt-2 space-y-1 list-disc list-inside ml-2">
+                      <li>{lang === 'el' ? 'Συμφωνείτε με τους παραπάνω όρους χρήσης' : 'You agree to the above terms of service'}</li>
+                      <li>
+                        {lang === 'el'
+                          ? mode === 'influencer'
+                            ? `Το όνομα του brand ${proposalInfo.brand_name} θα προστεθεί στις συνεργασίες σας (public)`
+                            : `Θα προστεθείτε στις συνεργασίες του influencer (public)`
+                          : mode === 'influencer'
+                            ? `The brand ${proposalInfo.brand_name} will be added to your collaborations (public)`
+                            : 'You will be added to the influencer\'s collaborations (public)'}
+                      </li>
+                      <li>{lang === 'el' ? 'Η συνεργασία θα εμφανίζεται στο προφίλ σας' : 'The collaboration will appear in your profile'}</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={agreementAccepted}
+                    onChange={(e) => setAgreementAccepted(e.target.checked)}
+                    className="mt-1 w-5 h-5 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-slate-700">
+                    <strong>{lang === 'el' ? 'Αποδέχομαι τους όρους χρήσης' : 'I accept the terms of service'}</strong> {lang === 'el' ? 'και συμφωνώ να προστεθεί' : 'and agree to add'}
+                    {mode === 'influencer' ? (
+                      <> <strong>{proposalInfo.brand_name}</strong> {lang === 'el' ? 'στις συνεργασίες μου' : 'to my collaborations'}</>
+                    ) : (
+                      <> {lang === 'el' ? 'με στις συνεργασίες του influencer' : 'me to the influencer\'s collaborations'}</>
+                    )}
+                  </span>
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                <button
+                  onClick={() => {
+                    setShowAgreementModal(false);
+                    setAgreementAccepted(false);
+                  }}
+                  className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg font-medium transition-colors"
+                >
+                  {txt.agreementCancel}
+                </button>
+                <button
+                  onClick={handleAcceptAgreement}
+                  disabled={!agreementAccepted || savingAgreement}
+                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl"
+                >
+                  {savingAgreement ? txt.agreementSaving : txt.agreementAccept}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
