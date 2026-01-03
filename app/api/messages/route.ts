@@ -11,6 +11,14 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { conversationId, senderId, senderType, content, influencerId, brandEmail, brandName, proposalId, sendViaEmail } = body;
+    
+    console.log('[Messages API] POST request received:', {
+      hasConversationId: !!conversationId,
+      hasSenderId: !!senderId,
+      senderType,
+      hasContent: !!content,
+      contentLength: content?.length || 0
+    });
 
     // If creating a new conversation
     if (!conversationId && influencerId && brandEmail) {
@@ -78,6 +86,13 @@ export async function POST(req: Request) {
       // Update conversation last_message_at and activity timestamp
       const now = new Date().toISOString();
       const updateField = senderType === 'influencer' ? 'last_activity_influencer' : 'last_activity_brand';
+      console.log('[Messages API] ⚠️ Updating activity timestamp (new conversation, message sent):', {
+        conversationId: convId,
+        updateField,
+        timestamp: now,
+        senderType,
+        contentPreview: content?.substring(0, 50) || 'no content'
+      });
       await supabaseAdmin
         .from('conversations')
         .update({ 
@@ -112,8 +127,16 @@ export async function POST(req: Request) {
       }
 
       // Update conversation last_message_at and activity timestamp
+      // IMPORTANT: This is called ONLY when a message is sent, not automatically
       const now = new Date().toISOString();
       const updateField = senderType === 'influencer' ? 'last_activity_influencer' : 'last_activity_brand';
+      console.log('[Messages API] ⚠️ Updating activity timestamp (message sent):', {
+        conversationId,
+        updateField,
+        timestamp: now,
+        senderType,
+        contentPreview: content?.substring(0, 50) || 'no content'
+      });
       await supabaseAdmin
         .from('conversations')
         .update({ 
