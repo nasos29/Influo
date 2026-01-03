@@ -951,31 +951,39 @@ export default function Messaging({
               </div>
 
               {/* Message Input */}
-              {!conversationClosed && (
-                <form onSubmit={sendMessage} className="px-6 py-4 border-t border-slate-200 bg-white">
-                  <div className="flex gap-3">
-                    <textarea
-                      value={newMessage}
-                      onChange={(e) => {
-                        setNewMessage(e.target.value);
-                        // DO NOT update activity timestamp on typing
-                        // Activity should only be updated when sending messages
-                        // This prevents false activity detection
-                      }}
-                      placeholder={txt.placeholder}
-                      className="flex-1 px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900"
-                      rows={2}
-                    />
-                    <button
-                      type="submit"
-                      disabled={sending || !newMessage.trim()}
-                      className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
-                    >
-                      {sending ? txt.sending : txt.send}
-                    </button>
+              {/* Always show input - sending a message will reopen closed conversations */}
+              <form onSubmit={sendMessage} className="px-6 py-4 border-t border-slate-200 bg-white">
+                {conversationClosed && (
+                  <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-xs text-blue-700">
+                      {lang === 'el' 
+                        ? '💬 Η συνομιλία είναι κλειστή. Στείλε μήνυμα για να την ανοίξεις ξανά.'
+                        : '💬 Conversation is closed. Send a message to reopen it.'}
+                    </p>
                   </div>
-                </form>
-              )}
+                )}
+                <div className="flex gap-3">
+                  <textarea
+                    value={newMessage}
+                    onChange={(e) => {
+                      setNewMessage(e.target.value);
+                      // DO NOT update activity timestamp on typing
+                      // Activity should only be updated when sending messages
+                      // This prevents false activity detection
+                    }}
+                    placeholder={txt.placeholder}
+                    className="flex-1 px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900"
+                    rows={2}
+                  />
+                  <button
+                    type="submit"
+                    disabled={sending || !newMessage.trim()}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                  >
+                    {sending ? txt.sending : txt.send}
+                  </button>
+                </div>
+              </form>
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center text-slate-500">
