@@ -7,6 +7,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { recommendInfluencers, type InfluencerProfile, type BrandProfile } from '@/lib/recommendations';
 import { dummyInfluencers } from './Directory';
+import Messaging from '@/components/Messaging';
 
 // Categories (same as Directory and InfluencerSignupForm)
 const CATEGORIES = [
@@ -482,6 +483,7 @@ export default function BrandDashboardContent() {
     profilesClicked: 0,
     proposalsSent: 0,
   });
+  const [activeTab, setActiveTab] = useState<'recommendations' | 'proposals' | 'messages'>('recommendations');
   const router = useRouter();
   const txt = t[lang];
 
@@ -874,7 +876,51 @@ export default function BrandDashboardContent() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Tabs */}
+        <div className="bg-white rounded-xl border border-slate-200 mb-6 overflow-hidden">
+          <div className="border-b border-slate-200">
+            <div className="flex">
+              <button
+                onClick={() => setActiveTab('recommendations')}
+                className={`px-6 py-4 font-medium border-b-2 transition-colors ${
+                  activeTab === 'recommendations'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {lang === 'el' ? '🤖 Προτάσεις' : '🤖 Recommendations'}
+              </button>
+              <button
+                onClick={() => setActiveTab('proposals')}
+                className={`px-6 py-4 font-medium border-b-2 transition-colors ${
+                  activeTab === 'proposals'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {lang === 'el' ? '📋 Προσφορές' : '📋 Proposals'}
+                {pendingAgreements.length > 0 && (
+                  <span className="ml-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                    {pendingAgreements.length > 99 ? '99+' : pendingAgreements.length}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setActiveTab('messages')}
+                className={`px-6 py-4 font-medium border-b-2 transition-colors ${
+                  activeTab === 'messages'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {lang === 'el' ? '💬 Μηνύματα' : '💬 Messages'}
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Recommendations Section */}
+        {activeTab === 'recommendations' && (
         <div className="mb-12">
           {/* Smart Service Banner */}
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 mb-6 text-white">
@@ -1152,8 +1198,27 @@ export default function BrandDashboardContent() {
             )}
           </div>
         </div>
+        )}
+
+        {/* Messages Section */}
+        {activeTab === 'messages' && brandData && (
+          <div className="mb-12">
+            <Messaging
+              influencerId={undefined as any}
+              influencerName=""
+              influencerEmail=""
+              brandEmail={brandData.contact_email}
+              brandName={brandData.brand_name}
+              proposalId={null}
+              mode="brand"
+              lang={lang}
+            />
+          </div>
+        )}
 
         {/* Pending Agreements Section */}
+        {activeTab === 'proposals' && (
+        <div className="mb-6">
         <div className="mb-6">
           <h2 className="text-xl font-bold text-slate-900 mb-4">{txt.pending_agreements}</h2>
           
@@ -1210,6 +1275,7 @@ export default function BrandDashboardContent() {
             </div>
           )}
         </div>
+        )}
 
         {/* Edit Profile Modal */}
         {showEditModal && brandData && (

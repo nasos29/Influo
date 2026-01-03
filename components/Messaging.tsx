@@ -111,6 +111,8 @@ export default function Messaging({
   const [conversationClosedByInactivity, setConversationClosedByInactivity] = useState(false);
   const [endingConversation, setEndingConversation] = useState(false);
   const activityCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastActivityUpdateRef = useRef<number>(0);
+  const ACTIVITY_UPDATE_THROTTLE = 30000; // Update at most once per 30 seconds
 
   // Load proposal info if proposalId is provided
   useEffect(() => {
@@ -122,7 +124,7 @@ export default function Messaging({
   // Load conversations
   useEffect(() => {
     loadConversations();
-    if (mode === 'brand') {
+    if (mode === 'brand' && influencerId) {
       checkInfluencerStatus();
       // Poll every 30 seconds to check online status
       const interval = setInterval(checkInfluencerStatus, 30000);
@@ -193,16 +195,18 @@ export default function Messaging({
     }
   }, [selectedConversation]);
 
-  // Check for inactivity every 5 minutes
+  // Check for inactivity every 1 minute (more frequent checks for better UX)
   useEffect(() => {
-    if (selectedConversation) {
+    if (selectedConversation && !conversationClosed) {
       // Check immediately
       checkInactivity();
       
-      // Then check every 5 minutes
+      // Then check every 1 minute for more responsive inactivity detection
       activityCheckIntervalRef.current = setInterval(() => {
         checkInactivity();
-      }, 5 * 60 * 1000); // 5 minutes
+        // Also ensure activity is updated periodically
+        updateActivityTimestamp();
+      }, 60 * 1000); // 1 minute
 
       return () => {
         if (activityCheckIntervalRef.current) {
@@ -210,16 +214,28 @@ export default function Messaging({
         }
       };
     }
-  }, [selectedConversation, lastActivityInfluencer, lastActivityBrand]);
+  }, [selectedConversation, lastActivityInfluencer, lastActivityBrand, conversationClosed]);
 
   // Auto-close conversation after 5 minutes of inactivity warning
+  // When warning appears, both parties have been inactive for 5+ minutes
+  // After another 5 minutes, the conversation auto-closes
+  const warningStartTimeRef = useRef<number | null>(null);
+  
   useEffect(() => {
     if (showInactivityWarning && !conversationClosed) {
+      // Record when warning started
+      if (!warningStartTimeRef.current) {
+        warningStartTimeRef.current = Date.now();
+      }
+      
       const closeTimer = setTimeout(() => {
-        endConversation(true); // Auto-close
-      }, 5 * 60 * 1000); // 5 minutes
+        endConversation(true); // Auto-close after 5 minutes of warning
+      }, 5 * 60 * 1000); // 5 minutes after warning appears
 
       return () => clearTimeout(closeTimer);
+    } else {
+      // Reset warning start time if warning disappears
+      warningStartTimeRef.current = null;
     }
   }, [showInactivityWarning, conversationClosed]);
 
@@ -509,16 +525,30 @@ export default function Messaging({
     }
   };
 
-  const updateActivityTimestamp = async () => {
+  const updateActivityTimestamp = async (force = false) => {
     if (!selectedConversation) return;
+    
+    // Throttle updates to avoid too many database writes
+    const now = Date.now();
+    if (!force && (now - lastActivityUpdateRef.current) < ACTIVITY_UPDATE_THROTTLE) {
+      // Update local state but skip database update
+      if (mode === 'influencer') {
+        setLastActivityInfluencer(new Date());
+      } else {
+        setLastActivityBrand(new Date());
+      }
+      return;
+    }
+    
+    lastActivityUpdateRef.current = now;
     
     try {
       const updateField = mode === 'influencer' ? 'last_activity_influencer' : 'last_activity_brand';
-      const now = new Date().toISOString();
+      const timestamp = new Date().toISOString();
       
       await supabase
         .from('conversations')
-        .update({ [updateField]: now })
+        .update({ [updateField]: timestamp })
         .eq('id', selectedConversation);
 
       if (mode === 'influencer') {
@@ -549,15 +579,24 @@ export default function Messaging({
       const now = new Date();
       const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
 
+      // Check if both parties have been inactive for 5+ minutes
       const influencerInactive = !conv.last_activity_influencer || 
         new Date(conv.last_activity_influencer) < fiveMinutesAgo;
       const brandInactive = !conv.last_activity_brand || 
         new Date(conv.last_activity_brand) < fiveMinutesAgo;
 
       if (influencerInactive && brandInactive) {
-        setShowInactivityWarning(true);
+        // Both parties inactive for 5+ minutes - show warning
+        if (!showInactivityWarning) {
+          setShowInactivityWarning(true);
+          warningStartTimeRef.current = Date.now();
+        }
       } else {
-        setShowInactivityWarning(false);
+        // At least one party is active - hide warning and reset timer
+        if (showInactivityWarning) {
+          setShowInactivityWarning(false);
+          warningStartTimeRef.current = null;
+        }
       }
     } catch (error) {
       console.error('Error checking inactivity:', error);
@@ -678,7 +717,7 @@ export default function Messaging({
                     )}
                   </div>
                 </div>
-                {mode === 'brand' && !isInfluencerOnline && !conversationClosed && (
+                {mode === 'brand' && influencerId && !isInfluencerOnline && !conversationClosed && (
                   <p className="text-xs text-amber-600 mt-1">
                     {txt.offlineNotice}
                   </p>
@@ -764,7 +803,7 @@ export default function Messaging({
                       value={newMessage}
                       onChange={(e) => {
                         setNewMessage(e.target.value);
-                        updateActivityTimestamp();
+                        updateActivityTimestamp(true); // Force update when sending message
                       }}
                       onFocus={updateActivityTimestamp}
                       placeholder={txt.placeholder}
