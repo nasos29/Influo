@@ -319,7 +319,7 @@ export default function Messaging({
       // Reset warning start time if warning disappears
       warningStartTimeRef.current = null;
     }
-  }, [showInactivityWarning, conversationClosed]);
+  }, [showInactivityWarning, conversationClosed, endConversation]);
 
   // Client-side polling to check if conversation should be closed
   // This works even with Vercel Hobby plan (daily cron limit)
