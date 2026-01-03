@@ -95,7 +95,6 @@ export default function Messaging({
 }: MessagingProps) {
   const txt = t[lang];
   
-  console.log('[Messaging] Component rendered:', { mode, hasSelectedConversation: false });
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -126,7 +125,6 @@ export default function Messaging({
 
   // Load conversations
   useEffect(() => {
-    console.log('[Messaging] Loading conversations for:', { mode, influencerId, brandEmail });
     loadConversations();
     if (mode === 'brand' && influencerId) {
       checkInfluencerStatus();
@@ -184,10 +182,9 @@ export default function Messaging({
       const lastMessageTime = conv.last_message_at ? new Date(conv.last_message_at) : null;
       const isInactive = !lastMessageTime || lastMessageTime < fiveMinutesAgo;
 
-      if (isInactive) {
+        if (isInactive) {
         setShowInactivityWarning(prev => {
           if (!prev) {
-            console.log('[Check Inactivity] ⚠️ Warning - no messages for 5+ minutes');
             warningStartTimeRef.current = Date.now();
             return true;
           }
@@ -224,12 +221,8 @@ export default function Messaging({
       // Load activity timestamps FIRST to check if conversation is closed, then load messages
       // IMPORTANT: Even if conversation is closed, the textarea will remain visible
       (async () => {
-        console.log('[Conversation Selected] Loading activity timestamps...');
         await loadActivityTimestamps(selectedConversation);
-        console.log('[Conversation Selected] Activity timestamps loaded, conversationClosed:', conversationClosed);
-        console.log('[Conversation Selected] Loading messages...');
         await loadMessages(selectedConversation);
-        console.log('[Conversation Selected] Messages loaded');
       })();
       // NOTE: We do NOT update activity timestamp when opening conversation
       // Activity should only be updated on actual user actions (typing, sending, etc.)
@@ -265,111 +258,26 @@ export default function Messaging({
     }
   }, [selectedConversation]);
 
-  // Debug effect: Track conversationClosed changes
-  useEffect(() => {
-    console.log('[ConversationClosed State] Changed:', {
-      conversationClosed,
-      selectedConversation,
-      timestamp: new Date().toISOString(),
-      stackTrace: new Error().stack?.split('\n').slice(1, 5).join('\n')
-    });
-  }, [conversationClosed, selectedConversation]);
-
-  // Debug effect: Monitor textarea visibility in DOM
-  useEffect(() => {
-    if (!selectedConversation) return;
-    
-    const checkTextareaVisibility = () => {
-      const textarea = document.querySelector('textarea[placeholder*="Γράψε"]') || 
-                       document.querySelector('textarea[placeholder*="Type"]');
-      if (textarea) {
-        const computedStyle = window.getComputedStyle(textarea);
-        const form = textarea.closest('form');
-        const formStyle = form ? window.getComputedStyle(form) : null;
-        
-        console.log('[Textarea Visibility Check]', {
-          found: !!textarea,
-          textareaDisplay: computedStyle.display,
-          textareaVisibility: computedStyle.visibility,
-          textareaOpacity: computedStyle.opacity,
-          formDisplay: formStyle?.display,
-          formVisibility: formStyle?.visibility,
-          conversationClosed,
-          selectedConversation
-        });
-        
-        // If textarea is hidden, log warning
-        if (computedStyle.display === 'none' || 
-            computedStyle.visibility === 'hidden' || 
-            computedStyle.opacity === '0' ||
-            (formStyle && (formStyle.display === 'none' || formStyle.visibility === 'hidden'))) {
-          console.error('[Textarea Visibility Check] ⚠️⚠️⚠️ TEXTAREA IS HIDDEN!', {
-            textarea: computedStyle,
-            form: formStyle,
-            conversationClosed,
-            selectedConversation
-          });
-        }
-      } else {
-        console.warn('[Textarea Visibility Check] Textarea not found in DOM!');
-      }
-    };
-    
-    // Check immediately
-    checkTextareaVisibility();
-    
-    // Check after a short delay to catch async updates
-    const timeout1 = setTimeout(checkTextareaVisibility, 100);
-    const timeout2 = setTimeout(checkTextareaVisibility, 500);
-    const timeout3 = setTimeout(checkTextareaVisibility, 1000);
-    
-    // Monitor periodically
-    const interval = setInterval(checkTextareaVisibility, 2000);
-    
-    return () => {
-      clearTimeout(timeout1);
-      clearTimeout(timeout2);
-      clearTimeout(timeout3);
-      clearInterval(interval);
-    };
-  }, [selectedConversation, conversationClosed]);
 
   // Check for inactivity every 1 minute (more frequent checks for better UX)
   useEffect(() => {
-    console.log('[Inactivity Check] useEffect triggered:', {
-      selectedConversation,
-      conversationClosed,
-      hasCheckInactivity: typeof checkInactivity === 'function'
-    });
-    
     if (selectedConversation && !conversationClosed) {
-      console.log('[Inactivity Check] Setting up interval for conversation:', selectedConversation);
-      
       // Check immediately
-      console.log('[Inactivity Check] Performing initial check...');
       checkInactivity();
       
       // Then check every 1 minute for more responsive inactivity detection
       // NOTE: We do NOT update activity timestamp here - only check for inactivity
       // Activity timestamps should only be updated on user actions (typing, sending, etc.)
       activityCheckIntervalRef.current = setInterval(() => {
-        console.log('[Inactivity Check] Interval triggered, checking inactivity...');
         checkInactivity();
       }, 60 * 1000); // 1 minute
-      console.log('[Inactivity Check] Interval set up, will check every 60 seconds');
 
       return () => {
-        console.log('[Inactivity Check] Cleaning up interval');
         if (activityCheckIntervalRef.current) {
           clearInterval(activityCheckIntervalRef.current);
           activityCheckIntervalRef.current = null;
         }
       };
-    } else {
-      console.log('[Inactivity Check] Skipping interval setup:', {
-        hasSelectedConversation: !!selectedConversation,
-        conversationClosed
-      });
     }
   }, [selectedConversation, conversationClosed, checkInactivity]);
 
@@ -404,18 +312,15 @@ export default function Messaging({
     // If conversation is inactive, trigger the cron endpoint to close it
     const pollInterval = setInterval(async () => {
       try {
-        console.log('[Client Polling] Checking conversation status...');
         const response = await fetch(`/api/conversations/check-inactive?conversationId=${selectedConversation}`, {
           method: 'GET'
         });
         
         if (response.ok) {
           const result = await response.json();
-          console.log('[Client Polling] Check result:', result);
           
           // If conversation is inactive and not closed, trigger the cron endpoint to close it
           if (result.isInactive && !result.isClosed) {
-            console.log('[Client Polling] Conversation is inactive, triggering server-side close...');
             // The cron endpoint will handle the actual closing
             // We just trigger it (it will check authorization but Vercel Cron headers are not required for this)
             try {
@@ -423,10 +328,10 @@ export default function Messaging({
                 method: 'GET',
                 // Note: This might fail if CRON_SECRET is required, but that's ok
                 // The daily Vercel cron will handle it eventually
-              }).catch(err => {
-                console.log('[Client Polling] Cron endpoint requires auth, will be handled by daily cron');
+              }).catch(() => {
+                // Ignore - daily cron will handle it
               });
-            } catch (err) {
+            } catch {
               // Ignore - daily cron will handle it
             }
           }
@@ -436,8 +341,6 @@ export default function Messaging({
             await loadActivityTimestamps(selectedConversation);
             await loadConversations();
           }
-        } else {
-          console.warn('[Client Polling] Check failed:', response.status);
         }
       } catch (error) {
         console.error('[Client Polling] Error:', error);
@@ -485,18 +388,6 @@ export default function Messaging({
       if (error) {
         console.error('[Load Conversations] ❌ ERROR:', error);
         throw error;
-      }
-      
-      console.log('[Load Conversations] ✅ Loaded', data?.length || 0, 'conversations');
-      if (data && data.length > 0) {
-        console.table(data.map(c => ({ 
-          id: c.id.substring(0, 8), 
-          closed: !!c.closed_at ? 'YES' : 'NO',
-          brand: c.brand_email?.substring(0, 20),
-          influencer: c.influencer_name?.substring(0, 20)
-        })));
-      } else {
-        console.warn('[Load Conversations] ⚠️ No conversations found!');
       }
       
       setConversations(data || []);
@@ -610,13 +501,6 @@ export default function Messaging({
               conversationId: convId,
             };
             
-            console.log('[Messaging] Sending offline email:', {
-              hasToEmail: !!emailPayload.toEmail,
-              hasBrandName: !!emailPayload.brandName,
-              hasMessage: !!emailPayload.message,
-              toEmail: emailPayload.toEmail
-            });
-            
             const emailResponse = await fetch('/api/emails', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -626,8 +510,6 @@ export default function Messaging({
             if (!emailResponse.ok) {
               const errorData = await emailResponse.json();
               console.error('[Messaging] Offline email failed:', errorData);
-            } else {
-              console.log('[Messaging] Offline email sent successfully');
             }
           } catch (emailError) {
             console.error('[Messaging] Offline email error:', emailError);
@@ -649,8 +531,6 @@ export default function Messaging({
         const result = await response.json();
         if (!result.success) throw new Error(result.error);
         
-        console.log('[Messaging] ✅ Message sent successfully, conversation should be reopened by backend');
-        
         // Play sound when message is sent (single beep)
         lastSentMessageRef.current = newMessage.trim();
         playSendSound();
@@ -663,13 +543,11 @@ export default function Messaging({
         // Refresh conversation state to reflect reopened status
         // Small delay to ensure backend has processed the update
         await new Promise(resolve => setTimeout(resolve, 100));
-        console.log('[Messaging] Refreshing conversation state...');
         await loadConversations();
         await loadActivityTimestamps(convId); // This will check if conversation is still closed and update state accordingly
         await loadMessages(convId); // Refresh messages
       } else if (influencerId && brandEmail) {
         // No conversation exists - create new one
-        console.log('[Messaging] Creating new conversation...');
         const response = await fetch('/api/messages', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -823,7 +701,6 @@ export default function Messaging({
 
   const loadActivityTimestamps = async (convId: string) => {
     try {
-      console.log('[Load Activity] Loading timestamps for conversation:', convId);
       const { data: conv, error } = await supabase
         .from('conversations')
         .select('last_activity_influencer,last_activity_brand,closed_at')
@@ -836,17 +713,14 @@ export default function Messaging({
       }
 
       if (conv) {
-        console.log('[Load Activity] Conversation data:', { closed_at: conv.closed_at, hasData: !!conv });
         // IMPORTANT: Even if conversation is closed, we DON'T prevent user from sending messages
         // The textarea should always be visible when a conversation is selected
         // Setting conversationClosed only affects UI messages, not the textarea visibility
         if (conv.closed_at) {
-          console.log('[Load Activity] ⚠️ Conversation is CLOSED in DB, but textarea will remain visible');
           setConversationClosed(true);
           // Note: closed_by_inactivity column may not exist in database
           setConversationClosedByInactivity(false);
         } else {
-          console.log('[Load Activity] ✅ Conversation is OPEN, setting conversationClosed=false');
           setConversationClosed(false);
         }
         
@@ -883,23 +757,13 @@ export default function Messaging({
 
   const updateActivityTimestamp = async (force = false) => {
     if (!selectedConversation) {
-      console.log('[Activity] Skipping update - no selected conversation');
       return;
     }
-    
-    // Log stack trace to see where this is called from
-    console.log('[Activity] updateActivityTimestamp called', {
-      force,
-      mode,
-      conversationId: selectedConversation,
-      stackTrace: new Error().stack?.split('\n').slice(1, 4).join('\n')
-    });
     
     // Throttle updates to avoid too many database writes
     const now = Date.now();
     if (!force && (now - lastActivityUpdateRef.current) < ACTIVITY_UPDATE_THROTTLE) {
       // Update local state but skip database update
-      console.log('[Activity] ⚠️ Throttled - skipping database update (last update was', Math.round((now - lastActivityUpdateRef.current) / 1000), 'seconds ago)');
       if (mode === 'influencer') {
         setLastActivityInfluencer(new Date());
       } else {
@@ -914,15 +778,13 @@ export default function Messaging({
       const updateField = mode === 'influencer' ? 'last_activity_influencer' : 'last_activity_brand';
       const timestamp = new Date().toISOString();
       
-      console.log('[Activity] ⚠️⚠️⚠️ UPDATING DATABASE', updateField, 'for conversation', selectedConversation, 'to', timestamp);
-      
       const { error: updateError } = await supabase
         .from('conversations')
         .update({ [updateField]: timestamp })
         .eq('id', selectedConversation);
 
       if (updateError) {
-        console.error('[Activity] ❌ Database update error:', updateError);
+        console.error('[Activity] Database update error:', updateError);
         return;
       }
 
@@ -931,10 +793,8 @@ export default function Messaging({
       } else {
         setLastActivityBrand(new Date());
       }
-      
-      console.log('[Activity] ✅ Successfully updated', updateField, 'to', timestamp);
     } catch (error) {
-      console.error('[Activity] ❌ Exception updating activity timestamp:', error);
+      console.error('[Activity] Exception updating activity timestamp:', error);
     }
   };
 
@@ -1014,7 +874,6 @@ export default function Messaging({
                 <button
                   key={conv.id}
                   onClick={() => {
-                    console.log('[Conversation List] Clicked on conversation:', { id: conv.id, isClosed });
                     setSelectedConversation(conv.id);
                   }}
                   className={`w-full text-left p-4 border-b border-slate-200 hover:bg-white transition-colors ${
@@ -1151,11 +1010,6 @@ export default function Messaging({
               {/* Message Input - ALWAYS VISIBLE when conversation is selected */}
               {/* CRITICAL: This form MUST always be visible when selectedConversation is set */}
               {/* conversationClosed only affects the message shown, NOT the visibility of the form */}
-              {(() => {
-                // Debug logging - separate from JSX
-                console.log('[Form Render] Rendering form:', { conversationClosed, selectedConversation, hasNewMessage: !!newMessage });
-                return null;
-              })()}
               <form 
                 onSubmit={sendMessage} 
                 className="px-6 py-4 border-t border-slate-200 bg-white"
@@ -1165,17 +1019,6 @@ export default function Messaging({
                   opacity: 1,
                   pointerEvents: 'auto'
                 } as React.CSSProperties}
-                ref={(el) => {
-                  if (el) {
-                    console.log('[Form Ref] Form element mounted/updated:', {
-                      display: window.getComputedStyle(el).display,
-                      visibility: window.getComputedStyle(el).visibility,
-                      opacity: window.getComputedStyle(el).opacity,
-                      conversationClosed,
-                      selectedConversation
-                    });
-                  }
-                }}
               >
                 {conversationClosed && (
                   <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
@@ -1190,17 +1033,10 @@ export default function Messaging({
                   <textarea
                     value={newMessage}
                     onChange={(e) => {
-                      console.log('[Textarea] onChange triggered:', { value: e.target.value, conversationClosed, selectedConversation });
                       setNewMessage(e.target.value);
                       // DO NOT update activity timestamp on typing
                       // Activity should only be updated when sending messages
                       // This prevents false activity detection
-                    }}
-                    onFocus={() => {
-                      console.log('[Textarea] onFocus triggered:', { conversationClosed, selectedConversation, value: newMessage });
-                    }}
-                    onBlur={() => {
-                      console.log('[Textarea] onBlur triggered');
                     }}
                     placeholder={conversationClosed 
                       ? (lang === 'el' ? 'Γράψε μήνυμα για να ανοίξεις την συνομιλία...' : 'Type a message to reopen the conversation...')
@@ -1219,15 +1055,6 @@ export default function Messaging({
                     type="submit"
                     disabled={sending || !newMessage.trim()}
                     className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
-                    onClick={(e) => {
-                      console.log('[Send Button] Clicked:', { 
-                        newMessage: newMessage.trim(), 
-                        sending, 
-                        conversationClosed,
-                        selectedConversation,
-                        willSubmit: !sending && !!newMessage.trim()
-                      });
-                    }}
                   >
                     {sending ? txt.sending : txt.send}
                   </button>
