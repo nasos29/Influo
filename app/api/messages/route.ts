@@ -14,12 +14,13 @@ export async function POST(req: Request) {
 
     // If creating a new conversation
     if (!conversationId && influencerId && brandEmail) {
-      // Check if conversation already exists
+      // Check if conversation already exists AND is open (not closed)
       const { data: existingConv } = await supabaseAdmin
         .from('conversations')
-        .select('id')
+        .select('id, closed_at')
         .eq('influencer_id', influencerId)
         .eq('brand_email', brandEmail)
+        .is('closed_at', null) // Only use open conversations
         .single();
 
       let convId = existingConv?.id;

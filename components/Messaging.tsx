@@ -160,6 +160,12 @@ export default function Messaging({
   // Load messages when conversation is selected
   useEffect(() => {
     if (selectedConversation) {
+      // Reset conversation closed state when selecting a new conversation
+      setConversationClosed(false);
+      setConversationClosedByInactivity(false);
+      setShowInactivityWarning(false);
+      warningStartTimeRef.current = null;
+      
       loadMessages(selectedConversation);
       loadActivityTimestamps(selectedConversation);
       // NOTE: We do NOT update activity timestamp when opening conversation
@@ -244,6 +250,7 @@ export default function Messaging({
       const query = supabase
         .from('conversations')
         .select('*')
+        .is('closed_at', null) // Only show open conversations
         .order('last_message_at', { ascending: false });
 
       if (mode === 'influencer') {
