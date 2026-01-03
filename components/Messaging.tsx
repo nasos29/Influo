@@ -997,7 +997,11 @@ export default function Messaging({
 
               {/* Message Input - ALWAYS VISIBLE when conversation is selected */}
               {/* Even if conversation is closed, show textarea to allow reopening */}
-              <form onSubmit={sendMessage} className="px-6 py-4 border-t border-slate-200 bg-white">
+              <form 
+                onSubmit={sendMessage} 
+                className="px-6 py-4 border-t border-slate-200 bg-white"
+                style={{ display: 'block' }} // Force display
+              >
                 {conversationClosed && (
                   <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
                     <p className="text-xs text-blue-700">
@@ -1011,22 +1015,28 @@ export default function Messaging({
                   <textarea
                     value={newMessage}
                     onChange={(e) => {
+                      console.log('[Textarea] onChange triggered:', e.target.value);
                       setNewMessage(e.target.value);
                       // DO NOT update activity timestamp on typing
                       // Activity should only be updated when sending messages
                       // This prevents false activity detection
                     }}
+                    onFocus={() => console.log('[Textarea] onFocus triggered')}
                     placeholder={conversationClosed 
                       ? (lang === 'el' ? 'Γράψε μήνυμα για να ανοίξεις την συνομιλία...' : 'Type a message to reopen the conversation...')
                       : txt.placeholder}
-                    className="flex-1 px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900"
+                    className="flex-1 px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900 bg-white"
                     rows={2}
                     disabled={false} // Always enabled, even for closed conversations
+                    style={{ opacity: 1, pointerEvents: 'auto' }} // Force enabled
                   />
                   <button
                     type="submit"
                     disabled={sending || !newMessage.trim()}
                     className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                    onClick={(e) => {
+                      console.log('[Send Button] Clicked:', { newMessage: newMessage.trim(), sending, conversationClosed });
+                    }}
                   >
                     {sending ? txt.sending : txt.send}
                   </button>
