@@ -505,10 +505,21 @@ export default function Messaging({
         // Update activity timestamp
         updateActivityTimestamp();
         setShowInactivityWarning(false); // Reset warning on new activity
+        
+        // If conversation was reopened, refresh conversations list and open it
+        setConversationClosed(false);
+        setConversationClosedByInactivity(false);
+        await loadConversations();
       }
 
       setNewMessage('');
       if (convId) {
+        // Select the conversation if it was reopened
+        if (convId !== selectedConversation) {
+          setSelectedConversation(convId);
+        }
+        // Refresh conversations list to show reopened conversation
+        await loadConversations();
         await loadMessages(convId);
       }
     } catch (error) {

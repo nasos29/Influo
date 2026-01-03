@@ -22,16 +22,24 @@ export async function POST(req: Request) {
 
     // If creating a new conversation
     if (!conversationId && influencerId && brandEmail) {
-      // Check if conversation already exists AND is open (not closed)
+      // Check if conversation already exists (open or closed)
       const { data: existingConv } = await supabaseAdmin
         .from('conversations')
         .select('id, closed_at')
         .eq('influencer_id', influencerId)
         .eq('brand_email', brandEmail)
-        .is('closed_at', null) // Only use open conversations
         .single();
 
       let convId = existingConv?.id;
+
+      // If conversation exists but is closed, reopen it
+      if (convId && existingConv.closed_at) {
+        console.log('[Messages API] Reopening closed conversation:', convId);
+        await supabaseAdmin
+          .from('conversations')
+          .update({ closed_at: null })
+          .eq('id', convId);
+      }
 
       // Create conversation if it doesn't exist
       if (!convId) {
@@ -126,8 +134,20 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: msgError.message }, { status: 500 });
       }
 
+      // Check if conversation is closed and reopen it if needed
+      const { data: convCheck } = await supabaseAdmin
+        .from('conversations')
+        .select('closed_at')
+        .eq('id', conversationId)
+        .single();
+
+      if (convCheck?.closed_at) {
+        console.log('[Messages API] Reopening closed conversation:', conversationId);
+      }
+
       // Update conversation last_message_at and activity timestamp
       // IMPORTANT: This is called ONLY when a message is sent, not automatically
+      // Also reopen conversation if it was closed
       const now = new Date().toISOString();
       const updateField = senderType === 'influencer' ? 'last_activity_influencer' : 'last_activity_brand';
       console.log('[Messages API] ⚠️ Updating activity timestamp (message sent):', {
@@ -141,7 +161,8 @@ export async function POST(req: Request) {
         .from('conversations')
         .update({ 
           last_message_at: now,
-          [updateField]: now
+          [updateField]: now,
+          closed_at: null // Reopen conversation if it was closed
         })
         .eq('id', conversationId);
 
