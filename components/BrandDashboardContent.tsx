@@ -52,6 +52,7 @@ interface Proposal {
   service_type: string;
   budget: number;
   counter_proposal_budget?: number;
+  counter_proposal_message?: string;
   status: string;
   description?: string;
   created_at: string;
