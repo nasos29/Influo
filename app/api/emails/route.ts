@@ -24,11 +24,11 @@ export async function POST(req: Request) {
     // Some email types don't require email field (admin notifications)
     if ((type === 'message_admin_notification' || type === 'proposal_admin_notification' || type === 'profile_edit_admin' || type === 'signup_admin')) {
       // Admin notifications - email is not required from body
-    } else if (type === 'conversation_end') {
-      // conversation_end requires email but it might be in body.email
+    } else if (type === 'conversation_end' || type === 'message_offline') {
+      // conversation_end and message_offline require email but it might be in body.email or body.toEmail
       if (!email && !body.toEmail) {
         return NextResponse.json(
-          { success: false, error: 'Missing required field: email' },
+          { success: false, error: 'Missing required field: email or toEmail' },
           { status: 400 }
         );
       }
