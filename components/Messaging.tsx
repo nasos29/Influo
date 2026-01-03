@@ -210,15 +210,26 @@ export default function Messaging({
   // Load messages when conversation is selected
   useEffect(() => {
     if (selectedConversation) {
+      console.log('[Conversation Selected] useEffect triggered:', {
+        selectedConversation,
+        conversationClosed,
+        timestamp: new Date().toISOString()
+      });
+      
       // Reset flags but don't reset conversationClosed - let loadActivityTimestamps check it
       setConversationClosedByInactivity(false);
       setShowInactivityWarning(false);
       warningStartTimeRef.current = null;
       
       // Load activity timestamps FIRST to check if conversation is closed, then load messages
+      // IMPORTANT: Even if conversation is closed, the textarea will remain visible
       (async () => {
+        console.log('[Conversation Selected] Loading activity timestamps...');
         await loadActivityTimestamps(selectedConversation);
+        console.log('[Conversation Selected] Activity timestamps loaded, conversationClosed:', conversationClosed);
+        console.log('[Conversation Selected] Loading messages...');
         await loadMessages(selectedConversation);
+        console.log('[Conversation Selected] Messages loaded');
       })();
       // NOTE: We do NOT update activity timestamp when opening conversation
       // Activity should only be updated on actual user actions (typing, sending, etc.)
@@ -253,6 +264,75 @@ export default function Messaging({
       };
     }
   }, [selectedConversation]);
+
+  // Debug effect: Track conversationClosed changes
+  useEffect(() => {
+    console.log('[ConversationClosed State] Changed:', {
+      conversationClosed,
+      selectedConversation,
+      timestamp: new Date().toISOString(),
+      stackTrace: new Error().stack?.split('\n').slice(1, 5).join('\n')
+    });
+  }, [conversationClosed, selectedConversation]);
+
+  // Debug effect: Monitor textarea visibility in DOM
+  useEffect(() => {
+    if (!selectedConversation) return;
+    
+    const checkTextareaVisibility = () => {
+      const textarea = document.querySelector('textarea[placeholder*="Γράψε"]') || 
+                       document.querySelector('textarea[placeholder*="Type"]');
+      if (textarea) {
+        const computedStyle = window.getComputedStyle(textarea);
+        const form = textarea.closest('form');
+        const formStyle = form ? window.getComputedStyle(form) : null;
+        
+        console.log('[Textarea Visibility Check]', {
+          found: !!textarea,
+          textareaDisplay: computedStyle.display,
+          textareaVisibility: computedStyle.visibility,
+          textareaOpacity: computedStyle.opacity,
+          formDisplay: formStyle?.display,
+          formVisibility: formStyle?.visibility,
+          conversationClosed,
+          selectedConversation
+        });
+        
+        // If textarea is hidden, log warning
+        if (computedStyle.display === 'none' || 
+            computedStyle.visibility === 'hidden' || 
+            computedStyle.opacity === '0' ||
+            (formStyle && (formStyle.display === 'none' || formStyle.visibility === 'hidden'))) {
+          console.error('[Textarea Visibility Check] ⚠️⚠️⚠️ TEXTAREA IS HIDDEN!', {
+            textarea: computedStyle,
+            form: formStyle,
+            conversationClosed,
+            selectedConversation
+          });
+        }
+      } else {
+        console.warn('[Textarea Visibility Check] Textarea not found in DOM!');
+      }
+    };
+    
+    // Check immediately
+    checkTextareaVisibility();
+    
+    // Check after a short delay to catch async updates
+    const timeout1 = setTimeout(checkTextareaVisibility, 100);
+    const timeout2 = setTimeout(checkTextareaVisibility, 500);
+    const timeout3 = setTimeout(checkTextareaVisibility, 1000);
+    
+    // Monitor periodically
+    const interval = setInterval(checkTextareaVisibility, 2000);
+    
+    return () => {
+      clearTimeout(timeout1);
+      clearTimeout(timeout2);
+      clearTimeout(timeout3);
+      clearInterval(interval);
+    };
+  }, [selectedConversation, conversationClosed]);
 
   // Check for inactivity every 1 minute (more frequent checks for better UX)
   useEffect(() => {
@@ -687,8 +767,11 @@ export default function Messaging({
 
       if (conv) {
         console.log('[Load Activity] Conversation data:', { closed_at: conv.closed_at, hasData: !!conv });
+        // IMPORTANT: Even if conversation is closed, we DON'T prevent user from sending messages
+        // The textarea should always be visible when a conversation is selected
+        // Setting conversationClosed only affects UI messages, not the textarea visibility
         if (conv.closed_at) {
-          console.log('[Load Activity] ⚠️ Conversation is CLOSED, setting conversationClosed=true');
+          console.log('[Load Activity] ⚠️ Conversation is CLOSED in DB, but textarea will remain visible');
           setConversationClosed(true);
           // Note: closed_by_inactivity column may not exist in database
           setConversationClosedByInactivity(false);
@@ -996,11 +1079,33 @@ export default function Messaging({
               </div>
 
               {/* Message Input - ALWAYS VISIBLE when conversation is selected */}
-              {/* Even if conversation is closed, show textarea to allow reopening */}
+              {/* CRITICAL: This form MUST always be visible when selectedConversation is set */}
+              {/* conversationClosed only affects the message shown, NOT the visibility of the form */}
+              {(() => {
+                // Debug logging - separate from JSX
+                console.log('[Form Render] Rendering form:', { conversationClosed, selectedConversation, hasNewMessage: !!newMessage });
+                return null;
+              })()}
               <form 
                 onSubmit={sendMessage} 
                 className="px-6 py-4 border-t border-slate-200 bg-white"
-                style={{ display: 'block' }} // Force display
+                style={{ 
+                  display: 'block', 
+                  visibility: 'visible',
+                  opacity: 1,
+                  pointerEvents: 'auto'
+                } as React.CSSProperties}
+                ref={(el) => {
+                  if (el) {
+                    console.log('[Form Ref] Form element mounted/updated:', {
+                      display: window.getComputedStyle(el).display,
+                      visibility: window.getComputedStyle(el).visibility,
+                      opacity: window.getComputedStyle(el).opacity,
+                      conversationClosed,
+                      selectedConversation
+                    });
+                  }
+                }}
               >
                 {conversationClosed && (
                   <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
@@ -1015,27 +1120,43 @@ export default function Messaging({
                   <textarea
                     value={newMessage}
                     onChange={(e) => {
-                      console.log('[Textarea] onChange triggered:', e.target.value);
+                      console.log('[Textarea] onChange triggered:', { value: e.target.value, conversationClosed, selectedConversation });
                       setNewMessage(e.target.value);
                       // DO NOT update activity timestamp on typing
                       // Activity should only be updated when sending messages
                       // This prevents false activity detection
                     }}
-                    onFocus={() => console.log('[Textarea] onFocus triggered')}
+                    onFocus={() => {
+                      console.log('[Textarea] onFocus triggered:', { conversationClosed, selectedConversation, value: newMessage });
+                    }}
+                    onBlur={() => {
+                      console.log('[Textarea] onBlur triggered');
+                    }}
                     placeholder={conversationClosed 
                       ? (lang === 'el' ? 'Γράψε μήνυμα για να ανοίξεις την συνομιλία...' : 'Type a message to reopen the conversation...')
                       : txt.placeholder}
                     className="flex-1 px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900 bg-white"
                     rows={2}
                     disabled={false} // Always enabled, even for closed conversations
-                    style={{ opacity: 1, pointerEvents: 'auto' }} // Force enabled
+                    style={{ 
+                      opacity: 1, 
+                      pointerEvents: 'auto',
+                      visibility: 'visible',
+                      display: 'block'
+                    } as React.CSSProperties}
                   />
                   <button
                     type="submit"
                     disabled={sending || !newMessage.trim()}
                     className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
                     onClick={(e) => {
-                      console.log('[Send Button] Clicked:', { newMessage: newMessage.trim(), sending, conversationClosed });
+                      console.log('[Send Button] Clicked:', { 
+                        newMessage: newMessage.trim(), 
+                        sending, 
+                        conversationClosed,
+                        selectedConversation,
+                        willSubmit: !sending && !!newMessage.trim()
+                      });
                     }}
                   >
                     {sending ? txt.sending : txt.send}
