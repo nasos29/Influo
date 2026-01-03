@@ -144,6 +144,12 @@ export async function GET(req: Request) {
     const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000); // 10 minutes total (5 for warning + 5 for close)
     const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
 
+    console.log('[Cron] Checking for inactive conversations...', {
+      now: now.toISOString(),
+      tenMinutesAgo: tenMinutesAgo.toISOString(),
+      fiveMinutesAgo: fiveMinutesAgo.toISOString()
+    });
+
     // Find conversations where both parties have been inactive for 10+ minutes
     // We need to check both timestamps are either null or older than 10 minutes
     const { data: allConversations, error: fetchError } = await supabaseAdmin
@@ -156,16 +162,31 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: fetchError.message }, { status: 500 });
     }
 
+    console.log(`[Cron] Found ${allConversations?.length || 0} open conversations`);
+
     // Filter conversations where both parties have been inactive for 10+ minutes
     const inactiveConversations = (allConversations || []).filter(conv => {
       const influencerInactive = !conv.last_activity_influencer || 
         new Date(conv.last_activity_influencer) < tenMinutesAgo;
       const brandInactive = !conv.last_activity_brand || 
         new Date(conv.last_activity_brand) < tenMinutesAgo;
+      
+      if (influencerInactive && brandInactive) {
+        console.log(`[Cron] Found inactive conversation: ${conv.id}`, {
+          influencerLastActivity: conv.last_activity_influencer,
+          brandLastActivity: conv.last_activity_brand,
+          influencerInactive,
+          brandInactive
+        });
+      }
+      
       return influencerInactive && brandInactive;
     });
 
+    console.log(`[Cron] Found ${inactiveConversations.length} inactive conversations to close`);
+
     if (inactiveConversations.length === 0) {
+      console.log('[Cron] No inactive conversations to close');
       return NextResponse.json({ 
         success: true, 
         message: 'No inactive conversations to close',
@@ -174,19 +195,29 @@ export async function GET(req: Request) {
     }
 
     // Close each inactive conversation
-    const origin = req.headers.get('origin') || req.headers.get('host') || 'influo.gr';
-    const protocol = origin.includes('localhost') ? 'http' : 'https';
-    const baseUrl = origin.startsWith('http') ? origin : `${protocol}://${origin}`;
+    // Use environment variable for base URL, or construct from request
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
+                    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` :
+                    (() => {
+                      const origin = req.headers.get('origin') || req.headers.get('host') || 'influo.gr';
+                      const protocol = origin.includes('localhost') ? 'http' : 'https';
+                      return origin.startsWith('http') ? origin : `${protocol}://${origin}`;
+                    })();
+    
+    console.log('[Cron] Using base URL:', baseUrl);
     
     const results = [];
     for (const conv of inactiveConversations) {
       try {
+        console.log(`[Cron] Closing conversation ${conv.id}...`);
         // Directly call the end conversation logic instead of making HTTP request
         const endResponse = await endConversationInternal(conv.id, true, baseUrl);
         
         if (endResponse.success) {
+          console.log(`[Cron] Successfully closed conversation ${conv.id}`);
           results.push({ conversationId: conv.id, status: 'closed' });
         } else {
+          console.error(`[Cron] Failed to close conversation ${conv.id}:`, endResponse.error);
           results.push({ conversationId: conv.id, status: 'error', error: endResponse.error });
         }
       } catch (err: any) {
@@ -194,6 +225,8 @@ export async function GET(req: Request) {
         results.push({ conversationId: conv.id, status: 'error', error: err.message });
       }
     }
+    
+    console.log(`[Cron] Completed processing ${results.length} conversations`);
 
     return NextResponse.json({
       success: true,

@@ -162,8 +162,8 @@ export default function Messaging({
     if (selectedConversation) {
       loadMessages(selectedConversation);
       loadActivityTimestamps(selectedConversation);
-      // Update activity timestamp when conversation is opened
-      updateActivityTimestamp();
+      // NOTE: We do NOT update activity timestamp when opening conversation
+      // Activity should only be updated on actual user actions (typing, sending, etc.)
       // Set up real-time subscription
       const subscription = supabase
         .channel(`messages:${selectedConversation}`)
@@ -203,10 +203,10 @@ export default function Messaging({
       checkInactivity();
       
       // Then check every 1 minute for more responsive inactivity detection
+      // NOTE: We do NOT update activity timestamp here - only check for inactivity
+      // Activity timestamps should only be updated on user actions (typing, sending, etc.)
       activityCheckIntervalRef.current = setInterval(() => {
         checkInactivity();
-        // Also ensure activity is updated periodically
-        updateActivityTimestamp();
       }, 60 * 1000); // 1 minute
 
       return () => {
@@ -580,6 +580,7 @@ export default function Messaging({
     const now = Date.now();
     if (!force && (now - lastActivityUpdateRef.current) < ACTIVITY_UPDATE_THROTTLE) {
       // Update local state but skip database update
+      console.log('[Activity] Throttled - skipping database update (last update was', Math.round((now - lastActivityUpdateRef.current) / 1000), 'seconds ago)');
       if (mode === 'influencer') {
         setLastActivityInfluencer(new Date());
       } else {
@@ -594,6 +595,8 @@ export default function Messaging({
       const updateField = mode === 'influencer' ? 'last_activity_influencer' : 'last_activity_brand';
       const timestamp = new Date().toISOString();
       
+      console.log('[Activity] Updating', updateField, 'for conversation', selectedConversation);
+      
       await supabase
         .from('conversations')
         .update({ [updateField]: timestamp })
@@ -604,8 +607,10 @@ export default function Messaging({
       } else {
         setLastActivityBrand(new Date());
       }
+      
+      console.log('[Activity] Successfully updated', updateField, 'to', timestamp);
     } catch (error) {
-      console.error('Error updating activity timestamp:', error);
+      console.error('[Activity] Error updating activity timestamp:', error);
     }
   };
 
@@ -873,7 +878,8 @@ export default function Messaging({
                       value={newMessage}
                       onChange={(e) => {
                         setNewMessage(e.target.value);
-                        updateActivityTimestamp(true); // Force update when sending message
+                        // Update activity timestamp when user types (throttled)
+                        updateActivityTimestamp();
                       }}
                       onFocus={() => updateActivityTimestamp()}
                       placeholder={txt.placeholder}
