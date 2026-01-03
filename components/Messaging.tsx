@@ -667,6 +667,7 @@ export default function Messaging({
 
   const loadActivityTimestamps = async (convId: string) => {
     try {
+      console.log('[Load Activity] Loading timestamps for conversation:', convId);
       const { data: conv, error } = await supabase
         .from('conversations')
         .select('last_activity_influencer,last_activity_brand,closed_at')
@@ -679,10 +680,15 @@ export default function Messaging({
       }
 
       if (conv) {
+        console.log('[Load Activity] Conversation data:', { closed_at: conv.closed_at, hasData: !!conv });
         if (conv.closed_at) {
+          console.log('[Load Activity] ⚠️ Conversation is CLOSED, setting conversationClosed=true');
           setConversationClosed(true);
           // Note: closed_by_inactivity column may not exist in database
           setConversationClosedByInactivity(false);
+        } else {
+          console.log('[Load Activity] ✅ Conversation is OPEN, setting conversationClosed=false');
+          setConversationClosed(false);
         }
         
         // Initialize activity timestamps if they don't exist
@@ -848,7 +854,10 @@ export default function Messaging({
               return (
                 <button
                   key={conv.id}
-                  onClick={() => setSelectedConversation(conv.id)}
+                  onClick={() => {
+                    console.log('[Conversation List] Clicked on conversation:', { id: conv.id, isClosed });
+                    setSelectedConversation(conv.id);
+                  }}
                   className={`w-full text-left p-4 border-b border-slate-200 hover:bg-white transition-colors ${
                     selectedConversation === conv.id ? 'bg-white border-l-4 border-l-blue-600' : ''
                   } ${isClosed ? 'opacity-60' : ''}`}
