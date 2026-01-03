@@ -56,55 +56,43 @@ export async function POST(req: Request) {
     // IMPORTANT: Only update closed_at - closed_by_inactivity column does NOT exist in database
     const closedAt = new Date().toISOString();
     
-    // Use raw SQL via RPC to avoid schema cache issues with closed_by_inactivity column
-    // First, try creating a simple RPC function if it doesn't exist, or use direct SQL
-    try {
-      // Use RPC function to update - this bypasses schema validation
-      const { error: rpcError } = await supabaseAdmin.rpc('update_conversation_closed', {
-        conv_id: conversationId,
-        closed_at_value: closedAt
-      });
-      
-      // If RPC doesn't exist, fall back to direct update with error handling
-      if (rpcError && rpcError.message.includes('function') && rpcError.message.includes('does not exist')) {
-        // RPC function doesn't exist, use direct update
-        const { error: updateError } = await supabaseAdmin
-          .from('conversations')
-          .update({ closed_at: closedAt })
-          .eq('id', conversationId);
+    // Direct update - no RPC function needed
+    const { error: updateError } = await supabaseAdmin
+      .from('conversations')
+      .update({ closed_at: closedAt })
+      .eq('id', conversationId);
 
-        if (updateError) {
-          // If error is about closed_by_inactivity, verify if update actually worked
-          if (updateError.message.includes('closed_by_inactivity')) {
-            console.warn('[End Conversation] Schema cache warning for closed_by_inactivity, verifying update...');
-            // Check if conversation was actually closed despite the error
-            const { data: verifyConv } = await supabaseAdmin
-              .from('conversations')
-              .select('closed_at')
-              .eq('id', conversationId)
-              .single();
-            
-            if (!verifyConv?.closed_at) {
-              return NextResponse.json({ 
-                error: 'Failed to close conversation due to schema cache issue. Please add closed_by_inactivity column or try again.',
-                details: updateError.message
-              }, { status: 500 });
-            }
-            // Update succeeded despite error, continue
-            console.log('[End Conversation] Update succeeded despite schema cache warning');
-          } else {
-            return NextResponse.json({ error: updateError.message }, { status: 500 });
-          }
+    if (updateError) {
+      console.error('[End Conversation] Update error:', updateError);
+      // Check if error is about schema cache (closed_by_inactivity column)
+      // Even if there's a schema cache warning, the update might have succeeded
+      if (updateError.message.includes('closed_by_inactivity') || 
+          updateError.message.includes('schema cache')) {
+        console.warn('[End Conversation] Schema cache warning, verifying update...');
+        // Verify if conversation was actually closed despite the error
+        const { data: verifyConv } = await supabaseAdmin
+          .from('conversations')
+          .select('closed_at')
+          .eq('id', conversationId)
+          .single();
+        
+        if (verifyConv?.closed_at) {
+          // Update succeeded despite schema cache warning, continue
+          console.log('[End Conversation] Update succeeded despite schema cache warning');
+        } else {
+          // Update actually failed
+          return NextResponse.json({ 
+            error: 'Failed to close conversation. Schema cache issue.',
+            details: updateError.message
+          }, { status: 500 });
         }
-      } else if (rpcError) {
-        return NextResponse.json({ error: rpcError.message }, { status: 500 });
+      } else {
+        // Other error
+        return NextResponse.json({ 
+          error: 'Failed to close conversation',
+          details: updateError.message 
+        }, { status: 500 });
       }
-    } catch (updateErr: any) {
-      console.error('[End Conversation] Update error:', updateErr);
-      return NextResponse.json({ 
-        error: 'Failed to close conversation',
-        details: updateErr.message 
-      }, { status: 500 });
     }
 
     // Send email to all parties (admin, influencer, brand)
