@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 
 interface Message {
@@ -94,6 +94,8 @@ export default function Messaging({
   lang = 'el'
 }: MessagingProps) {
   const txt = t[lang];
+  
+  console.log('[Messaging] Component rendered:', { mode, hasSelectedConversation: false });
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -204,10 +206,17 @@ export default function Messaging({
 
   // Check for inactivity every 1 minute (more frequent checks for better UX)
   useEffect(() => {
+    console.log('[Inactivity Check] useEffect triggered:', {
+      selectedConversation,
+      conversationClosed,
+      hasCheckInactivity: typeof checkInactivity === 'function'
+    });
+    
     if (selectedConversation && !conversationClosed) {
       console.log('[Inactivity Check] Setting up interval for conversation:', selectedConversation);
       
       // Check immediately
+      console.log('[Inactivity Check] Performing initial check...');
       checkInactivity();
       
       // Then check every 1 minute for more responsive inactivity detection
@@ -217,6 +226,7 @@ export default function Messaging({
         console.log('[Inactivity Check] Interval triggered, checking inactivity...');
         checkInactivity();
       }, 60 * 1000); // 1 minute
+      console.log('[Inactivity Check] Interval set up, will check every 60 seconds');
 
       return () => {
         console.log('[Inactivity Check] Cleaning up interval');
@@ -231,7 +241,7 @@ export default function Messaging({
         conversationClosed
       });
     }
-  }, [selectedConversation, lastActivityInfluencer, lastActivityBrand, conversationClosed]);
+  }, [selectedConversation, conversationClosed, checkInactivity]);
 
   // Auto-close conversation after 5 minutes of inactivity warning
   // When warning appears, both parties have been inactive for 5+ minutes
@@ -659,24 +669,27 @@ export default function Messaging({
     }
   };
 
-  const checkInactivity = async () => {
-    if (!selectedConversation) {
+  const checkInactivity = useCallback(async () => {
+    const currentConv = selectedConversation;
+    const isClosed = conversationClosed;
+    
+    if (!currentConv) {
       console.log('[Check Inactivity] No selected conversation');
       return;
     }
     
-    if (conversationClosed) {
+    if (isClosed) {
       console.log('[Check Inactivity] Conversation already closed');
       return;
     }
 
-    console.log('[Check Inactivity] Starting check for conversation:', selectedConversation);
+    console.log('[Check Inactivity] Starting check for conversation:', currentConv);
 
     try {
       const { data: conv, error } = await supabase
         .from('conversations')
         .select('last_activity_influencer,last_activity_brand,closed_at')
-        .eq('id', selectedConversation)
+        .eq('id', currentConv)
         .single();
 
       if (error) {
@@ -713,7 +726,7 @@ export default function Messaging({
         : 'never';
 
       console.log('[Check Inactivity] Results:', {
-        conversationId: selectedConversation,
+        conversationId: currentConv,
         influencerInactive,
         brandInactive,
         influencerLastActivity: conv.last_activity_influencer,
@@ -726,25 +739,29 @@ export default function Messaging({
 
       if (influencerInactive && brandInactive) {
         // Both parties inactive for 5+ minutes - show warning
-        if (!showInactivityWarning) {
-          console.log('[Check Inactivity] ⚠️ Showing warning - both parties inactive for 5+ minutes');
-          setShowInactivityWarning(true);
-          warningStartTimeRef.current = Date.now();
-        } else {
-          console.log('[Check Inactivity] Warning already shown');
-        }
+        setShowInactivityWarning(prev => {
+          if (!prev) {
+            console.log('[Check Inactivity] ⚠️ Showing warning - both parties inactive for 5+ minutes');
+            warningStartTimeRef.current = Date.now();
+            return true;
+          }
+          return prev;
+        });
       } else {
         // At least one party is active - hide warning and reset timer
-        if (showInactivityWarning) {
-          console.log('[Check Inactivity] ✓ Hiding warning - at least one party is active');
-          setShowInactivityWarning(false);
-          warningStartTimeRef.current = null;
-        }
+        setShowInactivityWarning(prev => {
+          if (prev) {
+            console.log('[Check Inactivity] ✓ Hiding warning - at least one party is active');
+            warningStartTimeRef.current = null;
+            return false;
+          }
+          return prev;
+        });
       }
     } catch (error) {
       console.error('[Check Inactivity] Exception:', error);
     }
-  };
+  }, [selectedConversation, conversationClosed]);
 
   const endConversation = async (autoClose = false) => {
     if (!selectedConversation || endingConversation) return;
