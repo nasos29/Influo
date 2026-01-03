@@ -968,10 +968,10 @@ export default function Messaging({
                       value={newMessage}
                       onChange={(e) => {
                         setNewMessage(e.target.value);
-                        // Update activity timestamp when user types (throttled)
-                        updateActivityTimestamp();
+                        // DO NOT update activity timestamp on typing
+                        // Activity should only be updated when sending messages
+                        // This prevents false activity detection
                       }}
-                      onFocus={() => updateActivityTimestamp()}
                       placeholder={txt.placeholder}
                       className="flex-1 px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900"
                       rows={2}
