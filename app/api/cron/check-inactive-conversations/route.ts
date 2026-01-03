@@ -126,17 +126,21 @@ export async function GET(req: Request) {
   // Security check: require authorization header to match CRON_SECRET
   // In production, CRON_SECRET should be set and Vercel will send it automatically
   // For local testing, you can temporarily disable this check or set CRON_SECRET
+  // Client-side polling also uses CRON_SECRET (should be public for this use case)
+  const isVercelCron = req.headers.get('x-vercel-cron') === '1' || 
+                      req.headers.get('user-agent')?.includes('vercel-cron');
+  
   if (cronSecret) {
-    if (authHeader !== `Bearer ${cronSecret}`) {
-      // Check if it's a Vercel Cron request (they send special headers)
-      const isVercelCron = req.headers.get('x-vercel-cron') === '1' || 
-                          req.headers.get('user-agent')?.includes('vercel-cron');
-      if (!isVercelCron) {
-        return NextResponse.json({ error: 'Unauthorized. Missing or invalid CRON_SECRET.' }, { status: 401 });
-      }
+    // Allow Vercel Cron requests OR requests with valid CRON_SECRET (for client-side polling)
+    if (authHeader !== `Bearer ${cronSecret}` && !isVercelCron) {
+      return NextResponse.json({ error: 'Unauthorized. Missing or invalid CRON_SECRET.' }, { status: 401 });
     }
   } else {
-    console.warn('[Cron] WARNING: CRON_SECRET not set. This endpoint is unprotected!');
+    // Only allow Vercel Cron requests if no secret is set (development)
+    if (!isVercelCron) {
+      console.warn('[Cron] WARNING: CRON_SECRET not set. Only Vercel Cron requests allowed.');
+      return NextResponse.json({ error: 'Unauthorized. CRON_SECRET not configured.' }, { status: 401 });
+    }
   }
 
   try {

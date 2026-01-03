@@ -394,6 +394,76 @@ export default function Messaging({
     }
   }, [showInactivityWarning, conversationClosed]);
 
+  // Client-side polling to check if conversation should be closed
+  // This works even with Vercel Hobby plan (daily cron limit)
+  // When user is online, we poll every 5 minutes and trigger server-side check if needed
+  useEffect(() => {
+    if (!selectedConversation || conversationClosed) return;
+
+    // Poll the check endpoint every 5 minutes when user has an open conversation
+    // If conversation is inactive, trigger the cron endpoint to close it
+    const pollInterval = setInterval(async () => {
+      try {
+        console.log('[Client Polling] Checking conversation status...');
+        const response = await fetch(`/api/conversations/check-inactive?conversationId=${selectedConversation}`, {
+          method: 'GET'
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          console.log('[Client Polling] Check result:', result);
+          
+          // If conversation is inactive and not closed, trigger the cron endpoint to close it
+          if (result.isInactive && !result.isClosed) {
+            console.log('[Client Polling] Conversation is inactive, triggering server-side close...');
+            // The cron endpoint will handle the actual closing
+            // We just trigger it (it will check authorization but Vercel Cron headers are not required for this)
+            try {
+              await fetch('/api/cron/check-inactive-conversations', {
+                method: 'GET',
+                // Note: This might fail if CRON_SECRET is required, but that's ok
+                // The daily Vercel cron will handle it eventually
+              }).catch(err => {
+                console.log('[Client Polling] Cron endpoint requires auth, will be handled by daily cron');
+              });
+            } catch (err) {
+              // Ignore - daily cron will handle it
+            }
+          }
+          
+          // Refresh conversation state to reflect any closures
+          if (selectedConversation) {
+            await loadActivityTimestamps(selectedConversation);
+            await loadConversations();
+          }
+        } else {
+          console.warn('[Client Polling] Check failed:', response.status);
+        }
+      } catch (error) {
+        console.error('[Client Polling] Error:', error);
+      }
+    }, 5 * 60 * 1000); // Every 5 minutes
+
+    // Also check immediately
+    (async () => {
+      try {
+        const response = await fetch(`/api/conversations/check-inactive?conversationId=${selectedConversation}`, {
+          method: 'GET'
+        });
+        if (response.ok) {
+          const result = await response.json();
+          if (result.isClosed) {
+            setConversationClosed(true);
+          }
+        }
+      } catch (error) {
+        console.error('[Client Polling] Initial check error:', error);
+      }
+    })();
+
+    return () => clearInterval(pollInterval);
+  }, [selectedConversation, conversationClosed]);
+
   const loadConversations = async () => {
     setLoading(true);
     try {

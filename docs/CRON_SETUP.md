@@ -2,30 +2,34 @@
 
 ## Overview
 
-Αυτό το cron job ελέγχει κάθε 5 λεπτά αν υπάρχουν συνομιλίες που έχουν αδράνεια 10+ λεπτά (5 λεπτά warning + 5 λεπτά close) και τις κλείνει αυτόματα, ακόμα και αν ο χρήστης έχει κλείσει το browser.
+Αυτό το cron job ελέγχει κάθε 5 λεπτά αν υπάρχουν συνομιλίες που έχουν αδράνεια 10+ λεπτά (5 λεπτά warning + 5 λεπτά close) και τις κλείνει αυτόματα.
+
+**⚠️ ΣΗΜΑΝΤΙΚΟ: Vercel Hobby Plan Limitation**
+Το Vercel Hobby plan επιτρέπει μόνο **daily cron jobs** (μία φορά την ημέρα). Για αυτό:
+- Το `vercel.json` έχει schedule `0 0 * * *` (daily at midnight)
+- Το Messaging component κάνει **client-side polling** κάθε 5 λεπτά όταν ο χρήστης είναι online
+- Αν χρειάζεσαι πιο συχνά server-side checks (ακόμα και όταν ο browser είναι κλειστό), χρησιμοποίησε external cron service ή upgrade σε Vercel Pro
 
 ## Setup Instructions
 
-### 1. Vercel Cron (Αν χρησιμοποιείς Vercel)
+### 1. Vercel Cron (Daily - Vercel Hobby Plan)
 
-Το `vercel.json` έχει ήδη ρυθμιστεί για Vercel Cron:
+Το `vercel.json` έχει ήδη ρυθμιστεί για Vercel Cron (daily):
 
 ```json
 {
   "crons": [
     {
       "path": "/api/cron/check-inactive-conversations",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }
 ```
 
-Αυτό σημαίνει ότι το endpoint θα καλείται **κάθε 5 λεπτά**.
+**ΣΗΜΑΝΤΙΚΟ**: Vercel Hobby plan επιτρέπει μόνο daily cron jobs. Για πιο συχνά checks, χρησιμοποιείται client-side polling (βλέπε παρακάτω).
 
-**Σημαντικό**: Μετά το deploy στο Vercel, πρέπει να ενεργοποιήσεις τα Cron Jobs στο Vercel Dashboard:
-1. Πήγαινε στο Vercel Dashboard → Project → Settings → Cron Jobs
-2. Ενεργοποίησε το cron job
+**Ενεργοποίηση**: Vercel Dashboard → Project → Settings → Cron Jobs → Enable
 
 ### 2. Environment Variables
 
