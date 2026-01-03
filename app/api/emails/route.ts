@@ -67,13 +67,19 @@ export async function POST(req: Request) {
     if (type === 'signup_influencer') {
       subject = "Επιβεβαίωση Εγγραφής | Welcome to Influo! 🤝"; 
       html = `
-        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #1e40af; border-radius: 8px; background-color: #eff6ff;">
-            <h1 style="color: #1e40af;">Ευχαριστούμε για την εγγραφή σου, ${name}!</h1>
-            <p>Λάβαμε το προφίλ σου. Η αίτησή σου βρίσκεται υπό έλεγχο.</p>
-            <p>Θα ελέγξουμε τα Insights σου και θα σε εγκρίνουμε εντός 24 ωρών.</p>
-            <p>Θα λάβεις ένα νέο email **μόλις** το προφίλ σου γίνει δημόσιο στο Directory.</p>
-            <br/>
-            <p>Με εκτίμηση,<br/>Η ομάδα του Influo</p>
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); padding: 24px; border-radius: 12px 12px 0 0;">
+            <h1 style="color: #1e40af; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">🤝 Καλώς Ήρθατε στο Influo!</h1>
+          </div>
+          <div style="background: #ffffff; padding: 24px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
+            <p style="margin: 0 0 12px 0; font-size: 14px;">Γεια σου ${name},</p>
+            <p style="margin: 0 0 12px 0; font-size: 13px; color: #4b5563;">Ευχαριστούμε για την εγγραφή σου! Λάβαμε το προφίλ σου και η αίτησή σου βρίσκεται υπό έλεγχο.</p>
+            <p style="margin: 0 0 12px 0; font-size: 13px; color: #4b5563;">Θα ελέγξουμε τα Insights σου και θα σε εγκρίνουμε εντός 24 ωρών.</p>
+            <p style="margin: 0 0 20px 0; font-size: 13px; color: #4b5563;">Θα λάβεις ένα νέο email <strong>μόλις</strong> το προφίλ σου γίνει δημόσιο στο Directory.</p>
+            <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+              <p style="margin: 0; font-size: 12px; color: #9ca3af;">Με εκτίμηση,<br/>Η ομάδα του Influo</p>
+            </div>
+          </div>
         </div>
       `;
     } 
@@ -81,13 +87,20 @@ export async function POST(req: Request) {
       toEmail = ADMIN_RECEIVING_EMAIL; 
       subject = `🔔 Νέα εγγραφή: ${name}`;
       html = `
-        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #ca8a04; border-radius: 8px; background-color: #fefce8;">
-            <h1 style="color: #ca8a04;">Νέος Influencer για έλεγχο!</h1>
-            <p>Ο/Η <strong>${name}</strong> μόλις έκανε εγγραφή.</p>
-            <p>Email: ${email}</p>
-            <p>Location: ${location || 'N/A'}</p>
-            <p>Παρακαλώ μπες στο Admin Dashboard για έγκριση:</p>
-            <a href="https://${host}/admin" style="display: inline-block; padding: 10px 20px; background-color: #1e40af; color: white; text-decoration: none; border-radius: 5px;">Πήγαινε στο Admin Dashboard</a>
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 24px; border-radius: 12px 12px 0 0;">
+            <h1 style="color: #92400e; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">🔔 Νέος Influencer για Έλεγχο!</h1>
+          </div>
+          <div style="background: #ffffff; padding: 24px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
+            <p style="margin: 0 0 16px 0; font-size: 14px;">Ο/Η <strong style="color: #1f2937;">${name}</strong> μόλις έκανε εγγραφή.</p>
+            <div style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 8px; margin: 20px 0;">
+              <p style="margin: 0 0 8px 0; font-size: 13px;"><strong style="color: #92400e;">Email:</strong> <span style="color: #1f2937;">${email}</span></p>
+              <p style="margin: 0; font-size: 13px;"><strong style="color: #92400e;">Location:</strong> <span style="color: #1f2937;">${location || 'N/A'}</span></p>
+            </div>
+            <div style="margin: 24px 0; text-align: center;">
+              <a href="https://${host}/admin" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">📊 Πήγαινε στο Admin Dashboard</a>
+            </div>
+          </div>
         </div>
       `;
     }
@@ -95,12 +108,20 @@ export async function POST(req: Request) {
       toEmail = email;
       subject = "Συγχαρητήρια! Το προφίλ σου εγκρίθηκε ✅";
       html = `
-        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #10b981; border-radius: 8px; background-color: #ecfdf5;">
-            <h1 style="color: #047857;">Είσαι Live! Συγχαρητήρια!</h1>
-            <p>Γεια σου ${name},</p>
-            <p>Το προφίλ σου ελέγχθηκε και είναι πλέον ενεργό στο Directory μας. Τα Brands μπορούν να σε βρουν!</p>
-            <br/>
-            <p>Καλή επιτυχία,<br/>Η ομάδα του Influo</p>
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); padding: 24px; border-radius: 12px 12px 0 0;">
+            <h1 style="color: #065f46; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">✅ Είσαι Live!</h1>
+          </div>
+          <div style="background: #ffffff; padding: 24px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
+            <p style="margin: 0 0 16px 0; font-size: 14px;">Γεια σου ${name},</p>
+            <p style="margin: 0 0 20px 0; font-size: 13px; color: #4b5563;">Συγχαρητήρια! Το προφίλ σου ελέγχθηκε και είναι πλέον ενεργό στο Directory μας. Τα Brands μπορούν τώρα να σε βρουν!</p>
+            <div style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 16px; border-radius: 8px; margin: 20px 0;">
+              <p style="margin: 0; font-size: 13px; color: #065f46; font-weight: 600;">🎉 Το προφίλ σου είναι δημόσιο!</p>
+            </div>
+            <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+              <p style="margin: 0; font-size: 12px; color: #9ca3af;">Καλή επιτυχία,<br/>Η ομάδα του Influo</p>
+            </div>
+          </div>
         </div>
       `;
     }
@@ -122,14 +143,20 @@ export async function POST(req: Request) {
         toEmail = ADMIN_RECEIVING_EMAIL;
         subject = `🔔 Επεξεργασία Προφίλ: ${name}`;
         html = `
-            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #f59e0b; border-radius: 8px; background-color: #fffbeb;">
-                <h1 style="color: #d97706;">Προφίλ Επεξεργάστηκε - Απαιτείται Επαν-Επαλήθευση!</h1>
-                <p>Ο/Η <strong>${name}</strong> (${email}) μόλις επεξεργάστηκε το προφίλ του/της.</p>
-                <p>Location: ${location || 'N/A'}</p>
-                <p><strong>Το προφίλ έχει μεταβεί σε "Pending" status και απαιτείται επαν-επαλήθευση.</strong></p>
-                <br/>
-                <p>Παρακαλώ μπες στο Admin Dashboard για έλεγχο:</p>
-                <a href="https://${host}/admin" style="display: inline-block; padding: 10px 20px; background-color: #1e40af; color: white; text-decoration: none; border-radius: 5px; margin-top: 10px;">Πήγαινε στο Admin Dashboard</a>
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
+              <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 24px; border-radius: 12px 12px 0 0;">
+                <h1 style="color: #92400e; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">🔔 Προφίλ Επεξεργάστηκε</h1>
+              </div>
+              <div style="background: #ffffff; padding: 24px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
+                <p style="margin: 0 0 16px 0; font-size: 14px;">Ο/Η <strong style="color: #1f2937;">${name}</strong> (${email}) μόλις επεξεργάστηκε το προφίλ του/της.</p>
+                <div style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 8px; margin: 20px 0;">
+                  <p style="margin: 0 0 8px 0; font-size: 13px;"><strong style="color: #92400e;">Location:</strong> <span style="color: #1f2937;">${location || 'N/A'}</span></p>
+                  <p style="margin: 12px 0 0 0; padding-top: 12px; border-top: 1px solid #fcd34d; font-size: 12px; font-weight: 600; color: #92400e;">⚠️ Το προφίλ έχει μεταβεί σε "Pending" status και απαιτείται επαν-επαλήθευση.</p>
+                </div>
+                <div style="margin: 24px 0; text-align: center;">
+                  <a href="https://${host}/admin" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">📊 Πήγαινε στο Admin Dashboard</a>
+                </div>
+              </div>
             </div>
         `;
     }
@@ -137,18 +164,23 @@ export async function POST(req: Request) {
         toEmail = ADMIN_RECEIVING_EMAIL;
         subject = `📨 Νέα Πρόταση από ${brandName} προς ${influencerName}`;
         html = `
-            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #8b5cf6; border-radius: 8px; background-color: #faf5ff;">
-                <h1 style="color: #7c3aed;">Νέα Πρόταση Συνεργασίας!</h1>
-                <div style="background-color: white; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #8b5cf6;">
-                    <p><strong>Brand:</strong> ${brandName}</p>
-                    <p><strong>Email:</strong> ${email}</p>
-                    <p><strong>Influencer:</strong> ${influencerName}</p>
-                    <p><strong>Υπηρεσία:</strong> ${proposalType}</p>
-                    <p><strong>Budget:</strong> €${budget}</p>
-                    ${message ? `<p><strong>Μήνυμα:</strong><br/>${message.replace(/\n/g, '<br/>')}</p>` : ''}
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
+              <div style="background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%); padding: 24px; border-radius: 12px 12px 0 0;">
+                <h1 style="color: #6b21a8; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">📨 Νέα Πρόταση Συνεργασίας!</h1>
+              </div>
+              <div style="background: #ffffff; padding: 24px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
+                <div style="background: #faf5ff; border-left: 4px solid #8b5cf6; padding: 16px; border-radius: 8px; margin: 20px 0;">
+                  <p style="margin: 0 0 8px 0; font-size: 13px;"><strong style="color: #6b21a8;">Brand:</strong> <span style="color: #1f2937;">${brandName}</span></p>
+                  <p style="margin: 0 0 8px 0; font-size: 13px;"><strong style="color: #6b21a8;">Email:</strong> <span style="color: #1f2937;">${email}</span></p>
+                  <p style="margin: 0 0 8px 0; font-size: 13px;"><strong style="color: #6b21a8;">Influencer:</strong> <span style="color: #1f2937;">${influencerName}</span></p>
+                  <p style="margin: 0 0 8px 0; font-size: 13px;"><strong style="color: #6b21a8;">Υπηρεσία:</strong> <span style="color: #1f2937;">${proposalType}</span></p>
+                  <p style="margin: 0 0 12px 0; font-size: 13px;"><strong style="color: #6b21a8;">Budget:</strong> <span style="color: #7c3aed; font-size: 16px; font-weight: 600;">€${budget}</span></p>
+                  ${message ? `<div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #c4b5fd;"><p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #6b21a8;">Μήνυμα:</p><p style="margin: 0; font-size: 13px; color: #1f2937; white-space: pre-wrap;">${message.replace(/\n/g, '<br/>')}</p></div>` : ''}
                 </div>
-                <p>Παρακαλώ μπες στο Admin Dashboard για να δεις όλες τις προτάσεις:</p>
-                <a href="https://${host}/admin" style="display: inline-block; padding: 10px 20px; background-color: #8b5cf6; color: white; text-decoration: none; border-radius: 5px; margin-top: 10px;">Πήγαινε στο Admin Dashboard</a>
+                <div style="margin: 24px 0; text-align: center;">
+                  <a href="https://${host}/admin" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">📊 Πήγαινε στο Admin Dashboard</a>
+                </div>
+              </div>
             </div>
         `;
     }
@@ -157,16 +189,23 @@ export async function POST(req: Request) {
         const { senderName, senderType, recipientName, conversationId, messageContent } = body;
         subject = `💬 Νέο Μήνυμα: ${senderName} → ${recipientName}`;
         html = `
-            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #0ea5e9; border-radius: 8px; background-color: #f0f9ff;">
-                <h1 style="color: #0284c7;">Νέο Μήνυμα στη Συνέντευξη</h1>
-                <div style="background-color: white; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #0ea5e9;">
-                    <p><strong>Από:</strong> ${senderName} (${senderType === 'brand' ? 'Brand' : 'Influencer'})</p>
-                    <p><strong>Προς:</strong> ${recipientName}</p>
-                    <p><strong>Μήνυμα:</strong></p>
-                    <div style="background-color: #f8fafc; padding: 12px; border-radius: 6px; margin-top: 8px; white-space: pre-wrap;">${messageContent.replace(/\n/g, '<br/>')}</div>
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
+              <div style="background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); padding: 24px; border-radius: 12px 12px 0 0;">
+                <h1 style="color: #0369a1; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">💬 Νέο Μήνυμα στη Συνέντευξη</h1>
+              </div>
+              <div style="background: #ffffff; padding: 24px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
+                <div style="background: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 16px; border-radius: 8px; margin: 20px 0;">
+                  <p style="margin: 0 0 8px 0; font-size: 13px;"><strong style="color: #0369a1;">Από:</strong> <span style="color: #1f2937;">${senderName}</span> <span style="color: #6b7280; font-size: 12px;">(${senderType === 'brand' ? 'Brand' : 'Influencer'})</span></p>
+                  <p style="margin: 0 0 12px 0; font-size: 13px;"><strong style="color: #0369a1;">Προς:</strong> <span style="color: #1f2937;">${recipientName}</span></p>
+                  <div style="background: #ffffff; padding: 12px; border-radius: 6px; margin-top: 12px;">
+                    <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #0369a1;">Μήνυμα:</p>
+                    <p style="margin: 0; font-size: 13px; color: #1f2937; white-space: pre-wrap;">${messageContent.replace(/\n/g, '<br/>')}</p>
+                  </div>
                 </div>
-                <p>Παρακαλώ μπες στο Admin Dashboard για να δεις τη συνομιλία:</p>
-                <a href="https://${host}/admin?conversation=${conversationId}" style="display: inline-block; padding: 10px 20px; background-color: #0ea5e9; color: white; text-decoration: none; border-radius: 5px; margin-top: 10px;">Πήγαινε στο Admin Dashboard</a>
+                <div style="margin: 24px 0; text-align: center;">
+                  <a href="https://${host}/admin?conversation=${conversationId}" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">📊 Πήγαινε στο Admin Dashboard</a>
+                </div>
+              </div>
             </div>
         `;
     }
@@ -193,14 +232,23 @@ export async function POST(req: Request) {
         const displayBrandName = brandName || body.brandEmail || 'Brand';
         subject = `💬 Νέο μήνυμα από ${displayBrandName}`;
         html = `
-            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #0ea5e9; border-radius: 8px; background-color: #f0f9ff;">
-                <h1 style="color: #0284c7;">Νέο Μήνυμα</h1>
-                <p>Έχετε λάβει ένα νέο μήνυμα από το brand <strong>${displayBrandName}</strong>.</p>
-                <div style="background-color: white; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #0ea5e9;">
-                    <p style="white-space: pre-wrap;">${message}</p>
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
+              <div style="background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); padding: 24px; border-radius: 12px 12px 0 0;">
+                <h1 style="color: #0369a1; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">💬 Νέο Μήνυμα</h1>
+              </div>
+              <div style="background: #ffffff; padding: 24px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
+                <p style="margin: 0 0 16px 0; font-size: 14px;">Έχετε λάβει ένα νέο μήνυμα από το brand <strong style="color: #1f2937;">${displayBrandName}</strong>.</p>
+                <div style="background: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 16px; border-radius: 8px; margin: 20px 0;">
+                  <p style="margin: 0; font-size: 13px; color: #1f2937; white-space: pre-wrap;">${message}</p>
                 </div>
-                <p>Παρακαλώ συνδεθείτε στο dashboard σας για να δείτε όλη τη συνομιλία.</p>
-                <a href="https://${host}/dashboard" style="display: inline-block; padding: 10px 20px; background-color: #0ea5e9; color: white; text-decoration: none; border-radius: 5px; margin-top: 10px;">Πήγαινε στο Dashboard</a>
+                <div style="margin: 24px 0; text-align: center;">
+                  <a href="https://${host}/dashboard" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">📊 Πήγαινε στο Dashboard</a>
+                </div>
+                <p style="margin: 20px 0 0 0; font-size: 12px; color: #6b7280; text-align: center;">Συνδεθείτε στο dashboard σας για να δείτε όλη τη συνομιλία και να απαντήσετε.</p>
+                <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+                  <p style="margin: 0; font-size: 12px; color: #9ca3af;">Η ομάδα του Influo</p>
+                </div>
+              </div>
             </div>
         `;
     }
@@ -208,17 +256,25 @@ export async function POST(req: Request) {
         toEmail = email;
         subject = `📨 Νέα Πρόταση από ${brandName}`;
         html = `
-            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #10b981; border-radius: 8px; background-color: #ecfdf5;">
-                <h1 style="color: #047857;">Νέα Πρόταση Συνεργασίας!</h1>
-                <p>Γεια σου ${influencerName},</p>
-                <p>Έχεις λάβει μια νέα πρόταση συνεργασίας από το brand <strong>${brandName}</strong>.</p>
-                <div style="background-color: white; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #10b981;">
-                    <p><strong>Υπηρεσία:</strong> ${proposalType}</p>
-                    <p><strong>Budget:</strong> €${budget}</p>
-                    ${message ? `<p><strong>Μήνυμα:</strong><br/>${message.replace(/\n/g, '<br/>')}</p>` : ''}
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
+              <div style="background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); padding: 24px; border-radius: 12px 12px 0 0;">
+                <h1 style="color: #065f46; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">📨 Νέα Πρόταση Συνεργασίας!</h1>
+              </div>
+              <div style="background: #ffffff; padding: 24px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
+                <p style="margin: 0 0 16px 0; font-size: 14px;">Γεια σου ${influencerName},</p>
+                <p style="margin: 0 0 20px 0; font-size: 13px; color: #4b5563;">Έχεις λάβει μια νέα πρόταση συνεργασίας από το brand <strong style="color: #1f2937;">${brandName}</strong>.</p>
+                <div style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 16px; border-radius: 8px; margin: 20px 0;">
+                  <p style="margin: 0 0 8px 0; font-size: 13px;"><strong style="color: #065f46;">Υπηρεσία:</strong> <span style="color: #1f2937;">${proposalType}</span></p>
+                  <p style="margin: 0 0 12px 0; font-size: 13px;"><strong style="color: #065f46;">Budget:</strong> <span style="color: #047857; font-size: 16px; font-weight: 600;">€${budget}</span></p>
+                  ${message ? `<div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #a7f3d0;"><p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #065f46;">Μήνυμα:</p><p style="margin: 0; font-size: 13px; color: #1f2937; white-space: pre-wrap;">${message.replace(/\n/g, '<br/>')}</p></div>` : ''}
                 </div>
-                <p>Συνδέσου στο dashboard σου για να δεις την πρόταση:</p>
-                <a href="https://${host}/dashboard" style="display: inline-block; padding: 10px 20px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px; margin-top: 10px;">Πήγαινε στο Dashboard</a>
+                <div style="margin: 24px 0; text-align: center;">
+                  <a href="https://${host}/dashboard" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">📊 Πήγαινε στο Dashboard</a>
+                </div>
+                <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+                  <p style="margin: 0; font-size: 12px; color: #9ca3af;">Η ομάδα του Influo</p>
+                </div>
+              </div>
             </div>
         `;
     }
@@ -226,14 +282,21 @@ export async function POST(req: Request) {
         toEmail = email;
         subject = `✅ Η συνεργασία με ${brandName} ολοκληρώθηκε!`;
         html = `
-            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #10b981; border-radius: 8px; background-color: #ecfdf5;">
-                <h1 style="color: #047857;">Συνεργασία Ολοκληρώθηκε!</h1>
-                <p>Γεια σου ${influencerName},</p>
-                <p>Η συνεργασία με το brand <strong>${brandName}</strong> έχει ολοκληρωθεί και το brand προστέθηκε στις συνεργασίες σου!</p>
-                <p>Το brand ${brandName} εμφανίζεται πλέον στο προφίλ σου στο tab "Συνεργασίες".</p>
-                <br/>
-                <p>Συγχαρητήρια για την επιτυχημένη συνεργασία! 🎉</p>
-                <p>Η ομάδα του Influo</p>
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
+              <div style="background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); padding: 24px; border-radius: 12px 12px 0 0;">
+                <h1 style="color: #065f46; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">🎉 Συνεργασία Ολοκληρώθηκε!</h1>
+              </div>
+              <div style="background: #ffffff; padding: 24px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
+                <p style="margin: 0 0 16px 0; font-size: 14px;">Γεια σου ${influencerName},</p>
+                <p style="margin: 0 0 12px 0; font-size: 13px; color: #4b5563;">Η συνεργασία με το brand <strong style="color: #1f2937;">${brandName}</strong> έχει ολοκληρωθεί και το brand προστέθηκε στις συνεργασίες σου!</p>
+                <p style="margin: 0 0 20px 0; font-size: 13px; color: #4b5563;">Το brand <strong style="color: #1f2937;">${brandName}</strong> εμφανίζεται πλέον στο προφίλ σου στο tab "Συνεργασίες".</p>
+                <div style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 16px; border-radius: 8px; margin: 20px 0;">
+                  <p style="margin: 0; font-size: 13px; color: #065f46; font-weight: 600;">✨ Συγχαρητήρια για την επιτυχημένη συνεργασία!</p>
+                </div>
+                <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+                  <p style="margin: 0; font-size: 12px; color: #9ca3af;">Η ομάδα του Influo</p>
+                </div>
+              </div>
             </div>
         `;
     }
@@ -241,15 +304,24 @@ export async function POST(req: Request) {
         toEmail = email;
         subject = `✅ Η πρόταση σας για ${influencerName} έγινε αποδεκτή!`;
         html = `
-            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #10b981; border-radius: 8px; background-color: #ecfdf5;">
-                <h1 style="color: #047857;">Πρόταση Αποδεκτή!</h1>
-                <p>Γεια σας ${brandName},</p>
-                <p>Η πρότασή σας προς τον/την <strong>${influencerName}</strong> έχει γίνει αποδεκτή!</p>
-                <p>Για να ολοκληρωθεί η συνεργασία, παρακαλώ αποδεχτείτε τους όρους χρήσης.</p>
-                <p>Μόλις και οι δύο πλευρές αποδεχτούν, το όνομα σας θα προστεθεί στις συνεργασίες του influencer.</p>
-                <br/>
-                <p>Παρακαλώ επισκεφτείτε τη σελίδα του influencer για να αποδεχτείτε την συμφωνία:</p>
-                <a href="https://${host}/influencer/${body.influencerId}" style="display: inline-block; padding: 10px 20px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px; margin-top: 10px;">Δείτε το Προφίλ</a>
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
+              <div style="background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); padding: 24px; border-radius: 12px 12px 0 0;">
+                <h1 style="color: #065f46; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">✅ Πρόταση Αποδεκτή!</h1>
+              </div>
+              <div style="background: #ffffff; padding: 24px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
+                <p style="margin: 0 0 16px 0; font-size: 14px;">Γεια σας ${brandName},</p>
+                <p style="margin: 0 0 12px 0; font-size: 13px; color: #4b5563;">Η πρότασή σας προς τον/την <strong style="color: #1f2937;">${influencerName}</strong> έχει γίνει αποδεκτή!</p>
+                <p style="margin: 0 0 20px 0; font-size: 13px; color: #4b5563;">Για να ολοκληρωθεί η συνεργασία, πρέπει να αποδεχτείτε τους όρους χρήσης. Μόλις και οι δύο πλευρές αποδεχτούν, το όνομα σας θα προστεθεί στις συνεργασίες του influencer.</p>
+                <div style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                  <p style="margin: 0; font-size: 12px; color: #78350f;">⚠️ <strong>Σημαντικό:</strong> Για να αποδεχτείτε τη συμφωνία, συνδεθείτε στον λογαριασμό σας και επισκεφτείτε το dashboard.</p>
+                </div>
+                <div style="margin: 24px 0; text-align: center;">
+                  <a href="https://${host}/brand/dashboard" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">🔐 Πήγαινε στο Dashboard</a>
+                </div>
+                <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+                  <p style="margin: 0; font-size: 12px; color: #9ca3af;">Η ομάδα του Influo</p>
+                </div>
+              </div>
             </div>
         `;
     }
@@ -258,27 +330,31 @@ export async function POST(req: Request) {
         const { brandName, influencerName, influencerId, originalBudget, counterBudget, counterMessage, serviceType } = body;
         subject = `💰 Αντιπρόταση από ${influencerName}`;
         html = `
-            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #f59e0b; border-radius: 8px; background-color: #fffbeb;">
-                <h1 style="color: #d97706;">Νέα Αντιπρόταση</h1>
-                <p>Γεια σας ${brandName},</p>
-                <p>Ο/Η <strong>${influencerName}</strong> σας έστειλε μια αντιπρόταση για τη συνεργασία:</p>
-                
-                <div style="background-color: white; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #f59e0b;">
-                    <p><strong>Υπηρεσία:</strong> ${serviceType}</p>
-                    <p><strong>Προσφερόμενη Τιμή:</strong> <span style="color: #6b7280;">€${originalBudget}</span></p>
-                    <p><strong>Αντιπρόταση:</strong> <span style="color: #d97706; font-size: 18px; font-weight: bold;">€${counterBudget}</span></p>
-                    ${counterMessage ? `<p style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;"><strong>Σχόλιο:</strong><br/>${counterMessage.replace(/\n/g, '<br/>')}</p>` : ''}
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
+              <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 24px; border-radius: 12px 12px 0 0;">
+                <h1 style="color: #92400e; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">💰 Νέα Αντιπρόταση</h1>
+              </div>
+              <div style="background: #ffffff; padding: 24px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
+                <p style="margin: 0 0 16px 0; font-size: 14px;">Γεια σας ${brandName},</p>
+                <p style="margin: 0 0 20px 0; font-size: 13px; color: #4b5563;">Ο/Η <strong style="color: #1f2937;">${influencerName}</strong> σας έστειλε μια αντιπρόταση για τη συνεργασία:</p>
+                <div style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 8px; margin: 20px 0;">
+                  <p style="margin: 0 0 8px 0; font-size: 13px;"><strong style="color: #92400e;">Υπηρεσία:</strong> <span style="color: #1f2937;">${serviceType}</span></p>
+                  <p style="margin: 0 0 8px 0; font-size: 13px;"><strong style="color: #92400e;">Προσφερόμενη Τιμή:</strong> <span style="color: #6b7280; text-decoration: line-through;">€${originalBudget}</span></p>
+                  <p style="margin: 0 0 12px 0; font-size: 13px;"><strong style="color: #92400e;">Αντιπρόταση:</strong> <span style="color: #d97706; font-size: 18px; font-weight: 700;">€${counterBudget}</span></p>
+                  ${counterMessage ? `<div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #fcd34d;"><p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #92400e;">Σχόλιο:</p><p style="margin: 0; font-size: 13px; color: #1f2937; white-space: pre-wrap;">${counterMessage.replace(/\n/g, '<br/>')}</p></div>` : ''}
                 </div>
-
-                <p>Μπορείτε να:</p>
-                <ul style="margin: 15px 0; padding-left: 20px;">
-                    <li>✅ Αποδεχτείτε την αντιπρόταση</li>
-                    <li>❌ Απορρίψετε την αντιπρόταση</li>
-                    <li>💬 Συζητήσετε περισσότερες λεπτομέρειες μέσω μηνυμάτων</li>
-                </ul>
-
-                <p>Παρακαλώ επισκεφτείτε το προφίλ του influencer για να δράσετε:</p>
-                <a href="https://${host}/influencer/${influencerId || ''}" style="display: inline-block; padding: 10px 20px; background-color: #f59e0b; color: white; text-decoration: none; border-radius: 5px; margin-top: 10px;">Δείτε το Προφίλ</a>
+                <div style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                  <p style="margin: 0 0 12px 0; font-size: 13px; font-weight: 600; color: #92400e;">⚠️ Προσοχή:</p>
+                  <p style="margin: 0; font-size: 12px; color: #78350f;">Για να αποδεχτείτε ή απορρίψετε την αντιπρόταση, χρειάζεται να συνδεθείτε στον λογαριασμό σας. Δημιουργήστε λογαριασμό επιχείρησης (γρήγορη διαδικασία) για να διαχειριστείτε την αντιπρόταση από το dashboard σας.</p>
+                </div>
+                <div style="margin: 24px 0; text-align: center;">
+                  <a href="https://${host}/brand/dashboard" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">📊 Πήγαινε στο Dashboard</a>
+                </div>
+                <p style="margin: 20px 0 0 0; font-size: 12px; color: #6b7280; text-align: center;">Μετά τη σύνδεση, θα βρείτε την αντιπρόταση στο tab "Προσφορές" του dashboard σας.</p>
+                <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+                  <p style="margin: 0; font-size: 12px; color: #9ca3af;">Η ομάδα του Influo</p>
+                </div>
+              </div>
             </div>
         `;
     }
@@ -289,33 +365,40 @@ export async function POST(req: Request) {
         
         const messagesHtml = messages && messages.length > 0 ? messages.map((msg: any) => `
             <div style="background-color: ${msg.senderType === 'influencer' ? '#f0f9ff' : '#fef3c7'}; padding: 12px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid ${msg.senderType === 'influencer' ? '#0ea5e9' : '#f59e0b'};">
-                <div style="font-weight: bold; color: ${msg.senderType === 'influencer' ? '#0284c7' : '#d97706'}; margin-bottom: 6px;">
-                    ${msg.senderName} ${msg.senderType === 'influencer' ? '(Influencer)' : '(Brand)'}
+                <div style="font-weight: 600; font-size: 12px; color: ${msg.senderType === 'influencer' ? '#0284c7' : '#d97706'}; margin-bottom: 6px;">
+                    ${msg.senderName} <span style="color: #6b7280; font-weight: 400;">${msg.senderType === 'influencer' ? '(Influencer)' : '(Brand)'}</span>
                 </div>
-                <div style="color: #1e293b; white-space: pre-wrap; margin-bottom: 4px;">${msg.content.replace(/\n/g, '<br/>')}</div>
-                <div style="font-size: 11px; color: #64748b; margin-top: 4px;">
+                <div style="color: #1e293b; font-size: 13px; white-space: pre-wrap; margin-bottom: 4px; line-height: 1.5;">${msg.content.replace(/\n/g, '<br/>')}</div>
+                <div style="font-size: 11px; color: #64748b; margin-top: 6px;">
                     ${new Date(msg.createdAt).toLocaleString('el-GR')}
                 </div>
             </div>
-        `).join('') : '<p>Δεν υπάρχουν νέα μηνύματα.</p>';
+        `).join('') : '<p style="font-size: 13px; color: #6b7280; text-align: center; padding: 20px;">Δεν υπάρχουν νέα μηνύματα.</p>';
         
         html = `
-            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #6366f1; border-radius: 8px; background-color: #faf5ff;">
-                <h1 style="color: #7c3aed;">Νέα Μηνύματα στη Συνομιλία</h1>
-                <p>Έχετε ${messageCount} ${messageCount === 1 ? 'νέο μήνυμα' : 'νέα μηνύματα'} στη συνομιλία:</p>
-                <div style="background-color: white; padding: 10px; border-radius: 8px; margin: 15px 0;">
-                    <strong>${influencerName}</strong> ↔ <strong>${brandName}</strong>
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
+              <div style="background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%); padding: 24px; border-radius: 12px 12px 0 0;">
+                <h1 style="color: #5b21b6; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">💬 Νέα Μηνύματα στη Συνομιλία</h1>
+              </div>
+              <div style="background: #ffffff; padding: 24px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
+                <p style="margin: 0 0 16px 0; font-size: 14px;">Έχετε <strong style="color: #5b21b6;">${messageCount}</strong> ${messageCount === 1 ? 'νέο μήνυμα' : 'νέα μηνύματα'} στη συνομιλία:</p>
+                <div style="background: #faf5ff; border-left: 4px solid #8b5cf6; padding: 12px; border-radius: 8px; margin: 16px 0;">
+                  <p style="margin: 0; font-size: 13px; color: #1f2937;"><strong style="color: #5b21b6;">${influencerName}</strong> ↔ <strong style="color: #5b21b6;">${brandName}</strong></p>
                 </div>
-                <div style="max-height: 500px; overflow-y: auto; margin: 15px 0;">
-                    ${messagesHtml}
+                <div style="max-height: 400px; overflow-y: auto; margin: 20px 0; padding: 8px; background: #f9fafb; border-radius: 8px;">
+                  ${messagesHtml}
                 </div>
-                <p>Παρακαλώ συνδεθείτε στο dashboard σας για να δείτε όλη τη συνομιλία και να απαντήσετε:</p>
-                <div style="margin-top: 15px;">
-                    ${email === (process.env.ADMIN_EMAIL || 'nd.6@hotmail.com') ? 
-                      `<a href="https://${host}/admin?conversation=${conversationId}" style="display: inline-block; padding: 10px 20px; background-color: #6366f1; color: white; text-decoration: none; border-radius: 5px; margin-right: 10px;">Πήγαινε στο Admin Dashboard</a>` 
-                      : `<a href="https://${host}/dashboard" style="display: inline-block; padding: 10px 20px; background-color: #6366f1; color: white; text-decoration: none; border-radius: 5px;">Πήγαινε στο Dashboard</a>`
-                    }
+                <div style="margin: 24px 0; text-align: center;">
+                  ${email === (process.env.ADMIN_EMAIL || 'nd.6@hotmail.com') ? 
+                    `<a href="https://${host}/admin?conversation=${conversationId}" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">📊 Πήγαινε στο Admin Dashboard</a>` 
+                    : `<a href="https://${host}/dashboard" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">📊 Πήγαινε στο Dashboard</a>`
+                  }
                 </div>
+                <p style="margin: 20px 0 0 0; font-size: 12px; color: #6b7280; text-align: center;">Συνδεθείτε στο dashboard σας για να δείτε όλη τη συνομιλία και να απαντήσετε.</p>
+                <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+                  <p style="margin: 0; font-size: 12px; color: #9ca3af;">Η ομάδα του Influo</p>
+                </div>
+              </div>
             </div>
         `;
     }
@@ -335,33 +418,38 @@ export async function POST(req: Request) {
         
         const messagesHtml = messages && messages.length > 0 ? messages.map((msg: any) => `
             <div style="background-color: ${msg.senderType === 'influencer' ? '#f0f9ff' : '#fef3c7'}; padding: 12px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid ${msg.senderType === 'influencer' ? '#0ea5e9' : '#f59e0b'};">
-                <div style="font-weight: bold; color: ${msg.senderType === 'influencer' ? '#0284c7' : '#d97706'}; margin-bottom: 6px;">
-                    ${msg.senderName} ${msg.senderType === 'influencer' ? '(Influencer)' : '(Brand)'}
+                <div style="font-weight: 600; font-size: 12px; color: ${msg.senderType === 'influencer' ? '#0284c7' : '#d97706'}; margin-bottom: 6px;">
+                    ${msg.senderName} <span style="color: #6b7280; font-weight: 400;">${msg.senderType === 'influencer' ? '(Influencer)' : '(Brand)'}</span>
                 </div>
-                <div style="color: #1e293b; white-space: pre-wrap; margin-bottom: 4px;">${msg.content.replace(/\n/g, '<br/>')}</div>
-                <div style="font-size: 11px; color: #64748b; margin-top: 4px;">
+                <div style="color: #1e293b; font-size: 13px; white-space: pre-wrap; margin-bottom: 4px; line-height: 1.5;">${msg.content.replace(/\n/g, '<br/>')}</div>
+                <div style="font-size: 11px; color: #64748b; margin-top: 6px;">
                     ${new Date(msg.createdAt).toLocaleString('el-GR')}
                 </div>
             </div>
-        `).join('') : '<p>Δεν υπήρχαν μηνύματα στη συνομιλία.</p>';
+        `).join('') : '<p style="font-size: 13px; color: #6b7280; text-align: center; padding: 20px;">Δεν υπήρχαν μηνύματα στη συνομιλία.</p>';
         
         html = `
-            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #dc2626; border-radius: 8px; background-color: #fef2f2;">
-                <h1 style="color: #dc2626;">${autoClose ? 'Η Συνομιλία Έκλεισε Λόγω Αδράνειας' : 'Η Συνομιλία Έκλεισε'}</h1>
-                <div style="background-color: white; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #dc2626;">
-                    <p style="margin-bottom: 10px;"><strong>Συνομιλία:</strong> ${infName} ↔ ${brName}</p>
-                    <p style="margin-bottom: 10px;"><strong>Αιτία:</strong> ${closeReason}</p>
-                    <p style="margin-bottom: 10px;"><strong>Συνολικό πλήθος μηνυμάτων:</strong> ${messageCount}</p>
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
+              <div style="background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); padding: 24px; border-radius: 12px 12px 0 0;">
+                <h1 style="color: #991b1b; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">🔒 ${autoClose ? 'Η Συνομιλία Έκλεισε Λόγω Αδράνειας' : 'Η Συνομιλία Έκλεισε'}</h1>
+              </div>
+              <div style="background: #ffffff; padding: 24px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
+                <div style="background: #fef2f2; border-left: 4px solid #dc2626; padding: 16px; border-radius: 8px; margin: 20px 0;">
+                  <p style="margin: 0 0 8px 0; font-size: 13px;"><strong style="color: #991b1b;">Συνομιλία:</strong> <span style="color: #1f2937;">${infName} ↔ ${brName}</span></p>
+                  <p style="margin: 0 0 8px 0; font-size: 13px;"><strong style="color: #991b1b;">Αιτία:</strong> <span style="color: #1f2937;">${closeReason}</span></p>
+                  <p style="margin: 0; font-size: 13px;"><strong style="color: #991b1b;">Συνολικό πλήθος μηνυμάτων:</strong> <span style="color: #1f2937;">${messageCount}</span></p>
                 </div>
-                <div style="background-color: #f9fafb; padding: 15px; border-radius: 8px; margin: 15px 0;">
-                    <h2 style="color: #1e293b; margin-bottom: 15px; font-size: 18px;">Ολόκληρη η Συνομιλία:</h2>
-                    <div style="max-height: 600px; overflow-y: auto; margin: 15px 0;">
-                        ${messagesHtml}
-                    </div>
+                <div style="background: #f9fafb; border: 1px solid #e5e7eb; padding: 16px; border-radius: 8px; margin: 20px 0;">
+                  <h2 style="color: #1e293b; margin: 0 0 12px 0; font-size: 16px; font-weight: 700;">Ολόκληρη η Συνομιλία:</h2>
+                  <div style="max-height: 400px; overflow-y: auto; margin-top: 12px;">
+                    ${messagesHtml}
+                  </div>
                 </div>
-                <p style="color: #64748b; font-size: 14px; margin-top: 20px;">
-                    Αυτό το email περιέχει ολόκληρη τη συνομιλία για αρχειοθέτηση.
-                </p>
+                <p style="margin: 20px 0 0 0; font-size: 12px; color: #6b7280; text-align: center;">Αυτό το email περιέχει ολόκληρη τη συνομιλία για αρχειοθέτηση.</p>
+                <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+                  <p style="margin: 0; font-size: 12px; color: #9ca3af;">Η ομάδα του Influo</p>
+                </div>
+              </div>
             </div>
         `;
     }

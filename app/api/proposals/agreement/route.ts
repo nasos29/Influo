@@ -63,31 +63,37 @@ export async function POST(req: Request) {
 
             const subject = `✅ Η συμφωνία για ${influencerData.display_name} έγινε αποδεκτή!`;
             const html = `
-              <div style="font-family: sans-serif; padding: 20px; border: 1px solid #10b981; border-radius: 8px; background-color: #ecfdf5;">
-                  <h1 style="color: #047857;">Συμφωνία Αποδεκτή!</h1>
-                  <p>Γεια σας ${proposal.brand_name},</p>
-                  <p>Ο/Η <strong>${influencerData.display_name}</strong> αποδέχθηκε τη συμφωνία συνεργασίας!</p>
+              <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
+                <div style="background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); padding: 24px; border-radius: 12px 12px 0 0;">
+                  <h1 style="color: #065f46; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">✅ Συμφωνία Αποδεκτή!</h1>
+                </div>
+                
+                <div style="background: #ffffff; padding: 24px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
+                  <p style="margin: 0 0 16px 0; font-size: 14px;">Γεια σας ${proposal.brand_name},</p>
+                  <p style="margin: 0 0 20px 0; font-size: 14px; color: #4b5563;">Ο/Η <strong style="color: #1f2937;">${influencerData.display_name}</strong> αποδέχθηκε τη συμφωνία συνεργασίας!</p>
                   
-                  <div style="background-color: white; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #10b981;">
-                      <p><strong>Υπηρεσία:</strong> ${proposal.service_type}</p>
-                      <p><strong>Budget:</strong> €${proposal.counter_proposal_budget || proposal.budget}</p>
+                  <div style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 16px; border-radius: 8px; margin: 20px 0;">
+                    <p style="margin: 0 0 8px 0; font-size: 13px;"><strong style="color: #065f46;">Υπηρεσία:</strong> <span style="color: #1f2937;">${proposal.service_type}</span></p>
+                    <p style="margin: 0; font-size: 13px;"><strong style="color: #065f46;">Budget:</strong> <span style="color: #047857; font-size: 16px; font-weight: 600;">€${proposal.counter_proposal_budget || proposal.budget}</span></p>
                   </div>
 
-                  <p>Για να ολοκληρωθεί η συνεργασία, παρακαλώ αποδεχτείτε και εσείς τους όρους χρήσης.</p>
+                  <div style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                    <p style="margin: 0 0 12px 0; font-size: 13px; font-weight: 600; color: #92400e;">⚠️ Σημαντικό:</p>
+                    <p style="margin: 0; font-size: 12px; color: #78350f;">Για να ολοκληρωθεί η συνεργασία, πρέπει να αποδεχτείτε και εσείς τους όρους χρήσης. ${brandData ? 'Συνδεθείτε στον λογαριασμό σας' : 'Δημιουργήστε λογαριασμό επιχείρησης (γρήγορη διαδικασία)'} για να αποδεχτείτε τη συμφωνία από το dashboard σας.</p>
+                  </div>
                   
-                  <p style="margin: 20px 0;">
-                    <a href="${brandLink}" style="display: inline-block; padding: 12px 24px; background-color: #10b981; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
-                      ${brandData ? 'Συνδεθείτε για να αποδεχτείτε' : 'Δημιουργήστε λογαριασμό για να αποδεχτείτε'}
+                  <div style="margin: 24px 0; text-align: center;">
+                    <a href="${brandLink}" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                      ${brandData ? '🔐 Συνδεθείτε για να αποδεχτείτε' : '📝 Δημιουργήστε Λογαριασμό'}
                     </a>
-                  </p>
+                  </div>
                   
-                  <p style="color: #6b7280; font-size: 14px;">
-                    ${brandData 
-                      ? 'Έχετε ήδη λογαριασμό; Κάντε login για να αποδεχτείτε τη συμφωνία από το dashboard σας.' 
-                      : 'Δημιουργήστε λογαριασμό επιχείρησης (γρήγορη διαδικασία) για να αποδεχτείτε τη συμφωνία και να διαχειριστείτε όλες τις συνεργασίες σας.'}
-                  </p>
+                  <p style="margin: 20px 0 0 0; font-size: 12px; color: #6b7280; text-align: center;">Μετά τη σύνδεση, θα βρείτε τη συμφωνία στο tab "Προσφορές" του dashboard σας.</p>
                   
-                  <p>Η ομάδα του Influo</p>
+                  <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+                    <p style="margin: 0; font-size: 12px; color: #9ca3af;">Η ομάδα του Influo</p>
+                  </div>
+                </div>
               </div>
             `;
             

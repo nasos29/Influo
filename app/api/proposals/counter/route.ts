@@ -81,30 +81,52 @@ export async function POST(req: Request) {
       } else if (!process.env.RESEND_API_KEY) {
         console.warn('RESEND_API_KEY not set, skipping email');
       } else {
+        // Check if brand has an account
+        const { data: brandData } = await supabaseAdmin
+          .from('brands')
+          .select('id')
+          .eq('contact_email', proposal.brand_email.toLowerCase().trim())
+          .maybeSingle();
+
+        const brandDashboardLink = brandData 
+          ? `${SITE_URL}/brand/dashboard`
+          : `${SITE_URL}/brand/signup?email=${encodeURIComponent(proposal.brand_email)}`;
+
         const subject = `💰 Αντιπρόταση από ${influencerName}`;
         const html = `
-          <div style="font-family: sans-serif; padding: 20px; border: 1px solid #f59e0b; border-radius: 8px; background-color: #fffbeb;">
-              <h1 style="color: #d97706;">Νέα Αντιπρόταση</h1>
-              <p>Γεια σας ${proposal.brand_name},</p>
-              <p>Ο/Η <strong>${influencerName}</strong> σας έστειλε μια αντιπρόταση για τη συνεργασία:</p>
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
+            <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 24px; border-radius: 12px 12px 0 0;">
+              <h1 style="color: #92400e; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">💰 Νέα Αντιπρόταση</h1>
+            </div>
+            
+            <div style="background: #ffffff; padding: 24px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
+              <p style="margin: 0 0 16px 0; font-size: 14px;">Γεια σας ${proposal.brand_name},</p>
+              <p style="margin: 0 0 20px 0; font-size: 14px; color: #4b5563;">Ο/Η <strong style="color: #1f2937;">${influencerName}</strong> σας έστειλε μια αντιπρόταση για τη συνεργασία:</p>
               
-              <div style="background-color: white; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #f59e0b;">
-                  <p><strong>Υπηρεσία:</strong> ${proposal.service_type}</p>
-                  <p><strong>Προσφερόμενη Τιμή:</strong> <span style="color: #6b7280;">€${proposal.budget}</span></p>
-                  <p><strong>Αντιπρόταση:</strong> <span style="color: #d97706; font-size: 18px; font-weight: bold;">€${counterBudget}</span></p>
-                  ${counterMessage ? `<p style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;"><strong>Σχόλιο:</strong><br/>${counterMessage.replace(/\n/g, '<br/>')}</p>` : ''}
+              <div style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 8px; margin: 20px 0;">
+                <p style="margin: 0 0 8px 0; font-size: 13px;"><strong style="color: #92400e;">Υπηρεσία:</strong> <span style="color: #1f2937;">${proposal.service_type}</span></p>
+                <p style="margin: 0 0 8px 0; font-size: 13px;"><strong style="color: #92400e;">Προσφερόμενη Τιμή:</strong> <span style="color: #6b7280; text-decoration: line-through;">€${proposal.budget}</span></p>
+                <p style="margin: 0 0 12px 0; font-size: 13px;"><strong style="color: #92400e;">Αντιπρόταση:</strong> <span style="color: #d97706; font-size: 18px; font-weight: 700;">€${counterBudget}</span></p>
+                ${counterMessage ? `<div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #fcd34d;"><p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #92400e;">Σχόλιο:</p><p style="margin: 0; font-size: 13px; color: #1f2937; white-space: pre-wrap;">${counterMessage.replace(/\n/g, '<br/>')}</p></div>` : ''}
               </div>
 
-              <div style="margin: 20px 0;">
-                  <p style="margin-bottom: 15px; font-weight: bold;">Επιλέξτε μια ενέργεια:</p>
-                  <div style="display: flex; flex-direction: column; gap: 10px;">
-                      <a href="${SITE_URL}/influencer/${proposal.influencer_id || ''}?counterProposal=${proposalId}&action=accept" style="display: inline-block; padding: 12px 24px; background-color: #10b981; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; text-align: center;">✅ Αποδοχή Αντιπρότασης</a>
-                      <a href="${SITE_URL}/influencer/${proposal.influencer_id || ''}?counterProposal=${proposalId}&action=reject" style="display: inline-block; padding: 12px 24px; background-color: #ef4444; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; text-align: center;">❌ Απόρριψη Αντιπρότασης</a>
-                      <a href="${SITE_URL}/influencer/${proposal.influencer_id || ''}?counterProposal=${proposalId}&action=message" style="display: inline-block; padding: 12px 24px; background-color: #3b82f6; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; text-align: center;">💬 Στείλε Μήνυμα</a>
-                  </div>
+              <div style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                <p style="margin: 0 0 12px 0; font-size: 13px; font-weight: 600; color: #92400e;">⚠️ Προσοχή:</p>
+                <p style="margin: 0; font-size: 12px; color: #78350f;">Για να αποδεχτείτε ή απορρίψετε την αντιπρόταση, χρειάζεται να συνδεθείτε στον λογαριασμό σας. ${brandData ? 'Έχετε ήδη λογαριασμό;' : 'Δημιουργήστε λογαριασμό επιχείρησης (γρήγορη διαδικασία)'} για να διαχειριστείτε την αντιπρόταση από το dashboard σας.</p>
+              </div>
+
+              <div style="margin: 24px 0; text-align: center;">
+                <a href="${brandDashboardLink}" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                  ${brandData ? '🔐 Συνδεθείτε στο Dashboard' : '📝 Δημιουργήστε Λογαριασμό'}
+                </a>
               </div>
               
-              <p style="margin-top: 20px; font-size: 12px; color: #6b7280;">Ή επισκεφτείτε το <a href="${SITE_URL}/influencer/${proposal.influencer_id || ''}?counterProposal=${proposalId}" style="color: #f59e0b;">προφίλ του influencer</a> για περισσότερες πληροφορίες.</p>
+              <p style="margin: 20px 0 0 0; font-size: 12px; color: #6b7280; text-align: center;">Μετά τη σύνδεση, θα βρείτε την αντιπρόταση στο tab "Προσφορές" του dashboard σας.</p>
+              
+              <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+                <p style="margin: 0; font-size: 12px; color: #9ca3af;">Η ομάδα του Influo</p>
+              </div>
+            </div>
           </div>
         `;
         

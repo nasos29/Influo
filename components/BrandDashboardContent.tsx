@@ -465,6 +465,7 @@ export default function BrandDashboardContent() {
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
   const [savingAgreement, setSavingAgreement] = useState(false);
+  const [processingCounterProposal, setProcessingCounterProposal] = useState<string | null>(null);
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(false);
   const [brandData, setBrandData] = useState<any>(null);
@@ -836,6 +837,69 @@ export default function BrandDashboardContent() {
     (p.status === 'accepted' || p.status === 'completed')
   );
 
+  // Get pending counter proposals (where influencer sent counter proposal and brand hasn't responded)
+  const pendingCounterProposals = proposals.filter(
+    p => p.counter_proposal_status === 'pending' && p.counter_proposal_budget
+  );
+
+  const handleAcceptCounterProposal = async (proposalId: string) => {
+    setProcessingCounterProposal(proposalId);
+    try {
+      const response = await fetch('/api/proposals/counter/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ proposalId })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        await loadData();
+        alert(lang === 'el' 
+          ? 'Η αντιπρόταση αποδεχθηκε επιτυχώς!' 
+          : 'Counter proposal accepted successfully!');
+      } else {
+        throw new Error(result.error || 'Error accepting counter proposal');
+      }
+    } catch (err: any) {
+      console.error('Error accepting counter proposal:', err);
+      alert(err.message || (lang === 'el' ? 'Σφάλμα αποδοχής αντιπρότασης' : 'Error accepting counter proposal'));
+    } finally {
+      setProcessingCounterProposal(null);
+    }
+  };
+
+  const handleRejectCounterProposal = async (proposalId: string) => {
+    if (!confirm(lang === 'el' 
+      ? 'Είστε σίγουρος ότι θέλετε να απορρίψετε την αντιπρόταση;'
+      : 'Are you sure you want to reject the counter proposal?')) {
+      return;
+    }
+
+    setProcessingCounterProposal(proposalId);
+    try {
+      const response = await fetch('/api/proposals/counter/reject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ proposalId })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        await loadData();
+        alert(lang === 'el' 
+          ? 'Η αντιπρόταση απορρίφθηκε.' 
+          : 'Counter proposal rejected.');
+      } else {
+        throw new Error(result.error || 'Error rejecting counter proposal');
+      }
+    } catch (err: any) {
+      console.error('Error rejecting counter proposal:', err);
+      alert(err.message || (lang === 'el' ? 'Σφάλμα απόρριψης αντιπρότασης' : 'Error rejecting counter proposal'));
+    } finally {
+      setProcessingCounterProposal(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -899,9 +963,9 @@ export default function BrandDashboardContent() {
                 }`}
               >
                 {lang === 'el' ? '📋 Προσφορές' : '📋 Proposals'}
-                {pendingAgreements.length > 0 && (
+                {(pendingAgreements.length > 0 || pendingCounterProposals.length > 0) && (
                   <span className="ml-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
-                    {pendingAgreements.length > 99 ? '99+' : pendingAgreements.length}
+                    {pendingAgreements.length + pendingCounterProposals.length > 99 ? '99+' : pendingAgreements.length + pendingCounterProposals.length}
                   </span>
                 )}
               </button>
@@ -1215,61 +1279,136 @@ export default function BrandDashboardContent() {
           </div>
         )}
 
-        {/* Pending Agreements Section */}
+        {/* Proposals Section */}
         {activeTab === 'proposals' && (
-        <div className="mb-6">
-          <h2 className="text-xl font-bold text-slate-900 mb-4">{txt.pending_agreements}</h2>
-          
-          {pendingAgreements.length === 0 ? (
-            <div className="bg-white rounded-xl p-8 text-center border border-slate-200">
-              <p className="text-slate-600">{txt.no_pending}</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {pendingAgreements.map((proposal) => {
-                const influencer = influencers[proposal.influencer_id];
-                return (
-                  <div
-                    key={proposal.id}
-                    className="bg-white rounded-xl p-6 border border-slate-200 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h3 className="text-lg font-bold text-slate-900 mb-2">
-                          {influencer?.display_name || 'Unknown Influencer'}
-                        </h3>
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <span className="text-slate-500">{txt.service}:</span>{' '}
-                            <span className="font-medium text-slate-900">{proposal.service_type}</span>
+        <div className="mb-6 space-y-8">
+          {/* Pending Counter Proposals */}
+          {pendingCounterProposals.length > 0 && (
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 mb-4">
+                {lang === 'el' ? '💰 Αντιπροτάσεις που Αναμένουν Απόκριση' : '💰 Counter Proposals Pending Response'}
+              </h2>
+              <div className="space-y-4">
+                {pendingCounterProposals.map((proposal) => {
+                  const influencer = influencers[proposal.influencer_id];
+                  const isProcessing = processingCounterProposal === proposal.id;
+                  return (
+                    <div
+                      key={proposal.id}
+                      className="bg-gradient-to-r from-amber-50 to-yellow-50 rounded-xl p-6 border-2 border-amber-200 hover:shadow-lg transition-shadow"
+                    >
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="bg-amber-500 text-white text-xs font-bold px-2 py-1 rounded">ΝΕΑ</span>
+                            <h3 className="text-lg font-bold text-slate-900">
+                              {influencer?.display_name || 'Unknown Influencer'}
+                            </h3>
                           </div>
-                          <div>
-                            <span className="text-slate-500">{txt.budget}:</span>{' '}
-                            <span className="font-medium text-slate-900">
-                              €{proposal.counter_proposal_budget || proposal.budget}
-                            </span>
+                          <div className="grid grid-cols-2 gap-4 text-sm mb-3">
+                            <div>
+                              <span className="text-slate-500">{txt.service}:</span>{' '}
+                              <span className="font-medium text-slate-900">{proposal.service_type}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500">{lang === 'el' ? 'Προσφερόμενη Τιμή:' : 'Original Price:'}</span>{' '}
+                              <span className="font-medium text-slate-600 line-through">€{proposal.budget}</span>
+                            </div>
+                          </div>
+                          <div className="bg-white rounded-lg p-4 mb-3 border border-amber-300">
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-600 text-sm font-medium">{lang === 'el' ? 'Αντιπρόταση:' : 'Counter Proposal:'}</span>
+                              <span className="text-amber-700 text-xl font-bold">€{proposal.counter_proposal_budget}</span>
+                            </div>
+                            {proposal.counter_proposal_message && (
+                              <div className="mt-3 pt-3 border-t border-amber-200">
+                                <p className="text-xs text-slate-500 mb-1">{lang === 'el' ? 'Σχόλιο:' : 'Comment:'}</p>
+                                <p className="text-sm text-slate-700 whitespace-pre-wrap">{proposal.counter_proposal_message}</p>
+                              </div>
+                            )}
                           </div>
                         </div>
-                        {proposal.description && (
-                          <div className="mt-2 text-sm text-slate-600">
-                            <span className="text-slate-500">{txt.description}:</span>{' '}
-                            {proposal.description}
-                          </div>
-                        )}
                       </div>
-                      <button
-                        onClick={() => {
-                          setSelectedProposal(proposal);
-                          setShowAgreementModal(true);
-                        }}
-                        className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors"
-                      >
-                        {txt.accept_agreement}
-                      </button>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => handleAcceptCounterProposal(proposal.id)}
+                          disabled={isProcessing}
+                          className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed text-white font-medium px-4 py-2 rounded-lg transition-colors"
+                        >
+                          {isProcessing ? (lang === 'el' ? 'Επεξεργασία...' : 'Processing...') : (lang === 'el' ? '✅ Αποδοχή Αντιπρότασης' : '✅ Accept Counter Proposal')}
+                        </button>
+                        <button
+                          onClick={() => handleRejectCounterProposal(proposal.id)}
+                          disabled={isProcessing}
+                          className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed text-white font-medium px-4 py-2 rounded-lg transition-colors"
+                        >
+                          {lang === 'el' ? '❌ Απόρριψη' : '❌ Reject'}
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Pending Agreements */}
+          {pendingAgreements.length > 0 && (
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 mb-4">{txt.pending_agreements}</h2>
+              <div className="space-y-4">
+                {pendingAgreements.map((proposal) => {
+                  const influencer = influencers[proposal.influencer_id];
+                  return (
+                    <div
+                      key={proposal.id}
+                      className="bg-white rounded-xl p-6 border border-slate-200 hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h3 className="text-lg font-bold text-slate-900 mb-2">
+                            {influencer?.display_name || 'Unknown Influencer'}
+                          </h3>
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <span className="text-slate-500">{txt.service}:</span>{' '}
+                              <span className="font-medium text-slate-900">{proposal.service_type}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500">{txt.budget}:</span>{' '}
+                              <span className="font-medium text-slate-900">
+                                €{proposal.counter_proposal_budget || proposal.budget}
+                              </span>
+                            </div>
+                          </div>
+                          {proposal.description && (
+                            <div className="mt-2 text-sm text-slate-600">
+                              <span className="text-slate-500">{txt.description}:</span>{' '}
+                              {proposal.description}
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => {
+                            setSelectedProposal(proposal);
+                            setShowAgreementModal(true);
+                          }}
+                          className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors"
+                        >
+                          {txt.accept_agreement}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* No Pending Items */}
+          {pendingAgreements.length === 0 && pendingCounterProposals.length === 0 && (
+            <div className="bg-white rounded-xl p-8 text-center border border-slate-200">
+              <p className="text-slate-600">{txt.no_pending}</p>
             </div>
           )}
         </div>
