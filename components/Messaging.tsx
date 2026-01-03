@@ -205,6 +205,8 @@ export default function Messaging({
   // Check for inactivity every 1 minute (more frequent checks for better UX)
   useEffect(() => {
     if (selectedConversation && !conversationClosed) {
+      console.log('[Inactivity Check] Setting up interval for conversation:', selectedConversation);
+      
       // Check immediately
       checkInactivity();
       
@@ -212,14 +214,22 @@ export default function Messaging({
       // NOTE: We do NOT update activity timestamp here - only check for inactivity
       // Activity timestamps should only be updated on user actions (typing, sending, etc.)
       activityCheckIntervalRef.current = setInterval(() => {
+        console.log('[Inactivity Check] Interval triggered, checking inactivity...');
         checkInactivity();
       }, 60 * 1000); // 1 minute
 
       return () => {
+        console.log('[Inactivity Check] Cleaning up interval');
         if (activityCheckIntervalRef.current) {
           clearInterval(activityCheckIntervalRef.current);
+          activityCheckIntervalRef.current = null;
         }
       };
+    } else {
+      console.log('[Inactivity Check] Skipping interval setup:', {
+        hasSelectedConversation: !!selectedConversation,
+        conversationClosed
+      });
     }
   }, [selectedConversation, lastActivityInfluencer, lastActivityBrand, conversationClosed]);
 
@@ -650,7 +660,17 @@ export default function Messaging({
   };
 
   const checkInactivity = async () => {
-    if (!selectedConversation || conversationClosed) return;
+    if (!selectedConversation) {
+      console.log('[Check Inactivity] No selected conversation');
+      return;
+    }
+    
+    if (conversationClosed) {
+      console.log('[Check Inactivity] Conversation already closed');
+      return;
+    }
+
+    console.log('[Check Inactivity] Starting check for conversation:', selectedConversation);
 
     try {
       const { data: conv, error } = await supabase
@@ -660,11 +680,17 @@ export default function Messaging({
         .single();
 
       if (error) {
-        console.error('[Check Inactivity] Error:', error);
+        console.error('[Check Inactivity] Database error:', error);
         return;
       }
 
-      if (!conv || conv.closed_at) {
+      if (!conv) {
+        console.error('[Check Inactivity] Conversation not found');
+        return;
+      }
+
+      if (conv.closed_at) {
+        console.log('[Check Inactivity] Conversation is already closed');
         setConversationClosed(true);
         return;
       }
@@ -679,32 +705,44 @@ export default function Messaging({
       const brandInactive = !conv.last_activity_brand || 
         new Date(conv.last_activity_brand) < fiveMinutesAgo;
 
-      console.log('[Check Inactivity]', {
+      const influencerMinutesAgo = conv.last_activity_influencer 
+        ? Math.round((now.getTime() - new Date(conv.last_activity_influencer).getTime()) / 60000)
+        : 'never';
+      const brandMinutesAgo = conv.last_activity_brand
+        ? Math.round((now.getTime() - new Date(conv.last_activity_brand).getTime()) / 60000)
+        : 'never';
+
+      console.log('[Check Inactivity] Results:', {
         conversationId: selectedConversation,
         influencerInactive,
         brandInactive,
         influencerLastActivity: conv.last_activity_influencer,
         brandLastActivity: conv.last_activity_brand,
-        fiveMinutesAgo: fiveMinutesAgo.toISOString()
+        influencerMinutesAgo,
+        brandMinutesAgo,
+        fiveMinutesAgo: fiveMinutesAgo.toISOString(),
+        now: now.toISOString()
       });
 
       if (influencerInactive && brandInactive) {
         // Both parties inactive for 5+ minutes - show warning
         if (!showInactivityWarning) {
-          console.log('[Check Inactivity] Showing warning - both parties inactive for 5+ minutes');
+          console.log('[Check Inactivity] ⚠️ Showing warning - both parties inactive for 5+ minutes');
           setShowInactivityWarning(true);
           warningStartTimeRef.current = Date.now();
+        } else {
+          console.log('[Check Inactivity] Warning already shown');
         }
       } else {
         // At least one party is active - hide warning and reset timer
         if (showInactivityWarning) {
-          console.log('[Check Inactivity] Hiding warning - at least one party is active');
+          console.log('[Check Inactivity] ✓ Hiding warning - at least one party is active');
           setShowInactivityWarning(false);
           warningStartTimeRef.current = null;
         }
       }
     } catch (error) {
-      console.error('[Check Inactivity] Error:', error);
+      console.error('[Check Inactivity] Exception:', error);
     }
   };
 
