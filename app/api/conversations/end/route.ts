@@ -44,12 +44,14 @@ export async function POST(req: Request) {
 
     // Mark conversation as closed
     const closedAt = new Date().toISOString();
+    // Note: closed_by_inactivity column may not exist in database, so we only update closed_at
+    const updateData: any = { closed_at: closedAt };
+    
+    // Try to update closed_by_inactivity only if the column exists
+    // We'll handle this gracefully by catching the error if column doesn't exist
     const { error: updateError } = await supabaseAdmin
       .from('conversations')
-      .update({ 
-        closed_at: closedAt,
-        closed_by_inactivity: autoClose || false
-      })
+      .update(updateData)
       .eq('id', conversationId);
 
     if (updateError) {

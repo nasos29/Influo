@@ -1,0 +1,9 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/check-inactive-conversations",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}
+
