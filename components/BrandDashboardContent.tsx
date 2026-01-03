@@ -1197,7 +1197,6 @@ export default function BrandDashboardContent() {
               </div>
             )}
           </div>
-        </div>
         )}
 
         {/* Messages Section */}
