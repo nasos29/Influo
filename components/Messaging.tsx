@@ -209,14 +209,16 @@ export default function Messaging({
   // Load messages when conversation is selected
   useEffect(() => {
     if (selectedConversation) {
-      // Reset conversation closed state when selecting a new conversation
-      setConversationClosed(false);
+      // Reset flags but don't reset conversationClosed - let loadActivityTimestamps check it
       setConversationClosedByInactivity(false);
       setShowInactivityWarning(false);
       warningStartTimeRef.current = null;
       
-      loadMessages(selectedConversation);
-      loadActivityTimestamps(selectedConversation);
+      // Load activity timestamps FIRST to check if conversation is closed, then load messages
+      (async () => {
+        await loadActivityTimestamps(selectedConversation);
+        await loadMessages(selectedConversation);
+      })();
       // NOTE: We do NOT update activity timestamp when opening conversation
       // Activity should only be updated on actual user actions (typing, sending, etc.)
       // Set up real-time subscription
@@ -314,22 +316,23 @@ export default function Messaging({
   const loadConversations = async () => {
     setLoading(true);
     try {
-      const query = supabase
+      let query = supabase
         .from('conversations')
-        .select('*')
-        // Show both open and closed conversations - order open ones first
-        .order('closed_at', { ascending: true, nullsFirst: true }) // nulls first = open conversations first
-        .order('last_message_at', { ascending: false });
+        .select('*');
 
       if (mode === 'influencer') {
-        query.eq('influencer_id', influencerId);
+        query = query.eq('influencer_id', influencerId);
       } else if (mode === 'brand' && brandEmail) {
-        query.eq('brand_email', brandEmail);
+        query = query.eq('brand_email', brandEmail);
       }
 
-      const { data, error } = await query;
+      // Order: open conversations first (nulls), then by last_message_at desc
+      const { data, error } = await query
+        .order('closed_at', { ascending: true, nullsFirst: true })
+        .order('last_message_at', { ascending: false });
 
       if (error) throw error;
+      console.log('[Load Conversations] Loaded', data?.length || 0, 'conversations', data?.map(c => ({ id: c.id, closed: !!c.closed_at })));
       setConversations(data || []);
 
       // Auto-select first conversation or create new if brandEmail provided
