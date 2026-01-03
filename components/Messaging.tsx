@@ -112,6 +112,7 @@ export default function Messaging({
   const [endingConversation, setEndingConversation] = useState(false);
   const activityCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastActivityUpdateRef = useRef<number>(0);
+  const warningStartTimeRef = useRef<number | null>(null);
   const ACTIVITY_UPDATE_THROTTLE = 30000; // Update at most once per 30 seconds
 
   // Load proposal info if proposalId is provided
@@ -219,8 +220,6 @@ export default function Messaging({
   // Auto-close conversation after 5 minutes of inactivity warning
   // When warning appears, both parties have been inactive for 5+ minutes
   // After another 5 minutes, the conversation auto-closes
-  const warningStartTimeRef = useRef<number | null>(null);
-  
   useEffect(() => {
     if (showInactivityWarning && !conversationClosed) {
       // Record when warning started
@@ -502,22 +501,47 @@ export default function Messaging({
 
   const loadActivityTimestamps = async (convId: string) => {
     try {
-      const { data: conv } = await supabase
+      const { data: conv, error } = await supabase
         .from('conversations')
         .select('last_activity_influencer, last_activity_brand, closed_at, closed_by_inactivity')
         .eq('id', convId)
         .single();
+
+      if (error) {
+        console.error('[Load Activity] Error:', error);
+        return;
+      }
 
       if (conv) {
         if (conv.closed_at) {
           setConversationClosed(true);
           setConversationClosedByInactivity(conv.closed_by_inactivity || false);
         }
-        if (conv.last_activity_influencer) {
+        
+        // Initialize activity timestamps if they don't exist
+        const now = new Date().toISOString();
+        const updates: any = {};
+        
+        if (!conv.last_activity_influencer && mode === 'influencer') {
+          updates.last_activity_influencer = now;
+          setLastActivityInfluencer(new Date());
+        } else if (conv.last_activity_influencer) {
           setLastActivityInfluencer(new Date(conv.last_activity_influencer));
         }
-        if (conv.last_activity_brand) {
+        
+        if (!conv.last_activity_brand && mode === 'brand') {
+          updates.last_activity_brand = now;
+          setLastActivityBrand(new Date());
+        } else if (conv.last_activity_brand) {
           setLastActivityBrand(new Date(conv.last_activity_brand));
+        }
+        
+        // Update database if we initialized timestamps
+        if (Object.keys(updates).length > 0) {
+          await supabase
+            .from('conversations')
+            .update(updates)
+            .eq('id', convId);
         }
       }
     } catch (error) {
@@ -565,11 +589,16 @@ export default function Messaging({
     if (!selectedConversation || conversationClosed) return;
 
     try {
-      const { data: conv } = await supabase
+      const { data: conv, error } = await supabase
         .from('conversations')
         .select('last_activity_influencer, last_activity_brand, closed_at')
         .eq('id', selectedConversation)
         .single();
+
+      if (error) {
+        console.error('[Check Inactivity] Error:', error);
+        return;
+      }
 
       if (!conv || conv.closed_at) {
         setConversationClosed(true);
@@ -580,26 +609,38 @@ export default function Messaging({
       const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
 
       // Check if both parties have been inactive for 5+ minutes
+      // If timestamp is null/undefined, consider inactive (this handles first-time loads)
       const influencerInactive = !conv.last_activity_influencer || 
         new Date(conv.last_activity_influencer) < fiveMinutesAgo;
       const brandInactive = !conv.last_activity_brand || 
         new Date(conv.last_activity_brand) < fiveMinutesAgo;
 
+      console.log('[Check Inactivity]', {
+        conversationId: selectedConversation,
+        influencerInactive,
+        brandInactive,
+        influencerLastActivity: conv.last_activity_influencer,
+        brandLastActivity: conv.last_activity_brand,
+        fiveMinutesAgo: fiveMinutesAgo.toISOString()
+      });
+
       if (influencerInactive && brandInactive) {
         // Both parties inactive for 5+ minutes - show warning
         if (!showInactivityWarning) {
+          console.log('[Check Inactivity] Showing warning - both parties inactive for 5+ minutes');
           setShowInactivityWarning(true);
           warningStartTimeRef.current = Date.now();
         }
       } else {
         // At least one party is active - hide warning and reset timer
         if (showInactivityWarning) {
+          console.log('[Check Inactivity] Hiding warning - at least one party is active');
           setShowInactivityWarning(false);
           warningStartTimeRef.current = null;
         }
       }
     } catch (error) {
-      console.error('Error checking inactivity:', error);
+      console.error('[Check Inactivity] Error:', error);
     }
   };
 
@@ -624,7 +665,12 @@ export default function Messaging({
       });
 
       const result = await response.json();
-      if (!result.success) throw new Error(result.error);
+      
+      if (!response.ok || !result.success) {
+        const errorMsg = result.error || `HTTP ${response.status}: ${response.statusText}`;
+        console.error('[End Conversation] Error response:', result);
+        throw new Error(errorMsg);
+      }
 
       setConversationClosed(true);
       setConversationClosedByInactivity(autoClose);
