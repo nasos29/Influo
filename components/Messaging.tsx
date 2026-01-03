@@ -403,16 +403,18 @@ export default function Messaging({
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || conversationClosed) return;
+    if (!newMessage.trim()) return;
 
     setSending(true);
     try {
-      const currentConv = conversations.find(c => c.id === selectedConversation);
-      
       let convId = selectedConversation;
 
-      // Create conversation if it doesn't exist (for brand starting conversation)
-      if (!convId && mode === 'brand' && influencerId && brandEmail) {
+      // If conversation is closed or doesn't exist, send without conversationId
+      // Backend will find/reopen/create the conversation
+      const shouldFindOrReopen = conversationClosed || !convId;
+
+      // Send message - backend will find/reopen/create conversation if needed
+      if (shouldFindOrReopen && influencerId && brandEmail) {
         const response = await fetch('/api/messages', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -420,16 +422,24 @@ export default function Messaging({
             influencerId,
             brandEmail,
             brandName: brandName || brandEmail,
-            senderType: 'brand',
+            senderType: mode,
             content: newMessage,
           })
         });
 
         const result = await response.json();
-        if (result.success) {
-          convId = result.conversationId;
+        if (!result.success) throw new Error(result.error);
+        
+        convId = result.conversationId;
+        
+        // Refresh conversations list to show reopened conversation
+        await loadConversations();
+        
+        // Select the conversation
+        if (convId) {
           setSelectedConversation(convId);
-          await loadConversations();
+          setConversationClosed(false);
+          setConversationClosedByInactivity(false);
         }
       } else if (convId) {
         // Send message to existing conversation
