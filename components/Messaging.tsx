@@ -317,7 +317,8 @@ export default function Messaging({
       const query = supabase
         .from('conversations')
         .select('*')
-        .is('closed_at', null) // Only show open conversations
+        // Show both open and closed conversations - order open ones first
+        .order('closed_at', { ascending: true, nullsFirst: true }) // nulls first = open conversations first
         .order('last_message_at', { ascending: false });
 
       if (mode === 'influencer') {
@@ -823,24 +824,34 @@ export default function Messaging({
           ) : conversations.length === 0 ? (
             <div className="p-4 text-center text-sm text-slate-500">{txt.noConversations}</div>
           ) : (
-            conversations.map((conv) => (
-              <button
-                key={conv.id}
-                onClick={() => setSelectedConversation(conv.id)}
-                className={`w-full text-left p-4 border-b border-slate-200 hover:bg-white transition-colors ${
-                  selectedConversation === conv.id ? 'bg-white border-l-4 border-l-blue-600' : ''
-                }`}
-              >
-                <div className="font-semibold text-slate-900">
-                  {mode === 'influencer' 
-                    ? (conv.brand_name || conv.brand_email)
-                    : conv.influencer_name}
-                </div>
-                <div className="text-xs text-slate-500 mt-1">
-                  {new Date(conv.last_message_at).toLocaleDateString()}
-                </div>
-              </button>
-            ))
+            conversations.map((conv) => {
+              const isClosed = !!conv.closed_at;
+              return (
+                <button
+                  key={conv.id}
+                  onClick={() => setSelectedConversation(conv.id)}
+                  className={`w-full text-left p-4 border-b border-slate-200 hover:bg-white transition-colors ${
+                    selectedConversation === conv.id ? 'bg-white border-l-4 border-l-blue-600' : ''
+                  } ${isClosed ? 'opacity-60' : ''}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="font-semibold text-slate-900">
+                      {mode === 'influencer' 
+                        ? (conv.brand_name || conv.brand_email)
+                        : conv.influencer_name}
+                    </div>
+                    {isClosed && (
+                      <span className="text-xs text-red-600 font-medium">
+                        {lang === 'el' ? 'Κλειστή' : 'Closed'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1">
+                    {new Date(conv.last_message_at).toLocaleDateString()}
+                  </div>
+                </button>
+              );
+            })
           )}
         </div>
 
@@ -986,8 +997,39 @@ export default function Messaging({
               </form>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center text-slate-500">
-              {txt.selectConversation}
+            <div className="flex-1 flex flex-col">
+              <div className="flex-1 flex items-center justify-center text-slate-500">
+                {txt.selectConversation}
+              </div>
+              
+              {/* Show message input even without selected conversation if we have influencerId and brandEmail */}
+              {influencerId && brandEmail && (
+                <form onSubmit={sendMessage} className="px-6 py-4 border-t border-slate-200 bg-white">
+                  <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-xs text-blue-700">
+                      {lang === 'el' 
+                        ? '💬 Ξεκίνα νέα συνομιλία ή στείλε μήνυμα σε υπάρχουσα κλειστή συνομιλία.'
+                        : '💬 Start a new conversation or send a message to an existing closed conversation.'}
+                    </p>
+                  </div>
+                  <div className="flex gap-3">
+                    <textarea
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      placeholder={txt.placeholder}
+                      className="flex-1 px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900"
+                      rows={2}
+                    />
+                    <button
+                      type="submit"
+                      disabled={sending || !newMessage.trim()}
+                      className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                    >
+                      {sending ? txt.sending : txt.send}
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           )}
         </div>
