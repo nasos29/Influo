@@ -805,7 +805,7 @@ export default function Messaging({
                         setNewMessage(e.target.value);
                         updateActivityTimestamp(true); // Force update when sending message
                       }}
-                      onFocus={updateActivityTimestamp}
+                      onFocus={() => updateActivityTimestamp()}
                       placeholder={txt.placeholder}
                       className="flex-1 px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900"
                       rows={2}
