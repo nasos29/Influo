@@ -126,6 +126,7 @@ export default function Messaging({
 
   // Load conversations
   useEffect(() => {
+    console.log('[Messaging] Loading conversations for:', { mode, influencerId, brandEmail });
     loadConversations();
     if (mode === 'brand' && influencerId) {
       checkInfluencerStatus();
@@ -133,7 +134,7 @@ export default function Messaging({
       const interval = setInterval(checkInfluencerStatus, 30000);
       return () => clearInterval(interval);
     }
-  }, [influencerId, mode]);
+  }, [influencerId, mode, brandEmail]);
 
   // Auto-select conversation when proposalId and brandEmail are provided
   useEffect(() => {
@@ -331,8 +332,23 @@ export default function Messaging({
         .order('closed_at', { ascending: true, nullsFirst: true })
         .order('last_message_at', { ascending: false });
 
-      if (error) throw error;
-      console.log('[Load Conversations] Loaded', data?.length || 0, 'conversations', data?.map(c => ({ id: c.id, closed: !!c.closed_at })));
+      if (error) {
+        console.error('[Load Conversations] ❌ ERROR:', error);
+        throw error;
+      }
+      
+      console.log('[Load Conversations] ✅ Loaded', data?.length || 0, 'conversations');
+      if (data && data.length > 0) {
+        console.table(data.map(c => ({ 
+          id: c.id.substring(0, 8), 
+          closed: !!c.closed_at ? 'YES' : 'NO',
+          brand: c.brand_email?.substring(0, 20),
+          influencer: c.influencer_name?.substring(0, 20)
+        })));
+      } else {
+        console.warn('[Load Conversations] ⚠️ No conversations found!');
+      }
+      
       setConversations(data || []);
 
       // Auto-select first conversation or create new if brandEmail provided
