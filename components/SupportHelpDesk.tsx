@@ -59,7 +59,9 @@ const t = {
     sendingReply: "Αποστολή...",
     replySuccess: "✅ Η απάντηση στάλθηκε!",
     open: "Ανοιχτό",
+    in_progress: "Σε Εξέλιξη",
     resolved: "Επιλυμένο",
+    closed: "Κλειστό",
     viewTicket: "Προβολή Ticket",
   },
   en: {
@@ -94,7 +96,9 @@ const t = {
     sendingReply: "Sending...",
     replySuccess: "✅ Reply sent!",
     open: "Open",
+    in_progress: "In Progress",
     resolved: "Resolved",
+    closed: "Closed",
     viewTicket: "View Ticket",
   }
 };
