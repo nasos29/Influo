@@ -534,38 +534,39 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
             </div>
           </div>
 
-          {/* Sent Emails Sidebar */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">{t[lang].sentEmails}</h2>
-              
-              {loadingEmails ? (
-                <div className="text-center text-gray-500 py-8">Loading...</div>
-              ) : sentEmails.length === 0 ? (
-                <div className="text-center text-gray-500 py-8">{t[lang].noEmails}</div>
-              ) : (
-                <div className="space-y-4 max-h-[600px] overflow-y-auto">
-                  {sentEmails.map((email) => (
-                    <div
-                      key={email.id}
-                      className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="text-sm font-medium text-gray-900 mb-1">
-                        {email.subject}
+            {/* Sent Emails Sidebar */}
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">{t[lang].sentEmails}</h2>
+                
+                {loadingEmails ? (
+                  <div className="text-center text-gray-500 py-8">Loading...</div>
+                ) : sentEmails.length === 0 ? (
+                  <div className="text-center text-gray-500 py-8">{t[lang].noEmails}</div>
+                ) : (
+                  <div className="space-y-4 max-h-[600px] overflow-y-auto">
+                    {sentEmails.map((email) => (
+                      <div
+                        key={email.id}
+                        className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="text-sm font-medium text-gray-900 mb-1">
+                          {email.subject}
+                        </div>
+                        <div className="text-xs text-gray-600 mb-2">
+                          {t[lang].to}: {email.to}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {t[lang].sentAt} {formatDate(email.sentAt)}
+                        </div>
                       </div>
-                      <div className="text-xs text-gray-600 mb-2">
-                        {t[lang].to}: {email.to}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {t[lang].sentAt} {formatDate(email.sentAt)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
