@@ -50,7 +50,6 @@ const t = {
     htmlMode: "HTML Mode",
     textMode: "Text Mode",
     tickets: "Tickets",
-    sendEmail: "Αποστολή Email",
     noTickets: "Δεν υπάρχουν tickets.",
     from: "Από",
     status: "Κατάσταση",
@@ -85,6 +84,18 @@ const t = {
     preview: "Preview",
     htmlMode: "HTML Mode",
     textMode: "Text Mode",
+    tickets: "Tickets",
+    noTickets: "No tickets yet.",
+    from: "From",
+    status: "Status",
+    reply: "Reply",
+    replyPlaceholder: "Write your reply...",
+    sendReply: "Send Reply",
+    sendingReply: "Sending...",
+    replySuccess: "✅ Reply sent!",
+    open: "Open",
+    resolved: "Resolved",
+    viewTicket: "View Ticket",
   }
 };
 
