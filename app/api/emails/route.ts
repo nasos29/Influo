@@ -5,12 +5,13 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 // --- ΤΑ VERIFIED EMAILS ---
 const VERIFIED_SENDER_EMAIL = 'noreply@influo.gr'; 
+const SUPPORT_SENDER_EMAIL = 'support@influo.gr'; // For custom/admin emails
 const ADMIN_RECEIVING_EMAIL = process.env.ADMIN_EMAIL || 'nd.6@hotmail.com'; 
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { type, email, name, location, brandName, influencerName, proposalType, influencerId, budget, message, conversationId, messages } = body;
+    const { type, email, name, location, brandName, influencerName, proposalType, influencerId, budget, message, conversationId, messages, fromEmail, customSubject, customHtml, toEmail: bodyToEmail } = body;
     const host = req.headers.get('host') || 'influo.gr';
 
     // Log incoming request for debugging
@@ -453,6 +454,30 @@ export async function POST(req: Request) {
             </div>
         `;
     }
+    else if (type === 'custom_email') {
+        // Custom email sent by admin - uses support@influo.gr
+        toEmail = bodyToEmail || email;
+        if (!toEmail) {
+          return NextResponse.json(
+            { success: false, error: 'Missing required field: toEmail or email' },
+            { status: 400 }
+          );
+        }
+        if (!customSubject) {
+          return NextResponse.json(
+            { success: false, error: 'Missing required field: customSubject' },
+            { status: 400 }
+          );
+        }
+        if (!customHtml) {
+          return NextResponse.json(
+            { success: false, error: 'Missing required field: customHtml' },
+            { status: 400 }
+          );
+        }
+        subject = customSubject;
+        html = customHtml;
+    }
 
     // Validation: Check if subject and html are set
     if (!subject || !html) {
@@ -475,12 +500,18 @@ export async function POST(req: Request) {
     // --- SEND ---
     console.log('Sending email:', { type, toEmail, subject: subject.substring(0, 50) });
     
+    // Determine sender email: custom_email uses support@influo.gr, others use noreply@influo.gr
+    const senderEmail = type === 'custom_email' ? SUPPORT_SENDER_EMAIL : VERIFIED_SENDER_EMAIL;
+    const senderName = type === 'custom_email' ? 'Influo Support' : 'Influo';
+    
     try {
       const data = await resend.emails.send({
-        from: `Influo <${VERIFIED_SENDER_EMAIL}>`, 
+        from: `${senderName} <${senderEmail}>`, 
         to: [toEmail],
         subject: subject,
         html: html,
+        // For custom emails, set reply-to to support@influo.gr so admin can receive replies
+        ...(type === 'custom_email' && { replyTo: SUPPORT_SENDER_EMAIL }),
       });
 
       console.log('Email sent successfully:', { toEmail, data });

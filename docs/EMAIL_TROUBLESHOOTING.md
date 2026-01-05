@@ -15,6 +15,8 @@ ADMIN_EMAIL=nd.6@hotmail.com
 2. Verify το domain `influo.gr`
 3. Add DNS records (SPF, DKIM, DMARC)
 
+**📖 Δες την πλήρη οδηγία:** [DOMAIN_VERIFICATION_SETUP.md](./DOMAIN_VERIFICATION_SETUP.md)
+
 ### 3. Test Email API
 ```bash
 curl -X POST http://localhost:3000/api/emails \
@@ -63,10 +65,15 @@ RESEND_API_KEY=your_resend_api_key_here
 
 ## 📋 Email Types Supported
 
+**Automated Emails** (από `noreply@influo.gr`):
 1. `signup_influencer` - Confirmation email στον influencer
 2. `signup_admin` - Notification στον admin για νέα εγγραφή
 3. `approved` - Approval email στον influencer
 4. `proposal_brand_confirmation` - Confirmation για proposal
+5. ... (όλα τα αυτοματοποιημένα emails)
+
+**Custom Emails** (από `support@influo.gr`):
+- `custom_email` - Custom emails που στέλνει ο admin (βλέπε [CUSTOM_EMAIL_USAGE.md](./CUSTOM_EMAIL_USAGE.md))
 
 ## ✅ Verification Checklist
 
