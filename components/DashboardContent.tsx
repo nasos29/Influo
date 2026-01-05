@@ -713,6 +713,14 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                     </span>
                                 )}
                             </button>
+                            <Link
+                                href="/help-desk"
+                                className={`px-4 md:px-6 py-4 font-medium border-b-2 transition-colors ${
+                                    'border-transparent text-slate-500 hover:text-slate-700'
+                                }`}
+                            >
+                                <span className="hidden md:inline">📧 </span>Help Desk
+                            </Link>
                         </div>
                     </div>
 
