@@ -44,6 +44,12 @@ const t = {
     closed: "Κλειστό",
     waiting: "Αναμονή Απάντησης",
     viewReply: "Προβολή Απάντησης",
+    replyToTicket: "Απάντηση στο Ticket",
+    replyPlaceholder: "Γράψτε την απάντησή σας...",
+    sendReply: "Αποστολή Απάντησης",
+    sendingReply: "Αποστολή...",
+    replySuccess: "✅ Η απάντηση σας στάλθηκε! Το ticket άνοιξε ξανά.",
+    close: "Κλείσιμο",
   },
   en: {
     title: "Help Desk",
@@ -69,6 +75,12 @@ const t = {
     closed: "Closed",
     waiting: "Waiting for Reply",
     viewReply: "View Reply",
+    replyToTicket: "Reply to Ticket",
+    replyPlaceholder: "Write your reply...",
+    sendReply: "Send Reply",
+    sendingReply: "Sending...",
+    replySuccess: "✅ Your reply has been sent! The ticket has been reopened.",
+    close: "Close",
   }
 };
 
@@ -82,6 +94,8 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loadingTickets, setLoadingTickets] = useState(true);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [replyMessage, setReplyMessage] = useState('');
+  const [sendingReply, setSendingReply] = useState(false);
 
   useEffect(() => {
     loadTickets();
@@ -181,6 +195,48 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
       closed: 'bg-gray-100 text-gray-800',
     };
     return colorMap[status] || 'bg-gray-100 text-gray-800';
+  };
+
+  const handleReplySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!selectedTicket || !replyMessage.trim()) {
+      return;
+    }
+
+    setSendingReply(true);
+
+    try {
+      const response = await fetch('/api/tickets/user-reply', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ticket_id: selectedTicket.id,
+          user_message: replyMessage.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setReplyMessage('');
+        // Reload tickets to get updated status
+        await loadTickets();
+        // Update selected ticket with the new data from server
+        if (data.ticket) {
+          setSelectedTicket(data.ticket);
+        }
+        alert(t[lang].replySuccess);
+      } else {
+        alert(`${t[lang].error} ${data.error || 'Unknown error'}`);
+      }
+    } catch (error: any) {
+      alert(`${t[lang].error} ${error.message}`);
+    } finally {
+      setSendingReply(false);
+    }
   };
 
   return (
@@ -359,13 +415,35 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
                 </div>
 
                 {selectedTicket.admin_reply ? (
-                  <div>
+                  <div className="mb-6">
                     <h3 className="text-sm font-medium text-gray-700 mb-2">Απάντηση:</h3>
-                    <div className="bg-green-50 border border-green-200 p-4 rounded-lg whitespace-pre-wrap text-sm text-gray-700">
+                    <div className="bg-green-50 border border-green-200 p-4 rounded-lg whitespace-pre-wrap text-sm text-gray-700 mb-4">
                       {selectedTicket.admin_reply}
                     </div>
-                    <div className="text-xs text-gray-500 mt-2">
+                    <div className="text-xs text-gray-500 mb-4">
                       {t[lang].reply}: {formatDate(selectedTicket.admin_replied_at!)}
+                    </div>
+                    
+                    {/* User Reply Form */}
+                    <div className="border-t border-gray-200 pt-4">
+                      <h3 className="text-sm font-medium text-gray-700 mb-3">{t[lang].replyToTicket}</h3>
+                      <form onSubmit={handleReplySubmit}>
+                        <textarea
+                          value={replyMessage}
+                          onChange={(e) => setReplyMessage(e.target.value)}
+                          placeholder={t[lang].replyPlaceholder}
+                          rows={4}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent mb-3"
+                          required
+                        />
+                        <button
+                          type="submit"
+                          disabled={sendingReply || !replyMessage.trim()}
+                          className="w-full px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-purple-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                          {sendingReply ? t[lang].sendingReply : t[lang].sendReply}
+                        </button>
+                      </form>
                     </div>
                   </div>
                 ) : (
@@ -376,10 +454,13 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
               </div>
 
               <button
-                onClick={() => setSelectedTicket(null)}
+                onClick={() => {
+                  setSelectedTicket(null);
+                  setReplyMessage('');
+                }}
                 className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
               >
-                Κλείσιμο
+                {t[lang].close}
               </button>
             </div>
           </div>
