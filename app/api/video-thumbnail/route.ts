@@ -147,12 +147,96 @@ export async function GET(req: NextRequest) {
     }
 
     // TikTok
-    if (url.includes('tiktok.com')) {
-      // TikTok doesn't provide public thumbnail API
-      return NextResponse.json({ 
-        thumbnail: null,
-        platform: 'tiktok'
-      });
+    const tiktokRegex = /tiktok\.com\/@[\w.-]+\/video\/(\d+)/;
+    const tiktokMatch = url.match(tiktokRegex);
+    if (tiktokMatch || url.includes('tiktok.com')) {
+      const cleanUrl = url.split('?')[0]; // Remove query parameters
+      
+      try {
+        // Use Iframely API for TikTok thumbnails (best option)
+        const iframelyApiKey = process.env.IFRAMELY_API_KEY || '4355c593a3b2439820d35f';
+        if (iframelyApiKey) {
+          try {
+            const iframelyUrl = `https://iframe.ly/api/iframely?url=${encodeURIComponent(cleanUrl)}&api_key=${iframelyApiKey}`;
+            const iframelyResponse = await fetch(iframelyUrl, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'application/json'
+              }
+            });
+            
+            if (iframelyResponse.ok) {
+              const iframelyData = await iframelyResponse.json();
+              // Iframely returns thumbnail in various formats
+              if (iframelyData.thumbnail || iframelyData.thumbnail_url || (iframelyData.links && iframelyData.links.thumbnail && iframelyData.links.thumbnail[0])) {
+                const thumbnailUrl = iframelyData.thumbnail || iframelyData.thumbnail_url || iframelyData.links?.thumbnail?.[0]?.href;
+                if (thumbnailUrl) {
+                  return NextResponse.json({ 
+                    thumbnail: thumbnailUrl,
+                    platform: 'tiktok'
+                  });
+                }
+              }
+            }
+          } catch (e) {
+            console.log('Iframely API failed for TikTok, trying other methods...', e);
+          }
+        }
+
+        // Fallback: Try to fetch the page and extract og:image meta tag
+        try {
+          const pageResponse = await fetch(cleanUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+              'Accept-Language': 'en-US,en;q=0.9',
+              'Accept-Encoding': 'gzip, deflate, br',
+            },
+            redirect: 'follow'
+          });
+          
+          if (pageResponse.ok) {
+            const html = await pageResponse.text();
+            // Extract og:image from meta tags
+            const patterns = [
+              /property=["']og:image["'][^>]*content=["']([^"']+)["']/i,
+              /content=["']([^"']+)["'][^>]*property=["']og:image["']/i,
+              /<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i,
+              /<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i,
+            ];
+            
+            for (const pattern of patterns) {
+              const match = html.match(pattern);
+              if (match && match[1]) {
+                const imageUrl = match[1].trim();
+                if (imageUrl && (imageUrl.startsWith('http') || imageUrl.startsWith('//'))) {
+                  const fullImageUrl = imageUrl.startsWith('//') ? `https:${imageUrl}` : imageUrl;
+                  return NextResponse.json({ 
+                    thumbnail: fullImageUrl,
+                    platform: 'tiktok'
+                  });
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.log('Page fetch failed for TikTok...');
+        }
+        
+        // If all methods fail, return null (will show placeholder)
+        return NextResponse.json({ 
+          thumbnail: null,
+          platform: 'tiktok',
+          fallback: true
+        });
+      } catch (error) {
+        console.error('TikTok thumbnail error:', error);
+        return NextResponse.json({ 
+          thumbnail: null,
+          platform: 'tiktok',
+          fallback: true
+        });
+      }
     }
 
     // Vimeo

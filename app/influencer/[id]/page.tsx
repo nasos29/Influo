@@ -1048,9 +1048,23 @@ export default function InfluencerProfile(props: { params: Params }) {
             <div className="relative flex flex-col items-end gap-3">
               {/* Badges - Top Right above buttons */}
               {(() => {
-                const accountAgeDays = profile.created_at && profile.created_at !== 'null' && profile.created_at !== null 
-                  ? Math.floor((new Date().getTime() - new Date(profile.created_at).getTime()) / (1000 * 60 * 60 * 24)) 
-                  : 999;
+                // Calculate account age in days
+                let accountAgeDays = 999;
+                if (profile.created_at) {
+                  try {
+                    const createdDate = new Date(profile.created_at);
+                    // Check if date is valid
+                    if (!isNaN(createdDate.getTime())) {
+                      const now = new Date();
+                      const diffTime = now.getTime() - createdDate.getTime();
+                      accountAgeDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                      // Ensure non-negative
+                      if (accountAgeDays < 0) accountAgeDays = 0;
+                    }
+                  } catch (e) {
+                    console.error('Error calculating account age:', e);
+                  }
+                }
                 const badges = getBadges({
                   verified: profile.verified,
                   followers: profile.followers,

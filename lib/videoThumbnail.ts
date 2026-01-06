@@ -18,9 +18,13 @@ export function getVideoThumbnail(url: string): string | null {
     return `/api/video-thumbnail?url=${encodeURIComponent(url)}`;
   }
 
-  // TikTok (no public API, but we can try to extract video ID)
+  // TikTok - use API endpoint for server-side fetching
   // TikTok URLs are like: https://www.tiktok.com/@username/video/1234567890
-  // Unfortunately, TikTok doesn't provide public thumbnail API, so we return null
+  const tiktokRegex = /tiktok\.com\/@[\w.-]+\/video\/\d+/;
+  if (tiktokRegex.test(url)) {
+    // Return a placeholder URL that the component can use to fetch from API
+    return `/api/video-thumbnail?url=${encodeURIComponent(url)}`;
+  }
   
   return null;
 }
