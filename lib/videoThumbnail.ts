@@ -10,11 +10,17 @@ export function getVideoThumbnail(url: string): string | null {
     return `https://img.youtube.com/vi/${youtubeMatch[1]}/maxresdefault.jpg`;
   }
 
+  // Instagram Reels/Posts - use API endpoint for server-side fetching
+  // Client-side will call the API to get thumbnail
+  const instagramRegex = /instagram\.com\/(?:p|reel)\/([A-Za-z0-9_-]+)/;
+  if (instagramRegex.test(url)) {
+    // Return a placeholder URL that the component can use to fetch from API
+    return `/api/video-thumbnail?url=${encodeURIComponent(url)}`;
+  }
+
   // TikTok (no public API, but we can try to extract video ID)
   // TikTok URLs are like: https://www.tiktok.com/@username/video/1234567890
   // Unfortunately, TikTok doesn't provide public thumbnail API, so we return null
-  
-  // Instagram Reels (no public API)
   
   return null;
 }
