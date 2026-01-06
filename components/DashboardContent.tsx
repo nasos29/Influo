@@ -58,22 +58,11 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
     const [videos, setVideos] = useState<string[]>(Array.isArray(user.videos) ? user.videos : [""]);
     const [loading, setLoading] = useState(false);
     
-    // Rate card prices - get from user.rate_card if exists
-    const getRateCardPrice = (service: 'story' | 'post' | 'reel' | 'facebook') => {
-        try {
-            const rateCard = (user as any).rate_card;
-            if (rateCard && typeof rateCard === 'object') {
-                return rateCard[service] || '';
-            }
-        } catch (e) {
-            // ignore
-        }
-        return '';
-    };
-    const [priceStory, setPriceStory] = useState(getRateCardPrice('story'));
-    const [pricePost, setPricePost] = useState(getRateCardPrice('post'));
-    const [priceReel, setPriceReel] = useState(getRateCardPrice('reel'));
-    const [priceFacebook, setPriceFacebook] = useState(getRateCardPrice('facebook'));
+    // Rate card prices - removed since rate_card column doesn't exist in database
+    const [priceStory, setPriceStory] = useState('');
+    const [pricePost, setPricePost] = useState('');
+    const [priceReel, setPriceReel] = useState('');
+    const [priceFacebook, setPriceFacebook] = useState('');
 
     const handleAccountChange = (i: number, field: keyof Account, value: string) => {
         const copy = [...accounts];
@@ -136,13 +125,8 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                     audience_male_percent: malePercent ? parseInt(malePercent) : null,
                     audience_female_percent: femalePercent ? parseInt(femalePercent) : null,
                     audience_top_age: topAge || null,
-                    rate_card: {
-                        story: priceStory || 'Ρώτησε',
-                        post: pricePost || 'Ρώτησε',
-                        reel: priceReel || 'Ρώτησε',
-                        facebook: priceFacebook || 'Ρώτησε'
-                    },
-                    verified: false, // Reset verification status
+                    approved: false, // Reset approval status
+                    analytics_verified: false, // Reset analytics verification
                 })
                 .eq('id', user.id)
                 .select()

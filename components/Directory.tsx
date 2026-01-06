@@ -336,7 +336,7 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
 
   useEffect(() => {
     const fetchReal = async () => {
-      const { data } = await supabase.from("influencers").select("*").eq('verified', true);
+      const { data } = await supabase.from("influencers").select("*").eq('approved', true);
       if (data) {
          const realInfluencers: Influencer[] = data.map((inf: any) => {
           
@@ -358,7 +358,7 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
             name: inf.display_name,
             bio: inf.bio || "",
             avatar: inf.avatar_url || "https://images.unsplash.com/photo-1633332755192-727a05c4013d?auto=format&fit=crop&w=400&q=80",
-            verified: inf.verified,
+            verified: inf.approved || false, // Use approved instead of verified
             socials: socialsObj,
             followers: followersObj,
             categories: [inf.category || "New"], 
