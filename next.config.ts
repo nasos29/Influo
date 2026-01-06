@@ -19,6 +19,22 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "*.supabase.in",
       },
+      {
+        protocol: "https",
+        hostname: "*.tiktokcdn-us.com",
+      },
+      {
+        protocol: "https",
+        hostname: "*.tiktokcdn.com",
+      },
+      {
+        protocol: "https",
+        hostname: "*.tiktok-common-*.ibytedtos.com",
+      },
+      {
+        protocol: "https",
+        hostname: "*.ibytedtos.com",
+      },
     ],
   },
 };

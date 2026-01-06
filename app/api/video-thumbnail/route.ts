@@ -147,10 +147,10 @@ export async function GET(req: NextRequest) {
     }
 
     // TikTok
-    const tiktokRegex = /tiktok\.com\/@[\w.-]+\/video\/(\d+)/;
+    const tiktokRegex = /tiktok\.com\/@[\w.-]+\/video\/\d+/i;
     const tiktokMatch = url.match(tiktokRegex);
     if (tiktokMatch || url.includes('tiktok.com')) {
-      const cleanUrl = url.split('?')[0]; // Remove query parameters
+      const cleanUrl = url.split('?')[0].split('#')[0]; // Remove query parameters and hash
       
       try {
         // Use Iframely API for TikTok thumbnails (best option)
@@ -204,7 +204,9 @@ export async function GET(req: NextRequest) {
                   platform: 'tiktok'
                 });
               } else {
+                // Log full response for debugging
                 console.log('Iframely response for TikTok (no thumbnail found):', JSON.stringify(iframelyData, null, 2));
+                console.log('Iframely links structure:', JSON.stringify(iframelyData.links, null, 2));
               }
             } else {
               const errorText = await iframelyResponse.text();

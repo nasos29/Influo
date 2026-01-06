@@ -65,15 +65,19 @@ export default function VideoThumbnail({
       } else {
         // For Instagram or TikTok URLs not yet processed
         const instagramRegex = /instagram\.com\/(?:p|reel)\/([A-Za-z0-9_-]+)/;
-        const tiktokRegex = /tiktok\.com\/@[\w.-]+\/video\/\d+/;
+        const tiktokRegex = /tiktok\.com\/@[\w.-]+\/video\/\d+/i;
         
         if (instagramRegex.test(url) || tiktokRegex.test(url)) {
           try {
-            const response = await fetch(`/api/video-thumbnail?url=${encodeURIComponent(url)}`);
+            const apiUrl = `/api/video-thumbnail?url=${encodeURIComponent(url)}`;
+            console.log('Fetching thumbnail from:', apiUrl);
+            const response = await fetch(apiUrl);
             const data = await response.json();
+            console.log('Thumbnail API response:', data);
             if (data.thumbnail) {
               setThumbnail(data.thumbnail);
             } else {
+              console.warn('No thumbnail in API response for:', url);
               setThumbnail(null);
             }
           } catch (error) {

@@ -20,7 +20,8 @@ export function getVideoThumbnail(url: string): string | null {
 
   // TikTok - use API endpoint for server-side fetching
   // TikTok URLs are like: https://www.tiktok.com/@username/video/1234567890
-  const tiktokRegex = /tiktok\.com\/@[\w.-]+\/video\/\d+/;
+  // Match with or without query parameters
+  const tiktokRegex = /tiktok\.com\/@[\w.-]+\/video\/\d+/i;
   if (tiktokRegex.test(url)) {
     // Return a placeholder URL that the component can use to fetch from API
     return `/api/video-thumbnail?url=${encodeURIComponent(url)}`;
