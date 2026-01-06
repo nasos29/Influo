@@ -20,9 +20,12 @@ export function getVideoThumbnail(url: string): string | null {
 
   // TikTok - use API endpoint for server-side fetching
   // TikTok URLs are like: https://www.tiktok.com/@username/video/1234567890
+  // Also support short URLs: https://vm.tiktok.com/XXXXX/ or https://vt.tiktok.com/XXXXX/
   // Match with or without query parameters
   const tiktokRegex = /tiktok\.com\/@[\w.-]+\/video\/\d+/i;
-  if (tiktokRegex.test(url)) {
+  const tiktokShortRegex = /(vm|vt)\.tiktok\.com\/[\w-]+\/?/i;
+  
+  if (tiktokRegex.test(url) || tiktokShortRegex.test(url)) {
     console.log('getVideoThumbnail: TikTok URL matched:', url);
     // Return a placeholder URL that the component can use to fetch from API
     return `/api/video-thumbnail?url=${encodeURIComponent(url)}`;
@@ -34,7 +37,8 @@ export function getVideoThumbnail(url: string): string | null {
 export function isVideoUrl(url: string): boolean {
   if (!url) return false;
   // Check for video platforms - Instagram posts (p/) and reels are considered videos
-  return /youtube\.com|youtu\.be|tiktok\.com|instagram\.com\/(?:p|reel)\//i.test(url.toLowerCase());
+  // Include TikTok short URLs (vm.tiktok.com, vt.tiktok.com)
+  return /youtube\.com|youtu\.be|tiktok\.com|(vm|vt)\.tiktok\.com|instagram\.com\/(?:p|reel)\//i.test(url.toLowerCase());
 }
 
 export function extractVideoId(url: string): string | null {

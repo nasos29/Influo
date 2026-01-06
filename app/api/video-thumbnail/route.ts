@@ -146,10 +146,12 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // TikTok
+    // TikTok - support both full URLs and short URLs (vm.tiktok.com, vt.tiktok.com)
     const tiktokRegex = /tiktok\.com\/@[\w.-]+\/video\/\d+/i;
+    const tiktokShortRegex = /(vm|vt)\.tiktok\.com\/[\w-]+\/?/i;
     const tiktokMatch = url.match(tiktokRegex);
-    if (tiktokMatch || url.includes('tiktok.com')) {
+    const tiktokShortMatch = url.match(tiktokShortRegex);
+    if (tiktokMatch || tiktokShortMatch || url.includes('tiktok.com')) {
       const cleanUrl = url.split('?')[0].split('#')[0]; // Remove query parameters and hash
       
       try {

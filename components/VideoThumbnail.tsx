@@ -72,9 +72,10 @@ export default function VideoThumbnail({
         // For Instagram or TikTok URLs not yet processed
         const instagramRegex = /instagram\.com\/(?:p|reel)\/([A-Za-z0-9_-]+)/;
         const tiktokRegex = /tiktok\.com\/@[\w.-]+\/video\/\d+/i;
+        const tiktokShortRegex = /(vm|vt)\.tiktok\.com\/[\w-]+\/?/i;
         
         const isInstagramMatch = instagramRegex.test(url);
-        const isTikTokMatch = tiktokRegex.test(url);
+        const isTikTokMatch = tiktokRegex.test(url) || tiktokShortRegex.test(url);
         console.log('VideoThumbnail: Instagram match:', isInstagramMatch, 'TikTok match:', isTikTokMatch);
         
         if (isInstagramMatch || isTikTokMatch) {
@@ -128,7 +129,7 @@ export default function VideoThumbnail({
 
   // Fallback placeholder - show platform-specific logos
   const isInstagram = /instagram\.com\/(?:p|reel)\//i.test(url);
-  const isTikTok = /tiktok\.com/i.test(url);
+  const isTikTok = /tiktok\.com|(vm|vt)\.tiktok\.com/i.test(url);
   
   let placeholderClass = 'from-slate-700 to-slate-900';
   if (isInstagram) {
