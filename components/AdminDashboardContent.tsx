@@ -11,6 +11,8 @@ interface DbInfluencer {
   gender: string;
   contact_email: string;
   verified: boolean;
+  approved?: boolean;
+  analytics_verified?: boolean;
   accounts: { platform: string; username: string; followers: string }[] | null; 
   avatar_url: string | null;
   avg_likes: string | null; 
@@ -105,7 +107,12 @@ const t = {
     col_status: "Status",
     col_act: "Ενέργειες",
     btn_approve: "Έγκριση",
+    btn_unapprove: "Ακύρωση Έγκρισης",
+    btn_verify_analytics: "Επαλήθευση Analytics",
+    btn_unverify_analytics: "Ακύρωση Επαλήθευσης Analytics",
     btn_unverify: "Ανάκληση",
+    approved: "Εγκεκριμένος",
+    analytics_verified: "Επαληθευμένα Analytics",
     btn_delete: "Διαγραφή",
     cleanup_test: "Cleanup Test Users",
     sql_helper: "SQL Helper",
@@ -163,7 +170,12 @@ const t = {
     col_status: "Status",
     col_act: "Actions",
     btn_approve: "Approve",
+    btn_unapprove: "Unapprove",
+    btn_verify_analytics: "Verify Analytics",
+    btn_unverify_analytics: "Unverify Analytics",
     btn_unverify: "Unverify",
+    approved: "Approved",
+    analytics_verified: "Analytics Verified",
     btn_delete: "Delete",
     cleanup_test: "Cleanup Test Users",
     sql_helper: "SQL Helper",
@@ -539,12 +551,22 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [selectedUser, setSelectedUser] = useState<DbInfluencer | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  const [stats, setStats] = useState({ 
+  const [stats, setStats] = useState<{
+    total: number;
+    pending: number;
+    verified: number;
+    approved?: number;
+    analyticsVerified?: number;
+    reach: string;
+    pipeline: string;
+  }>({ 
     total: 0, 
     pending: 0, 
-    verified: 0, 
+    verified: 0,
+    approved: 0,
+    analyticsVerified: 0,
     reach: "0",
-    pipeline: "0€" 
+    pipeline: "0€"
   });
   const [pendingProposalsCount, setPendingProposalsCount] = useState(0);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
@@ -799,7 +821,8 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
 
       if (usersData) {
         const total = usersData.length;
-        const verified = usersData.filter((u) => u.verified).length;
+        const approved = usersData.filter((u) => u.approved).length;
+        const analyticsVerified = usersData.filter((u) => u.analytics_verified).length;
       
       const totalReachNum = usersData.reduce((acc, curr) => {
          let val = 0;
@@ -827,8 +850,10 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
 
         setStats({ 
           total, 
-          verified, 
-          pending: total - verified, 
+          verified: approved, // Keep for backward compatibility
+          approved,
+          analyticsVerified,
+          pending: total - approved, 
           reach: formattedReach,
           pipeline: pipelineSum.toLocaleString() + "€"
         });
@@ -892,8 +917,11 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     }
   }, [selectedConversation]);
 
-  const toggleStatus = async (id: number, currentStatus: boolean, userEmail: string, userName: string) => {
-    const { error } = await supabase.from("influencers").update({ verified: !currentStatus }).eq("id", id);
+  const toggleApproval = async (id: number, currentStatus: boolean, userEmail: string, userName: string) => {
+    const { error } = await supabase.from("influencers").update({ 
+      approved: !currentStatus,
+      approved_at: !currentStatus ? new Date().toISOString() : null
+    }).eq("id", id);
     
     if (!error) {
         fetchData();
@@ -911,7 +939,22 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     }
     
     if(selectedUser?.id === id) {
-        setSelectedUser(prev => prev ? {...prev, verified: !currentStatus} : null);
+        setSelectedUser(prev => prev ? {...prev, approved: !currentStatus} : null);
+    }
+  };
+
+  const toggleAnalyticsVerification = async (id: number, currentStatus: boolean) => {
+    const { error } = await supabase.from("influencers").update({ 
+      analytics_verified: !currentStatus,
+      analytics_verified_at: !currentStatus ? new Date().toISOString() : null
+    }).eq("id", id);
+    
+    if (!error) {
+        fetchData();
+    }
+    
+    if(selectedUser?.id === id) {
+        setSelectedUser(prev => prev ? {...prev, analytics_verified: !currentStatus} : null);
     }
   };
   
@@ -1104,7 +1147,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         u.display_name,
         u.contact_email || '',
         u.location || '',
-        u.verified ? 'Verified' : 'Pending',
+        (u.approved ? 'Approved' : 'Not Approved') + ' / ' + (u.analytics_verified ? 'Analytics Verified' : 'Not Verified'),
         u.min_rate || '',
         u.created_at
       ].join(','))
@@ -1388,14 +1431,21 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                           <td className="px-4 py-3 text-sm text-slate-900">{u.contact_email || '-'}</td>
                           <td className="px-4 py-3 text-sm text-slate-900">{u.location || '-'}</td>
                           <td className="px-4 py-3">
-                            {u.verified ? (
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">Verified</span>
-                            ) : (
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">Pending</span>
-                            )}
+                            <div className="flex flex-col gap-1">
+                              {u.approved ? (
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">{txt.approved}</span>
+                              ) : (
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">Μη Εγκεκριμένος</span>
+                              )}
+                              {u.analytics_verified ? (
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">{txt.analytics_verified}</span>
+                              ) : (
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">Μη Επαληθευμένα</span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3">
-                            <div className="flex items-center justify-end gap-2">
+                            <div className="flex items-center justify-end gap-2 flex-wrap">
                               <button
                                 onClick={() => { setSelectedUser(u); setShowEditModal(true); }}
                                 className="px-2 py-1 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors"
@@ -1403,10 +1453,24 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                 {txt.edit}
                               </button>
                               <button
-                                onClick={() => toggleStatus(u.id, u.verified, u.contact_email || "", u.display_name)}
-                                className="px-2 py-1 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors"
+                                onClick={() => toggleApproval(u.id, u.approved || false, u.contact_email || "", u.display_name)}
+                                className={`px-2 py-1 text-xs rounded transition-colors ${
+                                  u.approved 
+                                    ? 'text-red-600 hover:text-red-700 hover:bg-red-50' 
+                                    : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'
+                                }`}
                               >
-                                {u.verified ? txt.btn_unverify : txt.btn_approve}
+                                {u.approved ? txt.btn_unapprove : txt.btn_approve}
+                              </button>
+                              <button
+                                onClick={() => toggleAnalyticsVerification(u.id, u.analytics_verified || false)}
+                                className={`px-2 py-1 text-xs rounded transition-colors ${
+                                  u.analytics_verified 
+                                    ? 'text-red-600 hover:text-red-700 hover:bg-red-50' 
+                                    : 'text-green-600 hover:text-green-700 hover:bg-green-50'
+                                }`}
+                              >
+                                {u.analytics_verified ? txt.btn_unverify_analytics : txt.btn_verify_analytics}
                               </button>
                               <button
                                 onClick={() => deleteUser(u.id)}

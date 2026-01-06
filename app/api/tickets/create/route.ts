@@ -12,7 +12,7 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'nd.6@hotmail.com';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { user_id, user_type, user_email, user_name, subject, message } = body;
+    const { user_id, user_type, user_email, user_name, subject, message, attachments } = body;
 
     // Validation
     if (!user_id || !user_type || !user_email || !subject || !message) {
@@ -40,6 +40,7 @@ export async function POST(req: Request) {
         subject,
         message,
         status: 'open',
+        attachments: attachments || [],
       }])
       .select()
       .single();

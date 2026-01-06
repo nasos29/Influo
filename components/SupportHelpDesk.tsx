@@ -16,6 +16,13 @@ interface Ticket {
   admin_reply: string | null;
   admin_replied_at: string | null;
   created_at: string;
+  attachments?: Array<{
+    url: string;
+    filename: string;
+    size: number;
+    content_type: string;
+    uploaded_at: string;
+  }>;
 }
 
 interface User {

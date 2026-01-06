@@ -12,6 +12,21 @@ interface Ticket {
   admin_reply: string | null;
   admin_replied_at: string | null;
   created_at: string;
+  attachments?: Array<{
+    url: string;
+    filename: string;
+    size: number;
+    content_type: string;
+    uploaded_at: string;
+  }>;
+}
+
+interface FileAttachment {
+  url: string;
+  filename: string;
+  size: number;
+  content_type: string;
+  uploaded_at: string;
 }
 
 interface HelpDeskPublicProps {
@@ -34,6 +49,9 @@ const t = {
     error: "❌ Σφάλμα:",
     placeholderSubject: "Π.χ. Ερώτηση για το προφίλ μου",
     placeholderMessage: "Περιγράψτε το πρόβλημά σας ή την ερώτησή σας...",
+    attachFiles: "Επισυνάψτε Αρχεία",
+    removeFile: "Αφαίρεση",
+    uploading: "Ανέβασμα...",
     noTickets: "Δεν έχετε tickets ακόμα.",
     status: "Κατάσταση",
     created: "Δημιουργήθηκε",
@@ -65,6 +83,9 @@ const t = {
     error: "❌ Error:",
     placeholderSubject: "E.g. Question about my profile",
     placeholderMessage: "Describe your problem or question...",
+    attachFiles: "Attach Files",
+    removeFile: "Remove",
+    uploading: "Uploading...",
     noTickets: "You don't have any tickets yet.",
     status: "Status",
     created: "Created",
@@ -96,6 +117,9 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [replyMessage, setReplyMessage] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<FileAttachment[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     loadTickets();
@@ -120,6 +144,49 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
     }
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    setSelectedFiles(prev => [...prev, ...files]);
+  };
+
+  const removeFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const uploadFiles = async (): Promise<FileAttachment[]> => {
+    if (selectedFiles.length === 0) return [];
+
+    setUploading(true);
+    const uploaded: FileAttachment[] = [];
+
+    try {
+      for (const file of selectedFiles) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('user_id', user.id);
+
+        const response = await fetch('/api/tickets/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          uploaded.push(data.file);
+        } else {
+          throw new Error(data.error || 'Upload failed');
+        }
+      }
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      throw error;
+    } finally {
+      setUploading(false);
+    }
+
+    return uploaded;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -132,6 +199,12 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
     setResult(null);
 
     try {
+      // Upload files first
+      let attachments: FileAttachment[] = [];
+      if (selectedFiles.length > 0) {
+        attachments = await uploadFiles();
+      }
+
       const response = await fetch('/api/tickets/create', {
         method: 'POST',
         headers: {
@@ -144,6 +217,7 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
           user_name: user.name,
           subject,
           message,
+          attachments,
         }),
       });
 
@@ -153,6 +227,8 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
         setResult({ type: 'success', message: t[lang].success });
         setSubject('');
         setMessage('');
+        setSelectedFiles([]);
+        setUploadedFiles([]);
         setShowNewTicket(false);
         // Reload tickets
         await loadTickets();
@@ -303,6 +379,38 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {t[lang].attachFiles}
+                </label>
+                <input
+                  type="file"
+                  onChange={handleFileSelect}
+                  multiple
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                  accept="image/*,.pdf,.doc,.docx,.txt,.xls,.xlsx"
+                />
+                {selectedFiles.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {selectedFiles.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded text-sm">
+                        <span className="text-gray-700">{file.name} ({(file.size / 1024).toFixed(1)} KB)</span>
+                        <button
+                          type="button"
+                          onClick={() => removeFile(index)}
+                          className="text-red-600 hover:text-red-700 text-xs"
+                        >
+                          {t[lang].removeFile}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {uploading && (
+                  <div className="mt-2 text-sm text-gray-600">{t[lang].uploading}</div>
+                )}
+              </div>
+
               {result && (
                 <div
                   className={`p-4 rounded-lg ${
@@ -412,6 +520,24 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
                   <div className="bg-gray-50 p-4 rounded-lg whitespace-pre-wrap text-sm text-gray-700">
                     {selectedTicket.message}
                   </div>
+                  {selectedTicket.attachments && selectedTicket.attachments.length > 0 && (
+                    <div className="mt-3">
+                      <h4 className="text-xs font-medium text-gray-700 mb-2">Επισυναπτόμενα Αρχεία:</h4>
+                      <div className="space-y-1">
+                        {selectedTicket.attachments.map((file, idx) => (
+                          <a
+                            key={idx}
+                            href={file.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block text-sm text-blue-600 hover:text-blue-700 hover:underline"
+                          >
+                            📎 {file.filename} ({(file.size / 1024).toFixed(1)} KB)
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {selectedTicket.admin_reply ? (
