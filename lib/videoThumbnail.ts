@@ -27,7 +27,8 @@ export function getVideoThumbnail(url: string): string | null {
 
 export function isVideoUrl(url: string): boolean {
   if (!url) return false;
-  return /youtube\.com|youtu\.be|tiktok\.com|instagram\.com.*reel|vimeo\.com/.test(url.toLowerCase());
+  // Check for video platforms - Instagram posts (p/) and reels are considered videos
+  return /youtube\.com|youtu\.be|tiktok\.com|instagram\.com\/(?:p|reel)\//i.test(url.toLowerCase());
 }
 
 export function extractVideoId(url: string): string | null {

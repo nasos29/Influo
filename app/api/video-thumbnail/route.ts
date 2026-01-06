@@ -74,15 +74,15 @@ export async function GET(req: NextRequest) {
         console.error('Instagram thumbnail error:', error);
       }
 
-      // Fallback: Try constructing a thumbnail URL (Instagram CDN pattern)
-      // This is a fallback that may work for some posts
-      const postId = instagramMatch[1];
-      const fallbackThumbnail = `https://www.instagram.com/p/${postId}/media/?size=l`;
+      // Fallback: Try using embed.ly or direct Instagram embed
+      // Since Instagram oEmbed requires auth, we'll return null and let the frontend show placeholder
+      // The frontend can try to show an Instagram embed iframe as alternative
       
       return NextResponse.json({ 
-        thumbnail: fallbackThumbnail,
+        thumbnail: null,
         platform: 'instagram',
-        fallback: true
+        fallback: true,
+        embed_url: `https://www.instagram.com/p/${instagramMatch[1]}/embed/`
       });
     }
 

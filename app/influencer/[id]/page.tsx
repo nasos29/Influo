@@ -1048,7 +1048,9 @@ export default function InfluencerProfile(props: { params: Params }) {
             <div className="relative flex flex-col items-end gap-3">
               {/* Badges - Top Right above buttons */}
               {(() => {
-                const accountAgeDays = profile.created_at ? Math.floor((new Date().getTime() - new Date(profile.created_at).getTime()) / (1000 * 60 * 60 * 24)) : 999;
+                const accountAgeDays = profile.created_at && profile.created_at !== 'null' && profile.created_at !== null 
+                  ? Math.floor((new Date().getTime() - new Date(profile.created_at).getTime()) / (1000 * 60 * 60 * 24)) 
+                  : 999;
                 const badges = getBadges({
                   verified: profile.verified,
                   followers: profile.followers,
@@ -1261,7 +1263,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                                                     fill
                                                     className="object-cover"
                                                 />
-                                                {isVideo && (
+                                                {(isVideo || /instagram\.com\/(?:p|reel)\//i.test(vid)) && (
                                                     <div className="absolute top-0 left-0 right-0 bottom-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition-colors pointer-events-none z-10">
                                                         <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                                                             <span className="text-3xl text-slate-900 ml-1">▶</span>
@@ -1269,7 +1271,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                                                     </div>
                                                 )}
                                                 <div className="absolute bottom-0 left-0 right-0 w-full p-3 bg-gradient-to-t from-black/80 to-transparent text-white text-sm font-medium pointer-events-none z-10">
-                                                    {isVideo ? `Video ${i+1}` : isImage ? `Photo ${i+1}` : `Highlight ${i+1}`}
+                                                    {(isVideo || /instagram\.com\/(?:p|reel)\//i.test(vid)) ? `Video ${i+1}` : isImage ? `Photo ${i+1}` : `Highlight ${i+1}`}
                                                 </div>
                                             </a>
                                         );
