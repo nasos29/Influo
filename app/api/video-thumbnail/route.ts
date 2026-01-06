@@ -25,10 +25,13 @@ export async function GET(req: NextRequest) {
     const instagramMatch = url.match(instagramRegex);
     if (instagramMatch) {
       try {
-        // Try to fetch from Instagram oEmbed API
-        // Note: Instagram oEmbed requires authentication for most content, but let's try
+        // Method 1: Try Instagram oEmbed API (works for public posts)
         const oembedUrl = `https://api.instagram.com/oembed?url=${encodeURIComponent(url)}`;
-        const response = await fetch(oembedUrl);
+        const response = await fetch(oembedUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          }
+        });
         
         if (response.ok) {
           const data = await response.json();
@@ -39,15 +42,45 @@ export async function GET(req: NextRequest) {
             });
           }
         }
+
+        // Method 2: Try to fetch the page and extract og:image meta tag
+        const pageResponse = await fetch(url.split('?')[0], {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+          }
+        });
+        
+        if (pageResponse.ok) {
+          const html = await pageResponse.text();
+          // Extract og:image from meta tags
+          const ogImageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i);
+          if (ogImageMatch && ogImageMatch[1]) {
+            return NextResponse.json({ 
+              thumbnail: ogImageMatch[1],
+              platform: 'instagram'
+            });
+          }
+          
+          // Try alternative meta tag format
+          const ogImageMatch2 = html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+          if (ogImageMatch2 && ogImageMatch2[1]) {
+            return NextResponse.json({ 
+              thumbnail: ogImageMatch2[1],
+              platform: 'instagram'
+            });
+          }
+        }
       } catch (error) {
-        console.error('Instagram oEmbed error:', error);
+        console.error('Instagram thumbnail error:', error);
       }
 
-      // Fallback: Construct Instagram thumbnail URL (may not always work)
-      // Instagram doesn't provide public thumbnail URLs without oEmbed, so we return null
-      // The frontend will handle this with a placeholder
+      // Fallback: Try constructing a thumbnail URL (Instagram CDN pattern)
+      // This is a fallback that may work for some posts
+      const postId = instagramMatch[1];
+      const fallbackThumbnail = `https://www.instagram.com/p/${postId}/media/?size=l`;
+      
       return NextResponse.json({ 
-        thumbnail: null,
+        thumbnail: fallbackThumbnail,
         platform: 'instagram',
         fallback: true
       });

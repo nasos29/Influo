@@ -1249,12 +1249,12 @@ export default function InfluencerProfile(props: { params: Params }) {
                          <div>
                             <h3 className="text-lg font-bold text-slate-900 mb-4">{txt.portfolio}</h3>
                             {profile.videos && profile.videos.length > 0 && profile.videos[0] !== "" ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     {profile.videos.map((vid, i) => {
                                         const isVideo = isVideoUrl(vid);
                                         const isImage = vid.match(/\.(jpg|jpeg|png|gif|webp)$/i) || vid.match(/^https?:\/\/.*\.(jpg|jpeg|png|gif|webp)/i);
                                         return (
-                                            <a key={i} href={vid} target="_blank" rel="noopener noreferrer" className="block group relative h-48 rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-shadow">
+                                            <a key={i} href={vid} target="_blank" rel="noopener noreferrer" className="block group relative w-full h-64 rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-shadow">
                                                 <VideoThumbnail 
                                                     url={vid}
                                                     alt={`Portfolio item ${i+1}`}
@@ -1262,13 +1262,13 @@ export default function InfluencerProfile(props: { params: Params }) {
                                                     className="object-cover"
                                                 />
                                                 {isVideo && (
-                                                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition-colors pointer-events-none">
+                                                    <div className="absolute top-0 left-0 right-0 bottom-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition-colors pointer-events-none z-10">
                                                         <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                                                             <span className="text-3xl text-slate-900 ml-1">▶</span>
                                                         </div>
                                                     </div>
                                                 )}
-                                                <div className="absolute bottom-0 left-0 w-full p-3 bg-gradient-to-t from-black/80 to-transparent text-white text-sm font-medium pointer-events-none">
+                                                <div className="absolute bottom-0 left-0 right-0 w-full p-3 bg-gradient-to-t from-black/80 to-transparent text-white text-sm font-medium pointer-events-none z-10">
                                                     {isVideo ? `Video ${i+1}` : isImage ? `Photo ${i+1}` : `Highlight ${i+1}`}
                                                 </div>
                                             </a>

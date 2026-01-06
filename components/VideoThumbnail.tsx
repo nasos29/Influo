@@ -110,13 +110,20 @@ export default function VideoThumbnail({
     );
   }
 
-  // Fallback placeholder
+  // Fallback placeholder - only show play button if it's a video URL
   return (
     <div className={`bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center ${className}`} style={fill ? {} : { width, height }}>
-      <div className="text-center">
-        <span className="text-4xl opacity-80 block mb-2">▶</span>
-        <span className="text-white text-xs opacity-75">Video</span>
-      </div>
+      {isVideo ? (
+        <div className="text-center">
+          <span className="text-4xl opacity-80 block mb-2">▶</span>
+          <span className="text-white text-xs opacity-75">Video</span>
+        </div>
+      ) : (
+        <div className="text-center">
+          <span className="text-3xl opacity-60">📎</span>
+          <span className="text-white text-xs opacity-75 block mt-2">Link</span>
+        </div>
+      )}
     </div>
   );
 }
