@@ -543,7 +543,7 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
                 <h2 className="text-xl font-semibold text-gray-900">{selectedTicket.subject}</h2>
                 <button
                   onClick={() => setSelectedTicket(null)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-700 hover:text-gray-900"
                 >
                   ✕
                 </button>

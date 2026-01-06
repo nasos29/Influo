@@ -542,7 +542,7 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
                     <h3 className="text-lg font-semibold text-gray-900">{selectedTicket.subject}</h3>
                     <button
                       onClick={() => setSelectedTicket(null)}
-                      className="text-gray-400 hover:text-gray-600"
+                      className="text-gray-700 hover:text-gray-900"
                     >
                       ✕
                     </button>
