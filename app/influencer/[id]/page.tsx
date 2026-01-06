@@ -424,7 +424,7 @@ export default function InfluencerProfile(props: { params: Params }) {
           name: data.display_name,
           bio: data.bio || "",
           avatar: data.avatar_url || "https://images.unsplash.com/photo-1633332755192-727a05c4013d?auto=format&fit=crop&w=400&q=80",
-          verified: data.verified,
+          verified: data.analytics_verified || false, // Use analytics_verified for verified badge
           contact_email: data.contact_email,
           socials: socialsObj,
           followers: followersObj,
@@ -1075,6 +1075,17 @@ export default function InfluencerProfile(props: { params: Params }) {
                   account_created_days: accountAgeDays,
                   min_rate: profile.min_rate,
                 }, lang);
+                
+                // Debug: log badge calculation
+                if (process.env.NODE_ENV === 'development') {
+                  console.log('Badge calculation:', {
+                    verified: profile.verified,
+                    accountAgeDays,
+                    created_at: profile.created_at,
+                    badgesCount: badges.length,
+                    badges: badges.map(b => b.type)
+                  });
+                }
                 
                 return badges.length > 0 ? (
                   <div className="flex flex-wrap gap-2 justify-end mb-2">

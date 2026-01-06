@@ -358,7 +358,7 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
             name: inf.display_name,
             bio: inf.bio || "",
             avatar: inf.avatar_url || "https://images.unsplash.com/photo-1633332755192-727a05c4013d?auto=format&fit=crop&w=400&q=80",
-            verified: inf.approved || false, // Use approved instead of verified
+            verified: inf.analytics_verified || false, // Use analytics_verified for verified badge (not approved)
             socials: socialsObj,
             followers: followersObj,
             categories: [inf.category || "New"], 
