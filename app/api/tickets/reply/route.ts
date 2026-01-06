@@ -11,7 +11,7 @@ const SUPPORT_SENDER_EMAIL = 'support@influo.gr';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { ticket_id, admin_reply } = body;
+    const { ticket_id, admin_reply, attachments } = body;
 
     if (!ticket_id || !admin_reply) {
       return NextResponse.json(
@@ -35,14 +35,21 @@ export async function POST(req: Request) {
     }
 
     // Update ticket with admin reply
+    const updateData: any = {
+      admin_reply,
+      admin_replied_at: new Date().toISOString(),
+      status: 'resolved',
+      updated_at: new Date().toISOString(),
+    };
+
+    // Add attachments if provided
+    if (attachments && Array.isArray(attachments) && attachments.length > 0) {
+      updateData.admin_reply_attachments = attachments;
+    }
+
     const { data: updatedTicket, error: updateError } = await supabaseAdmin
       .from('support_tickets')
-      .update({
-        admin_reply,
-        admin_replied_at: new Date().toISOString(),
-        status: 'resolved',
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq('id', ticket_id)
       .select()
       .single();

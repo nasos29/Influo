@@ -12,7 +12,7 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'nd.6@hotmail.com';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { ticket_id, user_message } = body;
+    const { ticket_id, user_message, attachments } = body;
 
     if (!ticket_id || !user_message) {
       return NextResponse.json(
@@ -38,17 +38,29 @@ export async function POST(req: Request) {
     // Append user message to existing message and reopen ticket
     const updatedMessage = ticket.message + '\n\n--- Νέα Απάντηση ---\n' + user_message;
     
+    // Combine existing attachments with new reply attachments
+    const existingAttachments = ticket.attachments || [];
+    const newAttachments = attachments && Array.isArray(attachments) ? attachments : [];
+    const allAttachments = [...existingAttachments, ...newAttachments];
+    
     // Update ticket: reopen it (set status to 'open') and update message
+    const updateData: any = {
+      message: updatedMessage,
+      status: 'open', // Reopen the ticket
+      updated_at: new Date().toISOString(),
+      // Clear admin reply since user is responding
+      admin_reply: null,
+      admin_replied_at: null,
+    };
+
+    // Update attachments if new ones were added
+    if (newAttachments.length > 0) {
+      updateData.attachments = allAttachments;
+    }
+
     const { data: updatedTicket, error: updateError } = await supabaseAdmin
       .from('support_tickets')
-      .update({
-        message: updatedMessage,
-        status: 'open', // Reopen the ticket
-        updated_at: new Date().toISOString(),
-        // Clear admin reply since user is responding
-        admin_reply: null,
-        admin_replied_at: null,
-      })
+      .update(updateData)
       .eq('id', ticket_id)
       .select()
       .single();

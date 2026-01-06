@@ -117,6 +117,8 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [replyMessage, setReplyMessage] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
+  const [replyFiles, setReplyFiles] = useState<File[]>([]);
+  const [uploadingReplyFiles, setUploadingReplyFiles] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<FileAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -273,6 +275,40 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
     return colorMap[status] || 'bg-gray-100 text-gray-800';
   };
 
+  const uploadReplyFiles = async (): Promise<FileAttachment[]> => {
+    if (replyFiles.length === 0) return [];
+
+    setUploadingReplyFiles(true);
+    const uploaded: FileAttachment[] = [];
+
+    try {
+      for (const file of replyFiles) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('user_id', user.id);
+
+        const response = await fetch('/api/tickets/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          uploaded.push(data.file);
+        } else {
+          throw new Error(data.error || 'Upload failed');
+        }
+      }
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      throw error;
+    } finally {
+      setUploadingReplyFiles(false);
+    }
+
+    return uploaded;
+  };
+
   const handleReplySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -283,6 +319,12 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
     setSendingReply(true);
 
     try {
+      // Upload files first
+      let attachments: FileAttachment[] = [];
+      if (replyFiles.length > 0) {
+        attachments = await uploadReplyFiles();
+      }
+
       const response = await fetch('/api/tickets/user-reply', {
         method: 'POST',
         headers: {
@@ -291,6 +333,7 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
         body: JSON.stringify({
           ticket_id: selectedTicket.id,
           user_message: replyMessage.trim(),
+          attachments: attachments.length > 0 ? attachments : undefined,
         }),
       });
 
@@ -298,6 +341,7 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
 
       if (data.success) {
         setReplyMessage('');
+        setReplyFiles([]);
         // Reload tickets to get updated status
         await loadTickets();
         // Update selected ticket with the new data from server
@@ -562,9 +606,46 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent mb-3 text-gray-900"
                           required
                         />
+                        
+                        {/* File Upload for Reply */}
+                        <div className="mb-3">
+                          <label className="block text-sm font-medium text-gray-900 mb-2">
+                            Επισυναπτόμενα Αρχεία (Προαιρετικά)
+                          </label>
+                          <input
+                            type="file"
+                            onChange={(e) => {
+                              const files = Array.from(e.target.files || []);
+                              setReplyFiles(files);
+                            }}
+                            multiple
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm text-gray-900"
+                            accept="image/*,.pdf,.doc,.docx,.txt,.xls,.xlsx"
+                          />
+                          {replyFiles.length > 0 && (
+                            <div className="mt-2 space-y-1">
+                              {replyFiles.map((file, index) => (
+                                <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded text-sm">
+                                  <span className="text-gray-900">{file.name} ({(file.size / 1024).toFixed(1)} KB)</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setReplyFiles(prev => prev.filter((_, i) => i !== index))}
+                                    className="text-red-600 hover:text-red-700 text-xs"
+                                  >
+                                    {t[lang].removeFile}
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {uploadingReplyFiles && (
+                            <div className="mt-2 text-sm text-gray-900">{t[lang].uploading}</div>
+                          )}
+                        </div>
+
                         <button
                           type="submit"
-                          disabled={sendingReply || !replyMessage.trim()}
+                          disabled={sendingReply || !replyMessage.trim() || uploadingReplyFiles}
                           className="w-full px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-purple-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >
                           {sendingReply ? t[lang].sendingReply : t[lang].sendReply}
@@ -583,6 +664,7 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
                 onClick={() => {
                   setSelectedTicket(null);
                   setReplyMessage('');
+                  setReplyFiles([]);
                 }}
                 className="w-full px-4 py-2 bg-gray-200 text-gray-900 rounded-lg hover:bg-gray-300 transition-colors"
               >

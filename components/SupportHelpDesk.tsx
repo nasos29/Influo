@@ -23,12 +23,27 @@ interface Ticket {
     content_type: string;
     uploaded_at: string;
   }>;
+  admin_reply_attachments?: Array<{
+    url: string;
+    filename: string;
+    size: number;
+    content_type: string;
+    uploaded_at: string;
+  }>;
 }
 
 interface User {
   id: string;
   email: string;
   name: string;
+}
+
+interface FileAttachment {
+  url: string;
+  filename: string;
+  size: number;
+  content_type: string;
+  uploaded_at: string;
 }
 
 const t = {
@@ -107,6 +122,8 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [replyText, setReplyText] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
+  const [replyFiles, setReplyFiles] = useState<File[]>([]);
+  const [uploadingReplyFiles, setUploadingReplyFiles] = useState(false);
   const [showCreateTicket, setShowCreateTicket] = useState(false);
   const [createUserType, setCreateUserType] = useState<'influencer' | 'brand'>('influencer');
   const [createUserId, setCreateUserId] = useState('');
@@ -178,6 +195,39 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
     }
   };
 
+  const uploadReplyFiles = async (): Promise<FileAttachment[]> => {
+    if (replyFiles.length === 0) return [];
+
+    setUploadingReplyFiles(true);
+    const uploaded: FileAttachment[] = [];
+
+    try {
+      for (const file of replyFiles) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch('/api/tickets/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          uploaded.push(data.file);
+        } else {
+          throw new Error(data.error || 'Upload failed');
+        }
+      }
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      throw error;
+    } finally {
+      setUploadingReplyFiles(false);
+    }
+
+    return uploaded;
+  };
+
   const handleReply = async (ticketId: string) => {
     if (!replyText.trim()) {
       alert('Παρακαλώ γράψε μια απάντηση');
@@ -186,6 +236,12 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
 
     setSendingReply(true);
     try {
+      // Upload files first
+      let attachments: FileAttachment[] = [];
+      if (replyFiles.length > 0) {
+        attachments = await uploadReplyFiles();
+      }
+
       const response = await fetch('/api/tickets/reply', {
         method: 'POST',
         headers: {
@@ -194,6 +250,7 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
         body: JSON.stringify({
           ticket_id: ticketId,
           admin_reply: replyText,
+          attachments: attachments.length > 0 ? attachments : undefined,
         }),
       });
 
@@ -202,6 +259,7 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
       if (data.success) {
         alert(t[lang].replySuccess);
         setReplyText('');
+        setReplyFiles([]);
         setSelectedTicket(null);
         await loadTickets();
       } else {
@@ -517,6 +575,24 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
                       <div className="bg-green-50 border border-green-200 p-3 rounded-lg text-sm text-gray-900 whitespace-pre-wrap">
                         {selectedTicket.admin_reply}
                       </div>
+                      {selectedTicket.admin_reply_attachments && selectedTicket.admin_reply_attachments.length > 0 && (
+                        <div className="mt-3">
+                          <h5 className="text-xs font-medium text-gray-900 mb-2">Επισυναπτόμενα Αρχεία:</h5>
+                          <div className="space-y-1">
+                            {selectedTicket.admin_reply_attachments.map((file, idx) => (
+                              <a
+                                key={idx}
+                                href={file.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block text-sm text-blue-600 hover:text-blue-700 hover:underline"
+                              >
+                                📎 {file.filename} ({(file.size / 1024).toFixed(1)} KB)
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       <p className="text-xs text-gray-900 mt-2">
                         {formatDate(selectedTicket.admin_replied_at!)}
                       </p>
@@ -529,12 +605,49 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
                         onChange={(e) => setReplyText(e.target.value)}
                         placeholder={t[lang].replyPlaceholder}
                         rows={6}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm text-gray-900"
                       />
+                      
+                      {/* File Upload for Reply */}
+                      <div className="mt-3">
+                        <label className="block text-sm font-medium text-gray-900 mb-2">
+                          Επισυναπτόμενα Αρχεία (Προαιρετικά)
+                        </label>
+                        <input
+                          type="file"
+                          onChange={(e) => {
+                            const files = Array.from(e.target.files || []);
+                            setReplyFiles(files);
+                          }}
+                          multiple
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm text-gray-900"
+                          accept="image/*,.pdf,.doc,.docx,.txt,.xls,.xlsx"
+                        />
+                        {replyFiles.length > 0 && (
+                          <div className="mt-2 space-y-1">
+                            {replyFiles.map((file, index) => (
+                              <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded text-sm">
+                                <span className="text-gray-900">{file.name} ({(file.size / 1024).toFixed(1)} KB)</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setReplyFiles(prev => prev.filter((_, i) => i !== index))}
+                                  className="text-red-600 hover:text-red-700 text-xs"
+                                >
+                                  Αφαίρεση
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {uploadingReplyFiles && (
+                          <div className="mt-2 text-sm text-gray-900">Ανέβασμα αρχείων...</div>
+                        )}
+                      </div>
+
                       <button
                         onClick={() => handleReply(selectedTicket.id)}
-                        disabled={sendingReply || !replyText.trim()}
-                        className="mt-2 w-full bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        disabled={sendingReply || !replyText.trim() || uploadingReplyFiles}
+                        className="mt-3 w-full bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         {sendingReply ? t[lang].sendingReply : t[lang].sendReply}
                       </button>
