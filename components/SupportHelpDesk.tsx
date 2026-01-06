@@ -364,7 +364,7 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
                   {t[lang].selectUser}
                 </label>
                 {loadingUsers ? (
-                  <div className="text-gray-700">Loading...</div>
+                  <div className="text-gray-900">Loading...</div>
                 ) : (
                   <select
                     value={createUserId}
@@ -441,9 +441,9 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
                 <h2 className="text-xl font-semibold text-gray-900 mb-6">{t[lang].tickets}</h2>
                 
                 {loadingTickets ? (
-                  <div className="text-center text-gray-700 py-8">Loading...</div>
+                  <div className="text-center text-gray-900 py-8">Loading...</div>
                 ) : tickets.length === 0 ? (
-                  <div className="text-center text-gray-700 py-8">{t[lang].noTickets}</div>
+                  <div className="text-center text-gray-900 py-8">{t[lang].noTickets}</div>
                 ) : (
                   <div className="space-y-4">
                     {tickets.map((ticket) => (
@@ -460,11 +460,11 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
                                 {getStatusLabel(ticket.status)}
                               </span>
                             </div>
-                            <p className="text-sm text-gray-800 mb-2">
+                            <p className="text-sm text-gray-900 mb-2">
                               {t[lang].from}: {ticket.user_name} ({ticket.user_email})
                             </p>
-                            <p className="text-sm text-gray-800 mb-2 line-clamp-2">{ticket.message}</p>
-                            <div className="text-xs text-gray-700">
+                            <p className="text-sm text-gray-900 mb-2 line-clamp-2">{ticket.message}</p>
+                            <div className="text-xs text-gray-900">
                               {formatDate(ticket.created_at)}
                             </div>
                           </div>
@@ -496,10 +496,10 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
                         {getStatusLabel(selectedTicket.status)}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-800 mb-2">
+                    <p className="text-sm text-gray-900 mb-2">
                       <strong>{t[lang].from}:</strong> {selectedTicket.user_name} ({selectedTicket.user_email})
                     </p>
-                    <p className="text-sm text-gray-700 mb-4">
+                    <p className="text-sm text-gray-900 mb-4">
                       {formatDate(selectedTicket.created_at)}
                     </p>
                   </div>
@@ -517,7 +517,7 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
                       <div className="bg-green-50 border border-green-200 p-3 rounded-lg text-sm text-gray-900 whitespace-pre-wrap">
                         {selectedTicket.admin_reply}
                       </div>
-                      <p className="text-xs text-gray-700 mt-2">
+                      <p className="text-xs text-gray-900 mt-2">
                         {formatDate(selectedTicket.admin_replied_at!)}
                       </p>
                     </div>

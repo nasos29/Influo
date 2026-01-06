@@ -324,12 +324,12 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
             <div>
               <Link 
                 href={userType === 'influencer' ? '/dashboard' : '/brand/dashboard'} 
-                className="text-sm text-gray-600 hover:text-gray-900 mb-2 inline-block"
+                className="text-sm text-gray-900 hover:text-gray-700 mb-2 inline-block"
               >
                 {t[lang].back}
               </Link>
               <h1 className="text-2xl font-bold text-gray-900">{t[lang].title}</h1>
-              <p className="text-sm text-gray-600 mt-1">{t[lang].subtitle}</p>
+              <p className="text-sm text-gray-900 mt-1">{t[lang].subtitle}</p>
             </div>
             <button
               onClick={() => {
@@ -352,7 +352,7 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
             
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-900 mb-2">
                   {t[lang].subject}
                 </label>
                 <input
@@ -360,13 +360,13 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   placeholder={t[lang].placeholderSubject}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-900 mb-2">
                   {t[lang].message}
                 </label>
                 <textarea
@@ -374,27 +374,27 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder={t[lang].placeholderMessage}
                   rows={8}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-900 mb-2">
                   {t[lang].attachFiles}
                 </label>
                 <input
                   type="file"
                   onChange={handleFileSelect}
                   multiple
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm text-gray-900"
                   accept="image/*,.pdf,.doc,.docx,.txt,.xls,.xlsx"
                 />
                 {selectedFiles.length > 0 && (
                   <div className="mt-2 space-y-1">
                     {selectedFiles.map((file, index) => (
                       <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded text-sm">
-                        <span className="text-gray-700">{file.name} ({(file.size / 1024).toFixed(1)} KB)</span>
+                        <span className="text-gray-900">{file.name} ({(file.size / 1024).toFixed(1)} KB)</span>
                         <button
                           type="button"
                           onClick={() => removeFile(index)}
@@ -407,7 +407,7 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
                   </div>
                 )}
                 {uploading && (
-                  <div className="mt-2 text-sm text-gray-600">{t[lang].uploading}</div>
+                  <div className="mt-2 text-sm text-gray-900">{t[lang].uploading}</div>
                 )}
               </div>
 
@@ -439,7 +439,7 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
                     setMessage('');
                     setResult(null);
                   }}
-                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="px-6 py-3 border border-gray-300 text-gray-900 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Ακύρωση
                 </button>
@@ -453,9 +453,9 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
           <h2 className="text-xl font-semibold text-gray-900 mb-6">{t[lang].myTickets}</h2>
           
           {loadingTickets ? (
-            <div className="text-center text-gray-500 py-8">Loading...</div>
+            <div className="text-center text-gray-900 py-8">Loading...</div>
           ) : tickets.length === 0 ? (
-            <div className="text-center text-gray-500 py-8">{t[lang].noTickets}</div>
+            <div className="text-center text-gray-900 py-8">{t[lang].noTickets}</div>
           ) : (
             <div className="space-y-4">
               {tickets.map((ticket) => (
@@ -477,8 +477,8 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-gray-600 mb-2 line-clamp-2">{ticket.message}</p>
-                      <div className="text-xs text-gray-500">
+                      <p className="text-sm text-gray-900 mb-2 line-clamp-2">{ticket.message}</p>
+                      <div className="text-xs text-gray-900">
                         {t[lang].created}: {formatDate(ticket.created_at)}
                       </div>
                     </div>
@@ -510,19 +510,19 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
                   <span className={`px-3 py-1 rounded text-sm font-medium ${getStatusColor(selectedTicket.status)}`}>
                     {getStatusLabel(selectedTicket.status)}
                   </span>
-                  <span className="text-sm text-gray-500">
+                  <span className="text-sm text-gray-900">
                     {t[lang].created}: {formatDate(selectedTicket.created_at)}
                   </span>
                 </div>
 
                 <div className="mb-6">
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">Το Μήνυμά σας:</h3>
-                  <div className="bg-gray-50 p-4 rounded-lg whitespace-pre-wrap text-sm text-gray-700">
+                  <h3 className="text-sm font-medium text-gray-900 mb-2">Το Μήνυμά σας:</h3>
+                  <div className="bg-gray-50 p-4 rounded-lg whitespace-pre-wrap text-sm text-gray-900">
                     {selectedTicket.message}
                   </div>
                   {selectedTicket.attachments && selectedTicket.attachments.length > 0 && (
                     <div className="mt-3">
-                      <h4 className="text-xs font-medium text-gray-700 mb-2">Επισυναπτόμενα Αρχεία:</h4>
+                      <h4 className="text-xs font-medium text-gray-900 mb-2">Επισυναπτόμενα Αρχεία:</h4>
                       <div className="space-y-1">
                         {selectedTicket.attachments.map((file, idx) => (
                           <a
@@ -542,24 +542,24 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
 
                 {selectedTicket.admin_reply ? (
                   <div className="mb-6">
-                    <h3 className="text-sm font-medium text-gray-700 mb-2">Απάντηση:</h3>
-                    <div className="bg-green-50 border border-green-200 p-4 rounded-lg whitespace-pre-wrap text-sm text-gray-700 mb-4">
+                    <h3 className="text-sm font-medium text-gray-900 mb-2">Απάντηση:</h3>
+                    <div className="bg-green-50 border border-green-200 p-4 rounded-lg whitespace-pre-wrap text-sm text-gray-900 mb-4">
                       {selectedTicket.admin_reply}
                     </div>
-                    <div className="text-xs text-gray-500 mb-4">
+                    <div className="text-xs text-gray-900 mb-4">
                       {t[lang].reply}: {formatDate(selectedTicket.admin_replied_at!)}
                     </div>
                     
                     {/* User Reply Form */}
                     <div className="border-t border-gray-200 pt-4">
-                      <h3 className="text-sm font-medium text-gray-700 mb-3">{t[lang].replyToTicket}</h3>
+                      <h3 className="text-sm font-medium text-gray-900 mb-3">{t[lang].replyToTicket}</h3>
                       <form onSubmit={handleReplySubmit}>
                         <textarea
                           value={replyMessage}
                           onChange={(e) => setReplyMessage(e.target.value)}
                           placeholder={t[lang].replyPlaceholder}
                           rows={4}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent mb-3"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent mb-3 text-gray-900"
                           required
                         />
                         <button
@@ -584,7 +584,7 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
                   setSelectedTicket(null);
                   setReplyMessage('');
                 }}
-                className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                className="w-full px-4 py-2 bg-gray-200 text-gray-900 rounded-lg hover:bg-gray-300 transition-colors"
               >
                 {t[lang].close}
               </button>
