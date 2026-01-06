@@ -167,16 +167,48 @@ export async function GET(req: NextRequest) {
             
             if (iframelyResponse.ok) {
               const iframelyData = await iframelyResponse.json();
-              // Iframely returns thumbnail in various formats
-              if (iframelyData.thumbnail || iframelyData.thumbnail_url || (iframelyData.links && iframelyData.links.thumbnail && iframelyData.links.thumbnail[0])) {
-                const thumbnailUrl = iframelyData.thumbnail || iframelyData.thumbnail_url || iframelyData.links?.thumbnail?.[0]?.href;
-                if (thumbnailUrl) {
-                  return NextResponse.json({ 
-                    thumbnail: thumbnailUrl,
-                    platform: 'tiktok'
-                  });
-                }
+              
+              // Iframely returns thumbnail in various formats - check all possible locations
+              let thumbnailUrl = null;
+              
+              // Method 1: Direct thumbnail field
+              if (iframelyData.thumbnail) {
+                thumbnailUrl = iframelyData.thumbnail;
               }
+              // Method 2: thumbnail_url field
+              else if (iframelyData.thumbnail_url) {
+                thumbnailUrl = iframelyData.thumbnail_url;
+              }
+              // Method 3: meta.thumbnail
+              else if (iframelyData.meta?.thumbnail) {
+                thumbnailUrl = iframelyData.meta.thumbnail;
+              }
+              // Method 4: links.thumbnail array (first item)
+              else if (iframelyData.links?.thumbnail && Array.isArray(iframelyData.links.thumbnail) && iframelyData.links.thumbnail.length > 0) {
+                thumbnailUrl = iframelyData.links.thumbnail[0].href || iframelyData.links.thumbnail[0];
+              }
+              // Method 5: links.icon (sometimes thumbnail is here)
+              else if (iframelyData.links?.icon && Array.isArray(iframelyData.links.icon) && iframelyData.links.icon.length > 0) {
+                const icon = iframelyData.links.icon[0];
+                thumbnailUrl = icon.href || icon;
+              }
+              // Method 6: Check for image in links
+              else if (iframelyData.links?.image && Array.isArray(iframelyData.links.image) && iframelyData.links.image.length > 0) {
+                thumbnailUrl = iframelyData.links.image[0].href || iframelyData.links.image[0];
+              }
+              
+              if (thumbnailUrl) {
+                console.log('TikTok thumbnail found via Iframely:', thumbnailUrl);
+                return NextResponse.json({ 
+                  thumbnail: thumbnailUrl,
+                  platform: 'tiktok'
+                });
+              } else {
+                console.log('Iframely response for TikTok (no thumbnail found):', JSON.stringify(iframelyData, null, 2));
+              }
+            } else {
+              const errorText = await iframelyResponse.text();
+              console.log('Iframely API error for TikTok:', iframelyResponse.status, errorText);
             }
           } catch (e) {
             console.log('Iframely API failed for TikTok, trying other methods...', e);

@@ -46,7 +46,7 @@ export default function VideoThumbnail({
         return;
       }
 
-      // For Instagram or other platforms that need API call
+      // For Instagram, TikTok or other platforms that need API call
       if (directThumbnail?.startsWith('/api/')) {
         try {
           const response = await fetch(directThumbnail);
@@ -63,9 +63,11 @@ export default function VideoThumbnail({
           setLoading(false);
         }
       } else {
-        // For Instagram URLs not yet processed
+        // For Instagram or TikTok URLs not yet processed
         const instagramRegex = /instagram\.com\/(?:p|reel)\/([A-Za-z0-9_-]+)/;
-        if (instagramRegex.test(url)) {
+        const tiktokRegex = /tiktok\.com\/@[\w.-]+\/video\/\d+/;
+        
+        if (instagramRegex.test(url) || tiktokRegex.test(url)) {
           try {
             const response = await fetch(`/api/video-thumbnail?url=${encodeURIComponent(url)}`);
             const data = await response.json();
@@ -75,7 +77,7 @@ export default function VideoThumbnail({
               setThumbnail(null);
             }
           } catch (error) {
-            console.error('Error fetching Instagram thumbnail:', error);
+            console.error(`Error fetching ${tiktokRegex.test(url) ? 'TikTok' : 'Instagram'} thumbnail:`, error);
             setThumbnail(null);
           } finally {
             setLoading(false);
@@ -110,17 +112,30 @@ export default function VideoThumbnail({
     );
   }
 
-  // Fallback placeholder - show Instagram logo for Instagram links
+  // Fallback placeholder - show platform-specific logos
   const isInstagram = /instagram\.com\/(?:p|reel)\//i.test(url);
+  const isTikTok = /tiktok\.com/i.test(url);
+  
+  let placeholderClass = 'from-slate-700 to-slate-900';
+  if (isInstagram) {
+    placeholderClass = 'from-purple-600 to-pink-600';
+  } else if (isTikTok) {
+    placeholderClass = 'from-black to-gray-900';
+  }
   
   return (
-    <div className={`bg-gradient-to-br ${isInstagram ? 'from-purple-600 to-pink-600' : 'from-slate-700 to-slate-900'} flex items-center justify-center ${className}`} style={fill ? {} : { width, height }}>
-      {isVideo || isInstagram ? (
+    <div className={`bg-gradient-to-br ${placeholderClass} flex items-center justify-center ${className}`} style={fill ? {} : { width, height }}>
+      {isVideo || isInstagram || isTikTok ? (
         <div className="text-center">
           {isInstagram ? (
             <>
               <div className="text-4xl mb-2">📷</div>
               <span className="text-white text-xs opacity-90 font-medium">Instagram</span>
+            </>
+          ) : isTikTok ? (
+            <>
+              <div className="text-4xl mb-2">🎵</div>
+              <span className="text-white text-xs opacity-90 font-medium">TikTok</span>
             </>
           ) : (
             <>
