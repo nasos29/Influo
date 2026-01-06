@@ -1249,10 +1249,10 @@ export default function InfluencerProfile(props: { params: Params }) {
                          <div>
                             <h3 className="text-lg font-bold text-slate-900 mb-4">{txt.portfolio}</h3>
                             {profile.videos && profile.videos.length > 0 && profile.videos[0] !== "" ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                     {profile.videos.map((vid, i) => {
                                         const isVideo = isVideoUrl(vid);
-                                        const isImage = vid.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+                                        const isImage = vid.match(/\.(jpg|jpeg|png|gif|webp)$/i) || vid.match(/^https?:\/\/.*\.(jpg|jpeg|png|gif|webp)/i);
                                         return (
                                             <a key={i} href={vid} target="_blank" rel="noopener noreferrer" className="block group relative h-48 rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-shadow">
                                                 <VideoThumbnail 

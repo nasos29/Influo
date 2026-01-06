@@ -28,7 +28,11 @@ export default function VideoThumbnail({
 
   useEffect(() => {
     const fetchThumbnail = async () => {
-      if (isImage) {
+      // Check if it's an image URL (including URLs with image extensions)
+      const imagePattern = /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i;
+      const isDirectImage = imagePattern.test(url) || url.match(/^https?:\/\/.*\.(jpg|jpeg|png|gif|webp|bmp)(\?|$)/i);
+      
+      if (isDirectImage || isImage) {
         setThumbnail(url);
         setLoading(false);
         return;
