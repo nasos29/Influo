@@ -110,13 +110,24 @@ export default function VideoThumbnail({
     );
   }
 
-  // Fallback placeholder - only show play button if it's a video URL
+  // Fallback placeholder - show Instagram logo for Instagram links
+  const isInstagram = /instagram\.com\/(?:p|reel)\//i.test(url);
+  
   return (
-    <div className={`bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center ${className}`} style={fill ? {} : { width, height }}>
-      {isVideo ? (
+    <div className={`bg-gradient-to-br ${isInstagram ? 'from-purple-600 to-pink-600' : 'from-slate-700 to-slate-900'} flex items-center justify-center ${className}`} style={fill ? {} : { width, height }}>
+      {isVideo || isInstagram ? (
         <div className="text-center">
-          <span className="text-4xl opacity-80 block mb-2">▶</span>
-          <span className="text-white text-xs opacity-75">Video</span>
+          {isInstagram ? (
+            <>
+              <div className="text-4xl mb-2">📷</div>
+              <span className="text-white text-xs opacity-90 font-medium">Instagram</span>
+            </>
+          ) : (
+            <>
+              <span className="text-4xl opacity-80 block mb-2">▶</span>
+              <span className="text-white text-xs opacity-75">Video</span>
+            </>
+          )}
         </div>
       ) : (
         <div className="text-center">
