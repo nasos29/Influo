@@ -28,7 +28,37 @@ export async function GET(req: NextRequest) {
       const cleanUrl = url.split('?')[0];
       
       try {
-        // Method 1: Try Instagram oEmbed API (works for public posts)
+        // Method 1: Try Iframely API (best option with API key)
+        const iframelyApiKey = process.env.IFRAMELY_API_KEY || '4355c593a3b2439820d35f';
+        if (iframelyApiKey) {
+          try {
+            const iframelyUrl = `https://iframe.ly/api/iframely?url=${encodeURIComponent(cleanUrl)}&api_key=${iframelyApiKey}`;
+            const iframelyResponse = await fetch(iframelyUrl, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'application/json'
+              }
+            });
+            
+            if (iframelyResponse.ok) {
+              const iframelyData = await iframelyResponse.json();
+              // Iframely returns thumbnail in various formats
+              if (iframelyData.thumbnail || iframelyData.thumbnail_url || (iframelyData.links && iframelyData.links.thumbnail && iframelyData.links.thumbnail[0])) {
+                const thumbnailUrl = iframelyData.thumbnail || iframelyData.thumbnail_url || iframelyData.links?.thumbnail?.[0]?.href;
+                if (thumbnailUrl) {
+                  return NextResponse.json({ 
+                    thumbnail: thumbnailUrl,
+                    platform: 'instagram'
+                  });
+                }
+              }
+            }
+          } catch (e) {
+            console.log('Iframely API failed, trying other methods...', e);
+          }
+        }
+
+        // Method 2: Try Instagram oEmbed API (works for public posts)
         try {
           const oembedUrl = `https://api.instagram.com/oembed?url=${encodeURIComponent(cleanUrl)}`;
           const response = await fetch(oembedUrl, {
