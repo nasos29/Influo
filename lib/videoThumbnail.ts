@@ -23,6 +23,7 @@ export function getVideoThumbnail(url: string): string | null {
   // Match with or without query parameters
   const tiktokRegex = /tiktok\.com\/@[\w.-]+\/video\/\d+/i;
   if (tiktokRegex.test(url)) {
+    console.log('getVideoThumbnail: TikTok URL matched:', url);
     // Return a placeholder URL that the component can use to fetch from API
     return `/api/video-thumbnail?url=${encodeURIComponent(url)}`;
   }

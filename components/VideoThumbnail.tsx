@@ -28,11 +28,14 @@ export default function VideoThumbnail({
 
   useEffect(() => {
     const fetchThumbnail = async () => {
+      console.log('VideoThumbnail: Processing URL:', url);
+      
       // Check if it's an image URL (including URLs with image extensions)
       const imagePattern = /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i;
       const isDirectImage = imagePattern.test(url) || url.match(/^https?:\/\/.*\.(jpg|jpeg|png|gif|webp|bmp)(\?|$)/i);
       
       if (isDirectImage || isImage) {
+        console.log('VideoThumbnail: Direct image detected');
         setThumbnail(url);
         setLoading(false);
         return;
@@ -40,7 +43,10 @@ export default function VideoThumbnail({
 
       // Try direct thumbnail (YouTube)
       const directThumbnail = getVideoThumbnail(url);
+      console.log('VideoThumbnail: getVideoThumbnail returned:', directThumbnail);
+      
       if (directThumbnail && !directThumbnail.startsWith('/api/')) {
+        console.log('VideoThumbnail: Using direct thumbnail');
         setThumbnail(directThumbnail);
         setLoading(false);
         return;
@@ -67,7 +73,11 @@ export default function VideoThumbnail({
         const instagramRegex = /instagram\.com\/(?:p|reel)\/([A-Za-z0-9_-]+)/;
         const tiktokRegex = /tiktok\.com\/@[\w.-]+\/video\/\d+/i;
         
-        if (instagramRegex.test(url) || tiktokRegex.test(url)) {
+        const isInstagramMatch = instagramRegex.test(url);
+        const isTikTokMatch = tiktokRegex.test(url);
+        console.log('VideoThumbnail: Instagram match:', isInstagramMatch, 'TikTok match:', isTikTokMatch);
+        
+        if (isInstagramMatch || isTikTokMatch) {
           try {
             const apiUrl = `/api/video-thumbnail?url=${encodeURIComponent(url)}`;
             console.log('Fetching thumbnail from:', apiUrl);
