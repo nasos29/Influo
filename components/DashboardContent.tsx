@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import Image from 'next/image';
 import { getVideoThumbnail, isVideoUrl } from '@/lib/videoThumbnail';
+import VideoThumbnail from './VideoThumbnail';
 import Messaging from './Messaging';
 
 interface Account {
@@ -349,22 +350,17 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                             />
                                             {video && (
                                                 <div className="mt-2 relative w-full h-32 rounded-lg overflow-hidden border border-slate-200 bg-slate-100">
-                                                    {thumbnail ? (
-                                                        <>
-                                                            <Image src={thumbnail} alt="Video thumbnail" fill className="object-cover" unoptimized />
-                                                            {isVideo && (
-                                                                <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                                                                    <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center">
-                                                                        <span className="text-2xl">▶</span>
-                                                                    </div>
-                                                                </div>
-                                                            )}
-                                                        </>
-                                                    ) : video.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
-                                                        <Image src={video} alt="Photo" fill className="object-cover" unoptimized />
-                                                    ) : video && (
-                                                        <div className="absolute inset-0 flex items-center justify-center text-slate-400 text-sm">
-                                                            {isVideo ? "Video link (no preview)" : "Image/Video link"}
+                                                    <VideoThumbnail 
+                                                        url={video}
+                                                        alt="Video thumbnail"
+                                                        fill
+                                                        className="object-cover"
+                                                    />
+                                                    {isVideo && (
+                                                        <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
+                                                            <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center">
+                                                                <span className="text-2xl">▶</span>
+                                                            </div>
                                                         </div>
                                                     )}
                                                 </div>
