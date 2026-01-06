@@ -111,7 +111,8 @@ export function getBadges(metrics: InfluencerMetrics, lang: 'el' | 'en' = 'el'):
   const badges: Badge[] = [];
   const maxFollowers = getMaxFollowers(metrics.followers);
   const engagementRate = parseEngagementRate(metrics.engagement_rate);
-  const accountAgeDays = metrics.account_created_days || 999;
+  // Use nullish coalescing to preserve 0 (account created today)
+  const accountAgeDays = metrics.account_created_days !== undefined && metrics.account_created_days !== null ? metrics.account_created_days : 999;
   const numBrands = Array.isArray(metrics.past_brands) ? metrics.past_brands.length : (metrics.past_brands || 0);
   const totalReviews = metrics.total_reviews || 0;
   const avgRating = metrics.avg_rating || 0;
