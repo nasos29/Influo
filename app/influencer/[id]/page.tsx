@@ -1158,11 +1158,15 @@ export default function InfluencerProfile(props: { params: Params }) {
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{lang === 'el' ? 'Ακόλουθοι' : 'Followers'}</span>
                 </div>
                 <p className="text-2xl font-extrabold text-slate-900">
-                  {profile.followers?.instagram ? 
-                    (profile.followers.instagram >= 1000000 
-                      ? (profile.followers.instagram / 1000000).toFixed(1) + 'M' 
-                      : (profile.followers.instagram / 1000).toFixed(1) + 'k') 
-                    : '-'}
+                  {(() => {
+                    // Priority: Instagram > TikTok > YouTube > Facebook > Twitter/X
+                    const followers = profile.followers || {};
+                    const count = followers.instagram || followers.tiktok || followers.youtube || followers.facebook || followers.twitter || 0;
+                    if (count === 0) return '-';
+                    return count >= 1000000 
+                      ? (count / 1000000).toFixed(1) + 'M' 
+                      : (count / 1000).toFixed(1) + 'k';
+                  })()}
                 </p>
               </div>
               
@@ -1287,7 +1291,15 @@ export default function InfluencerProfile(props: { params: Params }) {
                              <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm text-center">
                                 <p className="text-slate-400 text-xs font-bold uppercase">{txt.foll}</p>
                                 <p className="text-2xl font-extrabold text-slate-800">
-                                    {profile.followers?.instagram ? (profile.followers.instagram / 1000).toFixed(1) + 'k' : 'N/A'}
+                                    {(() => {
+                                      // Priority: Instagram > TikTok > YouTube > Facebook > Twitter/X
+                                      const followers = profile.followers || {};
+                                      const count = followers.instagram || followers.tiktok || followers.youtube || followers.facebook || followers.twitter || 0;
+                                      if (count === 0) return 'N/A';
+                                      return count >= 1000000 
+                                        ? (count / 1000000).toFixed(1) + 'M' 
+                                        : (count / 1000).toFixed(1) + 'k';
+                                    })()}
                                 </p>
                              </div>
                              <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm text-center">
