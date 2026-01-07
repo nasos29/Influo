@@ -1426,6 +1426,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                       <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{txt.col_inf}</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{txt.email}</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{txt.col_loc}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{txt.modal_followers}</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{txt.col_status}</th>
                       <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600 uppercase">{txt.col_act}</th>
                     </tr>
@@ -1433,7 +1434,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                   <tbody className="divide-y divide-slate-200">
                     {filteredUsers.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-4 py-8 text-center text-slate-500">{txt.no_data}</td>
+                        <td colSpan={7} className="px-4 py-8 text-center text-slate-500">{txt.no_data}</td>
                       </tr>
                     ) : (
                       filteredUsers.map(u => (
@@ -1470,6 +1471,20 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                           </td>
                           <td className="px-4 py-3 text-sm text-slate-900">{u.contact_email || '-'}</td>
                           <td className="px-4 py-3 text-sm text-slate-900">{u.location || '-'}</td>
+                          <td className="px-4 py-3 text-sm text-slate-900">
+                            {u.accounts && u.accounts.length > 0 ? (
+                              <div className="flex flex-col gap-1">
+                                {u.accounts.map((acc, idx) => (
+                                  <div key={idx} className="flex items-center gap-2">
+                                    <span className="text-xs font-medium text-slate-600">{acc.platform}:</span>
+                                    <span className="text-xs text-slate-900">{acc.followers || '-'}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-slate-400">-</span>
+                            )}
+                          </td>
                           <td className="px-4 py-3">
                             <div className="flex flex-col gap-1">
                               {u.approved ? (
