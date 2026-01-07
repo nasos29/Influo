@@ -334,7 +334,33 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
   const [minEngagement, setMinEngagement] = useState("All");
   const [minRating, setMinRating] = useState("All");
 
+  // Sort function: "New" influencers first, then by created_at descending
+  const sortInfluencers = (influencersList: Influencer[]): Influencer[] => {
+    return [...influencersList].sort((a, b) => {
+      const aAge = a.created_at ? Math.floor((new Date().getTime() - new Date(a.created_at).getTime()) / (1000 * 60 * 60 * 24)) : 999;
+      const bAge = b.created_at ? Math.floor((new Date().getTime() - new Date(b.created_at).getTime()) / (1000 * 60 * 60 * 24)) : 999;
+      
+      const aIsNew = aAge < 30;
+      const bIsNew = bAge < 30;
+      
+      // If one is "New" and the other isn't, prioritize the "New" one
+      if (aIsNew && !bIsNew) return -1;
+      if (!aIsNew && bIsNew) return 1;
+      
+      // If both are "New" or both are not "New", sort by created_at descending (newest first)
+      if (a.created_at && b.created_at) {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+      if (a.created_at) return -1;
+      if (b.created_at) return 1;
+      return 0;
+    });
+  };
+
   useEffect(() => {
+    // Sort dummy influencers immediately (with "New" first)
+    setInfluencers(sortInfluencers(dummyInfluencers));
+    
     const fetchReal = async () => {
       const { data } = await supabase.from("influencers").select("*").eq('approved', true);
       if (data) {
@@ -378,29 +404,9 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
           };
         });
         
-        // Combine and sort influencers: "New" (account age < 30 days) first, then by created_at descending
-        const allInfluencers = [...dummyInfluencers, ...realInfluencers];
-        const sortedInfluencers = allInfluencers.sort((a, b) => {
-          const aAge = a.created_at ? Math.floor((new Date().getTime() - new Date(a.created_at).getTime()) / (1000 * 60 * 60 * 24)) : 999;
-          const bAge = b.created_at ? Math.floor((new Date().getTime() - new Date(b.created_at).getTime()) / (1000 * 60 * 60 * 24)) : 999;
-          
-          const aIsNew = aAge < 30;
-          const bIsNew = bAge < 30;
-          
-          // If one is "New" and the other isn't, prioritize the "New" one
-          if (aIsNew && !bIsNew) return -1;
-          if (!aIsNew && bIsNew) return 1;
-          
-          // If both are "New" or both are not "New", sort by created_at descending (newest first)
-          if (a.created_at && b.created_at) {
-            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-          }
-          if (a.created_at) return -1;
-          if (b.created_at) return 1;
-          return 0;
-        });
-        
-        setInfluencers(sortedInfluencers);
+        // Combine and sort all influencers (real + dummy) with "New" first
+        const allInfluencers = [...realInfluencers, ...dummyInfluencers];
+        setInfluencers(sortInfluencers(allInfluencers));
       }
     };
     fetchReal();
