@@ -364,12 +364,6 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                 </div>
                             </div>
                         </div>
-                                <div>
-                                    <p className="text-sm font-medium text-slate-900">Profile Photo</p>
-                                    <p className="text-xs text-slate-500">Current avatar</p>
-                                </div>
-                            </div>
-                        )}
 
                         {/* Basic Info */}
                         <div>
