@@ -9,12 +9,20 @@ export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File;
-    const userId = formData.get('user_id') as string;
+    const userId = formData.get('user_id') as string | null;
     const ticketId = formData.get('ticket_id') as string | null;
 
-    if (!file || !userId) {
+    if (!file) {
       return NextResponse.json(
-        { success: false, error: 'Missing file or user_id' },
+        { success: false, error: 'Missing file' },
+        { status: 400 }
+      );
+    }
+
+    // Either user_id or ticket_id must be provided
+    if (!userId && !ticketId) {
+      return NextResponse.json(
+        { success: false, error: 'Missing user_id or ticket_id' },
         { status: 400 }
       );
     }
@@ -53,7 +61,9 @@ export async function POST(req: NextRequest) {
     const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
     const filePath = ticketId 
       ? `tickets/${ticketId}/${timestamp}_${sanitizedFileName}`
-      : `tickets/temp/${userId}/${timestamp}_${sanitizedFileName}`;
+      : userId 
+        ? `tickets/temp/${userId}/${timestamp}_${sanitizedFileName}`
+        : `tickets/temp/admin/${timestamp}_${sanitizedFileName}`;
 
     // Upload to Supabase Storage
     const fileBuffer = await file.arrayBuffer();

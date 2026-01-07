@@ -275,7 +275,7 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
     return colorMap[status] || 'bg-gray-100 text-gray-800';
   };
 
-  const uploadReplyFiles = async (): Promise<FileAttachment[]> => {
+  const uploadReplyFiles = async (ticketId: string): Promise<FileAttachment[]> => {
     if (replyFiles.length === 0) return [];
 
     setUploadingReplyFiles(true);
@@ -286,6 +286,7 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
         const formData = new FormData();
         formData.append('file', file);
         formData.append('user_id', user.id);
+        formData.append('ticket_id', ticketId);
 
         const response = await fetch('/api/tickets/upload', {
           method: 'POST',
@@ -322,7 +323,7 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
       // Upload files first
       let attachments: FileAttachment[] = [];
       if (replyFiles.length > 0) {
-        attachments = await uploadReplyFiles();
+        attachments = await uploadReplyFiles(selectedTicket.id);
       }
 
       const response = await fetch('/api/tickets/user-reply', {

@@ -195,7 +195,7 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
     }
   };
 
-  const uploadReplyFiles = async (): Promise<FileAttachment[]> => {
+  const uploadReplyFiles = async (ticketId: string): Promise<FileAttachment[]> => {
     if (replyFiles.length === 0) return [];
 
     setUploadingReplyFiles(true);
@@ -205,6 +205,8 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
       for (const file of replyFiles) {
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('ticket_id', ticketId);
+        formData.append('user_id', 'admin'); // Admin uploads don't need real user_id
 
         const response = await fetch('/api/tickets/upload', {
           method: 'POST',
@@ -239,7 +241,7 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
       // Upload files first
       let attachments: FileAttachment[] = [];
       if (replyFiles.length > 0) {
-        attachments = await uploadReplyFiles();
+        attachments = await uploadReplyFiles(ticketId);
       }
 
       const response = await fetch('/api/tickets/reply', {
