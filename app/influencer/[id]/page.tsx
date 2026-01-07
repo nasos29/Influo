@@ -343,123 +343,147 @@ export default function InfluencerProfile(props: { params: Params }) {
     }
   };
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      if (!id) return;
+  // Function to fetch and parse profile data (extracted for reuse)
+  const fetchProfile = async () => {
+    if (!id) return;
 
-      // 1. DUMMY CHECK (Keep the logic as is)
-      if (id.toString().includes("dummy")) {
-        const found = dummyInfluencers.find((d) => String(d.id) === id);
-        if (found) {
-          setProfile({
-            ...found,
-            engagement_rate: found.engagement_rate || "5.2%",
-            avg_likes: found.avg_likes || "3.2k",
-            audience_data: { male: 35, female: 65, top_age: "18-34" },
-            rate_card: found.rate_card ? {
-              story: found.rate_card.story || (lang === 'el' ? "Ρώτησε" : "Ask"),
-              post: found.rate_card.post || (lang === 'el' ? "Ρώτησε" : "Ask"),
-              reel: found.rate_card.reel || (lang === 'el' ? "Ρώτησε" : "Ask"),
-              facebook: found.rate_card.facebook || (lang === 'el' ? "Ρώτησε" : "Ask")
-            } : {
-              story: lang === 'el' ? "Ρώτησε" : "Ask",
-              post: lang === 'el' ? "Ρώτησε" : "Ask",
-              reel: lang === 'el' ? "Ρώτησε" : "Ask",
-              facebook: lang === 'el' ? "Ρώτησε" : "Ask"
-            },
-            past_brands: ["Zara", "Vodafone", "e-Food"]
-          });
-          setLoading(false);
-          return;
-        }
-      }
-
-      // 2. REAL CHECK - Works with both UUIDs (new influencers) and numeric IDs (if any)
-      // Try to fetch by id (works for both UUIDs and numeric IDs)
-      const { data, error } = await supabase.from("influencers").select("*").eq("id", id).single();
-      
-      // Calculate completion rate from proposals
-      let calculatedCompletionRate: number | undefined;
-      if (data && !error) {
-        const { data: proposals } = await supabase
-          .from("proposals")
-          .select("status")
-          .eq("influencer_id", id);
-        
-        if (proposals && proposals.length > 0) {
-          const total = proposals.length;
-          const completed = proposals.filter((p: any) => p.status === 'completed' || p.status === 'accepted').length;
-          calculatedCompletionRate = Math.round((completed / total) * 100);
-        }
-      }
-      
-      if (data && !error) {
-        const socialsObj: { [key: string]: string } = {};
-        if (Array.isArray(data.accounts)) {
-           data.accounts.forEach((acc: any) => { if(acc.platform) socialsObj[acc.platform.toLowerCase()] = acc.username; });
-        }
-        
-        // Build followers object from accounts
-        const followersObj: { [key: string]: number } = {};
-        if (Array.isArray(data.accounts)) {
-          data.accounts.forEach((acc: any) => {
-            if (acc.platform && acc.followers) {
-              const platform = acc.platform.toLowerCase();
-              // Parse followers string (e.g., "15k" -> 15000, "1.5M" -> 1500000)
-              let followersNum = 0;
-              const followersStr = acc.followers.toString().toLowerCase().replace(/\s/g, '');
-              if (followersStr.includes('m')) {
-                followersNum = parseFloat(followersStr) * 1000000;
-              } else if (followersStr.includes('k')) {
-                followersNum = parseFloat(followersStr) * 1000;
-              } else {
-                followersNum = parseFloat(followersStr) || 0;
-              }
-              followersObj[platform] = Math.round(followersNum);
-            }
-          });
-        }
-        
+    // 1. DUMMY CHECK (Keep the logic as is)
+    if (id.toString().includes("dummy")) {
+      const found = dummyInfluencers.find((d) => String(d.id) === id);
+      if (found) {
         setProfile({
-          id: data.id,
-          name: data.display_name,
-          bio: data.bio || "",
-          avatar: data.avatar_url || null,
-          verified: data.analytics_verified || false, // Use analytics_verified for verified badge
-          contact_email: data.contact_email,
-          socials: socialsObj,
-          followers: followersObj,
-          categories: data.category ? [data.category] : ["Creator"],
-          platform: "Instagram",
-          gender: data.gender,
-          location: data.location,
-          languages: data.languages,
-          min_rate: data.min_rate,
-          videos: Array.isArray(data.videos) ? data.videos : [],
-          engagement_rate: data.engagement_rate || "-",
-          avg_likes: data.avg_likes || "-",
-          audience_data: {
-            male: data.audience_male_percent || 50,
-            female: data.audience_female_percent || 50,
-            top_age: data.audience_top_age || "?"
+          ...found,
+          engagement_rate: found.engagement_rate || "5.2%",
+          avg_likes: found.avg_likes || "3.2k",
+          audience_data: { male: 35, female: 65, top_age: "18-34" },
+          rate_card: found.rate_card ? {
+            story: found.rate_card.story || (lang === 'el' ? "Ρώτησε" : "Ask"),
+            post: found.rate_card.post || (lang === 'el' ? "Ρώτησε" : "Ask"),
+            reel: found.rate_card.reel || (lang === 'el' ? "Ρώτησε" : "Ask"),
+            facebook: found.rate_card.facebook || (lang === 'el' ? "Ρώτησε" : "Ask")
+          } : {
+            story: lang === 'el' ? "Ρώτησε" : "Ask",
+            post: lang === 'el' ? "Ρώτησε" : "Ask",
+            reel: lang === 'el' ? "Ρώτησε" : "Ask",
+            facebook: lang === 'el' ? "Ρώτησε" : "Ask"
           },
-          rate_card: data.rate_card || { story: "Ρώτησε", post: "Ρώτησε", reel: "Ρώτησε", facebook: "Ρώτησε" },
-          past_brands: data.past_brands || [],
-          avg_rating: data.avg_rating || 0,
-          total_reviews: data.total_reviews || 0,
-          avg_response_time: data.avg_response_time || 24,
-          completion_rate: data.completion_rate || 100,
-          availability_status: data.availability_status || 'available',
-          skills: data.skills || [],
-          certifications: data.certifications || [],
-          service_packages: data.service_packages || [],
-          calculatedCompletionRate: calculatedCompletionRate,
-          created_at: data.created_at,
+          past_brands: ["Zara", "Vodafone", "e-Food"]
+        });
+        setLoading(false);
+        return;
+      }
+    }
+
+    // 2. REAL CHECK - Works with both UUIDs (new influencers) and numeric IDs (if any)
+    // Try to fetch by id (works for both UUIDs and numeric IDs)
+    const { data, error } = await supabase.from("influencers").select("*").eq("id", id).single();
+    
+    // Calculate completion rate from proposals
+    let calculatedCompletionRate: number | undefined;
+    if (data && !error) {
+      const { data: proposals } = await supabase
+        .from("proposals")
+        .select("status")
+        .eq("influencer_id", id);
+      
+      if (proposals && proposals.length > 0) {
+        const total = proposals.length;
+        const completed = proposals.filter((p: any) => p.status === 'completed' || p.status === 'accepted').length;
+        calculatedCompletionRate = Math.round((completed / total) * 100);
+      }
+    }
+    
+    if (data && !error) {
+      const socialsObj: { [key: string]: string } = {};
+      if (Array.isArray(data.accounts)) {
+         data.accounts.forEach((acc: any) => { if(acc.platform) socialsObj[acc.platform.toLowerCase()] = acc.username; });
+      }
+      
+      // Build followers object from accounts
+      const followersObj: { [key: string]: number } = {};
+      if (Array.isArray(data.accounts)) {
+        data.accounts.forEach((acc: any) => {
+          if (acc.platform && acc.followers) {
+            const platform = acc.platform.toLowerCase();
+            // Parse followers string (e.g., "15k" -> 15000, "1.5M" -> 1500000)
+            let followersNum = 0;
+            const followersStr = acc.followers.toString().toLowerCase().replace(/\s/g, '');
+            if (followersStr.includes('m')) {
+              followersNum = parseFloat(followersStr) * 1000000;
+            } else if (followersStr.includes('k')) {
+              followersNum = parseFloat(followersStr) * 1000;
+            } else {
+              followersNum = parseFloat(followersStr) || 0;
+            }
+            followersObj[platform] = Math.round(followersNum);
+          }
         });
       }
-      setLoading(false);
-    };
+      
+      setProfile({
+        id: data.id,
+        name: data.display_name,
+        bio: data.bio || "",
+        avatar: data.avatar_url || null,
+        verified: data.analytics_verified || false, // Use analytics_verified for verified badge
+        contact_email: data.contact_email,
+        socials: socialsObj,
+        followers: followersObj,
+        categories: data.category ? [data.category] : ["Creator"],
+        platform: "Instagram",
+        gender: data.gender,
+        location: data.location,
+        languages: data.languages,
+        min_rate: data.min_rate,
+        videos: Array.isArray(data.videos) ? data.videos : [],
+        engagement_rate: data.engagement_rate || "-",
+        avg_likes: data.avg_likes || "-",
+        audience_data: {
+          male: data.audience_male_percent || 50,
+          female: data.audience_female_percent || 50,
+          top_age: data.audience_top_age || "?"
+        },
+        rate_card: data.rate_card || { story: "Ρώτησε", post: "Ρώτησε", reel: "Ρώτησε", facebook: "Ρώτησε" },
+        past_brands: data.past_brands || [],
+        avg_rating: data.avg_rating || 0,
+        total_reviews: data.total_reviews || 0,
+        avg_response_time: data.avg_response_time || 24,
+        completion_rate: data.completion_rate || 100,
+        availability_status: data.availability_status || 'available',
+        skills: data.skills || [],
+        certifications: data.certifications || [],
+        service_packages: data.service_packages || [],
+        calculatedCompletionRate: calculatedCompletionRate,
+        created_at: data.created_at,
+      });
+    }
+    setLoading(false);
+  };
+
+  // Initial load
+  useEffect(() => {
+    setLoading(true);
     fetchProfile();
+  }, [id]);
+
+  // Refresh when window gets focus (user might have edited in another tab)
+  useEffect(() => {
+    const handleFocus = () => {
+      // Refresh data when user comes back to the tab (in case admin edited data)
+      fetchProfile();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [id]);
+
+  // Also refresh periodically (every 30 seconds) to catch updates from admin dashboard
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchProfile();
+    }, 30000); // Refresh every 30 seconds
+    
+    return () => clearInterval(interval);
   }, [id]);
 
   // Load reviews
