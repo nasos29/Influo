@@ -133,6 +133,7 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
   const [influencers, setInfluencers] = useState<User[]>([]);
   const [brands, setBrands] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [deletingTicket, setDeletingTicket] = useState<string | null>(null);
 
   // Load tickets on mount
   useEffect(() => {
@@ -228,6 +229,43 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
     }
 
     return uploaded;
+  };
+
+  const handleDeleteTicket = async (ticketId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent ticket selection
+    
+    if (!confirm('Είστε σίγουροι ότι θέλετε να διαγράψετε αυτό το ticket; Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.')) {
+      return;
+    }
+
+    setDeletingTicket(ticketId);
+    try {
+      const response = await fetch('/api/tickets/delete', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ticket_id: ticketId }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Remove ticket from list
+        setTickets(prev => prev.filter(t => t.id !== ticketId));
+        // Close detail view if this ticket was selected
+        if (selectedTicket?.id === ticketId) {
+          setSelectedTicket(null);
+        }
+        alert('Το ticket διαγράφηκε επιτυχώς');
+      } else {
+        alert(`Σφάλμα: ${data.error}`);
+      }
+    } catch (error: any) {
+      alert(`Σφάλμα: ${error.message}`);
+    } finally {
+      setDeletingTicket(null);
+    }
   };
 
   const handleReply = async (ticketId: string) => {
@@ -509,7 +547,7 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
                     {tickets.map((ticket) => (
                       <div
                         key={ticket.id}
-                        className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors cursor-pointer"
+                        className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors cursor-pointer relative"
                         onClick={() => setSelectedTicket(ticket)}
                       >
                         <div className="flex items-start justify-between">
@@ -520,7 +558,7 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
                                 {getStatusLabel(ticket.status)}
                               </span>
                             </div>
-                            <p className="text-sm text-gray-900 mb-2">
+                            <p className="text-sm text-gray-900 mb-2 pr-20">
                               {t[lang].from}: {ticket.user_name} ({ticket.user_email})
                             </p>
                             <p className="text-sm text-gray-900 mb-2 line-clamp-2">{ticket.message}</p>
@@ -528,6 +566,15 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
                               {formatDate(ticket.created_at)}
                             </div>
                           </div>
+                          {/* Delete Button - Top Right */}
+                          <button
+                            onClick={(e) => handleDeleteTicket(ticket.id, e)}
+                            disabled={deletingTicket === ticket.id}
+                            className="absolute top-4 right-4 px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded hover:bg-red-100 hover:border-red-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors z-10"
+                            title="Διαγραφή Ticket"
+                          >
+                            {deletingTicket === ticket.id ? 'Διαγραφή...' : 'ΔΙΑΓΡΑΦΗ'}
+                          </button>
                         </div>
                       </div>
                     ))}
