@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { getVideoThumbnail, isVideoUrl } from "@/lib/videoThumbnail";
 import VideoThumbnail from "@/components/VideoThumbnail";
 import { getBadges, getBadgeStyles } from "@/lib/badges";
+import Avatar from "@/components/Avatar";
 
 type Params = Promise<{ id: string }>;
 
@@ -423,7 +424,7 @@ export default function InfluencerProfile(props: { params: Params }) {
           id: data.id,
           name: data.display_name,
           bio: data.bio || "",
-          avatar: data.avatar_url || "https://images.unsplash.com/photo-1633332755192-727a05c4013d?auto=format&fit=crop&w=400&q=80",
+          avatar: data.avatar_url || null,
           verified: data.analytics_verified || false, // Use analytics_verified for verified badge
           contact_email: data.contact_email,
           socials: socialsObj,
@@ -1007,14 +1008,7 @@ export default function InfluencerProfile(props: { params: Params }) {
           {/* Top Section: Avatar, Name, Info */}
           <div className="p-6 md:p-8 flex flex-col md:flex-row items-center md:items-end gap-6 border-b border-slate-100">
             <div className="relative w-40 h-40 rounded-full border-4 border-white shadow-lg overflow-hidden bg-slate-100 -mt-6 md:mb-0 flex-shrink-0">
-                <Image 
-                    src={profile.avatar} 
-                    alt={profile.name} 
-                    fill 
-                    className="object-cover rounded-full" 
-                    sizes="160px"
-                    priority
-                />
+                <Avatar src={profile.avatar} alt={profile.name} size={160} className="w-full h-full" />
             </div>
             <div className="flex-1 text-center md:text-left">
                 <h1 className="text-3xl font-bold text-slate-900 flex items-center justify-center md:justify-start gap-2">

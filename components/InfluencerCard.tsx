@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { Badge, getBadgeStyles } from "../lib/badges";
+import Avatar from "./Avatar";
 
 interface InfluencerCardProps {
   name: string;
@@ -79,12 +80,7 @@ export default function InfluencerCard({
         {/* Avatar & Verified Badge */}
         <div className="relative -mt-12 mb-4">
           <div className="relative w-20 h-20 rounded-full border-2 border-white shadow-md overflow-hidden bg-white">
-            <Image
-              src={avatar}
-              alt={name}
-              fill
-              className="object-cover"
-            />
+            <Avatar src={avatar} alt={name} size={80} />
           </div>
           {verified && (
             <div className="absolute bottom-0 left-14 bg-blue-600 text-white p-1 rounded-full border-2 border-white" title="Verified">

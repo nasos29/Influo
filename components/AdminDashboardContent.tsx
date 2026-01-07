@@ -233,6 +233,8 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
     const [femalePercent, setFemalePercent] = useState(user.audience_female_percent?.toString() || "");
     const [topAge, setTopAge] = useState(user.audience_top_age || "");
     const [loading, setLoading] = useState(false);
+    const [avatarFile, setAvatarFile] = useState<File | null>(null);
+    const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatar_url || null);
 
     const CATEGORIES = ["Lifestyle", "Beauty", "Fashion", "Food", "Travel", "Gaming", "Tech", "Fitness", "Education", "Comedy", "Music", "Art", "Photography", "DIY", "Business", "Family", "Animals", "Sports", "Other"];
 
@@ -264,9 +266,23 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
         e.preventDefault();
         setLoading(true);
 
-        const { data, error } = await supabase
-            .from('influencers')
-            .update({ 
+        try {
+            let avatarUrl = user.avatar_url || null;
+
+            // Upload avatar if new file selected
+            if (avatarFile) {
+                const fileName = `avatar-${Date.now()}-${avatarFile.name}`;
+                const { error: uploadError } = await supabase.storage.from("avatars").upload(fileName, avatarFile);
+                
+                if (uploadError) {
+                    throw uploadError;
+                }
+                
+                const { data } = supabase.storage.from("avatars").getPublicUrl(fileName);
+                avatarUrl = data.publicUrl;
+            }
+
+            const updateData: any = {
                 display_name: name, 
                 bio: bio, 
                 min_rate: minRate,
@@ -281,10 +297,19 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                 audience_male_percent: parseInt(malePercent) || 0,
                 audience_female_percent: parseInt(femalePercent) || 0,
                 audience_top_age: topAge,
-            })
-            .eq('id', user.id)
-            .select()
-            .single();
+            };
+
+            // Only update avatar_url if we have a new URL
+            if (avatarUrl) {
+                updateData.avatar_url = avatarUrl;
+            }
+
+            const { data, error } = await supabase
+                .from('influencers')
+                .update(updateData)
+                .eq('id', user.id)
+                .select()
+                .single();
 
         setLoading(false);
 
@@ -293,6 +318,10 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
         } else if (data) {
             onSave(data as DbInfluencer);
             onClose();
+        }
+        } catch (err: any) {
+            setLoading(false);
+            alert("Error saving: " + err.message);
         }
     };
 
@@ -305,19 +334,36 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                 </div>
                 <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-6">
                     <div className="space-y-6">
-                        {/* Avatar Preview */}
-                        {user.avatar_url && (
-                            <div className="flex items-center gap-4 pb-4 border-b border-slate-200">
-                                <div className="relative w-20 h-20 rounded-full overflow-hidden bg-slate-200">
-                                    <Image 
-                                        src={user.avatar_url} 
-                                        alt={user.display_name} 
-                                        width={80} 
-                                        height={80} 
-                                        className="object-cover w-full h-full"
-                                        unoptimized
-                                    />
+                        {/* Avatar Upload */}
+                        <div className="pb-4 border-b border-slate-200">
+                            <label className="block text-sm font-semibold text-slate-900 mb-2">Φωτογραφία Προφίλ</label>
+                            <div className="flex items-center gap-4">
+                                <div className="relative w-20 h-20 rounded-full border-2 border-slate-300 overflow-hidden bg-slate-100">
+                                    {avatarPreview ? (
+                                        <img src={avatarPreview} alt="Avatar preview" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                                            <span className="text-gray-500 text-xs font-medium">NO PHOTO</span>
+                                        </div>
+                                    )}
                                 </div>
+                                <div className="flex-1">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                                setAvatarFile(file);
+                                                setAvatarPreview(URL.createObjectURL(file));
+                                            }
+                                        }}
+                                        className="w-full text-sm text-slate-900"
+                                    />
+                                    <p className="text-xs text-slate-500 mt-1">PNG, JPG, GIF up to 5MB</p>
+                                </div>
+                            </div>
+                        </div>
                                 <div>
                                     <p className="text-sm font-medium text-slate-900">Profile Photo</p>
                                     <p className="text-xs text-slate-500">Current avatar</p>

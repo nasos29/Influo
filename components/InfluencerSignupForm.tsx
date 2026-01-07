@@ -468,7 +468,7 @@ export default function InfluencerSignupForm() {
           bio, 
           accounts, 
           videos: videos.filter(v => v !== ""),
-          avatar_url: avatarUrl,
+          avatar_url: avatarUrl || null,
           insights_urls: insightUrls,
           engagement_rate: engagementRate,
           avg_likes: avgLikes,

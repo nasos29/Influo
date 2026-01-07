@@ -58,6 +58,8 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
     const [topAge, setTopAge] = useState(user.audience_top_age || "");
     const [videos, setVideos] = useState<string[]>(Array.isArray(user.videos) ? user.videos : [""]);
     const [loading, setLoading] = useState(false);
+    const [avatarFile, setAvatarFile] = useState<File | null>(null);
+    const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatar_url || null);
     
     // Rate card prices - removed since rate_card column doesn't exist in database
     const [priceStory, setPriceStory] = useState('');
@@ -109,26 +111,48 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
         setLoading(true);
 
         try {
+            let avatarUrl = user.avatar_url || null;
+
+            // Upload avatar if new file selected
+            if (avatarFile) {
+                const fileName = `avatar-${Date.now()}-${avatarFile.name}`;
+                const { error: uploadError } = await supabase.storage.from("avatars").upload(fileName, avatarFile);
+                
+                if (uploadError) {
+                    throw uploadError;
+                }
+                
+                const { data } = supabase.storage.from("avatars").getPublicUrl(fileName);
+                avatarUrl = data.publicUrl;
+            }
+
+            const updateData: any = {
+                display_name: name,
+                bio: bio,
+                min_rate: minRate,
+                location: location,
+                engagement_rate: engage,
+                avg_likes: likes,
+                category: category,
+                languages: languages,
+                gender: gender,
+                accounts: accounts.filter(acc => acc.username && acc.platform),
+                videos: videos.filter(v => v !== ""),
+                audience_male_percent: malePercent ? parseInt(malePercent) : null,
+                audience_female_percent: femalePercent ? parseInt(femalePercent) : null,
+                audience_top_age: topAge || null,
+                approved: false, // Reset approval status
+                analytics_verified: false, // Reset analytics verification
+            };
+
+            // Only update avatar_url if we have a new URL
+            if (avatarUrl) {
+                updateData.avatar_url = avatarUrl;
+            }
+
             const { data, error } = await supabase
                 .from('influencers')
-                .update({ 
-                    display_name: name,
-                    bio: bio,
-                    min_rate: minRate,
-                    location: location,
-                    engagement_rate: engage,
-                    avg_likes: likes,
-                    category: category,
-                    languages: languages,
-                    gender: gender,
-                    accounts: accounts.filter(acc => acc.username && acc.platform),
-                    videos: videos.filter(v => v !== ""),
-                    audience_male_percent: malePercent ? parseInt(malePercent) : null,
-                    audience_female_percent: femalePercent ? parseInt(femalePercent) : null,
-                    audience_top_age: topAge || null,
-                    approved: false, // Reset approval status
-                    analytics_verified: false, // Reset analytics verification
-                })
+                .update(updateData)
                 .eq('id', user.id)
                 .select()
                 .single();
@@ -178,6 +202,38 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                     {/* Basic Info */}
                     <div>
                         <h3 className="text-sm font-semibold text-slate-700 mb-3 uppercase">Βασικές Πληροφορίες</h3>
+                        
+                        {/* Avatar Upload */}
+                        <div className="mb-4">
+                            <label className="block text-sm font-semibold text-slate-900 mb-2">Φωτογραφία Προφίλ</label>
+                            <div className="flex items-center gap-4">
+                                <div className="relative w-20 h-20 rounded-full border-2 border-slate-300 overflow-hidden bg-slate-100">
+                                    {avatarPreview ? (
+                                        <img src={avatarPreview} alt="Avatar preview" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                                            <span className="text-gray-500 text-xs font-medium">NO PHOTO</span>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex-1">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                                setAvatarFile(file);
+                                                setAvatarPreview(URL.createObjectURL(file));
+                                            }
+                                        }}
+                                        className="w-full text-sm text-slate-900"
+                                    />
+                                    <p className="text-xs text-slate-500 mt-1">PNG, JPG, GIF up to 5MB</p>
+                                </div>
+                            </div>
+                        </div>
+
                         <div className="grid md:grid-cols-2 gap-3">
                             <div>
                                 <label className="block text-sm font-semibold text-slate-900 mb-1">Ονοματεπώνυμο *</label>
