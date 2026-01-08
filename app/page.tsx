@@ -433,13 +433,13 @@ export default function Home() {
                     href={websiteUrl || '#'}
                     target="_blank"
                     rel="nofollow noopener noreferrer"
-                    className="flex-shrink-0 flex items-center justify-center h-20 md:h-28 lg:h-36 min-w-[120px] md:min-w-[160px] lg:min-w-[200px] opacity-70 hover:opacity-100 transition-all"
+                    className="flex-shrink-0 flex items-center justify-center h-20 md:h-28 lg:h-36 min-w-[120px] md:min-w-[160px] lg:min-w-[200px] opacity-90 hover:opacity-100 transition-all"
                   >
                     {brand.logo_url ? (
                       <img 
                         src={brand.logo_url}
                         alt={brand.brand_name}
-                        className="h-16 md:h-20 lg:h-28 w-auto max-w-full object-contain filter grayscale hover:grayscale-0 transition-all bg-white p-3 md:p-4 lg:p-5 rounded-lg shadow-md"
+                        className="h-16 md:h-20 lg:h-28 w-auto max-w-full object-contain bg-white p-3 md:p-4 lg:p-5 rounded-lg shadow-md"
                         loading="lazy"
                         onLoad={() => {
                           console.log('[Homepage] Logo loaded successfully:', brand.brand_name, brand.logo_url);
