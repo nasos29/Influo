@@ -521,7 +521,7 @@ export default function Home() {
                 );
               })}
               
-              {/* Duplicate for seamless loop - Verified Brands + Dummy Data */}
+              {/* Duplicate for seamless loop - Verified Brands */}
               {verifiedBrands.map((brand) => {
                 const websiteUrl = brand.website 
                   ? (brand.website.startsWith('http') ? brand.website : `https://${brand.website}`)
