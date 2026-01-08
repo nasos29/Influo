@@ -97,28 +97,76 @@ export async function POST(req: Request) {
     // Send notification to admin
     if (process.env.RESEND_API_KEY) {
       try {
+        const host = req.headers.get('host') || 'influo.gr';
+        const ticketId = ticket?.id || 'N/A';
+        const attachmentsCount = attachments && Array.isArray(attachments) ? attachments.length : 0;
+        
         const adminNotificationHtml = `
-          <div style="font-family: Arial, sans-serif; padding: 20px;">
-            <h2 style="color: #333;">Νέο Support Ticket</h2>
-            <p><strong>Από:</strong> ${user_name || user_email} (${user_type})</p>
-            <p><strong>Email:</strong> ${user_email}</p>
-            <p><strong>Θέμα:</strong> ${subject}</p>
-            <p><strong>Μήνυμα:</strong></p>
-            <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 10px 0;">
-              ${message.replace(/\n/g, '<br>')}
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
+            <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 24px; border-radius: 12px 12px 0 0;">
+              <h1 style="color: #ffffff; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">🔔 Νέο Support Ticket</h1>
             </div>
-            <p><a href="https://${req.headers.get('host') || 'influo.gr'}/admin/support">Προβολή στο Help Desk</a></p>
+            <div style="background: #ffffff; padding: 24px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
+              <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 8px; margin-bottom: 20px;">
+                <p style="margin: 0; font-size: 12px; color: #78350f; font-weight: 600;">📋 ID Ticket: #${ticketId}</p>
+              </div>
+              
+              <div style="margin-bottom: 20px;">
+                <p style="margin: 0 0 8px 0; font-size: 13px; color: #6b7280; font-weight: 600;">👤 Από:</p>
+                <p style="margin: 0 0 16px 0; font-size: 14px; color: #1f2937; font-weight: 600;">${user_name || user_email} <span style="color: #6b7280; font-weight: normal;">(${user_type})</span></p>
+              </div>
+              
+              <div style="margin-bottom: 20px;">
+                <p style="margin: 0 0 8px 0; font-size: 13px; color: #6b7280; font-weight: 600;">📧 Email:</p>
+                <p style="margin: 0 0 16px 0; font-size: 14px; color: #1f2937;">
+                  <a href="mailto:${user_email}" style="color: #3b82f6; text-decoration: none;">${user_email}</a>
+                </p>
+              </div>
+              
+              <div style="margin-bottom: 20px;">
+                <p style="margin: 0 0 8px 0; font-size: 13px; color: #6b7280; font-weight: 600;">📌 Θέμα:</p>
+                <p style="margin: 0 0 16px 0; font-size: 16px; color: #1f2937; font-weight: 600;">${subject}</p>
+              </div>
+              
+              <div style="margin-bottom: 20px;">
+                <p style="margin: 0 0 8px 0; font-size: 13px; color: #6b7280; font-weight: 600;">💬 Μήνυμα:</p>
+                <div style="background: #f9fafb; border: 1px solid #e5e7eb; padding: 16px; border-radius: 8px; margin-top: 8px;">
+                  <p style="margin: 0; font-size: 14px; color: #1f2937; white-space: pre-wrap; line-height: 1.6;">${message.replace(/\n/g, '<br>')}</p>
+                </div>
+              </div>
+              
+              ${attachmentsCount > 0 ? `
+              <div style="margin-bottom: 20px;">
+                <p style="margin: 0 0 8px 0; font-size: 13px; color: #6b7280; font-weight: 600;">📎 Συνημμένα:</p>
+                <p style="margin: 0; font-size: 14px; color: #1f2937;">${attachmentsCount} αρχείο/α</p>
+              </div>
+              ` : ''}
+              
+              <div style="margin: 24px 0; text-align: center;">
+                <a href="https://${host}/admin/support" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">📊 Προβολή στο Help Desk</a>
+              </div>
+              
+              <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+                <p style="margin: 0; font-size: 12px; color: #9ca3af;">Η ομάδα του Influo<br>support@influo.gr</p>
+              </div>
+            </div>
           </div>
         `;
 
         await resend.emails.send({
           from: `Influo Support <${SUPPORT_SENDER_EMAIL}>`,
           to: [ADMIN_EMAIL],
+          replyTo: SUPPORT_SENDER_EMAIL,
           subject: `🔔 Νέο Support Ticket: ${subject}`,
           html: adminNotificationHtml,
         });
+
+        console.log('[Create Ticket] Admin notification email sent to:', ADMIN_EMAIL);
       } catch (emailError: any) {
         console.error('[Create Ticket] Admin notification error:', emailError);
+        // Log more details for debugging
+        console.error('[Create Ticket] Admin email:', ADMIN_EMAIL);
+        console.error('[Create Ticket] Resend API Key exists:', !!process.env.RESEND_API_KEY);
       }
     }
 
