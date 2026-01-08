@@ -96,7 +96,6 @@ export default function Home() {
           .from('brands')
           .select('id, brand_name, logo_url, website')
           .eq('verified', true)
-          .not('logo_url', 'is', null) // Only brands with logos
           .order('created_at', { ascending: false });
 
         if (error) {
@@ -105,6 +104,7 @@ export default function Home() {
         }
 
         if (data && data.length > 0) {
+          console.log('[Homepage] Fetched verified brands:', data);
           setVerifiedBrands(data as VerifiedBrand[]);
         }
       } catch (err) {
@@ -418,7 +418,7 @@ export default function Home() {
           
           {/* Slideshow Container */}
           <div className="relative overflow-hidden">
-            <div className="flex animate-scroll gap-2 md:gap-2.5 lg:gap-3 items-center">
+            <div className="flex animate-scroll gap-1 md:gap-1.5 lg:gap-2 items-center">
               {/* Verified Brands from Database */}
               {verifiedBrands.map((brand) => {
                 const websiteUrl = brand.website 
@@ -443,11 +443,12 @@ export default function Home() {
                           // Fallback to text if logo fails to load
                           const target = e.target as HTMLImageElement;
                           target.style.display = 'none';
-                          if (!target.nextElementSibling) {
+                          const parent = target.parentElement;
+                          if (parent && !parent.querySelector('.text-fallback')) {
                             const textFallback = document.createElement('div');
-                            textFallback.className = 'font-bold text-sm md:text-lg lg:text-2xl text-slate-700 px-4 md:px-6 lg:px-8 py-2 md:py-3 lg:py-4 whitespace-nowrap bg-white rounded-lg border-2 border-slate-300 shadow-md';
+                            textFallback.className = 'text-fallback font-bold text-sm md:text-lg lg:text-2xl text-slate-700 px-4 md:px-6 lg:px-8 py-2 md:py-3 lg:py-4 whitespace-nowrap bg-white rounded-lg border-2 border-slate-300 shadow-md';
                             textFallback.textContent = brand.brand_name.toUpperCase();
-                            target.parentElement?.appendChild(textFallback);
+                            parent.appendChild(textFallback);
                           }
                         }}
                       />
