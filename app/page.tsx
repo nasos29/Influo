@@ -528,6 +528,47 @@ export default function Home() {
                 );
               })}
               
+              {/* Duplicate verified brands for seamless loop */}
+              {verifiedBrands.map((brand) => {
+                const websiteUrl = brand.website 
+                  ? (brand.website.startsWith('http') ? brand.website : `https://${brand.website}`)
+                  : null;
+                
+                return (
+                  <a 
+                    key={`dup-verified-${brand.id}`}
+                    href={websiteUrl || '#'}
+                    target="_blank"
+                    rel="nofollow noopener noreferrer"
+                    className="flex-shrink-0 flex items-center justify-center h-20 md:h-28 lg:h-36 min-w-[120px] md:min-w-[160px] lg:min-w-[200px] opacity-90 hover:opacity-100 transition-all"
+                  >
+                    {brand.logo_url ? (
+                      <img 
+                        src={brand.logo_url}
+                        alt={brand.brand_name}
+                        className="h-16 md:h-20 lg:h-28 w-auto max-w-full object-contain bg-white p-3 md:p-4 lg:p-5 rounded-lg shadow-md"
+                        loading="lazy"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          const parent = target.parentElement;
+                          if (parent && !parent.querySelector('.text-fallback')) {
+                            const textFallback = document.createElement('div');
+                            textFallback.className = 'text-fallback font-bold text-sm md:text-lg lg:text-2xl text-slate-700 px-4 md:px-6 lg:px-8 py-2 md:py-3 lg:py-4 whitespace-nowrap bg-white rounded-lg border-2 border-slate-300 shadow-md';
+                            textFallback.textContent = brand.brand_name.toUpperCase();
+                            parent.appendChild(textFallback);
+                          }
+                        }}
+                      />
+                    ) : (
+                      <div className="font-bold text-sm md:text-lg lg:text-2xl text-slate-700 px-4 md:px-6 lg:px-8 py-2 md:py-3 lg:py-4 whitespace-nowrap bg-white rounded-lg border-2 border-slate-300 shadow-md">
+                        {brand.brand_name.toUpperCase()}
+                      </div>
+                    )}
+                  </a>
+                );
+              })}
+              
               {/* Duplicate dummy data for seamless loop */}
               {[
                 { name: 'Nike', domain: 'nike.com', url: 'https://www.nike.com' },
