@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Directory from "../components/Directory";
 import InfluencerSignupForm from "../components/InfluencerSignupForm";
 import Footer from "../components/Footer";
+import { supabase } from "@/lib/supabaseClient";
 
 type Lang = "el" | "en";
 
@@ -73,11 +74,46 @@ const t = {
   }
 };
 
+interface VerifiedBrand {
+  id: string;
+  brand_name: string;
+  logo_url: string | null;
+  website: string | null;
+}
+
 export default function Home() {
   const [showModal, setShowModal] = useState(false);
   const [lang, setLang] = useState<Lang>("el");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [verifiedBrands, setVerifiedBrands] = useState<VerifiedBrand[]>([]);
   const txt = t[lang];
+
+  // Fetch verified brands
+  useEffect(() => {
+    const fetchVerifiedBrands = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('brands')
+          .select('id, brand_name, logo_url, website')
+          .eq('verified', true)
+          .not('logo_url', 'is', null) // Only brands with logos
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Error fetching verified brands:', error);
+          return;
+        }
+
+        if (data && data.length > 0) {
+          setVerifiedBrands(data as VerifiedBrand[]);
+        }
+      } catch (err) {
+        console.error('Error in fetchVerifiedBrands:', err);
+      }
+    };
+
+    fetchVerifiedBrands();
+  }, []);
 
   return (
     <>
@@ -383,8 +419,49 @@ export default function Home() {
           {/* Slideshow Container */}
           <div className="relative overflow-hidden">
             <div className="flex animate-scroll gap-3 md:gap-4 lg:gap-5 items-center">
-              {/* Greek Company Logos - Tech & Fashion Brands - Mixed Order */}
-              {[
+              {/* Verified Brands from Database */}
+              {verifiedBrands.map((brand) => {
+                const websiteUrl = brand.website 
+                  ? (brand.website.startsWith('http') ? brand.website : `https://${brand.website}`)
+                  : null;
+                
+                return (
+                  <a 
+                    key={brand.id}
+                    href={websiteUrl || '#'}
+                    target="_blank"
+                    rel="nofollow noopener noreferrer"
+                    className="flex-shrink-0 flex items-center justify-center h-20 md:h-28 lg:h-36 w-48 md:w-64 lg:w-96 opacity-70 hover:opacity-100 transition-all"
+                  >
+                    {brand.logo_url ? (
+                      <img 
+                        src={brand.logo_url}
+                        alt={brand.brand_name}
+                        className="h-16 md:h-20 lg:h-28 w-auto max-w-full object-contain filter grayscale hover:grayscale-0 transition-all bg-white p-3 md:p-4 lg:p-5 rounded-lg shadow-md"
+                        loading="lazy"
+                        onError={(e) => {
+                          // Fallback to text if logo fails to load
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          if (!target.nextElementSibling) {
+                            const textFallback = document.createElement('div');
+                            textFallback.className = 'font-bold text-sm md:text-lg lg:text-2xl text-slate-700 px-4 md:px-6 lg:px-8 py-2 md:py-3 lg:py-4 whitespace-nowrap bg-white rounded-lg border-2 border-slate-300 shadow-md';
+                            textFallback.textContent = brand.brand_name.toUpperCase();
+                            target.parentElement?.appendChild(textFallback);
+                          }
+                        }}
+                      />
+                    ) : (
+                      <div className="font-bold text-sm md:text-lg lg:text-2xl text-slate-700 px-4 md:px-6 lg:px-8 py-2 md:py-3 lg:py-4 whitespace-nowrap bg-white rounded-lg border-2 border-slate-300 shadow-md">
+                        {brand.brand_name.toUpperCase()}
+                      </div>
+                    )}
+                  </a>
+                );
+              })}
+              
+              {/* Fallback to dummy data if no verified brands */}
+              {verifiedBrands.length === 0 && [
                 { name: 'Nike', domain: 'nike.com', url: 'https://www.nike.com' },
                 { name: 'Apple', domain: 'apple.com', url: 'https://www.apple.com' },
                 { name: 'Skroutz', domain: 'skroutz.gr', url: 'https://www.skroutz.gr' },
@@ -443,8 +520,48 @@ export default function Home() {
                   </a>
                 );
               })}
-              {/* Duplicate for seamless loop - Mixed Order */}
-              {[
+              {/* Duplicate verified brands for seamless loop */}
+              {verifiedBrands.map((brand) => {
+                const websiteUrl = brand.website 
+                  ? (brand.website.startsWith('http') ? brand.website : `https://${brand.website}`)
+                  : null;
+                
+                return (
+                  <a 
+                    key={`duplicate-${brand.id}`}
+                    href={websiteUrl || '#'}
+                    target="_blank"
+                    rel="nofollow noopener noreferrer"
+                    className="flex-shrink-0 flex items-center justify-center h-20 md:h-28 lg:h-36 w-48 md:w-64 lg:w-96 opacity-70 hover:opacity-100 transition-all"
+                  >
+                    {brand.logo_url ? (
+                      <img 
+                        src={brand.logo_url}
+                        alt={brand.brand_name}
+                        className="h-16 md:h-20 lg:h-28 w-auto max-w-full object-contain filter grayscale hover:grayscale-0 transition-all bg-white p-3 md:p-4 lg:p-5 rounded-lg shadow-md"
+                        loading="lazy"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          if (!target.nextElementSibling) {
+                            const textFallback = document.createElement('div');
+                            textFallback.className = 'font-bold text-sm md:text-lg lg:text-2xl text-slate-700 px-4 md:px-6 lg:px-8 py-2 md:py-3 lg:py-4 whitespace-nowrap bg-white rounded-lg border-2 border-slate-300 shadow-md';
+                            textFallback.textContent = brand.brand_name.toUpperCase();
+                            target.parentElement?.appendChild(textFallback);
+                          }
+                        }}
+                      />
+                    ) : (
+                      <div className="font-bold text-sm md:text-lg lg:text-2xl text-slate-700 px-4 md:px-6 lg:px-8 py-2 md:py-3 lg:py-4 whitespace-nowrap bg-white rounded-lg border-2 border-slate-300 shadow-md">
+                        {brand.brand_name.toUpperCase()}
+                      </div>
+                    )}
+                  </a>
+                );
+              })}
+              
+              {/* Duplicate dummy data if no verified brands */}
+              {verifiedBrands.length === 0 && [
                 { name: 'Nike', domain: 'nike.com', url: 'https://www.nike.com' },
                 { name: 'Apple', domain: 'apple.com', url: 'https://www.apple.com' },
                 { name: 'Skroutz', domain: 'skroutz.gr', url: 'https://www.skroutz.gr' },
