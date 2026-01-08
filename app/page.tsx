@@ -425,13 +425,15 @@ export default function Home() {
                   ? (brand.website.startsWith('http') ? brand.website : `https://${brand.website}`)
                   : null;
                 
+                console.log('[Homepage] Rendering brand:', brand.brand_name, 'logo_url:', brand.logo_url);
+                
                 return (
                   <a 
                     key={brand.id}
                     href={websiteUrl || '#'}
                     target="_blank"
                     rel="nofollow noopener noreferrer"
-                    className="flex-shrink-0 flex items-center justify-center h-20 md:h-28 lg:h-36 w-48 md:w-64 lg:w-96 opacity-70 hover:opacity-100 transition-all"
+                    className="flex-shrink-0 flex items-center justify-center h-20 md:h-28 lg:h-36 min-w-[120px] md:min-w-[160px] lg:min-w-[200px] opacity-70 hover:opacity-100 transition-all"
                   >
                     {brand.logo_url ? (
                       <img 
@@ -439,7 +441,11 @@ export default function Home() {
                         alt={brand.brand_name}
                         className="h-16 md:h-20 lg:h-28 w-auto max-w-full object-contain filter grayscale hover:grayscale-0 transition-all bg-white p-3 md:p-4 lg:p-5 rounded-lg shadow-md"
                         loading="lazy"
+                        onLoad={() => {
+                          console.log('[Homepage] Logo loaded successfully:', brand.brand_name, brand.logo_url);
+                        }}
                         onError={(e) => {
+                          console.error('[Homepage] Logo failed to load:', brand.brand_name, brand.logo_url, e);
                           // Fallback to text if logo fails to load
                           const target = e.target as HTMLImageElement;
                           target.style.display = 'none';
