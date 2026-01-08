@@ -251,6 +251,244 @@ const t = {
   }
 };
 
+// Edit Brand Modal Component
+const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClose: () => void, onSave: (updatedBrand: Partial<Brand>) => Promise<void>, lang: "el" | "en" }) => {
+  const [brandName, setBrandName] = useState(brand.brand_name || '');
+  const [contactPerson, setContactPerson] = useState(brand.contact_person || '');
+  const [website, setWebsite] = useState(brand.website || '');
+  const [industry, setIndustry] = useState(brand.industry || '');
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(brand.logo_url || null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setLogoFile(file);
+      setLogoPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setLogoFile(null);
+    setLogoPreview(null);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    
+    let logoUrl = brand.logo_url || null;
+    
+    // Upload new logo if selected
+    if (logoFile) {
+      setUploadingLogo(true);
+      try {
+        const fileExt = logoFile.name.split('.').pop();
+        const fileName = `brand-${brand.id}-${Date.now()}.${fileExt}`;
+        const filePath = fileName;
+
+        // Delete old logo if exists
+        if (brand.logo_url) {
+          try {
+            const urlParts = brand.logo_url.split('/');
+            const oldFileName = urlParts[urlParts.length - 1];
+            if (oldFileName.startsWith('brand-')) {
+              await supabase.storage.from('avatars').remove([oldFileName]);
+            }
+          } catch (deleteErr) {
+            console.warn('Could not delete old logo:', deleteErr);
+          }
+        }
+
+        // Upload new logo to avatars bucket
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(filePath, logoFile, { 
+            cacheControl: '3600',
+            upsert: false 
+          });
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(filePath);
+
+        logoUrl = publicUrl;
+      } catch (err: any) {
+        console.error('Error uploading logo:', err);
+        alert(lang === 'el' ? `Σφάλμα κατά το ανέβασμα λογοτύπου: ${err.message}` : `Error uploading logo: ${err.message}`);
+        setUploadingLogo(false);
+        setSaving(false);
+        return;
+      } finally {
+        setUploadingLogo(false);
+      }
+    } else if (!logoPreview && brand.logo_url) {
+      // Remove logo if preview was cleared
+      try {
+        const urlParts = brand.logo_url.split('/');
+        const oldFileName = urlParts[urlParts.length - 1];
+        if (oldFileName.startsWith('brand-')) {
+          await supabase.storage.from('avatars').remove([oldFileName]);
+        }
+        logoUrl = null;
+      } catch (err) {
+        console.error('Error removing logo:', err);
+      }
+    }
+
+    await onSave({
+      brand_name: brandName.trim(),
+      contact_person: contactPerson.trim() || null,
+      website: website.trim() || null,
+      industry: industry.trim() || null,
+      logo_url: logoUrl,
+    });
+    
+    setSaving(false);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white rounded-t-2xl">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold">{lang === 'el' ? 'Επεξεργασία Επιχείρησης' : 'Edit Company'}</h2>
+            <button
+              onClick={onClose}
+              className="text-white hover:text-gray-200 text-2xl font-bold"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Brand Name */}
+          <div>
+            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
+              {lang === 'el' ? 'Όνομα Επιχείρησης' : 'Company Name'} *
+            </label>
+            <input
+              type="text"
+              value={brandName}
+              onChange={(e) => setBrandName(e.target.value)}
+              required
+              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+            />
+          </div>
+
+          {/* Contact Person */}
+          <div>
+            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
+              {lang === 'el' ? 'Υπεύθυνος Επικοινωνίας' : 'Contact Person'}
+            </label>
+            <input
+              type="text"
+              value={contactPerson}
+              onChange={(e) => setContactPerson(e.target.value)}
+              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+            />
+          </div>
+
+          {/* Email (Read-only) */}
+          <div>
+            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
+              {lang === 'el' ? 'Email' : 'Email'}
+            </label>
+            <input
+              type="email"
+              value={brand.contact_email || ''}
+              disabled
+              className="w-full px-4 py-3 bg-slate-100 text-slate-600 border-2 border-slate-200 rounded-xl cursor-not-allowed"
+            />
+          </div>
+
+          {/* Industry/Category */}
+          <div>
+            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
+              {lang === 'el' ? 'Κλάδος' : 'Industry'}
+            </label>
+            <input
+              type="text"
+              value={industry}
+              onChange={(e) => setIndustry(e.target.value)}
+              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+            />
+          </div>
+
+          {/* Website */}
+          <div>
+            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
+              {lang === 'el' ? 'Ιστοσελίδα' : 'Website'}
+            </label>
+            <input
+              type="url"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              placeholder="https://example.com"
+              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+            />
+          </div>
+
+          {/* Logo */}
+          <div>
+            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
+              {lang === 'el' ? 'Λογότυπο' : 'Logo'}
+            </label>
+            {logoPreview && (
+              <div className="mb-4 relative inline-block">
+                <img
+                  src={logoPreview}
+                  alt="Logo preview"
+                  className="w-32 h-32 object-contain border-2 border-slate-200 rounded-lg"
+                />
+                <button
+                  type="button"
+                  onClick={handleRemoveLogo}
+                  className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600"
+                >
+                  ×
+                </button>
+              </div>
+            )}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleLogoChange}
+              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+            />
+          </div>
+
+          {/* Buttons */}
+          <div className="flex gap-4 pt-4 border-t border-slate-200">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-6 py-3 bg-slate-100 text-slate-700 font-medium rounded-xl hover:bg-slate-200 transition-colors"
+            >
+              {lang === 'el' ? 'Ακύρωση' : 'Cancel'}
+            </button>
+            <button
+              type="submit"
+              disabled={saving || uploadingLogo}
+              className="flex-1 px-6 py-3 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving || uploadingLogo 
+                ? (lang === 'el' ? 'Αποθήκευση...' : 'Saving...')
+                : (lang === 'el' ? 'Αποθήκευση' : 'Save')
+              }
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClose: () => void, onSave: (updatedUser: DbInfluencer) => void }) => {
     const [name, setName] = useState(user.display_name);
     const [bio, setBio] = useState(user.bio || "");
@@ -679,6 +917,8 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   
   const [selectedUser, setSelectedUser] = useState<DbInfluencer | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
+  const [showBrandEditModal, setShowBrandEditModal] = useState(false);
 
   const [stats, setStats] = useState<{
     total: number;
@@ -1019,13 +1259,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     
     // Refresh every minute - but NOT when edit modal is open
     const interval = setInterval(() => {
-      if (!showEditModal && !showBlogEditModal) {
+      if (!showEditModal && !showBlogEditModal && !showBrandEditModal) {
         loadUnreadMessages();
       }
     }, 60000); // 1 minute instead of 30 seconds
     
     return () => clearInterval(interval);
-  }, [showEditModal, showBlogEditModal]);
+  }, [showEditModal, showBlogEditModal, showBrandEditModal]);
 
   useEffect(() => {
     fetchData();
@@ -1037,14 +1277,14 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     // Increased interval to 2 minutes to avoid interrupting edits
     const interval = setInterval(() => {
       // Don't auto-refresh if edit modal or blog edit modal is open
-      if (!showEditModal && !showBlogEditModal) {
+      if (!showEditModal && !showBlogEditModal && !showBrandEditModal) {
         fetchData();
         fetchConversations();
       }
     }, 120000); // 2 minutes instead of 30 seconds
     
     return () => clearInterval(interval);
-  }, [showEditModal, showBlogEditModal]);
+  }, [showEditModal, showBlogEditModal, showBrandEditModal]);
 
   useEffect(() => {
     if (selectedConversation) {
@@ -1155,6 +1395,49 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       );
     } catch (error: any) {
       console.error('Error toggling brand verification:', error);
+      alert(lang === 'el' 
+        ? `Σφάλμα: ${error.message}`
+        : `Error: ${error.message}`
+      );
+    } finally {
+      setUpdatingBrand(null);
+    }
+  };
+
+  const handleUpdateBrand = async (updatedBrand: Partial<Brand>) => {
+    if (!selectedBrand) return;
+    
+    setUpdatingBrand(selectedBrand.id);
+    try {
+      const response = await fetch('/api/admin/brands/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brandId: selectedBrand.id,
+          ...updatedBrand
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update brand');
+      }
+
+      // Update local state
+      setBrands(prev => prev.map(b => 
+        b.id === selectedBrand.id ? { ...b, ...updatedBrand } : b
+      ));
+
+      alert(lang === 'el' 
+        ? 'Η επιχείρηση ενημερώθηκε επιτυχώς.'
+        : 'Brand updated successfully.'
+      );
+      
+      setShowBrandEditModal(false);
+      setSelectedBrand(null);
+    } catch (error: any) {
+      console.error('Error updating brand:', error);
       alert(lang === 'el' 
         ? `Σφάλμα: ${error.message}`
         : `Error: ${error.message}`
@@ -1775,6 +2058,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
                               <button
+                                onClick={() => { setSelectedBrand(b); setShowBrandEditModal(true); }}
+                                disabled={updatingBrand === b.id || deletingBrand === b.id}
+                                className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              >
+                                {lang === 'el' ? 'Επεξεργασία' : 'Edit'}
+                              </button>
+                              <button
                                 onClick={() => handleToggleBrandVerification(b.id, b.verified)}
                                 disabled={updatingBrand === b.id || deletingBrand === b.id}
                                 className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
@@ -2026,6 +2316,15 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
           )}
         </div>
       </div>
+
+      {showBrandEditModal && selectedBrand && (
+        <EditBrandModal
+          brand={selectedBrand}
+          onClose={() => { setShowBrandEditModal(false); setSelectedBrand(null); }}
+          onSave={handleUpdateBrand}
+          lang={lang}
+        />
+      )}
 
       {showEditModal && selectedUser && (
         <EditProfileModal

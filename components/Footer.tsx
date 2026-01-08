@@ -102,7 +102,7 @@ export default function Footer({ lang = "el" }: FooterProps) {
                 : "The most modern Influencer Marketing platform in Greece. Connect your talent with top Brands."}
             </p>
             {/* Social Links */}
-            <div className="flex gap-4">
+            <div className="flex gap-4 mb-4">
               <a 
                 href="#" 
                 className="text-slate-400 hover:text-white transition-colors"
@@ -140,6 +140,18 @@ export default function Footer({ lang = "el" }: FooterProps) {
                 </svg>
               </a>
             </div>
+            {/* Support Email */}
+            {supportEmail && (
+              <a 
+                href={`mailto:${supportEmail}`}
+                className="text-slate-400 hover:text-white transition-colors text-sm flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                <span>{supportEmail}</span>
+              </a>
+            )}
           </div>
 
           {/* Company Column */}
@@ -227,22 +239,9 @@ export default function Footer({ lang = "el" }: FooterProps) {
         {/* Bottom Bar */}
         <div className="border-t border-slate-700 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6">
-              <p className="text-slate-400 text-sm">
-                © {new Date().getFullYear()} Influo Inc. {txt.rights}
-              </p>
-              {supportEmail && (
-                <a 
-                  href={`mailto:${supportEmail}`}
-                  className="text-slate-400 hover:text-white transition-colors text-sm flex items-center gap-1"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  <span>{supportEmail}</span>
-                </a>
-              )}
-            </div>
+            <p className="text-slate-400 text-sm">
+              © {new Date().getFullYear()} Influo Inc. {txt.rights}
+            </p>
             <div className="flex flex-wrap gap-6 text-sm">
               <Link href="/privacy" className="text-slate-400 hover:text-white transition-colors">
                 {txt.privacy}
