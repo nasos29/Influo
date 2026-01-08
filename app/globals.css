@@ -149,7 +149,7 @@ button, a, input, textarea, select {
 }
 
 .animate-scroll {
-  animation: scroll 40s linear infinite;
+  animation: scroll 50s linear infinite;
   display: flex;
   width: max-content;
   will-change: transform;
@@ -157,7 +157,7 @@ button, a, input, textarea, select {
 
 @media (min-width: 768px) {
   .animate-scroll {
-    animation: scroll 35s linear infinite;
+    animation: scroll 45s linear infinite;
   }
 }
 

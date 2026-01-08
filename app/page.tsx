@@ -510,7 +510,7 @@ export default function Home() {
                     <img 
                       src={brandfetchUrl}
                       alt={brand.name}
-                      className="h-16 md:h-20 lg:h-28 w-auto max-w-full object-contain filter grayscale hover:grayscale-0 transition-all bg-white p-3 md:p-4 lg:p-5 rounded-lg shadow-md"
+                      className="h-16 md:h-20 lg:h-28 w-auto max-w-full object-contain bg-white p-3 md:p-4 lg:p-5 rounded-lg shadow-md"
                       loading="lazy"
                       onError={(e) => {
                         // Fallback to large text if image fails to load
@@ -612,7 +612,7 @@ export default function Home() {
                     <img 
                       src={brandfetchUrl}
                       alt={brand.name}
-                      className="h-16 md:h-20 lg:h-28 w-auto max-w-full object-contain filter grayscale hover:grayscale-0 transition-all bg-white p-3 md:p-4 lg:p-5 rounded-lg shadow-md"
+                      className="h-16 md:h-20 lg:h-28 w-auto max-w-full object-contain bg-white p-3 md:p-4 lg:p-5 rounded-lg shadow-md"
                       loading="lazy"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
