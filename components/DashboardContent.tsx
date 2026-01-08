@@ -498,8 +498,8 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                                     />
                                                     {isVideo && (
                                                         <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
-                                                            <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center">
-                                                                <span className="text-2xl">▶</span>
+                                                            <div className="w-8 h-8 bg-white/90 rounded-full flex items-center justify-center">
+                                                                <span className="text-sm">▶</span>
                                                             </div>
                                                         </div>
                                                     )}

@@ -154,7 +154,7 @@ export default function VideoThumbnail({
             </>
           ) : (
             <>
-              <span className="text-4xl opacity-80 block mb-2">▶</span>
+              <span className="text-xl opacity-80 block mb-2">▶</span>
               <span className="text-white text-xs opacity-75">Video</span>
             </>
           )}

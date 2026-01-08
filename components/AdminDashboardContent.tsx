@@ -838,8 +838,8 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                                         <img src={thumbnail} alt="Video thumbnail" className="w-full h-full object-cover" />
                                                         {isVideo && (
                                                             <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                                                                <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center">
-                                                                    <span className="text-2xl text-slate-900">▶</span>
+                                                                <div className="w-8 h-8 bg-white/90 rounded-full flex items-center justify-center">
+                                                                    <span className="text-sm text-slate-900">▶</span>
                                                                 </div>
                                                             </div>
                                                         )}
