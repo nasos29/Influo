@@ -460,8 +460,8 @@ export default function Home() {
                 );
               })}
               
-              {/* Fallback to dummy data if no verified brands */}
-              {verifiedBrands.length === 0 && [
+              {/* Dummy Data Brands - Always show */}
+              {[
                 { name: 'Nike', domain: 'nike.com', url: 'https://www.nike.com' },
                 { name: 'Apple', domain: 'apple.com', url: 'https://www.apple.com' },
                 { name: 'Skroutz', domain: 'skroutz.gr', url: 'https://www.skroutz.gr' },
@@ -494,7 +494,7 @@ export default function Home() {
                 const brandfetchUrl = `https://cdn.brandfetch.io/${brand.domain}?c=1idGP6EnrL-eVdz6PLO`;
                 return (
                   <a 
-                    key={idx}
+                    key={`dummy-${idx}`}
                     href={brand.url}
                     target="_blank"
                     rel="nofollow noopener noreferrer"
@@ -520,7 +520,8 @@ export default function Home() {
                   </a>
                 );
               })}
-              {/* Duplicate verified brands for seamless loop */}
+              
+              {/* Duplicate for seamless loop - Verified Brands + Dummy Data */}
               {verifiedBrands.map((brand) => {
                 const websiteUrl = brand.website 
                   ? (brand.website.startsWith('http') ? brand.website : `https://${brand.website}`)
@@ -528,7 +529,7 @@ export default function Home() {
                 
                 return (
                   <a 
-                    key={`duplicate-${brand.id}`}
+                    key={`dup-verified-${brand.id}`}
                     href={websiteUrl || '#'}
                     target="_blank"
                     rel="nofollow noopener noreferrer"
@@ -560,8 +561,8 @@ export default function Home() {
                 );
               })}
               
-              {/* Duplicate dummy data if no verified brands */}
-              {verifiedBrands.length === 0 && [
+              {/* Duplicate dummy data for seamless loop */}
+              {[
                 { name: 'Nike', domain: 'nike.com', url: 'https://www.nike.com' },
                 { name: 'Apple', domain: 'apple.com', url: 'https://www.apple.com' },
                 { name: 'Skroutz', domain: 'skroutz.gr', url: 'https://www.skroutz.gr' },
