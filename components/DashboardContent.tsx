@@ -9,6 +9,40 @@ import { getVideoThumbnail, isVideoUrl } from '@/lib/videoThumbnail';
 import VideoThumbnail from './VideoThumbnail';
 import Messaging from './Messaging';
 
+// --- FULL CATEGORY LIST ---
+const CATEGORIES = [
+  "Γενικά", "Lifestyle", "Fashion & Style", "Beauty & Makeup", "Travel", "Food & Drink",
+  "Health & Fitness", "Tech & Gadgets", "Business & Finance", "Gaming & Esports",
+  "Parenting & Family", "Home & Decor", "Pets & Animals", "Comedy & Entertainment",
+  "Art & Photography", "Music & Dance", "Education & Coaching", "Sports & Athletes",
+  "DIY & Crafts", "Sustainability & Eco", "Cars & Automotive"
+];
+
+// Category translations
+const categoryTranslations: { [key: string]: { el: string; en: string } } = {
+  "Γενικά": { el: "Γενικά", en: "General" },
+  "Lifestyle": { el: "Lifestyle", en: "Lifestyle" },
+  "Fashion & Style": { el: "Μόδα & Στυλ", en: "Fashion & Style" },
+  "Beauty & Makeup": { el: "Ομορφιά & Μακιγιάζ", en: "Beauty & Makeup" },
+  "Travel": { el: "Ταξίδια", en: "Travel" },
+  "Food & Drink": { el: "Φαγητό & Ποτά", en: "Food & Drink" },
+  "Health & Fitness": { el: "Υγεία & Fitness", en: "Health & Fitness" },
+  "Tech & Gadgets": { el: "Τεχνολογία & Gadgets", en: "Tech & Gadgets" },
+  "Business & Finance": { el: "Επιχειρήσεις & Οικονομικά", en: "Business & Finance" },
+  "Gaming & Esports": { el: "Gaming & Esports", en: "Gaming & Esports" },
+  "Parenting & Family": { el: "Οικογένεια & Παιδιά", en: "Parenting & Family" },
+  "Home & Decor": { el: "Σπίτι & Διακόσμηση", en: "Home & Decor" },
+  "Pets & Animals": { el: "Κατοικίδια & Ζώα", en: "Pets & Animals" },
+  "Comedy & Entertainment": { el: "Κωμωδία & Ψυχαγωγία", en: "Comedy & Entertainment" },
+  "Art & Photography": { el: "Τέχνη & Φωτογραφία", en: "Art & Photography" },
+  "Music & Dance": { el: "Μουσική & Χορός", en: "Music & Dance" },
+  "Education & Coaching": { el: "Εκπαίδευση & Coaching", en: "Education & Coaching" },
+  "Sports & Athletes": { el: "Αθλήματα & Αθλητές", en: "Sports & Athletes" },
+  "DIY & Crafts": { el: "DIY & Χειροτεχνίες", en: "DIY & Crafts" },
+  "Sustainability & Eco": { el: "Βιωσιμότητα & Οικολογία", en: "Sustainability & Eco" },
+  "Cars & Automotive": { el: "Αυτοκίνητα", en: "Cars & Automotive" },
+};
+
 interface Account {
   platform: string;
   username: string;
@@ -45,7 +79,11 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
     const [location, setLocation] = useState(user.location || "");
     const [engage, setEngage] = useState(user.engagement_rate || "");
     const [likes, setLikes] = useState(user.avg_likes || "");
-    const [category, setCategory] = useState(user.category || "Lifestyle");
+    // Support multiple categories - parse comma-separated string or use single category
+    const initialCategories = user.category 
+        ? (user.category.includes(',') ? user.category.split(',').map(c => c.trim()) : [user.category])
+        : ["Lifestyle"];
+    const [categories, setCategories] = useState<string[]>(initialCategories);
     const [languages, setLanguages] = useState(user.languages || "");
     const [gender, setGender] = useState(user.gender || "Female");
     const [accounts, setAccounts] = useState<Account[]>(
@@ -126,6 +164,9 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                 avatarUrl = data.publicUrl;
             }
 
+            // Store categories as comma-separated string for backward compatibility
+            const categoryString = categories.length > 0 ? categories.join(',') : "Lifestyle";
+            
             const updateData: any = {
                 display_name: name,
                 bio: bio,
@@ -133,7 +174,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                 location: location,
                 engagement_rate: engage,
                 avg_likes: likes,
-                category: category,
+                category: categoryString,
                 languages: languages,
                 gender: gender,
                 accounts: accounts.filter(acc => acc.username && acc.platform),
@@ -244,17 +285,60 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                 <input type="text" value={location} onChange={e => setLocation(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" />
                             </div>
                             <div>
-                                <label className="block text-xs font-semibold text-slate-900 mb-1">Κατηγορία</label>
-                                <select value={category} onChange={e => setCategory(e.target.value)} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900">
-                                    <option>Lifestyle</option>
-                                    <option>Fashion</option>
-                                    <option>Beauty</option>
-                                    <option>Food</option>
-                                    <option>Travel</option>
-                                    <option>Fitness</option>
-                                    <option>Tech</option>
-                                    <option>Business</option>
-                                </select>
+                                <label className="block text-xs font-semibold text-slate-900 mb-1">Κατηγορίες *</label>
+                                <p className="text-xs text-slate-500 mb-2">Επιλέξτε μία ή περισσότερες κατηγορίες</p>
+                                <div className="border-2 border-slate-200 rounded-lg p-3 bg-slate-50 max-h-48 overflow-y-auto">
+                                    <div className="space-y-2">
+                                        {CATEGORIES.map(cat => {
+                                            const isSelected = categories.includes(cat);
+                                            const displayName = categoryTranslations[cat]?.el || cat;
+                                            
+                                            return (
+                                                <label 
+                                                    key={cat} 
+                                                    className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-all text-xs ${
+                                                        isSelected 
+                                                            ? 'bg-blue-100 border-2 border-blue-500' 
+                                                            : 'bg-white border-2 border-slate-200 hover:border-blue-300'
+                                                    }`}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isSelected}
+                                                        onChange={(e) => {
+                                                            if (cat === "Γενικά" || cat === "General") {
+                                                                if (e.target.checked) {
+                                                                    setCategories([cat]);
+                                                                } else {
+                                                                    setCategories(["Lifestyle"]);
+                                                                }
+                                                            } else {
+                                                                const newCats = e.target.checked
+                                                                    ? [...categories.filter(c => c !== "Γενικά" && c !== "General"), cat]
+                                                                    : categories.filter(c => c !== cat);
+                                                                
+                                                                if (newCats.length === 0) {
+                                                                    setCategories(["Lifestyle"]);
+                                                                } else {
+                                                                    setCategories(newCats);
+                                                                }
+                                                            }
+                                                        }}
+                                                        className="w-4 h-4 text-blue-600 border-2 border-slate-300 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                                                    />
+                                                    <span className={`font-medium ${isSelected ? 'text-blue-900' : 'text-slate-700'}`}>
+                                                        {displayName}
+                                                    </span>
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                                {categories.length > 0 && (
+                                    <p className="text-xs text-slate-600 mt-2">
+                                        Επιλέχθηκαν: {categories.map(c => categoryTranslations[c]?.el || c).join(', ')}
+                                    </p>
+                                )}
                             </div>
                             <div>
                                 <label className="block text-xs font-semibold text-slate-900 mb-1">Φύλο</label>

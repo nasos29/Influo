@@ -4,6 +4,40 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient"; 
 import Image from "next/image";
 
+// --- FULL CATEGORY LIST ---
+const CATEGORIES = [
+  "Γενικά", "Lifestyle", "Fashion & Style", "Beauty & Makeup", "Travel", "Food & Drink",
+  "Health & Fitness", "Tech & Gadgets", "Business & Finance", "Gaming & Esports",
+  "Parenting & Family", "Home & Decor", "Pets & Animals", "Comedy & Entertainment",
+  "Art & Photography", "Music & Dance", "Education & Coaching", "Sports & Athletes",
+  "DIY & Crafts", "Sustainability & Eco", "Cars & Automotive"
+];
+
+// Category translations
+const categoryTranslations: { [key: string]: { el: string; en: string } } = {
+  "Γενικά": { el: "Γενικά", en: "General" },
+  "Lifestyle": { el: "Lifestyle", en: "Lifestyle" },
+  "Fashion & Style": { el: "Μόδα & Στυλ", en: "Fashion & Style" },
+  "Beauty & Makeup": { el: "Ομορφιά & Μακιγιάζ", en: "Beauty & Makeup" },
+  "Travel": { el: "Ταξίδια", en: "Travel" },
+  "Food & Drink": { el: "Φαγητό & Ποτά", en: "Food & Drink" },
+  "Health & Fitness": { el: "Υγεία & Fitness", en: "Health & Fitness" },
+  "Tech & Gadgets": { el: "Τεχνολογία & Gadgets", en: "Tech & Gadgets" },
+  "Business & Finance": { el: "Επιχειρήσεις & Οικονομικά", en: "Business & Finance" },
+  "Gaming & Esports": { el: "Gaming & Esports", en: "Gaming & Esports" },
+  "Parenting & Family": { el: "Οικογένεια & Παιδιά", en: "Parenting & Family" },
+  "Home & Decor": { el: "Σπίτι & Διακόσμηση", en: "Home & Decor" },
+  "Pets & Animals": { el: "Κατοικίδια & Ζώα", en: "Pets & Animals" },
+  "Comedy & Entertainment": { el: "Κωμωδία & Ψυχαγωγία", en: "Comedy & Entertainment" },
+  "Art & Photography": { el: "Τέχνη & Φωτογραφία", en: "Art & Photography" },
+  "Music & Dance": { el: "Μουσική & Χορός", en: "Music & Dance" },
+  "Education & Coaching": { el: "Εκπαίδευση & Coaching", en: "Education & Coaching" },
+  "Sports & Athletes": { el: "Αθλήματα & Αθλητές", en: "Sports & Athletes" },
+  "DIY & Crafts": { el: "DIY & Χειροτεχνίες", en: "DIY & Crafts" },
+  "Sustainability & Eco": { el: "Βιωσιμότητα & Οικολογία", en: "Sustainability & Eco" },
+  "Cars & Automotive": { el: "Αυτοκίνητα", en: "Cars & Automotive" },
+};
+
 interface DbInfluencer {
   id: number;
   created_at: string;
@@ -225,7 +259,11 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
     const [avgLikes, setAvgLikes] = useState(user.avg_likes || "");
     const [engage, setEngage] = useState(user.engagement_rate || "");
     const [gender, setGender] = useState(user.gender || "Female");
-    const [category, setCategory] = useState(user.category || "Lifestyle");
+    // Support multiple categories - parse comma-separated string or use single category
+    const initialCategories = user.category 
+        ? (user.category.includes(',') ? user.category.split(',').map(c => c.trim()) : [user.category])
+        : ["Lifestyle"];
+    const [categories, setCategories] = useState<string[]>(initialCategories);
     const [languages, setLanguages] = useState(user.languages || "");
     const [accounts, setAccounts] = useState<{ platform: string; username: string; followers: string }[]>(user.accounts || [{ platform: "Instagram", username: "", followers: "" }]);
     const [videos, setVideos] = useState<string[]>(Array.isArray(user.videos) ? user.videos : []);
@@ -235,8 +273,6 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
     const [loading, setLoading] = useState(false);
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatar_url || null);
-
-    const CATEGORIES = ["Lifestyle", "Beauty", "Fashion", "Food", "Travel", "Gaming", "Tech", "Fitness", "Education", "Comedy", "Music", "Art", "Photography", "DIY", "Business", "Family", "Animals", "Sports", "Other"];
 
     const handleAccountChange = (i: number, field: keyof typeof accounts[0], value: string) => {
         const copy = [...accounts]; 
@@ -282,6 +318,9 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                 avatarUrl = data.publicUrl;
             }
 
+            // Store categories as comma-separated string for backward compatibility
+            const categoryString = categories.length > 0 ? categories.join(',') : "Lifestyle";
+            
             const updateData: any = {
                 display_name: name, 
                 bio: bio, 
@@ -290,7 +329,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                 avg_likes: avgLikes, 
                 engagement_rate: engage,
                 gender: gender,
-                category: category,
+                category: categoryString,
                 languages: languages,
                 accounts: accounts,
                 videos: videos.filter(v => v !== ""),
@@ -385,10 +424,60 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-semibold text-slate-900 mb-1">Category</label>
-                                    <select value={category} onChange={e => setCategory(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900">
-                                        {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                                    </select>
+                                    <label className="block text-sm font-semibold text-slate-900 mb-1">Categories *</label>
+                                    <p className="text-xs text-slate-500 mb-2">Select one or more categories</p>
+                                    <div className="border-2 border-slate-200 rounded-lg p-3 bg-slate-50 max-h-48 overflow-y-auto">
+                                        <div className="space-y-2">
+                                            {CATEGORIES.map(cat => {
+                                                const isSelected = categories.includes(cat);
+                                                const displayName = categoryTranslations[cat]?.en || cat;
+                                                
+                                                return (
+                                                    <label 
+                                                        key={cat} 
+                                                        className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-all text-xs ${
+                                                            isSelected 
+                                                                ? 'bg-blue-100 border-2 border-blue-500' 
+                                                                : 'bg-white border-2 border-slate-200 hover:border-blue-300'
+                                                        }`}
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isSelected}
+                                                            onChange={(e) => {
+                                                                if (cat === "Γενικά" || cat === "General") {
+                                                                    if (e.target.checked) {
+                                                                        setCategories([cat]);
+                                                                    } else {
+                                                                        setCategories(["Lifestyle"]);
+                                                                    }
+                                                                } else {
+                                                                    const newCats = e.target.checked
+                                                                        ? [...categories.filter(c => c !== "Γενικά" && c !== "General"), cat]
+                                                                        : categories.filter(c => c !== cat);
+                                                                    
+                                                                    if (newCats.length === 0) {
+                                                                        setCategories(["Lifestyle"]);
+                                                                    } else {
+                                                                        setCategories(newCats);
+                                                                    }
+                                                                }
+                                                            }}
+                                                            className="w-4 h-4 text-blue-600 border-2 border-slate-300 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                                                        />
+                                                        <span className={`font-medium ${isSelected ? 'text-blue-900' : 'text-slate-700'}`}>
+                                                            {displayName}
+                                                        </span>
+                                                    </label>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                    {categories.length > 0 && (
+                                        <p className="text-xs text-slate-600 mt-2">
+                                            Selected: {categories.map(c => categoryTranslations[c]?.en || c).join(', ')}
+                                        </p>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-900 mb-1">Languages</label>
@@ -928,13 +1017,15 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     
     loadUnreadMessages();
     
-    // Refresh every 30 seconds
+    // Refresh every minute - but NOT when edit modal is open
     const interval = setInterval(() => {
-      loadUnreadMessages();
-    }, 30000);
+      if (!showEditModal && !showBlogEditModal) {
+        loadUnreadMessages();
+      }
+    }, 60000); // 1 minute instead of 30 seconds
     
     return () => clearInterval(interval);
-  }, []);
+  }, [showEditModal, showBlogEditModal]);
 
   useEffect(() => {
     fetchData();
@@ -942,14 +1033,18 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     fetchBrands();
     fetchBlogPosts();
     
-    // Refresh counts periodically
+    // Refresh counts periodically - but NOT when edit modal is open
+    // Increased interval to 2 minutes to avoid interrupting edits
     const interval = setInterval(() => {
-      fetchData();
-      fetchConversations();
-    }, 30000);
+      // Don't auto-refresh if edit modal or blog edit modal is open
+      if (!showEditModal && !showBlogEditModal) {
+        fetchData();
+        fetchConversations();
+      }
+    }, 120000); // 2 minutes instead of 30 seconds
     
     return () => clearInterval(interval);
-  }, []);
+  }, [showEditModal, showBlogEditModal]);
 
   useEffect(() => {
     if (selectedConversation) {
