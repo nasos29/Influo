@@ -418,7 +418,7 @@ export default function Home() {
           
           {/* Slideshow Container */}
           <div className="relative overflow-hidden">
-            <div className="flex animate-scroll gap-3 md:gap-4 lg:gap-5 items-center">
+            <div className="flex animate-scroll gap-2 md:gap-2.5 lg:gap-3 items-center">
               {/* Verified Brands from Database */}
               {verifiedBrands.map((brand) => {
                 const websiteUrl = brand.website 
