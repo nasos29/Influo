@@ -405,20 +405,25 @@ export default function Home() {
         </section>
 
       {/* Brands Logos Slideshow */}
-      <section className="py-12 bg-gradient-to-br from-white to-slate-50 border-y border-slate-200">
+      <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-8">
-            <h3 className="text-2xl font-bold text-slate-900 mb-2">
+          <div className="text-center mb-12">
+            <h3 className="text-2xl md:text-3xl font-semibold text-slate-900 mb-2">
               {lang === "el" ? "Συνεργάζονται μαζί μας" : "Trusted by"}
             </h3>
-            <p className="text-slate-600 text-sm">
+            <p className="text-slate-500 text-sm md:text-base">
               {lang === "el" ? "Αξιόπιστα brands που συνεργάζονται με influencers μέσω της πλατφόρμας μας" : "Trusted brands collaborating with influencers through our platform"}
             </p>
           </div>
           
-          {/* Slideshow Container */}
+          {/* Slideshow Container with gradient fade */}
           <div className="relative overflow-hidden">
-            <div className="flex animate-scroll gap-1 md:gap-1.5 lg:gap-2 items-center">
+            {/* Left gradient fade */}
+            <div className="absolute left-0 top-0 bottom-0 w-32 md:w-48 lg:w-64 bg-gradient-to-r from-white via-white/80 to-transparent z-10 pointer-events-none"></div>
+            {/* Right gradient fade */}
+            <div className="absolute right-0 top-0 bottom-0 w-32 md:w-48 lg:w-64 bg-gradient-to-l from-white via-white/80 to-transparent z-10 pointer-events-none"></div>
+            
+            <div className="flex animate-scroll gap-8 md:gap-12 lg:gap-16 items-center">
               {/* Verified Brands from Database */}
               {verifiedBrands.map((brand) => {
                 const websiteUrl = brand.website 
@@ -433,13 +438,13 @@ export default function Home() {
                     href={websiteUrl || '#'}
                     target="_blank"
                     rel="nofollow noopener noreferrer"
-                    className="flex-shrink-0 flex items-center justify-center h-20 md:h-28 lg:h-36 min-w-[120px] md:min-w-[160px] lg:min-w-[200px] opacity-90 hover:opacity-100 transition-all"
+                    className="flex-shrink-0 flex items-center justify-center h-12 md:h-16 lg:h-20 opacity-60 hover:opacity-100 transition-opacity duration-300"
                   >
                     {brand.logo_url ? (
                       <img 
                         src={brand.logo_url}
                         alt={brand.brand_name}
-                        className="h-16 md:h-20 lg:h-28 w-auto max-w-full object-contain bg-white p-3 md:p-4 lg:p-5 rounded-lg shadow-md"
+                        className="h-full w-auto max-w-[180px] md:max-w-[220px] lg:max-w-[260px] object-contain filter grayscale hover:grayscale-0 transition-all duration-300"
                         loading="lazy"
                         onLoad={() => {
                           console.log('[Homepage] Logo loaded successfully:', brand.brand_name, brand.logo_url);
@@ -452,15 +457,15 @@ export default function Home() {
                           const parent = target.parentElement;
                           if (parent && !parent.querySelector('.text-fallback')) {
                             const textFallback = document.createElement('div');
-                            textFallback.className = 'text-fallback font-bold text-sm md:text-lg lg:text-2xl text-slate-700 px-4 md:px-6 lg:px-8 py-2 md:py-3 lg:py-4 whitespace-nowrap bg-white rounded-lg border-2 border-slate-300 shadow-md';
-                            textFallback.textContent = brand.brand_name.toUpperCase();
+                            textFallback.className = 'text-fallback font-semibold text-sm md:text-base lg:text-lg text-slate-400 whitespace-nowrap';
+                            textFallback.textContent = brand.brand_name;
                             parent.appendChild(textFallback);
                           }
                         }}
                       />
                     ) : (
-                      <div className="font-bold text-sm md:text-lg lg:text-2xl text-slate-700 px-4 md:px-6 lg:px-8 py-2 md:py-3 lg:py-4 whitespace-nowrap bg-white rounded-lg border-2 border-slate-300 shadow-md">
-                        {brand.brand_name.toUpperCase()}
+                      <div className="font-semibold text-sm md:text-base lg:text-lg text-slate-400 whitespace-nowrap">
+                        {brand.brand_name}
                       </div>
                     )}
                   </a>
@@ -505,21 +510,21 @@ export default function Home() {
                     href={brand.url}
                     target="_blank"
                     rel="nofollow noopener noreferrer"
-                    className="flex-shrink-0 flex items-center justify-center h-20 md:h-28 lg:h-36 w-48 md:w-64 lg:w-96 opacity-70 hover:opacity-100 transition-all"
+                    className="flex-shrink-0 flex items-center justify-center h-12 md:h-16 lg:h-20 opacity-60 hover:opacity-100 transition-opacity duration-300"
                   >
                     <img 
                       src={brandfetchUrl}
                       alt={brand.name}
-                      className="h-16 md:h-20 lg:h-28 w-auto max-w-full object-contain bg-white p-3 md:p-4 lg:p-5 rounded-lg shadow-md"
+                      className="h-full w-auto max-w-[180px] md:max-w-[220px] lg:max-w-[260px] object-contain filter grayscale hover:grayscale-0 transition-all duration-300"
                       loading="lazy"
                       onError={(e) => {
-                        // Fallback to large text if image fails to load
+                        // Fallback to text if image fails to load
                         const target = e.target as HTMLImageElement;
                         target.style.display = 'none';
                         if (!target.nextElementSibling) {
                           const textFallback = document.createElement('div');
-                          textFallback.className = 'font-bold text-sm md:text-lg lg:text-2xl text-slate-700 px-4 md:px-6 lg:px-8 py-2 md:py-3 lg:py-4 whitespace-nowrap bg-white rounded-lg border-2 border-slate-300 shadow-md';
-                          textFallback.textContent = brand.name.toUpperCase();
+                          textFallback.className = 'font-semibold text-sm md:text-base lg:text-lg text-slate-400 whitespace-nowrap';
+                          textFallback.textContent = brand.name;
                           target.parentElement?.appendChild(textFallback);
                         }
                       }}
@@ -540,13 +545,13 @@ export default function Home() {
                     href={websiteUrl || '#'}
                     target="_blank"
                     rel="nofollow noopener noreferrer"
-                    className="flex-shrink-0 flex items-center justify-center h-20 md:h-28 lg:h-36 min-w-[120px] md:min-w-[160px] lg:min-w-[200px] opacity-90 hover:opacity-100 transition-all"
+                    className="flex-shrink-0 flex items-center justify-center h-12 md:h-16 lg:h-20 opacity-60 hover:opacity-100 transition-opacity duration-300"
                   >
                     {brand.logo_url ? (
                       <img 
                         src={brand.logo_url}
                         alt={brand.brand_name}
-                        className="h-16 md:h-20 lg:h-28 w-auto max-w-full object-contain bg-white p-3 md:p-4 lg:p-5 rounded-lg shadow-md"
+                        className="h-full w-auto max-w-[180px] md:max-w-[220px] lg:max-w-[260px] object-contain filter grayscale hover:grayscale-0 transition-all duration-300"
                         loading="lazy"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
@@ -554,15 +559,15 @@ export default function Home() {
                           const parent = target.parentElement;
                           if (parent && !parent.querySelector('.text-fallback')) {
                             const textFallback = document.createElement('div');
-                            textFallback.className = 'text-fallback font-bold text-sm md:text-lg lg:text-2xl text-slate-700 px-4 md:px-6 lg:px-8 py-2 md:py-3 lg:py-4 whitespace-nowrap bg-white rounded-lg border-2 border-slate-300 shadow-md';
-                            textFallback.textContent = brand.brand_name.toUpperCase();
+                            textFallback.className = 'text-fallback font-semibold text-sm md:text-base lg:text-lg text-slate-400 whitespace-nowrap';
+                            textFallback.textContent = brand.brand_name;
                             parent.appendChild(textFallback);
                           }
                         }}
                       />
                     ) : (
-                      <div className="font-bold text-sm md:text-lg lg:text-2xl text-slate-700 px-4 md:px-6 lg:px-8 py-2 md:py-3 lg:py-4 whitespace-nowrap bg-white rounded-lg border-2 border-slate-300 shadow-md">
-                        {brand.brand_name.toUpperCase()}
+                      <div className="font-semibold text-sm md:text-base lg:text-lg text-slate-400 whitespace-nowrap">
+                        {brand.brand_name}
                       </div>
                     )}
                   </a>
@@ -607,20 +612,20 @@ export default function Home() {
                     href={brand.url}
                     target="_blank"
                     rel="nofollow noopener noreferrer"
-                    className="flex-shrink-0 flex items-center justify-center h-20 md:h-28 lg:h-36 w-48 md:w-64 lg:w-96 opacity-70 hover:opacity-100 transition-all"
+                    className="flex-shrink-0 flex items-center justify-center h-12 md:h-16 lg:h-20 opacity-60 hover:opacity-100 transition-opacity duration-300"
                   >
                     <img 
                       src={brandfetchUrl}
                       alt={brand.name}
-                      className="h-16 md:h-20 lg:h-28 w-auto max-w-full object-contain bg-white p-3 md:p-4 lg:p-5 rounded-lg shadow-md"
+                      className="h-full w-auto max-w-[180px] md:max-w-[220px] lg:max-w-[260px] object-contain filter grayscale hover:grayscale-0 transition-all duration-300"
                       loading="lazy"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
                         target.style.display = 'none';
                         if (!target.nextElementSibling) {
                           const textFallback = document.createElement('div');
-                          textFallback.className = 'font-bold text-sm md:text-lg lg:text-2xl text-slate-700 px-4 md:px-6 lg:px-8 py-2 md:py-3 lg:py-4 whitespace-nowrap bg-white rounded-lg border-2 border-slate-300 shadow-md';
-                          textFallback.textContent = brand.name.toUpperCase();
+                          textFallback.className = 'font-semibold text-sm md:text-base lg:text-lg text-slate-400 whitespace-nowrap';
+                          textFallback.textContent = brand.name;
                           target.parentElement?.appendChild(textFallback);
                         }
                       }}
