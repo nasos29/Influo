@@ -599,6 +599,16 @@ export default function BrandDashboardContent() {
   const loadRecommendations = async (brand: any) => {
     setRecommendationsLoading(true);
     try {
+      // First, let's check all influencers to see their verified status
+      const { data: allInfluencers, error: allError } = await supabase
+        .from('influencers')
+        .select('id, display_name, verified')
+        .limit(50);
+      
+      console.log('[Brand Dashboard] All influencers (first 50):', allInfluencers);
+      console.log('[Brand Dashboard] Verified count:', allInfluencers?.filter(inf => inf.verified === true).length);
+      console.log('[Brand Dashboard] Unverified count:', allInfluencers?.filter(inf => inf.verified === false || inf.verified === null).length);
+      
       // Fetch only verified influencers from database
       const { data: influencersData, error } = await supabase
         .from('influencers')
@@ -610,7 +620,8 @@ export default function BrandDashboardContent() {
       if (error) throw error;
       
       // Debug: Log fetched influencers
-      console.log('[Brand Dashboard] Fetched influencers from DB:', influencersData?.length || 0);
+      console.log('[Brand Dashboard] Fetched verified influencers from DB:', influencersData?.length || 0);
+      console.log('[Brand Dashboard] All fetched influencers:', influencersData?.map(inf => ({ name: inf.display_name, verified: inf.verified, id: inf.id })));
       console.log('[Brand Dashboard] Sample influencer:', influencersData?.[0]);
       
       // Helper function to parse follower string
