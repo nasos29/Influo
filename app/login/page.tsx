@@ -187,52 +187,16 @@ export default function LoginPage() {
             }
         }
 
-        // Email exists, generate reset link with Supabase Admin API (without sending email)
+        // Email exists, send reset password email using Supabase
+        // The email template is configured in Supabase Dashboard with custom Greek content
         const resetLink = `${window.location.origin}/reset-password`;
         
-        try {
-            // Generate reset link using Admin API (doesn't send email)
-            const resetResponse = await fetch('/api/auth/reset-password', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    email: email,
-                    redirectTo: resetLink
-                })
-            });
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: resetLink,
+        });
 
-            const resetResult = await resetResponse.json();
-            
-            if (!resetResult.success || !resetResult.resetLink) {
-                setMessage(txt.reset_error + ' ' + (resetResult.error || 'Failed to generate reset link'));
-                setMessageType('error');
-                setResetLoading(false);
-                return;
-            }
-
-            // Send custom email with Resend using the generated reset link
-            const emailResponse = await fetch('/api/emails', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    type: 'password_reset',
-                    email: email,
-                    resetLink: resetResult.resetLink, // Use the generated link with tokens
-                    lang: lang
-                })
-            });
-
-            const emailResult = await emailResponse.json();
-            if (!emailResult.success) {
-                console.error('Failed to send custom email:', emailResult.error);
-                setMessage(txt.reset_error + ' ' + (emailResult.error || 'Failed to send email'));
-                setMessageType('error');
-                setResetLoading(false);
-                return;
-            }
-        } catch (err: any) {
-            console.error('Error in password reset process:', err);
-            setMessage(txt.reset_error + ' ' + (err.message || 'An unexpected error occurred'));
+        if (resetError) {
+            setMessage(txt.reset_error + ' ' + resetError.message);
             setMessageType('error');
             setResetLoading(false);
             return;
