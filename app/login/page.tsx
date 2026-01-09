@@ -48,6 +48,7 @@ export default function LoginPage() {
     const [lang, setLang] = useState<'el' | 'en'>('el');
     const [showForgotPassword, setShowForgotPassword] = useState(false);
     const [resetLoading, setResetLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
     const router = useRouter();
     const txt = t[lang];
 
@@ -155,12 +156,26 @@ export default function LoginPage() {
                 .eq('contact_email', email)
                 .maybeSingle();
 
-            // Check if email exists in brands table
-            const { data: brand, error: brandError } = await supabase
+            // Check if email exists in brands table (case-insensitive)
+            // First check contact_email
+            const { data: brandByContact, error: brandContactError } = await supabase
                 .from('brands')
                 .select('contact_email')
-                .eq('contact_email', email)
+                .ilike('contact_email', email)
                 .maybeSingle();
+            
+            // If not found, check email column
+            let brand = brandByContact;
+            let brandError = brandContactError;
+            if (!brand && !brandContactError) {
+                const { data: brandByEmail, error: brandEmailError } = await supabase
+                    .from('brands')
+                    .select('email')
+                    .ilike('email', email)
+                    .maybeSingle();
+                brand = brandByEmail;
+                brandError = brandEmailError;
+            }
 
             if ((influencerError || !influencer) && (brandError || !brand)) {
                 setMessage(lang === 'el' 
@@ -172,19 +187,47 @@ export default function LoginPage() {
             }
         }
 
-        // Email exists, send reset password email
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${window.location.origin}/reset-password`,
+        // Email exists, generate reset link with Supabase and send custom email
+        const resetLink = `${window.location.origin}/reset-password`;
+        
+        // First, generate the reset token with Supabase
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: resetLink,
         });
 
-        if (error) {
-            setMessage(txt.reset_error + ' ' + error.message);
+        if (resetError) {
+            setMessage(txt.reset_error + ' ' + resetError.message);
             setMessageType('error');
-        } else {
-            setMessage(txt.reset_email_sent);
-            setMessageType('success');
-            setShowForgotPassword(false);
+            setResetLoading(false);
+            return;
         }
+
+        // Then send custom email with Resend
+        try {
+            const emailResponse = await fetch('/api/emails', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'password_reset',
+                    email: email,
+                    resetLink: resetLink,
+                    lang: lang
+                })
+            });
+
+            const emailResult = await emailResponse.json();
+            if (!emailResult.success) {
+                console.error('Failed to send custom email:', emailResult.error);
+                // Still show success since Supabase email was sent
+            }
+        } catch (emailErr) {
+            console.error('Error sending custom email:', emailErr);
+            // Continue - Supabase email was sent
+        }
+
+        setMessage(txt.reset_email_sent);
+        setMessageType('success');
+        setShowForgotPassword(false);
 
         setResetLoading(false);
     };
@@ -237,14 +280,33 @@ export default function LoginPage() {
 
                         <div>
                             <label className="block text-sm font-semibold text-slate-700 mb-2">{txt.password_label}</label>
-                            <input
-                                type="password" 
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required
-                                className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 !text-black !bg-white transition-all shadow-sm hover:border-slate-300"
-                                placeholder={txt.password_placeholder}
-                            />
+                            <div className="relative">
+                                <input
+                                    type={showPassword ? "text" : "password"} 
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
+                                    className="w-full px-4 py-3 pr-12 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 !text-black !bg-white transition-all shadow-sm hover:border-slate-300"
+                                    placeholder={txt.password_placeholder}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 transition-colors focus:outline-none"
+                                    aria-label={showPassword ? "Hide password" : "Show password"}
+                                >
+                                    {showPassword ? (
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                                        </svg>
+                                    ) : (
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                    )}
+                                </button>
+                            </div>
                         </div>
 
                         <div className="flex justify-end">
