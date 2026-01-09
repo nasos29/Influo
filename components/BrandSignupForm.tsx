@@ -125,7 +125,7 @@ export default function BrandSignupForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [afm, setAfm] = useState("");
-  const [website, setWebsite] = useState("");
+  const [website, setWebsite] = useState("https://");
   const [category, setCategory] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);

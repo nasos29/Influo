@@ -599,12 +599,14 @@ export default function BrandDashboardContent() {
   const loadRecommendations = async (brand: any) => {
     setRecommendationsLoading(true);
     try {
-      // Fetch all verified influencers from database
+      // Fetch all influencers from database (verified first, then unverified)
+      // Priority: verified influencers appear first
       const { data: influencersData, error } = await supabase
         .from('influencers')
         .select('id, display_name, category, engagement_rate, min_rate, location, gender, avg_rating, total_reviews, verified, accounts, avatar_url, audience_male_percent, audience_female_percent, audience_top_age, bio')
-        .eq('verified', true)
-        .limit(100); // Limit for performance
+        .order('verified', { ascending: false }) // Verified first
+        .order('created_at', { ascending: false }) // Then by creation date
+        .limit(200); // Increased limit to include more real influencers
       
       if (error) throw error;
       
