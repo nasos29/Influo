@@ -303,10 +303,22 @@ export function recommendInfluencers(
   const preferHighRating = options?.preferHighRating !== false; // Default true
   
   // Include all influencers (verified and unverified), but verified get priority bonus
+  console.log('[Recommendations] Processing', influencers.length, 'influencers for brand:', brand.brand_name, 'category:', brand.category || brand.industry);
+  
   const scores: MatchScore[] = influencers
     // Remove filter - include all influencers (verified and unverified)
     // .filter(inf => inf.verified !== false) // Only verified influencers
-    .map(influencer => {
+    .map((influencer, index) => {
+      // Debug first few influencers
+      if (index < 5) {
+        console.log('[Recommendations] Processing influencer:', influencer.display_name, {
+          verified: influencer.verified,
+          category: influencer.category,
+          categories: influencer.categories,
+          engagement_rate: influencer.engagement_rate,
+          id: influencer.id
+        });
+      }
       const strengths = {
         categoryMatch: calculateCategoryMatch(
           brand.category || brand.industry, 
@@ -425,10 +437,19 @@ export function recommendInfluencers(
         strengths,
       };
     })
-    .filter(match => match.score >= minScore)
+    .filter(match => {
+      const passes = match.score >= minScore;
+      if (!passes && scores.length < 5) {
+        console.log('[Recommendations] Filtered out:', match.influencer.display_name, 'score:', match.score, 'min:', minScore);
+      }
+      return passes;
+    })
     .sort((a, b) => b.score - a.score) // Sort by score descending
     .slice(0, limit); // Limit results
     
+  console.log('[Recommendations] Final matches:', scores.length, 'out of', influencers.length, 'influencers');
+  console.log('[Recommendations] Top matches:', scores.slice(0, 5).map(m => ({ name: m.influencer.display_name, score: m.score })));
+  
   return scores;
 }
 

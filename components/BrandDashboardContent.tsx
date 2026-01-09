@@ -789,12 +789,19 @@ export default function BrandDashboardContent() {
       }
       
       // Calculate recommendations
+      console.log('[Brand Dashboard] Brand profile:', brandProfile);
+      console.log('[Brand Dashboard] Filtered profiles count:', filteredProfiles.length);
+      console.log('[Brand Dashboard] Sample filtered profile:', filteredProfiles[0]);
+      
       const matches = recommendInfluencers(brandProfile, filteredProfiles, {
         limit: 12,
         minScore: recommendationFilters.minScore,
         preferVerified: true,
         preferHighRating: true,
       });
+      
+      console.log('[Brand Dashboard] Recommendations count:', matches.length);
+      console.log('[Brand Dashboard] Recommendations:', matches.map(m => ({ name: m.influencer.display_name, score: m.score, verified: m.influencer.verified })));
       
       setRecommendations(matches);
       
