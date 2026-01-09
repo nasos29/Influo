@@ -204,8 +204,20 @@ export default function InfluencerSignupForm() {
     }
   };
 
+  // Helper function to replace commas with dots in numeric inputs
+  const replaceCommaWithDot = (value: string): string => {
+    return value.replace(/,/g, '.');
+  };
+
   const handleAccountChange = (i: number, field: keyof Account, value: string) => {
-    const copy = [...accounts]; copy[i][field] = value; setAccounts(copy);
+    const copy = [...accounts]; 
+    // Replace comma with dot for followers field
+    if (field === 'followers') {
+      copy[i][field] = replaceCommaWithDot(value);
+    } else {
+      copy[i][field] = value;
+    }
+    setAccounts(copy);
   };
   const addAccount = () => setAccounts([...accounts, { platform: "Instagram", username: "", followers: "" }]);
   const removeAccount = (i: number) => { const copy = [...accounts]; copy.splice(i, 1); setAccounts(copy); };
@@ -835,11 +847,11 @@ export default function InfluencerSignupForm() {
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className={labelClass}>{txt.engageRateLabel}</label>
-                        <input type="text" className={inputClass} value={engagementRate} onChange={(e) => setEngagementRate(e.target.value)} placeholder="5.5%" />
+                        <input type="text" className={inputClass} value={engagementRate} onChange={(e) => setEngagementRate(replaceCommaWithDot(e.target.value))} placeholder="5.5%" />
                     </div>
                     <div>
                         <label className={labelClass}>{txt.avgLikesLabel}</label>
-                        <input type="text" className={inputClass} value={avgLikes} onChange={(e) => setAvgLikes(e.target.value)} placeholder="3.2k" />
+                        <input type="text" className={inputClass} value={avgLikes} onChange={(e) => setAvgLikes(replaceCommaWithDot(e.target.value))} placeholder="3.2k" />
                     </div>
                 </div>
 
@@ -859,7 +871,7 @@ export default function InfluencerSignupForm() {
                 {/* Rate */}
                 <div>
                     <label className={labelClass}>{txt.rateLabel}</label>
-                    <input type="number" className={inputClass} value={minRate} onChange={(e) => setMinRate(e.target.value)} placeholder="150" />
+                    <input type="text" className={inputClass} value={minRate} onChange={(e) => setMinRate(replaceCommaWithDot(e.target.value))} placeholder="150" />
                 </div>
 
                 {message && <p className="text-red-600 text-sm text-center mt-2 font-medium bg-red-50 p-2 rounded">{message}</p>}

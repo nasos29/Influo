@@ -105,9 +105,19 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
     const [priceReel, setPriceReel] = useState('');
     const [priceFacebook, setPriceFacebook] = useState('');
 
+    // Helper function to replace commas with dots in numeric inputs
+    const replaceCommaWithDot = (value: string): string => {
+        return value.replace(/,/g, '.');
+    };
+
     const handleAccountChange = (i: number, field: keyof Account, value: string) => {
         const copy = [...accounts];
-        copy[i][field] = value;
+        // Replace comma with dot for followers field
+        if (field === 'followers') {
+            copy[i][field] = replaceCommaWithDot(value);
+        } else {
+            copy[i][field] = value;
+        }
         setAccounts(copy);
     };
 
@@ -350,7 +360,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                             </div>
                             <div>
                                 <label className="block text-xs font-semibold text-slate-900 mb-1">Min Rate (€)</label>
-                                <input type="text" value={minRate} onChange={e => setMinRate(e.target.value)} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" placeholder="250" />
+                                <input type="text" value={minRate} onChange={e => setMinRate(replaceCommaWithDot(e.target.value))} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" placeholder="250" />
                             </div>
                         </div>
                         <div className="mt-3">
@@ -369,7 +379,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                 <input 
                                     type="text" 
                                     value={priceStory} 
-                                    onChange={e => setPriceStory(e.target.value)} 
+                                    onChange={e => setPriceStory(replaceCommaWithDot(e.target.value))} 
                                     className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" 
                                     placeholder="100" 
                                 />
@@ -379,7 +389,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                 <input 
                                     type="text" 
                                     value={pricePost} 
-                                    onChange={e => setPricePost(e.target.value)} 
+                                    onChange={e => setPricePost(replaceCommaWithDot(e.target.value))} 
                                     className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" 
                                     placeholder="200" 
                                 />
@@ -389,7 +399,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                 <input 
                                     type="text" 
                                     value={priceReel} 
-                                    onChange={e => setPriceReel(e.target.value)} 
+                                    onChange={e => setPriceReel(replaceCommaWithDot(e.target.value))} 
                                     className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" 
                                     placeholder="300" 
                                 />
@@ -399,7 +409,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                 <input 
                                     type="text" 
                                     value={priceFacebook} 
-                                    onChange={e => setPriceFacebook(e.target.value)} 
+                                    onChange={e => setPriceFacebook(replaceCommaWithDot(e.target.value))} 
                                     className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" 
                                     placeholder="150" 
                                 />
@@ -407,7 +417,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                         </div>
                             <div>
                                 <label className="block text-sm font-semibold text-slate-900 mb-1">Avg Likes/Views</label>
-                                <input type="text" value={likes} onChange={e => setLikes(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" placeholder="3.2k" />
+                                <input type="text" value={likes} onChange={e => setLikes(replaceCommaWithDot(e.target.value))} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" placeholder="3.2k" />
                             </div>
                             <div>
                                 <label className="block text-sm font-semibold text-slate-900 mb-1">Γλώσσες</label>
