@@ -738,8 +738,7 @@ export default function BrandDashboardContent() {
         });
       
       // Combine database and dummy influencers (database influencers first)
-      // Temporarily disabled dummy influencers for testing
-      const influencerProfiles: InfluencerProfile[] = [...dbInfluencerProfiles]; // ...dummyProfiles temporarily removed
+      const influencerProfiles: InfluencerProfile[] = [...dbInfluencerProfiles, ...dummyProfiles];
       
       // Debug: Log combined influencers
       console.log('[Brand Dashboard] Total influencers combined:', influencerProfiles.length);
@@ -1237,14 +1236,14 @@ export default function BrandDashboardContent() {
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                         <div className="absolute bottom-3 left-3 right-3">
                           <h3 className="text-white font-bold text-lg mb-1">{inf.display_name}</h3>
-                          {inf.category && (
-                            <span className="inline-block px-2 py-1 bg-white/20 backdrop-blur-sm rounded text-xs text-white font-medium">
+                          {(inf.categories && inf.categories.length > 0 ? inf.categories : (inf.category ? [inf.category] : [])).slice(0, 3).map((cat: string, idx: number) => (
+                            <span key={idx} className="inline-block px-2 py-1 bg-white/20 backdrop-blur-sm rounded text-xs text-white font-medium mr-1 mb-1">
                               {lang === 'el' ? 
-                                (categoryTranslations[inf.category]?.el || inf.category) : 
-                                (categoryTranslations[inf.category]?.en || inf.category)
+                                (categoryTranslations[cat]?.el || cat) : 
+                                (categoryTranslations[cat]?.en || cat)
                               }
                             </span>
-                          )}
+                          ))}
                         </div>
                       </div>
                     </div>
