@@ -1319,6 +1319,71 @@ export default function InfluencerProfile(props: { params: Params }) {
                                         // For Instagram posts (p/), we can't be sure if it's video or photo, so don't show play button
                                         const isInstagramPost = /instagram\.com\/p\//i.test(vid);
                                         
+                                        // Component to load image and adapt container to natural dimensions
+                                        const AdaptiveImage = ({ imageUrl, alt }: { imageUrl: string; alt: string }) => {
+                                            const [imgSrc, setImgSrc] = useState<string | null>(null);
+                                            const [error, setError] = useState(false);
+                                            
+                                            useEffect(() => {
+                                                // For direct image URLs, use them directly
+                                                if (isDefinitelyImage(imageUrl)) {
+                                                    setImgSrc(imageUrl);
+                                                    return;
+                                                }
+                                                
+                                                // For Instagram/TikTok URLs, fetch thumbnail
+                                                const fetchThumbnail = async () => {
+                                                    try {
+                                                        const thumbnail = getVideoThumbnail(imageUrl);
+                                                        if (thumbnail && !thumbnail.startsWith('/api/')) {
+                                                            setImgSrc(thumbnail);
+                                                        } else {
+                                                            const apiUrl = `/api/video-thumbnail?url=${encodeURIComponent(imageUrl)}`;
+                                                            const response = await fetch(apiUrl);
+                                                            const data = await response.json();
+                                                            if (data.thumbnail) {
+                                                                setImgSrc(data.thumbnail);
+                                                            } else {
+                                                                setError(true);
+                                                            }
+                                                        }
+                                                    } catch (err) {
+                                                        console.error('Error fetching thumbnail:', err);
+                                                        setError(true);
+                                                    }
+                                                };
+                                                
+                                                fetchThumbnail();
+                                            }, [imageUrl]);
+                                            
+                                            if (error || !imgSrc) {
+                                                // Fallback to VideoThumbnail component
+                                                return (
+                                                    <div className="relative w-full flex items-center justify-center p-4 min-h-[200px]">
+                                                        <VideoThumbnail 
+                                                            url={imageUrl}
+                                                            alt={alt}
+                                                            fill={false}
+                                                            width={800}
+                                                            height={600}
+                                                            className="!relative !w-auto !h-auto max-w-full max-h-[500px] object-contain"
+                                                        />
+                                                    </div>
+                                                );
+                                            }
+                                            
+                                            return (
+                                                <div className="w-full flex items-center justify-center p-4">
+                                                    <img 
+                                                        src={imgSrc}
+                                                        alt={alt}
+                                                        className="max-w-full max-h-[600px] w-auto h-auto object-contain rounded"
+                                                        loading="lazy"
+                                                        style={{ display: 'block' }}
+                                                    />
+                                                </div>
+                                            );
+                                        };
                                         
                                         return (
                                             <a 
@@ -1328,24 +1393,12 @@ export default function InfluencerProfile(props: { params: Params }) {
                                                 rel="noopener noreferrer" 
                                                 className={`group relative rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-shadow bg-slate-100 ${
                                                     isImage 
-                                                        ? 'flex flex-col items-center justify-center' 
+                                                        ? 'flex flex-col items-center justify-center w-full' 
                                                         : 'w-full sm:w-[calc(50%-0.5rem)] lg:w-[calc(33.333%-0.67rem)] aspect-square'
                                                 }`}
                                             >
                                                 {isImage ? (
-                                                    // For images: use VideoThumbnail in a flex container that adapts
-                                                    <div className="relative w-full flex items-center justify-center p-4 min-h-[200px]">
-                                                        <div className="relative max-w-full max-h-[500px]">
-                                                            <VideoThumbnail 
-                                                                url={vid}
-                                                                alt={`Portfolio item ${i+1}`}
-                                                                fill={false}
-                                                                width={800}
-                                                                height={600}
-                                                                className="!relative !w-auto !h-auto max-w-full max-h-[500px] object-contain"
-                                                            />
-                                                        </div>
-                                                    </div>
+                                                    <AdaptiveImage imageUrl={vid} alt={`Portfolio item ${i+1}`} />
                                                 ) : (
                                                     <VideoThumbnail 
                                                         url={vid}
