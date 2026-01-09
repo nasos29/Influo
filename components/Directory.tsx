@@ -387,7 +387,9 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
             verified: inf.analytics_verified || false, // Use analytics_verified for verified badge (not approved)
             socials: socialsObj,
             followers: followersObj,
-            categories: [inf.category || "New"], 
+            categories: inf.category 
+              ? (inf.category.includes(',') ? inf.category.split(',').map(c => c.trim()) : [inf.category])
+              : ["New"], 
             platform: "Instagram",
             gender: inf.gender || "Female",
             location: inf.location,

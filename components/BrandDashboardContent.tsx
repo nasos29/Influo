@@ -639,7 +639,9 @@ export default function BrandDashboardContent() {
             id: inf.id,
             display_name: inf.display_name || 'Unknown',
             category: inf.category, // Primary category
-            categories: inf.category ? [inf.category] : undefined, // For now, use single category as array
+            categories: inf.category 
+              ? (inf.category.includes(',') ? inf.category.split(',').map(c => c.trim()) : [inf.category])
+              : undefined,
             engagement_rate: inf.engagement_rate,
           followers_count: followersStr,
           min_rate: inf.min_rate,
