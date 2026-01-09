@@ -122,7 +122,9 @@ export default function Footer({ lang = "el" }: FooterProps) {
                 </svg>
               </a>
               <a 
-                href="#" 
+                href="https://www.facebook.com/profile.php?id=61585893435769" 
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-slate-400 hover:text-white transition-colors"
                 aria-label="Facebook"
               >
