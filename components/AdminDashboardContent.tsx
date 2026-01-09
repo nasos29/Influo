@@ -1839,7 +1839,18 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               )}
                               <div>
                                 <div className="font-medium text-slate-900">{u.display_name}</div>
-                                {u.category && <div className="text-xs text-slate-600">{u.category}</div>}
+                                {u.category && (
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {(u.category.includes(',') ? u.category.split(',').map((c: string) => c.trim()) : [u.category]).map((cat: string, idx: number) => (
+                                      <span
+                                        key={idx}
+                                        className="text-[10px] uppercase font-medium bg-slate-100 text-slate-600 px-2 py-0.5 rounded"
+                                      >
+                                        {cat}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </td>
