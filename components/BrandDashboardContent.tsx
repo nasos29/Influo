@@ -950,7 +950,18 @@ export default function BrandDashboardContent() {
     <div className="min-h-screen bg-slate-50">
       <div className="bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-slate-900">{txt.title}</h1>
+          <div className="flex items-center gap-6">
+            <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+              <Image 
+                src="/logo.svg" 
+                alt="Influo.gr Logo" 
+                width={120} 
+                height={48} 
+                className="h-8 w-auto"
+              />
+            </Link>
+            <h1 className="text-2xl font-bold text-slate-900">{txt.title}</h1>
+          </div>
           <div className="flex items-center gap-4">
             <Link
               href="/help-desk"

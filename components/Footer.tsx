@@ -91,9 +91,9 @@ export default function Footer({ lang = "el" }: FooterProps) {
               <Image 
                 src="/logo.svg" 
                 alt="Influo.gr Logo" 
-                width={140} 
-                height={56} 
-                className="h-10 w-auto brightness-0 invert"
+                width={160} 
+                height={64} 
+                className="h-10 w-auto"
               />
             </Link>
             <p className="text-slate-400 text-sm leading-relaxed mb-6 max-w-xs">
