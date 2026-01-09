@@ -599,29 +599,30 @@ export default function BrandDashboardContent() {
   const loadRecommendations = async (brand: any) => {
     setRecommendationsLoading(true);
     try {
-      // First, let's check all influencers to see their verified status
+      // First, let's check all influencers to see their approved status
       const { data: allInfluencers, error: allError } = await supabase
         .from('influencers')
-        .select('id, display_name, verified')
+        .select('id, display_name, approved, verified')
         .limit(50);
       
       console.log('[Brand Dashboard] All influencers (first 50):', allInfluencers);
+      console.log('[Brand Dashboard] Approved count:', allInfluencers?.filter(inf => inf.approved === true).length);
       console.log('[Brand Dashboard] Verified count:', allInfluencers?.filter(inf => inf.verified === true).length);
-      console.log('[Brand Dashboard] Unverified count:', allInfluencers?.filter(inf => inf.verified === false || inf.verified === null).length);
+      console.log('[Brand Dashboard] Unapproved count:', allInfluencers?.filter(inf => inf.approved === false || inf.approved === null).length);
       
-      // Fetch only verified influencers from database
+      // Fetch only approved influencers from database (same as Directory)
       const { data: influencersData, error } = await supabase
         .from('influencers')
-        .select('id, display_name, category, engagement_rate, min_rate, location, gender, avg_rating, total_reviews, verified, accounts, avatar_url, audience_male_percent, audience_female_percent, audience_top_age, bio')
-        .eq('verified', true) // Only verified influencers
+        .select('id, display_name, category, engagement_rate, min_rate, location, gender, avg_rating, total_reviews, verified, approved, analytics_verified, accounts, avatar_url, audience_male_percent, audience_female_percent, audience_top_age, bio')
+        .eq('approved', true) // Only approved influencers (same as Directory)
         .order('created_at', { ascending: false }) // Sort by creation date
         .limit(200);
       
       if (error) throw error;
       
       // Debug: Log fetched influencers
-      console.log('[Brand Dashboard] Fetched verified influencers from DB:', influencersData?.length || 0);
-      console.log('[Brand Dashboard] All fetched influencers:', influencersData?.map(inf => ({ name: inf.display_name, verified: inf.verified, id: inf.id })));
+      console.log('[Brand Dashboard] Fetched approved influencers from DB:', influencersData?.length || 0);
+      console.log('[Brand Dashboard] All fetched influencers:', influencersData?.map(inf => ({ name: inf.display_name, approved: inf.approved, verified: inf.verified, id: inf.id })));
       console.log('[Brand Dashboard] Sample influencer:', influencersData?.[0]);
       
       // Helper function to parse follower string
@@ -635,7 +636,7 @@ export default function BrandDashboardContent() {
       
       // Convert database influencers to InfluencerProfile format
       const dbInfluencerProfiles: InfluencerProfile[] = (influencersData || []).map((inf: any) => {
-        console.log('[Brand Dashboard] Processing influencer:', inf.display_name, 'verified:', inf.verified);
+        console.log('[Brand Dashboard] Processing influencer:', inf.display_name, 'approved:', inf.approved, 'verified:', inf.verified);
         // Calculate followers_count from accounts array
         let maxFollowers = 0;
         let followersStr = '0';
@@ -667,7 +668,7 @@ export default function BrandDashboardContent() {
           avg_rating: inf.avg_rating,
           total_reviews: inf.total_reviews || 0,
           past_brands: inf.total_reviews || 0, // Use total_reviews as approximation for past_brands
-          verified: inf.verified,
+          verified: inf.analytics_verified || inf.verified || false, // Use analytics_verified for verified badge (same as Directory)
           accounts: inf.accounts,
           avatar_url: inf.avatar_url, // Include avatar_url from database
           audience_male_percent: inf.audience_male_percent,
