@@ -104,7 +104,9 @@ export default function Footer({ lang = "el" }: FooterProps) {
             {/* Social Links */}
             <div className="flex gap-4 mb-4">
               <a 
-                href="#" 
+                href="https://www.instagram.com/influo.gr/" 
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-slate-400 hover:text-white transition-colors"
                 aria-label="Instagram"
               >
