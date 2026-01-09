@@ -187,30 +187,37 @@ export default function LoginPage() {
             }
         }
 
-        // Email exists, generate reset link with Supabase and send custom email
+        // Email exists, generate reset link with Supabase Admin API (without sending email)
         const resetLink = `${window.location.origin}/reset-password`;
         
-        // First, generate the reset token with Supabase
-        const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: resetLink,
-        });
-
-        if (resetError) {
-            setMessage(txt.reset_error + ' ' + resetError.message);
-            setMessageType('error');
-            setResetLoading(false);
-            return;
-        }
-
-        // Then send custom email with Resend
         try {
+            // Generate reset link using Admin API (doesn't send email)
+            const resetResponse = await fetch('/api/auth/reset-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: email,
+                    redirectTo: resetLink
+                })
+            });
+
+            const resetResult = await resetResponse.json();
+            
+            if (!resetResult.success || !resetResult.resetLink) {
+                setMessage(txt.reset_error + ' ' + (resetResult.error || 'Failed to generate reset link'));
+                setMessageType('error');
+                setResetLoading(false);
+                return;
+            }
+
+            // Send custom email with Resend using the generated reset link
             const emailResponse = await fetch('/api/emails', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     type: 'password_reset',
                     email: email,
-                    resetLink: resetLink,
+                    resetLink: resetResult.resetLink, // Use the generated link with tokens
                     lang: lang
                 })
             });
@@ -218,11 +225,17 @@ export default function LoginPage() {
             const emailResult = await emailResponse.json();
             if (!emailResult.success) {
                 console.error('Failed to send custom email:', emailResult.error);
-                // Still show success since Supabase email was sent
+                setMessage(txt.reset_error + ' ' + (emailResult.error || 'Failed to send email'));
+                setMessageType('error');
+                setResetLoading(false);
+                return;
             }
-        } catch (emailErr) {
-            console.error('Error sending custom email:', emailErr);
-            // Continue - Supabase email was sent
+        } catch (err: any) {
+            console.error('Error in password reset process:', err);
+            setMessage(txt.reset_error + ' ' + (err.message || 'An unexpected error occurred'));
+            setMessageType('error');
+            setResetLoading(false);
+            return;
         }
 
         setMessage(txt.reset_email_sent);
