@@ -659,6 +659,7 @@ export default function BrandDashboardContent() {
           past_brands: inf.total_reviews || 0, // Use total_reviews as approximation for past_brands
           verified: inf.verified,
           accounts: inf.accounts,
+          avatar_url: inf.avatar_url, // Include avatar_url from database
           audience_male_percent: inf.audience_male_percent,
           audience_female_percent: inf.audience_female_percent,
           audience_top_age: inf.audience_top_age,
@@ -1176,9 +1177,24 @@ export default function BrandDashboardContent() {
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               {recommendations.map((match, index) => {
                 const inf = match.influencer;
-                const avatarUrl = inf.avatar_url || (inf.accounts?.[0]?.username 
-                  ? `https://unavatar.io/${inf.accounts?.[0]?.username}` 
-                  : `https://ui-avatars.com/api/?name=${encodeURIComponent(inf.display_name)}&background=random`);
+                // Priority: 1) avatar_url from DB, 2) Instagram username from accounts, 3) fallback to initials
+                let avatarUrl = inf.avatar_url;
+                if (!avatarUrl && inf.accounts && Array.isArray(inf.accounts)) {
+                  // Try to find Instagram username first
+                  const instagramAccount = inf.accounts.find((acc: any) => 
+                    acc.platform?.toLowerCase() === 'instagram' || acc.platform?.toLowerCase() === 'instagram'
+                  );
+                  if (instagramAccount?.username) {
+                    avatarUrl = `https://unavatar.io/instagram/${instagramAccount.username}`;
+                  } else if (inf.accounts[0]?.username) {
+                    // Fallback to first account username
+                    avatarUrl = `https://unavatar.io/${inf.accounts[0].username}`;
+                  }
+                }
+                // Final fallback: generate avatar with initials
+                if (!avatarUrl) {
+                  avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(inf.display_name)}&background=random&size=256`;
+                }
                 
                 return (
                   <div
