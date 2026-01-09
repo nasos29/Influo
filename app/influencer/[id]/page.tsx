@@ -430,7 +430,7 @@ export default function InfluencerProfile(props: { params: Params }) {
         socials: socialsObj,
         followers: followersObj,
         categories: data.category 
-          ? (data.category.includes(',') ? data.category.split(',').map(c => c.trim()) : [data.category])
+          ? (data.category.includes(',') ? data.category.split(',').map((c: string) => c.trim()) : [data.category])
           : ["Creator"],
         platform: "Instagram",
         gender: data.gender,

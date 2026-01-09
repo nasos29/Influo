@@ -388,7 +388,7 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
             socials: socialsObj,
             followers: followersObj,
             categories: inf.category 
-              ? (inf.category.includes(',') ? inf.category.split(',').map(c => c.trim()) : [inf.category])
+              ? (inf.category.includes(',') ? inf.category.split(',').map((c: string) => c.trim()) : [inf.category])
               : ["New"], 
             platform: "Instagram",
             gender: inf.gender || "Female",

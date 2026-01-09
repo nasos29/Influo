@@ -640,7 +640,7 @@ export default function BrandDashboardContent() {
             display_name: inf.display_name || 'Unknown',
             category: inf.category, // Primary category
             categories: inf.category 
-              ? (inf.category.includes(',') ? inf.category.split(',').map(c => c.trim()) : [inf.category])
+              ? (inf.category.includes(',') ? inf.category.split(',').map((c: string) => c.trim()) : [inf.category])
               : undefined,
             engagement_rate: inf.engagement_rate,
           followers_count: followersStr,
