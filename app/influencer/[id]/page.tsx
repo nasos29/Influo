@@ -1320,12 +1320,20 @@ export default function InfluencerProfile(props: { params: Params }) {
                                         const isInstagramPost = /instagram\.com\/p\//i.test(vid);
                                         
                                         return (
-                                            <a key={i} href={vid} target="_blank" rel="noopener noreferrer" className="block group relative w-full aspect-square rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-shadow bg-slate-100">
+                                            <a 
+                                                key={i} 
+                                                href={vid} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer" 
+                                                className={`block group relative w-full rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-shadow bg-slate-100 ${
+                                                    isImage ? 'aspect-[3/2]' : 'aspect-square'
+                                                }`}
+                                            >
                                                 <VideoThumbnail 
                                                     url={vid}
                                                     alt={`Portfolio item ${i+1}`}
                                                     fill
-                                                    className={isImage ? "object-contain" : "object-cover"}
+                                                    className={isImage ? "object-contain p-4" : "object-cover"}
                                                 />
                                                 {isVideo && !isInstagramPost && (
                                                     <div className="absolute top-0 left-0 right-0 bottom-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition-colors pointer-events-none z-10">
