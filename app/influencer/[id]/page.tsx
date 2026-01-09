@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use, Suspense } from "react";
+import { useEffect, useState, use, Suspense, useRef } from "react";
 import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
 import { dummyInfluencers, Influencer } from "@/components/Directory"; 
@@ -1312,12 +1312,13 @@ export default function InfluencerProfile(props: { params: Params }) {
                          <div>
                             <h3 className="text-lg font-bold text-slate-900 mb-4">{txt.portfolio}</h3>
                             {profile.videos && profile.videos.length > 0 && profile.videos[0] !== "" ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div className="flex flex-wrap gap-4">
                                     {profile.videos.map((vid, i) => {
                                         const isVideo = isDefinitelyVideo(vid);
                                         const isImage = isDefinitelyImage(vid);
                                         // For Instagram posts (p/), we can't be sure if it's video or photo, so don't show play button
                                         const isInstagramPost = /instagram\.com\/p\//i.test(vid);
+                                        
                                         
                                         return (
                                             <a 
@@ -1325,20 +1326,38 @@ export default function InfluencerProfile(props: { params: Params }) {
                                                 href={vid} 
                                                 target="_blank" 
                                                 rel="noopener noreferrer" 
-                                                className={`block group relative w-full rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-shadow bg-slate-100 ${
-                                                    isImage ? 'aspect-[3/2]' : 'aspect-square'
+                                                className={`group relative rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-shadow bg-slate-100 ${
+                                                    isImage 
+                                                        ? 'flex flex-col items-center justify-center' 
+                                                        : 'w-full sm:w-[calc(50%-0.5rem)] lg:w-[calc(33.333%-0.67rem)] aspect-square'
                                                 }`}
                                             >
-                                                <VideoThumbnail 
-                                                    url={vid}
-                                                    alt={`Portfolio item ${i+1}`}
-                                                    fill
-                                                    className={isImage ? "object-contain p-4" : "object-cover"}
-                                                />
+                                                {isImage ? (
+                                                    // For images: use VideoThumbnail in a flex container that adapts
+                                                    <div className="relative w-full flex items-center justify-center p-4 min-h-[200px]">
+                                                        <div className="relative max-w-full max-h-[500px]">
+                                                            <VideoThumbnail 
+                                                                url={vid}
+                                                                alt={`Portfolio item ${i+1}`}
+                                                                fill={false}
+                                                                width={800}
+                                                                height={600}
+                                                                className="!relative !w-auto !h-auto max-w-full max-h-[500px] object-contain"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <VideoThumbnail 
+                                                        url={vid}
+                                                        alt={`Portfolio item ${i+1}`}
+                                                        fill
+                                                        className="object-cover"
+                                                    />
+                                                )}
                                                 {isVideo && !isInstagramPost && (
                                                     <div className="absolute top-0 left-0 right-0 bottom-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition-colors pointer-events-none z-10">
-                                                        <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                                                            <span className="text-xl text-slate-900 ml-1">▶</span>
+                                                        <div className="w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                                                            <span className="text-sm text-slate-900 ml-0.5">▶</span>
                                                         </div>
                                                     </div>
                                                 )}

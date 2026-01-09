@@ -121,8 +121,10 @@ export default function VideoThumbnail({
         fill={fill}
         width={fill ? undefined : width}
         height={fill ? undefined : height}
+        sizes={fill ? undefined : "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"}
         className={className}
         unoptimized
+        style={fill ? undefined : { width: 'auto', height: 'auto', maxWidth: '100%', maxHeight: '500px', objectFit: 'contain' }}
       />
     );
   }
