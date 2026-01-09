@@ -302,8 +302,10 @@ export function recommendInfluencers(
   const preferVerified = options?.preferVerified !== false; // Default true
   const preferHighRating = options?.preferHighRating !== false; // Default true
   
+  // Include all influencers (verified and unverified), but verified get priority bonus
   const scores: MatchScore[] = influencers
-    .filter(inf => inf.verified !== false) // Only verified influencers
+    // Remove filter - include all influencers (verified and unverified)
+    // .filter(inf => inf.verified !== false) // Only verified influencers
     .map(influencer => {
       const strengths = {
         categoryMatch: calculateCategoryMatch(

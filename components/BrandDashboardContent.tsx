@@ -610,6 +610,10 @@ export default function BrandDashboardContent() {
       
       if (error) throw error;
       
+      // Debug: Log fetched influencers
+      console.log('[Brand Dashboard] Fetched influencers from DB:', influencersData?.length || 0);
+      console.log('[Brand Dashboard] Sample influencer:', influencersData?.[0]);
+      
       // Helper function to parse follower string
       const parseFollowerString = (str: string) => {
         if (!str) return 0;
@@ -621,6 +625,7 @@ export default function BrandDashboardContent() {
       
       // Convert database influencers to InfluencerProfile format
       const dbInfluencerProfiles: InfluencerProfile[] = (influencersData || []).map((inf: any) => {
+        console.log('[Brand Dashboard] Processing influencer:', inf.display_name, 'verified:', inf.verified);
         // Calculate followers_count from accounts array
         let maxFollowers = 0;
         let followersStr = '0';
@@ -720,8 +725,14 @@ export default function BrandDashboardContent() {
           };
         });
       
-      // Combine database and dummy influencers
+      // Combine database and dummy influencers (database influencers first)
       const influencerProfiles: InfluencerProfile[] = [...dbInfluencerProfiles, ...dummyProfiles];
+      
+      // Debug: Log combined influencers
+      console.log('[Brand Dashboard] Total influencers combined:', influencerProfiles.length);
+      console.log('[Brand Dashboard] DB influencers:', dbInfluencerProfiles.length);
+      console.log('[Brand Dashboard] Dummy influencers:', dummyProfiles.length);
+      console.log('[Brand Dashboard] Verified DB influencers:', dbInfluencerProfiles.filter(inf => inf.verified).length);
       
       // Always process recommendations, even if only dummy data exists
       // Get brand profile
