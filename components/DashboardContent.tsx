@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import Image from 'next/image';
-import { getVideoThumbnail, isVideoUrl } from '@/lib/videoThumbnail';
+import { getVideoThumbnail, isVideoUrl, isDefinitelyVideo, isDefinitelyImage } from '@/lib/videoThumbnail';
 import VideoThumbnail from './VideoThumbnail';
 import Messaging from './Messaging';
 
@@ -476,8 +476,10 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                         <p className="text-xs text-slate-600 mb-2">Μπορείτε να προσθέσετε links από TikTok, Reels, YouTube ή φωτογραφίες από δουλειές σας.</p>
                         <div className="space-y-2">
                             {videos.map((video, i) => {
-                                const thumbnail = getVideoThumbnail(video);
-                                const isVideo = isVideoUrl(video);
+                                const isVideo = isDefinitelyVideo(video);
+                                const isImage = isDefinitelyImage(video);
+                                const isInstagramPost = video && /instagram\.com\/p\//i.test(video);
+                                
                                 return (
                                     <div key={i} className="flex gap-3 items-start">
                                         <div className="flex-1">
@@ -492,14 +494,14 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                                 <div className="mt-2 relative w-full h-32 rounded-lg overflow-hidden border border-slate-200 bg-slate-100">
                                                     <VideoThumbnail 
                                                         url={video}
-                                                        alt="Video thumbnail"
+                                                        alt="Video/Photo thumbnail"
                                                         fill
-                                                        className="object-cover"
+                                                        className={isImage ? "object-contain" : "object-cover"}
                                                     />
-                                                    {isVideo && (
+                                                    {isVideo && !isInstagramPost && (
                                                         <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
-                                                            <div className="w-8 h-8 bg-white/90 rounded-full flex items-center justify-center">
-                                                                <span className="text-sm">▶</span>
+                                                            <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center">
+                                                                <span className="text-xl ml-1">▶</span>
                                                             </div>
                                                         </div>
                                                     )}

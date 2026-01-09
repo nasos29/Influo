@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient"; 
 import Image from "next/image";
+import { isDefinitelyVideo, isDefinitelyImage } from "@/lib/videoThumbnail";
+import VideoThumbnail from "./VideoThumbnail";
 
 // --- FULL CATEGORY LIST ---
 const CATEGORIES = [
@@ -817,11 +819,10 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                         <div>
                             <h3 className="text-sm font-bold text-slate-900 uppercase mb-3">Video Links / Φωτογραφίες</h3>
                             {videos.map((video, i) => {
-                                // Try to get thumbnail for YouTube videos
-                                const isYoutube = video && /youtube\.com|youtu\.be/.test(video);
-                                const youtubeId = video?.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/)?.[1];
-                                const thumbnail = youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : null;
-                                const isVideo = video && /youtube\.com|youtu\.be|tiktok\.com|instagram\.com.*reel/.test(video.toLowerCase());
+                                const isVideo = isDefinitelyVideo(video);
+                                const isImage = isDefinitelyImage(video);
+                                const isInstagramPost = video && /instagram\.com\/p\//i.test(video);
+                                
                                 return (
                                     <div key={i} className="mb-3">
                                         <div className="flex gap-2 items-end">
@@ -833,22 +834,17 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                         </div>
                                         {video && (
                                             <div className="mt-2 relative w-full h-32 rounded-lg overflow-hidden border border-slate-200 bg-slate-100">
-                                                {thumbnail ? (
-                                                    <>
-                                                        <img src={thumbnail} alt="Video thumbnail" className="w-full h-full object-cover" />
-                                                        {isVideo && (
-                                                            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                                                                <div className="w-8 h-8 bg-white/90 rounded-full flex items-center justify-center">
-                                                                    <span className="text-sm text-slate-900">▶</span>
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </>
-                                                ) : video.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
-                                                    <img src={video} alt="Photo" className="w-full h-full object-cover" />
-                                                ) : video && (
-                                                    <div className="absolute inset-0 flex items-center justify-center text-slate-400 text-sm">
-                                                        {isVideo ? "Video link (no preview)" : "Image/Video link"}
+                                                <VideoThumbnail 
+                                                    url={video}
+                                                    alt="Video/Photo thumbnail"
+                                                    fill
+                                                    className={isImage ? "object-contain" : "object-cover"}
+                                                />
+                                                {isVideo && !isInstagramPost && (
+                                                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
+                                                        <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center">
+                                                            <span className="text-xl text-slate-900 ml-1">▶</span>
+                                                        </div>
                                                     </div>
                                                 )}
                                             </div>
