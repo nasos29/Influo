@@ -24,7 +24,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate password reset link without sending email
+    // First, find the user by email
+    const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+    
+    if (listError) {
+      console.error('Error listing users:', listError);
+      return NextResponse.json(
+        { error: 'Failed to find user', details: listError.message },
+        { status: 500 }
+      );
+    }
+
+    const user = users.users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    // Generate password reset link
+    // NOTE: generateLink() still sends an email from Supabase by default.
+    // To disable the Supabase email, you must disable it in the Supabase Dashboard:
+    // Authentication → Email Templates → "Reset Password" → Disable
+    // See docs/DISABLE_SUPABASE_PASSWORD_RESET_EMAIL.md for detailed instructions
     const { data, error } = await supabaseAdmin.auth.admin.generateLink({
       type: 'recovery',
       email: email,
