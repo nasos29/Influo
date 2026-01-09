@@ -726,7 +726,8 @@ export default function BrandDashboardContent() {
         });
       
       // Combine database and dummy influencers (database influencers first)
-      const influencerProfiles: InfluencerProfile[] = [...dbInfluencerProfiles, ...dummyProfiles];
+      // Temporarily disabled dummy influencers for testing
+      const influencerProfiles: InfluencerProfile[] = [...dbInfluencerProfiles]; // ...dummyProfiles temporarily removed
       
       // Debug: Log combined influencers
       console.log('[Brand Dashboard] Total influencers combined:', influencerProfiles.length);
