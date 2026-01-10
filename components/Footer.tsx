@@ -115,7 +115,9 @@ export default function Footer({ lang = "el" }: FooterProps) {
                 </svg>
               </a>
               <a 
-                href="#" 
+                href="https://tiktok.com/@influo.gr" 
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-slate-400 hover:text-white transition-colors"
                 aria-label="TikTok"
               >
