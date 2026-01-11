@@ -680,6 +680,37 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                 avatarUrl = data.publicUrl;
             }
 
+            // Upload thumbnail files and get their URLs
+            const uploadedThumbnails = { ...videoThumbnails };
+            for (const [videoUrl, file] of Object.entries(thumbnailFiles)) {
+                if (file && videoUrl) {
+                    try {
+                        const fileName = `thumbnails/${user.id}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+                        const { error: uploadError } = await supabase.storage.from("avatars").upload(fileName, file, {
+                            cacheControl: '3600',
+                            upsert: false
+                        });
+                        
+                        if (uploadError) {
+                            console.error(`Error uploading thumbnail for ${videoUrl}:`, uploadError);
+                            // Continue with other uploads
+                        } else {
+                            const { data } = supabase.storage.from("avatars").getPublicUrl(fileName);
+                            uploadedThumbnails[videoUrl] = data.publicUrl;
+                        }
+                    } catch (err) {
+                        console.error(`Error uploading thumbnail for ${videoUrl}:`, err);
+                    }
+                }
+            }
+            
+            // Clean up preview URLs
+            Object.values(thumbnailPreviews).forEach(preview => {
+                if (preview.startsWith('blob:')) {
+                    URL.revokeObjectURL(preview);
+                }
+            });
+
             // Store categories as comma-separated string for backward compatibility
             const categoryString = categories.length > 0 ? categories.join(',') : "Lifestyle";
             
