@@ -212,7 +212,10 @@ export default function ResetPasswordPage() {
                 {/* Language Toggle */}
                 <div className="flex justify-center gap-2">
                     <button
-                        onClick={() => setLang('el')}
+                        onClick={() => {
+                            setLang('el');
+                            setStoredLanguage('el');
+                        }}
                         className={`px-3 py-1 text-sm rounded-md transition-colors ${
                             lang === 'el'
                                 ? 'bg-blue-600 text-white'
@@ -222,7 +225,10 @@ export default function ResetPasswordPage() {
                         ΕΛ
                     </button>
                     <button
-                        onClick={() => setLang('en')}
+                        onClick={() => {
+                            setLang('en');
+                            setStoredLanguage('en');
+                        }}
                         className={`px-3 py-1 text-sm rounded-md transition-colors ${
                             lang === 'en'
                                 ? 'bg-blue-600 text-white'
