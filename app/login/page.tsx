@@ -1,7 +1,7 @@
 // app/login/page.tsx
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabaseClient'; 
 import { useRouter } from 'next/navigation';
