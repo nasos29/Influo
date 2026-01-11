@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 
 const t = {
   el: {
