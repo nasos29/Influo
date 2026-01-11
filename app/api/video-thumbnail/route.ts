@@ -74,9 +74,39 @@ export async function GET(req: NextRequest) {
               
               if (thumbnailUrl) {
                 console.log('Instagram thumbnail found via Iframely:', thumbnailUrl);
+                
+                // Check if the thumbnail URL is from Instagram CDN (might be blocked)
+                const isCDNUrl = thumbnailUrl.includes('cdninstagram.com') || thumbnailUrl.includes('scontent.cdninstagram.com');
+                
+                // If it's a CDN URL, try to find alternative thumbnail sources from Iframely
+                if (isCDNUrl) {
+                  // Try to find alternative image sources that might not be CDN
+                  let alternativeUrl = null;
+                  
+                  // Check links.image for alternatives
+                  if (iframelyData.links?.image && Array.isArray(iframelyData.links.image)) {
+                    for (const img of iframelyData.links.image) {
+                      const imgUrl = img.href || img;
+                      if (imgUrl && !imgUrl.includes('cdninstagram.com') && !imgUrl.includes('scontent.cdninstagram.com')) {
+                        alternativeUrl = imgUrl;
+                        break;
+                      }
+                    }
+                  }
+                  
+                  // If we found an alternative, use it; otherwise use the CDN URL (will be proxied)
+                  if (alternativeUrl) {
+                    console.log('Using alternative thumbnail URL (non-CDN):', alternativeUrl);
+                    thumbnailUrl = alternativeUrl;
+                  } else {
+                    console.log('Using CDN thumbnail URL (will be proxied):', thumbnailUrl);
+                  }
+                }
+                
                 return NextResponse.json({ 
                   thumbnail: thumbnailUrl,
-                  platform: 'instagram'
+                  platform: 'instagram',
+                  isCDN: isCDNUrl
                 });
               } else {
                 // Log for debugging

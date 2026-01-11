@@ -27,19 +27,59 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'URL not allowed' }, { status: 403 });
     }
 
-    // Fetch the image from the source
+    // Fetch the image from the source with comprehensive headers
     const imageResponse = await fetch(imageUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Referer': 'https://www.instagram.com/',
         'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'DNT': '1',
+        'Connection': 'keep-alive',
+        'Sec-Fetch-Dest': 'image',
+        'Sec-Fetch-Mode': 'no-cors',
+        'Sec-Fetch-Site': 'cross-site',
       },
-      // Don't follow redirects for security
       redirect: 'follow',
+      // Add timeout
+      signal: AbortSignal.timeout(10000), // 10 second timeout
     });
 
     if (!imageResponse.ok) {
-      console.error(`[Thumbnail Proxy] Failed to fetch image: ${imageResponse.status} ${imageResponse.statusText}`);
+      console.error(`[Thumbnail Proxy] Failed to fetch image: ${imageResponse.status} ${imageResponse.statusText} for URL: ${imageUrl}`);
+      
+      // If it's a 403, try without Referer header (Instagram might block based on referer)
+      if (imageResponse.status === 403) {
+        console.log('[Thumbnail Proxy] Retrying without Referer header...');
+        try {
+          const retryResponse = await fetch(imageUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
+              'Accept-Language': 'en-US,en;q=0.9',
+            },
+            redirect: 'follow',
+            signal: AbortSignal.timeout(10000),
+          });
+          
+          if (retryResponse.ok) {
+            const imageBuffer = await retryResponse.arrayBuffer();
+            const contentType = retryResponse.headers.get('content-type') || 'image/jpeg';
+            return new NextResponse(imageBuffer, {
+              status: 200,
+              headers: {
+                'Content-Type': contentType,
+                'Cache-Control': 'public, max-age=31536000, immutable',
+                'Access-Control-Allow-Origin': '*',
+              },
+            });
+          }
+        } catch (retryError) {
+          console.error('[Thumbnail Proxy] Retry also failed:', retryError);
+        }
+      }
+      
       return NextResponse.json(
         { error: `Failed to fetch image: ${imageResponse.status}` },
         { status: imageResponse.status }

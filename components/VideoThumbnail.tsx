@@ -126,6 +126,13 @@ export default function VideoThumbnail({
           className={className}
           style={fill ? { width: '100%', height: '100%', objectFit: 'cover' } : { width: 'auto', height: 'auto', maxWidth: '100%', maxHeight: '500px', objectFit: 'contain' }}
           loading="lazy"
+          onError={(e) => {
+            // If proxy fails, try direct URL as fallback
+            console.warn('[VideoThumbnail] Proxy failed, trying direct URL:', thumbnail);
+            const img = e.currentTarget;
+            img.src = thumbnail;
+            img.setAttribute('referrerPolicy', 'no-referrer');
+          }}
         />
       );
     }
