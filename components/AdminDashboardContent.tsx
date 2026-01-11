@@ -600,6 +600,41 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
         }
     };
     
+    const handleFetchFromIframely = async (videoUrl: string) => {
+        if (!videoUrl) return;
+        
+        setFetchingThumbnails({ ...fetchingThumbnails, [videoUrl]: true });
+        
+        try {
+            const response = await fetch('/api/video-thumbnail/cache', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    videoUrl, 
+                    influencerId: user.id 
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success && data.thumbnail) {
+                // Store the metadata object (with url, width, height, type)
+                setVideoThumbnails({ ...videoThumbnails, [videoUrl]: data.thumbnail });
+                setThumbnailPreviews({ ...thumbnailPreviews, [videoUrl]: data.thumbnail.url });
+                
+                // Clear file upload if we got data from Iframely
+                setThumbnailFiles({ ...thumbnailFiles, [videoUrl]: null });
+            } else {
+                alert(data.error || 'Failed to fetch thumbnail from Iframely');
+            }
+        } catch (error: any) {
+            console.error('Error fetching from Iframely:', error);
+            alert('Error: ' + (error.message || 'Failed to fetch thumbnail'));
+        } finally {
+            setFetchingThumbnails({ ...fetchingThumbnails, [videoUrl]: false });
+        }
+    };
+    
     const handleThumbnailFileChange = (videoUrl: string, file: File | null) => {
         if (file) {
             // Validate file type
