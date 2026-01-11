@@ -307,24 +307,29 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                         <img src={avatarPreview} alt="Avatar preview" className="w-full h-full object-cover" />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center bg-gray-200">
-                                            <span className="text-gray-500 text-xs font-medium">NO PHOTO</span>
+                                            <span className="text-gray-500 text-xs font-medium">ΧΩΡΙΣ ΦΩΤΟ</span>
                                         </div>
                                     )}
                                 </div>
                                 <div className="flex-1">
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={(e) => {
-                                            const file = e.target.files?.[0];
-                                            if (file) {
-                                                setAvatarFile(file);
-                                                setAvatarPreview(URL.createObjectURL(file));
-                                            }
-                                        }}
-                                        className="w-full text-sm text-slate-900"
-                                    />
-                                    <p className="text-xs text-slate-500 mt-1">PNG, JPG, GIF up to 5MB</p>
+                                    <label className="block">
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) {
+                                                    setAvatarFile(file);
+                                                    setAvatarPreview(URL.createObjectURL(file));
+                                                }
+                                            }}
+                                            className="hidden"
+                                        />
+                                        <span className="inline-block px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors cursor-pointer">
+                                            Επιλογή Αρχείου
+                                        </span>
+                                    </label>
+                                    <p className="text-xs text-slate-500 mt-1">PNG, JPG, GIF έως 5MB</p>
                                 </div>
                             </div>
                         </div>
@@ -397,18 +402,18 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                             <div>
                                 <label className="block text-xs font-semibold text-slate-900 mb-1">Φύλο</label>
                                 <select value={gender} onChange={e => setGender(e.target.value)} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900">
-                                    <option>Female</option>
-                                    <option>Male</option>
-                                    <option>Other</option>
+                                    <option value="Female">Γυναίκα</option>
+                                    <option value="Male">Άνδρας</option>
+                                    <option value="Other">Άλλο</option>
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-xs font-semibold text-slate-900 mb-1">Min Rate (€)</label>
+                                <label className="block text-xs font-semibold text-slate-900 mb-1">Ελάχιστη Χρέωση (€)</label>
                                 <input type="text" value={minRate} onChange={e => setMinRate(replaceCommaWithDot(e.target.value))} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" placeholder="250" />
                             </div>
                         </div>
                         <div className="mt-3">
-                            <label className="block text-xs font-semibold text-slate-900 mb-1">Bio</label>
+                            <label className="block text-xs font-semibold text-slate-900 mb-1">Βιογραφικό</label>
                             <textarea value={bio} onChange={e => setBio(e.target.value)} rows={2} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900" />
                         </div>
                     </div>
