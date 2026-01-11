@@ -134,24 +134,6 @@ export default function InfluencerCard({
           ))}
         </div>
 
-        {/* Languages (Tags) */}
-        {languages && languages.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mb-4">
-            {languages.slice(0, 4).map((langItem, i) => {
-              const langName = languageTranslations[langItem]?.[lang] || langItem;
-              return (
-                <span
-                  key={i}
-                  className="text-[10px] font-medium bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-100"
-                  title={lang === 'el' ? 'Γλώσσα' : 'Language'}
-                >
-                  🌐 {langName}
-                </span>
-              );
-            })}
-          </div>
-        )}
-
         {/* Footer: Social Stats */}
         <div className="mt-auto pt-3 border-t border-slate-200 grid grid-cols-2 gap-2">
             
