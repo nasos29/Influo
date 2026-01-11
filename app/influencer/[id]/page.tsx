@@ -10,6 +10,7 @@ import VideoThumbnail from "@/components/VideoThumbnail";
 import { getBadges, getBadgeStyles } from "@/lib/badges";
 import Avatar from "@/components/Avatar";
 import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
+import { categoryTranslations } from "@/components/categoryTranslations";
 
 type Params = Promise<{ id: string }>;
 
@@ -1226,6 +1227,19 @@ export default function InfluencerProfile(props: { params: Params }) {
                         </span>
                     )}
                 </div>
+                {/* Categories */}
+                {profile.categories && profile.categories.length > 0 && (
+                  <div className="flex flex-wrap justify-center md:justify-start gap-2 mt-3">
+                    {profile.categories.map((cat, i) => {
+                      const translatedCat = categoryTranslations[cat]?.[lang] || cat;
+                      return (
+                        <span key={i} className="text-xs uppercase font-semibold bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full border border-blue-200">
+                          {translatedCat}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
                 <div className="flex flex-wrap justify-center md:justify-start gap-2 mt-3">
                     {profile.languages && Array.isArray(profile.languages) && profile.languages.map((l, i) => (
                       <span key={i} className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-600">

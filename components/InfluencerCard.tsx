@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { Badge, getBadgeStyles } from "../lib/badges";
 import Avatar from "./Avatar";
+import { categoryTranslations } from "./categoryTranslations";
 
 interface InfluencerCardProps {
   name: string;
@@ -124,14 +125,17 @@ export default function InfluencerCard({
 
         {/* Categories (Tags) */}
         <div className="flex flex-wrap gap-1.5 mb-3">
-          {categories.slice(0, 3).map((cat, i) => (
-            <span
-              key={i}
-              className="text-[10px] uppercase font-medium bg-slate-100 text-slate-600 px-2 py-0.5 rounded"
-            >
-              {cat}
-            </span>
-          ))}
+          {categories.slice(0, 3).map((cat, i) => {
+            const translatedCat = categoryTranslations[cat]?.[lang] || cat;
+            return (
+              <span
+                key={i}
+                className="text-[10px] uppercase font-medium bg-slate-100 text-slate-600 px-2 py-0.5 rounded"
+              >
+                {translatedCat}
+              </span>
+            );
+          })}
         </div>
 
         {/* Footer: Social Stats */}
