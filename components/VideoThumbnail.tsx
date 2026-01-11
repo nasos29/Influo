@@ -114,26 +114,20 @@ export default function VideoThumbnail({
   }
 
   if (thumbnail) {
-    // For Instagram CDN URLs, use proxy to avoid 403 errors
+    // For Instagram CDN URLs, Instagram blocks these requests - use placeholder instead
     const isInstagramCDN = thumbnail.includes('cdninstagram.com') || thumbnail.includes('scontent.cdninstagram.com');
     
     if (isInstagramCDN) {
-      const proxyUrl = `/api/thumbnail-proxy?url=${encodeURIComponent(thumbnail)}`;
+      // Instagram CDN blocks requests - show placeholder instead of trying to load
+      // This prevents infinite error loops
+      const isInstagram = /instagram\.com\/(?:p|reel)\//i.test(url);
       return (
-        <img
-          src={proxyUrl}
-          alt={alt}
-          className={className}
-          style={fill ? { width: '100%', height: '100%', objectFit: 'cover' } : { width: 'auto', height: 'auto', maxWidth: '100%', maxHeight: '500px', objectFit: 'contain' }}
-          loading="lazy"
-          onError={(e) => {
-            // If proxy fails, try direct URL as fallback
-            console.warn('[VideoThumbnail] Proxy failed, trying direct URL:', thumbnail);
-            const img = e.currentTarget;
-            img.src = thumbnail;
-            img.setAttribute('referrerPolicy', 'no-referrer');
-          }}
-        />
+        <div className={`bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center ${className}`} style={fill ? {} : { width, height }}>
+          <div className="text-center">
+            <div className="text-4xl mb-2">📷</div>
+            <span className="text-white text-xs opacity-90 font-medium">Instagram</span>
+          </div>
+        </div>
       );
     }
     
