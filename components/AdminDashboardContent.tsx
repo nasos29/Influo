@@ -15,6 +15,20 @@ const CATEGORIES = [
   "DIY & Crafts", "Sustainability & Eco", "Cars & Automotive"
 ];
 
+// --- LANGUAGES LIST ---
+const LANGUAGES = [
+  { code: "el", el: "Ελληνικά", en: "Greek" },
+  { code: "en", el: "Αγγλικά", en: "English" },
+  { code: "de", el: "Γερμανικά", en: "German" },
+  { code: "fr", el: "Γαλλικά", en: "French" },
+  { code: "es", el: "Ισπανικά", en: "Spanish" },
+  { code: "it", el: "Ιταλικά", en: "Italian" },
+  { code: "pt", el: "Πορτογαλικά", en: "Portuguese" },
+  { code: "ru", el: "Ρωσικά", en: "Russian" },
+  { code: "zh", el: "Κινεζικά", en: "Chinese" },
+  { code: "ja", el: "Ιαπωνικά", en: "Japanese" }
+];
+
 // Category translations
 const categoryTranslations: { [key: string]: { el: string; en: string } } = {
   "Γενικά": { el: "Γενικά", en: "General" },
@@ -504,7 +518,31 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
         ? (user.category.includes(',') ? user.category.split(',').map(c => c.trim()) : [user.category])
         : ["Lifestyle"];
     const [categories, setCategories] = useState<string[]>(initialCategories);
-    const [languages, setLanguages] = useState(user.languages || "");
+    // Parse languages from comma-separated string to array of language codes
+    const parseLanguages = (langString: string | null): string[] => {
+        if (!langString) return [];
+        const langArray = langString.split(',').map(l => l.trim().toLowerCase());
+        const codes: string[] = [];
+        langArray.forEach(lang => {
+            const foundLang = LANGUAGES.find(l => l.code === lang || l.el.toLowerCase() === lang || l.en.toLowerCase() === lang);
+            if (foundLang) {
+                codes.push(foundLang.code);
+            } else {
+                const partialMatch = LANGUAGES.find(l => 
+                    l.el.toLowerCase().includes(lang) || 
+                    l.en.toLowerCase().includes(lang) ||
+                    lang.includes(l.el.toLowerCase()) ||
+                    lang.includes(l.en.toLowerCase())
+                );
+                if (partialMatch) {
+                    codes.push(partialMatch.code);
+                }
+            }
+        });
+        return codes;
+    };
+    const initialLanguages = parseLanguages(user.languages);
+    const [selectedLanguages, setSelectedLanguages] = useState<string[]>(initialLanguages);
     const [accounts, setAccounts] = useState<{ platform: string; username: string; followers: string }[]>(user.accounts || [{ platform: "Instagram", username: "", followers: "" }]);
     const [videos, setVideos] = useState<string[]>(Array.isArray(user.videos) ? user.videos : []);
     const [malePercent, setMalePercent] = useState(user.audience_male_percent?.toString() || "");
@@ -570,7 +608,10 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                 engagement_rate: engage,
                 gender: gender,
                 category: categoryString,
-                languages: languages,
+                languages: selectedLanguages.map(code => {
+                    const lang = LANGUAGES.find(l => l.code === code);
+                    return lang ? lang.el : code;
+                }).join(", "), // Store as comma-separated string with Greek names
                 accounts: accounts,
                 videos: videos.filter(v => v !== ""),
                 audience_male_percent: parseInt(malePercent) || 0,
@@ -721,7 +762,39 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                 </div>
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-900 mb-1">Languages</label>
-                                    <input type="text" value={languages} onChange={e => setLanguages(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" placeholder="e.g. Greek, English" />
+                                    <div className="border-2 border-slate-200 rounded-lg p-3 bg-slate-50">
+                                        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                                            {LANGUAGES.map(langItem => {
+                                                const isSelected = selectedLanguages.includes(langItem.code);
+                                                return (
+                                                    <label 
+                                                        key={langItem.code} 
+                                                        className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-all ${
+                                                            isSelected 
+                                                                ? 'bg-blue-100 border-2 border-blue-500' 
+                                                                : 'bg-white border-2 border-slate-200 hover:border-blue-300'
+                                                        }`}
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isSelected}
+                                                            onChange={(e) => {
+                                                                if (e.target.checked) {
+                                                                    setSelectedLanguages([...selectedLanguages, langItem.code]);
+                                                                } else {
+                                                                    setSelectedLanguages(selectedLanguages.filter(l => l !== langItem.code));
+                                                                }
+                                                            }}
+                                                            className="w-4 h-4 text-blue-600 border-2 border-slate-300 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                                                        />
+                                                        <span className={`text-xs font-medium ${isSelected ? 'text-blue-900' : 'text-slate-700'}`}>
+                                                            {langItem.en}
+                                                        </span>
+                                                    </label>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

@@ -16,6 +16,20 @@ const CATEGORIES = [
   "DIY & Crafts", "Sustainability & Eco", "Cars & Automotive"
 ];
 
+// --- LANGUAGES LIST ---
+const LANGUAGES = [
+  { code: "el", el: "Ελληνικά", en: "Greek" },
+  { code: "en", el: "Αγγλικά", en: "English" },
+  { code: "de", el: "Γερμανικά", en: "German" },
+  { code: "fr", el: "Γαλλικά", en: "French" },
+  { code: "es", el: "Ισπανικά", en: "Spanish" },
+  { code: "it", el: "Ιταλικά", en: "Italian" },
+  { code: "pt", el: "Πορτογαλικά", en: "Portuguese" },
+  { code: "ru", el: "Ρωσικά", en: "Russian" },
+  { code: "zh", el: "Κινεζικά", en: "Chinese" },
+  { code: "ja", el: "Ιαπωνικά", en: "Japanese" }
+];
+
 // Category translations
 const categoryTranslations: { [key: string]: { el: string; en: string } } = {
   "Γενικά": { el: "Γενικά", en: "General" },
@@ -71,7 +85,7 @@ const t = {
     follLabel: "Followers (π.χ. 15k)",
     addAccount: "+ Προσθήκη Πλατφόρμας",
     langsLabel: "Γλώσσες Επικοινωνίας",
-    langsPlace: "π.χ. Ελληνικά, Αγγλικά",
+    langsDesc: "Επιλέξτε τις γλώσσες που μιλάτε",
     photoLabel: "Φωτογραφία Προφίλ",
     uploadBtn: "Ανέβασμα Φωτογραφίας",
     insightsLabel: "Αποδεικτικά Insights (Screenshots)",
@@ -125,8 +139,8 @@ const t = {
     userLabel: "Username (no @)",
     follLabel: "Followers (e.g. 15k)",
     addAccount: "+ Add Platform",
-    langsLabel: "Languages Spoken",
-    langsPlace: "e.g. Greek, English",
+    langsLabel: "Γλώσσες Επικοινωνίας",
+    langsDesc: "Επιλέξτε τις γλώσσες που μιλάτε",
     photoLabel: "Profile Photo",
     uploadBtn: "Upload Photo",
     insightsLabel: "Insights Proof (Screenshots)",
@@ -173,7 +187,7 @@ export default function InfluencerSignupForm() {
   const [password, setPassword] = useState(""); 
   
   const [accounts, setAccounts] = useState<Account[]>([{ platform: "Instagram", username: "", followers: "" }]);
-  const [languages, setLanguages] = useState("");
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -474,7 +488,7 @@ export default function InfluencerSignupForm() {
           // Note: If categories column exists as array, store all categories
           // Otherwise, categories are stored as comma-separated string in category field or first category
           location,
-          languages,
+          languages: selectedLanguages.join(", "), // Store as comma-separated string
           min_rate: minRate,
           contact_email: email,
           bio, 
@@ -774,9 +788,52 @@ export default function InfluencerSignupForm() {
                     </button>
                 </div>
 
+                {/* LANGUAGES MULTI-SELECT */}
                 <div>
                     <label className={labelClass}>{txt.langsLabel}</label>
-                    <input type="text" className={inputClass} value={languages} onChange={(e) => setLanguages(e.target.value)} placeholder={txt.langsPlace} />
+                    <p className="text-xs text-slate-500 mb-3">{txt.langsDesc}</p>
+                    <div className="border-2 border-slate-200 rounded-xl p-4 bg-slate-50">
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                            {LANGUAGES.map(langItem => {
+                                const isSelected = selectedLanguages.includes(langItem.code);
+                                const displayName = lang === 'el' ? langItem.el : langItem.en;
+                                
+                                return (
+                                    <label 
+                                        key={langItem.code} 
+                                        className={`flex items-center gap-2 p-2.5 rounded-lg cursor-pointer transition-all ${
+                                            isSelected 
+                                                ? 'bg-blue-100 border-2 border-blue-500' 
+                                                : 'bg-white border-2 border-slate-200 hover:border-blue-300'
+                                        }`}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={isSelected}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setSelectedLanguages([...selectedLanguages, langItem.code]);
+                                                } else {
+                                                    setSelectedLanguages(selectedLanguages.filter(l => l !== langItem.code));
+                                                }
+                                            }}
+                                            className="w-4 h-4 text-blue-600 border-2 border-slate-300 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                                        />
+                                        <span className={`text-sm font-medium ${isSelected ? 'text-blue-900' : 'text-slate-700'}`}>
+                                            {displayName}
+                                        </span>
+                                    </label>
+                                );
+                            })}
+                        </div>
+                    </div>
+                    {selectedLanguages.length > 0 && (
+                        <p className="text-xs text-slate-600 mt-2">
+                            {lang === 'el' 
+                                ? `Επιλέχθηκαν: ${selectedLanguages.map(l => LANGUAGES.find(lang => lang.code === l)?.el || l).join(', ')}` 
+                                : `Selected: ${selectedLanguages.map(l => LANGUAGES.find(lang => lang.code === l)?.en || l).join(', ')}`}
+                        </p>
+                    )}
                 </div>
                 
                 {/* Buttons at the end of Step 2 */}
