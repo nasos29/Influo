@@ -362,26 +362,27 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
     console.log('[Directory] useEffect triggered');
     isMountedRef.current = true;
     
-    // Delay the query slightly to avoid race conditions with other auth checks on the page
     const fetchReal = async () => {
       console.log('[Directory] fetchReal started');
-      
-      // Small delay to let auth checks complete first (especially on homepage)
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      if (!isMountedRef.current) {
-        console.log('[Directory] Component unmounted during delay');
-        return;
-      }
       
       try {
         console.log('[Directory] Starting Supabase query...');
         const startTime = Date.now();
         
-        const { data, error } = await supabase
+        // Create a promise with timeout (10 seconds)
+        const queryPromise = supabase
           .from("influencers")
           .select("*")
           .eq('approved', true);
+        
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Query timeout after 10 seconds')), 10000);
+        });
+        
+        const { data, error } = await Promise.race([
+          queryPromise,
+          timeoutPromise
+        ]) as { data: any; error: any };
         
         if (!isMountedRef.current) {
           console.log('[Directory] Component unmounted, skipping state update');
@@ -390,7 +391,12 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
         
         const queryTime = Date.now() - startTime;
         console.log('[Directory] Query completed in', queryTime, 'ms');
-        console.log('[Directory] Fetch result:', { dataLength: data?.length || 0, error, hasData: !!data, queryTime });
+        console.log('[Directory] Fetch result:', { 
+          dataLength: data?.length || 0, 
+          error: error ? { message: error.message, code: error.code, details: error.details, hint: error.hint } : null, 
+          hasData: !!data, 
+          queryTime 
+        });
         
         if (error) {
           console.error('[Directory] Error fetching influencers:', error);
