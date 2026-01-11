@@ -583,6 +583,30 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
                     <option value="4">{txt.ratingMin} 4★</option>
                     <option value="4.5">{txt.ratingMin} 4.5★</option>
                 </select>
+                
+                {/* Location Filter - Second to Last */}
+                <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><LocationIcon /></div>
+                    <input 
+                        type="text" 
+                        placeholder={txt.locPlace} 
+                        value={locationQuery} 
+                        onChange={(e) => setLocationQuery(e.target.value)} 
+                        className={`${selectClass} pl-10`}
+                    />
+                </div>
+                
+                {/* Name Search Filter - Last */}
+                <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><SearchIcon /></div>
+                    <input 
+                        type="text" 
+                        placeholder={txt.searchPlace} 
+                        value={searchQuery} 
+                        onChange={(e) => setSearchQuery(e.target.value)} 
+                        className={`${selectClass} pl-10`}
+                    />
+                </div>
             </div>
             
             <div className="mt-4 flex justify-between items-center">
