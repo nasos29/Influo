@@ -294,16 +294,7 @@ export default function BrandSignupForm() {
         >
           {txt.back}
         </button>
-        <button
-          onClick={() => {
-            const newLang = lang === 'el' ? 'en' : 'el';
-            setLang(newLang);
-            setStoredLanguage(newLang);
-          }}
-          className="text-sm font-medium text-blue-600 hover:text-blue-700 px-3 py-1 rounded-lg hover:bg-blue-50 transition-colors"
-        >
-          {lang === 'el' ? 'EN' : 'ΕΛ'}
-        </button>
+        {/* Language toggle removed - use header toggle instead */}
       </div>
 
       <div className="text-center mb-6">

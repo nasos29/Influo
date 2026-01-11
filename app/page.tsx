@@ -96,6 +96,17 @@ export default function Home() {
   // Load language from localStorage on client-side
   useEffect(() => {
     setLang(getStoredLanguage());
+    
+    // Listen for language changes from Header component
+    const handleLanguageChange = (event: CustomEvent) => {
+      setLang(event.detail);
+    };
+    
+    window.addEventListener('languageChanged', handleLanguageChange as EventListener);
+    
+    return () => {
+      window.removeEventListener('languageChanged', handleLanguageChange as EventListener);
+    };
   }, []);
 
   // Check if user is logged in and get user type

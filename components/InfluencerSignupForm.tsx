@@ -613,17 +613,7 @@ export default function InfluencerSignupForm() {
               <h3 className="text-2xl md:text-3xl font-bold mb-2">{txt.headerTitle}</h3>
               <p className="text-slate-300 text-sm">{txt.headerDesc}</p>
           </div>
-          <button 
-              onClick={() => {
-                const newLang = lang === "el" ? "en" : "el";
-                setLang(newLang);
-                setStoredLanguage(newLang);
-              }}
-              className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors bg-white"
-              aria-label="Toggle language"
-          >
-              {lang === "el" ? "EN" : "EL"}
-          </button>
+          {/* Language toggle removed - use header toggle instead */}
         </div>
       </div>
 
