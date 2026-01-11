@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Directory from "../../components/Directory";
 import Footer from "../../components/Footer";
 import Image from "next/image";
