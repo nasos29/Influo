@@ -115,20 +115,23 @@ export default function VideoThumbnail({
   }
 
   if (thumbnail && !failed) {
-    // For Instagram CDN URLs, try to load with proxy first
+    // For Instagram CDN URLs, try direct load first (browser might handle it)
+    // Only use proxy if direct load fails
     const isInstagramCDN = thumbnail.includes('cdninstagram.com') || thumbnail.includes('scontent.cdninstagram.com');
     
     if (isInstagramCDN) {
-      const proxyUrl = `/api/thumbnail-proxy?url=${encodeURIComponent(thumbnail)}`;
+      // Try direct URL first - sometimes browser can load it even if server can't
       return (
         <img
-          src={proxyUrl}
+          src={thumbnail}
           alt={alt}
           className={className}
           style={fill ? { width: '100%', height: '100%', objectFit: 'cover' } : { width: 'auto', height: 'auto', maxWidth: '100%', maxHeight: '500px', objectFit: 'contain' }}
           loading="lazy"
+          referrerPolicy="no-referrer"
           onError={() => {
-            // If proxy fails, mark as failed to show placeholder (prevents infinite loop)
+            // If direct load fails, mark as failed to show placeholder (prevents infinite loop)
+            console.warn('[VideoThumbnail] Direct Instagram CDN URL failed, showing placeholder');
             setFailed(true);
           }}
         />
