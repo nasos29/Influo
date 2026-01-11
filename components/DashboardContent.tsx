@@ -145,6 +145,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
     const [pricePost, setPricePost] = useState('');
     const [priceReel, setPriceReel] = useState('');
     const [priceFacebook, setPriceFacebook] = useState('');
+    const [priceYouTube, setPriceYouTube] = useState('');
 
     // Helper function to replace commas with dots in numeric inputs
     const replaceCommaWithDot = (value: string): string => {
@@ -422,7 +423,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                     <div>
                         <h3 className="text-sm font-semibold text-slate-700 mb-3 uppercase">Τιμές Ανά Υπηρεσία</h3>
                         <p className="text-xs text-slate-600 mb-3">Αφήστε κενό για "Ρώτησε".</p>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5">
                             <div>
                                 <label className="block text-xs font-semibold text-slate-900 mb-1">Instagram Story (€)</label>
                                 <input 
@@ -461,6 +462,16 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                     onChange={e => setPriceFacebook(replaceCommaWithDot(e.target.value))} 
                                     className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" 
                                     placeholder="150" 
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-900 mb-1">YouTube Video (€)</label>
+                                <input 
+                                    type="text" 
+                                    value={priceYouTube} 
+                                    onChange={e => setPriceYouTube(replaceCommaWithDot(e.target.value))} 
+                                    className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" 
+                                    placeholder="400" 
                                 />
                             </div>
                         </div>
