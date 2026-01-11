@@ -964,8 +964,13 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
 };
 
 export default function AdminDashboardContent({ adminEmail }: { adminEmail: string }) {
-  const [lang, setLang] = useState<"el" | "en">(getStoredLanguage());
+  const [lang, setLang] = useState<"el" | "en">("el"); // Default to Greek, will be updated in useEffect
   const txt = t[lang];
+
+  // Load language from localStorage on client-side
+  useEffect(() => {
+    setLang(getStoredLanguage());
+  }, []);
 
   const [activeTab, setActiveTab] = useState("influencers");
   const [users, setUsers] = useState<DbInfluencer[]>([]);

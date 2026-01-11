@@ -51,10 +51,15 @@ export default function ResetPasswordPage() {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [messageType, setMessageType] = useState<'error' | 'success'>('error');
-    const [lang, setLang] = useState<'el' | 'en'>(getStoredLanguage());
+    const [lang, setLang] = useState<'el' | 'en'>('el'); // Default to Greek, will be updated in useEffect
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [validating, setValidating] = useState(true);
+
+    // Load language from localStorage on client-side
+    useEffect(() => {
+        setLang(getStoredLanguage());
+    }, []);
     const router = useRouter();
     const txt = t[lang];
 

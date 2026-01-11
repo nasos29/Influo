@@ -84,7 +84,7 @@ interface VerifiedBrand {
 
 export default function Home() {
   const [showModal, setShowModal] = useState(false);
-  const [lang, setLang] = useState<Lang>(getStoredLanguage());
+  const [lang, setLang] = useState<Lang>("el"); // Default to Greek, will be updated in useEffect
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [verifiedBrands, setVerifiedBrands] = useState<VerifiedBrand[]>([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -92,6 +92,11 @@ export default function Home() {
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
   const txt = t[lang];
+
+  // Load language from localStorage on client-side
+  useEffect(() => {
+    setLang(getStoredLanguage());
+  }, []);
 
   // Check if user is logged in and get user type
   useEffect(() => {

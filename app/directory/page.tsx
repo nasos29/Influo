@@ -23,7 +23,12 @@ const t = {
 };
 
 export default function DirectoryPage() {
-  const [lang, setLang] = useState<Lang>(getStoredLanguage());
+  const [lang, setLang] = useState<Lang>("el"); // Default to Greek, will be updated in useEffect
+
+  // Load language from localStorage on client-side
+  useEffect(() => {
+    setLang(getStoredLanguage());
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
