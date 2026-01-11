@@ -5,6 +5,7 @@ import Directory from "../../components/Directory";
 import Footer from "../../components/Footer";
 import Image from "next/image";
 import Link from "next/link";
+import { getStoredLanguage, setStoredLanguage, type Language } from "@/lib/language";
 
 type Lang = "el" | "en";
 
@@ -22,7 +23,7 @@ const t = {
 };
 
 export default function DirectoryPage() {
-  const [lang, setLang] = useState<Lang>("el");
+  const [lang, setLang] = useState<Lang>(getStoredLanguage());
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
@@ -45,7 +46,11 @@ export default function DirectoryPage() {
               {lang === "el" ? "Αρχική" : "Home"}
             </Link>
             <button 
-              onClick={() => setLang(lang === "el" ? "en" : "el")}
+              onClick={() => {
+                const newLang = lang === "el" ? "en" : "el";
+                setLang(newLang);
+                setStoredLanguage(newLang);
+              }}
               className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
               aria-label="Toggle language"
             >

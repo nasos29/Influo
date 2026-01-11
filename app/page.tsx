@@ -6,6 +6,7 @@ import Directory from "../components/Directory";
 import InfluencerSignupForm from "../components/InfluencerSignupForm";
 import Footer from "../components/Footer";
 import { supabase } from "@/lib/supabaseClient";
+import { getStoredLanguage, setStoredLanguage, type Language } from "@/lib/language";
 
 type Lang = "el" | "en";
 
@@ -83,7 +84,7 @@ interface VerifiedBrand {
 
 export default function Home() {
   const [showModal, setShowModal] = useState(false);
-  const [lang, setLang] = useState<Lang>("el");
+  const [lang, setLang] = useState<Lang>(getStoredLanguage());
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [verifiedBrands, setVerifiedBrands] = useState<VerifiedBrand[]>([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
