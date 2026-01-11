@@ -1606,6 +1606,73 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     }
   }, [selectedConversation]);
 
+  // Check for broken thumbnails after users are loaded
+  useEffect(() => {
+    if (users.length > 0) {
+      checkBrokenThumbnails();
+    }
+  }, [users]);
+
+  const checkBrokenThumbnails = async () => {
+    setCheckingThumbnails(true);
+    const broken: Array<{ influencerId: number; influencerName: string; videoUrl: string; thumbnailUrl: string; reason: string }> = [];
+
+    try {
+      // Filter influencers that have thumbnails
+      const influencersToCheck = users.filter(user => 
+        user.video_thumbnails && Object.keys(user.video_thumbnails).length > 0
+      );
+      
+      // Process in batches of 20 to avoid overwhelming the server
+      const batchSize = 20;
+      for (let i = 0; i < influencersToCheck.length; i += batchSize) {
+        const batch = influencersToCheck.slice(i, i + batchSize);
+        
+        // Process batch in parallel
+        const batchPromises = batch.map(async (user) => {
+          try {
+            const response = await fetch('/api/video-thumbnail/check', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ influencerId: user.id })
+            });
+
+            const data = await response.json();
+            
+            if (data.broken && data.brokenThumbnails && data.brokenThumbnails.length > 0) {
+              return data.brokenThumbnails.map((brokenThumb: any) => ({
+                influencerId: user.id,
+                influencerName: user.display_name || user.contact_email || 'Unknown',
+                videoUrl: brokenThumb.videoUrl,
+                thumbnailUrl: brokenThumb.thumbnailUrl,
+                reason: brokenThumb.reason
+              }));
+            }
+            return [];
+          } catch (error) {
+            console.error(`Error checking thumbnails for influencer ${user.id}:`, error);
+            return [];
+          }
+        });
+        
+        const batchResults = await Promise.all(batchPromises);
+        const flatResults = batchResults.flat();
+        broken.push(...flatResults);
+        
+        // Small delay between batches to avoid rate limiting
+        if (i + batchSize < influencersToCheck.length) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+
+      setBrokenThumbnails(broken);
+    } catch (error) {
+      console.error('Error checking broken thumbnails:', error);
+    } finally {
+      setCheckingThumbnails(false);
+    }
+  };
+
   const toggleApproval = async (id: number, currentStatus: boolean, userEmail: string, userName: string) => {
     const { error } = await supabase.from("influencers").update({ 
       approved: !currentStatus,
