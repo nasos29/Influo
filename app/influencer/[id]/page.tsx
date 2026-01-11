@@ -226,44 +226,58 @@ export default function InfluencerProfile(props: { params: Params }) {
 
   // Check if current user is a brand
   useEffect(() => {
-    const checkUserType = () => {
-      // Check sessionStorage first (set by BrandDashboardContent when brand visits)
-      if (typeof window !== 'undefined') {
-        const sessionBrand = sessionStorage.getItem('isBrand');
-        if (sessionBrand === 'true') {
-          setIsBrand(true);
+    const checkUserType = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setIsBrand(false);
+          // Clear sessionStorage if user is not logged in
+          if (typeof window !== 'undefined') {
+            sessionStorage.removeItem('isBrand');
+          }
           return;
         }
-      }
 
-      // Fallback: check via API (but prefer sessionStorage to avoid hanging queries)
-      const checkViaAPI = async () => {
-        try {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user?.email) {
-            // Check if user is a brand using API route to avoid hanging
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.access_token) {
-              const response = await fetch('/api/user/profile', {
-                headers: {
-                  'Authorization': `Bearer ${session.access_token}`
-                }
-              });
-              if (response.ok) {
-                const result = await response.json();
-                setIsBrand(result.profile?.type === 'brand');
+        // Check if user is a brand using API route to avoid hanging queries
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          const response = await fetch('/api/user/profile', {
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`
+            }
+          });
+          if (response.ok) {
+            const result = await response.json();
+            const isBrandUser = result.profile?.type === 'brand';
+            setIsBrand(isBrandUser);
+            
+            // Update sessionStorage to match actual user type
+            if (typeof window !== 'undefined') {
+              if (isBrandUser) {
+                sessionStorage.setItem('isBrand', 'true');
+              } else {
+                sessionStorage.removeItem('isBrand');
               }
             }
           } else {
             setIsBrand(false);
+            if (typeof window !== 'undefined') {
+              sessionStorage.removeItem('isBrand');
+            }
           }
-        } catch (error) {
-          console.error('Error checking user type:', error);
+        } else {
           setIsBrand(false);
+          if (typeof window !== 'undefined') {
+            sessionStorage.removeItem('isBrand');
+          }
         }
-      };
-
-      checkViaAPI();
+      } catch (error) {
+        console.error('Error checking user type:', error);
+        setIsBrand(false);
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('isBrand');
+        }
+      }
     };
 
     checkUserType();
