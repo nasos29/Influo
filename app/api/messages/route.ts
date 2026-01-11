@@ -112,6 +112,43 @@ export async function POST(req: Request) {
       // Emails will be sent ONLY when conversation ends (via /api/conversations/end)
       // No auto-sending during active conversation
 
+      // Track analytics: conversation_started (if new conversation) and message_sent
+      if (!existingConv) {
+        // New conversation started
+        try {
+          await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/analytics/track`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              influencerId: influencerId,
+              eventType: 'conversation_started',
+              brandEmail: brandEmail,
+              brandName: brandName,
+              metadata: { conversation_id: convId, source: 'messages_api' }
+            })
+          }).catch(() => {}); // Fail silently
+        } catch (err) {
+          // Fail silently
+        }
+      }
+      
+      // Track message_sent
+      try {
+        await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/analytics/track`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            influencerId: influencerId,
+            eventType: 'message_sent',
+            brandEmail: brandEmail,
+            brandName: brandName,
+            metadata: { conversation_id: convId, source: 'messages_api', sender_type: senderType }
+          })
+        }).catch(() => {}); // Fail silently
+      } catch (err) {
+        // Fail silently
+      }
+
       return NextResponse.json({ success: true, message, conversationId: convId });
     }
 

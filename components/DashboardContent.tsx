@@ -8,6 +8,7 @@ import Image from 'next/image';
 import { getVideoThumbnail, isVideoUrl, isDefinitelyVideo, isDefinitelyImage } from '@/lib/videoThumbnail';
 import VideoThumbnail from './VideoThumbnail';
 import Messaging from './Messaging';
+import Analytics from './Analytics';
 
 // --- FULL CATEGORY LIST ---
 const CATEGORIES = [
@@ -69,6 +70,7 @@ interface InfluencerData {
     location: string;
     contact_email: string;
     verified: boolean;
+    approved?: boolean;
     min_rate: string;
     bio: string;
     engagement_rate: string | null;
@@ -660,7 +662,7 @@ interface Proposal {
 export default function DashboardContent({ profile: initialProfile }: { profile: InfluencerData }) {
     const [profile, setProfile] = useState(initialProfile);
     const [showEditModal, setShowEditModal] = useState(false);
-    const [activeTab, setActiveTab] = useState<'profile' | 'messages' | 'proposals'>('profile');
+    const [activeTab, setActiveTab] = useState<'profile' | 'messages' | 'proposals' | 'analytics'>('profile');
     const [loading, setLoading] = useState(false);
     const [proposals, setProposals] = useState<Proposal[]>([]);
     const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
@@ -946,6 +948,16 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                     </span>
                                 )}
                             </button>
+                            <button
+                                onClick={() => setActiveTab('analytics')}
+                                className={`px-4 md:px-6 py-4 font-medium border-b-2 transition-colors ${
+                                    activeTab === 'analytics'
+                                        ? 'border-slate-900 text-slate-900'
+                                        : 'border-transparent text-slate-500 hover:text-slate-700'
+                                }`}
+                            >
+                                <span className="hidden md:inline">📊 </span>Στατιστικά
+                            </button>
                             <Link
                                 href="/help-desk"
                                 className={`px-4 md:px-6 py-4 font-medium border-b-2 transition-colors ${
@@ -1081,6 +1093,8 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                     </div>
                                 )}
                             </div>
+                        ) : activeTab === 'analytics' ? (
+                            <Analytics influencerId={profile.id} lang="el" />
                         ) : activeTab === 'profile' ? (
                             <div className="space-y-6">
                                 <div className="flex items-center justify-between">
@@ -1093,8 +1107,8 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
                             <span className="block text-xs text-slate-500 uppercase font-medium mb-2">Status</span>
-                            <span className={`text-lg font-semibold ${profile.verified ? 'text-green-600' : 'text-yellow-600'}`}>
-                                {profile.verified ? '✅ Εγκεκριμένο' : '⏳ Σε Εκκρεμότητα'}
+                            <span className={`text-lg font-semibold ${profile.approved ? 'text-green-600' : 'text-yellow-600'}`}>
+                                {profile.approved ? '✅ Εγκεκριμένο' : '⏳ Σε Εκκρεμότητα'}
                             </span>
                         </div>
                         <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">

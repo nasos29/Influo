@@ -637,7 +637,27 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
               }, lang);
               
               return (
-                <Link href={`/influencer/${inf.id}`} key={inf.id} className="block h-full group">
+                <Link 
+                  href={`/influencer/${inf.id}`} 
+                  key={inf.id} 
+                  className="block h-full group"
+                  onClick={async () => {
+                    // Track profile_click
+                    try {
+                      await fetch('/api/analytics/track', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          influencerId: inf.id,
+                          eventType: 'profile_click',
+                          metadata: { source: 'directory' }
+                        })
+                      }).catch(() => {}); // Fail silently
+                    } catch (err) {
+                      // Fail silently
+                    }
+                  }}
+                >
                   <InfluencerCard {...inf} badges={badges} lang={lang} />
                 </Link>
               );

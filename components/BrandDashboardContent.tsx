@@ -1344,7 +1344,7 @@ export default function BrandDashboardContent() {
                       <div className="flex gap-2">
                         <Link
                           href={`/influencer/${inf.id}`}
-                          onClick={() => {
+                          onClick={async () => {
                             // Set session flag to indicate user is brand
                             if (typeof window !== 'undefined') {
                               sessionStorage.setItem('isBrand', 'true');
@@ -1357,6 +1357,35 @@ export default function BrandDashboardContent() {
                               }
                               return updated;
                             });
+                            
+                            // Track profile_click analytics
+                            try {
+                              const { data: { user } } = await supabase.auth.getUser();
+                              const brandEmail = user?.email || null;
+                              let brandName = null;
+                              if (brandEmail) {
+                                const { data: brandData } = await supabase
+                                  .from('brands')
+                                  .select('brand_name')
+                                  .or(`contact_email.ilike.${brandEmail},email.ilike.${brandEmail}`)
+                                  .maybeSingle();
+                                brandName = brandData?.brand_name || null;
+                              }
+                              
+                              await fetch('/api/analytics/track', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  influencerId: inf.id,
+                                  eventType: 'profile_click',
+                                  brandEmail: brandEmail,
+                                  brandName: brandName,
+                                  metadata: { source: 'brand_dashboard' }
+                                })
+                              }).catch(() => {}); // Fail silently
+                            } catch (err) {
+                              // Fail silently
+                            }
                           }}
                           className="flex-1 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-900 font-medium rounded-lg text-sm text-center transition-colors"
                         >

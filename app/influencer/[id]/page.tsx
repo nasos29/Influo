@@ -549,6 +549,58 @@ export default function InfluencerProfile(props: { params: Params }) {
     fetchProfile();
   }, [id]);
 
+  // Track profile view after profile loads (only for real influencers)
+  useEffect(() => {
+    if (!id || id.toString().includes("dummy") || !profile) return;
+
+    const trackProfileView = async () => {
+      try {
+        // Get brand info if user is a brand
+        let brandEmail = null;
+        let brandName = null;
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.access_token) {
+              const response = await fetch('/api/user/profile', {
+                headers: {
+                  'Authorization': `Bearer ${session.access_token}`
+                }
+              });
+              if (response.ok) {
+                const result = await response.json();
+                if (result.profile?.type === 'brand') {
+                  brandEmail = user.email || null;
+                  brandName = result.profile.brand_name || null;
+                }
+              }
+            }
+          }
+        } catch (e) {
+          // Ignore errors
+        }
+
+        // Track profile view
+        await fetch('/api/analytics/track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            influencerId: id,
+            eventType: 'profile_view',
+            brandEmail: brandEmail,
+            brandName: brandName,
+            metadata: { source: 'profile_page' }
+          })
+        }).catch(() => {}); // Fail silently
+      } catch (err) {
+        // Fail silently - analytics tracking should not break the page
+      }
+    };
+
+    trackProfileView();
+  }, [id, profile]);
+
   // Refresh when window gets focus (user might have edited in another tab)
   useEffect(() => {
     const handleFocus = () => {
