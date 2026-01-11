@@ -1129,7 +1129,16 @@ export default function InfluencerProfile(props: { params: Params }) {
                 ) : null;
               })()}
               {/* Action Buttons */}
-              <div className="flex gap-3">
+              <div className="flex gap-3 flex-col md:flex-row">
+                {/* Back to Proposals button for brands */}
+                {typeof window !== 'undefined' && sessionStorage.getItem('isBrand') === 'true' && (
+                  <a 
+                    href="/brand/dashboard"
+                    className="bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-transform hover:-translate-y-1 flex items-center justify-center gap-2 text-sm"
+                  >
+                    <span>←</span> {lang === 'el' ? 'Πίσω στις Προτάσεις' : 'Back to Proposals'}
+                  </a>
+                )}
                 <button onClick={() => setShowProposalModal(true)} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-transform hover:-translate-y-1 flex items-center gap-2">
                     <span>⚡</span> {txt.contact}
                 </button>
