@@ -1023,9 +1023,16 @@ export default function InfluencerProfile(props: { params: Params }) {
         
         {/* Back button */}
         <div className="absolute top-6 left-6 z-20">
-          <a href="/" className="text-white bg-white/20 backdrop-blur-md px-4 py-2 rounded-lg font-medium hover:bg-white/30 transition shadow-lg">
-            {txt.back}
-          </a>
+          {(() => {
+            // Check if user is brand and should go back to brand dashboard
+            const isBrand = typeof window !== 'undefined' && sessionStorage.getItem('isBrand') === 'true';
+            const backUrl = isBrand ? '/brand/dashboard' : '/';
+            return (
+              <a href={backUrl} className="text-white bg-white/20 backdrop-blur-md px-4 py-2 rounded-lg font-medium hover:bg-white/30 transition shadow-lg">
+                {isBrand ? (lang === 'el' ? '← Πίσω στο Dashboard' : '← Back to Dashboard') : txt.back}
+              </a>
+            );
+          })()}
         </div>
       </div>
 

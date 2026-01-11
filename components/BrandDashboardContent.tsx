@@ -480,11 +480,31 @@ export default function BrandDashboardContent() {
     minRating: 0,
   });
   const [showFilters, setShowFilters] = useState(false);
-  const [recommendationStats, setRecommendationStats] = useState({
-    totalViewed: 0,
-    profilesClicked: 0,
-    proposalsSent: 0,
+  // Load stats from localStorage on mount
+  const [recommendationStats, setRecommendationStats] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('brandDashboardStats');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {
+          console.error('Error parsing saved stats:', e);
+        }
+      }
+    }
+    return {
+      totalViewed: 0,
+      profilesClicked: 0,
+      proposalsSent: 0,
+    };
   });
+
+  // Save stats to localStorage whenever they change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('brandDashboardStats', JSON.stringify(recommendationStats));
+    }
+  }, [recommendationStats]);
   const [activeTab, setActiveTab] = useState<'recommendations' | 'proposals' | 'messages'>('recommendations');
   const router = useRouter();
   const txt = t[lang];
@@ -1315,7 +1335,20 @@ export default function BrandDashboardContent() {
                         </Link>
                         <Link
                           href={`/influencer/${inf.id}#proposal`}
-                          onClick={() => setRecommendationStats(prev => ({...prev, proposalsSent: prev.proposalsSent + 1}))}
+                          onClick={() => {
+                            // Set session flag to indicate user is brand
+                            if (typeof window !== 'undefined') {
+                              sessionStorage.setItem('isBrand', 'true');
+                            }
+                            setRecommendationStats(prev => {
+                              const updated = {...prev, proposalsSent: prev.proposalsSent + 1};
+                              // Save to localStorage immediately
+                              if (typeof window !== 'undefined') {
+                                localStorage.setItem('brandDashboardStats', JSON.stringify(updated));
+                              }
+                              return updated;
+                            });
+                          }}
                           className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg text-sm text-center transition-colors"
                         >
                           {txt.send_proposal}
