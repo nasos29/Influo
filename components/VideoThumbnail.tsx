@@ -23,6 +23,7 @@ export default function VideoThumbnail({
 }: VideoThumbnailProps) {
   const [thumbnail, setThumbnail] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false); // Track if thumbnail failed to load
   const isImage = url.match(/\.(jpg|jpeg|png|gif|webp)$/i);
   const isVideo = isVideoUrl(url);
 
@@ -113,21 +114,24 @@ export default function VideoThumbnail({
     );
   }
 
-  if (thumbnail) {
-    // For Instagram CDN URLs, Instagram blocks these requests - use placeholder instead
+  if (thumbnail && !failed) {
+    // For Instagram CDN URLs, try to load with proxy first
     const isInstagramCDN = thumbnail.includes('cdninstagram.com') || thumbnail.includes('scontent.cdninstagram.com');
     
     if (isInstagramCDN) {
-      // Instagram CDN blocks requests - show placeholder instead of trying to load
-      // This prevents infinite error loops
-      const isInstagram = /instagram\.com\/(?:p|reel)\//i.test(url);
+      const proxyUrl = `/api/thumbnail-proxy?url=${encodeURIComponent(thumbnail)}`;
       return (
-        <div className={`bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center ${className}`} style={fill ? {} : { width, height }}>
-          <div className="text-center">
-            <div className="text-4xl mb-2">📷</div>
-            <span className="text-white text-xs opacity-90 font-medium">Instagram</span>
-          </div>
-        </div>
+        <img
+          src={proxyUrl}
+          alt={alt}
+          className={className}
+          style={fill ? { width: '100%', height: '100%', objectFit: 'cover' } : { width: 'auto', height: 'auto', maxWidth: '100%', maxHeight: '500px', objectFit: 'contain' }}
+          loading="lazy"
+          onError={() => {
+            // If proxy fails, mark as failed to show placeholder (prevents infinite loop)
+            setFailed(true);
+          }}
+        />
       );
     }
     
