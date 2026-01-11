@@ -379,6 +379,11 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
             });
           }
 
+          // Parse languages from comma-separated string to array
+          const languagesArray = inf.languages 
+            ? (inf.languages.includes(',') ? inf.languages.split(',').map((l: string) => l.trim()) : [inf.languages.trim()])
+            : [];
+
           return {
             id: inf.id,
             name: inf.display_name,
@@ -389,7 +394,8 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
             followers: followersObj,
             categories: inf.category 
               ? (inf.category.includes(',') ? inf.category.split(',').map((c: string) => c.trim()) : [inf.category])
-              : ["New"], 
+              : ["New"],
+            languages: languagesArray,
             platform: "Instagram",
             gender: inf.gender || "Female",
             location: inf.location,

@@ -12,6 +12,7 @@ interface InfluencerCardProps {
   socials: { [key: string]: string | undefined };
   followers: { [key: string]: number | undefined };
   categories?: string[];
+  languages?: string[];
   badges?: Badge[];
   lang?: 'el' | 'en';
 }
@@ -42,6 +43,31 @@ const formatNum = (num?: number) => {
     return num.toString();
 };
 
+// Language translations
+const languageTranslations: { [key: string]: { el: string; en: string } } = {
+  "Ελληνικά": { el: "Ελληνικά", en: "Greek" },
+  "Αγγλικά": { el: "Αγγλικά", en: "English" },
+  "Γερμανικά": { el: "Γερμανικά", en: "German" },
+  "Γαλλικά": { el: "Γαλλικά", en: "French" },
+  "Ισπανικά": { el: "Ισπανικά", en: "Spanish" },
+  "Ιταλικά": { el: "Ιταλικά", en: "Italian" },
+  "Πορτογαλικά": { el: "Πορτογαλικά", en: "Portuguese" },
+  "Ρωσικά": { el: "Ρωσικά", en: "Russian" },
+  "Κινεζικά": { el: "Κινεζικά", en: "Chinese" },
+  "Ιαπωνικά": { el: "Ιαπωνικά", en: "Japanese" },
+  // Support both Greek and English names
+  "Greek": { el: "Ελληνικά", en: "Greek" },
+  "English": { el: "Αγγλικά", en: "English" },
+  "German": { el: "Γερμανικά", en: "German" },
+  "French": { el: "Γαλλικά", en: "French" },
+  "Spanish": { el: "Ισπανικά", en: "Spanish" },
+  "Italian": { el: "Ιταλικά", en: "Italian" },
+  "Portuguese": { el: "Πορτογαλικά", en: "Portuguese" },
+  "Russian": { el: "Ρωσικά", en: "Russian" },
+  "Chinese": { el: "Κινεζικά", en: "Chinese" },
+  "Japanese": { el: "Ιαπωνικά", en: "Japanese" },
+};
+
 export default function InfluencerCard({
   name,
   bio,
@@ -50,6 +76,7 @@ export default function InfluencerCard({
   socials,
   followers,
   categories = [],
+  languages = [],
   badges = [],
   lang = 'el',
 }: InfluencerCardProps) {
@@ -96,7 +123,7 @@ export default function InfluencerCard({
         </div>
 
         {/* Categories (Tags) */}
-        <div className="flex flex-wrap gap-1.5 mb-4">
+        <div className="flex flex-wrap gap-1.5 mb-3">
           {categories.slice(0, 3).map((cat, i) => (
             <span
               key={i}
@@ -106,6 +133,24 @@ export default function InfluencerCard({
             </span>
           ))}
         </div>
+
+        {/* Languages (Tags) */}
+        {languages && languages.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-4">
+            {languages.slice(0, 4).map((langItem, i) => {
+              const langName = languageTranslations[langItem]?.[lang] || langItem;
+              return (
+                <span
+                  key={i}
+                  className="text-[10px] font-medium bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-100"
+                  title={lang === 'el' ? 'Γλώσσα' : 'Language'}
+                >
+                  🌐 {langName}
+                </span>
+              );
+            })}
+          </div>
+        )}
 
         {/* Footer: Social Stats */}
         <div className="mt-auto pt-3 border-t border-slate-200 grid grid-cols-2 gap-2">
