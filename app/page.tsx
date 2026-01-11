@@ -304,29 +304,30 @@ export default function Home() {
                   </a></li>
                 )}
             </ul>
-            {/* User Avatar/Logo or Lang Toggle */}
-            {isLoggedIn ? (
-              <a 
-                href={userType === 'brand' ? '/brand/dashboard' : '/dashboard'}
-                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-              >
-                <div className="w-10 h-10 rounded-full border-2 border-slate-300 overflow-hidden bg-slate-100 flex items-center justify-center">
-                  {userAvatar ? (
-                    <Image
-                      src={userAvatar}
-                      alt={userName || 'Profile'}
-                      width={40}
-                      height={40}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-500 text-white font-semibold text-sm">
-                      {userName ? userName.charAt(0).toUpperCase() : 'U'}
-                    </div>
-                  )}
-                </div>
-              </a>
-            ) : (
+            {/* User Avatar/Logo and Lang Toggle */}
+            <div className="flex items-center gap-3">
+              {isLoggedIn && (
+                <a 
+                  href={userType === 'brand' ? '/brand/dashboard' : '/dashboard'}
+                  className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                >
+                  <div className="w-10 h-10 rounded-full border-2 border-slate-300 overflow-hidden bg-slate-100 flex items-center justify-center">
+                    {userAvatar ? (
+                      <Image
+                        src={userAvatar}
+                        alt={userName || 'Profile'}
+                        width={40}
+                        height={40}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-500 text-white font-semibold text-sm">
+                        {userName ? userName.charAt(0).toUpperCase() : 'U'}
+                      </div>
+                    )}
+                  </div>
+                </a>
+              )}
               <button 
                 onClick={() => setLang(lang === "el" ? "en" : "el")}
                 className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
@@ -334,7 +335,7 @@ export default function Home() {
               >
                 {lang === "el" ? "EN" : "EL"}
               </button>
-            )}
+            </div>
           </nav>
 
           {/* Mobile Menu Button */}
