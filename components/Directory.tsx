@@ -358,8 +358,12 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
   };
 
   useEffect(() => {
+    console.log('[Directory] useEffect triggered');
+    
     const fetchReal = async () => {
+      console.log('[Directory] fetchReal started');
       try {
+        console.log('[Directory] Starting Supabase query...');
         const { data, error } = await supabase
           .from("influencers")
           .select("*")
