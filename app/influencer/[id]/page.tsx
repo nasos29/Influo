@@ -226,25 +226,44 @@ export default function InfluencerProfile(props: { params: Params }) {
 
   // Check if current user is a brand
   useEffect(() => {
-    const checkUserType = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user?.email) {
-          // Check if user is a brand
-          const { data: brandData } = await supabase
-            .from('brands')
-            .select('id')
-            .or(`contact_email.ilike.${user.email},email.ilike.${user.email}`)
-            .maybeSingle();
-          
-          setIsBrand(!!brandData);
-        } else {
+    const checkUserType = () => {
+      // Check sessionStorage first (set by BrandDashboardContent when brand visits)
+      if (typeof window !== 'undefined') {
+        const sessionBrand = sessionStorage.getItem('isBrand');
+        if (sessionBrand === 'true') {
+          setIsBrand(true);
+          return;
+        }
+      }
+
+      // Fallback: check via API (but prefer sessionStorage to avoid hanging queries)
+      const checkViaAPI = async () => {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user?.email) {
+            // Check if user is a brand using API route to avoid hanging
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.access_token) {
+              const response = await fetch('/api/user/profile', {
+                headers: {
+                  'Authorization': `Bearer ${session.access_token}`
+                }
+              });
+              if (response.ok) {
+                const result = await response.json();
+                setIsBrand(result.profile?.type === 'brand');
+              }
+            }
+          } else {
+            setIsBrand(false);
+          }
+        } catch (error) {
+          console.error('Error checking user type:', error);
           setIsBrand(false);
         }
-      } catch (error) {
-        console.error('Error checking user type:', error);
-        setIsBrand(false);
-      }
+      };
+
+      checkViaAPI();
     };
 
     checkUserType();
