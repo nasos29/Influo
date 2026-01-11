@@ -19,7 +19,7 @@ export interface Influencer {
   gender: "Male" | "Female";
   videos?: string[];
   location?: string;
-  languages?: string;
+  languages?: string[];
   min_rate?: string;
   avg_likes?: string; 
   engagement_rate?: string;
