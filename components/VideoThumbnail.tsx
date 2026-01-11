@@ -114,17 +114,17 @@ export default function VideoThumbnail({
   }
 
   if (thumbnail) {
-    // For Instagram CDN URLs, use regular img tag to avoid 403 errors
-    const isInstagramCDN = thumbnail.includes('cdninstagram.com');
+    // For Instagram CDN URLs, use proxy to avoid 403 errors
+    const isInstagramCDN = thumbnail.includes('cdninstagram.com') || thumbnail.includes('scontent.cdninstagram.com');
     
     if (isInstagramCDN) {
+      const proxyUrl = `/api/thumbnail-proxy?url=${encodeURIComponent(thumbnail)}`;
       return (
         <img
-          src={thumbnail}
+          src={proxyUrl}
           alt={alt}
           className={className}
           style={fill ? { width: '100%', height: '100%', objectFit: 'cover' } : { width: 'auto', height: 'auto', maxWidth: '100%', maxHeight: '500px', objectFit: 'contain' }}
-          referrerPolicy="no-referrer"
           loading="lazy"
         />
       );
