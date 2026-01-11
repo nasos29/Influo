@@ -1999,6 +1999,57 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Broken Thumbnails Notification Banner */}
+        {brokenThumbnails.length > 0 && (
+          <div className="mb-6 p-4 bg-orange-50 border-l-4 border-orange-500 rounded-lg shadow-sm">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center mb-2">
+                  <svg className="w-5 h-5 text-orange-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <h3 className="text-lg font-semibold text-orange-900">
+                    {brokenThumbnails.length} Broken Thumbnail{brokenThumbnails.length > 1 ? 's' : ''} Found
+                  </h3>
+                </div>
+                <p className="text-sm text-orange-800 mb-3">
+                  Some video thumbnails are no longer accessible. Please review and fix them.
+                </p>
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {brokenThumbnails.slice(0, 5).map((broken, idx) => (
+                    <div key={idx} className="text-sm text-orange-700 bg-orange-100 p-2 rounded">
+                      <strong>{broken.influencerName}</strong>: Video thumbnail missing
+                      {broken.reason === '404' && ' (404 Not Found)'}
+                      {broken.reason === 'timeout' && ' (Timeout)'}
+                      {broken.reason === 'network_error' && ' (Network Error)'}
+                    </div>
+                  ))}
+                  {brokenThumbnails.length > 5 && (
+                    <div className="text-sm text-orange-600 italic">
+                      ...and {brokenThumbnails.length - 5} more
+                    </div>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => setBrokenThumbnails([])}
+                className="ml-4 text-orange-600 hover:text-orange-800"
+                title="Dismiss notification"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+        
+        {checkingThumbnails && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+            Checking thumbnails...
+          </div>
+        )}
+
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           <div className="bg-white p-4 rounded-lg border border-slate-200">
