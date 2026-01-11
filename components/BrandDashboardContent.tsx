@@ -1369,14 +1369,7 @@ export default function BrandDashboardContent() {
                             if (typeof window !== 'undefined') {
                               sessionStorage.setItem('isBrand', 'true');
                             }
-                            setRecommendationStats((prev: RecommendationStats) => {
-                              const updated = {...prev, proposalsSent: prev.proposalsSent + 1};
-                              // Save to localStorage immediately
-                              if (typeof window !== 'undefined') {
-                                localStorage.setItem('brandDashboardStats', JSON.stringify(updated));
-                              }
-                              return updated;
-                            });
+                            // Note: proposalsSent is now updated only after successful proposal submission
                           }}
                           className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg text-sm text-center transition-colors"
                         >

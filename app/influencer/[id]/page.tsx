@@ -650,6 +650,27 @@ export default function InfluencerProfile(props: { params: Params }) {
              console.error("Admin Notification Email failed:", mailError);
         }
 
+        // 4. Update brand dashboard stats (proposalsSent) - only after successful submission
+        try {
+            if (typeof window !== 'undefined') {
+                const saved = localStorage.getItem('brandDashboardStats');
+                if (saved) {
+                    try {
+                        const stats = JSON.parse(saved);
+                        const updated = {
+                            ...stats,
+                            proposalsSent: (stats.proposalsSent || 0) + 1
+                        };
+                        localStorage.setItem('brandDashboardStats', JSON.stringify(updated));
+                    } catch (e) {
+                        console.error('Error updating proposal stats:', e);
+                    }
+                }
+            }
+        } catch (statsError) {
+            console.error("Failed to update proposal stats:", statsError);
+        }
+
         setSent(true);
     } catch (err) {
         console.error("Error sending proposal:", err);
