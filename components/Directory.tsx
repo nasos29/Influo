@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "../lib/supabaseClient";
 import InfluencerCard from "./InfluencerCard";
@@ -320,6 +320,7 @@ const parseFollowerString = (str: string) => {
 export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
   const [influencers, setInfluencers] = useState<Influencer[]>(dummyInfluencers);
   const txt = t[lang];
+  const isMountedRef = useRef(true);
 
   // FILTERS
   const [searchQuery, setSearchQuery] = useState("");
@@ -359,6 +360,7 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
 
   useEffect(() => {
     console.log('[Directory] useEffect triggered');
+    isMountedRef.current = true;
     
     const fetchReal = async () => {
       console.log('[Directory] fetchReal started');
@@ -371,6 +373,11 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
           .select("*")
           .eq('approved', true);
         
+        if (!isMountedRef.current) {
+          console.log('[Directory] Component unmounted, skipping state update');
+          return;
+        }
+        
         const queryTime = Date.now() - startTime;
         console.log('[Directory] Query completed in', queryTime, 'ms');
         console.log('[Directory] Fetch result:', { dataLength: data?.length || 0, error, hasData: !!data, queryTime });
@@ -378,7 +385,9 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
         if (error) {
           console.error('[Directory] Error fetching influencers:', error);
           // If error, show dummy influencers as fallback
-          setInfluencers(sortInfluencers(dummyInfluencers));
+          if (isMountedRef.current) {
+            setInfluencers(sortInfluencers(dummyInfluencers));
+          }
           return;
         }
         
@@ -437,20 +446,30 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
           // Combine and sort all influencers (real + dummy) with "New" first
           const allInfluencers = [...realInfluencers, ...dummyInfluencers];
           console.log('[Directory] Setting influencers:', { real: realInfluencers.length, dummy: dummyInfluencers.length, total: allInfluencers.length });
-          setInfluencers(sortInfluencers(allInfluencers));
+          if (isMountedRef.current) {
+            setInfluencers(sortInfluencers(allInfluencers));
+          }
         } else {
           // No data returned, show dummy influencers
           console.log('[Directory] No data returned, showing dummy influencers only');
-          setInfluencers(sortInfluencers(dummyInfluencers));
+          if (isMountedRef.current) {
+            setInfluencers(sortInfluencers(dummyInfluencers));
+          }
         }
       } catch (err) {
         console.error('[Directory] Error in fetchReal:', err);
         // On error, show dummy influencers as fallback
-        setInfluencers(sortInfluencers(dummyInfluencers));
+        if (isMountedRef.current) {
+          setInfluencers(sortInfluencers(dummyInfluencers));
+        }
       }
     };
     
     fetchReal();
+    
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   const filtered = influencers.filter((inf) => {
