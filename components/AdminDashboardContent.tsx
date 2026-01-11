@@ -549,9 +549,10 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
     const [selectedLanguages, setSelectedLanguages] = useState<string[]>(initialLanguages);
     const [accounts, setAccounts] = useState<{ platform: string; username: string; followers: string }[]>(user.accounts || [{ platform: "Instagram", username: "", followers: "" }]);
     const [videos, setVideos] = useState<string[]>(Array.isArray(user.videos) ? user.videos : []);
-    const [videoThumbnails, setVideoThumbnails] = useState<Record<string, string>>(user.video_thumbnails || {});
+    const [videoThumbnails, setVideoThumbnails] = useState<Record<string, string | { url: string; width?: number; height?: number; type?: string }>>(user.video_thumbnails || {});
     const [thumbnailFiles, setThumbnailFiles] = useState<Record<string, File | null>>({}); // Store files to upload
     const [thumbnailPreviews, setThumbnailPreviews] = useState<Record<string, string>>({}); // Preview URLs
+    const [fetchingThumbnails, setFetchingThumbnails] = useState<Record<string, boolean>>({}); // Track fetching state
     const [malePercent, setMalePercent] = useState(user.audience_male_percent?.toString() || "");
     const [femalePercent, setFemalePercent] = useState(user.audience_female_percent?.toString() || "");
     const [topAge, setTopAge] = useState(user.audience_top_age || "");
@@ -1042,9 +1043,9 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                                         />
                                                     </div>
                                                     
-                                                    {/* Option 2: File Upload */}
+                                                    {/* Option 3: File Upload */}
                                                     <div>
-                                                        <label className="block text-xs text-slate-600 mb-1">Option 2: Upload Image (JPG, PNG, max 5MB)</label>
+                                                        <label className="block text-xs text-slate-600 mb-1">Option 3: Upload Image (JPG, PNG, max 5MB)</label>
                                                         <input 
                                                             type="file" 
                                                             accept="image/jpeg,image/jpg,image/png,image/webp"
