@@ -651,6 +651,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                 }).join(", "), // Store as comma-separated string with Greek names
                 accounts: accounts,
                 videos: videos.filter(v => v !== ""),
+                video_thumbnails: videoThumbnails,
                 audience_male_percent: parseInt(malePercent) || 0,
                 audience_female_percent: parseInt(femalePercent) || 0,
                 audience_top_age: topAge,
