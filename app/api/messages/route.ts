@@ -113,40 +113,39 @@ export async function POST(req: Request) {
       // No auto-sending during active conversation
 
       // Track analytics: conversation_started (if new conversation) and message_sent
+      // Use direct database insert instead of API call for better reliability
       if (!existingConv) {
         // New conversation started
         try {
-          await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/analytics/track`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              influencerId: influencerId,
-              eventType: 'conversation_started',
-              brandEmail: brandEmail,
-              brandName: brandName,
-              metadata: { conversation_id: convId, source: 'messages_api' }
-            })
-          }).catch(() => {}); // Fail silently
+          const { error: analyticsError } = await supabaseAdmin.from('influencer_analytics').insert([{
+            influencer_id: influencerId,
+            event_type: 'conversation_started',
+            brand_email: brandEmail || null,
+            brand_name: brandName || null,
+            metadata: { conversation_id: convId, source: 'messages_api' }
+          }]);
+          if (analyticsError) {
+            console.error('[Messages API] Error tracking conversation_started:', analyticsError);
+          }
         } catch (err) {
-          // Fail silently
+          // Fail silently - analytics tracking should not break the flow
         }
       }
       
       // Track message_sent
       try {
-        await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/analytics/track`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            influencerId: influencerId,
-            eventType: 'message_sent',
-            brandEmail: brandEmail,
-            brandName: brandName,
-            metadata: { conversation_id: convId, source: 'messages_api', sender_type: senderType }
-          })
-        }).catch(() => {}); // Fail silently
+        const { error: analyticsError } = await supabaseAdmin.from('influencer_analytics').insert([{
+          influencer_id: influencerId,
+          event_type: 'message_sent',
+          brand_email: brandEmail || null,
+          brand_name: brandName || null,
+          metadata: { conversation_id: convId, source: 'messages_api', sender_type: senderType }
+        }]);
+        if (analyticsError) {
+          console.error('[Messages API] Error tracking message_sent:', analyticsError);
+        }
       } catch (err) {
-        // Fail silently
+        // Fail silently - analytics tracking should not break the flow
       }
 
       return NextResponse.json({ success: true, message, conversationId: convId });
@@ -205,6 +204,31 @@ export async function POST(req: Request) {
 
       // Emails will be sent ONLY when conversation ends (via /api/conversations/end)
       // No auto-sending during active conversation
+
+      // Track message_sent for existing conversation
+      // Need to get influencer_id from conversation
+      try {
+        const { data: convData } = await supabaseAdmin
+          .from('conversations')
+          .select('influencer_id, brand_email, brand_name')
+          .eq('id', conversationId)
+          .single();
+
+        if (convData) {
+          const { error: analyticsError } = await supabaseAdmin.from('influencer_analytics').insert([{
+            influencer_id: convData.influencer_id,
+            event_type: 'message_sent',
+            brand_email: convData.brand_email || null,
+            brand_name: convData.brand_name || null,
+            metadata: { conversation_id: conversationId, source: 'messages_api', sender_type: senderType }
+          }]);
+          if (analyticsError) {
+            console.error('[Messages API] Error tracking message_sent (existing conv):', analyticsError);
+          }
+        }
+      } catch (err) {
+        // Fail silently - analytics tracking should not break the flow
+      }
 
       return NextResponse.json({ success: true, message });
     }

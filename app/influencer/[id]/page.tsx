@@ -744,7 +744,24 @@ export default function InfluencerProfile(props: { params: Params }) {
              console.error("Admin Notification Email failed:", mailError);
         }
 
-        // 4. Update brand dashboard stats (proposalsSent) - only after successful submission
+        // 4. Track analytics: proposal_sent
+        try {
+            await fetch('/api/analytics/track', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    influencerId: id,
+                    eventType: 'proposal_sent',
+                    brandEmail: brandEmail,
+                    brandName: brandName,
+                    metadata: { proposal_id: proposalResult.id, service_type: proposalType, budget: budget }
+                })
+            }).catch(() => {}); // Fail silently
+        } catch (err) {
+            // Fail silently - analytics tracking should not break the flow
+        }
+
+        // 5. Update brand dashboard stats (proposalsSent) - only after successful submission
         try {
             if (typeof window !== 'undefined') {
                 const saved = localStorage.getItem('brandDashboardStats');

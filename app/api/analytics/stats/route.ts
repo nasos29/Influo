@@ -49,6 +49,38 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Calculate earnings from accepted/completed proposals
+    let totalEarnings = 0;
+    try {
+      const { data: proposals } = await supabaseAdmin
+        .from('proposals')
+        .select('budget, counter_proposal_budget, status, created_at')
+        .eq('influencer_id', influencerId)
+        .in('status', ['accepted', 'completed']);
+
+      if (proposals) {
+        // Apply date filter if provided
+        let filteredProposals = proposals;
+        if (startDate || endDate) {
+          filteredProposals = proposals.filter((p: any) => {
+            const proposalDate = new Date(p.created_at);
+            if (startDate && proposalDate < new Date(startDate)) return false;
+            if (endDate && proposalDate > new Date(endDate)) return false;
+            return true;
+          });
+        }
+
+        totalEarnings = filteredProposals.reduce((sum: number, p: any) => {
+          // Use counter_proposal_budget if available, otherwise use budget
+          const budgetAmount = parseFloat(p.counter_proposal_budget || p.budget || '0');
+          return sum + (isNaN(budgetAmount) ? 0 : budgetAmount);
+        }, 0);
+      }
+    } catch (earningsError) {
+      console.error('[Analytics Stats API] Error calculating earnings:', earningsError);
+      // Continue without earnings if there's an error
+    }
+
     // Calculate stats
     const stats = {
       profileViews: events?.filter(e => e.event_type === 'profile_view').length || 0,
@@ -56,6 +88,7 @@ export async function GET(request: NextRequest) {
       proposalsSent: events?.filter(e => e.event_type === 'proposal_sent').length || 0,
       messagesSent: events?.filter(e => e.event_type === 'message_sent').length || 0,
       conversationsStarted: events?.filter(e => e.event_type === 'conversation_started').length || 0,
+      totalEarnings: totalEarnings,
       totalEvents: events?.length || 0,
       eventsByDate: {} as Record<string, { views: number; clicks: number; proposals: number; messages: number; conversations: number }>
     };

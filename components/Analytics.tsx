@@ -9,6 +9,7 @@ interface AnalyticsStats {
   proposalsSent: number;
   messagesSent: number;
   conversationsStarted: number;
+  totalEarnings: number;
   totalEvents: number;
   eventsByDate: Record<string, {
     views: number;
@@ -38,6 +39,7 @@ const t = {
     proposalsSent: "Προσφορές",
     messagesSent: "Μηνύματα",
     conversationsStarted: "Συνομιλίες",
+    totalEarnings: "Κέρδος",
     total: "Σύνολο",
     loading: "Φόρτωση...",
     noData: "Δεν υπάρχουν δεδομένα για αυτή την περίοδο",
@@ -57,6 +59,7 @@ const t = {
     proposalsSent: "Proposals",
     messagesSent: "Messages",
     conversationsStarted: "Conversations",
+    totalEarnings: "Earnings",
     total: "Total",
     loading: "Loading...",
     noData: "No data available for this period",
@@ -242,7 +245,7 @@ export default function Analytics({ influencerId, lang = 'el' }: AnalyticsProps)
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         <div className="bg-white rounded-xl border border-slate-200 p-6">
           <div className="text-2xl font-bold text-slate-900">{stats.profileViews}</div>
           <div className="text-sm text-slate-600 mt-1">{txt.profileViews}</div>
@@ -262,6 +265,10 @@ export default function Analytics({ influencerId, lang = 'el' }: AnalyticsProps)
         <div className="bg-white rounded-xl border border-slate-200 p-6">
           <div className="text-2xl font-bold text-slate-900">{stats.conversationsStarted}</div>
           <div className="text-sm text-slate-600 mt-1">{txt.conversationsStarted}</div>
+        </div>
+        <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border-2 border-green-200 p-6">
+          <div className="text-2xl font-bold text-green-700">€{stats.totalEarnings.toFixed(0)}</div>
+          <div className="text-sm text-green-600 mt-1 font-medium">{txt.totalEarnings}</div>
         </div>
       </div>
 
