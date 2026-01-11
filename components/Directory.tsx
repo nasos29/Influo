@@ -358,65 +358,85 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
   };
 
   useEffect(() => {
-    // Sort dummy influencers immediately (with "New" first)
-    setInfluencers(sortInfluencers(dummyInfluencers));
-    
     const fetchReal = async () => {
-      const { data } = await supabase.from("influencers").select("*").eq('approved', true);
-      if (data) {
-         const realInfluencers: Influencer[] = data.map((inf: any) => {
-          
-          const socialsObj: { [key: string]: string } = {};
-          const followersObj: { [key: string]: number } = {};
-
-          if (Array.isArray(inf.accounts)) {
-            inf.accounts.forEach((acc: any) => {
-              if (acc.platform && acc.username) {
-                  const key = acc.platform.toLowerCase();
-                  socialsObj[key] = acc.username;
-                  followersObj[key] = parseFollowerString(acc.followers);
-              }
-            });
-          }
-
-          // Parse languages from comma-separated string to array
-          const languagesArray = inf.languages 
-            ? (inf.languages.includes(',') ? inf.languages.split(',').map((l: string) => l.trim()) : [inf.languages.trim()])
-            : [];
-
-          return {
-            id: inf.id,
-            name: inf.display_name,
-            bio: inf.bio || "",
-            avatar: inf.avatar_url || null,
-            verified: inf.analytics_verified || false, // Use analytics_verified for verified badge (not approved)
-            socials: socialsObj,
-            followers: followersObj,
-            categories: inf.category 
-              ? (inf.category.includes(',') ? inf.category.split(',').map((c: string) => c.trim()) : [inf.category])
-              : ["New"],
-            languages: languagesArray,
-            platform: "Instagram",
-            gender: inf.gender || "Female",
-            location: inf.location,
-            min_rate: inf.min_rate,
-            avg_likes: inf.avg_likes,
-            engagement_rate: inf.engagement_rate,
-            videos: Array.isArray(inf.videos) ? inf.videos : [],
-            avg_rating: inf.avg_rating || 0,
-            total_reviews: inf.total_reviews || 0,
-            avg_response_time: inf.avg_response_time || 24,
-            completion_rate: inf.completion_rate || 100,
-            past_brands: inf.past_brands || 0,
-            created_at: inf.created_at,
-          };
-        });
+      try {
+        const { data, error } = await supabase
+          .from("influencers")
+          .select("*")
+          .eq('approved', true);
         
-        // Combine and sort all influencers (real + dummy) with "New" first
-        const allInfluencers = [...realInfluencers, ...dummyInfluencers];
-        setInfluencers(sortInfluencers(allInfluencers));
+        if (error) {
+          console.error('Error fetching influencers:', error);
+          // If error, show dummy influencers as fallback
+          setInfluencers(sortInfluencers(dummyInfluencers));
+          return;
+        }
+        
+        if (data && data.length > 0) {
+          const realInfluencers: Influencer[] = data.map((inf: any) => {
+            
+            const socialsObj: { [key: string]: string } = {};
+            const followersObj: { [key: string]: number } = {};
+
+            if (Array.isArray(inf.accounts)) {
+              inf.accounts.forEach((acc: any) => {
+                if (acc.platform && acc.username) {
+                    const key = acc.platform.toLowerCase();
+                    socialsObj[key] = acc.username;
+                    followersObj[key] = parseFollowerString(acc.followers);
+                }
+              });
+            }
+
+            // Parse languages from comma-separated string to array
+            const languagesArray = inf.languages 
+              ? (typeof inf.languages === 'string' && inf.languages.includes(',') 
+                ? inf.languages.split(',').map((l: string) => l.trim()) 
+                : (typeof inf.languages === 'string' ? [inf.languages.trim()] : (Array.isArray(inf.languages) ? inf.languages : [])))
+              : [];
+
+            return {
+              id: inf.id,
+              name: inf.display_name,
+              bio: inf.bio || "",
+              avatar: inf.avatar_url || null,
+              verified: inf.analytics_verified || false, // Use analytics_verified for verified badge (not approved)
+              socials: socialsObj,
+              followers: followersObj,
+              categories: inf.category 
+                ? (inf.category.includes(',') ? inf.category.split(',').map((c: string) => c.trim()) : [inf.category])
+                : ["New"],
+              languages: languagesArray,
+              platform: "Instagram",
+              gender: inf.gender || "Female",
+              location: inf.location,
+              min_rate: inf.min_rate,
+              avg_likes: inf.avg_likes,
+              engagement_rate: inf.engagement_rate,
+              videos: Array.isArray(inf.videos) ? inf.videos : [],
+              avg_rating: inf.avg_rating || 0,
+              total_reviews: inf.total_reviews || 0,
+              avg_response_time: inf.avg_response_time || 24,
+              completion_rate: inf.completion_rate || 100,
+              past_brands: inf.past_brands || 0,
+              created_at: inf.created_at,
+            };
+          });
+          
+          // Combine and sort all influencers (real + dummy) with "New" first
+          const allInfluencers = [...realInfluencers, ...dummyInfluencers];
+          setInfluencers(sortInfluencers(allInfluencers));
+        } else {
+          // No data returned, show dummy influencers
+          setInfluencers(sortInfluencers(dummyInfluencers));
+        }
+      } catch (err) {
+        console.error('Error in fetchReal:', err);
+        // On error, show dummy influencers as fallback
+        setInfluencers(sortInfluencers(dummyInfluencers));
       }
     };
+    
     fetchReal();
   }, []);
 
