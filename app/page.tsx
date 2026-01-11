@@ -86,7 +86,27 @@ export default function Home() {
   const [lang, setLang] = useState<Lang>("el");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [verifiedBrands, setVerifiedBrands] = useState<VerifiedBrand[]>([]);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const txt = t[lang];
+
+  // Check if user is logged in
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setIsLoggedIn(!!user);
+    };
+
+    checkSession();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(!!session?.user);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   // Fetch verified brands
   useEffect(() => {
@@ -177,9 +197,15 @@ export default function Home() {
                 <li><a href="/directory" className="hover:text-slate-900 transition-colors">
                   {txt.nav_directory}
                 </a></li>
-                <li><a href="/login" className="hover:text-slate-900 transition-colors">
-                  {lang === "el" ? "Σύνδεση" : "Sign In"}
-                </a></li>
+                {isLoggedIn ? (
+                  <li><a href="/dashboard" className="hover:text-slate-900 transition-colors">
+                    {lang === "el" ? "Dashboard" : "Dashboard"}
+                  </a></li>
+                ) : (
+                  <li><a href="/login" className="hover:text-slate-900 transition-colors">
+                    {lang === "el" ? "Σύνδεση" : "Sign In"}
+                  </a></li>
+                )}
             </ul>
             {/* Lang Toggle */}
             <button 
@@ -246,13 +272,23 @@ export default function Home() {
               >
                 {txt.nav_directory}
               </a>
-              <a 
-                href="/login"
-                onClick={() => setMobileMenuOpen(false)}
-                className="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors"
-              >
-                {lang === "el" ? "Σύνδεση" : "Sign In"}
-              </a>
+              {isLoggedIn ? (
+                <a 
+                  href="/dashboard"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors"
+                >
+                  Dashboard
+                </a>
+              ) : (
+                <a 
+                  href="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors"
+                >
+                  {lang === "el" ? "Σύνδεση" : "Sign In"}
+                </a>
+              )}
             </div>
           </nav>
         )}
