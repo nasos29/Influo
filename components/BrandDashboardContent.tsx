@@ -459,11 +459,16 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, categorie
 }
 
 export default function BrandDashboardContent() {
-  const [lang, setLang] = useState<'el' | 'en'>(getStoredLanguage());
+  const [lang, setLang] = useState<'el' | 'en'>('el'); // Default to Greek, will be updated in useEffect
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [influencers, setInfluencers] = useState<Record<string, Influencer>>({});
   const [loading, setLoading] = useState(true);
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
+
+  // Load language from localStorage on client-side
+  useEffect(() => {
+    setLang(getStoredLanguage());
+  }, []);
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
   const [savingAgreement, setSavingAgreement] = useState(false);
