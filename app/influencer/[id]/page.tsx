@@ -769,7 +769,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                             
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.modal_bud}</label>
-                                <input required type="number" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white" placeholder="200" value={budget} onChange={e => setBudget(e.target.value)} />
+                                <input required type="number" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white" placeholder={profile?.min_rate ? profile.min_rate : "200"} value={budget} onChange={e => setBudget(e.target.value)} />
                             </div>
 
                             <div>
