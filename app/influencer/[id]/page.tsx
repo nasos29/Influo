@@ -17,7 +17,7 @@ interface ProInfluencer extends Influencer {
   engagement_rate?: string;
   avg_likes?: string;
   audience_data?: { male: number; female: number; top_age: string };
-  rate_card?: { story?: string; post?: string; reel?: string; facebook?: string };
+  rate_card?: { story?: string; post?: string; reel?: string; facebook?: string; youtube?: string };
   past_brands?: string[];
   avg_rating?: number;
   total_reviews?: number;
@@ -49,7 +49,7 @@ const t = {
     no_vid: "Δεν έχουν ανέβει βίντεο.",
     tab_over: "Επισκοπηση",
     tab_aud: "Κοινο",
-    tab_price: "Τιμες",
+    tab_price: "Τιμές",
     tab_reviews: "Αξιολογήσεις",
     stat_eng: "Αλληλεπίδραση",
     stat_likes: "Μ.Ο. Likes",
@@ -80,6 +80,7 @@ const t = {
     price_post: "Instagram Post",
     price_reel: "Reel / TikTok",
     price_facebook: "Facebook Post",
+    price_youtube: "YouTube Video",
     price_note: "* Οι τιμές ενδέχεται να αλλάξουν ανάλογα το project.",
     min_rate: "Ελάχιστη Χρέωση",
     min_rate_desc: "Η ελάχιστη χρέωση για κάθε συνεργασία",
@@ -149,6 +150,7 @@ const t = {
     price_post: "Instagram Post",
     price_reel: "Reel / TikTok",
     price_facebook: "Facebook Post",
+    price_youtube: "YouTube Video",
     price_note: "* Prices may vary depending on project scope.",
     min_rate: "Minimum Rate",
     min_rate_desc: "The minimum charge for each collaboration",
@@ -1510,7 +1512,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                                 <div className="divide-y divide-slate-100">
                                     {(() => {
                                         const platforms = profile.socials ? Object.keys(profile.socials).map(p => p.toLowerCase()) : [];
-                                        type RateCardKey = 'story' | 'post' | 'reel' | 'facebook';
+                                        type RateCardKey = 'story' | 'post' | 'reel' | 'facebook' | 'youtube';
                                         const serviceMap = new Map<string, { key: RateCardKey; label: string }>();
                                         
                                         // Instagram services
@@ -1555,6 +1557,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                                             serviceMap.set('post', { key: 'post', label: txt.price_post });
                                             serviceMap.set('reel', { key: 'reel', label: txt.price_reel });
                                             serviceMap.set('facebook', { key: 'facebook', label: txt.price_facebook });
+                                            serviceMap.set('youtube', { key: 'youtube', label: txt.price_youtube });
                                         }
                                         
                                         return Array.from(serviceMap.values()).map((service, idx) => {
