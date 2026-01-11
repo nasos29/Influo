@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 
 type Lang = "el" | "en";
 
@@ -110,7 +111,7 @@ const t = {
 };
 
 export default function BrandSignupForm() {
-  const [lang, setLang] = useState<Lang>("el");
+  const [lang, setLang] = useState<Lang>("el"); // Default to Greek, will be updated in useEffect
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -118,6 +119,11 @@ export default function BrandSignupForm() {
   
   const router = useRouter();
   const txt = t[lang];
+
+  // Load language from localStorage on client-side
+  useEffect(() => {
+    setLang(getStoredLanguage());
+  }, []);
 
   // Form states
   const [brandName, setBrandName] = useState("");
@@ -289,7 +295,11 @@ export default function BrandSignupForm() {
           {txt.back}
         </button>
         <button
-          onClick={() => setLang(lang === 'el' ? 'en' : 'el')}
+          onClick={() => {
+            const newLang = lang === 'el' ? 'en' : 'el';
+            setLang(newLang);
+            setStoredLanguage(newLang);
+          }}
           className="text-sm font-medium text-blue-600 hover:text-blue-700 px-3 py-1 rounded-lg hover:bg-blue-50 transition-colors"
         >
           {lang === 'el' ? 'EN' : 'ΕΛ'}

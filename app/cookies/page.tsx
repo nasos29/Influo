@@ -1,11 +1,17 @@
 // app/cookies/page.tsx
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 
 export default function CookiesPage() {
-  const [lang, setLang] = useState<"el" | "en">("el");
+  const [lang, setLang] = useState<"el" | "en">("el"); // Default to Greek, will be updated in useEffect
+
+  // Load language from localStorage on client-side
+  useEffect(() => {
+    setLang(getStoredLanguage());
+  }, []);
 
   const content = {
     el: {
@@ -128,7 +134,11 @@ export default function CookiesPage() {
             {txt.back}
           </Link>
           <button 
-            onClick={() => setLang(lang === "el" ? "en" : "el")} 
+            onClick={() => {
+              const newLang = lang === "el" ? "en" : "el";
+              setLang(newLang);
+              setStoredLanguage(newLang);
+            }} 
             className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
             aria-label="Toggle language"
           >

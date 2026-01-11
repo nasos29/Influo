@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import Footer from "../../components/Footer";
+import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 
 type Lang = "el" | "en";
 
@@ -160,9 +161,14 @@ const faqs: FAQItem[] = [
 ];
 
 export default function FAQPage() {
-  const [lang, setLang] = useState<Lang>("el");
+  const [lang, setLang] = useState<Lang>("el"); // Default to Greek, will be updated in useEffect
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+
+  // Load language from localStorage on client-side
+  useEffect(() => {
+    setLang(getStoredLanguage());
+  }, []);
 
   const categories = Array.from(new Set(faqs.map(faq => faq.category[lang])));
   const filteredFAQs = selectedCategory === "all" 
@@ -182,7 +188,11 @@ export default function FAQPage() {
               {lang === "el" ? "← Επιστροφή" : "← Back"}
             </Link>
             <button 
-              onClick={() => setLang(lang === "el" ? "en" : "el")}
+              onClick={() => {
+                const newLang = lang === "el" ? "en" : "el";
+                setLang(newLang);
+                setStoredLanguage(newLang);
+              }}
               className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
             >
               {lang === "el" ? "EN" : "EL"}

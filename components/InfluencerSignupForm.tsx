@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import Image from "next/image";
+import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 
 type Account = { platform: string; username: string; followers: string };
 type Lang = "el" | "en";
@@ -183,7 +184,12 @@ const t = {
 };
 
 export default function InfluencerSignupForm() {
-  const [lang, setLang] = useState<Lang>("el"); 
+  const [lang, setLang] = useState<Lang>("el"); // Default to Greek, will be updated in useEffect
+
+  // Load language from localStorage on client-side
+  useEffect(() => {
+    setLang(getStoredLanguage());
+  }, []); 
   const [step, setStep] = useState(1); 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(""); 
@@ -608,7 +614,11 @@ export default function InfluencerSignupForm() {
               <p className="text-slate-300 text-sm">{txt.headerDesc}</p>
           </div>
           <button 
-              onClick={() => setLang(lang === "el" ? "en" : "el")}
+              onClick={() => {
+                const newLang = lang === "el" ? "en" : "el";
+                setLang(newLang);
+                setStoredLanguage(newLang);
+              }}
               className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors bg-white"
               aria-label="Toggle language"
           >

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import Footer from "../../components/Footer";
+import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 
 type Lang = "el" | "en";
 
@@ -117,8 +118,13 @@ const t = {
 };
 
 export default function ForInfluencersPage() {
-  const [lang, setLang] = useState<Lang>("el");
+  const [lang, setLang] = useState<Lang>("el"); // Default to Greek, will be updated in useEffect
   const txt = t[lang];
+
+  // Load language from localStorage on client-side
+  useEffect(() => {
+    setLang(getStoredLanguage());
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
@@ -131,7 +137,11 @@ export default function ForInfluencersPage() {
           <div className="flex items-center gap-6">
             <Link href="/" className="text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors">{txt.back}</Link>
             <button 
-              onClick={() => setLang(lang === "el" ? "en" : "el")}
+              onClick={() => {
+                const newLang = lang === "el" ? "en" : "el";
+                setLang(newLang);
+                setStoredLanguage(newLang);
+              }}
               className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
             >
               {lang === "el" ? "EN" : "EL"}
