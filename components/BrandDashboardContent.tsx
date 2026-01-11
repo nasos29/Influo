@@ -8,6 +8,7 @@ import Image from 'next/image';
 import { recommendInfluencers, type InfluencerProfile, type BrandProfile } from '@/lib/recommendations';
 import { dummyInfluencers } from './Directory';
 import Messaging from '@/components/Messaging';
+import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 
 // Categories (same as Directory and InfluencerSignupForm)
 const CATEGORIES = [

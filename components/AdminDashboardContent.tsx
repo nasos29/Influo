@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabaseClient";
 import Image from "next/image";
 import { isDefinitelyVideo, isDefinitelyImage } from "@/lib/videoThumbnail";
 import VideoThumbnail from "./VideoThumbnail";
+import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
 
 // --- FULL CATEGORY LIST ---
 const CATEGORIES = [
