@@ -458,7 +458,7 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, categorie
 }
 
 export default function BrandDashboardContent() {
-  const [lang, setLang] = useState<'el' | 'en'>('el');
+  const [lang, setLang] = useState<'el' | 'en'>(getStoredLanguage());
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [influencers, setInfluencers] = useState<Record<string, Influencer>>({});
   const [loading, setLoading] = useState(true);
@@ -1002,7 +1002,11 @@ export default function BrandDashboardContent() {
               {txt.edit_profile}
             </button>
             <button
-              onClick={() => setLang(lang === 'el' ? 'en' : 'el')}
+              onClick={() => {
+                const newLang = lang === 'el' ? 'en' : 'el';
+                setLang(newLang);
+                setStoredLanguage(newLang);
+              }}
               className="text-sm font-medium text-blue-600 hover:text-blue-700 px-3 py-1 rounded-lg hover:bg-blue-50 transition-colors"
             >
               {lang === 'el' ? 'EN' : 'ΕΛ'}

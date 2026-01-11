@@ -50,7 +50,7 @@ export default function ResetPasswordPage() {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [messageType, setMessageType] = useState<'error' | 'success'>('error');
-    const [lang, setLang] = useState<'el' | 'en'>('el');
+    const [lang, setLang] = useState<'el' | 'en'>(getStoredLanguage());
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [validating, setValidating] = useState(true);

@@ -45,7 +45,7 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [messageType, setMessageType] = useState<'error' | 'success'>('error');
-    const [lang, setLang] = useState<'el' | 'en'>('el');
+    const [lang, setLang] = useState<'el' | 'en'>(getStoredLanguage());
     const [showForgotPassword, setShowForgotPassword] = useState(false);
     const [resetLoading, setResetLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
@@ -218,7 +218,11 @@ export default function LoginPage() {
                         ← {txt.back}
                     </a>
                     <button 
-                        onClick={() => setLang(lang === "el" ? "en" : "el")} 
+                        onClick={() => {
+                            const newLang = lang === "el" ? "en" : "el";
+                            setLang(newLang);
+                            setStoredLanguage(newLang);
+                        }} 
                         className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
                         aria-label="Toggle language"
                     >

@@ -963,7 +963,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
 };
 
 export default function AdminDashboardContent({ adminEmail }: { adminEmail: string }) {
-  const [lang, setLang] = useState<"el" | "en">("el");
+  const [lang, setLang] = useState<"el" | "en">(getStoredLanguage());
   const txt = t[lang];
 
   const [activeTab, setActiveTab] = useState("influencers");

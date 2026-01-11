@@ -9,6 +9,7 @@ import { getVideoThumbnail, isVideoUrl, isDefinitelyVideo, isDefinitelyImage } f
 import VideoThumbnail from "@/components/VideoThumbnail";
 import { getBadges, getBadgeStyles } from "@/lib/badges";
 import Avatar from "@/components/Avatar";
+import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
 
 type Params = Promise<{ id: string }>;
 
@@ -180,7 +181,7 @@ export default function InfluencerProfile(props: { params: Params }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   
-  const [lang, setLang] = useState<"el" | "en">("el");
+  const [lang, setLang] = useState<"el" | "en">(getStoredLanguage());
   const txt = t[lang];
 
   const [activeTab, setActiveTab] = useState("overview");
@@ -748,7 +749,11 @@ export default function InfluencerProfile(props: { params: Params }) {
       {/* LANG TOGGLE */}
       <div className="fixed top-6 right-6 z-50">
           <button 
-            onClick={() => setLang(lang === "el" ? "en" : "el")} 
+            onClick={() => {
+              const newLang = lang === "el" ? "en" : "el";
+              setLang(newLang);
+              setStoredLanguage(newLang);
+            }} 
             className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors bg-white shadow-sm"
             aria-label="Toggle language"
           >
