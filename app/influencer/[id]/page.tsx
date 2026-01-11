@@ -464,7 +464,11 @@ export default function InfluencerProfile(props: { params: Params }) {
         platform: "Instagram",
         gender: data.gender,
         location: data.location,
-        languages: data.languages,
+        languages: data.languages 
+          ? (typeof data.languages === 'string' 
+            ? (data.languages.includes(',') ? data.languages.split(',').map((l: string) => l.trim()) : [data.languages.trim()])
+            : (Array.isArray(data.languages) ? data.languages : []))
+          : [],
         min_rate: data.min_rate,
         videos: Array.isArray(data.videos) ? data.videos : [],
         engagement_rate: data.engagement_rate || "-",
@@ -1079,7 +1083,11 @@ export default function InfluencerProfile(props: { params: Params }) {
                     )}
                 </div>
                 <div className="flex flex-wrap justify-center md:justify-start gap-2 mt-3">
-                    {profile.languages?.split(",").map((l,i) => <span key={i} className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-600">{l.trim()}</span>)}
+                    {profile.languages && Array.isArray(profile.languages) && profile.languages.map((l, i) => (
+                      <span key={i} className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-600">
+                        {typeof l === 'string' ? l.trim() : l}
+                      </span>
+                    ))}
                     {profile.skills && profile.skills.length > 0 && profile.skills.map((skill, i) => (
                       <span key={`skill-${i}`} className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded font-medium">{skill}</span>
                     ))}
