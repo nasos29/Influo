@@ -407,7 +407,7 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
           return;
         }
         
-        if (data && data.length > 0) {
+        if (data.length > 0) {
           console.log('[Directory] Processing', data.length, 'real influencers');
           const realInfluencers: Influencer[] = data.map((inf: any) => {
             
