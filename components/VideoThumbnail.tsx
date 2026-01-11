@@ -114,6 +114,22 @@ export default function VideoThumbnail({
   }
 
   if (thumbnail) {
+    // For Instagram CDN URLs, use regular img tag to avoid 403 errors
+    const isInstagramCDN = thumbnail.includes('cdninstagram.com');
+    
+    if (isInstagramCDN) {
+      return (
+        <img
+          src={thumbnail}
+          alt={alt}
+          className={className}
+          style={fill ? { width: '100%', height: '100%', objectFit: 'cover' } : { width: 'auto', height: 'auto', maxWidth: '100%', maxHeight: '500px', objectFit: 'contain' }}
+          referrerPolicy="no-referrer"
+          loading="lazy"
+        />
+      );
+    }
+    
     return (
       <Image
         src={thumbnail}
