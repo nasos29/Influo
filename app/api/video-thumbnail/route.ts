@@ -109,8 +109,10 @@ export async function GET(req: NextRequest) {
                   isCDN: isCDNUrl
                 });
               } else {
-                // Log for debugging
+                // Log for debugging - check what Iframely actually returned
                 console.log('Iframely response for Instagram (no thumbnail found):', JSON.stringify(iframelyData, null, 2));
+                console.log('Iframely links structure:', JSON.stringify(iframelyData.links, null, 2));
+                console.log('Iframely meta structure:', JSON.stringify(iframelyData.meta, null, 2));
               }
             } else {
               const errorText = await iframelyResponse.text();
