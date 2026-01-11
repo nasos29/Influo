@@ -529,44 +529,17 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
     <div>
       <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 mb-10 transition-all duration-300 hover:shadow-xl hover:border-blue-200">
         
-        {/* Search Row */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
-            <div className="md:col-span-5 relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><SearchIcon /></div>
-                <input type="text" placeholder={txt.searchPlace} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
-            <div className="md:col-span-4 relative">
-                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><LocationIcon /></div>
-                <input type="text" placeholder={txt.locPlace} value={locationQuery} onChange={(e) => setLocationQuery(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
-            <div className="md:col-span-3 flex items-center justify-end gap-3">
-                 <button onClick={() => setShowAdvanced(!showAdvanced)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold border transition-colors ${showAdvanced ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
-                    <FilterIcon /> {txt.filters} <ChevronDown />
-                 </button>
-            </div>
+        {/* Filters Button Row */}
+        <div className="flex items-center justify-end gap-3 mb-4">
+            <button onClick={() => setShowAdvanced(!showAdvanced)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold border transition-colors ${showAdvanced ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                <FilterIcon /> {txt.filters} <ChevronDown />
+            </button>
         </div>
 
         {/* Filters Panel */}
         <div className={`overflow-hidden transition-all duration-300 ${showAdvanced ? 'max-h-[500px] opacity-100 mt-4 pt-4 border-t border-slate-100' : 'max-h-0 opacity-0'}`}>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 
-                <select value={platformFilter} onChange={(e) => setPlatformFilter(e.target.value)} className={selectClass}>
-                    <option value="All">{txt.platAll}</option>
-                    <option value="Instagram">Instagram</option>
-                    <option value="TikTok">TikTok</option>
-                    <option value="YouTube">YouTube</option>
-                </select>
-
-                {/* FULL CATEGORY LIST USED HERE */}
-                <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className={selectClass}>
-                    <option value="All">{txt.catAll}</option>
-                    {CATEGORIES.map(cat => (
-                        <option key={cat} value={cat}>
-                            {categoryTranslations[cat] ? categoryTranslations[cat][lang] : cat}
-                        </option>
-                    ))}
-                </select>
-
                 <select value={genderFilter} onChange={(e) => setGenderFilter(e.target.value)} className={selectClass}>
                     <option value="All">{txt.genAll}</option>
                     <option value="Female">{txt.genFem}</option>
