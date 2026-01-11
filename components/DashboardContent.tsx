@@ -1055,6 +1055,48 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                             {prop.status === 'pending' && !prop.counter_proposal_budget && (
                                                                 <>
                                                                     <button
+                                                                        onClick={async () => {
+                                                                            try {
+                                                                                const response = await fetch('/api/proposals/accept', {
+                                                                                    method: 'POST',
+                                                                                    headers: { 'Content-Type': 'application/json' },
+                                                                                    body: JSON.stringify({ proposalId: prop.id })
+                                                                                });
+
+                                                                                const result = await response.json();
+                                                                                if (result.success) {
+                                                                                    // Refresh proposals to show the accepted status and agreement modal
+                                                                                    const { data: { user } } = await supabase.auth.getUser();
+                                                                                    if (user) {
+                                                                                        const { data } = await supabase
+                                                                                            .from('proposals')
+                                                                                            .select('*')
+                                                                                            .eq('influencer_id', user.id)
+                                                                                            .order('created_at', { ascending: false });
+                                                                                        
+                                                                                        if (data) {
+                                                                                            setProposals(data as Proposal[]);
+                                                                                            // Open agreement modal for the accepted proposal
+                                                                                            const acceptedProp = data.find((p: Proposal) => p.id === prop.id);
+                                                                                            if (acceptedProp && acceptedProp.status === 'accepted') {
+                                                                                                setSelectedProposal(acceptedProp as Proposal);
+                                                                                                setShowAgreementModal(true);
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                } else {
+                                                                                    alert('Σφάλμα: ' + (result.error || 'Αποτυχία αποδοχής προσφοράς'));
+                                                                                }
+                                                                            } catch (error: any) {
+                                                                                console.error('Error accepting proposal:', error);
+                                                                                alert('Σφάλμα: ' + error.message);
+                                                                            }
+                                                                        }}
+                                                                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-all text-xs whitespace-nowrap"
+                                                                    >
+                                                                        ✅ Αποδοχή
+                                                                    </button>
+                                                                    <button
                                                                         onClick={() => {
                                                                             setSelectedProposal(prop);
                                                                             setCounterBudget('');
