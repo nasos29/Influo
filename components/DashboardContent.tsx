@@ -222,8 +222,8 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
             const categoryString = categories.length > 0 ? categories.join(',') : "Lifestyle";
             
             const updateData: any = {
-                display_name: name,
-                bio: bio,
+                display_name: name, 
+                bio: bio, 
                 min_rate: minRate,
                 location: location,
                 engagement_rate: engage,
@@ -251,15 +251,15 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
             const { data, error } = await supabase
                 .from('influencers')
                 .update(updateData)
-                .eq('id', user.id)
-                .select()
-                .single();
+            .eq('id', user.id)
+            .select()
+            .single();
 
-            setLoading(false);
+        setLoading(false);
 
-            if (error) {
+        if (error) {
                 alert("Σφάλμα: " + error.message);
-            } else if (data) {
+        } else if (data) {
                 // Send email notification to admin
                 try {
                     await fetch('/api/emails', {
@@ -276,7 +276,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                     console.error("Email notification failed:", mailError);
                 }
 
-                onSave(data as InfluencerData);
+            onSave(data as InfluencerData);
                 alert("Το προφίλ σου ενημερώθηκε! Θα ελέγξουμε τις αλλαγές και θα σε ενημερώσουμε όταν εγκριθεί ξανά.");
                 onClose();
             }
@@ -354,8 +354,8 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                         {CATEGORIES.map(cat => {
                                             const isSelected = categories.includes(cat);
                                             const displayName = categoryTranslations[cat]?.el || cat;
-                                            
-                                            return (
+
+    return (
                                                 <label 
                                                     key={cat} 
                                                     className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-all text-xs ${
@@ -436,7 +436,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                     placeholder="100" 
                                 />
                             </div>
-                            <div>
+                        <div>
                                 <label className="block text-xs font-semibold text-slate-900 mb-1">Instagram Post (€)</label>
                                 <input 
                                     type="text" 
@@ -445,8 +445,8 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                     className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" 
                                     placeholder="200" 
                                 />
-                            </div>
-                            <div>
+                        </div>
+                        <div>
                                 <label className="block text-xs font-semibold text-slate-900 mb-1">Reel / TikTok (€)</label>
                                 <input 
                                     type="text" 
@@ -455,8 +455,8 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                     className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" 
                                     placeholder="300" 
                                 />
-                            </div>
-                            <div>
+                        </div>
+                        <div>
                                 <label className="block text-xs font-semibold text-slate-900 mb-1">Facebook Post (€)</label>
                                 <input 
                                     type="text" 
@@ -465,8 +465,8 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                     className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" 
                                     placeholder="150" 
                                 />
-                            </div>
-                            <div>
+                        </div>
+                         <div>
                                 <label className="block text-xs font-semibold text-slate-900 mb-1">YouTube Video (€)</label>
                                 <input 
                                     type="text" 
@@ -475,9 +475,9 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                     className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" 
                                     placeholder="400" 
                                 />
-                            </div>
                         </div>
-                            <div>
+                    </div>
+                    <div>
                                 <label className="block text-sm font-semibold text-slate-900 mb-1">Avg Likes/Views</label>
                                 <input type="text" value={likes} onChange={e => setLikes(replaceCommaWithDot(e.target.value))} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" placeholder="3.2k" />
                             </div>
@@ -628,7 +628,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                             ⚠️ <strong>Σημαντικό:</strong> Μετά την αποθήκευση, το προφίλ σου θα μεταβεί σε "Pending" status και θα χρειαστεί επαν-επαλήθευση από τον admin.
                         </p>
                     </div>
-
+                    
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
                         <button type="button" onClick={onClose} className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg font-medium transition-colors">Ακύρωση</button>
                         <button type="submit" disabled={loading} className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium disabled:opacity-50 transition-colors">
@@ -900,7 +900,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                 <div className="mb-8">
                     <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">
                         Καλώς ήρθες, <span className="text-slate-900">{profile.display_name}</span>!
-                    </h1>
+                </h1>
                     <p className="text-slate-600">Διαχείριση προφίλ και ρυθμίσεων</p>
                 </div>
                 
@@ -1162,7 +1162,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                             <span className="text-lg font-semibold text-slate-900">{profile.engagement_rate || 'N/A'}</span>
                         </div>
                     </div>
-
+                    
                     {profile.accounts && profile.accounts.length > 0 && (
                         <div>
                             <h3 className="text-sm font-semibold text-slate-700 mb-3">Κανάλια Social Media</h3>
@@ -1181,7 +1181,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row gap-3">
                                     <Link href="/logout" className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium text-center transition-colors">
                                         Αποσύνδεση
-                                    </Link>
+                        </Link>
                                 </div>
                             </div>
                         ) : (

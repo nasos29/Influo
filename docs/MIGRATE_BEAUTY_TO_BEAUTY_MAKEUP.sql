@@ -1,49 +1,41 @@
--- Migration script to update "Beauty" category to "Beauty & Makeup"
--- This script updates influencers who have "Beauty" or "BEAUTY" in their category field
--- to "Beauty & Makeup" instead.
+-- Migrate old "Beauty" category to "Beauty & Makeup"
+-- This script updates influencers who have "Beauty" in their category field
+-- and replaces it with "Beauty & Makeup"
 
--- First, let's see what we're working with
--- SELECT id, display_name, category FROM influencers WHERE category ILIKE '%Beauty%' AND category NOT ILIKE '%Makeup%';
+-- First, let's see how many influencers have "Beauty" category
+-- SELECT COUNT(*) FROM influencers WHERE category ILIKE '%Beauty%';
 
--- Update influencers where category is exactly "Beauty"
-UPDATE influencers
+-- Update influencers who have only "Beauty" category
+UPDATE influencers 
 SET category = 'Beauty & Makeup'
-WHERE category = 'Beauty';
+WHERE category = 'Beauty' OR category ILIKE 'Beauty';
 
--- Update influencers where category contains "Beauty" but not "Makeup" (comma-separated)
--- This handles cases like "Beauty, Lifestyle" or "Lifestyle, Beauty"
-UPDATE influencers
-SET category = CASE
-    -- If category starts with "Beauty,"
-    WHEN category LIKE 'Beauty,%' THEN REPLACE(category, 'Beauty,', 'Beauty & Makeup,')
-    -- If category ends with ",Beauty"
-    WHEN category LIKE '%,Beauty' THEN REPLACE(category, ',Beauty', ',Beauty & Makeup')
-    -- If category contains ",Beauty,"
-    WHEN category LIKE '%,Beauty,%' THEN REPLACE(category, ',Beauty,', ',Beauty & Makeup,')
-    -- If category is just "Beauty" (should have been caught above, but just in case)
-    WHEN category = 'Beauty' THEN 'Beauty & Makeup'
-    ELSE category
-END
+-- Update influencers who have "Beauty" as part of comma-separated categories
+-- Example: "Beauty, Lifestyle" -> "Beauty & Makeup, Lifestyle"
+UPDATE influencers 
+SET category = REPLACE(category, 'Beauty', 'Beauty & Makeup')
 WHERE category ILIKE '%Beauty%' 
-  AND category NOT ILIKE '%Makeup%'
-  AND category NOT ILIKE '%Beauty & Makeup%';
+  AND category NOT ILIKE '%Beauty & Makeup%'
+  AND category != 'Beauty & Makeup';
 
--- Also handle uppercase "BEAUTY"
-UPDATE influencers
-SET category = CASE
-    -- If category starts with "BEAUTY,"
-    WHEN category LIKE 'BEAUTY,%' THEN REPLACE(category, 'BEAUTY,', 'Beauty & Makeup,')
-    -- If category ends with ",BEAUTY"
-    WHEN category LIKE '%,BEAUTY' THEN REPLACE(category, ',BEAUTY', ',Beauty & Makeup')
-    -- If category contains ",BEAUTY,"
-    WHEN category LIKE '%,BEAUTY,%' THEN REPLACE(category, ',BEAUTY,', ',Beauty & Makeup,')
-    -- If category is just "BEAUTY"
-    WHEN category = 'BEAUTY' THEN 'Beauty & Makeup'
-    ELSE category
-END
-WHERE category ILIKE '%BEAUTY%' 
-  AND category NOT ILIKE '%Makeup%'
-  AND category NOT ILIKE '%Beauty & Makeup%';
+-- Also handle case variations (BEAUTY, beauty, etc.)
+UPDATE influencers 
+SET category = REPLACE(REPLACE(REPLACE(REPLACE(
+  category, 
+  'BEAUTY', 'Beauty & Makeup'),
+  'beauty', 'Beauty & Makeup'),
+  'Beauty,', 'Beauty & Makeup,'),
+  ',Beauty', ',Beauty & Makeup')
+WHERE category ILIKE '%beauty%' 
+  AND category NOT ILIKE '%Beauty & Makeup%'
+  AND category != 'Beauty & Makeup';
 
--- Verify the changes
--- SELECT id, display_name, category FROM influencers WHERE category ILIKE '%Beauty%';
+-- Clean up any duplicate "Beauty & Makeup" entries (if someone had both)
+-- This regex-like replacement is complex in SQL, so we'll handle it more carefully
+UPDATE influencers 
+SET category = REPLACE(category, 'Beauty & Makeup, Beauty & Makeup', 'Beauty & Makeup')
+WHERE category LIKE '%Beauty & Makeup, Beauty & Makeup%';
+
+UPDATE influencers 
+SET category = REPLACE(category, 'Beauty & Makeup,Beauty & Makeup', 'Beauty & Makeup')
+WHERE category LIKE '%Beauty & Makeup,Beauty & Makeup%';
