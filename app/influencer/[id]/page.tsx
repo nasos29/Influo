@@ -216,6 +216,33 @@ export default function InfluencerProfile(props: { params: Params }) {
   const [reviewProjectType, setReviewProjectType] = useState("");
   const [reviewBrandName, setReviewBrandName] = useState("");
   const [reviewBrandEmail, setReviewBrandEmail] = useState("");
+  const [isBrand, setIsBrand] = useState(false);
+
+  // Check if current user is a brand
+  useEffect(() => {
+    const checkUserType = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.email) {
+          // Check if user is a brand
+          const { data: brandData } = await supabase
+            .from('brands')
+            .select('id')
+            .or(`contact_email.ilike.${user.email},email.ilike.${user.email}`)
+            .maybeSingle();
+          
+          setIsBrand(!!brandData);
+        } else {
+          setIsBrand(false);
+        }
+      } catch (error) {
+        console.error('Error checking user type:', error);
+        setIsBrand(false);
+      }
+    };
+
+    checkUserType();
+  }, []);
 
   // Check online status
   useEffect(() => {
@@ -1130,8 +1157,8 @@ export default function InfluencerProfile(props: { params: Params }) {
               })()}
               {/* Action Buttons */}
               <div className="flex gap-3 flex-col md:flex-row">
-                {/* Back to Proposals button for brands */}
-                {typeof window !== 'undefined' && sessionStorage.getItem('isBrand') === 'true' && (
+                {/* Back to Proposals button for brands only */}
+                {isBrand && (
                   <a 
                     href="/brand/dashboard"
                     className="bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-transform hover:-translate-y-1 flex items-center justify-center gap-2 text-sm"
