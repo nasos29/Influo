@@ -1251,6 +1251,8 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   });
   const [pendingProposalsCount, setPendingProposalsCount] = useState(0);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+  const [brokenThumbnails, setBrokenThumbnails] = useState<Array<{ influencerId: number; influencerName: string; videoUrl: string; thumbnailUrl: string; reason: string }>>([]);
+  const [checkingThumbnails, setCheckingThumbnails] = useState(false);
 
   const fetchConversations = async () => {
     try {
