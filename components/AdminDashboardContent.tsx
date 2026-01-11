@@ -165,6 +165,7 @@ const t = {
     analytics_verified: "Επαληθευμένα Analytics",
     btn_delete: "Διαγραφή",
     cleanup_test: "Cleanup Test Users",
+    migrate_languages: "Μετατροπή Γλωσσών",
     sql_helper: "SQL Helper",
     export: "Export",
     search: "Αναζήτηση...",
@@ -228,6 +229,7 @@ const t = {
     analytics_verified: "Analytics Verified",
     btn_delete: "Delete",
     cleanup_test: "Cleanup Test Users",
+    migrate_languages: "Migrate Languages",
     sql_helper: "SQL Helper",
     export: "Export",
     search: "Search...",
@@ -1557,6 +1559,40 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     }
   };
 
+  const handleMigrateLanguages = async () => {
+    if (!confirm(
+      lang === "el" 
+        ? "Αυτή η ενέργεια θα μετατρέψει όλες τις υπάρχουσες γλώσσες στη βάση στο νέο format. Συνεχίσω;"
+        : "This will convert all existing languages in the database to the new format. Continue?"
+    )) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/admin/migrate-languages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Migration failed');
+      }
+
+      alert(
+        lang === "el" 
+          ? `Migration ολοκληρώθηκε!\n\nΣυνολικά: ${result.total}\nΕνημερωμένα: ${result.updated}`
+          : `Migration completed!\n\nTotal: ${result.total}\nUpdated: ${result.updated}`
+      );
+      
+      // Refresh data
+      fetchData();
+    } catch (error: any) {
+      alert(`Error: ${error.message}`);
+    }
+  };
+
   const handleCleanupTestUsers = async () => {
     const emailsInput = prompt(
       lang === "el" 
@@ -1692,6 +1728,9 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
               <p className="text-sm text-slate-500">{txt.sub}</p>
             </div>
             <div className="flex items-center gap-3">
+              <button onClick={handleMigrateLanguages} className="px-3 py-1.5 text-sm text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded-lg transition-colors border border-blue-200">
+                {txt.migrate_languages}
+              </button>
               <button onClick={handleCleanupTestUsers} className="px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors">
                 {txt.cleanup_test}
               </button>

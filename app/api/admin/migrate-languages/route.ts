@@ -1,5 +1,16 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+);
 
 // Language mapping - matches the LANGUAGES array in components
 const LANGUAGES = [
@@ -63,7 +74,7 @@ function parseAndConvertLanguages(langString: string | null): string {
 export async function POST(request: Request) {
   try {
     // Fetch all influencers with languages
-    const { data: influencers, error } = await supabase
+    const { data: influencers, error } = await supabaseAdmin
       .from('influencers')
       .select('id, display_name, languages')
       .not('languages', 'is', null);
@@ -103,7 +114,7 @@ export async function POST(request: Request) {
     // Apply updates
     let updatedCount = 0;
     for (const update of updates) {
-      const { error: updateError } = await supabase
+      const { error: updateError } = await supabaseAdmin
         .from('influencers')
         .update({ languages: update.newLanguages })
         .eq('id', update.id);
