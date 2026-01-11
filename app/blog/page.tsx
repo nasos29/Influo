@@ -5,13 +5,19 @@ import Image from "next/image";
 import Link from "next/link";
 import Footer from "../../components/Footer";
 import { initializeBlogPosts, getBlogPosts, type BlogPost } from "@/lib/blogPosts";
+import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
 
 type Lang = "el" | "en";
 
 export default function BlogPage() {
-  const [lang, setLang] = useState<Lang>("el");
+  const [lang, setLang] = useState<Lang>("el"); // Default to Greek, will be updated in useEffect
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Load language from localStorage on client-side
+  useEffect(() => {
+    setLang(getStoredLanguage());
+  }, []);
 
   useEffect(() => {
     // Initialize and load posts
@@ -217,7 +223,11 @@ export default function BlogPage() {
               {lang === "el" ? "← Επιστροφή" : "← Back"}
             </Link>
             <button 
-              onClick={() => setLang(lang === "el" ? "en" : "el")}
+              onClick={() => {
+                const newLang = lang === "el" ? "en" : "el";
+                setLang(newLang);
+                setStoredLanguage(newLang);
+              }}
               className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
             >
               {lang === "el" ? "EN" : "EL"}
