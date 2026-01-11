@@ -481,7 +481,13 @@ export default function BrandDashboardContent() {
   });
   const [showFilters, setShowFilters] = useState(false);
   // Load stats from localStorage on mount
-  const [recommendationStats, setRecommendationStats] = useState(() => {
+  type RecommendationStats = {
+    totalViewed: number;
+    profilesClicked: number;
+    proposalsSent: number;
+  };
+  
+  const [recommendationStats, setRecommendationStats] = useState<RecommendationStats>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('brandDashboardStats');
       if (saved) {
@@ -838,7 +844,7 @@ export default function BrandDashboardContent() {
       setRecommendations(matches);
       
       // Update stats - count only displayed recommendations (not cumulative)
-      setRecommendationStats((prev: { totalViewed: number; profilesClicked: number; proposalsSent: number }) => ({
+      setRecommendationStats((prev: RecommendationStats) => ({
         ...prev,
         totalViewed: matches.length, // Current session count, not cumulative
       }));
@@ -1333,7 +1339,7 @@ export default function BrandDashboardContent() {
                             if (typeof window !== 'undefined') {
                               sessionStorage.setItem('isBrand', 'true');
                             }
-                            setRecommendationStats(prev => {
+                            setRecommendationStats((prev: RecommendationStats) => {
                               const updated = {...prev, profilesClicked: prev.profilesClicked + 1};
                               // Save to localStorage immediately
                               if (typeof window !== 'undefined') {
@@ -1353,7 +1359,7 @@ export default function BrandDashboardContent() {
                             if (typeof window !== 'undefined') {
                               sessionStorage.setItem('isBrand', 'true');
                             }
-                            setRecommendationStats(prev => {
+                            setRecommendationStats((prev: RecommendationStats) => {
                               const updated = {...prev, proposalsSent: prev.proposalsSent + 1};
                               // Save to localStorage immediately
                               if (typeof window !== 'undefined') {
