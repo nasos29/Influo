@@ -112,48 +112,52 @@ export default function Home() {
   // Check if user is logged in and get user type
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setIsLoggedIn(true);
+      try {
+        // Get session to check if user is logged in and get access token
+        const { data: { session } } = await supabase.auth.getSession();
         
-        // Check if user is influencer
-        const { data: influencerData } = await supabase
-          .from('influencers')
-          .select('avatar_url, display_name')
-          .eq('contact_email', user.email)
-          .maybeSingle();
-        
-        if (influencerData) {
-          setUserType('influencer');
-          setUserAvatar(influencerData.avatar_url);
-          setUserName(influencerData.display_name);
-        } else {
-          // Check if user is brand
-          const { data: brandDataByContact } = await supabase
-            .from('brands')
-            .select('logo_url, brand_name')
-            .ilike('contact_email', user.email || '')
-            .maybeSingle();
+        if (session?.user && session?.access_token) {
+          setIsLoggedIn(true);
           
-          if (brandDataByContact) {
-            setUserType('brand');
-            setUserAvatar(brandDataByContact.logo_url);
-            setUserName(brandDataByContact.brand_name);
-          } else {
-            const { data: brandDataByEmail } = await supabase
-              .from('brands')
-              .select('logo_url, brand_name')
-              .ilike('email', user.email || '')
-              .maybeSingle();
-            
-            if (brandDataByEmail) {
-              setUserType('brand');
-              setUserAvatar(brandDataByEmail.logo_url);
-              setUserName(brandDataByEmail.brand_name);
+          // Fetch profile data from API route (avoids hanging queries)
+          const response = await fetch('/api/user/profile', {
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`
             }
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            
+            if (result.profile) {
+              setUserType(result.profile.type);
+              if (result.profile.type === 'influencer') {
+                setUserAvatar(result.profile.avatar_url);
+                setUserName(result.profile.display_name);
+              } else if (result.profile.type === 'brand') {
+                setUserAvatar(result.profile.logo_url);
+                setUserName(result.profile.brand_name);
+              }
+            } else {
+              // User exists but no profile found
+              setUserType(null);
+              setUserAvatar(null);
+              setUserName(null);
+            }
+          } else {
+            // API error - fallback to initials
+            setUserType(null);
+            setUserAvatar(null);
+            setUserName(null);
           }
+        } else {
+          setIsLoggedIn(false);
+          setUserType(null);
+          setUserAvatar(null);
+          setUserName(null);
         }
-      } else {
+      } catch (err) {
+        console.error('[Homepage] Error checking session:', err);
         setIsLoggedIn(false);
         setUserType(null);
         setUserAvatar(null);
@@ -165,45 +169,44 @@ export default function Home() {
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
+      if (session?.user && session?.access_token) {
         setIsLoggedIn(true);
         
-        // Check if user is influencer
-        const { data: influencerData } = await supabase
-          .from('influencers')
-          .select('avatar_url, display_name')
-          .eq('contact_email', session.user.email)
-          .maybeSingle();
-        
-        if (influencerData) {
-          setUserType('influencer');
-          setUserAvatar(influencerData.avatar_url);
-          setUserName(influencerData.display_name);
-        } else {
-          // Check if user is brand
-          const { data: brandDataByContact } = await supabase
-            .from('brands')
-            .select('logo_url, brand_name')
-            .ilike('contact_email', session.user.email || '')
-            .maybeSingle();
-          
-          if (brandDataByContact) {
-            setUserType('brand');
-            setUserAvatar(brandDataByContact.logo_url);
-            setUserName(brandDataByContact.brand_name);
-          } else {
-            const { data: brandDataByEmail } = await supabase
-              .from('brands')
-              .select('logo_url, brand_name')
-              .ilike('email', session.user.email || '')
-              .maybeSingle();
-            
-            if (brandDataByEmail) {
-              setUserType('brand');
-              setUserAvatar(brandDataByEmail.logo_url);
-              setUserName(brandDataByEmail.brand_name);
+        // Fetch profile data from API route (avoids hanging queries)
+        try {
+          const response = await fetch('/api/user/profile', {
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`
             }
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            
+            if (result.profile) {
+              setUserType(result.profile.type);
+              if (result.profile.type === 'influencer') {
+                setUserAvatar(result.profile.avatar_url);
+                setUserName(result.profile.display_name);
+              } else if (result.profile.type === 'brand') {
+                setUserAvatar(result.profile.logo_url);
+                setUserName(result.profile.brand_name);
+              }
+            } else {
+              setUserType(null);
+              setUserAvatar(null);
+              setUserName(null);
+            }
+          } else {
+            setUserType(null);
+            setUserAvatar(null);
+            setUserName(null);
           }
+        } catch (err) {
+          console.error('[Homepage] Error fetching profile on auth change:', err);
+          setUserType(null);
+          setUserAvatar(null);
+          setUserName(null);
         }
       } else {
         setIsLoggedIn(false);
