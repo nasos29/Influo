@@ -886,6 +886,15 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     return (
         <div className="min-h-screen p-6 md:p-8 bg-slate-50">
             <div className="max-w-6xl mx-auto">
+                {/* Back to Home Link */}
+                <div className="mb-4">
+                    <a 
+                        href="/" 
+                        className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors text-sm font-medium"
+                    >
+                        <span>←</span> Επιστροφή στην Αρχική
+                    </a>
+                </div>
                 <div className="mb-8">
                     <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">
                         Καλώς ήρθες, <span className="text-slate-900">{profile.display_name}</span>!
