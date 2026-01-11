@@ -838,7 +838,7 @@ export default function BrandDashboardContent() {
       setRecommendations(matches);
       
       // Update stats - count only displayed recommendations (not cumulative)
-      setRecommendationStats(prev => ({
+      setRecommendationStats((prev: { totalViewed: number; profilesClicked: number; proposalsSent: number }) => ({
         ...prev,
         totalViewed: matches.length, // Current session count, not cumulative
       }));
