@@ -96,6 +96,13 @@ const t = {
     videoDesc: "Επικόλλησε links από TikTok, Reels ή YouTube. Μπορείτε επίσης να προσθέσετε links φωτογραφιών από δουλειές σας.",
     addVideo: "+ Προσθήκη Video Link / Φωτογραφίας",
     rateLabel: "Ελάχιστη Χρέωση / Budget (€)",
+    pricingLabel: "Τιμές Ανά Υπηρεσία",
+    pricingDesc: "Αφήστε κενό για 'Ρώτησε'",
+    pricingStory: "Instagram Story (€)",
+    pricingPost: "Instagram Post (€)",
+    pricingReel: "Reel / TikTok (€)",
+    pricingFacebook: "Facebook Post (€)",
+    pricingYouTube: "YouTube Video (€)",
     engageRateLabel: "Engagement Rate (%)", 
     avgLikesLabel: "Μέσος Όρος Likes/Views", 
     aud_title: "Δηλώστε τα στοιχεία Κοινού",
@@ -151,6 +158,13 @@ const t = {
     videoDesc: "Paste links from TikTok, Reels, or YouTube. You can also add photo links from your work.",
     addVideo: "+ Add Video Link / Photo",
     rateLabel: "Minimum Rate / Budget (€)",
+    pricingLabel: "Pricing Per Service",
+    pricingDesc: "Leave empty for 'Ask'",
+    pricingStory: "Instagram Story (€)",
+    pricingPost: "Instagram Post (€)",
+    pricingReel: "Reel / TikTok (€)",
+    pricingFacebook: "Facebook Post (€)",
+    pricingYouTube: "YouTube Video (€)",
     engageRateLabel: "Engagement Rate (%)", 
     avgLikesLabel: "Avg Likes/Views", 
     aud_title: "Declare Audience Demographics",
@@ -196,6 +210,13 @@ export default function InfluencerSignupForm() {
   const [minRate, setMinRate] = useState("");
   const [engagementRate, setEngagementRate] = useState("");
   const [avgLikes, setAvgLikes] = useState("");
+  
+  // Pricing fields
+  const [priceStory, setPriceStory] = useState("");
+  const [pricePost, setPricePost] = useState("");
+  const [priceReel, setPriceReel] = useState("");
+  const [priceFacebook, setPriceFacebook] = useState("");
+  const [priceYouTube, setPriceYouTube] = useState("");
 
   // NEW AUDIENCE STATES
   const [malePercent, setMalePercent] = useState("");
@@ -929,6 +950,64 @@ export default function InfluencerSignupForm() {
                         </div>
                     ))}
                     <button onClick={addVideo} className="text-blue-600 text-sm font-bold hover:underline">{txt.addVideo}</button>
+                </div>
+
+                {/* Pricing Section */}
+                <div>
+                    <label className={labelClass}>{txt.pricingLabel}</label>
+                    <p className="text-xs text-slate-500 mb-3">{txt.pricingDesc}</p>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-900 mb-1">{txt.pricingStory}</label>
+                            <input 
+                                type="text" 
+                                className={inputClass} 
+                                value={priceStory} 
+                                onChange={(e) => setPriceStory(replaceCommaWithDot(e.target.value))} 
+                                placeholder="100" 
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-900 mb-1">{txt.pricingPost}</label>
+                            <input 
+                                type="text" 
+                                className={inputClass} 
+                                value={pricePost} 
+                                onChange={(e) => setPricePost(replaceCommaWithDot(e.target.value))} 
+                                placeholder="200" 
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-900 mb-1">{txt.pricingReel}</label>
+                            <input 
+                                type="text" 
+                                className={inputClass} 
+                                value={priceReel} 
+                                onChange={(e) => setPriceReel(replaceCommaWithDot(e.target.value))} 
+                                placeholder="300" 
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-900 mb-1">{txt.pricingFacebook}</label>
+                            <input 
+                                type="text" 
+                                className={inputClass} 
+                                value={priceFacebook} 
+                                onChange={(e) => setPriceFacebook(replaceCommaWithDot(e.target.value))} 
+                                placeholder="150" 
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-900 mb-1">{txt.pricingYouTube}</label>
+                            <input 
+                                type="text" 
+                                className={inputClass} 
+                                value={priceYouTube} 
+                                onChange={(e) => setPriceYouTube(replaceCommaWithDot(e.target.value))} 
+                                placeholder="400" 
+                            />
+                        </div>
+                    </div>
                 </div>
 
                 {/* Rate */}
