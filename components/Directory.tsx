@@ -363,10 +363,6 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
     const fetchReal = async () => {
       console.log('[Directory] fetchReal started');
       try {
-        // Check auth state first
-        const { data: { session } } = await supabase.auth.getSession();
-        console.log('[Directory] Auth session:', { hasSession: !!session, userId: session?.user?.id });
-        
         console.log('[Directory] Starting Supabase query...');
         const startTime = Date.now();
         
