@@ -362,8 +362,18 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
     console.log('[Directory] useEffect triggered');
     isMountedRef.current = true;
     
+    // Delay the query slightly to avoid race conditions with other auth checks on the page
     const fetchReal = async () => {
       console.log('[Directory] fetchReal started');
+      
+      // Small delay to let auth checks complete first (especially on homepage)
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      if (!isMountedRef.current) {
+        console.log('[Directory] Component unmounted during delay');
+        return;
+      }
+      
       try {
         console.log('[Directory] Starting Supabase query...');
         const startTime = Date.now();
@@ -456,7 +466,7 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
             setInfluencers(sortInfluencers(dummyInfluencers));
           }
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('[Directory] Error in fetchReal:', err);
         // On error, show dummy influencers as fallback
         if (isMountedRef.current) {
