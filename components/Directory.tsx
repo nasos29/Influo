@@ -529,11 +529,31 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
     <div>
       <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 mb-10 transition-all duration-300 hover:shadow-xl hover:border-blue-200">
         
-        {/* Filters Button Row */}
-        <div className="flex items-center justify-end gap-3 mb-4">
-            <button onClick={() => setShowAdvanced(!showAdvanced)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold border transition-colors ${showAdvanced ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
-                <FilterIcon /> {txt.filters} <ChevronDown />
-            </button>
+        {/* Search Row - Platform and Category Dropdowns */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
+            <div className="md:col-span-5">
+                <select value={platformFilter} onChange={(e) => setPlatformFilter(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-sm font-medium">
+                    <option value="All">{txt.platAll}</option>
+                    <option value="Instagram">Instagram</option>
+                    <option value="TikTok">TikTok</option>
+                    <option value="YouTube">YouTube</option>
+                </select>
+            </div>
+            <div className="md:col-span-4">
+                <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-sm font-medium">
+                    <option value="All">{txt.catAll}</option>
+                    {CATEGORIES.map(cat => (
+                        <option key={cat} value={cat}>
+                            {categoryTranslations[cat] ? categoryTranslations[cat][lang] : cat}
+                        </option>
+                    ))}
+                </select>
+            </div>
+            <div className="md:col-span-3 flex items-center justify-end gap-3">
+                <button onClick={() => setShowAdvanced(!showAdvanced)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold border transition-colors ${showAdvanced ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                    <FilterIcon /> {txt.filters} <ChevronDown />
+                </button>
+            </div>
         </div>
 
         {/* Filters Panel */}
