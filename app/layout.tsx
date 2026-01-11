@@ -72,16 +72,15 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/favicon.ico", type: "image/x-icon", sizes: "48x48" },
-      { url: "/favicon.ico", type: "image/x-icon", sizes: "32x32" },
-      { url: "/favicon.ico", type: "image/x-icon", sizes: "16x16" },
-      { url: "/favicon.svg", type: "image/svg+xml", sizes: "any" },
       { url: "/logo-icon.svg", type: "image/svg+xml", sizes: "any" },
+      { url: "/logo-icon.svg", type: "image/svg+xml", sizes: "48x48" },
+      { url: "/logo-icon.svg", type: "image/svg+xml", sizes: "32x32" },
+      { url: "/logo-icon.svg", type: "image/svg+xml", sizes: "16x16" },
     ],
     apple: [
       { url: "/logo-icon.svg", sizes: "180x180", type: "image/svg+xml" },
     ],
-    shortcut: "/favicon.ico",
+    shortcut: "/logo-icon.svg",
   },
 };
 
@@ -130,11 +129,10 @@ export default function RootLayout({
   return (
     <html lang="el">
       <head>
-        <link rel="icon" href="/favicon.ico" type="image/x-icon" sizes="48x48" />
-        <link rel="icon" href="/favicon.ico" type="image/x-icon" sizes="32x32" />
-        <link rel="icon" href="/favicon.ico" type="image/x-icon" sizes="16x16" />
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any" />
         <link rel="icon" href="/logo-icon.svg" type="image/svg+xml" sizes="any" />
+        <link rel="icon" href="/logo-icon.svg" type="image/svg+xml" sizes="48x48" />
+        <link rel="icon" href="/logo-icon.svg" type="image/svg+xml" sizes="32x32" />
+        <link rel="icon" href="/logo-icon.svg" type="image/svg+xml" sizes="16x16" />
         <link rel="apple-touch-icon" href="/logo-icon.svg" />
         <link rel="manifest" href="/manifest.webmanifest" />
         <script
