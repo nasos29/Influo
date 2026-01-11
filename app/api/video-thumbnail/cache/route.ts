@@ -1,7 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabaseClient';
+import { createClient } from '@supabase/supabase-js';
 
 const IFRAMELY_API_KEY = process.env.IFRAMELY_API_KEY;
+
+// Create admin client for database operations
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+);
 const IFRAMELY_API_URL = 'https://iframe.ly/api/iframely';
 
 interface ThumbnailMetadata {
