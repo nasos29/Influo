@@ -6,6 +6,7 @@ import { getVideoThumbnail, isVideoUrl } from '@/lib/videoThumbnail';
 
 interface VideoThumbnailProps {
   url: string;
+  manualThumbnail?: string; // Manual thumbnail URL (from admin)
   alt?: string;
   className?: string;
   fill?: boolean;
@@ -15,6 +16,7 @@ interface VideoThumbnailProps {
 
 export default function VideoThumbnail({ 
   url, 
+  manualThumbnail,
   alt = "Video thumbnail",
   className = "",
   fill = false,
@@ -105,8 +107,8 @@ export default function VideoThumbnail({
       }
     };
 
-    fetchThumbnail();
-  }, [url, isImage]);
+        fetchThumbnail();
+      }, [url, manualThumbnail, isImage]);
 
   if (loading) {
     return (

@@ -71,6 +71,7 @@ interface DbInfluencer {
   followers_count: string | null; 
   insights_urls: string[] | null; 
   videos: string[] | null;
+  video_thumbnails?: Record<string, string> | null; // JSONB mapping video URL -> thumbnail URL
   min_rate: string | null;
   languages: string | null;
   bio: string | null;
@@ -548,6 +549,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
     const [selectedLanguages, setSelectedLanguages] = useState<string[]>(initialLanguages);
     const [accounts, setAccounts] = useState<{ platform: string; username: string; followers: string }[]>(user.accounts || [{ platform: "Instagram", username: "", followers: "" }]);
     const [videos, setVideos] = useState<string[]>(Array.isArray(user.videos) ? user.videos : []);
+    const [videoThumbnails, setVideoThumbnails] = useState<Record<string, string>>(user.video_thumbnails || {});
     const [malePercent, setMalePercent] = useState(user.audience_male_percent?.toString() || "");
     const [femalePercent, setFemalePercent] = useState(user.audience_female_percent?.toString() || "");
     const [topAge, setTopAge] = useState(user.audience_top_age || "");
@@ -568,15 +570,47 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
     };
 
     const handleVideoChange = (i: number, value: string) => {
-        const copy = [...videos]; 
-        copy[i] = value; 
+        const copy = [...videos];
+        const oldUrl = copy[i];
+        copy[i] = value;
         setVideos(copy);
+        
+        // If video URL changed, preserve thumbnail if URL is the same, otherwise remove it
+        if (oldUrl && oldUrl !== value && videoThumbnails[oldUrl]) {
+            const newThumbnails = { ...videoThumbnails };
+            delete newThumbnails[oldUrl];
+            if (videoThumbnails[value]) {
+                // Keep existing thumbnail if new URL already has one
+                setVideoThumbnails({ ...newThumbnails, [value]: videoThumbnails[value] });
+            } else {
+                setVideoThumbnails(newThumbnails);
+            }
+        }
     };
+    
+    const handleThumbnailChange = (videoUrl: string, thumbnailUrl: string) => {
+        setVideoThumbnails({ ...videoThumbnails, [videoUrl]: thumbnailUrl });
+    };
+    
+    const removeThumbnail = (videoUrl: string) => {
+        const newThumbnails = { ...videoThumbnails };
+        delete newThumbnails[videoUrl];
+        setVideoThumbnails(newThumbnails);
+    };
+    
     const addVideo = () => setVideos([...videos, ""]);
     const removeVideo = (i: number) => { 
+        const videoUrl = videos[i];
         const copy = [...videos]; 
-        copy.splice(i, 1); 
-        setVideos(copy); 
+        copy.splice(i, 1);
+        setVideos(copy);
+        
+        // Remove thumbnail for deleted video
+        if (videoUrl && videoThumbnails[videoUrl]) {
+            const newThumbnails = { ...videoThumbnails };
+            delete newThumbnails[videoUrl];
+            setVideoThumbnails(newThumbnails);
+        }
     };
 
     const handleSave = async (e: React.FormEvent) => {

@@ -14,6 +14,7 @@ import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
 type Params = Promise<{ id: string }>;
 
 interface ProInfluencer extends Influencer {
+  video_thumbnails?: Record<string, string> | null;
   contact_email?: string;
   engagement_rate?: string;
   avg_likes?: string;
@@ -519,6 +520,7 @@ export default function InfluencerProfile(props: { params: Params }) {
           : [],
         min_rate: data.min_rate,
         videos: Array.isArray(data.videos) ? data.videos : [],
+        video_thumbnails: data.video_thumbnails || null,
         engagement_rate: data.engagement_rate || "-",
         avg_likes: data.avg_likes || "-",
         audience_data: {
