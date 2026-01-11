@@ -1328,7 +1328,20 @@ export default function BrandDashboardContent() {
                       <div className="flex gap-2">
                         <Link
                           href={`/influencer/${inf.id}`}
-                          onClick={() => setRecommendationStats(prev => ({...prev, profilesClicked: prev.profilesClicked + 1}))}
+                          onClick={() => {
+                            // Set session flag to indicate user is brand
+                            if (typeof window !== 'undefined') {
+                              sessionStorage.setItem('isBrand', 'true');
+                            }
+                            setRecommendationStats(prev => {
+                              const updated = {...prev, profilesClicked: prev.profilesClicked + 1};
+                              // Save to localStorage immediately
+                              if (typeof window !== 'undefined') {
+                                localStorage.setItem('brandDashboardStats', JSON.stringify(updated));
+                              }
+                              return updated;
+                            });
+                          }}
                           className="flex-1 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-900 font-medium rounded-lg text-sm text-center transition-colors"
                         >
                           {txt.view_profile}
