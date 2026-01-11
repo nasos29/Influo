@@ -181,12 +181,17 @@ export default function InfluencerProfile(props: { params: Params }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   
-  const [lang, setLang] = useState<"el" | "en">(getStoredLanguage());
+  const [lang, setLang] = useState<"el" | "en">("el"); // Default to Greek, will be updated in useEffect
   const txt = t[lang];
 
   const [activeTab, setActiveTab] = useState("overview");
   const [profile, setProfile] = useState<ProInfluencer | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Load language from localStorage on client-side
+  useEffect(() => {
+    setLang(getStoredLanguage());
+  }, []);
   
   // Counter proposal state
   const [counterProposalId, setCounterProposalId] = useState<string | null>(null);
