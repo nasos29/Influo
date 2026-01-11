@@ -1013,6 +1013,16 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                 const isImage = isDefinitelyImage(video);
                                 const isInstagramPost = video && /instagram\.com\/p\//i.test(video);
                                 
+                                // Helper to get thumbnail URL string from string or object
+                                const getThumbnailUrl = (thumb: string | { url: string; width?: number; height?: number; type?: string } | undefined): string => {
+                                    if (!thumb) return '';
+                                    if (typeof thumb === 'string') return thumb;
+                                    return thumb.url || '';
+                                };
+                                
+                                const currentThumbnail = videoThumbnails[video];
+                                const thumbnailUrlString = getThumbnailUrl(currentThumbnail);
+                                
                                 return (
                                     <div key={i} className="mb-3">
                                         <div className="flex gap-2 items-end">
@@ -1030,16 +1040,29 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                                         Thumbnail <span className="text-slate-400 font-normal">(Optional)</span>
                                                     </label>
                                                     
-                                                    {/* Option 1: URL Input */}
+                                                    {/* Option 1: Fetch from Iframely */}
                                                     <div>
-                                                        <label className="block text-xs text-slate-600 mb-1">Option 1: Thumbnail URL</label>
+                                                        <label className="block text-xs text-slate-600 mb-1">Option 1: Fetch from Iframely (Auto)</label>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleFetchFromIframely(video)}
+                                                            disabled={fetchingThumbnails[video] || !!thumbnailFiles[video] || !!thumbnailUrlString}
+                                                            className="w-full px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors text-sm font-semibold"
+                                                        >
+                                                            {fetchingThumbnails[video] ? 'Fetching...' : '🔍 Fetch Thumbnail from Iframely'}
+                                                        </button>
+                                                    </div>
+                                                    
+                                                    {/* Option 2: URL Input */}
+                                                    <div>
+                                                        <label className="block text-xs text-slate-600 mb-1">Option 2: Thumbnail URL (Manual)</label>
                                                         <input 
                                                             type="url" 
-                                                            value={videoThumbnails[video] || ""} 
+                                                            value={thumbnailUrlString} 
                                                             onChange={e => handleThumbnailChange(video, e.target.value)} 
                                                             className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 text-sm" 
                                                             placeholder="https://example.com/thumbnail.jpg" 
-                                                            disabled={!!thumbnailFiles[video]}
+                                                            disabled={!!thumbnailFiles[video] || fetchingThumbnails[video]}
                                                         />
                                                     </div>
                                                     
@@ -1056,13 +1079,18 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                                     </div>
                                                     
                                                     {/* Preview */}
-                                                    {(videoThumbnails[video] || thumbnailPreviews[video]) && (
+                                                    {(currentThumbnail || thumbnailPreviews[video]) && (
                                                         <div className="mt-2">
                                                             <img 
-                                                                src={thumbnailPreviews[video] || videoThumbnails[video] || ""} 
+                                                                src={thumbnailPreviews[video] || thumbnailUrlString || ""} 
                                                                 alt="Thumbnail preview"
                                                                 className="max-w-full h-20 object-contain border border-slate-200 rounded"
                                                             />
+                                                            {typeof currentThumbnail === 'object' && currentThumbnail && currentThumbnail.width && (
+                                                                <p className="text-xs text-slate-500 mt-1">
+                                                                    Size: {currentThumbnail.width}×{currentThumbnail.height}px
+                                                                </p>
+                                                            )}
                                                         </div>
                                                     )}
                                                     
@@ -1082,7 +1110,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                                 <div className="mt-2 relative w-full h-32 rounded-lg overflow-hidden border border-slate-200 bg-slate-100">
                                                     <VideoThumbnail 
                                                         url={video}
-                                                        manualThumbnail={thumbnailPreviews[video] || videoThumbnails[video] || undefined}
+                                                        manualThumbnail={thumbnailPreviews[video] || thumbnailUrlString || undefined}
                                                         alt="Video/Photo thumbnail"
                                                         fill
                                                         className={isImage ? "object-contain" : "object-cover"}
