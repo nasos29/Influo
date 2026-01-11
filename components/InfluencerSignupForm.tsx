@@ -273,13 +273,16 @@ export default function InfluencerSignupForm() {
       setEmailError("");
       
       try {
-        // Check if email exists in influencers table
-        const { count, error: checkError } = await supabase
-          .from('influencers')
-          .select('id', { count: 'exact', head: true }) 
-          .eq('contact_email', email);
+        // Check if email exists using API (checks influencers, brands, and auth.users)
+        const response = await fetch('/api/check-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
 
-        if (count && count > 0) {
+        const data = await response.json();
+
+        if (data.exists) {
           setEmailError(lang === "el" 
             ? "Αυτό το Email είναι ήδη καταχωρημένο. Παρακαλώ χρησιμοποιήστε άλλο." 
             : "This email is already registered. Please use a different one.");
@@ -312,13 +315,16 @@ export default function InfluencerSignupForm() {
               throw new Error(emailError);
           }
 
-          // Double-check email (in case debounce didn't complete)
-          const { count, error: checkError } = await supabase
-              .from('influencers')
-              .select('id', { count: 'exact', head: true }) 
-              .eq('contact_email', email);
+          // Double-check email using API (in case debounce didn't complete)
+          const response = await fetch('/api/check-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email }),
+          });
 
-          if (count && count > 0) { 
+          const data = await response.json();
+
+          if (data.exists) {
               const errorMsg = lang === "el" 
                   ? "Αυτό το Email είναι ήδη καταχωρημένο. Παρακαλώ χρησιμοποιήστε άλλο." 
                   : "This email is already registered. Please use a different one.";
