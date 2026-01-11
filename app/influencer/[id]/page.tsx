@@ -227,11 +227,19 @@ export default function InfluencerProfile(props: { params: Params }) {
   // Check if current user is a brand
   useEffect(() => {
     const checkUserType = async () => {
+      // First, check sessionStorage for immediate display (fast)
+      if (typeof window !== 'undefined') {
+        const sessionBrand = sessionStorage.getItem('isBrand');
+        if (sessionBrand === 'true') {
+          setIsBrand(true); // Show button immediately
+        }
+      }
+
+      // Then verify with API (background check)
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
           setIsBrand(false);
-          // Clear sessionStorage if user is not logged in
           if (typeof window !== 'undefined') {
             sessionStorage.removeItem('isBrand');
           }
@@ -249,7 +257,7 @@ export default function InfluencerProfile(props: { params: Params }) {
           if (response.ok) {
             const result = await response.json();
             const isBrandUser = result.profile?.type === 'brand';
-            setIsBrand(isBrandUser);
+            setIsBrand(isBrandUser); // Update state with actual value
             
             // Update sessionStorage to match actual user type
             if (typeof window !== 'undefined') {
@@ -273,9 +281,10 @@ export default function InfluencerProfile(props: { params: Params }) {
         }
       } catch (error) {
         console.error('Error checking user type:', error);
-        setIsBrand(false);
-        if (typeof window !== 'undefined') {
-          sessionStorage.removeItem('isBrand');
+        // Don't hide button if sessionStorage says it's a brand (fail gracefully)
+        // Only hide if sessionStorage doesn't say it's a brand
+        if (typeof window === 'undefined' || sessionStorage.getItem('isBrand') !== 'true') {
+          setIsBrand(false);
         }
       }
     };
