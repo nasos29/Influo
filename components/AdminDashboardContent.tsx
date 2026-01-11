@@ -1022,21 +1022,79 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                             <button type="button" onClick={() => removeVideo(i)} className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">✕</button>
                                         </div>
                                         {video && (
-                                            <div className="mt-2 relative w-full h-32 rounded-lg overflow-hidden border border-slate-200 bg-slate-100">
-                                                <VideoThumbnail 
-                                                    url={video}
-                                                    alt="Video/Photo thumbnail"
-                                                    fill
-                                                    className={isImage ? "object-contain" : "object-cover"}
-                                                />
-                                                {isVideo && !isInstagramPost && (
-                                                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
-                                                        <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center">
-                                                            <span className="text-xl text-slate-900 ml-1">▶</span>
-                                                        </div>
+                                            <>
+                                                {/* Thumbnail Input Section */}
+                                                <div className="mt-3 p-3 border border-slate-200 rounded-lg bg-slate-50 space-y-2">
+                                                    <label className="block text-xs font-semibold text-slate-700">
+                                                        Thumbnail <span className="text-slate-400 font-normal">(Optional)</span>
+                                                    </label>
+                                                    
+                                                    {/* Option 1: URL Input */}
+                                                    <div>
+                                                        <label className="block text-xs text-slate-600 mb-1">Option 1: Thumbnail URL</label>
+                                                        <input 
+                                                            type="url" 
+                                                            value={videoThumbnails[video] || ""} 
+                                                            onChange={e => handleThumbnailChange(video, e.target.value)} 
+                                                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 text-sm" 
+                                                            placeholder="https://example.com/thumbnail.jpg" 
+                                                            disabled={!!thumbnailFiles[video]}
+                                                        />
                                                     </div>
-                                                )}
-                                            </div>
+                                                    
+                                                    {/* Option 2: File Upload */}
+                                                    <div>
+                                                        <label className="block text-xs text-slate-600 mb-1">Option 2: Upload Image (JPG, PNG, max 5MB)</label>
+                                                        <input 
+                                                            type="file" 
+                                                            accept="image/jpeg,image/jpg,image/png,image/webp"
+                                                            onChange={e => handleThumbnailFileChange(video, e.target.files?.[0] || null)}
+                                                            className="w-full text-sm text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 file:cursor-pointer"
+                                                            disabled={!!videoThumbnails[video]}
+                                                        />
+                                                    </div>
+                                                    
+                                                    {/* Preview */}
+                                                    {(videoThumbnails[video] || thumbnailPreviews[video]) && (
+                                                        <div className="mt-2">
+                                                            <img 
+                                                                src={thumbnailPreviews[video] || videoThumbnails[video] || ""} 
+                                                                alt="Thumbnail preview"
+                                                                className="max-w-full h-20 object-contain border border-slate-200 rounded"
+                                                            />
+                                                        </div>
+                                                    )}
+                                                    
+                                                    {/* Clear Button */}
+                                                    {(videoThumbnails[video] || thumbnailFiles[video]) && (
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => removeThumbnail(video)}
+                                                            className="w-full px-3 py-1.5 bg-slate-400 text-white rounded-lg hover:bg-slate-500 transition-colors text-sm"
+                                                        >
+                                                            Clear Thumbnail
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                
+                                                {/* Video/Photo Preview */}
+                                                <div className="mt-2 relative w-full h-32 rounded-lg overflow-hidden border border-slate-200 bg-slate-100">
+                                                    <VideoThumbnail 
+                                                        url={video}
+                                                        manualThumbnail={thumbnailPreviews[video] || videoThumbnails[video] || undefined}
+                                                        alt="Video/Photo thumbnail"
+                                                        fill
+                                                        className={isImage ? "object-contain" : "object-cover"}
+                                                    />
+                                                    {isVideo && !isInstagramPost && (
+                                                        <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
+                                                            <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center">
+                                                                <span className="text-xl text-slate-900 ml-1">▶</span>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </>
                                         )}
                                     </div>
                                 );
