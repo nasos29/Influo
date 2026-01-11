@@ -550,6 +550,8 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
     const [accounts, setAccounts] = useState<{ platform: string; username: string; followers: string }[]>(user.accounts || [{ platform: "Instagram", username: "", followers: "" }]);
     const [videos, setVideos] = useState<string[]>(Array.isArray(user.videos) ? user.videos : []);
     const [videoThumbnails, setVideoThumbnails] = useState<Record<string, string>>(user.video_thumbnails || {});
+    const [thumbnailFiles, setThumbnailFiles] = useState<Record<string, File | null>>({}); // Store files to upload
+    const [thumbnailPreviews, setThumbnailPreviews] = useState<Record<string, string>>({}); // Preview URLs
     const [malePercent, setMalePercent] = useState(user.audience_male_percent?.toString() || "");
     const [femalePercent, setFemalePercent] = useState(user.audience_female_percent?.toString() || "");
     const [topAge, setTopAge] = useState(user.audience_top_age || "");
@@ -590,12 +592,57 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
     
     const handleThumbnailChange = (videoUrl: string, thumbnailUrl: string) => {
         setVideoThumbnails({ ...videoThumbnails, [videoUrl]: thumbnailUrl });
+        // Clear file if URL is set
+        if (thumbnailUrl) {
+            setThumbnailFiles({ ...thumbnailFiles, [videoUrl]: null });
+            setThumbnailPreviews({ ...thumbnailPreviews, [videoUrl]: thumbnailUrl });
+        }
+    };
+    
+    const handleThumbnailFileChange = (videoUrl: string, file: File | null) => {
+        if (file) {
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                alert('Μόνο αρχεία εικόνας επιτρέπονται (JPG, PNG, etc.)');
+                return;
+            }
+            // Validate file size (max 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                alert('Το αρχείο είναι πολύ μεγάλο. Μέγιστο μέγεθος: 5MB');
+                return;
+            }
+            
+            setThumbnailFiles({ ...thumbnailFiles, [videoUrl]: file });
+            
+            // Create preview
+            const previewUrl = URL.createObjectURL(file);
+            setThumbnailPreviews({ ...thumbnailPreviews, [videoUrl]: previewUrl });
+            
+            // Clear URL input if file is selected
+            setVideoThumbnails({ ...videoThumbnails, [videoUrl]: '' });
+        } else {
+            setThumbnailFiles({ ...thumbnailFiles, [videoUrl]: null });
+            const newPreviews = { ...thumbnailPreviews };
+            delete newPreviews[videoUrl];
+            setThumbnailPreviews(newPreviews);
+        }
     };
     
     const removeThumbnail = (videoUrl: string) => {
         const newThumbnails = { ...videoThumbnails };
         delete newThumbnails[videoUrl];
         setVideoThumbnails(newThumbnails);
+        
+        const newFiles = { ...thumbnailFiles };
+        delete newFiles[videoUrl];
+        setThumbnailFiles(newFiles);
+        
+        const newPreviews = { ...thumbnailPreviews };
+        if (newPreviews[videoUrl] && newPreviews[videoUrl].startsWith('blob:')) {
+            URL.revokeObjectURL(newPreviews[videoUrl]);
+        }
+        delete newPreviews[videoUrl];
+        setThumbnailPreviews(newPreviews);
     };
     
     const addVideo = () => setVideos([...videos, ""]);
@@ -651,7 +698,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                 }).join(", "), // Store as comma-separated string with Greek names
                 accounts: accounts,
                 videos: videos.filter(v => v !== ""),
-                video_thumbnails: videoThumbnails,
+                video_thumbnails: uploadedThumbnails,
                 audience_male_percent: parseInt(malePercent) || 0,
                 audience_female_percent: parseInt(femalePercent) || 0,
                 audience_top_age: topAge,
