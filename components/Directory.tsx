@@ -365,14 +365,17 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
           .select("*")
           .eq('approved', true);
         
+        console.log('[Directory] Fetch result:', { dataLength: data?.length || 0, error, hasData: !!data });
+        
         if (error) {
-          console.error('Error fetching influencers:', error);
+          console.error('[Directory] Error fetching influencers:', error);
           // If error, show dummy influencers as fallback
           setInfluencers(sortInfluencers(dummyInfluencers));
           return;
         }
         
         if (data && data.length > 0) {
+          console.log('[Directory] Processing', data.length, 'real influencers');
           const realInfluencers: Influencer[] = data.map((inf: any) => {
             
             const socialsObj: { [key: string]: string } = {};
@@ -425,13 +428,15 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
           
           // Combine and sort all influencers (real + dummy) with "New" first
           const allInfluencers = [...realInfluencers, ...dummyInfluencers];
+          console.log('[Directory] Setting influencers:', { real: realInfluencers.length, dummy: dummyInfluencers.length, total: allInfluencers.length });
           setInfluencers(sortInfluencers(allInfluencers));
         } else {
           // No data returned, show dummy influencers
+          console.log('[Directory] No data returned, showing dummy influencers only');
           setInfluencers(sortInfluencers(dummyInfluencers));
         }
       } catch (err) {
-        console.error('Error in fetchReal:', err);
+        console.error('[Directory] Error in fetchReal:', err);
         // On error, show dummy influencers as fallback
         setInfluencers(sortInfluencers(dummyInfluencers));
       }
