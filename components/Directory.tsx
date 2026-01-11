@@ -366,23 +366,11 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
       console.log('[Directory] fetchReal started');
       
       try {
-        console.log('[Directory] Starting Supabase query...');
+        console.log('[Directory] Starting API call to /api/influencers/public...');
         const startTime = Date.now();
         
-        // Create a promise with timeout (10 seconds)
-        const queryPromise = supabase
-          .from("influencers")
-          .select("*")
-          .eq('approved', true);
-        
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Query timeout after 10 seconds')), 10000);
-        });
-        
-        const { data, error } = await Promise.race([
-          queryPromise,
-          timeoutPromise
-        ]) as { data: any; error: any };
+        const response = await fetch('/api/influencers/public');
+        const result = await response.json();
         
         if (!isMountedRef.current) {
           console.log('[Directory] Component unmounted, skipping state update');
@@ -390,22 +378,19 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
         }
         
         const queryTime = Date.now() - startTime;
-        console.log('[Directory] Query completed in', queryTime, 'ms');
-        console.log('[Directory] Fetch result:', { 
-          dataLength: data?.length || 0, 
-          error: error ? { message: error.message, code: error.code, details: error.details, hint: error.hint } : null, 
-          hasData: !!data, 
-          queryTime 
-        });
+        console.log('[Directory] API call completed in', queryTime, 'ms');
         
-        if (error) {
-          console.error('[Directory] Error fetching influencers:', error);
+        if (!response.ok || result.error) {
+          console.error('[Directory] API error:', result.error);
           // If error, show dummy influencers as fallback
           if (isMountedRef.current) {
             setInfluencers(sortInfluencers(dummyInfluencers));
           }
           return;
         }
+        
+        const data = result.data || [];
+        console.log('[Directory] Fetch result:', { dataLength: data.length, hasData: data.length > 0, queryTime });
         
         if (data.length > 0) {
           console.log('[Directory] Processing', data.length, 'real influencers');
