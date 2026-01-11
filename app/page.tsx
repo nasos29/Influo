@@ -87,20 +87,113 @@ export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [verifiedBrands, setVerifiedBrands] = useState<VerifiedBrand[]>([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userType, setUserType] = useState<'influencer' | 'brand' | null>(null);
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
   const txt = t[lang];
 
-  // Check if user is logged in
+  // Check if user is logged in and get user type
   useEffect(() => {
     const checkSession = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      setIsLoggedIn(!!user);
+      if (user) {
+        setIsLoggedIn(true);
+        
+        // Check if user is influencer
+        const { data: influencerData } = await supabase
+          .from('influencers')
+          .select('avatar_url, display_name')
+          .eq('contact_email', user.email)
+          .maybeSingle();
+        
+        if (influencerData) {
+          setUserType('influencer');
+          setUserAvatar(influencerData.avatar_url);
+          setUserName(influencerData.display_name);
+        } else {
+          // Check if user is brand
+          const { data: brandDataByContact } = await supabase
+            .from('brands')
+            .select('logo_url, brand_name')
+            .ilike('contact_email', user.email || '')
+            .maybeSingle();
+          
+          if (brandDataByContact) {
+            setUserType('brand');
+            setUserAvatar(brandDataByContact.logo_url);
+            setUserName(brandDataByContact.brand_name);
+          } else {
+            const { data: brandDataByEmail } = await supabase
+              .from('brands')
+              .select('logo_url, brand_name')
+              .ilike('email', user.email || '')
+              .maybeSingle();
+            
+            if (brandDataByEmail) {
+              setUserType('brand');
+              setUserAvatar(brandDataByEmail.logo_url);
+              setUserName(brandDataByEmail.brand_name);
+            }
+          }
+        }
+      } else {
+        setIsLoggedIn(false);
+        setUserType(null);
+        setUserAvatar(null);
+        setUserName(null);
+      }
     };
 
     checkSession();
 
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsLoggedIn(!!session?.user);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        setIsLoggedIn(true);
+        
+        // Check if user is influencer
+        const { data: influencerData } = await supabase
+          .from('influencers')
+          .select('avatar_url, display_name')
+          .eq('contact_email', session.user.email)
+          .maybeSingle();
+        
+        if (influencerData) {
+          setUserType('influencer');
+          setUserAvatar(influencerData.avatar_url);
+          setUserName(influencerData.display_name);
+        } else {
+          // Check if user is brand
+          const { data: brandDataByContact } = await supabase
+            .from('brands')
+            .select('logo_url, brand_name')
+            .ilike('contact_email', session.user.email || '')
+            .maybeSingle();
+          
+          if (brandDataByContact) {
+            setUserType('brand');
+            setUserAvatar(brandDataByContact.logo_url);
+            setUserName(brandDataByContact.brand_name);
+          } else {
+            const { data: brandDataByEmail } = await supabase
+              .from('brands')
+              .select('logo_url, brand_name')
+              .ilike('email', session.user.email || '')
+              .maybeSingle();
+            
+            if (brandDataByEmail) {
+              setUserType('brand');
+              setUserAvatar(brandDataByEmail.logo_url);
+              setUserName(brandDataByEmail.brand_name);
+            }
+          }
+        }
+      } else {
+        setIsLoggedIn(false);
+        setUserType(null);
+        setUserAvatar(null);
+        setUserName(null);
+      }
     });
 
     return () => {
@@ -188,17 +281,21 @@ export default function Home() {
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-6" aria-label="Main navigation">
               <ul className="flex gap-6 text-sm font-medium text-slate-700">
-                <li><button onClick={() => setShowModal(true)} className="hover:text-slate-900 transition-colors">
-                  {txt.nav_join}
-                </button></li>
-                <li><a href="/brand/signup" className="hover:text-slate-900 transition-colors">
-                  {txt.nav_brand}
-                </a></li>
+                {!isLoggedIn && (
+                  <>
+                    <li><button onClick={() => setShowModal(true)} className="hover:text-slate-900 transition-colors">
+                      {txt.nav_join}
+                    </button></li>
+                    <li><a href="/brand/signup" className="hover:text-slate-900 transition-colors">
+                      {txt.nav_brand}
+                    </a></li>
+                  </>
+                )}
                 <li><a href="/directory" className="hover:text-slate-900 transition-colors">
                   {txt.nav_directory}
                 </a></li>
                 {isLoggedIn ? (
-                  <li><a href="/dashboard" className="hover:text-slate-900 transition-colors">
+                  <li><a href={userType === 'brand' ? '/brand/dashboard' : '/dashboard'} className="hover:text-slate-900 transition-colors">
                     {lang === "el" ? "Dashboard" : "Dashboard"}
                   </a></li>
                 ) : (
@@ -207,25 +304,71 @@ export default function Home() {
                   </a></li>
                 )}
             </ul>
-            {/* Lang Toggle */}
-            <button 
+            {/* User Avatar/Logo or Lang Toggle */}
+            {isLoggedIn ? (
+              <a 
+                href={userType === 'brand' ? '/brand/dashboard' : '/dashboard'}
+                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+              >
+                <div className="w-10 h-10 rounded-full border-2 border-slate-300 overflow-hidden bg-slate-100 flex items-center justify-center">
+                  {userAvatar ? (
+                    <Image
+                      src={userAvatar}
+                      alt={userName || 'Profile'}
+                      width={40}
+                      height={40}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-500 text-white font-semibold text-sm">
+                      {userName ? userName.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                  )}
+                </div>
+              </a>
+            ) : (
+              <button 
                 onClick={() => setLang(lang === "el" ? "en" : "el")}
-                  className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
-                  aria-label="Toggle language"
-            >
-                  {lang === "el" ? "EN" : "EL"}
-            </button>
+                className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
+                aria-label="Toggle language"
+              >
+                {lang === "el" ? "EN" : "EL"}
+              </button>
+            )}
           </nav>
 
           {/* Mobile Menu Button */}
           <div className="flex items-center gap-3 md:hidden">
-            <button 
-              onClick={() => setLang(lang === "el" ? "en" : "el")}
-              className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
-              aria-label="Toggle language"
-            >
-              {lang === "el" ? "EN" : "EL"}
-            </button>
+            {isLoggedIn ? (
+              <a 
+                href={userType === 'brand' ? '/brand/dashboard' : '/dashboard'}
+                className="flex items-center"
+              >
+                <div className="w-10 h-10 rounded-full border-2 border-slate-300 overflow-hidden bg-slate-100 flex items-center justify-center">
+                  {userAvatar ? (
+                    <Image
+                      src={userAvatar}
+                      alt={userName || 'Profile'}
+                      width={40}
+                      height={40}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-500 text-white font-semibold text-sm">
+                      {userName ? userName.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                  )}
+                </div>
+              </a>
+            ) : (
+              <button 
+                onClick={() => setLang(lang === "el" ? "en" : "el")}
+                className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
+                aria-label="Toggle language"
+              >
+                {lang === "el" ? "EN" : "EL"}
+              </button>
+            )}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
