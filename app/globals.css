@@ -132,6 +132,30 @@ button, a, input, textarea, select {
   transition-duration: 150ms;
 }
 
+/* Fix select dropdown background - always white, no dark mode flash */
+select {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+select option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+/* Prevent dark mode from affecting selects */
+@media (prefers-color-scheme: dark) {
+  select {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+  }
+  
+  select option {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+  }
+}
+
 /* Focus styles */
 *:focus-visible {
   outline: 2px solid var(--primary);
