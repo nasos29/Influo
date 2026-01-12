@@ -512,11 +512,14 @@ export default function InfluencerSignupForm() {
       }
 
       // 3. Database Insert (Σύνδεση με το UUID)
+      // Ensure gender is valid (Female, Male, or Other)
+      const validGender = (gender === 'Female' || gender === 'Male' || gender === 'Other') ? gender : 'Female';
+      
       const { error: insertError } = await supabase.from("influencers").insert([
         { 
           id: authUser.id,
           display_name: displayName, 
-          gender, 
+          gender: validGender, 
           category: categories.length > 0 ? categories[0] : "Lifestyle", // Store primary category for compatibility (if single category column exists)
           // Note: If categories column exists as array, store all categories
           // Otherwise, categories are stored as comma-separated string in category field or first category
@@ -635,6 +638,7 @@ export default function InfluencerSignupForm() {
                         <select className={inputClass} value={gender} onChange={(e) => setGender(e.target.value)}>
                             <option value="Female">{txt.female}</option>
                             <option value="Male">{txt.male}</option>
+                            <option value="Other">{lang === "el" ? "Άλλο" : "Other"}</option>
                         </select>
                     </div>
                 </div>
