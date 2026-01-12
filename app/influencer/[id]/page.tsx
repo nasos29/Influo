@@ -341,7 +341,7 @@ export default function InfluencerProfile(props: { params: Params }) {
     }
   }, [searchParams]);
 
-  // Auto-open message modal after registration (if redirect param exists)
+      // Auto-open message modal after registration (if redirect param exists)
   useEffect(() => {
     const openMessage = searchParams?.get('openMessage');
     if (openMessage === 'true') {
@@ -350,7 +350,7 @@ export default function InfluencerProfile(props: { params: Params }) {
         try {
           const { data: { user } } = await supabase.auth.getUser();
           
-          if (user) {
+          if (user && user.email) {
             const { data: brandData } = await supabase
               .from('brands')
               .select('*')
@@ -1475,8 +1475,8 @@ export default function InfluencerProfile(props: { params: Params }) {
                         // Check if user is logged in and is a brand
                         const { data: { user } } = await supabase.auth.getUser();
                         
-                        if (!user) {
-                          // Not logged in - show registration required modal
+                        if (!user || !user.email) {
+                          // Not logged in or no email - show registration required modal
                           setShowRegistrationRequiredModal(true);
                           return;
                         }
