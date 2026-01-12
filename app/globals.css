@@ -142,43 +142,89 @@ select {
 /* Fix select dropdown background - always white, no dark mode flash */
 select {
   background-color: #ffffff !important;
+  background-image: none !important;
   color: #0f172a !important;
   /* Remove any animation delay for instant opening */
   animation: none !important;
   transition: none !important;
+  /* Force immediate rendering */
+  will-change: auto !important;
 }
 
 /* Only apply minimal transition for color changes, not for opening */
 select:focus {
   transition: border-color 50ms ease-out, box-shadow 50ms ease-out;
+  background-color: #ffffff !important;
+}
+
+select:active {
+  background-color: #ffffff !important;
 }
 
 select option {
   background-color: #ffffff !important;
+  background: #ffffff !important;
   color: #0f172a !important;
   /* Instant rendering, no delay */
   animation: none !important;
   transition: none !important;
+  /* Force white background immediately */
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+}
+
+select option:hover {
+  background-color: #f1f5f9 !important;
+  background: #f1f5f9 !important;
+}
+
+select option:checked {
+  background-color: #3b82f6 !important;
+  background: #3b82f6 !important;
+  color: #ffffff !important;
 }
 
 /* Prevent dark mode from affecting selects */
 @media (prefers-color-scheme: dark) {
   select {
     background-color: #ffffff !important;
+    background-image: none !important;
     color: #0f172a !important;
     animation: none !important;
     transition: none !important;
+    will-change: auto !important;
   }
   
   select:focus {
     transition: border-color 50ms ease-out, box-shadow 50ms ease-out;
+    background-color: #ffffff !important;
+  }
+  
+  select:active {
+    background-color: #ffffff !important;
   }
   
   select option {
     background-color: #ffffff !important;
+    background: #ffffff !important;
     color: #0f172a !important;
     animation: none !important;
     transition: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+  }
+  
+  select option:hover {
+    background-color: #f1f5f9 !important;
+    background: #f1f5f9 !important;
+  }
+  
+  select option:checked {
+    background-color: #3b82f6 !important;
+    background: #3b82f6 !important;
+    color: #ffffff !important;
   }
 }
 
