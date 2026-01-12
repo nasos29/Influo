@@ -42,6 +42,11 @@
     --background: #0a0a0a;
     --foreground: #ededed;
   }
+  
+  /* Override dark mode for select dropdowns - force white background */
+  select, select *, select option, select option * {
+    color-scheme: light !important;
+  }
 }
 
 body {
@@ -140,25 +145,46 @@ select {
 }
 
 /* Fix select dropdown background - always white, no dark mode flash */
+/* Force white background immediately, even before options load */
 select {
   background-color: #ffffff !important;
   background-image: none !important;
+  background: #ffffff !important;
   color: #0f172a !important;
   /* Remove any animation delay for instant opening */
   animation: none !important;
   transition: none !important;
   /* Force immediate rendering */
   will-change: auto !important;
+  /* Prevent browser default dark styling */
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  /* Force white background on all states */
+  background-clip: padding-box !important;
 }
 
 /* Only apply minimal transition for color changes, not for opening */
 select:focus {
   transition: border-color 50ms ease-out, box-shadow 50ms ease-out;
   background-color: #ffffff !important;
+  background: #ffffff !important;
 }
 
 select:active {
   background-color: #ffffff !important;
+  background: #ffffff !important;
+}
+
+select:focus-visible {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+}
+
+/* Style the dropdown list itself (when open) */
+select:focus option {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
 }
 
 select option {
@@ -172,6 +198,8 @@ select option {
   -webkit-appearance: none !important;
   -moz-appearance: none !important;
   appearance: none !important;
+  /* Ensure options render with white background from start */
+  background-clip: padding-box !important;
 }
 
 select option:hover {
@@ -185,24 +213,46 @@ select option:checked {
   color: #ffffff !important;
 }
 
+select option:focus {
+  background-color: #f1f5f9 !important;
+  background: #f1f5f9 !important;
+}
+
 /* Prevent dark mode from affecting selects */
 @media (prefers-color-scheme: dark) {
   select {
     background-color: #ffffff !important;
     background-image: none !important;
+    background: #ffffff !important;
     color: #0f172a !important;
     animation: none !important;
     transition: none !important;
     will-change: auto !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+    background-clip: padding-box !important;
   }
   
   select:focus {
     transition: border-color 50ms ease-out, box-shadow 50ms ease-out;
     background-color: #ffffff !important;
+    background: #ffffff !important;
   }
   
   select:active {
     background-color: #ffffff !important;
+    background: #ffffff !important;
+  }
+  
+  select:focus-visible {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+  }
+  
+  select:focus option {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
   }
   
   select option {
@@ -214,6 +264,7 @@ select option:checked {
     -webkit-appearance: none !important;
     -moz-appearance: none !important;
     appearance: none !important;
+    background-clip: padding-box !important;
   }
   
   select option:hover {
@@ -225,6 +276,11 @@ select option:checked {
     background-color: #3b82f6 !important;
     background: #3b82f6 !important;
     color: #ffffff !important;
+  }
+  
+  select option:focus {
+    background-color: #f1f5f9 !important;
+    background: #f1f5f9 !important;
   }
 }
 
