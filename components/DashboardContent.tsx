@@ -203,6 +203,17 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
         setLoading(true);
 
         try {
+            // First, fetch current values from database to compare
+            const { data: currentData, error: fetchError } = await supabase
+                .from('influencers')
+                .select('*')
+                .eq('id', user.id)
+                .single();
+
+            if (fetchError) {
+                throw new Error('Failed to fetch current profile: ' + fetchError.message);
+            }
+
             let avatarUrl = user.avatar_url || null;
 
             // Upload avatar if new file selected
@@ -220,8 +231,12 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
 
             // Store categories as comma-separated string for backward compatibility
             const categoryString = categories.length > 0 ? categories.join(',') : "Lifestyle";
+            const languagesString = selectedLanguages.map(code => {
+                const lang = LANGUAGES.find(l => l.code === code);
+                return lang ? lang.el : code;
+            }).join(", ");
             
-            const updateData: any = {
+            const newValues: any = {
                 display_name: name, 
                 bio: bio, 
                 min_rate: minRate,
@@ -229,57 +244,150 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                 engagement_rate: engage,
                 avg_likes: likes,
                 category: categoryString,
-                languages: selectedLanguages.map(code => {
-                    const lang = LANGUAGES.find(l => l.code === code);
-                    return lang ? lang.el : code;
-                }).join(", "), // Store as comma-separated string with Greek names
+                languages: languagesString,
                 gender: gender,
                 accounts: accounts.filter(acc => acc.username && acc.platform),
                 videos: videos.filter(v => v !== ""),
                 audience_male_percent: malePercent ? parseInt(malePercent) : null,
                 audience_female_percent: femalePercent ? parseInt(femalePercent) : null,
                 audience_top_age: topAge || null,
-                approved: false, // Reset approval status
-                analytics_verified: false, // Reset analytics verification
             };
 
             // Only update avatar_url if we have a new URL
             if (avatarUrl) {
-                updateData.avatar_url = avatarUrl;
+                newValues.avatar_url = avatarUrl;
             }
+
+            // Compare old and new values to find changes
+            const oldValues: any = {
+                display_name: currentData.display_name || '',
+                bio: currentData.bio || '',
+                min_rate: currentData.min_rate || '',
+                location: currentData.location || '',
+                engagement_rate: currentData.engagement_rate || '',
+                avg_likes: currentData.avg_likes || '',
+                category: currentData.category || '',
+                languages: currentData.languages || '',
+                gender: currentData.gender || '',
+                accounts: currentData.accounts || [],
+                videos: currentData.videos || [],
+                audience_male_percent: currentData.audience_male_percent || null,
+                audience_female_percent: currentData.audience_female_percent || null,
+                audience_top_age: currentData.audience_top_age || null,
+                avatar_url: currentData.avatar_url || null,
+            };
+
+            // Find changed fields
+            const changedFields: string[] = [];
+            const fieldsToCheck = [
+                'display_name', 'bio', 'min_rate', 'location', 'engagement_rate', 
+                'avg_likes', 'category', 'languages', 'gender', 'avatar_url',
+                'audience_male_percent', 'audience_female_percent', 'audience_top_age'
+            ];
+
+            fieldsToCheck.forEach(field => {
+                const oldVal = oldValues[field];
+                const newVal = newValues[field];
+                
+                // Handle arrays/objects comparison
+                if (field === 'accounts' || field === 'videos') {
+                    const oldArr = JSON.stringify(oldValues[field] || []);
+                    const newArr = JSON.stringify(newValues[field] || []);
+                    if (oldArr !== newArr) {
+                        changedFields.push(field);
+                    }
+                } else if (oldVal !== newVal) {
+                    changedFields.push(field);
+                }
+            });
+
+            // Add accounts and videos to check
+            const oldAccountsStr = JSON.stringify(oldValues.accounts || []);
+            const newAccountsStr = JSON.stringify(newValues.accounts || []);
+            if (oldAccountsStr !== newAccountsStr) {
+                if (!changedFields.includes('accounts')) {
+                    changedFields.push('accounts');
+                }
+            }
+
+            const oldVideosStr = JSON.stringify(oldValues.videos || []);
+            const newVideosStr = JSON.stringify(newValues.videos || []);
+            if (oldVideosStr !== newVideosStr) {
+                if (!changedFields.includes('videos')) {
+                    changedFields.push('videos');
+                }
+            }
+
+            // Update the profile
+            const updateData = {
+                ...newValues,
+                approved: false, // Reset approval status
+                analytics_verified: false, // Reset analytics verification
+            };
 
             const { data, error } = await supabase
                 .from('influencers')
                 .update(updateData)
-            .eq('id', user.id)
-            .select()
-            .single();
+                .eq('id', user.id)
+                .select()
+                .single();
 
-        setLoading(false);
-
-        if (error) {
+            if (error) {
+                setLoading(false);
                 alert("Σφάλμα: " + error.message);
-        } else if (data) {
-                // Send email notification to admin
+                return;
+            }
+
+            // Save profile changes if there are any
+            if (changedFields.length > 0 && data) {
                 try {
-                    await fetch('/api/emails', {
+                    console.log('[Profile Changes] Saving changes for influencer:', user.id);
+                    console.log('[Profile Changes] Changed fields:', changedFields);
+                    
+                    const response = await fetch('/api/profile-changes', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            type: 'profile_edit_admin',
-                            email: user.contact_email,
-                            name: data.display_name,
-                            location: data.location || 'N/A'
+                        body: JSON.stringify({
+                            influencerId: String(user.id), // Ensure it's a string
+                            oldValues: oldValues,
+                            newValues: newValues,
+                            changedFields: changedFields
                         })
                     });
-                } catch (mailError) {
-                    console.error("Email notification failed:", mailError);
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        console.log('[Profile Changes] Successfully saved changes');
+                    } else {
+                        console.error('[Profile Changes] Failed to save:', result.error);
+                    }
+                } catch (changeError) {
+                    console.error("[Profile Changes] Failed to save profile changes:", changeError);
+                    // Don't fail the whole operation if change tracking fails
                 }
+            }
+
+            setLoading(false);
+
+            // Send email notification to admin
+            try {
+                await fetch('/api/emails', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        type: 'profile_edit_admin',
+                        email: user.contact_email,
+                        name: data.display_name,
+                        location: data.location || 'N/A'
+                    })
+                });
+            } catch (mailError) {
+                console.error("Email notification failed:", mailError);
+            }
 
             onSave(data as InfluencerData);
-                alert("Το προφίλ σου ενημερώθηκε! Θα ελέγξουμε τις αλλαγές και θα σε ενημερώσουμε όταν εγκριθεί ξανά.");
-                onClose();
-            }
+            alert("Το προφίλ σου ενημερώθηκε! Θα ελέγξουμε τις αλλαγές και θα σε ενημερώσουμε όταν εγκριθεί ξανά.");
+            onClose();
         } catch (err: any) {
             setLoading(false);
             alert("Σφάλμα: " + err.message);

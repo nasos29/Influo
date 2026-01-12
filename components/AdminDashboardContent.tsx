@@ -493,6 +493,8 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
     const [avgLikes, setAvgLikes] = useState(user.avg_likes || "");
     const [engage, setEngage] = useState(user.engagement_rate || "");
     const [gender, setGender] = useState(user.gender || "Female");
+    const [profileChanges, setProfileChanges] = useState<any[]>([]);
+    const [loadingChanges, setLoadingChanges] = useState(false);
     // Support multiple categories - parse comma-separated string or use single category
     const initialCategories = user.category 
         ? (user.category.includes(',') ? user.category.split(',').map(c => c.trim()) : [user.category])
@@ -656,6 +658,96 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
         delete newPreviews[videoUrl];
         setThumbnailPreviews(newPreviews);
     };
+
+    // Fetch profile changes when modal opens
+    useEffect(() => {
+        const fetchChanges = async () => {
+            setLoadingChanges(true);
+            try {
+                // Convert user.id to string (Supabase returns UUID as string, but TypeScript might think it's number)
+                const influencerId = String(user.id);
+                console.log('[Profile Changes] Fetching changes for influencer ID:', influencerId, '(type:', typeof user.id, ')');
+                
+                const response = await fetch(`/api/profile-changes?influencerId=${encodeURIComponent(influencerId)}&unreviewedOnly=true`);
+                
+                if (!response.ok) {
+                    console.error('[Profile Changes] HTTP error:', response.status, response.statusText);
+                    const errorText = await response.text();
+                    console.error('[Profile Changes] Error response:', errorText);
+                    setLoadingChanges(false);
+                    return;
+                }
+                
+                const data = await response.json();
+                console.log('[Profile Changes] API Response:', data);
+                
+                if (data.success) {
+                    const changes = data.data || [];
+                    setProfileChanges(changes);
+                    console.log('[Profile Changes] ✅ Found', changes.length, 'unreviewed changes');
+                    if (changes.length === 0) {
+                        console.log('[Profile Changes] ℹ️ No unreviewed changes found for this influencer');
+                    }
+                } else {
+                    console.error('[Profile Changes] ❌ API error:', data.error);
+                }
+            } catch (error) {
+                console.error('[Profile Changes] ❌ Exception:', error);
+            } finally {
+                setLoadingChanges(false);
+            }
+        };
+        fetchChanges();
+    }, [user.id]);
+
+    // Mark changes as reviewed
+    const markChangesAsReviewed = async (changeIds: string[]) => {
+        try {
+            const response = await fetch('/api/profile-changes', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ changeIds })
+            });
+            const data = await response.json();
+            if (data.success) {
+                // Remove reviewed changes from state
+                setProfileChanges(prev => prev.filter(c => !changeIds.includes(c.id)));
+            }
+        } catch (error) {
+            console.error('Error marking changes as reviewed:', error);
+        }
+    };
+
+    // Helper function to format field values for display
+    const formatFieldValue = (field: string, value: any): string => {
+        if (value === null || value === undefined) return '(κενό)';
+        if (field === 'accounts' || field === 'videos') {
+            return Array.isArray(value) ? JSON.stringify(value, null, 2) : String(value);
+        }
+        return String(value);
+    };
+
+    // Helper function to get field label
+    const getFieldLabel = (field: string): string => {
+        const labels: Record<string, string> = {
+            display_name: 'Όνομα',
+            bio: 'Βιογραφικό',
+            min_rate: 'Ελάχιστη Χρέωση',
+            location: 'Τοποθεσία',
+            engagement_rate: 'Engagement Rate',
+            avg_likes: 'Μέσος Όρος Likes',
+            category: 'Κατηγορία',
+            languages: 'Γλώσσες',
+            gender: 'Φύλο',
+            accounts: 'Social Media Accounts',
+            videos: 'Videos',
+            avatar_url: 'Avatar',
+            audience_male_percent: 'Άνδρες %',
+            audience_female_percent: 'Γυναίκες %',
+            audience_top_age: 'Κύρια Ηλικιακή Ομάδα'
+        };
+        return labels[field] || field;
+    };
     
     const addVideo = () => setVideos([...videos, ""]);
     const removeVideo = (i: number) => { 
@@ -780,6 +872,69 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                     <h2 className="text-xl font-semibold text-slate-900">Edit Profile - {user.display_name}</h2>
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-600">✕</button>
                 </div>
+                
+                {/* Debug Info - Remove in production */}
+                {process.env.NODE_ENV === 'development' && (
+                    <div className="px-6 py-2 bg-blue-50 border-b border-blue-200 text-xs">
+                        <p><strong>Debug:</strong> User ID: {user.id} (type: {typeof user.id})</p>
+                        <p>Loading: {loadingChanges ? 'Yes' : 'No'}, Changes: {profileChanges.length}</p>
+                    </div>
+                )}
+                
+                {/* Profile Changes Section */}
+                {loadingChanges ? (
+                    <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">
+                        <p className="text-sm text-slate-600">Φόρτωση αλλαγών...</p>
+                    </div>
+                ) : profileChanges.length > 0 ? (
+                    <div className="px-6 py-4 bg-yellow-50 border-b border-yellow-200">
+                        <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-sm font-bold text-yellow-900 flex items-center gap-2">
+                                ⚠️ Αλλαγές που Αναμένουν Επανεξέταση ({profileChanges.length})
+                            </h3>
+                            <button
+                                type="button"
+                                onClick={() => markChangesAsReviewed(profileChanges.map(c => c.id))}
+                                className="px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700 transition-colors"
+                            >
+                                Σημάνω ως Εξετασμένα
+                            </button>
+                        </div>
+                        <div className="space-y-3 max-h-64 overflow-y-auto">
+                            {profileChanges.map((change, idx) => (
+                                <div key={change.id} className="bg-white border border-yellow-300 rounded-lg p-3">
+                                    <div className="text-xs text-yellow-700 mb-2">
+                                        <strong>Ημερομηνία:</strong> {new Date(change.created_at).toLocaleString('el-GR')}
+                                    </div>
+                                    <div className="space-y-2">
+                                        {change.changed_fields && change.changed_fields.map((field: string) => (
+                                            <div key={field} className="border-l-4 border-yellow-500 pl-3 py-1">
+                                                <div className="text-xs font-semibold text-slate-900 mb-1">
+                                                    {getFieldLabel(field)}
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                                    <div>
+                                                        <div className="text-slate-600 font-medium mb-1">Παλιά Τιμή:</div>
+                                                        <div className="bg-red-50 border border-red-200 rounded p-2 text-slate-900 break-words max-h-32 overflow-y-auto">
+                                                            {formatFieldValue(field, change.old_values?.[field])}
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-slate-600 font-medium mb-1">Νέα Τιμή:</div>
+                                                        <div className="bg-green-50 border border-green-200 rounded p-2 text-slate-900 break-words max-h-32 overflow-y-auto">
+                                                            {formatFieldValue(field, change.new_values?.[field])}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ) : null}
+                
                 <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-6">
                     <div className="space-y-6">
                         {/* Avatar Upload */}
@@ -1656,6 +1811,24 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     }).eq("id", id);
     
     if (!error) {
+        // If approving, mark all unreviewed changes as reviewed
+        if (!currentStatus) {
+            try {
+                const changesResponse = await fetch(`/api/profile-changes?influencerId=${id}&unreviewedOnly=true`);
+                const changesData = await changesResponse.json();
+                if (changesData.success && changesData.data && changesData.data.length > 0) {
+                    const changeIds = changesData.data.map((c: any) => c.id);
+                    await fetch('/api/profile-changes', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ changeIds })
+                    });
+                }
+            } catch (e) {
+                console.error('Error marking changes as reviewed:', e);
+            }
+        }
+        
         fetchData();
         if (!currentStatus) { 
              try {
