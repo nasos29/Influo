@@ -146,7 +146,9 @@ select {
 
 /* Fix select dropdown background - always white, no dark mode flash */
 /* Force white background immediately, even before options load */
+/* Use color-scheme: light to prevent browser dark mode on dropdown */
 select {
+  color-scheme: light !important;
   background-color: #ffffff !important;
   background-image: none !important;
   background: #ffffff !important;
