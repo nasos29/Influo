@@ -128,7 +128,9 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
     };
     const initialLanguages = parseLanguages(user.languages);
     const [selectedLanguages, setSelectedLanguages] = useState<string[]>(initialLanguages);
-    const [gender, setGender] = useState(user.gender || "Female");
+    // Ensure gender is valid (Female, Male, or Other)
+    const initialGender = (user.gender === 'Female' || user.gender === 'Male' || user.gender === 'Other') ? user.gender : 'Female';
+    const [gender, setGender] = useState(initialGender);
     const [accounts, setAccounts] = useState<Account[]>(
         user.accounts && Array.isArray(user.accounts) && user.accounts.length > 0
             ? user.accounts
@@ -236,6 +238,9 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                 return lang ? lang.el : code;
             }).join(", ");
             
+            // Ensure gender is valid (Female, Male, or Other)
+            const validGender = (gender === 'Female' || gender === 'Male' || gender === 'Other') ? gender : 'Female';
+            
             const newValues: any = {
                 display_name: name, 
                 bio: bio, 
@@ -245,7 +250,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                 avg_likes: likes,
                 category: categoryString,
                 languages: languagesString,
-                gender: gender,
+                gender: validGender,
                 accounts: accounts.filter(acc => acc.username && acc.platform),
                 videos: videos.filter(v => v !== ""),
                 audience_male_percent: malePercent ? parseInt(malePercent) : null,
@@ -259,6 +264,11 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
             }
 
             // Compare old and new values to find changes
+            // Ensure old gender is valid for comparison
+            const oldGender = currentData.gender && (currentData.gender === 'Female' || currentData.gender === 'Male' || currentData.gender === 'Other') 
+                ? currentData.gender 
+                : 'Female';
+            
             const oldValues: any = {
                 display_name: currentData.display_name || '',
                 bio: currentData.bio || '',
@@ -268,7 +278,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                 avg_likes: currentData.avg_likes || '',
                 category: currentData.category || '',
                 languages: currentData.languages || '',
-                gender: currentData.gender || '',
+                gender: oldGender,
                 accounts: currentData.accounts || [],
                 videos: currentData.videos || [],
                 audience_male_percent: currentData.audience_male_percent || null,

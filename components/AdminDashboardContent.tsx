@@ -492,7 +492,9 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
     const [location, setLocation] = useState(user.location || "");
     const [avgLikes, setAvgLikes] = useState(user.avg_likes || "");
     const [engage, setEngage] = useState(user.engagement_rate || "");
-    const [gender, setGender] = useState(user.gender || "Female");
+    // Ensure gender is valid (Female, Male, or Other)
+    const initialGender = (user.gender === 'Female' || user.gender === 'Male' || user.gender === 'Other') ? user.gender : 'Female';
+    const [gender, setGender] = useState(initialGender);
     const [profileChanges, setProfileChanges] = useState<any[]>([]);
     const [loadingChanges, setLoadingChanges] = useState(false);
     // Support multiple categories - parse comma-separated string or use single category
@@ -985,6 +987,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                     <select value={gender} onChange={e => setGender(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900">
                                         <option value="Female">Female</option>
                                         <option value="Male">Male</option>
+                                        <option value="Other">Other</option>
                                     </select>
                                 </div>
                                 <div>
