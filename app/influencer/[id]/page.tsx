@@ -205,6 +205,7 @@ export default function InfluencerProfile(props: { params: Params }) {
   // MODAL STATE
   const [showProposalModal, setShowProposalModal] = useState(false);
   const [showMessageModal, setShowMessageModal] = useState(false);
+  const [showRegistrationRequiredModal, setShowRegistrationRequiredModal] = useState(false);
   const [proposalType, setProposalType] = useState("Instagram Story");
   const [brandName, setBrandName] = useState("");
   const [brandEmail, setBrandEmail] = useState("");
@@ -339,6 +340,41 @@ export default function InfluencerProfile(props: { params: Params }) {
       loadCounterProposal(propId);
     }
   }, [searchParams]);
+
+  // Auto-open message modal after registration (if redirect param exists)
+  useEffect(() => {
+    const openMessage = searchParams?.get('openMessage');
+    if (openMessage === 'true') {
+      // Check if user is logged in and is a brand
+      const checkAndOpenMessage = async () => {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          if (user) {
+            const { data: brandData } = await supabase
+              .from('brands')
+              .select('*')
+              .eq('contact_email', user.email)
+              .single();
+            
+            if (brandData) {
+              // User is registered brand - open messaging
+              setMessageBrandEmail(user.email);
+              setMessageBrandName(brandData.brand_name || '');
+              setShowMessageModal(true);
+              
+              // Clean up URL
+              router.replace(`/influencer/${id}`);
+            }
+          }
+        } catch (error) {
+          console.error('Error checking brand status for auto-open:', error);
+        }
+      };
+      
+      checkAndOpenMessage();
+    }
+  }, [searchParams, id, router]);
 
   const loadCounterProposal = async (proposalId: string) => {
     try {
@@ -1074,6 +1110,104 @@ export default function InfluencerProfile(props: { params: Params }) {
       )}
 
       {/* MESSAGE MODAL */}
+      {/* Registration Required Modal - Modern & Professional */}
+      {showRegistrationRequiredModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden relative transform transition-all">
+            {/* Close Button */}
+            <button 
+              onClick={() => setShowRegistrationRequiredModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-xl z-10 transition-colors"
+            >
+              ✕
+            </button>
+
+            {/* Content */}
+            <div className="p-8">
+              {/* Icon */}
+              <div className="flex justify-center mb-4">
+                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                  <span className="text-4xl">🔒</span>
+                </div>
+              </div>
+
+              {/* Title */}
+              <h2 className="text-2xl font-bold text-slate-900 text-center mb-3">
+                {lang === 'el' ? 'Εγγραφή Απαιτείται' : 'Registration Required'}
+              </h2>
+
+              {/* Description */}
+              <p className="text-slate-600 text-center mb-6 leading-relaxed">
+                {lang === 'el' 
+                  ? 'Για να στείλετε μήνυμα σε αυτόν τον influencer, χρειάζεται να έχετε εγγραφεί ως επιχείρηση. Η εγγραφή είναι δωρεάν και γρήγορη!'
+                  : 'To send a message to this influencer, you need to register as a business. Registration is free and quick!'}
+              </p>
+
+              {/* Benefits List */}
+              <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-5 mb-6 border border-blue-100">
+                <p className="text-sm font-semibold text-slate-900 mb-3">
+                  {lang === 'el' ? 'Με την εγγραφή θα έχετε:' : 'By registering you will have:'}
+                </p>
+                <ul className="space-y-2 text-sm text-slate-700">
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-600 font-bold mt-0.5">✓</span>
+                    <span>{lang === 'el' ? 'Άμεση επικοινωνία με influencers' : 'Direct messaging with influencers'}</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-600 font-bold mt-0.5">✓</span>
+                    <span>{lang === 'el' ? 'Dashboard για διαχείριση προτάσεων' : 'Dashboard to manage proposals'}</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-600 font-bold mt-0.5">✓</span>
+                    <span>{lang === 'el' ? 'Έξυπνη υπηρεσία προτάσεων AI (ΔΩΡΕΑΝ)' : 'AI-powered influencer suggestions (FREE)'}</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-600 font-bold mt-0.5">✓</span>
+                    <span>{lang === 'el' ? 'Αναλυτικά στατιστικά και reports' : 'Detailed analytics and reports'}</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={async () => {
+                    try {
+                      const { data: { user } } = await supabase.auth.getUser();
+                      const email = user?.email || '';
+                      const redirectUrl = `/influencer/${id}?openMessage=true`;
+                      router.push(`/brand/signup?email=${encodeURIComponent(email)}&redirect=${encodeURIComponent(redirectUrl)}`);
+                    } catch (error) {
+                      console.error('Error getting user email:', error);
+                      const redirectUrl = `/influencer/${id}?openMessage=true`;
+                      router.push(`/brand/signup?redirect=${encodeURIComponent(redirectUrl)}`);
+                    }
+                  }}
+                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-4 px-6 rounded-xl shadow-lg transition-all transform hover:scale-[1.02] flex items-center justify-center gap-2"
+                >
+                  <span className="text-lg">✨</span>
+                  <span>{lang === 'el' ? 'Εγγραφή Επιχείρησης' : 'Register Business'}</span>
+                </button>
+                
+                <button
+                  onClick={() => setShowRegistrationRequiredModal(false)}
+                  className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-3 px-6 rounded-xl transition-colors"
+                >
+                  {lang === 'el' ? 'Ακύρωση' : 'Cancel'}
+                </button>
+              </div>
+
+              {/* Footer Note */}
+              <p className="text-xs text-slate-500 text-center mt-4">
+                {lang === 'el' 
+                  ? 'Η εγγραφή είναι 100% δωρεάν και διαρκεί λιγότερο από 2 λεπτά'
+                  : 'Registration is 100% free and takes less than 2 minutes'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showMessageModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden relative">
@@ -1336,7 +1470,40 @@ export default function InfluencerProfile(props: { params: Params }) {
                     <span>⚡</span> {txt.contact}
                 </button>
                 <button 
-                    onClick={() => setShowMessageModal(true)}
+                    onClick={async () => {
+                      try {
+                        // Check if user is logged in and is a brand
+                        const { data: { user } } = await supabase.auth.getUser();
+                        
+                        if (!user) {
+                          // Not logged in - show registration required modal
+                          setShowRegistrationRequiredModal(true);
+                          return;
+                        }
+                        
+                        // Check if user is a registered brand
+                        const { data: brandData } = await supabase
+                          .from('brands')
+                          .select('*')
+                          .eq('contact_email', user.email)
+                          .single();
+                        
+                        if (!brandData) {
+                          // Not a registered brand - show registration required modal
+                          setShowRegistrationRequiredModal(true);
+                          return;
+                        }
+                        
+                        // User is a registered brand - open messaging
+                        setMessageBrandEmail(user.email);
+                        setMessageBrandName(brandData.brand_name || '');
+                        setShowMessageModal(true);
+                      } catch (error) {
+                        console.error('Error checking brand status:', error);
+                        // On error, show registration modal
+                        setShowRegistrationRequiredModal(true);
+                      }
+                    }}
                     className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-transform hover:-translate-y-1 flex items-center gap-2"
                 >
                     <span>💬</span> {txt.message_btn}

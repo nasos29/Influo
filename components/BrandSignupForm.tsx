@@ -137,13 +137,21 @@ export default function BrandSignupForm() {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
-  // Pre-fill email from URL parameter
+  // Pre-fill email from URL parameter and get redirect URL
+  const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
+  
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const emailParam = params.get('email');
+      const redirectParam = params.get('redirect');
+      
       if (emailParam) {
         setEmail(emailParam);
+      }
+      
+      if (redirectParam) {
+        setRedirectUrl(redirectParam);
       }
     }
   }, []);
@@ -251,11 +259,26 @@ export default function BrandSignupForm() {
         .eq('brand_email', email.toLowerCase().trim())
         .is('brand_id', null);
 
+      // Auto-login after successful signup
+      const { data: { session }, error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.toLowerCase().trim(),
+        password: password,
+      });
+
+      if (signInError) {
+        console.error('Auto-login error:', signInError);
+        // Continue anyway - user can login manually
+      }
+
       setSuccess(true);
       
-      // Redirect to dashboard after a short delay
+      // Redirect to dashboard or redirect URL after a short delay
       setTimeout(() => {
-        router.push('/brand/dashboard');
+        if (redirectUrl) {
+          router.push(redirectUrl);
+        } else {
+          router.push('/brand/dashboard');
+        }
       }, 2000);
     } catch (err: any) {
       console.error('Signup error:', err);
