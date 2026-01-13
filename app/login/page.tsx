@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabaseClient'; 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 
 const t = {
@@ -51,12 +51,21 @@ export default function LoginPage() {
     const [resetLoading, setResetLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const router = useRouter();
+    const searchParams = useSearchParams();
     const txt = t[lang];
 
     // Load language from localStorage on client-side
     useEffect(() => {
         setLang(getStoredLanguage());
     }, []);
+
+    // Pre-fill email from URL parameter if provided
+    useEffect(() => {
+        const emailParam = searchParams?.get('email');
+        if (emailParam) {
+            setEmail(emailParam);
+        }
+    }, [searchParams]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -125,15 +134,20 @@ export default function LoginPage() {
             .eq('contact_email', userEmail)
             .maybeSingle();
 
+        // Check redirect parameter from URL
+        const redirectParam = searchParams?.get('redirect');
+        
         if (!brandError && brandData && brandData.afm) {
-            // User is a brand (has AFM) -> redirect to brand dashboard
-            router.push('/brand/dashboard');
+            // User is a brand (has AFM) -> redirect to brand dashboard or custom redirect
+            const redirectPath = redirectParam || '/brand/dashboard';
+            router.push(redirectPath);
             setLoading(false);
             return;
         }
 
-        // User is an influencer (no AFM) -> redirect to influencer dashboard
-        router.push('/dashboard');
+        // User is an influencer (no AFM) -> redirect to influencer dashboard or custom redirect
+        const redirectPath = redirectParam || '/dashboard';
+        router.push(redirectPath);
 
         setLoading(false);
     };

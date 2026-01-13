@@ -109,8 +109,52 @@ export async function POST(req: Request) {
         })
         .eq('id', convId);
 
-      // Emails will be sent ONLY when conversation ends (via /api/conversations/end)
-      // No auto-sending during active conversation
+      // Send email notification when influencer sends a message to brand
+      if (senderType === 'influencer' && brandEmail && process.env.RESEND_API_KEY) {
+        try {
+          // Get influencer name
+          const { data: influencerData } = await supabaseAdmin
+            .from('influencers')
+            .select('display_name')
+            .eq('id', influencerId)
+            .single();
+
+          if (influencerData) {
+            // Check if brand has an account
+            const { data: brandData } = await supabaseAdmin
+              .from('brands')
+              .select('id')
+              .eq('contact_email', brandEmail.toLowerCase().trim())
+              .maybeSingle();
+
+            const brandHasAccount = !!brandData;
+
+            // Send email notification to brand
+            const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr'}/api/emails`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: 'message_influencer_to_brand',
+                email: brandEmail,
+                toEmail: brandEmail,
+                brandName: brandName || brandEmail,
+                influencerName: influencerData.display_name,
+                message: content,
+                brandHasAccount: brandHasAccount
+              })
+            });
+
+            if (emailResponse.ok) {
+              console.log('[Messages API] Email notification sent to brand:', brandEmail);
+            } else {
+              console.error('[Messages API] Failed to send email notification:', await emailResponse.text());
+            }
+          }
+        } catch (emailError: any) {
+          console.error('[Messages API] Error sending email notification:', emailError);
+          // Don't fail the request if email fails
+        }
+      }
 
       // Track analytics: conversation_started (if new conversation) and message_sent
       // Use direct database insert instead of API call for better reliability
@@ -202,8 +246,52 @@ export async function POST(req: Request) {
         })
         .eq('id', conversationId);
 
-      // Emails will be sent ONLY when conversation ends (via /api/conversations/end)
-      // No auto-sending during active conversation
+      // Send email notification when influencer sends a message to brand
+      if (senderType === 'influencer' && process.env.RESEND_API_KEY) {
+        try {
+          // Get conversation data
+          const { data: convData } = await supabaseAdmin
+            .from('conversations')
+            .select('influencer_id, influencer_name, brand_email, brand_name')
+            .eq('id', conversationId)
+            .single();
+
+          if (convData && convData.brand_email) {
+            // Check if brand has an account
+            const { data: brandData } = await supabaseAdmin
+              .from('brands')
+              .select('id')
+              .eq('contact_email', convData.brand_email.toLowerCase().trim())
+              .maybeSingle();
+
+            const brandHasAccount = !!brandData;
+
+            // Send email notification to brand
+            const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr'}/api/emails`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: 'message_influencer_to_brand',
+                email: convData.brand_email,
+                toEmail: convData.brand_email,
+                brandName: convData.brand_name || convData.brand_email,
+                influencerName: convData.influencer_name,
+                message: content,
+                brandHasAccount: brandHasAccount
+              })
+            });
+
+            if (emailResponse.ok) {
+              console.log('[Messages API] Email notification sent to brand:', convData.brand_email);
+            } else {
+              console.error('[Messages API] Failed to send email notification:', await emailResponse.text());
+            }
+          }
+        } catch (emailError: any) {
+          console.error('[Messages API] Error sending email notification:', emailError);
+          // Don't fail the request if email fails
+        }
+      }
 
       // Track message_sent for existing conversation
       // Need to get influencer_id from conversation

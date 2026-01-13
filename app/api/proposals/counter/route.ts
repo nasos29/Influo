@@ -89,7 +89,7 @@ export async function POST(req: Request) {
           .maybeSingle();
 
         const brandDashboardLink = brandData 
-          ? `${SITE_URL}/brand/dashboard`
+          ? `${SITE_URL}/login?redirect=/brand/dashboard&email=${encodeURIComponent(proposal.brand_email)}`
           : `${SITE_URL}/brand/signup?email=${encodeURIComponent(proposal.brand_email)}`;
 
         const subject = `💰 Αντιπρόταση από ${influencerName}`;

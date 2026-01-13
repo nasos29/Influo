@@ -253,6 +253,74 @@ export async function POST(req: Request) {
             </div>
         `;
     }
+    else if (type === 'message_influencer_to_brand') {
+        // Email when influencer sends a message to brand
+        toEmail = email || bodyToEmail;
+        
+        // Validate required fields
+        if (!toEmail) {
+          console.error('[Email API] message_influencer_to_brand missing email');
+          return NextResponse.json(
+            { success: false, error: 'Missing required field: email or toEmail' },
+            { status: 400 }
+          );
+        }
+        if (!message) {
+          console.error('[Email API] message_influencer_to_brand missing message');
+          return NextResponse.json(
+            { success: false, error: 'Missing required field: message' },
+            { status: 400 }
+          );
+        }
+        if (!influencerName) {
+          console.error('[Email API] message_influencer_to_brand missing influencerName');
+          return NextResponse.json(
+            { success: false, error: 'Missing required field: influencerName' },
+            { status: 400 }
+          );
+        }
+        
+        // Check if brand has account (from body.brandHasAccount or need to check)
+        const brandHasAccount = body.brandHasAccount || false;
+        const brandSignupLink = `https://${host}/brand/signup?email=${encodeURIComponent(toEmail)}`;
+        const brandLoginLink = `https://${host}/login?redirect=/brand/dashboard&email=${encodeURIComponent(toEmail)}`;
+        const brandLink = brandHasAccount ? brandLoginLink : brandSignupLink;
+        
+        subject = `💬 Απάντηση από ${influencerName}`;
+        html = `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
+              <div style="background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); padding: 24px; border-radius: 12px 12px 0 0;">
+                <h1 style="color: #0369a1; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">💬 Νέα Απάντηση</h1>
+              </div>
+              <div style="background: #ffffff; padding: 24px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
+                <p style="margin: 0 0 16px 0; font-size: 14px;">Γεια σας ${brandName || 'Επιχείρηση'},</p>
+                <p style="margin: 0 0 20px 0; font-size: 14px; color: #4b5563;">Ο/Η <strong style="color: #1f2937;">${influencerName}</strong> σας απάντησε στη πρόταση συνεργασίας:</p>
+                <div style="background: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 16px; border-radius: 8px; margin: 20px 0;">
+                  <p style="margin: 0; font-size: 13px; color: #1f2937; white-space: pre-wrap;">${message.replace(/\n/g, '<br/>')}</p>
+                </div>
+                ${!brandHasAccount ? `
+                <div style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                  <p style="margin: 0 0 12px 0; font-size: 13px; font-weight: 600; color: #92400e;">⚠️ Σημαντικό:</p>
+                  <p style="margin: 0; font-size: 12px; color: #78350f;">Για να συνεχίσετε την επικοινωνία με τον/την ${influencerName}, χρειάζεται να δημιουργήσετε λογαριασμό επιχείρησης (γρήγορη διαδικασία). Μετά τη δημιουργία λογαριασμού, θα μπορείτε να δείτε όλα τα μηνύματα και να απαντήσετε.</p>
+                </div>
+                ` : `
+                <div style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 16px; border-radius: 8px; margin: 20px 0;">
+                  <p style="margin: 0; font-size: 13px; color: #065f46; font-weight: 600;">💡 Συμβουλή:</p>
+                  <p style="margin: 8px 0 0 0; font-size: 12px; color: #047857;">Έχετε ήδη λογαριασμό στο Influo. Συνδεθείτε για να δείτε όλη τη συνομιλία και να απαντήσετε άμεσα στον/την ${influencerName}.</p>
+                </div>
+                `}
+                <div style="margin: 24px 0; text-align: center;">
+                  <a href="${brandLink}" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                    ${brandHasAccount ? '🔐 Συνδεθείτε στο Dashboard' : '📝 Δημιουργήστε Λογαριασμό'}
+                  </a>
+                </div>
+                <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+                  <p style="margin: 0; font-size: 12px; color: #9ca3af;">Η ομάδα του Influo</p>
+                </div>
+              </div>
+            </div>
+        `;
+    }
     else if (type === 'proposal_influencer_notification') {
         toEmail = email;
         subject = `📨 Νέα Πρόταση από ${brandName}`;
@@ -303,6 +371,12 @@ export async function POST(req: Request) {
     }
     else if (type === 'proposal_accepted_brand') {
         toEmail = email;
+        // Check if brand has account (from body.brandHasAccount)
+        const brandHasAccount = body.brandHasAccount || false;
+        const brandSignupLink = `https://${host}/brand/signup?email=${encodeURIComponent(toEmail)}`;
+        const brandLoginLink = `https://${host}/login?redirect=/brand/dashboard&email=${encodeURIComponent(toEmail)}`;
+        const brandLink = brandHasAccount ? brandLoginLink : brandSignupLink;
+        
         subject = `✅ Η πρόταση σας για ${influencerName} έγινε αποδεκτή!`;
         html = `
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
@@ -313,11 +387,21 @@ export async function POST(req: Request) {
                 <p style="margin: 0 0 16px 0; font-size: 14px;">Γεια σας ${brandName},</p>
                 <p style="margin: 0 0 12px 0; font-size: 13px; color: #4b5563;">Η πρότασή σας προς τον/την <strong style="color: #1f2937;">${influencerName}</strong> έχει γίνει αποδεκτή!</p>
                 <p style="margin: 0 0 20px 0; font-size: 13px; color: #4b5563;">Για να ολοκληρωθεί η συνεργασία, πρέπει να αποδεχτείτε τους όρους χρήσης. Μόλις και οι δύο πλευρές αποδεχτούν, το όνομα σας θα προστεθεί στις συνεργασίες του influencer.</p>
+                ${!brandHasAccount ? `
                 <div style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 16px; margin: 20px 0;">
-                  <p style="margin: 0; font-size: 12px; color: #78350f;">⚠️ <strong>Σημαντικό:</strong> Για να αποδεχτείτε τη συμφωνία, συνδεθείτε στον λογαριασμό σας και επισκεφτείτε το dashboard.</p>
+                  <p style="margin: 0 0 12px 0; font-size: 13px; font-weight: 600; color: #92400e;">⚠️ Σημαντικό:</p>
+                  <p style="margin: 0; font-size: 12px; color: #78350f;">Για να αποδεχτείτε τη συμφωνία και να συνεχίσετε την επικοινωνία, χρειάζεται να δημιουργήσετε λογαριασμό επιχείρησης (γρήγορη διαδικασία). Μετά τη δημιουργία λογαριασμού, θα μπορείτε να δείτε όλες τις προτάσεις και να διαχειριστείτε τη συνεργασία.</p>
                 </div>
+                ` : `
+                <div style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 16px; border-radius: 8px; margin: 20px 0;">
+                  <p style="margin: 0; font-size: 13px; color: #065f46; font-weight: 600;">✅ Επόμενο Βήμα:</p>
+                  <p style="margin: 8px 0 0 0; font-size: 12px; color: #047857;">Έχετε ήδη λογαριασμό στο Influo. Συνδεθείτε για να αποδεχτείτε τη συμφωνία και να ολοκληρώσετε τη συνεργασία με τον/την ${influencerName}.</p>
+                </div>
+                `}
                 <div style="margin: 24px 0; text-align: center;">
-                  <a href="https://${host}/brand/dashboard" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">🔐 Πήγαινε στο Dashboard</a>
+                  <a href="${brandLink}" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                    ${brandHasAccount ? '🔐 Πήγαινε στο Dashboard' : '📝 Δημιουργήστε Λογαριασμό'}
+                  </a>
                 </div>
                 <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
                   <p style="margin: 0; font-size: 12px; color: #9ca3af;">Η ομάδα του Influo</p>

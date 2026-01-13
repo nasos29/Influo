@@ -735,7 +735,8 @@ export default function InfluencerProfile(props: { params: Params }) {
                         influencerId: id,
                         brandEmail: brandEmail,
                         brandName: brandName,
-                        senderType: 'brand',
+                        senderType: 'influencer',
+                        senderId: id,
                         content: `Νέα πρόταση: ${proposalType} | Budget: €${budget}\n\n${message}`,
                         proposalId: proposalResult.id
                     })
@@ -896,7 +897,8 @@ export default function InfluencerProfile(props: { params: Params }) {
           influencerId: id,
           brandEmail: messageBrandEmail,
           brandName: messageBrandName || messageBrandEmail,
-          senderType: 'brand',
+          senderType: 'influencer',
+          senderId: id,
           content: messageContent,
         })
       });
