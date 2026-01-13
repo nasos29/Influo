@@ -109,46 +109,89 @@ export async function POST(req: Request) {
         })
         .eq('id', convId);
 
+      // Update online status when sending message
+      if (senderType === 'influencer' && influencerId) {
+        await supabaseAdmin
+          .from('influencer_presence')
+          .upsert({
+            influencer_id: influencerId,
+            is_online: true,
+            last_seen: now,
+            updated_at: now,
+          }, {
+            onConflict: 'influencer_id'
+          });
+      } else if (senderType === 'brand' && brandEmail) {
+        await supabaseAdmin
+          .from('brand_presence')
+          .upsert({
+            brand_email: brandEmail.toLowerCase().trim(),
+            is_online: true,
+            last_seen: now,
+            updated_at: now,
+          }, {
+            onConflict: 'brand_email'
+          });
+      }
+
       // Send email notification when influencer sends a message to brand
+      // ONLY if brand is offline (if online, they see it in real-time)
       if (senderType === 'influencer' && brandEmail && process.env.RESEND_API_KEY) {
         try {
-          // Get influencer name
-          const { data: influencerData } = await supabaseAdmin
-            .from('influencers')
-            .select('display_name')
-            .eq('id', influencerId)
-            .single();
+          // Check if brand is online
+          const { data: brandPresence } = await supabaseAdmin
+            .from('brand_presence')
+            .select('is_online, last_seen')
+            .eq('brand_email', brandEmail.toLowerCase().trim())
+            .maybeSingle();
 
-          if (influencerData) {
-            // Check if brand has an account
-            const { data: brandData } = await supabaseAdmin
-              .from('brands')
-              .select('id')
-              .eq('contact_email', brandEmail.toLowerCase().trim())
-              .maybeSingle();
+          const now = new Date();
+          const isBrandOnline = brandPresence && brandPresence.is_online && brandPresence.last_seen
+            ? (now.getTime() - new Date(brandPresence.last_seen).getTime()) / 60000 < 5
+            : false;
 
-            const brandHasAccount = !!brandData;
+          // Only send email if brand is offline
+          if (!isBrandOnline) {
+            // Get influencer name
+            const { data: influencerData } = await supabaseAdmin
+              .from('influencers')
+              .select('display_name')
+              .eq('id', influencerId)
+              .single();
 
-            // Send email notification to brand
-            const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr'}/api/emails`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                type: 'message_influencer_to_brand',
-                email: brandEmail,
-                toEmail: brandEmail,
-                brandName: brandName || brandEmail,
-                influencerName: influencerData.display_name,
-                message: content,
-                brandHasAccount: brandHasAccount
-              })
-            });
+            if (influencerData) {
+              // Check if brand has an account
+              const { data: brandData } = await supabaseAdmin
+                .from('brands')
+                .select('id')
+                .eq('contact_email', brandEmail.toLowerCase().trim())
+                .maybeSingle();
 
-            if (emailResponse.ok) {
-              console.log('[Messages API] Email notification sent to brand:', brandEmail);
-            } else {
-              console.error('[Messages API] Failed to send email notification:', await emailResponse.text());
+              const brandHasAccount = !!brandData;
+
+              // Send email notification to brand
+              const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr'}/api/emails`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'message_influencer_to_brand',
+                  email: brandEmail,
+                  toEmail: brandEmail,
+                  brandName: brandName || brandEmail,
+                  influencerName: influencerData.display_name,
+                  message: content,
+                  brandHasAccount: brandHasAccount
+                })
+              });
+
+              if (emailResponse.ok) {
+                console.log('[Messages API] Email notification sent to brand (offline):', brandEmail);
+              } else {
+                console.error('[Messages API] Failed to send email notification:', await emailResponse.text());
+              }
             }
+          } else {
+            console.log('[Messages API] Brand is online, skipping email notification');
           }
         } catch (emailError: any) {
           console.error('[Messages API] Error sending email notification:', emailError);
@@ -245,6 +288,44 @@ export async function POST(req: Request) {
           closed_at: null // Reopen conversation if it was closed
         })
         .eq('id', conversationId);
+
+      // Update online status when sending message
+      try {
+        const { data: convData } = await supabaseAdmin
+          .from('conversations')
+          .select('influencer_id, brand_email')
+          .eq('id', conversationId)
+          .single();
+
+        if (convData) {
+          if (senderType === 'influencer' && convData.influencer_id) {
+            await supabaseAdmin
+              .from('influencer_presence')
+              .upsert({
+                influencer_id: convData.influencer_id,
+                is_online: true,
+                last_seen: now,
+                updated_at: now,
+              }, {
+                onConflict: 'influencer_id'
+              });
+          } else if (senderType === 'brand' && convData.brand_email) {
+            await supabaseAdmin
+              .from('brand_presence')
+              .upsert({
+                brand_email: convData.brand_email.toLowerCase().trim(),
+                is_online: true,
+                last_seen: now,
+                updated_at: now,
+              }, {
+                onConflict: 'brand_email'
+              });
+          }
+        }
+      } catch (presenceError) {
+        console.error('[Messages API] Error updating presence:', presenceError);
+        // Don't fail the request if presence update fails
+      }
 
       // Send email notification when influencer sends a message to brand
       if (senderType === 'influencer' && process.env.RESEND_API_KEY) {

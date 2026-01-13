@@ -118,6 +118,7 @@ export default function Messaging({
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [isInfluencerOnline, setIsInfluencerOnline] = useState(false);
+  const [isBrandOnline, setIsBrandOnline] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastSentMessageRef = useRef<string>('');
   const [proposalInfo, setProposalInfo] = useState<ProposalInfo | null>(null);
@@ -148,8 +149,13 @@ export default function Messaging({
     loadConversations();
     if (mode === 'brand' && influencerId) {
       checkInfluencerStatus();
-      // Poll every 30 seconds to check online status
-      const interval = setInterval(checkInfluencerStatus, 30000);
+      // Poll every 15 seconds to check online status (more frequent for better accuracy)
+      const interval = setInterval(checkInfluencerStatus, 15000);
+      return () => clearInterval(interval);
+    } else if (mode === 'influencer' && brandEmail) {
+      checkBrandStatus();
+      // Poll every 15 seconds to check brand online status (more frequent for better accuracy)
+      const interval = setInterval(checkBrandStatus, 15000);
       return () => clearInterval(interval);
     }
   }, [influencerId, mode, brandEmail]);
@@ -166,17 +172,28 @@ export default function Messaging({
 
   // Track online status for influencer mode
   useEffect(() => {
-    if (mode === 'influencer') {
+    if (mode === 'influencer' && influencerId) {
+      // Update immediately when component mounts
       updateOnlineStatus();
-      // Update status every 30 seconds
-      const interval = setInterval(updateOnlineStatus, 30000);
+      // Update status every 15 seconds (more frequent for better accuracy)
+      const interval = setInterval(updateOnlineStatus, 15000);
       // Mark as offline when component unmounts
       return () => {
         clearInterval(interval);
         markOffline();
       };
+    } else if (mode === 'brand' && brandEmail) {
+      // Track brand online status
+      updateBrandOnlineStatus();
+      // Update status every 15 seconds (more frequent for better accuracy)
+      const interval = setInterval(updateBrandOnlineStatus, 15000);
+      // Mark as offline when component unmounts
+      return () => {
+        clearInterval(interval);
+        markBrandOffline();
+      };
     }
-  }, [mode, influencerId]);
+  }, [mode, influencerId, brandEmail]);
 
   // Define checkInactivity BEFORE it's used in useEffect
   // SIMPLIFIED APPROACH: Use last_message_at instead of activity timestamps
@@ -693,6 +710,13 @@ export default function Messaging({
         const result = await response.json();
         if (!result.success) throw new Error(result.error);
         
+        // Update online status when sending message
+        if (mode === 'influencer') {
+          updateOnlineStatus();
+        } else if (mode === 'brand') {
+          updateBrandOnlineStatus();
+        }
+        
         // Play sound when message is sent (single beep)
         lastSentMessageRef.current = newMessage.trim();
         playSendSound();
@@ -726,6 +750,13 @@ export default function Messaging({
         if (!result.success) throw new Error(result.error);
         
         convId = result.conversationId;
+        
+        // Update online status when sending message
+        if (mode === 'influencer') {
+          updateOnlineStatus();
+        } else if (mode === 'brand') {
+          updateBrandOnlineStatus();
+        }
         
         // Refresh conversations list to show new conversation
         await loadConversations();
@@ -830,8 +861,9 @@ export default function Messaging({
   };
 
   const updateOnlineStatus = async () => {
+    if (!influencerId) return;
     try {
-      await supabase
+      const result = await supabase
         .from('influencer_presence')
         .upsert({
           influencer_id: influencerId,
@@ -841,6 +873,10 @@ export default function Messaging({
         }, {
           onConflict: 'influencer_id'
         });
+      
+      if (result.error) {
+        console.error('Error updating influencer online status:', result.error);
+      }
     } catch (error) {
       console.error('Error updating online status:', error);
     }
@@ -858,6 +894,61 @@ export default function Messaging({
         .eq('influencer_id', influencerId);
     } catch (error) {
       console.error('Error marking offline:', error);
+    }
+  };
+
+  const checkBrandStatus = async () => {
+    if (!brandEmail) return;
+    try {
+      const { data } = await supabase
+        .from('brand_presence')
+        .select('is_online, last_seen')
+        .eq('brand_email', brandEmail.toLowerCase().trim())
+        .single();
+
+      if (data) {
+        // Consider online if last seen within 5 minutes
+        const lastSeen = new Date(data.last_seen);
+        const now = new Date();
+        const minutesSinceLastSeen = (now.getTime() - lastSeen.getTime()) / 60000;
+        setIsBrandOnline(data.is_online && minutesSinceLastSeen < 5);
+      }
+    } catch (error) {
+      console.error('Error checking brand status:', error);
+    }
+  };
+
+  const updateBrandOnlineStatus = async () => {
+    if (!brandEmail) return;
+    try {
+      await supabase
+        .from('brand_presence')
+        .upsert({
+          brand_email: brandEmail.toLowerCase().trim(),
+          is_online: true,
+          last_seen: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'brand_email'
+        });
+    } catch (error) {
+      console.error('Error updating brand online status:', error);
+    }
+  };
+
+  const markBrandOffline = async () => {
+    if (!brandEmail) return;
+    try {
+      await supabase
+        .from('brand_presence')
+        .update({
+          is_online: false,
+          last_seen: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('brand_email', brandEmail.toLowerCase().trim());
+    } catch (error) {
+      console.error('Error marking brand offline:', error);
     }
   };
 
@@ -1027,6 +1118,14 @@ export default function Messaging({
                         <div className={`w-2 h-2 rounded-full ${isInfluencerOnline ? 'bg-green-500' : 'bg-gray-400'}`}></div>
                         <span className="text-xs text-slate-500">
                           {isInfluencerOnline ? txt.online : txt.offline}
+                        </span>
+                      </div>
+                    )}
+                    {mode === 'influencer' && brandEmail && (
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${isBrandOnline ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                        <span className="text-xs text-slate-500">
+                          {isBrandOnline ? txt.online : txt.offline}
                         </span>
                       </div>
                     )}
