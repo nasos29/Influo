@@ -727,10 +727,15 @@ export default function Messaging({
         if (!result.success) throw new Error(result.error);
         
         // Update online status when sending message
-        if (mode === 'influencer') {
+        if (mode === 'influencer' && influencerId) {
           updateOnlineStatus();
         } else if (mode === 'brand') {
-          updateBrandOnlineStatus();
+          const emailToUpdate = brandEmail || (selectedConversation
+            ? conversations.find(c => c.id === selectedConversation)?.brand_email
+            : null);
+          if (emailToUpdate) {
+            updateBrandOnlineStatus(emailToUpdate);
+          }
         }
         
         // Play sound when message is sent (single beep)
@@ -768,10 +773,15 @@ export default function Messaging({
         convId = result.conversationId;
         
         // Update online status when sending message
-        if (mode === 'influencer') {
+        if (mode === 'influencer' && influencerId) {
           updateOnlineStatus();
         } else if (mode === 'brand') {
-          updateBrandOnlineStatus();
+          const emailToUpdate = brandEmail || (selectedConversation
+            ? conversations.find(c => c.id === selectedConversation)?.brand_email
+            : null);
+          if (emailToUpdate) {
+            updateBrandOnlineStatus(emailToUpdate);
+          }
         }
         
         // Refresh conversations list to show new conversation
@@ -1136,12 +1146,6 @@ export default function Messaging({
           updateBrandOnlineStatus(emailToUpdate);
         }
         // Also update influencer presence if we have influencer_id from conversation
-        const influencerIdToUpdate = influencerId || (selectedConversation
-          ? conversations.find(c => c.id === selectedConversation)?.influencer_id
-          : null);
-        if (influencerIdToUpdate) {
-          updateOnlineStatusForId(influencerIdToUpdate);
-        }
         const influencerIdToUpdate = influencerId || (selectedConversation
           ? conversations.find(c => c.id === selectedConversation)?.influencer_id
           : null);
