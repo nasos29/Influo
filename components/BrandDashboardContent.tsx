@@ -411,28 +411,48 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, categorie
             <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
               {txt.edit_logo}
             </label>
-            {logoPreview && (
-              <div className="mb-4 relative inline-block">
-                <img
-                  src={logoPreview}
-                  alt="Logo preview"
-                  className="w-32 h-32 object-contain border-2 border-slate-200 rounded-lg"
-                />
-                <button
-                  type="button"
-                  onClick={handleRemoveLogo}
-                  className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600"
-                >
-                  ×
-                </button>
+            <div className="flex items-center gap-4">
+              <div className="relative w-24 h-24 rounded-lg border-2 border-slate-300 overflow-hidden bg-slate-100 flex items-center justify-center">
+                {logoPreview ? (
+                  <img
+                    src={logoPreview}
+                    alt="Logo preview"
+                    className="w-full h-full object-contain"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-slate-200">
+                    <span className="text-slate-500 text-xs font-medium">
+                      {lang === 'el' ? 'ΧΩΡΙΣ ΛΟΓΟ' : 'NO LOGO'}
+                    </span>
+                  </div>
+                )}
+                {logoPreview && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveLogo}
+                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600 transition-colors"
+                  >
+                    ×
+                  </button>
+                )}
               </div>
-            )}
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleLogoChange}
-              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-            />
+              <div className="flex-1">
+                <label className="block">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoChange}
+                    className="hidden"
+                  />
+                  <span className="inline-block px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors cursor-pointer">
+                    {txt.upload_logo}
+                  </span>
+                </label>
+                <p className="text-xs text-slate-500 mt-1">
+                  {lang === 'el' ? 'PNG, JPG, GIF έως 5MB' : 'PNG, JPG, GIF up to 5MB'}
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Buttons */}
