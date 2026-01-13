@@ -726,6 +726,7 @@ export default function InfluencerProfile(props: { params: Params }) {
         }
 
         // 1.5. Auto-create conversation from proposal
+        // NOTE: senderType should be 'brand' because the brand is sending the proposal
         if (proposalResult && proposalResult.id) {
             try {
                 await fetch('/api/messages', {
@@ -735,8 +736,8 @@ export default function InfluencerProfile(props: { params: Params }) {
                         influencerId: id,
                         brandEmail: brandEmail,
                         brandName: brandName,
-                        senderType: 'influencer',
-                        senderId: id,
+                        senderType: 'brand',
+                        senderId: brandEmail,
                         content: `Νέα πρόταση: ${proposalType} | Budget: €${budget}\n\n${message}`,
                         proposalId: proposalResult.id
                     })
@@ -747,7 +748,7 @@ export default function InfluencerProfile(props: { params: Params }) {
             }
         }
 
-        // 2. Send Brand Confirmation Email (simple confirmation without proposal details)
+        // 2. Send Brand Confirmation Email
         try {
             await fetch('/api/emails', {
                 method: 'POST',
@@ -756,7 +757,8 @@ export default function InfluencerProfile(props: { params: Params }) {
                     type: 'proposal_brand_confirmation', 
                     email: brandEmail,
                     brandName: brandName,
-                    influencerName: profile?.name || 'Influencer'
+                    influencerName: profile?.name,
+                    proposalType: proposalType
                 })
             });
         } catch (mailError) {
