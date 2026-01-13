@@ -149,13 +149,7 @@ export default function Messaging({
   // Load conversations
   useEffect(() => {
     loadConversations();
-    if (mode === 'brand' && influencerId) {
-      checkInfluencerStatus();
-      // Poll every 15 seconds to check online status (more frequent for better accuracy)
-      const interval = setInterval(checkInfluencerStatus, 15000);
-      return () => clearInterval(interval);
-    }
-  }, [influencerId, mode]);
+  }, [mode]);
 
   // Auto-select conversation when proposalId and brandEmail are provided
   useEffect(() => {
@@ -862,13 +856,22 @@ export default function Messaging({
     }
   };
 
-  const checkInfluencerStatus = async () => {
-    if (!influencerId) return;
+  const checkInfluencerStatus = async (idToCheck?: string) => {
+    // Use provided ID or get from current conversation or use prop
+    const id = idToCheck || (mode === 'brand' && selectedConversation
+      ? conversations.find(c => c.id === selectedConversation)?.influencer_id
+      : influencerId);
+    
+    if (!id) {
+      setIsInfluencerOnline(false);
+      return;
+    }
+    
     try {
       const { data, error } = await supabase
         .from('influencer_presence')
         .select('is_online, last_seen')
-        .eq('influencer_id', influencerId)
+        .eq('influencer_id', id)
         .maybeSingle();
 
       if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
@@ -884,10 +887,10 @@ export default function Messaging({
         const minutesSinceLastSeen = (now.getTime() - lastSeen.getTime()) / 60000;
         const isOnline = data.is_online && minutesSinceLastSeen < 5;
         setIsInfluencerOnline(isOnline);
-        console.log('[Influencer Status]', { influencerId, isOnline, lastSeen: data.last_seen, minutesSinceLastSeen });
+        console.log('[Influencer Status]', { influencerId: id, isOnline, lastSeen: data.last_seen, minutesSinceLastSeen });
       } else {
         setIsInfluencerOnline(false);
-        console.log('[Influencer Status] No data found for:', influencerId);
+        console.log('[Influencer Status] No data found for:', id);
       }
     } catch (error) {
       console.error('Error checking influencer status:', error);
@@ -897,11 +900,16 @@ export default function Messaging({
 
   const updateOnlineStatus = async () => {
     if (!influencerId) return;
+    await updateOnlineStatusForId(influencerId);
+  };
+
+  const updateOnlineStatusForId = async (id: string) => {
+    if (!id) return;
     try {
       const result = await supabase
         .from('influencer_presence')
         .upsert({
-          influencer_id: influencerId,
+          influencer_id: id,
           is_online: true,
           last_seen: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -911,6 +919,8 @@ export default function Messaging({
       
       if (result.error) {
         console.error('Error updating influencer online status:', result.error);
+      } else {
+        console.log('[Influencer Status] Updated presence for:', id);
       }
     } catch (error) {
       console.error('Error updating online status:', error);
@@ -1118,12 +1128,25 @@ export default function Messaging({
       if (mode === 'influencer' && influencerId) {
         updateOnlineStatus();
       } else if (mode === 'brand') {
-        // For brand mode, use brandEmail prop or get from current conversation
+        // For brand mode, update brand presence
         const emailToUpdate = brandEmail || (selectedConversation
           ? conversations.find(c => c.id === selectedConversation)?.brand_email
           : null);
         if (emailToUpdate) {
           updateBrandOnlineStatus(emailToUpdate);
+        }
+        // Also update influencer presence if we have influencer_id from conversation
+        const influencerIdToUpdate = influencerId || (selectedConversation
+          ? conversations.find(c => c.id === selectedConversation)?.influencer_id
+          : null);
+        if (influencerIdToUpdate) {
+          updateOnlineStatusForId(influencerIdToUpdate);
+        }
+        const influencerIdToUpdate = influencerId || (selectedConversation
+          ? conversations.find(c => c.id === selectedConversation)?.influencer_id
+          : null);
+        if (influencerIdToUpdate) {
+          updateOnlineStatusForId(influencerIdToUpdate);
         }
       }
 
@@ -1151,8 +1174,58 @@ export default function Messaging({
         brandEmail: brandEmail,
         isBrandOnline
       });
+    } else if (mode === 'brand' && selectedConversation) {
+      console.log('[Influencer Status] Current conversation:', {
+        selectedConversation,
+        currentConversation: currentConversation?.influencer_id,
+        influencerId: influencerId,
+        isInfluencerOnline
+      });
     }
-  }, [selectedConversation, currentConversation?.brand_email, brandEmail, isBrandOnline, mode]);
+  }, [selectedConversation, currentConversation?.brand_email, currentConversation?.influencer_id, brandEmail, influencerId, isBrandOnline, isInfluencerOnline, mode]);
+
+  // Check influencer status when conversation changes (for brand mode)
+  useEffect(() => {
+    if (mode === 'brand') {
+      if (selectedConversation) {
+        const conv = conversations.find(c => c.id === selectedConversation);
+        const idToCheck = conv?.influencer_id || influencerId;
+        console.log('[Influencer Status] useEffect triggered:', {
+          selectedConversation,
+          hasConv: !!conv,
+          influencerId: conv?.influencer_id,
+          propInfluencerId: influencerId,
+          idToCheck
+        });
+        if (idToCheck) {
+          console.log('[Influencer Status] Checking status for conversation:', idToCheck);
+          checkInfluencerStatus(idToCheck);
+          // Poll every 15 seconds to check influencer online status
+          const interval = setInterval(() => {
+            const currentConv = conversations.find(c => c.id === selectedConversation);
+            const id = currentConv?.influencer_id || influencerId;
+            if (id) {
+              checkInfluencerStatus(id);
+            }
+          }, 15000);
+          return () => clearInterval(interval);
+        } else {
+          console.log('[Influencer Status] No influencer_id in conversation or prop');
+          setIsInfluencerOnline(false);
+        }
+      } else if (influencerId) {
+        // If no conversation selected but influencerId prop exists, check it
+        console.log('[Influencer Status] Checking status from prop:', influencerId);
+        checkInfluencerStatus(influencerId);
+        const interval = setInterval(() => {
+          checkInfluencerStatus(influencerId);
+        }, 15000);
+        return () => clearInterval(interval);
+      } else {
+        setIsInfluencerOnline(false);
+      }
+    }
+  }, [selectedConversation, conversations, mode, influencerId]);
 
   // Check brand status when conversation changes (for influencer mode)
   useEffect(() => {
