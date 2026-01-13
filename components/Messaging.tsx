@@ -1385,7 +1385,7 @@ export default function Messaging({
                     )}
                   </div>
                 </div>
-                {mode === 'brand' && influencerId && !isInfluencerOnline && !conversationClosed && (
+                {mode === 'brand' && selectedConversation && (influencerId || currentConversation?.influencer_id) && !isInfluencerOnline && !conversationClosed && (
                   <p className="text-xs text-amber-600 mt-1">
                     {txt.offlineNotice}
                   </p>

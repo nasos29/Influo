@@ -321,6 +321,63 @@ export async function POST(req: Request) {
             </div>
         `;
     }
+    else if (type === 'message_brand_to_influencer') {
+        // Email when brand sends a message to influencer
+        toEmail = email || bodyToEmail;
+        
+        // Validate required fields
+        if (!toEmail) {
+          console.error('[Email API] message_brand_to_influencer missing email');
+          return NextResponse.json(
+            { success: false, error: 'Missing required field: email or toEmail' },
+            { status: 400 }
+          );
+        }
+        if (!message) {
+          console.error('[Email API] message_brand_to_influencer missing message');
+          return NextResponse.json(
+            { success: false, error: 'Missing required field: message' },
+            { status: 400 }
+          );
+        }
+        if (!brandName) {
+          console.error('[Email API] message_brand_to_influencer missing brandName');
+          return NextResponse.json(
+            { success: false, error: 'Missing required field: brandName' },
+            { status: 400 }
+          );
+        }
+        
+        const influencerLoginLink = `https://${host}/login?redirect=/dashboard&email=${encodeURIComponent(toEmail)}`;
+        
+        subject = `💬 Νέα Απάντηση από ${brandName}`;
+        html = `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
+              <div style="background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); padding: 24px; border-radius: 12px 12px 0 0;">
+                <h1 style="color: #0369a1; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">💬 Νέα Απάντηση</h1>
+              </div>
+              <div style="background: #ffffff; padding: 24px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
+                <p style="margin: 0 0 16px 0; font-size: 14px;">Γεια σου ${influencerName || 'Influencer'},</p>
+                <p style="margin: 0 0 20px 0; font-size: 14px; color: #4b5563;">Η επιχείρηση <strong style="color: #1f2937;">${brandName}</strong> σου απάντησε:</p>
+                <div style="background: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 16px; border-radius: 8px; margin: 20px 0;">
+                  <p style="margin: 0; font-size: 13px; color: #1f2937; white-space: pre-wrap;">${message.replace(/\n/g, '<br/>')}</p>
+                </div>
+                <div style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 16px; border-radius: 8px; margin: 20px 0;">
+                  <p style="margin: 0; font-size: 13px; color: #065f46; font-weight: 600;">💡 Συμβουλή:</p>
+                  <p style="margin: 8px 0 0 0; font-size: 12px; color: #047857;">Συνδεθείτε στο Dashboard σας για να δείτε όλη τη συνομιλία και να απαντήσετε άμεσα στην ${brandName}.</p>
+                </div>
+                <div style="margin: 24px 0; text-align: center;">
+                  <a href="${influencerLoginLink}" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                    🔐 Συνδεθείτε στο Dashboard
+                  </a>
+                </div>
+                <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+                  <p style="margin: 0; font-size: 12px; color: #9ca3af;">Η ομάδα του Influo</p>
+                </div>
+              </div>
+            </div>
+        `;
+    }
     else if (type === 'proposal_influencer_notification') {
         toEmail = email;
         subject = `📨 Νέα Πρόταση από ${brandName}`;
