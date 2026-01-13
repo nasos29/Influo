@@ -56,6 +56,7 @@ const t = {
     online: "Online",
     offline: "Offline",
     offlineNotice: "💬 Ο influencer είναι offline. Το μήνυμα θα σταλεί ως email.",
+    brandOfflineNotice: "💬 Η επιχείρηση είναι offline. Το μήνυμα θα σταλεί ως email.",
     sending: "Αποστολή...",
     send: "Αποστολή",
     messages: "Μηνύματα",
@@ -79,6 +80,7 @@ const t = {
     online: "Online",
     offline: "Offline",
     offlineNotice: "💬 The influencer is offline. Message will be sent via email.",
+    brandOfflineNotice: "💬 The brand is offline. Message will be sent via email.",
     sending: "Sending...",
     send: "Send",
     messages: "Messages",
@@ -152,13 +154,8 @@ export default function Messaging({
       // Poll every 15 seconds to check online status (more frequent for better accuracy)
       const interval = setInterval(checkInfluencerStatus, 15000);
       return () => clearInterval(interval);
-    } else if (mode === 'influencer' && brandEmail) {
-      checkBrandStatus();
-      // Poll every 15 seconds to check brand online status (more frequent for better accuracy)
-      const interval = setInterval(checkBrandStatus, 15000);
-      return () => clearInterval(interval);
     }
-  }, [influencerId, mode, brandEmail]);
+  }, [influencerId, mode]);
 
   // Auto-select conversation when proposalId and brandEmail are provided
   useEffect(() => {
@@ -513,6 +510,10 @@ export default function Messaging({
         // Will create conversation when first message is sent
       } else if (data && data.length > 0 && !selectedConversation) {
         setSelectedConversation(data[0].id);
+        // Check brand status immediately when first conversation is auto-selected
+        if (mode === 'influencer' && data[0]?.brand_email) {
+          setTimeout(() => checkBrandStatus(data[0].brand_email), 100);
+        }
       }
     } catch (error) {
       console.error('Error loading conversations:', error);
@@ -897,24 +898,45 @@ export default function Messaging({
     }
   };
 
-  const checkBrandStatus = async () => {
-    if (!brandEmail) return;
+  const checkBrandStatus = async (emailToCheck?: string) => {
+    // Use provided email or get from current conversation
+    const email = emailToCheck || (mode === 'influencer' && selectedConversation 
+      ? conversations.find(c => c.id === selectedConversation)?.brand_email 
+      : brandEmail);
+    
+    if (!email) {
+      setIsBrandOnline(false);
+      return;
+    }
+    
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('brand_presence')
         .select('is_online, last_seen')
-        .eq('brand_email', brandEmail.toLowerCase().trim())
-        .single();
+        .eq('brand_email', email.toLowerCase().trim())
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+        console.error('Error checking brand status:', error);
+        setIsBrandOnline(false);
+        return;
+      }
 
       if (data) {
         // Consider online if last seen within 5 minutes
         const lastSeen = new Date(data.last_seen);
         const now = new Date();
         const minutesSinceLastSeen = (now.getTime() - lastSeen.getTime()) / 60000;
-        setIsBrandOnline(data.is_online && minutesSinceLastSeen < 5);
+        const isOnline = data.is_online && minutesSinceLastSeen < 5;
+        setIsBrandOnline(isOnline);
+        console.log('[Brand Status]', { email, isOnline, lastSeen: data.last_seen, minutesSinceLastSeen });
+      } else {
+        setIsBrandOnline(false);
+        console.log('[Brand Status] No data found for:', email);
       }
     } catch (error) {
       console.error('Error checking brand status:', error);
+      setIsBrandOnline(false);
     }
   };
 
@@ -1056,6 +1078,61 @@ export default function Messaging({
     ? currentConversation?.brand_name || currentConversation?.brand_email
     : currentConversation?.influencer_name;
 
+  // Debug: Log current conversation info
+  useEffect(() => {
+    if (mode === 'influencer' && selectedConversation) {
+      console.log('[Brand Status] Current conversation:', {
+        selectedConversation,
+        currentConversation: currentConversation?.brand_email,
+        brandEmail: brandEmail,
+        isBrandOnline
+      });
+    }
+  }, [selectedConversation, currentConversation?.brand_email, brandEmail, isBrandOnline, mode]);
+
+  // Check brand status when conversation changes (for influencer mode)
+  useEffect(() => {
+    if (mode === 'influencer') {
+      if (selectedConversation) {
+        const conv = conversations.find(c => c.id === selectedConversation);
+        const emailToCheck = conv?.brand_email || brandEmail;
+        console.log('[Brand Status] useEffect triggered:', {
+          selectedConversation,
+          hasConv: !!conv,
+          brandEmail: conv?.brand_email,
+          propBrandEmail: brandEmail,
+          emailToCheck
+        });
+        if (emailToCheck) {
+          console.log('[Brand Status] Checking status for conversation:', emailToCheck);
+          checkBrandStatus(emailToCheck);
+          // Poll every 15 seconds to check brand online status
+          const interval = setInterval(() => {
+            const currentConv = conversations.find(c => c.id === selectedConversation);
+            const email = currentConv?.brand_email || brandEmail;
+            if (email) {
+              checkBrandStatus(email);
+            }
+          }, 15000);
+          return () => clearInterval(interval);
+        } else {
+          console.log('[Brand Status] No brand_email in conversation or prop');
+          setIsBrandOnline(false);
+        }
+      } else if (brandEmail) {
+        // If no conversation selected but brandEmail prop exists, check it
+        console.log('[Brand Status] Checking status from prop:', brandEmail);
+        checkBrandStatus(brandEmail);
+        const interval = setInterval(() => {
+          checkBrandStatus(brandEmail);
+        }, 15000);
+        return () => clearInterval(interval);
+      } else {
+        setIsBrandOnline(false);
+      }
+    }
+  }, [selectedConversation, conversations, mode, brandEmail]);
+
   return (
     <div className="bg-white rounded-2xl shadow-lg border border-slate-200 h-[600px] flex flex-col">
               {/* Header */}
@@ -1121,7 +1198,7 @@ export default function Messaging({
                         </span>
                       </div>
                     )}
-                    {mode === 'influencer' && brandEmail && (
+                    {mode === 'influencer' && selectedConversation && (currentConversation?.brand_email || brandEmail) && (
                       <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${isBrandOnline ? 'bg-green-500' : 'bg-gray-400'}`}></div>
                         <span className="text-xs text-slate-500">
@@ -1162,6 +1239,11 @@ export default function Messaging({
                 {mode === 'brand' && influencerId && !isInfluencerOnline && !conversationClosed && (
                   <p className="text-xs text-amber-600 mt-1">
                     {txt.offlineNotice}
+                  </p>
+                )}
+                {mode === 'influencer' && currentConversation?.brand_email && !isBrandOnline && !conversationClosed && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    {txt.brandOfflineNotice}
                   </p>
                 )}
                 {showInactivityWarning && !conversationClosed && (
