@@ -126,17 +126,26 @@ export async function POST(req: Request) {
         </div>
       `;
     }
-    // --- NEW: BRAND CONFIRMATION EMAIL ---
+    // --- NEW: BRAND CONFIRMATION EMAIL (Simple confirmation without proposal details) ---
     else if (type === 'proposal_brand_confirmation') {
         toEmail = email; // Brand's Email
-        subject = `Επιβεβαίωση Πρότασης | Proposal to ${influencerName} received!`;
+        subject = `✅ Η πρόταση σας στάλθηκε επιτυχώς!`;
         html = `
-            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #6366f1; border-radius: 8px; background-color: #f5f3ff;">
-                <h1 style="color: #6366f1;">Επιβεβαίωση Πρότασης για τον/την ${influencerName}</h1>
-                <p>Λάβαμε επιτυχώς την πρόταση συνεργασίας από την ${brandName} για την υπηρεσία: <strong>${proposalType}</strong>.</p>
-                <p>Ο/Η ${influencerName} θα λάβει την πρότασή σου και θα σου απαντήσει άμεσα.</p>
-                <br/>
-                <p>Μείνετε συντονισμένοι,<br/>Η ομάδα του Influo</p>
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
+              <div style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); padding: 24px; border-radius: 12px 12px 0 0;">
+                <h1 style="color: #1e40af; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">✅ Πρόταση Στάλθηκε!</h1>
+              </div>
+              <div style="background: #ffffff; padding: 24px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
+                <p style="margin: 0 0 16px 0; font-size: 14px;">Γεια σας ${brandName},</p>
+                <p style="margin: 0 0 20px 0; font-size: 13px; color: #4b5563;">Η πρόταση συνεργασίας σας προς τον/την <strong style="color: #1f2937;">${influencerName}</strong> στάλθηκε επιτυχώς!</p>
+                <div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 16px; border-radius: 8px; margin: 20px 0;">
+                  <p style="margin: 0; font-size: 13px; color: #1e40af; font-weight: 600;">💡 Τι ακολουθεί:</p>
+                  <p style="margin: 8px 0 0 0; font-size: 12px; color: #1e3a8a;">Ο/Η ${influencerName} θα λάβει την πρότασή σας και θα σας απαντήσει άμεσα. Θα λάβετε email notification όταν απαντήσει.</p>
+                </div>
+                <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+                  <p style="margin: 0; font-size: 12px; color: #9ca3af;">Η ομάδα του Influo</p>
+                </div>
+              </div>
             </div>
         `;
     }

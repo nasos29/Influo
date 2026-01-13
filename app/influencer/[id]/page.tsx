@@ -747,7 +747,7 @@ export default function InfluencerProfile(props: { params: Params }) {
             }
         }
 
-        // 2. Send Brand Confirmation Email
+        // 2. Send Brand Confirmation Email (simple confirmation without proposal details)
         try {
             await fetch('/api/emails', {
                 method: 'POST',
@@ -756,8 +756,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                     type: 'proposal_brand_confirmation', 
                     email: brandEmail,
                     brandName: brandName,
-                    influencerName: profile?.name,
-                    proposalType: proposalType
+                    influencerName: profile?.name || 'Influencer'
                 })
             });
         } catch (mailError) {
