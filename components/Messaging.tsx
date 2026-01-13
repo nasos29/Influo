@@ -168,6 +168,7 @@ export default function Messaging({
       updateOnlineStatus();
       // Update status every 15 seconds (more frequent for better accuracy)
       const interval = setInterval(updateOnlineStatus, 15000);
+      
       // Mark as offline when component unmounts
       return () => {
         clearInterval(interval);
@@ -938,8 +939,9 @@ export default function Messaging({
   };
 
   const markOffline = async () => {
+    if (!influencerId) return;
     try {
-      await supabase
+      const result = await supabase
         .from('influencer_presence')
         .update({
           is_online: false,
@@ -947,6 +949,12 @@ export default function Messaging({
           updated_at: new Date().toISOString(),
         })
         .eq('influencer_id', influencerId);
+      
+      if (result.error) {
+        console.error('Error marking influencer offline:', result.error);
+      } else {
+        console.log('[Influencer Status] Marked offline:', influencerId);
+      }
     } catch (error) {
       console.error('Error marking offline:', error);
     }

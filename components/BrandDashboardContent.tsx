@@ -882,6 +882,31 @@ export default function BrandDashboardContent() {
   };
 
   const handleLogout = async () => {
+    try {
+      // Get current user before signing out
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Mark brand as offline if they are a brand
+      if (user && brandData?.contact_email) {
+        try {
+          await supabase
+            .from('brand_presence')
+            .update({
+              is_online: false,
+              last_seen: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('brand_email', brandData.contact_email.toLowerCase().trim());
+          console.log('[Logout] Marked brand as offline:', brandData.contact_email);
+        } catch (err) {
+          // Fail silently - don't block logout if presence update fails
+          console.error('[Logout] Error marking brand offline:', err);
+        }
+      }
+    } catch (err) {
+      console.error('[Logout] Error getting user before logout:', err);
+    }
+    
     await supabase.auth.signOut();
     router.push('/brand/login');
   };
