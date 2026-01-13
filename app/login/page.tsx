@@ -1,7 +1,7 @@
 // app/login/page.tsx
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabaseClient'; 
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -40,7 +40,7 @@ const t = {
   }
 };
 
-export default function LoginPage() {
+function LoginPageContent() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState(''); 
     const [loading, setLoading] = useState(false);
@@ -410,5 +410,17 @@ export default function LoginPage() {
                 )}
             </div>
         </div>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white via-blue-50/15 to-purple-50/15">
+                <div className="text-slate-600">Loading...</div>
+            </div>
+        }>
+            <LoginPageContent />
+        </Suspense>
     );
 }
