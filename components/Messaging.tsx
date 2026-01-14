@@ -1159,12 +1159,6 @@ export default function Messaging({
       // Brand has account and presence exists - check status
       const data = presenceData;
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-        console.error('[Brand Status Check] Error checking brand status:', error);
-        setIsBrandOnline(false);
-        return;
-      }
-
       if (data) {
         console.log(`[Brand Status Check] Found presence data:`, data);
         // Check if brand is online: must be online AND last_seen/updated_at within 10 seconds
