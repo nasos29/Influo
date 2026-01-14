@@ -295,24 +295,53 @@ export default function InfluencerProfile(props: { params: Params }) {
     checkUserType();
   }, []);
 
-  // Check online status
+  // Check online status - only show online if influencer is actually logged in and active
   useEffect(() => {
     if (!id || id.toString().includes("dummy")) return;
 
     const checkOnlineStatus = async () => {
       try {
+        // First check if this influencer is actually logged in
+        // We can't directly check, but we can verify the presence record is recent and valid
         const { data } = await supabase
           .from('influencer_presence')
-          .select('is_online, last_seen')
+          .select('is_online, last_seen, updated_at')
           .eq('influencer_id', id)
           .single();
 
         if (data) {
-          // Consider online if last seen within 5 minutes
           const lastSeen = new Date(data.last_seen);
+          const updatedAt = new Date(data.updated_at);
           const now = new Date();
           const minutesSinceLastSeen = (now.getTime() - lastSeen.getTime()) / 60000;
-          setIsOnline(data.is_online && minutesSinceLastSeen < 5);
+          const minutesSinceUpdated = (now.getTime() - updatedAt.getTime()) / 60000;
+          
+          // More strict: must be online AND last_seen within 2 minutes (not 5)
+          // AND updated_at must be recent (within 2 minutes) to ensure it's actively being updated
+          const isOnline = data.is_online && 
+                          minutesSinceLastSeen < 2 && 
+                          minutesSinceUpdated < 2;
+          
+          setIsOnline(isOnline);
+          
+          // If presence is stale (more than 2 minutes), mark as offline in database
+          if (data.is_online && (minutesSinceLastSeen >= 2 || minutesSinceUpdated >= 2)) {
+            // Silently update - don't wait for response
+            supabase
+              .from('influencer_presence')
+              .update({
+                is_online: false,
+                last_seen: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              })
+              .eq('influencer_id', id)
+              .then(() => {
+                setIsOnline(false);
+              })
+              .catch(() => {
+                // Ignore errors
+              });
+          }
         } else {
           setIsOnline(false);
         }
@@ -323,8 +352,8 @@ export default function InfluencerProfile(props: { params: Params }) {
     };
 
     checkOnlineStatus();
-    // Check every 30 seconds
-    const interval = setInterval(checkOnlineStatus, 30000);
+    // Check every 10 seconds for more accurate status
+    const interval = setInterval(checkOnlineStatus, 10000);
     return () => clearInterval(interval);
   }, [id]);
 

@@ -941,12 +941,24 @@ export default function Messaging({
       }
 
       if (data) {
-        // Consider online if last seen within 5 minutes
+        // More strict: must be online AND last_seen within 2 minutes (not 5)
         const lastSeen = new Date(data.last_seen);
+        const updatedAt = new Date(data.updated_at || data.last_seen);
         const now = new Date();
         const minutesSinceLastSeen = (now.getTime() - lastSeen.getTime()) / 60000;
-        const isOnline = data.is_online && minutesSinceLastSeen < 5;
+        const minutesSinceUpdated = (now.getTime() - updatedAt.getTime()) / 60000;
+        
+        // Must be actively online (updated within 2 minutes)
+        const isOnline = data.is_online && 
+                        minutesSinceLastSeen < 2 && 
+                        minutesSinceUpdated < 2;
+        
         setIsInfluencerOnline(isOnline);
+        
+        // If presence is stale, mark as offline
+        if (data.is_online && (minutesSinceLastSeen >= 2 || minutesSinceUpdated >= 2)) {
+          setIsInfluencerOnline(false);
+        }
       } else {
         setIsInfluencerOnline(false);
       }
@@ -1042,12 +1054,24 @@ export default function Messaging({
       }
 
       if (data) {
-        // Consider online if last seen within 5 minutes
+        // More strict: must be online AND last_seen within 2 minutes (not 5)
         const lastSeen = new Date(data.last_seen);
+        const updatedAt = new Date(data.updated_at || data.last_seen);
         const now = new Date();
         const minutesSinceLastSeen = (now.getTime() - lastSeen.getTime()) / 60000;
-        const isOnline = data.is_online && minutesSinceLastSeen < 5;
+        const minutesSinceUpdated = (now.getTime() - updatedAt.getTime()) / 60000;
+        
+        // Must be actively online (updated within 2 minutes)
+        const isOnline = data.is_online && 
+                        minutesSinceLastSeen < 2 && 
+                        minutesSinceUpdated < 2;
+        
         setIsBrandOnline(isOnline);
+        
+        // If presence is stale, mark as offline
+        if (data.is_online && (minutesSinceLastSeen >= 2 || minutesSinceUpdated >= 2)) {
+          setIsBrandOnline(false);
+        }
       } else {
         setIsBrandOnline(false);
       }
