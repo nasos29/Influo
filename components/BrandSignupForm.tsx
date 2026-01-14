@@ -61,7 +61,7 @@ const t = {
     logoUpload: "Ανέβασμα Λογοτύπου",
     logoRemove: "Αφαίρεση",
     websiteLabel: "Ιστοσελίδα (Προαιρετικό)",
-    websitePlace: "https://example.com",
+    websitePlace: "example.com ή www.example.com",
     categoryLabel: "Κατηγορία *",
     categoryPlace: "Επιλέξτε κατηγορία",
     submit: "Δημιουργία Λογαριασμού",
@@ -94,7 +94,7 @@ const t = {
     logoUpload: "Upload Logo",
     logoRemove: "Remove",
     websiteLabel: "Website (Optional)",
-    websitePlace: "https://example.com",
+    websitePlace: "example.com or www.example.com",
     categoryLabel: "Category *",
     categoryPlace: "Select category",
     submit: "Create Account",
@@ -131,7 +131,7 @@ export default function BrandSignupForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [afm, setAfm] = useState("");
-  const [website, setWebsite] = useState("https://");
+  const [website, setWebsite] = useState("");
   const [category, setCategory] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -232,6 +232,16 @@ export default function BrandSignupForm() {
         }
       }
 
+      // Normalize website URL: remove protocol and www if present, store just the domain
+      let normalizedWebsite = website.trim();
+      if (normalizedWebsite) {
+        // Remove http://, https://, www. prefixes
+        normalizedWebsite = normalizedWebsite.replace(/^https?:\/\//i, '');
+        normalizedWebsite = normalizedWebsite.replace(/^www\./i, '');
+        // Remove trailing slash
+        normalizedWebsite = normalizedWebsite.replace(/\/$/, '');
+      }
+
       // Create brand record
       const { error: brandError } = await supabase
         .from('brands')
@@ -241,7 +251,7 @@ export default function BrandSignupForm() {
           contact_email: email.toLowerCase().trim(),
           contact_person: contactPerson.trim() || null,
           afm: afmClean,
-          website: website.trim() || null,
+          website: normalizedWebsite || null,
           industry: category.trim() || null, // Keep 'industry' column name in DB for compatibility
           logo_url: logoUrl,
         });
@@ -486,7 +496,7 @@ export default function BrandSignupForm() {
             {txt.websiteLabel}
           </label>
           <input
-            type="url"
+            type="text"
             value={website}
             onChange={(e) => setWebsite(e.target.value)}
             placeholder={txt.websitePlace}
