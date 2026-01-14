@@ -338,7 +338,7 @@ export default function InfluencerProfile(props: { params: Params }) {
               .then(() => {
                 setIsOnline(false);
               })
-              .catch((err) => {
+              .catch((err: any) => {
                 // Ignore errors
                 console.error('Error updating stale presence:', err);
               });
