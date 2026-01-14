@@ -489,6 +489,99 @@ export default function BrandDashboardContent() {
   useEffect(() => {
     setLang(getStoredLanguage());
   }, []);
+
+  // Update brand presence when brand is logged in (similar to influencer presence)
+  useEffect(() => {
+    if (!brandData?.contact_email) return;
+
+    const updateBrandPresence = async () => {
+      try {
+        await supabase
+          .from('brand_presence')
+          .upsert({
+            brand_email: brandData.contact_email.toLowerCase().trim(),
+            is_online: true,
+            last_seen: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }, {
+            onConflict: 'brand_email'
+          });
+      } catch (error) {
+        console.error('[Brand Presence] Error updating presence:', error);
+      }
+    };
+
+    // Update immediately when component mounts
+    updateBrandPresence();
+
+    // Update every 5 seconds to keep brand online (same as Messaging component)
+    const interval = setInterval(updateBrandPresence, 5000);
+
+    // Handle browser close/tab close
+    const handleBeforeUnload = async () => {
+      try {
+        await supabase
+          .from('brand_presence')
+          .update({
+            is_online: false,
+            last_seen: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('brand_email', brandData.contact_email.toLowerCase().trim());
+      } catch (error) {
+        // Fail silently
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // Tab is hidden - mark as offline after a delay
+        setTimeout(async () => {
+          if (document.hidden) {
+            try {
+              await supabase
+                .from('brand_presence')
+                .update({
+                  is_online: false,
+                  last_seen: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('brand_email', brandData.contact_email.toLowerCase().trim());
+            } catch (error) {
+              // Fail silently
+            }
+          }
+        }, 60000); // 1 minute after tab becomes hidden
+      } else {
+        // Tab is visible again - mark as online
+        updateBrandPresence();
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      // Mark as offline when component unmounts
+      (async () => {
+        try {
+          await supabase
+            .from('brand_presence')
+            .update({
+              is_online: false,
+              last_seen: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('brand_email', brandData.contact_email.toLowerCase().trim());
+        } catch (error) {
+          // Fail silently
+        }
+      })();
+    };
+  }, [brandData?.contact_email]);
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
   const [savingAgreement, setSavingAgreement] = useState(false);
