@@ -1133,30 +1133,11 @@ export default function Messaging({
         return;
       }
 
-      // Presence data exists - verify brand has account (unregistered brands shouldn't show as online)
-      console.log(`[Brand Status Check] Found presence data, verifying brand has account...`);
-      const { data: brandData, error: brandError } = await supabase
-        .from('brands')
-        .select('id, contact_email')
-        .eq('contact_email', emailLower)
-        .maybeSingle();
-
-      if (brandError) {
-        console.error(`[Brand Status Check] Error checking brand account:`, brandError);
-        setIsBrandOnline(false);
-        return;
-      }
-
-      if (!brandData) {
-        // Brand doesn't have account - show as offline even if presence says online
-        console.log(`[Brand Status Check] Brand ${emailLower} has presence but no account - OFFLINE`);
-        setIsBrandOnline(false);
-        return;
-      }
-
-      console.log(`[Brand Status Check] Brand has account! ID: ${brandData.id}, Email: ${brandData.contact_email}`);
+      // Presence data exists - trust it (presence is only created by authenticated brands)
+      // RLS might block brands table query, but presence data is sufficient proof that brand has account
+      console.log(`[Brand Status Check] Found presence data for ${emailLower}, checking online status...`);
       
-      // Brand has account and presence exists - check status
+      // Check if brand is online: must be online AND last_seen/updated_at within 10 seconds
       const data = presenceData;
 
       if (data) {
