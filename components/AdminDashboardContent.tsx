@@ -1349,6 +1349,8 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [brandSearchQuery, setBrandSearchQuery] = useState("");
   const [updatingBrand, setUpdatingBrand] = useState<string | null>(null);
   const [deletingBrand, setDeletingBrand] = useState<string | null>(null);
+  const [deletingConversation, setDeletingConversation] = useState<string | null>(null);
+  const [deletingProposal, setDeletingProposal] = useState<number | null>(null);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [conversationMessages, setConversationMessages] = useState<Message[]>([]);
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
@@ -2021,6 +2023,94 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     }
   };
 
+  const handleDeleteConversation = async (conversationId: string) => {
+    if (!confirm(
+      lang === 'el' 
+        ? 'Είστε σίγουροι ότι θέλετε να διαγράψετε αυτή τη συνομιλία; Αυτή η ενέργεια θα διαγράψει και όλα τα μηνύματα και τα σχετικά στατιστικά.'
+        : 'Are you sure you want to delete this conversation? This will also delete all messages and related statistics.'
+    )) {
+      return;
+    }
+
+    setDeletingConversation(conversationId);
+    try {
+      const response = await fetch('/api/admin/delete-conversation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete conversation');
+      }
+
+      // Remove from local state
+      setConversations(prev => prev.filter(c => c.id !== conversationId));
+      
+      // Clear selected conversation if it was deleted
+      if (selectedConversation?.id === conversationId) {
+        setSelectedConversation(null);
+        setConversationMessages([]);
+      }
+
+      alert(lang === 'el' 
+        ? 'Η συνομιλία διαγράφηκε επιτυχώς.'
+        : 'Conversation deleted successfully.'
+      );
+    } catch (error: any) {
+      console.error('Error deleting conversation:', error);
+      alert(lang === 'el' 
+        ? `Σφάλμα: ${error.message}`
+        : `Error: ${error.message}`
+      );
+    } finally {
+      setDeletingConversation(null);
+    }
+  };
+
+  const handleDeleteProposal = async (proposalId: number) => {
+    if (!confirm(
+      lang === 'el' 
+        ? 'Είστε σίγουροι ότι θέλετε να διαγράψετε αυτή την πρόταση; Αυτή η ενέργεια θα διαγράψει και τα σχετικά στατιστικά.'
+        : 'Are you sure you want to delete this proposal? This will also delete related statistics.'
+    )) {
+      return;
+    }
+
+    setDeletingProposal(proposalId);
+    try {
+      const response = await fetch('/api/admin/delete-proposal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ proposalId }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete proposal');
+      }
+
+      // Remove from local state
+      setProposals(prev => prev.filter(p => p.id !== proposalId));
+
+      alert(lang === 'el' 
+        ? 'Η πρόταση διαγράφηκε επιτυχώς.'
+        : 'Proposal deleted successfully.'
+      );
+    } catch (error: any) {
+      console.error('Error deleting proposal:', error);
+      alert(lang === 'el' 
+        ? `Σφάλμα: ${error.message}`
+        : `Error: ${error.message}`
+      );
+    } finally {
+      setDeletingProposal(null);
+    }
+  };
+
   const handleMigrateLanguages = async () => {
     if (!confirm(
       lang === "el" 
@@ -2567,12 +2657,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{txt.col_inf}</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{txt.col_bud}</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{txt.col_status}</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{lang === 'el' ? 'Ενέργειες' : 'Actions'}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   {proposals.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-4 py-8 text-center text-slate-500">{txt.no_data}</td>
+                      <td colSpan={5} className="px-4 py-8 text-center text-slate-500">{txt.no_data}</td>
                     </tr>
                   ) : (
                     proposals.map(p => (
@@ -2582,6 +2673,21 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                         <td className="px-4 py-3 font-medium text-green-600">{p.budget}€</td>
                         <td className="px-4 py-3">
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">{p.status}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteProposal(p.id);
+                            }}
+                            disabled={deletingProposal === p.id}
+                            className="px-2 py-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {deletingProposal === p.id 
+                              ? (lang === 'el' ? 'Διαγραφή...' : 'Deleting...')
+                              : (lang === 'el' ? 'Διαγραφή' : 'Delete')
+                            }
+                          </button>
                         </td>
                       </tr>
                     ))
@@ -2876,19 +2982,34 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                   {/* Conversations List */}
                   <div className="w-80 border-r border-slate-200 overflow-y-auto">
                     {conversations.map((conv) => (
-                      <button
+                      <div
                         key={conv.id}
-                        onClick={() => setSelectedConversation(conv)}
-                        className={`w-full text-left p-4 border-b border-slate-200 hover:bg-slate-50 transition-colors ${
+                        className={`relative border-b border-slate-200 hover:bg-slate-50 transition-colors ${
                           selectedConversation?.id === conv.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''
                         }`}
                       >
-                        <div className="font-semibold text-slate-900">{conv.influencer_name}</div>
-                        <div className="text-xs text-slate-500 mt-1">↔ {conv.brand_name || conv.brand_email}</div>
-                        <div className="text-xs text-slate-400 mt-1">
-                          {new Date(conv.last_message_at).toLocaleDateString('el-GR')}
-                        </div>
-                      </button>
+                        <button
+                          onClick={() => setSelectedConversation(conv)}
+                          className="w-full text-left p-4 pr-12"
+                        >
+                          <div className="font-semibold text-slate-900">{conv.influencer_name}</div>
+                          <div className="text-xs text-slate-500 mt-1">↔ {conv.brand_name || conv.brand_email}</div>
+                          <div className="text-xs text-slate-400 mt-1">
+                            {new Date(conv.last_message_at).toLocaleDateString('el-GR')}
+                          </div>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteConversation(conv.id);
+                          }}
+                          disabled={deletingConversation === conv.id}
+                          className="absolute top-2 right-2 px-2 py-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          title={lang === 'el' ? 'Διαγραφή συνομιλίας' : 'Delete conversation'}
+                        >
+                          {deletingConversation === conv.id ? '...' : '✕'}
+                        </button>
+                      </div>
                     ))}
                   </div>
 
