@@ -503,26 +503,31 @@ export default function BrandDashboardContent() {
 
     const updateBrandPresence = async () => {
       try {
-        await supabase
+        const now = new Date().toISOString();
+        const { error } = await supabase
           .from('brand_presence')
           .upsert({
             brand_email: brandData.contact_email.toLowerCase().trim(),
             is_online: true,
-            last_seen: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            last_seen: now,
+            updated_at: now,
           }, {
             onConflict: 'brand_email'
           });
+        
+        if (error) {
+          console.error('[Brand Presence] Error updating presence:', error);
+        }
       } catch (error) {
-        console.error('[Brand Presence] Error updating presence:', error);
+        console.error('[Brand Presence] Exception updating presence:', error);
       }
     };
 
-    // Update immediately when component mounts
+    // Update immediately when component mounts or brandData changes
     updateBrandPresence();
 
-    // Update every 5 seconds to keep brand online (same as Messaging component)
-    const interval = setInterval(updateBrandPresence, 5000);
+    // Update every 3 seconds to keep brand online (more frequent than 5 seconds for reliability)
+    const interval = setInterval(updateBrandPresence, 3000);
 
     // Handle browser close/tab close
     const handleBeforeUnload = async () => {

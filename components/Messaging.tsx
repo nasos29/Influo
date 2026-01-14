@@ -217,8 +217,8 @@ export default function Messaging({
       };
       
       updateBrandStatus();
-      // Update status every 5 seconds (same as polling frequency for consistency)
-      const interval = setInterval(updateBrandStatus, 5000);
+      // Update status every 3 seconds to keep brand online (more frequent for reliability)
+      const interval = setInterval(updateBrandStatus, 3000);
       
       // Handle browser close/tab close
       const handleBeforeUnload = () => {
@@ -1135,24 +1135,26 @@ export default function Messaging({
       }
 
       if (data) {
-        // Very strict: must be online AND last_seen within 1 minute (not 2)
-        // This ensures only actively connected users show as online
+        // Check if brand is online: must be online AND last_seen/updated_at within 10 seconds
+        // More tolerant window to account for network delays and polling intervals
         const lastSeen = new Date(data.last_seen);
         const updatedAt = new Date(data.updated_at || data.last_seen);
         const now = new Date();
         const secondsSinceLastSeen = (now.getTime() - lastSeen.getTime()) / 1000;
         const secondsSinceUpdated = (now.getTime() - updatedAt.getTime()) / 1000;
         
-        // Must be actively online (updated within 1 minute = 60 seconds)
+        // Brand is online if is_online is true AND updated within last 10 seconds
+        // This gives enough time for the 5-second polling interval plus network delays
+        const ONLINE_WINDOW = 10; // 10 seconds window
         const isOnline = data.is_online && 
-                        secondsSinceLastSeen < 60 && 
-                        secondsSinceUpdated < 60;
+                        secondsSinceLastSeen < ONLINE_WINDOW && 
+                        secondsSinceUpdated < ONLINE_WINDOW;
         
         // Update state - this will trigger UI update
         setIsBrandOnline(isOnline);
         
-        // If presence is stale (older than 60 seconds), mark as offline
-        if (data.is_online && (secondsSinceLastSeen >= 60 || secondsSinceUpdated >= 60)) {
+        // If presence is stale (older than window), mark as offline
+        if (data.is_online && (secondsSinceLastSeen >= ONLINE_WINDOW || secondsSinceUpdated >= ONLINE_WINDOW)) {
           setIsBrandOnline(false);
         }
       } else {
