@@ -1122,19 +1122,23 @@ export default function Messaging({
       }
 
       // Brand has account - check presence
+      const emailLower = email.toLowerCase().trim();
+      console.log(`[Brand Status Check] Checking presence for email: ${emailLower}`);
+      
       const { data, error } = await supabase
         .from('brand_presence')
         .select('is_online, last_seen, updated_at')
-        .eq('brand_email', email.toLowerCase().trim())
+        .eq('brand_email', emailLower)
         .maybeSingle();
 
       if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-        console.error('Error checking brand status:', error);
+        console.error('[Brand Status Check] Error checking brand status:', error);
         setIsBrandOnline(false);
         return;
       }
 
       if (data) {
+        console.log(`[Brand Status Check] Found presence data:`, data);
         // Check if brand is online: must be online AND last_seen/updated_at within 10 seconds
         // More tolerant window to account for network delays and polling intervals
         const lastSeen = new Date(data.last_seen);
@@ -1171,38 +1175,48 @@ export default function Messaging({
       ? conversations.find(c => c.id === selectedConversation)?.brand_email
       : brandEmail);
     
-    if (!email) return;
+    if (!email) {
+      console.log('[Brand Presence Update] No email provided');
+      return;
+    }
     
     try {
+      const emailLower = email.toLowerCase().trim();
+      console.log(`[Brand Presence Update] Updating presence for: ${emailLower}`);
+      
       // First check if brand has an account - unregistered brands should not update presence
       const { data: brandData } = await supabase
         .from('brands')
         .select('id')
-        .eq('contact_email', email.toLowerCase().trim())
+        .eq('contact_email', emailLower)
         .maybeSingle();
 
       if (!brandData) {
         // Brand doesn't have account - don't update presence
+        console.log(`[Brand Presence Update] Brand ${emailLower} does not have account - skipping`);
         return;
       }
 
       // Brand has account - update presence
+      const now = new Date().toISOString();
       const result = await supabase
         .from('brand_presence')
         .upsert({
-          brand_email: email.toLowerCase().trim(),
+          brand_email: emailLower,
           is_online: true,
-          last_seen: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          last_seen: now,
+          updated_at: now,
         }, {
           onConflict: 'brand_email'
         });
       
       if (result.error) {
-        console.error('Error updating brand online status:', result.error);
+        console.error('[Brand Presence Update] Error updating brand online status:', result.error);
+      } else {
+        console.log(`[Brand Presence Update] Successfully updated presence for ${emailLower} at ${now}`);
       }
     } catch (error) {
-      console.error('Error updating brand online status:', error);
+      console.error('[Brand Presence Update] Exception updating brand online status:', error);
     }
   };
 

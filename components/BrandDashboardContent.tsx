@@ -519,7 +519,7 @@ export default function BrandDashboardContent() {
         if (error) {
           console.error('[Brand Presence] Error updating presence:', error);
         } else {
-          console.log(`[Brand Presence] Updated presence for ${email} at ${now}`);
+          console.log(`[Brand Presence] Successfully updated presence for ${email} at ${now} - is_online: true`);
         }
       } catch (error) {
         console.error('[Brand Presence] Exception updating presence:', error);
