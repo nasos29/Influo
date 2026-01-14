@@ -1150,10 +1150,13 @@ export default function Messaging({
                         secondsSinceLastSeen < ONLINE_WINDOW && 
                         secondsSinceUpdated < ONLINE_WINDOW;
         
+        console.log(`[Brand Status Check] Email: ${email}, is_online: ${data.is_online}, last_seen: ${secondsSinceLastSeen.toFixed(1)}s ago, updated_at: ${secondsSinceUpdated.toFixed(1)}s ago, result: ${isOnline ? 'ONLINE' : 'OFFLINE'}`);
+        
         // Update state - this will trigger UI update
         setIsBrandOnline(isOnline);
       } else {
         // No presence data - brand is offline
+        console.log(`[Brand Status Check] Email: ${email}, No presence data - OFFLINE`);
         setIsBrandOnline(false);
       }
     } catch (error) {
