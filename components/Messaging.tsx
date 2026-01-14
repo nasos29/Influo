@@ -623,9 +623,20 @@ export default function Messaging({
         // Will create conversation when first message is sent
       } else if (data && data.length > 0 && !selectedConversation) {
         setSelectedConversation(data[0].id);
-        // Check brand status immediately when first conversation is auto-selected
+        // Check brand status immediately when first conversation is auto-selected (for influencer mode)
         if (mode === 'influencer' && data[0]?.brand_email) {
-          setTimeout(() => checkBrandStatus(data[0].brand_email), 100);
+          // Use setTimeout to ensure conversations state is updated first
+          setTimeout(() => {
+            checkBrandStatus(data[0].brand_email);
+          }, 200);
+        }
+      } else if (mode === 'influencer' && data && data.length > 0 && selectedConversation) {
+        // If conversation is already selected, check brand status for that conversation
+        const currentConv = data.find(c => c.id === selectedConversation);
+        if (currentConv?.brand_email) {
+          setTimeout(() => {
+            checkBrandStatus(currentConv.brand_email);
+          }, 200);
         }
       }
     } catch (error) {
