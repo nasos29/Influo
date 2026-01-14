@@ -79,6 +79,17 @@ const t = {
     createSuccess: "✅ Το ticket δημιουργήθηκε! Email στάλθηκε στον χρήστη.",
     placeholderSubject: "Π.χ. Ενημέρωση για τον λογαριασμό σας",
     placeholderMessage: "Γράψτε το μήνυμα που θέλετε να στείλετε...",
+    customEmail: "Custom Email",
+    sendCustomEmail: "Αποστολή Custom Email",
+    customEmailTo: "Προς (Email)",
+    customEmailSubject: "Θέμα",
+    customEmailMessage: "Μήνυμα",
+    customEmailPlaceholder: "example@email.com",
+    customEmailSubjectPlaceholder: "Π.χ. Ενημέρωση από Influo",
+    customEmailMessagePlaceholder: "Γράψτε το μήνυμα σας εδώ...",
+    sendingCustomEmail: "Αποστολή...",
+    customEmailSuccess: "✅ Το email στάλθηκε επιτυχώς!",
+    customEmailError: "❌ Σφάλμα:",
   },
   en: {
     title: "Help Desk - Support",
@@ -112,6 +123,17 @@ const t = {
     createSuccess: "✅ Ticket created! Email sent to user.",
     placeholderSubject: "E.g. Update about your account",
     placeholderMessage: "Write the message you want to send...",
+    customEmail: "Custom Email",
+    sendCustomEmail: "Send Custom Email",
+    customEmailTo: "To (Email)",
+    customEmailSubject: "Subject",
+    customEmailMessage: "Message",
+    customEmailPlaceholder: "example@email.com",
+    customEmailSubjectPlaceholder: "E.g. Update from Influo",
+    customEmailMessagePlaceholder: "Write your message here...",
+    sendingCustomEmail: "Sending...",
+    customEmailSuccess: "✅ Email sent successfully!",
+    customEmailError: "❌ Error:",
   }
 };
 
@@ -134,6 +156,11 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
   const [brands, setBrands] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [deletingTicket, setDeletingTicket] = useState<string | null>(null);
+  const [showCustomEmail, setShowCustomEmail] = useState(false);
+  const [customEmailTo, setCustomEmailTo] = useState('');
+  const [customEmailSubject, setCustomEmailSubject] = useState('');
+  const [customEmailMessage, setCustomEmailMessage] = useState('');
+  const [sendingCustomEmail, setSendingCustomEmail] = useState(false);
 
   // Load tickets on mount
   useEffect(() => {
@@ -343,6 +370,79 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
     return colorMap[status] || 'bg-gray-100 text-gray-800';
   };
 
+  const handleSendCustomEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!customEmailTo || !customEmailSubject || !customEmailMessage) {
+      alert('Παρακαλώ συμπληρώστε όλα τα πεδία');
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(customEmailTo)) {
+      alert('Παρακαλώ εισάγετε έγκυρη διεύθυνση email');
+      return;
+    }
+
+    setSendingCustomEmail(true);
+    try {
+      // Convert message to HTML (preserve line breaks)
+      const htmlMessage = customEmailMessage
+        .replace(/\n/g, '<br/>')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/&lt;br\/&gt;/g, '<br/>');
+
+      const html = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 24px; border-radius: 12px 12px 0 0;">
+            <h1 style="color: #ffffff; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">${customEmailSubject}</h1>
+          </div>
+          <div style="background: #ffffff; padding: 24px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
+            <div style="margin: 0 0 20px 0; font-size: 14px; color: #1f2937; white-space: pre-wrap;">
+              ${htmlMessage}
+            </div>
+            <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+              <p style="margin: 0; font-size: 12px; color: #9ca3af;">Η ομάδα του Influo</p>
+              <p style="margin: 4px 0 0 0; font-size: 12px; color: #9ca3af;">support@influo.gr</p>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const response = await fetch('/api/emails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'custom_email',
+          toEmail: customEmailTo,
+          customSubject: customEmailSubject,
+          customHtml: html,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert(t[lang].customEmailSuccess);
+        setCustomEmailTo('');
+        setCustomEmailSubject('');
+        setCustomEmailMessage('');
+        setShowCustomEmail(false);
+      } else {
+        alert(`${t[lang].customEmailError} ${data.error}`);
+      }
+    } catch (error: any) {
+      alert(`${t[lang].customEmailError} ${error.message}`);
+    } finally {
+      setSendingCustomEmail(false);
+    }
+  };
+
   const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -426,13 +526,106 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
               </span>
             )}
           </h2>
-          <button
-            onClick={() => setShowCreateTicket(!showCreateTicket)}
-            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-          >
-            {showCreateTicket ? '✕' : '+ ' + t[lang].createTicket}
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                setShowCustomEmail(!showCustomEmail);
+                setShowCreateTicket(false);
+              }}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              {showCustomEmail ? '✕' : '📧 ' + t[lang].customEmail}
+            </button>
+            <button
+              onClick={() => {
+                setShowCreateTicket(!showCreateTicket);
+                setShowCustomEmail(false);
+              }}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              {showCreateTicket ? '✕' : '+ ' + t[lang].createTicket}
+            </button>
+          </div>
         </div>
+
+        {/* Custom Email Form */}
+        {showCustomEmail && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">{t[lang].sendCustomEmail}</h2>
+            
+            <form onSubmit={handleSendCustomEmail} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-2">
+                  {t[lang].customEmailTo}
+                </label>
+                <input
+                  type="email"
+                  value={customEmailTo}
+                  onChange={(e) => setCustomEmailTo(e.target.value)}
+                  placeholder={t[lang].customEmailPlaceholder}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                  required
+                />
+                <p className="text-xs text-gray-600 mt-1">
+                  Μπορείτε να στείλετε email σε οποιαδήποτε εξωτερική διεύθυνση email
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-2">
+                  {t[lang].customEmailSubject}
+                </label>
+                <input
+                  type="text"
+                  value={customEmailSubject}
+                  onChange={(e) => setCustomEmailSubject(e.target.value)}
+                  placeholder={t[lang].customEmailSubjectPlaceholder}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-2">
+                  {t[lang].customEmailMessage}
+                </label>
+                <textarea
+                  value={customEmailMessage}
+                  onChange={(e) => setCustomEmailMessage(e.target.value)}
+                  placeholder={t[lang].customEmailMessagePlaceholder}
+                  rows={10}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                  required
+                />
+                <p className="text-xs text-gray-600 mt-1">
+                  Το email θα σταλεί από support@influo.gr και θα μπορεί να απαντηθεί
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="submit"
+                  disabled={sendingCustomEmail}
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 px-6 rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  {sendingCustomEmail ? t[lang].sendingCustomEmail : t[lang].sendCustomEmail}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCustomEmail(false);
+                    setCustomEmailTo('');
+                    setCustomEmailSubject('');
+                    setCustomEmailMessage('');
+                  }}
+                  className="px-6 py-3 border border-gray-300 text-gray-900 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Ακύρωση
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
 
         {/* Create Ticket Form */}
         {showCreateTicket && (
