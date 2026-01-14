@@ -160,9 +160,11 @@ export async function POST(req: Request) {
             .maybeSingle();
 
           const now = new Date();
-          const isBrandOnline = brandPresence && brandPresence.is_online && brandPresence.last_seen
-            ? (now.getTime() - new Date(brandPresence.last_seen).getTime()) / 60000 < 5
-            : false;
+          // Very strict: must be online AND last_seen within 60 seconds (1 minute)
+          const secondsSinceLastSeen = brandPresence && brandPresence.last_seen
+            ? (now.getTime() - new Date(brandPresence.last_seen).getTime()) / 1000
+            : Infinity;
+          const isBrandOnline = brandPresence && brandPresence.is_online && secondsSinceLastSeen < 60;
 
           // Only send email if brand is offline
           if (!isBrandOnline) {
@@ -440,9 +442,11 @@ export async function POST(req: Request) {
               .maybeSingle();
 
             const now = new Date();
-            const isInfluencerOnline = influencerPresence && influencerPresence.is_online && influencerPresence.last_seen
-              ? (now.getTime() - new Date(influencerPresence.last_seen).getTime()) / 60000 < 5
-              : false;
+            // Very strict: must be online AND last_seen within 60 seconds (1 minute)
+            const secondsSinceLastSeen = influencerPresence && influencerPresence.last_seen
+              ? (now.getTime() - new Date(influencerPresence.last_seen).getTime()) / 1000
+              : Infinity;
+            const isInfluencerOnline = influencerPresence && influencerPresence.is_online && secondsSinceLastSeen < 60;
 
             // Only send email if influencer is offline
             if (!isInfluencerOnline) {
