@@ -2273,20 +2273,20 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
       <div className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-xl font-semibold text-slate-900">{txt.title}</h1>
-              <p className="text-sm text-slate-500">{txt.sub}</p>
+              <h1 className="text-lg sm:text-xl font-semibold text-slate-900">{txt.title}</h1>
+              <p className="text-xs sm:text-sm text-slate-500">{txt.sub}</p>
             </div>
-            <div className="flex items-center gap-3">
-              <button onClick={handleMigrateLanguages} className="px-3 py-1.5 text-sm text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded-lg transition-colors border border-blue-200">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <button onClick={handleMigrateLanguages} className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded-lg transition-colors border border-blue-200">
                 {txt.migrate_languages}
               </button>
-              <button onClick={handleCleanupTestUsers} className="px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors">
+              <button onClick={handleCleanupTestUsers} className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors">
                 {txt.cleanup_test}
               </button>
-              <a href="/admin/support" className="px-3 py-1.5 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+              <a href="/admin/support" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
                 📧 Help Desk
               </a>
               <button 
@@ -2295,13 +2295,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                   setLang(newLang);
                   setStoredLanguage(newLang);
                 }} 
-                className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
+                className="text-xs font-medium border border-slate-200 px-2 sm:px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
                 aria-label="Toggle language"
               >
                 {lang === "el" ? "EN" : "EL"}
               </button>
-              <a href="/logout" className="px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors">Logout</a>
-              <a href="/" className="px-3 py-1.5 text-sm bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors">{txt.back}</a>
+              <a href="/logout" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors">Logout</a>
+              <a href="/" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors">{txt.back}</a>
             </div>
           </div>
         </div>
@@ -2385,11 +2385,11 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
 
         {/* Tabs */}
         <div className="bg-white rounded-lg border border-slate-200 mb-4">
-          <div className="flex items-center justify-between border-b border-slate-200 px-6">
-            <div className="flex gap-1">
+          <div className="border-b border-slate-200 overflow-x-auto">
+            <div className="flex min-w-max sm:min-w-0 px-4 sm:px-6">
               <button 
                 onClick={() => setActiveTab("influencers")} 
-                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === "influencers" 
                     ? "border-slate-900 text-slate-900" 
                     : "border-transparent text-slate-500 hover:text-slate-700"
@@ -2399,7 +2399,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
               </button>
               <button 
                 onClick={() => setActiveTab("proposals")} 
-                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors relative ${
+                className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors relative whitespace-nowrap ${
                   activeTab === "proposals" 
                     ? "border-slate-900 text-slate-900" 
                     : "border-transparent text-slate-500 hover:text-slate-700"
@@ -2407,7 +2407,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
               >
                 {txt.tab_deals} ({proposals.length})
                 {pendingProposalsCount > 0 && (
-                  <span className="absolute top-1 right-1 md:top-1.5 md:right-1.5 bg-red-500 text-white text-[9px] md:text-[10px] font-bold rounded-full min-w-[14px] md:min-w-[16px] h-[14px] md:h-[16px] flex items-center justify-center px-0.5">
+                  <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 bg-red-500 text-white text-[9px] sm:text-[10px] font-bold rounded-full min-w-[14px] sm:min-w-[16px] h-[14px] sm:h-[16px] flex items-center justify-center px-0.5">
                     {pendingProposalsCount > 99 ? '99+' : pendingProposalsCount > 9 ? '9+' : pendingProposalsCount}
                   </span>
                 )}
@@ -2434,7 +2434,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     }
                   }
                 }}
-                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors relative ${
+                className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors relative whitespace-nowrap ${
                   activeTab === "conversations" 
                     ? "border-slate-900 text-slate-900" 
                     : "border-transparent text-slate-500 hover:text-slate-700"
@@ -2442,14 +2442,14 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
               >
                 💬 Συνομιλίες ({conversations.length})
                 {unreadMessagesCount > 0 && (
-                  <span className="absolute top-1 right-1 md:top-1.5 md:right-1.5 bg-red-500 text-white text-[9px] md:text-[10px] font-bold rounded-full min-w-[14px] md:min-w-[16px] h-[14px] md:h-[16px] flex items-center justify-center px-0.5">
+                  <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 bg-red-500 text-white text-[9px] sm:text-[10px] font-bold rounded-full min-w-[14px] sm:min-w-[16px] h-[14px] sm:h-[16px] flex items-center justify-center px-0.5">
                     {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
                   </span>
                 )}
               </button>
               <button 
                 onClick={() => setActiveTab("brands")} 
-                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === "brands" 
                     ? "border-slate-900 text-slate-900" 
                     : "border-transparent text-slate-500 hover:text-slate-700"
@@ -2459,7 +2459,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
               </button>
               <button 
                 onClick={() => setActiveTab("blog")} 
-                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === "blog" 
                     ? "border-slate-900 text-slate-900" 
                     : "border-transparent text-slate-500 hover:text-slate-700"

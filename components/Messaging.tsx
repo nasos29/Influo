@@ -1510,15 +1510,15 @@ export default function Messaging({
   }, [selectedConversation, conversations, mode, brandEmail]);
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg border border-slate-200 h-[600px] flex flex-col">
+    <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-slate-200 h-[calc(100vh-200px)] sm:h-[600px] min-h-[500px] flex flex-col">
               {/* Header */}
-      <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
-        <h2 className="text-xl font-bold text-slate-900">{txt.messages}</h2>
+      <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-slate-100">
+        <h2 className="text-lg sm:text-xl font-bold text-slate-900">{txt.messages}</h2>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-col sm:flex-row flex-1 overflow-hidden">
         {/* Conversations List */}
-        <div className="w-64 border-r border-slate-200 overflow-y-auto bg-slate-50">
+        <div className="w-full sm:w-64 border-b sm:border-b-0 sm:border-r border-slate-200 overflow-y-auto bg-slate-50 flex-shrink-0 max-h-[200px] sm:max-h-none">
           {loading ? (
             <div className="p-4 text-center text-slate-500">Loading...</div>
           ) : conversations.length === 0 ? (
@@ -1532,7 +1532,7 @@ export default function Messaging({
                   onClick={() => {
                     setSelectedConversation(conv.id);
                   }}
-                  className={`w-full text-left p-4 border-b border-slate-200 hover:bg-white transition-colors ${
+                  className={`w-full text-left p-3 sm:p-4 border-b border-slate-200 hover:bg-white transition-colors ${
                     selectedConversation === conv.id ? 'bg-white border-l-4 border-l-blue-600' : ''
                   } ${isClosed ? 'opacity-60' : ''}`}
                 >
@@ -1562,22 +1562,22 @@ export default function Messaging({
           {selectedConversation ? (
             <>
               {/* Chat Header */}
-              <div className="px-6 py-4 border-b border-slate-200 bg-white">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-slate-900">{otherPartyName}</h3>
-                  <div className="flex items-center gap-3">
+              <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200 bg-gradient-to-r from-white to-slate-50">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+                  <h3 className="text-base sm:text-lg font-semibold text-slate-900">{otherPartyName}</h3>
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                     {mode === 'brand' && (
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${isInfluencerOnline ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                        <span className="text-xs text-slate-500">
+                      <div className="flex items-center gap-1.5 sm:gap-2">
+                        <div className={`w-2 h-2 rounded-full ${isInfluencerOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
+                        <span className="text-xs font-medium text-slate-600">
                           {isInfluencerOnline ? txt.online : txt.offline}
                         </span>
                       </div>
                     )}
                     {mode === 'influencer' && selectedConversation && (currentConversation?.brand_email || brandEmail) && (
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${isBrandOnline ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                        <span className="text-xs text-slate-500">
+                      <div className="flex items-center gap-1.5 sm:gap-2">
+                        <div className={`w-2 h-2 rounded-full ${isBrandOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
+                        <span className="text-xs font-medium text-slate-600">
                           {isBrandOnline ? txt.online : txt.offline}
                         </span>
                       </div>
@@ -1586,18 +1586,18 @@ export default function Messaging({
                     {proposalInfo && needsAgreement && (
                       <button
                         onClick={() => setShowAgreementModal(true)}
-                        className="px-4 py-1.5 text-sm bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all"
+                        className="px-3 sm:px-4 py-1.5 text-xs sm:text-sm bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white rounded-lg font-semibold shadow-md hover:shadow-lg transition-all"
                       >
                         {txt.acceptAgreement}
                       </button>
                     )}
                     {proposalInfo && hasAgreement && !bothAccepted && (
-                      <div className="px-4 py-1.5 text-sm bg-blue-100 text-blue-700 rounded-lg font-medium">
+                      <div className="px-3 sm:px-4 py-1.5 text-xs sm:text-sm bg-blue-100 text-blue-700 rounded-lg font-medium">
                         {txt.agreementPending}
                       </div>
                     )}
                     {proposalInfo && bothAccepted && (
-                      <div className="px-4 py-1.5 text-sm bg-green-100 text-green-700 rounded-lg font-medium">
+                      <div className="px-3 sm:px-4 py-1.5 text-xs sm:text-sm bg-green-100 text-green-700 rounded-lg font-medium">
                         {txt.agreementAccepted}
                       </div>
                     )}
@@ -1605,7 +1605,7 @@ export default function Messaging({
                       <button
                         onClick={() => endConversation(false)}
                         disabled={endingConversation}
-                        className="px-4 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="px-3 sm:px-4 py-1.5 text-xs sm:text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
                       >
                         {endingConversation ? txt.endingConversation : txt.endConversation}
                       </button>
@@ -1660,7 +1660,7 @@ export default function Messaging({
               </div>
 
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 sm:space-y-4 bg-gradient-to-b from-slate-50 to-white">
                 {messages.map((msg) => {
                   const isOwn = (mode === 'influencer' && msg.sender_type === 'influencer') ||
                                (mode === 'brand' && msg.sender_type === 'brand');
@@ -1671,15 +1671,15 @@ export default function Messaging({
                       className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
                     >
                       <div
-                        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
+                        className={`max-w-[85%] sm:max-w-xs lg:max-w-md px-4 py-2.5 sm:py-3 rounded-2xl shadow-sm ${
                           isOwn
-                            ? 'bg-blue-600 text-white'
+                            ? 'bg-gradient-to-br from-blue-600 to-blue-700 text-white'
                             : 'bg-white text-slate-900 border border-slate-200'
                         }`}
                       >
-                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                        <p className="text-sm sm:text-base whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                         <p
-                          className={`text-xs mt-1 ${
+                          className={`text-xs mt-1.5 opacity-75 ${
                             isOwn ? 'text-blue-100' : 'text-slate-500'
                           }`}
                         >
@@ -1700,7 +1700,7 @@ export default function Messaging({
               {/* conversationClosed only affects the message shown, NOT the visibility of the form */}
               <form 
                 onSubmit={sendMessage} 
-                className="px-6 py-4 border-t border-slate-200 bg-white"
+                className="px-4 sm:px-6 py-3 sm:py-4 border-t border-slate-200 bg-white shadow-lg"
                 style={{ 
                   display: 'block', 
                   visibility: 'visible',
@@ -1709,15 +1709,15 @@ export default function Messaging({
                 } as React.CSSProperties}
               >
                 {conversationClosed && (
-                  <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-xs text-blue-700">
+                  <div className="mb-2 sm:mb-3 p-2 sm:p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-xs sm:text-sm text-blue-700">
                       {lang === 'el' 
                         ? '💬 Η συνομιλία είναι κλειστή. Στείλε μήνυμα για να την ανοίξεις ξανά.'
                         : '💬 Conversation is closed. Send a message to reopen it.'}
                     </p>
                   </div>
                 )}
-                <div className="flex gap-3">
+                <div className="flex gap-2 sm:gap-3">
                   <textarea
                     value={newMessage}
                     onChange={(e) => {
@@ -1729,7 +1729,7 @@ export default function Messaging({
                     placeholder={conversationClosed 
                       ? (lang === 'el' ? 'Γράψε μήνυμα για να ανοίξεις την συνομιλία...' : 'Type a message to reopen the conversation...')
                       : txt.placeholder}
-                    className="flex-1 px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900 bg-white"
+                    className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900 bg-white text-sm sm:text-base"
                     rows={2}
                     disabled={false} // Always enabled, even for closed conversations
                     style={{ 
@@ -1742,7 +1742,7 @@ export default function Messaging({
                   <button
                     type="submit"
                     disabled={sending || !newMessage.trim()}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                    className="px-4 sm:px-6 py-2 sm:py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-md hover:shadow-lg transition-all text-sm sm:text-base"
                   >
                     {sending ? txt.sending : txt.send}
                   </button>
@@ -1757,26 +1757,26 @@ export default function Messaging({
               
               {/* Show message input even without selected conversation if we have influencerId and brandEmail */}
               {influencerId && brandEmail && (
-                <form onSubmit={sendMessage} className="px-6 py-4 border-t border-slate-200 bg-white">
-                  <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-xs text-blue-700">
+                <form onSubmit={sendMessage} className="px-4 sm:px-6 py-3 sm:py-4 border-t border-slate-200 bg-white shadow-lg">
+                  <div className="mb-2 sm:mb-3 p-2 sm:p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-xs sm:text-sm text-blue-700">
                       {lang === 'el' 
                         ? '💬 Ξεκίνα νέα συνομιλία ή στείλε μήνυμα σε υπάρχουσα κλειστή συνομιλία.'
                         : '💬 Start a new conversation or send a message to an existing closed conversation.'}
                     </p>
                   </div>
-                  <div className="flex gap-3">
+                  <div className="flex gap-2 sm:gap-3">
                     <textarea
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
                       placeholder={txt.placeholder}
-                      className="flex-1 px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900"
+                      className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900 text-sm sm:text-base"
                       rows={2}
                     />
                     <button
                       type="submit"
                       disabled={sending || !newMessage.trim()}
-                      className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                      className="px-4 sm:px-6 py-2 sm:py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-md hover:shadow-lg transition-all text-sm sm:text-base"
                     >
                       {sending ? txt.sending : txt.send}
                     </button>

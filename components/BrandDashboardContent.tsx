@@ -1195,60 +1195,62 @@ export default function BrandDashboardContent() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-6">
-            <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-              <Image 
-                src="/logo.svg" 
-                alt="Influo.gr Logo" 
-                width={120} 
-                height={48} 
-                className="h-8 w-auto"
-              />
-            </Link>
-            <h1 className="text-2xl font-bold text-slate-900">{txt.title}</h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link
-              href="/help-desk"
-              className="text-sm font-medium text-purple-600 hover:text-purple-700 px-4 py-2 rounded-lg hover:bg-purple-50 transition-colors border border-purple-200"
-            >
-              📧 Help Desk
-            </Link>
-            <button
-              onClick={() => setShowEditModal(true)}
-              className="text-sm font-medium text-blue-600 hover:text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-50 transition-colors border border-blue-200"
-            >
-              {txt.edit_profile}
-            </button>
-            <button
-              onClick={() => {
-                const newLang = lang === 'el' ? 'en' : 'el';
-                setLang(newLang);
-                setStoredLanguage(newLang);
-              }}
-              className="text-sm font-medium text-blue-600 hover:text-blue-700 px-3 py-1 rounded-lg hover:bg-blue-50 transition-colors"
-            >
-              {lang === 'el' ? 'EN' : 'ΕΛ'}
-            </button>
-            <button
-              onClick={handleLogout}
-              className="text-sm font-medium text-slate-600 hover:text-slate-900 px-4 py-2 rounded-lg hover:bg-slate-100 transition-colors"
-            >
-              {txt.logout}
-            </button>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+            <div className="flex items-center gap-4 sm:gap-6">
+              <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                <Image 
+                  src="/logo.svg" 
+                  alt="Influo.gr Logo" 
+                  width={120} 
+                  height={48} 
+                  className="h-6 sm:h-8 w-auto"
+                />
+              </Link>
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900">{txt.title}</h1>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+              <Link
+                href="/help-desk"
+                className="text-xs sm:text-sm font-medium text-purple-600 hover:text-purple-700 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-purple-50 transition-colors border border-purple-200"
+              >
+                📧 Help Desk
+              </Link>
+              <button
+                onClick={() => setShowEditModal(true)}
+                className="text-xs sm:text-sm font-medium text-blue-600 hover:text-blue-700 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-blue-50 transition-colors border border-blue-200"
+              >
+                {txt.edit_profile}
+              </button>
+              <button
+                onClick={() => {
+                  const newLang = lang === 'el' ? 'en' : 'el';
+                  setLang(newLang);
+                  setStoredLanguage(newLang);
+                }}
+                className="text-xs sm:text-sm font-medium text-blue-600 hover:text-blue-700 px-2 sm:px-3 py-1 rounded-lg hover:bg-blue-50 transition-colors"
+              >
+                {lang === 'el' ? 'EN' : 'ΕΛ'}
+              </button>
+              <button
+                onClick={handleLogout}
+                className="text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-900 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                {txt.logout}
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
         {/* Tabs */}
         <div className="bg-white rounded-xl border border-slate-200 mb-6 overflow-hidden">
-          <div className="border-b border-slate-200">
-            <div className="flex">
+          <div className="border-b border-slate-200 overflow-x-auto">
+            <div className="flex min-w-max sm:min-w-0">
               <button
                 onClick={() => setActiveTab('recommendations')}
-                className={`px-6 py-4 font-medium border-b-2 transition-colors ${
+                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === 'recommendations'
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -1258,7 +1260,7 @@ export default function BrandDashboardContent() {
               </button>
               <button
                 onClick={() => setActiveTab('proposals')}
-                className={`px-6 py-4 font-medium border-b-2 transition-colors ${
+                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors whitespace-nowrap relative ${
                   activeTab === 'proposals'
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -1266,7 +1268,7 @@ export default function BrandDashboardContent() {
               >
                 {lang === 'el' ? '📋 Προσφορές' : '📋 Proposals'}
                 {(pendingAgreements.length > 0 || pendingCounterProposals.length > 0) && (
-                  <span className="ml-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                  <span className="ml-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[16px] sm:min-w-[18px] h-[16px] sm:h-[18px] flex items-center justify-center px-1">
                     {pendingAgreements.length + pendingCounterProposals.length > 99 ? '99+' : pendingAgreements.length + pendingCounterProposals.length}
                   </span>
                 )}
@@ -1300,7 +1302,7 @@ export default function BrandDashboardContent() {
                     }
                   }
                 }}
-                className={`px-6 py-4 font-medium border-b-2 transition-colors relative ${
+                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors relative whitespace-nowrap ${
                   activeTab === 'messages'
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -1308,7 +1310,7 @@ export default function BrandDashboardContent() {
               >
                 {lang === 'el' ? '💬 Μηνύματα' : '💬 Messages'}
                 {unreadMessageCount > 0 && (
-                  <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                  <span className="absolute top-1.5 sm:top-2 right-1 sm:right-2 bg-red-500 text-white text-[10px] sm:text-xs font-bold rounded-full min-w-[16px] sm:min-w-[18px] h-[16px] sm:h-[18px] flex items-center justify-center px-1">
                     {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
                   </span>
                 )}

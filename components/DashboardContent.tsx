@@ -1024,11 +1024,11 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                 
                 <div className="bg-white rounded-lg border border-slate-200">
                     {/* Tabs */}
-                    <div className="border-b border-slate-200">
-                        <div className="flex">
+                    <div className="border-b border-slate-200 overflow-x-auto">
+                        <div className="flex min-w-max sm:min-w-0">
                             <button
                                 onClick={() => setActiveTab('profile')}
-                                className={`px-6 py-4 font-medium border-b-2 transition-colors ${
+                                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors whitespace-nowrap ${
                                     activeTab === 'profile'
                                         ? 'border-slate-900 text-slate-900'
                                         : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -1038,7 +1038,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                             </button>
                             <button
                                 onClick={() => setActiveTab('proposals')}
-                                className={`px-4 md:px-6 py-4 font-medium border-b-2 transition-colors relative ${
+                                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors relative whitespace-nowrap ${
                                     activeTab === 'proposals'
                                         ? 'border-slate-900 text-slate-900'
                                         : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -1046,7 +1046,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                             >
                                 <span className="hidden md:inline">📋 </span>Προσφορές
                                 {pendingProposalsCount > 0 && (
-                                    <span className="absolute top-1 right-1 md:top-1.5 md:right-1.5 bg-red-500 text-white text-[9px] md:text-[10px] font-bold rounded-full min-w-[14px] md:min-w-[16px] h-[14px] md:h-[16px] flex items-center justify-center px-0.5">
+                                    <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 bg-red-500 text-white text-[9px] sm:text-[10px] font-bold rounded-full min-w-[14px] sm:min-w-[16px] h-[14px] sm:h-[16px] flex items-center justify-center px-0.5">
                                         {pendingProposalsCount > 99 ? '99+' : pendingProposalsCount > 9 ? '9+' : pendingProposalsCount}
                                     </span>
                                 )}
@@ -1089,7 +1089,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                         }
                                     }
                                 }}
-                                className={`px-4 md:px-6 py-4 font-medium border-b-2 transition-colors relative ${
+                                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors relative whitespace-nowrap ${
                                     activeTab === 'messages'
                                         ? 'border-slate-900 text-slate-900'
                                         : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -1097,14 +1097,14 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                             >
                                 <span className="hidden md:inline">💬 </span>Μηνύματα
                                 {unreadMessagesCount > 0 && (
-                                    <span className="absolute top-1 right-1 md:top-1.5 md:right-1.5 bg-red-500 text-white text-[9px] md:text-[10px] font-bold rounded-full min-w-[14px] md:min-w-[16px] h-[14px] md:h-[16px] flex items-center justify-center px-0.5">
+                                    <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 bg-red-500 text-white text-[9px] sm:text-[10px] font-bold rounded-full min-w-[14px] sm:min-w-[16px] h-[14px] sm:h-[16px] flex items-center justify-center px-0.5">
                                         {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
                                     </span>
                                 )}
                             </button>
                             <button
                                 onClick={() => setActiveTab('analytics')}
-                                className={`px-4 md:px-6 py-4 font-medium border-b-2 transition-colors ${
+                                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors whitespace-nowrap ${
                                     activeTab === 'analytics'
                                         ? 'border-slate-900 text-slate-900'
                                         : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -1114,7 +1114,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                             </button>
                             <Link
                                 href="/help-desk"
-                                className={`px-4 md:px-6 py-4 font-medium border-b-2 transition-colors ${
+                                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors whitespace-nowrap ${
                                     'border-transparent text-slate-500 hover:text-slate-700'
                                 }`}
                             >
