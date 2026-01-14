@@ -1427,7 +1427,7 @@ export default function Messaging({
               console.log('[Brand Presence] Subscription status:', status);
             });
           
-          // Poll every 5 seconds to check brand online status (more frequent for better responsiveness)
+          // Poll every 3 seconds to check brand online status (more frequent for better responsiveness)
           const interval = setInterval(() => {
             // Re-read conversations in case it changed
             setConversations((currentConvs) => {
@@ -1440,7 +1440,7 @@ export default function Messaging({
               }
               return currentConvs; // Return unchanged
             });
-          }, 5000); // Check every 5 seconds instead of 10 for better responsiveness
+          }, 3000); // Check every 3 seconds to match update frequency
           
           return () => {
             clearInterval(interval);
@@ -1470,10 +1470,10 @@ export default function Messaging({
             console.log('[Brand Presence] Subscription status:', status);
           });
         
-        // Poll every 5 seconds to check brand online status
+        // Poll every 3 seconds to check brand online status
         const interval = setInterval(() => {
           checkBrandStatus(brandEmail);
-        }, 5000); // Check every 5 seconds for better responsiveness
+        }, 3000); // Check every 3 seconds to match update frequency
         
         return () => {
           clearInterval(interval);
