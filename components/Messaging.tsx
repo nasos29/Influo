@@ -1112,8 +1112,29 @@ export default function Messaging({
     console.log(`[Brand Status Check] Starting check for email: ${emailLower}`);
     
     try {
-      // First check if brand has an account - unregistered brands should never appear as online
-      console.log(`[Brand Status Check] Checking if brand has account for email: ${emailLower}`);
+      // Check presence first - if presence exists, we can check status immediately
+      console.log(`[Brand Status Check] Checking presence for email: ${emailLower}`);
+      const { data: presenceData, error: presenceError } = await supabase
+        .from('brand_presence')
+        .select('is_online, last_seen, updated_at, brand_email')
+        .eq('brand_email', emailLower)
+        .maybeSingle();
+
+      if (presenceError && presenceError.code !== 'PGRST116') {
+        console.error(`[Brand Status Check] Error checking presence:`, presenceError);
+        setIsBrandOnline(false);
+        return;
+      }
+
+      // If no presence data, brand is offline
+      if (!presenceData) {
+        console.log(`[Brand Status Check] No presence data for ${emailLower} - OFFLINE`);
+        setIsBrandOnline(false);
+        return;
+      }
+
+      // Presence data exists - verify brand has account (unregistered brands shouldn't show as online)
+      console.log(`[Brand Status Check] Found presence data, verifying brand has account...`);
       const { data: brandData, error: brandError } = await supabase
         .from('brands')
         .select('id, contact_email')
@@ -1127,35 +1148,16 @@ export default function Messaging({
       }
 
       if (!brandData) {
-        // Brand doesn't have account - always show as offline
-        // But let's check if maybe the email is stored differently (case sensitivity, spaces, etc.)
-        console.log(`[Brand Status Check] Brand ${emailLower} does not have account - OFFLINE`);
-        console.log(`[Brand Status Check] Attempting to find brand with different email variations...`);
-        
-        // Try to find brand with case-insensitive search or partial match
-        const { data: allBrands } = await supabase
-          .from('brands')
-          .select('id, contact_email')
-          .ilike('contact_email', `%${emailLower.split('@')[0]}%`);
-        
-        if (allBrands && allBrands.length > 0) {
-          console.log(`[Brand Status Check] Found ${allBrands.length} potential matches:`, allBrands);
-        }
-        
+        // Brand doesn't have account - show as offline even if presence says online
+        console.log(`[Brand Status Check] Brand ${emailLower} has presence but no account - OFFLINE`);
         setIsBrandOnline(false);
         return;
       }
 
       console.log(`[Brand Status Check] Brand has account! ID: ${brandData.id}, Email: ${brandData.contact_email}`);
-
-      console.log(`[Brand Status Check] Brand has account, checking presence for email: ${emailLower}`);
       
-      // Brand has account - check presence
-      const { data, error } = await supabase
-        .from('brand_presence')
-        .select('is_online, last_seen, updated_at')
-        .eq('brand_email', emailLower)
-        .maybeSingle();
+      // Brand has account and presence exists - check status
+      const data = presenceData;
 
       if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
         console.error('[Brand Status Check] Error checking brand status:', error);
