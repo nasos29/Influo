@@ -538,12 +538,63 @@ export default function BrandDashboardContent() {
     }
   }, [recommendationStats]);
   const [activeTab, setActiveTab] = useState<'recommendations' | 'proposals' | 'messages'>('recommendations');
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const router = useRouter();
   const txt = t[lang];
 
   useEffect(() => {
     loadData();
+    loadUnreadMessageCount();
+    // Poll for unread messages every 10 seconds
+    const interval = setInterval(loadUnreadMessageCount, 10000);
+    return () => clearInterval(interval);
   }, []);
+
+  const loadUnreadMessageCount = async () => {
+    if (!brandData?.contact_email) {
+      setUnreadMessageCount(0);
+      return;
+    }
+    
+    try {
+      // Get all conversations for this brand
+      const { data: conversations, error: convError } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('brand_email', brandData.contact_email.toLowerCase().trim());
+
+      if (convError) {
+        console.error('Error loading conversations:', convError);
+        setUnreadMessageCount(0);
+        return;
+      }
+
+      if (!conversations || conversations.length === 0) {
+        setUnreadMessageCount(0);
+        return;
+      }
+
+      // Count unread messages (messages from influencer that are not read)
+      const conversationIds = conversations.map(c => c.id);
+      const { data: unreadMessages, error } = await supabase
+        .from('messages')
+        .select('id')
+        .in('conversation_id', conversationIds)
+        .eq('sender_type', 'influencer')
+        .eq('read', false);
+
+      if (error) {
+        console.error('Error loading unread messages:', error);
+        setUnreadMessageCount(0);
+        return;
+      }
+
+      setUnreadMessageCount(unreadMessages?.length || 0);
+    } catch (error) {
+      console.error('Error loading unread message count:', error);
+      setUnreadMessageCount(0);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -1104,13 +1155,18 @@ export default function BrandDashboardContent() {
               </button>
               <button
                 onClick={() => setActiveTab('messages')}
-                className={`px-6 py-4 font-medium border-b-2 transition-colors ${
+                className={`px-6 py-4 font-medium border-b-2 transition-colors relative ${
                   activeTab === 'messages'
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-slate-500 hover:text-slate-700'
                 }`}
               >
                 {lang === 'el' ? '💬 Μηνύματα' : '💬 Messages'}
+                {unreadMessageCount > 0 && (
+                  <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                    {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
+                  </span>
+                )}
               </button>
             </div>
           </div>
@@ -1471,6 +1527,7 @@ export default function BrandDashboardContent() {
               proposalId={undefined}
               mode="brand"
               lang={lang}
+              onUnreadCountChange={setUnreadMessageCount}
             />
           </div>
         )}

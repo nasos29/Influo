@@ -48,6 +48,7 @@ interface MessagingProps {
   proposalId?: number;
   mode: 'influencer' | 'brand';
   lang?: 'el' | 'en';
+  onUnreadCountChange?: (count: number) => void;
 }
 
 const t = {
@@ -109,7 +110,8 @@ export default function Messaging({
   brandName,
   proposalId,
   mode,
-  lang = 'el'
+  lang = 'el',
+  onUnreadCountChange
 }: MessagingProps) {
   const txt = t[lang];
   
@@ -396,6 +398,25 @@ export default function Messaging({
           
           setMessages((prev) => [...prev, newMsg]);
           scrollToBottom();
+          
+          // Update unread count if this is a new message from the other party
+          if (mode === 'brand' && newMsg.sender_type === 'influencer' && onUnreadCountChange) {
+            (async () => {
+              try {
+                // Recalculate unread count
+                const conversationIds = conversations.map(c => c.id);
+                const { data: unreadMessages } = await supabase
+                  .from('messages')
+                  .select('id')
+                  .in('conversation_id', conversationIds)
+                  .eq('sender_type', 'influencer')
+                  .eq('read', false);
+                onUnreadCountChange(unreadMessages?.length || 0);
+              } catch (error) {
+                // Ignore errors
+              }
+            })();
+          }
         })
         .subscribe();
 
@@ -569,6 +590,26 @@ export default function Messaging({
       }
       
       setConversations(data || []);
+
+      // Calculate unread message count for brand mode
+      if (mode === 'brand' && brandEmail && data && data.length > 0 && onUnreadCountChange) {
+        (async () => {
+          try {
+            const conversationIds = data.map(c => c.id);
+            const { data: unreadMessages } = await supabase
+              .from('messages')
+              .select('id')
+              .in('conversation_id', conversationIds)
+              .eq('sender_type', 'influencer')
+              .eq('read', false);
+            onUnreadCountChange(unreadMessages?.length || 0);
+          } catch (error) {
+            // Ignore errors
+          }
+        })();
+      } else if (onUnreadCountChange) {
+        onUnreadCountChange(0);
+      }
 
       // Auto-select first conversation or create new if brandEmail provided
       if (mode === 'brand' && brandEmail && data && data.length === 0 && influencerId) {
@@ -941,22 +982,23 @@ export default function Messaging({
       }
 
       if (data) {
-        // More strict: must be online AND last_seen within 2 minutes (not 5)
+        // Very strict: must be online AND last_seen within 1 minute (not 2)
+        // This ensures only actively connected users show as online
         const lastSeen = new Date(data.last_seen);
         const updatedAt = new Date(data.updated_at || data.last_seen);
         const now = new Date();
-        const minutesSinceLastSeen = (now.getTime() - lastSeen.getTime()) / 60000;
-        const minutesSinceUpdated = (now.getTime() - updatedAt.getTime()) / 60000;
+        const secondsSinceLastSeen = (now.getTime() - lastSeen.getTime()) / 1000;
+        const secondsSinceUpdated = (now.getTime() - updatedAt.getTime()) / 1000;
         
-        // Must be actively online (updated within 2 minutes)
+        // Must be actively online (updated within 1 minute = 60 seconds)
         const isOnline = data.is_online && 
-                        minutesSinceLastSeen < 2 && 
-                        minutesSinceUpdated < 2;
+                        secondsSinceLastSeen < 60 && 
+                        secondsSinceUpdated < 60;
         
         setIsInfluencerOnline(isOnline);
         
         // If presence is stale, mark as offline
-        if (data.is_online && (minutesSinceLastSeen >= 2 || minutesSinceUpdated >= 2)) {
+        if (data.is_online && (secondsSinceLastSeen >= 60 || secondsSinceUpdated >= 60)) {
           setIsInfluencerOnline(false);
         }
       } else {
@@ -1054,22 +1096,23 @@ export default function Messaging({
       }
 
       if (data) {
-        // More strict: must be online AND last_seen within 2 minutes (not 5)
+        // Very strict: must be online AND last_seen within 1 minute (not 2)
+        // This ensures only actively connected users show as online
         const lastSeen = new Date(data.last_seen);
         const updatedAt = new Date(data.updated_at || data.last_seen);
         const now = new Date();
-        const minutesSinceLastSeen = (now.getTime() - lastSeen.getTime()) / 60000;
-        const minutesSinceUpdated = (now.getTime() - updatedAt.getTime()) / 60000;
+        const secondsSinceLastSeen = (now.getTime() - lastSeen.getTime()) / 1000;
+        const secondsSinceUpdated = (now.getTime() - updatedAt.getTime()) / 1000;
         
-        // Must be actively online (updated within 2 minutes)
+        // Must be actively online (updated within 1 minute = 60 seconds)
         const isOnline = data.is_online && 
-                        minutesSinceLastSeen < 2 && 
-                        minutesSinceUpdated < 2;
+                        secondsSinceLastSeen < 60 && 
+                        secondsSinceUpdated < 60;
         
         setIsBrandOnline(isOnline);
         
         // If presence is stale, mark as offline
-        if (data.is_online && (minutesSinceLastSeen >= 2 || minutesSinceUpdated >= 2)) {
+        if (data.is_online && (secondsSinceLastSeen >= 60 || secondsSinceUpdated >= 60)) {
           setIsBrandOnline(false);
         }
       } else {

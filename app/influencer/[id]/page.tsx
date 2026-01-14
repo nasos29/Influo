@@ -316,16 +316,18 @@ export default function InfluencerProfile(props: { params: Params }) {
           const minutesSinceLastSeen = (now.getTime() - lastSeen.getTime()) / 60000;
           const minutesSinceUpdated = (now.getTime() - updatedAt.getTime()) / 60000;
           
-          // More strict: must be online AND last_seen within 2 minutes (not 5)
-          // AND updated_at must be recent (within 2 minutes) to ensure it's actively being updated
+          // Very strict: must be online AND last_seen within 1 minute (not 2)
+          // AND updated_at must be recent (within 1 minute) to ensure it's actively being updated
+          const secondsSinceLastSeen = (now.getTime() - lastSeen.getTime()) / 1000;
+          const secondsSinceUpdated = (now.getTime() - updatedAt.getTime()) / 1000;
           const isOnline = data.is_online && 
-                          minutesSinceLastSeen < 2 && 
-                          minutesSinceUpdated < 2;
+                          secondsSinceLastSeen < 60 && 
+                          secondsSinceUpdated < 60;
           
           setIsOnline(isOnline);
           
-          // If presence is stale (more than 2 minutes), mark as offline in database
-          if (data.is_online && (minutesSinceLastSeen >= 2 || minutesSinceUpdated >= 2)) {
+          // If presence is stale (more than 1 minute), mark as offline in database
+          if (data.is_online && (secondsSinceLastSeen >= 60 || secondsSinceUpdated >= 60)) {
             // Silently update - don't wait for response
             (async () => {
               try {
