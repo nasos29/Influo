@@ -504,10 +504,11 @@ export default function BrandDashboardContent() {
     const updateBrandPresence = async () => {
       try {
         const now = new Date().toISOString();
+        const email = brandData.contact_email.toLowerCase().trim();
         const { error } = await supabase
           .from('brand_presence')
           .upsert({
-            brand_email: brandData.contact_email.toLowerCase().trim(),
+            brand_email: email,
             is_online: true,
             last_seen: now,
             updated_at: now,
@@ -517,6 +518,8 @@ export default function BrandDashboardContent() {
         
         if (error) {
           console.error('[Brand Presence] Error updating presence:', error);
+        } else {
+          console.log(`[Brand Presence] Updated presence for ${email} at ${now}`);
         }
       } catch (error) {
         console.error('[Brand Presence] Exception updating presence:', error);

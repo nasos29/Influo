@@ -1144,19 +1144,14 @@ export default function Messaging({
         const secondsSinceUpdated = (now.getTime() - updatedAt.getTime()) / 1000;
         
         // Brand is online if is_online is true AND updated within last 10 seconds
-        // This gives enough time for the 5-second polling interval plus network delays
-        const ONLINE_WINDOW = 10; // 10 seconds window
+        // This gives enough time for the 3-second update interval plus network delays
+        const ONLINE_WINDOW = 10; // 10 seconds window (allows for 3s updates + network delay)
         const isOnline = data.is_online && 
                         secondsSinceLastSeen < ONLINE_WINDOW && 
                         secondsSinceUpdated < ONLINE_WINDOW;
         
         // Update state - this will trigger UI update
         setIsBrandOnline(isOnline);
-        
-        // If presence is stale (older than window), mark as offline
-        if (data.is_online && (secondsSinceLastSeen >= ONLINE_WINDOW || secondsSinceUpdated >= ONLINE_WINDOW)) {
-          setIsBrandOnline(false);
-        }
       } else {
         // No presence data - brand is offline
         setIsBrandOnline(false);
@@ -1420,11 +1415,14 @@ export default function Messaging({
               schema: 'public',
               table: 'brand_presence',
               filter: `brand_email=eq.${emailToCheck.toLowerCase().trim()}`
-            }, () => {
+            }, (payload) => {
               // When presence changes, check status immediately
+              console.log('[Brand Presence] Real-time update received:', payload);
               checkBrandStatus(emailToCheck);
             })
-            .subscribe();
+            .subscribe((status) => {
+              console.log('[Brand Presence] Subscription status:', status);
+            });
           
           // Poll every 5 seconds to check brand online status (more frequent for better responsiveness)
           const interval = setInterval(() => {
@@ -1460,11 +1458,14 @@ export default function Messaging({
             schema: 'public',
             table: 'brand_presence',
             filter: `brand_email=eq.${brandEmail.toLowerCase().trim()}`
-          }, () => {
+          }, (payload) => {
             // When presence changes, check status immediately
+            console.log('[Brand Presence] Real-time update received:', payload);
             checkBrandStatus(brandEmail);
           })
-          .subscribe();
+          .subscribe((status) => {
+            console.log('[Brand Presence] Subscription status:', status);
+          });
         
         // Poll every 5 seconds to check brand online status
         const interval = setInterval(() => {
