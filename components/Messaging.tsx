@@ -161,45 +161,94 @@ export default function Messaging({
     }
   }, [proposalId, brandEmail, conversations]);
 
-  // Track online status for influencer mode
+  // Track online status for influencer mode - update presence
   useEffect(() => {
     if (mode === 'influencer' && influencerId) {
       // Update immediately when component mounts
       updateOnlineStatus();
-      // Update status every 15 seconds (more frequent for better accuracy)
-      const interval = setInterval(updateOnlineStatus, 15000);
+      // Update status every 10 seconds (more frequent for better accuracy)
+      const interval = setInterval(updateOnlineStatus, 10000);
+      
+      // Handle browser close/tab close
+      const handleBeforeUnload = () => {
+        markOffline();
+      };
+      
+      const handleVisibilityChange = () => {
+        if (document.hidden) {
+          // Tab is hidden - mark as offline after a delay
+          setTimeout(() => {
+            if (document.hidden) {
+              markOffline();
+            }
+          }, 60000); // 1 minute after tab becomes hidden
+        } else {
+          // Tab is visible again - mark as online
+          updateOnlineStatus();
+        }
+      };
+      
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      document.addEventListener('visibilitychange', handleVisibilityChange);
       
       // Mark as offline when component unmounts
       return () => {
         clearInterval(interval);
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
         markOffline();
       };
-    } else if (mode === 'brand') {
-      // Track brand online status - use brandEmail prop or get from conversations
-      const updateBrandStatus = () => {
-        const emailToUpdate = brandEmail || (selectedConversation
-          ? conversations.find(c => c.id === selectedConversation)?.brand_email
-          : null);
-        if (emailToUpdate) {
-          updateBrandOnlineStatus(emailToUpdate);
+    } else if (mode === 'brand' && brandEmail) {
+      // Track brand online status - only if brand has account
+      const updateBrandStatus = async () => {
+        // Check if brand has account first
+        const { data: brandData } = await supabase
+          .from('brands')
+          .select('id')
+          .eq('contact_email', brandEmail.toLowerCase().trim())
+          .maybeSingle();
+        
+        if (brandData) {
+          // Brand has account - update presence
+          updateBrandOnlineStatus(brandEmail);
         }
       };
       
       updateBrandStatus();
-      // Update status every 15 seconds (more frequent for better accuracy)
-      const interval = setInterval(updateBrandStatus, 15000);
+      // Update status every 10 seconds (more frequent for better accuracy)
+      const interval = setInterval(updateBrandStatus, 10000);
+      
+      // Handle browser close/tab close
+      const handleBeforeUnload = () => {
+        markBrandOffline(brandEmail);
+      };
+      
+      const handleVisibilityChange = () => {
+        if (document.hidden) {
+          // Tab is hidden - mark as offline after a delay
+          setTimeout(() => {
+            if (document.hidden) {
+              markBrandOffline(brandEmail);
+            }
+          }, 60000); // 1 minute after tab becomes hidden
+        } else {
+          // Tab is visible again - mark as online
+          updateBrandStatus();
+        }
+      };
+      
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      
       // Mark as offline when component unmounts
       return () => {
         clearInterval(interval);
-        const emailToMark = brandEmail || (selectedConversation
-          ? conversations.find(c => c.id === selectedConversation)?.brand_email
-          : null);
-        if (emailToMark) {
-          markBrandOffline(emailToMark);
-        }
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        markBrandOffline(brandEmail);
       };
     }
-  }, [mode, influencerId, brandEmail, selectedConversation, conversations]);
+  }, [mode, influencerId, brandEmail]);
 
   // Define checkInactivity BEFORE it's used in useEffect
   // SIMPLIFIED APPROACH: Use last_message_at instead of activity timestamps
@@ -898,10 +947,8 @@ export default function Messaging({
         const minutesSinceLastSeen = (now.getTime() - lastSeen.getTime()) / 60000;
         const isOnline = data.is_online && minutesSinceLastSeen < 5;
         setIsInfluencerOnline(isOnline);
-        console.log('[Influencer Status]', { influencerId: id, isOnline, lastSeen: data.last_seen, minutesSinceLastSeen });
       } else {
         setIsInfluencerOnline(false);
-        console.log('[Influencer Status] No data found for:', id);
       }
     } catch (error) {
       console.error('Error checking influencer status:', error);
@@ -930,8 +977,6 @@ export default function Messaging({
       
       if (result.error) {
         console.error('Error updating influencer online status:', result.error);
-      } else {
-        console.log('[Influencer Status] Updated presence for:', id);
       }
     } catch (error) {
       console.error('Error updating online status:', error);
@@ -952,8 +997,6 @@ export default function Messaging({
       
       if (result.error) {
         console.error('Error marking influencer offline:', result.error);
-      } else {
-        console.log('[Influencer Status] Marked offline:', influencerId);
       }
     } catch (error) {
       console.error('Error marking offline:', error);
@@ -982,7 +1025,6 @@ export default function Messaging({
       if (!brandData) {
         // Brand doesn't have account - always show as offline
         setIsBrandOnline(false);
-        console.log('[Brand Status] Brand does not have account, showing as offline:', email);
         return;
       }
 
@@ -1006,10 +1048,8 @@ export default function Messaging({
         const minutesSinceLastSeen = (now.getTime() - lastSeen.getTime()) / 60000;
         const isOnline = data.is_online && minutesSinceLastSeen < 5;
         setIsBrandOnline(isOnline);
-        console.log('[Brand Status]', { email, isOnline, lastSeen: data.last_seen, minutesSinceLastSeen });
       } else {
         setIsBrandOnline(false);
-        console.log('[Brand Status] No presence data found for:', email);
       }
     } catch (error) {
       console.error('Error checking brand status:', error);
@@ -1026,6 +1066,19 @@ export default function Messaging({
     if (!email) return;
     
     try {
+      // First check if brand has an account - unregistered brands should not update presence
+      const { data: brandData } = await supabase
+        .from('brands')
+        .select('id')
+        .eq('contact_email', email.toLowerCase().trim())
+        .maybeSingle();
+
+      if (!brandData) {
+        // Brand doesn't have account - don't update presence
+        return;
+      }
+
+      // Brand has account - update presence
       const result = await supabase
         .from('brand_presence')
         .upsert({
@@ -1039,8 +1092,6 @@ export default function Messaging({
       
       if (result.error) {
         console.error('Error updating brand online status:', result.error);
-      } else {
-        console.log('[Brand Status] Updated presence for:', email);
       }
     } catch (error) {
       console.error('Error updating brand online status:', error);
@@ -1055,14 +1106,28 @@ export default function Messaging({
     if (!email) return;
     
     try {
-      await supabase
-        .from('brand_presence')
-        .update({
-          is_online: false,
-          last_seen: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('brand_email', email.toLowerCase().trim());
+      // Only mark offline if brand has account
+      const { data: brandData } = await supabase
+        .from('brands')
+        .select('id')
+        .eq('contact_email', email.toLowerCase().trim())
+        .maybeSingle();
+
+      if (brandData) {
+        // Brand has account - mark as offline
+        const result = await supabase
+          .from('brand_presence')
+          .update({
+            is_online: false,
+            last_seen: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('brand_email', email.toLowerCase().trim());
+        
+        if (result.error) {
+          console.error('Error marking brand offline:', result.error);
+        }
+      }
     } catch (error) {
       console.error('Error marking brand offline:', error);
     }
@@ -1192,61 +1257,33 @@ export default function Messaging({
     ? currentConversation?.brand_name || currentConversation?.brand_email
     : currentConversation?.influencer_name;
 
-  // Debug: Log current conversation info
-  useEffect(() => {
-    if (mode === 'influencer' && selectedConversation) {
-      console.log('[Brand Status] Current conversation:', {
-        selectedConversation,
-        currentConversation: currentConversation?.brand_email,
-        brandEmail: brandEmail,
-        isBrandOnline
-      });
-    } else if (mode === 'brand' && selectedConversation) {
-      console.log('[Influencer Status] Current conversation:', {
-        selectedConversation,
-        currentConversation: currentConversation?.influencer_id,
-        influencerId: influencerId,
-        isInfluencerOnline
-      });
-    }
-  }, [selectedConversation, currentConversation?.brand_email, currentConversation?.influencer_id, brandEmail, influencerId, isBrandOnline, isInfluencerOnline, mode]);
 
-  // Check influencer status when conversation changes (for brand mode)
+  // Check influencer status when conversation changes (for brand mode) - only check, don't update
   useEffect(() => {
     if (mode === 'brand') {
       if (selectedConversation) {
         const conv = conversations.find(c => c.id === selectedConversation);
         const idToCheck = conv?.influencer_id || influencerId;
-        console.log('[Influencer Status] useEffect triggered:', {
-          selectedConversation,
-          hasConv: !!conv,
-          influencerId: conv?.influencer_id,
-          propInfluencerId: influencerId,
-          idToCheck
-        });
         if (idToCheck) {
-          console.log('[Influencer Status] Checking status for conversation:', idToCheck);
           checkInfluencerStatus(idToCheck);
-          // Poll every 15 seconds to check influencer online status
+          // Poll every 10 seconds to check influencer online status
           const interval = setInterval(() => {
             const currentConv = conversations.find(c => c.id === selectedConversation);
             const id = currentConv?.influencer_id || influencerId;
             if (id) {
               checkInfluencerStatus(id);
             }
-          }, 15000);
+          }, 10000);
           return () => clearInterval(interval);
         } else {
-          console.log('[Influencer Status] No influencer_id in conversation or prop');
           setIsInfluencerOnline(false);
         }
       } else if (influencerId) {
         // If no conversation selected but influencerId prop exists, check it
-        console.log('[Influencer Status] Checking status from prop:', influencerId);
         checkInfluencerStatus(influencerId);
         const interval = setInterval(() => {
           checkInfluencerStatus(influencerId);
-        }, 15000);
+        }, 10000);
         return () => clearInterval(interval);
       } else {
         setIsInfluencerOnline(false);
@@ -1254,42 +1291,32 @@ export default function Messaging({
     }
   }, [selectedConversation, conversations, mode, influencerId]);
 
-  // Check brand status when conversation changes (for influencer mode)
+  // Check brand status when conversation changes (for influencer mode) - only check, don't update
   useEffect(() => {
     if (mode === 'influencer') {
       if (selectedConversation) {
         const conv = conversations.find(c => c.id === selectedConversation);
         const emailToCheck = conv?.brand_email || brandEmail;
-        console.log('[Brand Status] useEffect triggered:', {
-          selectedConversation,
-          hasConv: !!conv,
-          brandEmail: conv?.brand_email,
-          propBrandEmail: brandEmail,
-          emailToCheck
-        });
         if (emailToCheck) {
-          console.log('[Brand Status] Checking status for conversation:', emailToCheck);
           checkBrandStatus(emailToCheck);
-          // Poll every 15 seconds to check brand online status
+          // Poll every 10 seconds to check brand online status
           const interval = setInterval(() => {
             const currentConv = conversations.find(c => c.id === selectedConversation);
             const email = currentConv?.brand_email || brandEmail;
             if (email) {
               checkBrandStatus(email);
             }
-          }, 15000);
+          }, 10000);
           return () => clearInterval(interval);
         } else {
-          console.log('[Brand Status] No brand_email in conversation or prop');
           setIsBrandOnline(false);
         }
       } else if (brandEmail) {
         // If no conversation selected but brandEmail prop exists, check it
-        console.log('[Brand Status] Checking status from prop:', brandEmail);
         checkBrandStatus(brandEmail);
         const interval = setInterval(() => {
           checkBrandStatus(brandEmail);
-        }, 15000);
+        }, 10000);
         return () => clearInterval(interval);
       } else {
         setIsBrandOnline(false);
