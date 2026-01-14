@@ -972,6 +972,21 @@ export default function Messaging({
     }
     
     try {
+      // First check if brand has an account - unregistered brands should never appear as online
+      const { data: brandData } = await supabase
+        .from('brands')
+        .select('id')
+        .eq('contact_email', email.toLowerCase().trim())
+        .maybeSingle();
+
+      if (!brandData) {
+        // Brand doesn't have account - always show as offline
+        setIsBrandOnline(false);
+        console.log('[Brand Status] Brand does not have account, showing as offline:', email);
+        return;
+      }
+
+      // Brand has account - check presence
       const { data, error } = await supabase
         .from('brand_presence')
         .select('is_online, last_seen')
@@ -994,7 +1009,7 @@ export default function Messaging({
         console.log('[Brand Status]', { email, isOnline, lastSeen: data.last_seen, minutesSinceLastSeen });
       } else {
         setIsBrandOnline(false);
-        console.log('[Brand Status] No data found for:', email);
+        console.log('[Brand Status] No presence data found for:', email);
       }
     } catch (error) {
       console.error('Error checking brand status:', error);
