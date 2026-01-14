@@ -2413,7 +2413,27 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                 )}
               </button>
               <button 
-                onClick={() => setActiveTab("conversations")} 
+                onClick={async () => {
+                  setActiveTab("conversations");
+                  // Mark all unread messages as read when clicking Conversations tab
+                  if (unreadMessagesCount > 0) {
+                    try {
+                      // Mark all unread messages as read
+                      await supabase
+                        .from('messages')
+                        .update({ read: true })
+                        .eq('read', false);
+                      // Reload count to update badge
+                      const { count } = await supabase
+                        .from('messages')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('read', false);
+                      setUnreadMessagesCount(count || 0);
+                    } catch (error) {
+                      console.error('Error marking messages as read:', error);
+                    }
+                  }
+                }}
                 className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors relative ${
                   activeTab === "conversations" 
                     ? "border-slate-900 text-slate-900" 
