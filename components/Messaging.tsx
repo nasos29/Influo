@@ -1366,19 +1366,23 @@ export default function Messaging({
   }, [selectedConversation, conversations, mode, influencerId]);
 
   // Check brand status when conversation changes (for influencer mode) - only check, don't update
+  // Use the same logic as checkInfluencerStatus for brand mode
   useEffect(() => {
     if (mode === 'influencer') {
       if (selectedConversation) {
         const conv = conversations.find(c => c.id === selectedConversation);
         const emailToCheck = conv?.brand_email || brandEmail;
         if (emailToCheck) {
+          // Check immediately
           checkBrandStatus(emailToCheck);
-          // Poll every 10 seconds to check brand online status
+          // Poll every 10 seconds to check brand online status (same as influencer status check)
           const interval = setInterval(() => {
             const currentConv = conversations.find(c => c.id === selectedConversation);
             const email = currentConv?.brand_email || brandEmail;
             if (email) {
               checkBrandStatus(email);
+            } else {
+              setIsBrandOnline(false);
             }
           }, 10000);
           return () => clearInterval(interval);
