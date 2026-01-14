@@ -1421,8 +1421,14 @@ export default function Messaging({
         const conv = conversations.find(c => c.id === selectedConversation);
         const emailToCheck = conv?.brand_email || brandEmail;
         if (emailToCheck) {
-          // Check immediately
+          // Check immediately and again after a short delay to ensure we catch any updates
+          console.log(`[Brand Status Check] Initial check for: ${emailToCheck}`);
           checkBrandStatus(emailToCheck);
+          // Check again after 500ms to catch any recent updates
+          setTimeout(() => {
+            console.log(`[Brand Status Check] Delayed check for: ${emailToCheck}`);
+            checkBrandStatus(emailToCheck);
+          }, 500);
           
           // Set up real-time subscription for brand_presence changes
           const presenceChannel = supabase
