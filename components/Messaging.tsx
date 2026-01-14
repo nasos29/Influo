@@ -1103,28 +1103,39 @@ export default function Messaging({
       : brandEmail);
     
     if (!email) {
+      console.log(`[Brand Status Check] No email provided`);
       setIsBrandOnline(false);
       return;
     }
     
+    const emailLower = email.toLowerCase().trim();
+    console.log(`[Brand Status Check] Starting check for email: ${emailLower}`);
+    
     try {
       // First check if brand has an account - unregistered brands should never appear as online
-      const { data: brandData } = await supabase
+      console.log(`[Brand Status Check] Checking if brand has account...`);
+      const { data: brandData, error: brandError } = await supabase
         .from('brands')
         .select('id')
-        .eq('contact_email', email.toLowerCase().trim())
+        .eq('contact_email', emailLower)
         .maybeSingle();
 
-      if (!brandData) {
-        // Brand doesn't have account - always show as offline
+      if (brandError) {
+        console.error(`[Brand Status Check] Error checking brand account:`, brandError);
         setIsBrandOnline(false);
         return;
       }
 
-      // Brand has account - check presence
-      const emailLower = email.toLowerCase().trim();
-      console.log(`[Brand Status Check] Checking presence for email: ${emailLower}`);
+      if (!brandData) {
+        // Brand doesn't have account - always show as offline
+        console.log(`[Brand Status Check] Brand ${emailLower} does not have account - OFFLINE`);
+        setIsBrandOnline(false);
+        return;
+      }
+
+      console.log(`[Brand Status Check] Brand has account, checking presence for email: ${emailLower}`);
       
+      // Brand has account - check presence
       const { data, error } = await supabase
         .from('brand_presence')
         .select('is_online, last_seen, updated_at')
