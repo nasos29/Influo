@@ -122,16 +122,30 @@ export async function POST(req: Request) {
             onConflict: 'influencer_id'
           });
       } else if (senderType === 'brand' && brandEmail) {
-        await supabaseAdmin
-          .from('brand_presence')
-          .upsert({
-            brand_email: brandEmail.toLowerCase().trim(),
-            is_online: true,
-            last_seen: now,
-            updated_at: now,
-          }, {
-            onConflict: 'brand_email'
-          });
+        // Only update brand presence if brand has an account
+        // Unregistered brands should not appear as online
+        const { data: brandData } = await supabaseAdmin
+          .from('brands')
+          .select('id')
+          .eq('contact_email', brandEmail.toLowerCase().trim())
+          .maybeSingle();
+
+        if (brandData) {
+          // Brand has account - update presence
+          await supabaseAdmin
+            .from('brand_presence')
+            .upsert({
+              brand_email: brandEmail.toLowerCase().trim(),
+              is_online: true,
+              last_seen: now,
+              updated_at: now,
+            }, {
+              onConflict: 'brand_email'
+            });
+        } else {
+          // Brand doesn't have account - don't update presence
+          console.log('[Messages API] Brand does not have account, skipping presence update:', brandEmail);
+        }
       }
 
       // Send email notification when influencer sends a message to brand
@@ -310,16 +324,30 @@ export async function POST(req: Request) {
                 onConflict: 'influencer_id'
               });
           } else if (senderType === 'brand' && convData.brand_email) {
-            await supabaseAdmin
-              .from('brand_presence')
-              .upsert({
-                brand_email: convData.brand_email.toLowerCase().trim(),
-                is_online: true,
-                last_seen: now,
-                updated_at: now,
-              }, {
-                onConflict: 'brand_email'
-              });
+            // Only update brand presence if brand has an account
+            // Unregistered brands should not appear as online
+            const { data: brandData } = await supabaseAdmin
+              .from('brands')
+              .select('id')
+              .eq('contact_email', convData.brand_email.toLowerCase().trim())
+              .maybeSingle();
+
+            if (brandData) {
+              // Brand has account - update presence
+              await supabaseAdmin
+                .from('brand_presence')
+                .upsert({
+                  brand_email: convData.brand_email.toLowerCase().trim(),
+                  is_online: true,
+                  last_seen: now,
+                  updated_at: now,
+                }, {
+                  onConflict: 'brand_email'
+                });
+            } else {
+              // Brand doesn't have account - don't update presence
+              console.log('[Messages API] Brand does not have account, skipping presence update:', convData.brand_email);
+            }
           }
         }
       } catch (presenceError) {
