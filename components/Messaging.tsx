@@ -1409,7 +1409,7 @@ export default function Messaging({
         if (emailToCheck) {
           // Check immediately
           checkBrandStatus(emailToCheck);
-          // Poll every 10 seconds to check brand online status (same as influencer status check)
+          // Poll every 5 seconds to check brand online status (more frequent for better responsiveness)
           const interval = setInterval(() => {
             // Re-read conversations in case it changed
             setConversations((currentConvs) => {
@@ -1422,7 +1422,7 @@ export default function Messaging({
               }
               return currentConvs; // Return unchanged
             });
-          }, 10000);
+          }, 5000); // Check every 5 seconds instead of 10 for better responsiveness
           return () => clearInterval(interval);
         } else {
           setIsBrandOnline(false);
@@ -1432,7 +1432,7 @@ export default function Messaging({
         checkBrandStatus(brandEmail);
         const interval = setInterval(() => {
           checkBrandStatus(brandEmail);
-        }, 10000);
+        }, 5000); // Check every 5 seconds instead of 10 for better responsiveness
         return () => clearInterval(interval);
       } else {
         setIsBrandOnline(false);
