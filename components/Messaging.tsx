@@ -1113,10 +1113,10 @@ export default function Messaging({
     
     try {
       // First check if brand has an account - unregistered brands should never appear as online
-      console.log(`[Brand Status Check] Checking if brand has account...`);
+      console.log(`[Brand Status Check] Checking if brand has account for email: ${emailLower}`);
       const { data: brandData, error: brandError } = await supabase
         .from('brands')
-        .select('id')
+        .select('id, contact_email')
         .eq('contact_email', emailLower)
         .maybeSingle();
 
@@ -1128,10 +1128,25 @@ export default function Messaging({
 
       if (!brandData) {
         // Brand doesn't have account - always show as offline
+        // But let's check if maybe the email is stored differently (case sensitivity, spaces, etc.)
         console.log(`[Brand Status Check] Brand ${emailLower} does not have account - OFFLINE`);
+        console.log(`[Brand Status Check] Attempting to find brand with different email variations...`);
+        
+        // Try to find brand with case-insensitive search or partial match
+        const { data: allBrands } = await supabase
+          .from('brands')
+          .select('id, contact_email')
+          .ilike('contact_email', `%${emailLower.split('@')[0]}%`);
+        
+        if (allBrands && allBrands.length > 0) {
+          console.log(`[Brand Status Check] Found ${allBrands.length} potential matches:`, allBrands);
+        }
+        
         setIsBrandOnline(false);
         return;
       }
+
+      console.log(`[Brand Status Check] Brand has account! ID: ${brandData.id}, Email: ${brandData.contact_email}`);
 
       console.log(`[Brand Status Check] Brand has account, checking presence for email: ${emailLower}`);
       

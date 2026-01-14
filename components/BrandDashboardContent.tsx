@@ -732,6 +732,8 @@ export default function BrandDashboardContent() {
         return;
       }
 
+      console.log(`[Brand Dashboard] Loaded brandData:`, brandData);
+      console.log(`[Brand Dashboard] Brand email: ${brandData.contact_email}`);
       setBrandData(brandData);
       
       // Load recommendations
