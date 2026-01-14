@@ -399,6 +399,22 @@ export default function Messaging({
           setMessages((prev) => [...prev, newMsg]);
           scrollToBottom();
           
+          // Update brand status when brand sends a message (for influencer mode)
+          // This is the same as when influencer sends message to brand (brand checks influencer status)
+          if (mode === 'influencer' && newMsg.sender_type === 'brand') {
+            // When brand sends a message, they are definitely online - check their status immediately
+            // Use the current conversation to get brand email (avoid variable shadowing)
+            const currentConv = conversations.find(c => c.id === selectedConversation);
+            const emailToCheck = currentConv?.brand_email || (brandEmail as string | undefined);
+            if (emailToCheck) {
+              // Check brand status immediately - brand is definitely online if they just sent a message
+              // Use setTimeout to ensure state is updated
+              setTimeout(() => {
+                checkBrandStatus(emailToCheck);
+              }, 100);
+            }
+          }
+          
           // Update unread count if this is a new message from the other party
           if (mode === 'brand' && newMsg.sender_type === 'influencer' && onUnreadCountChange) {
             // Increment count immediately (optimistic update)
@@ -1388,13 +1404,17 @@ export default function Messaging({
           checkBrandStatus(emailToCheck);
           // Poll every 10 seconds to check brand online status (same as influencer status check)
           const interval = setInterval(() => {
-            const currentConv = conversations.find(c => c.id === selectedConversation);
-            const email = currentConv?.brand_email || brandEmail;
-            if (email) {
-              checkBrandStatus(email);
-            } else {
-              setIsBrandOnline(false);
-            }
+            // Re-read conversations in case it changed
+            setConversations((currentConvs) => {
+              const currentConv = currentConvs.find(c => c.id === selectedConversation);
+              const email = currentConv?.brand_email || brandEmail;
+              if (email) {
+                checkBrandStatus(email);
+              } else {
+                setIsBrandOnline(false);
+              }
+              return currentConvs; // Return unchanged
+            });
           }, 10000);
           return () => clearInterval(interval);
         } else {
@@ -1411,6 +1431,7 @@ export default function Messaging({
         setIsBrandOnline(false);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedConversation, conversations, mode, brandEmail]);
 
   return (
