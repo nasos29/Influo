@@ -930,7 +930,7 @@ export default function Messaging({
     try {
       const { data, error } = await supabase
         .from('influencer_presence')
-        .select('is_online, last_seen')
+        .select('is_online, last_seen, updated_at')
         .eq('influencer_id', id)
         .maybeSingle();
 
@@ -1043,7 +1043,7 @@ export default function Messaging({
       // Brand has account - check presence
       const { data, error } = await supabase
         .from('brand_presence')
-        .select('is_online, last_seen')
+        .select('is_online, last_seen, updated_at')
         .eq('brand_email', email.toLowerCase().trim())
         .maybeSingle();
 

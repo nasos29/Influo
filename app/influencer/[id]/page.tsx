@@ -338,8 +338,9 @@ export default function InfluencerProfile(props: { params: Params }) {
               .then(() => {
                 setIsOnline(false);
               })
-              .catch(() => {
+              .catch((err) => {
                 // Ignore errors
+                console.error('Error updating stale presence:', err);
               });
           }
         } else {
