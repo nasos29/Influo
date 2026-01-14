@@ -489,6 +489,13 @@ export default function BrandDashboardContent() {
   useEffect(() => {
     setLang(getStoredLanguage());
   }, []);
+  const [showAgreementModal, setShowAgreementModal] = useState(false);
+  const [agreementAccepted, setAgreementAccepted] = useState(false);
+  const [savingAgreement, setSavingAgreement] = useState(false);
+  const [processingCounterProposal, setProcessingCounterProposal] = useState<string | null>(null);
+  const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(false);
+  const [brandData, setBrandData] = useState<any>(null);
 
   // Update brand presence when brand is logged in (similar to influencer presence)
   useEffect(() => {
@@ -582,13 +589,6 @@ export default function BrandDashboardContent() {
       })();
     };
   }, [brandData?.contact_email]);
-  const [showAgreementModal, setShowAgreementModal] = useState(false);
-  const [agreementAccepted, setAgreementAccepted] = useState(false);
-  const [savingAgreement, setSavingAgreement] = useState(false);
-  const [processingCounterProposal, setProcessingCounterProposal] = useState<string | null>(null);
-  const [recommendations, setRecommendations] = useState<any[]>([]);
-  const [recommendationsLoading, setRecommendationsLoading] = useState(false);
-  const [brandData, setBrandData] = useState<any>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [recommendationFilters, setRecommendationFilters] = useState({
