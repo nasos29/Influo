@@ -1052,7 +1052,37 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 )}
                             </button>
                             <button
-                                onClick={() => setActiveTab('messages')}
+                                onClick={async () => {
+                                    setActiveTab('messages');
+                                    // Mark all unread messages as read when clicking Messages tab
+                                    if (unreadMessagesCount > 0) {
+                                        try {
+                                            const { data: { user } } = await supabase.auth.getUser();
+                                            if (user) {
+                                                // Get all conversations for this influencer
+                                                const { data: conversations } = await supabase
+                                                    .from('conversations')
+                                                    .select('id')
+                                                    .eq('influencer_id', user.id);
+                                                
+                                                if (conversations && conversations.length > 0) {
+                                                    const conversationIds = conversations.map(c => c.id);
+                                                    // Mark all unread messages from brands as read
+                                                    await supabase
+                                                        .from('messages')
+                                                        .update({ read: true })
+                                                        .in('conversation_id', conversationIds)
+                                                        .eq('sender_type', 'brand')
+                                                        .eq('read', false);
+                                                    // Reload count to update badge
+                                                    loadUnreadMessages();
+                                                }
+                                            }
+                                        } catch (error) {
+                                            console.error('Error marking messages as read:', error);
+                                        }
+                                    }
+                                }}
                                 className={`px-4 md:px-6 py-4 font-medium border-b-2 transition-colors relative ${
                                     activeTab === 'messages'
                                         ? 'border-slate-900 text-slate-900'

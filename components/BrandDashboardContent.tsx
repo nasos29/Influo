@@ -1272,7 +1272,34 @@ export default function BrandDashboardContent() {
                 )}
               </button>
               <button
-                onClick={() => setActiveTab('messages')}
+                onClick={async () => {
+                  setActiveTab('messages');
+                  // Mark all unread messages as read when clicking Messages tab
+                  if (unreadMessageCount > 0 && brandData?.contact_email) {
+                    try {
+                      // Get all conversations for this brand
+                      const { data: conversations } = await supabase
+                        .from('conversations')
+                        .select('id')
+                        .eq('brand_email', brandData.contact_email.toLowerCase().trim());
+
+                      if (conversations && conversations.length > 0) {
+                        const conversationIds = conversations.map(c => c.id);
+                        // Mark all unread messages from influencer as read
+                        await supabase
+                          .from('messages')
+                          .update({ read: true })
+                          .in('conversation_id', conversationIds)
+                          .eq('sender_type', 'influencer')
+                          .eq('read', false);
+                        // Reload count to update badge
+                        loadUnreadMessageCount();
+                      }
+                    } catch (error) {
+                      console.error('Error marking messages as read:', error);
+                    }
+                  }
+                }}
                 className={`px-6 py-4 font-medium border-b-2 transition-colors relative ${
                   activeTab === 'messages'
                     ? 'border-blue-600 text-blue-600'
