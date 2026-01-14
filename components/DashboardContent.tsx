@@ -1075,7 +1075,13 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                         .eq('sender_type', 'brand')
                                                         .eq('read', false);
                                                     // Reload count to update badge
-                                                    loadUnreadMessages();
+                                                    const { count } = await supabase
+                                                        .from('messages')
+                                                        .select('*', { count: 'exact', head: true })
+                                                        .in('conversation_id', conversationIds)
+                                                        .eq('sender_type', 'brand')
+                                                        .eq('read', false);
+                                                    setUnreadMessagesCount(count || 0);
                                                 }
                                             }
                                         } catch (error) {
