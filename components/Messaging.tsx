@@ -401,21 +401,28 @@ export default function Messaging({
           
           // Update unread count if this is a new message from the other party
           if (mode === 'brand' && newMsg.sender_type === 'influencer' && onUnreadCountChange) {
-            (async () => {
-              try {
-                // Recalculate unread count
-                const conversationIds = conversations.map(c => c.id);
-                const { data: unreadMessages } = await supabase
-                  .from('messages')
-                  .select('id')
-                  .in('conversation_id', conversationIds)
-                  .eq('sender_type', 'influencer')
-                  .eq('read', false);
-                onUnreadCountChange(unreadMessages?.length || 0);
-              } catch (error) {
-                // Ignore errors
-              }
-            })();
+            // Increment count immediately (optimistic update)
+            // The actual count will be recalculated when conversation loads
+            setTimeout(() => {
+              (async () => {
+                try {
+                  // Recalculate unread count
+                  const currentConversations = conversations;
+                  if (currentConversations.length > 0) {
+                    const conversationIds = currentConversations.map(c => c.id);
+                    const { data: unreadMessages } = await supabase
+                      .from('messages')
+                      .select('id')
+                      .in('conversation_id', conversationIds)
+                      .eq('sender_type', 'influencer')
+                      .eq('read', false);
+                    onUnreadCountChange(unreadMessages?.length || 0);
+                  }
+                } catch (error) {
+                  // Ignore errors
+                }
+              })();
+            }, 500);
           }
         })
         .subscribe();

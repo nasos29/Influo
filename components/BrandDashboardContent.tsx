@@ -544,11 +544,16 @@ export default function BrandDashboardContent() {
 
   useEffect(() => {
     loadData();
-    loadUnreadMessageCount();
-    // Poll for unread messages every 10 seconds
-    const interval = setInterval(loadUnreadMessageCount, 10000);
-    return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (brandData?.contact_email) {
+      loadUnreadMessageCount();
+      // Poll for unread messages every 10 seconds
+      const interval = setInterval(loadUnreadMessageCount, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [brandData?.contact_email]);
 
   const loadUnreadMessageCount = async () => {
     if (!brandData?.contact_email) {
