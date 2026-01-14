@@ -327,21 +327,22 @@ export default function InfluencerProfile(props: { params: Params }) {
           // If presence is stale (more than 2 minutes), mark as offline in database
           if (data.is_online && (minutesSinceLastSeen >= 2 || minutesSinceUpdated >= 2)) {
             // Silently update - don't wait for response
-            supabase
-              .from('influencer_presence')
-              .update({
-                is_online: false,
-                last_seen: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              })
-              .eq('influencer_id', id)
-              .then(() => {
+            (async () => {
+              try {
+                await supabase
+                  .from('influencer_presence')
+                  .update({
+                    is_online: false,
+                    last_seen: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq('influencer_id', id);
                 setIsOnline(false);
-              })
-              .catch((err: any) => {
+              } catch (err: any) {
                 // Ignore errors
                 console.error('Error updating stale presence:', err);
-              });
+              }
+            })();
           }
         } else {
           setIsOnline(false);
