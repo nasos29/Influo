@@ -403,14 +403,19 @@ export default function Messaging({
           // This is the same as when influencer sends message to brand (brand checks influencer status)
           if (mode === 'influencer' && newMsg.sender_type === 'brand') {
             // When brand sends a message, they are definitely online - check their status immediately
+            // The API route already updated brand_presence, but we need to check it here to update UI
             // Use the current conversation to get brand email (avoid variable shadowing)
             const currentConv = conversations.find(c => c.id === selectedConversation);
             const emailToCheck = currentConv?.brand_email || (brandEmail as string | undefined);
             if (emailToCheck) {
-              // Check brand status immediately - brand is definitely online if they just sent a message
-              // Use setTimeout to ensure state is updated
+              // Check brand status immediately with a small delay to ensure API has updated presence
+              // Then check again after a bit longer to catch the update
               setTimeout(() => {
                 checkBrandStatus(emailToCheck);
+                // Check again after 500ms to ensure we catch the updated presence
+                setTimeout(() => {
+                  checkBrandStatus(emailToCheck);
+                }, 500);
               }, 100);
             }
           }
@@ -1143,13 +1148,15 @@ export default function Messaging({
                         secondsSinceLastSeen < 60 && 
                         secondsSinceUpdated < 60;
         
+        // Update state - this will trigger UI update
         setIsBrandOnline(isOnline);
         
-        // If presence is stale, mark as offline
+        // If presence is stale (older than 60 seconds), mark as offline
         if (data.is_online && (secondsSinceLastSeen >= 60 || secondsSinceUpdated >= 60)) {
           setIsBrandOnline(false);
         }
       } else {
+        // No presence data - brand is offline
         setIsBrandOnline(false);
       }
     } catch (error) {
