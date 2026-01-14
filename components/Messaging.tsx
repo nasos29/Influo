@@ -1409,6 +1409,21 @@ export default function Messaging({
         if (emailToCheck) {
           // Check immediately
           checkBrandStatus(emailToCheck);
+          
+          // Set up real-time subscription for brand_presence changes
+          const presenceChannel = supabase
+            .channel(`brand_presence:${emailToCheck.toLowerCase().trim()}`)
+            .on('postgres_changes', {
+              event: '*', // Listen to INSERT, UPDATE, DELETE
+              schema: 'public',
+              table: 'brand_presence',
+              filter: `brand_email=eq.${emailToCheck.toLowerCase().trim()}`
+            }, () => {
+              // When presence changes, check status immediately
+              checkBrandStatus(emailToCheck);
+            })
+            .subscribe();
+          
           // Poll every 5 seconds to check brand online status (more frequent for better responsiveness)
           const interval = setInterval(() => {
             // Re-read conversations in case it changed
@@ -1423,17 +1438,40 @@ export default function Messaging({
               return currentConvs; // Return unchanged
             });
           }, 5000); // Check every 5 seconds instead of 10 for better responsiveness
-          return () => clearInterval(interval);
+          
+          return () => {
+            clearInterval(interval);
+            presenceChannel.unsubscribe();
+          };
         } else {
           setIsBrandOnline(false);
         }
       } else if (brandEmail) {
         // If no conversation selected but brandEmail prop exists, check it
         checkBrandStatus(brandEmail);
+        
+        // Set up real-time subscription for brand_presence changes
+        const presenceChannel = supabase
+          .channel(`brand_presence:${brandEmail.toLowerCase().trim()}`)
+          .on('postgres_changes', {
+            event: '*', // Listen to INSERT, UPDATE, DELETE
+            schema: 'public',
+            table: 'brand_presence',
+            filter: `brand_email=eq.${brandEmail.toLowerCase().trim()}`
+          }, () => {
+            // When presence changes, check status immediately
+            checkBrandStatus(brandEmail);
+          })
+          .subscribe();
+        
         const interval = setInterval(() => {
           checkBrandStatus(brandEmail);
         }, 5000); // Check every 5 seconds instead of 10 for better responsiveness
-        return () => clearInterval(interval);
+        
+        return () => {
+          clearInterval(interval);
+          presenceChannel.unsubscribe();
+        };
       } else {
         setIsBrandOnline(false);
       }
