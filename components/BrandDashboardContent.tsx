@@ -499,12 +499,21 @@ export default function BrandDashboardContent() {
 
   // Update brand presence when brand is logged in (similar to influencer presence)
   useEffect(() => {
-    if (!brandData?.contact_email) return;
+    console.log('[Brand Dashboard] Presence useEffect triggered, brandData:', brandData);
+    
+    if (!brandData?.contact_email) {
+      console.log('[Brand Dashboard] No brandData or contact_email, skipping presence updates');
+      return;
+    }
+
+    console.log(`[Brand Dashboard] Starting presence updates for: ${brandData.contact_email}`);
 
     const updateBrandPresence = async () => {
       try {
         const now = new Date().toISOString();
         const email = brandData.contact_email.toLowerCase().trim();
+        console.log(`[Brand Dashboard] Updating presence for ${email} at ${now}`);
+        
         const { error } = await supabase
           .from('brand_presence')
           .upsert({
@@ -517,16 +526,17 @@ export default function BrandDashboardContent() {
           });
         
         if (error) {
-          console.error('[Brand Presence] Error updating presence:', error);
+          console.error('[Brand Dashboard] Error updating presence:', error);
         } else {
-          console.log(`[Brand Presence] Successfully updated presence for ${email} at ${now} - is_online: true`);
+          console.log(`[Brand Dashboard] Successfully updated presence for ${email} at ${now} - is_online: true`);
         }
       } catch (error) {
-        console.error('[Brand Presence] Exception updating presence:', error);
+        console.error('[Brand Dashboard] Exception updating presence:', error);
       }
     };
 
     // Update immediately when component mounts or brandData changes
+    console.log('[Brand Dashboard] Calling updateBrandPresence immediately');
     updateBrandPresence();
 
     // Update every 3 seconds to keep brand online (more frequent than 5 seconds for reliability)
