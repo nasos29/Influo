@@ -217,8 +217,8 @@ export default function Messaging({
       };
       
       updateBrandStatus();
-      // Update status every 10 seconds (more frequent for better accuracy)
-      const interval = setInterval(updateBrandStatus, 10000);
+      // Update status every 5 seconds (same as polling frequency for consistency)
+      const interval = setInterval(updateBrandStatus, 5000);
       
       // Handle browser close/tab close
       const handleBeforeUnload = () => {
@@ -1464,9 +1464,10 @@ export default function Messaging({
           })
           .subscribe();
         
+        // Poll every 5 seconds to check brand online status
         const interval = setInterval(() => {
           checkBrandStatus(brandEmail);
-        }, 5000); // Check every 5 seconds instead of 10 for better responsiveness
+        }, 5000); // Check every 5 seconds for better responsiveness
         
         return () => {
           clearInterval(interval);
