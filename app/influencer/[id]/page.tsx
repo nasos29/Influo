@@ -1555,10 +1555,10 @@ export default function InfluencerProfile(props: { params: Params }) {
                           return;
                         }
                         
-                        // User is a registered brand - open messaging
-                        setMessageBrandEmail(user.email);
-                        setMessageBrandName(brandData.brand_name || '');
-                        setShowMessageModal(true);
+                        // User is a registered brand - redirect to messages page with brand data
+                        const brandEmail = user.email;
+                        const brandName = brandData.brand_name || '';
+                        router.push(`/messages?influencer=${id}&brandEmail=${encodeURIComponent(brandEmail)}&brandName=${encodeURIComponent(brandName)}`);
                       } catch (error) {
                         console.error('Error checking brand status:', error);
                         // On error, show registration modal
