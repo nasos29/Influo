@@ -1869,7 +1869,16 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   };
   
   const deleteUser = async (id: number) => {
-    if (!confirm("Είσαι σίγουρος ότι θες να διαγράψεις αυτόν τον χρήστη;")) {
+    // Find user details for confirmation
+    const user = users.find(u => u.id === id);
+    const userEmail = user?.contact_email || 'unknown';
+    const userName = user?.display_name || 'unknown';
+    
+    if (!confirm(
+      lang === 'el' 
+        ? `Είσαι σίγουρος ότι θες να διαγράψεις τον χρήστη "${userName}" (${userEmail})?\n\n⚠️ Προσοχή: Αυτή η ενέργεια θα διαγράψει:\n- Τον influencer από τη βάση\n- Τον auth user\n- Όλες τις συνομιλίες (CASCADE)\n- Όλα τα μηνύματα (CASCADE)\n- Όλα τα proposals\n\nΑυτή η ενέργεια ΔΕΝ μπορεί να αναιρεθεί!`
+        : `Are you sure you want to delete user "${userName}" (${userEmail})?\n\n⚠️ Warning: This action will delete:\n- The influencer from database\n- The auth user\n- All conversations (CASCADE)\n- All messages (CASCADE)\n- All proposals\n\nThis action CANNOT be undone!`
+    )) {
         return;
     }
 
@@ -1877,7 +1886,10 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         const response = await fetch('/api/admin/delete-user', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: id }),
+            body: JSON.stringify({ 
+              userId: id,
+              adminEmail: adminEmail // Pass admin email for audit log
+            }),
         });
 
         const result = await response.json();
@@ -1889,6 +1901,11 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         fetchData();
         setSelectedUser(null);
         setSelectedUsers(selectedUsers.filter(uId => uId !== id));
+        
+        alert(lang === 'el' 
+          ? `Ο χρήστης "${userName}" διαγράφηκε επιτυχώς.`
+          : `User "${userName}" deleted successfully.`
+        );
     } catch (error: any) {
         console.error('Error deleting user:', error);
         alert(`Σφάλμα: ${error.message}`);
@@ -2170,7 +2187,10 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       const response = await fetch('/api/admin/cleanup-test-users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ emails }),
+        body: JSON.stringify({ 
+          emails,
+          adminEmail: adminEmail // Pass admin email for audit log
+        }),
       });
 
       const result = await response.json();
@@ -2203,7 +2223,10 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
           await fetch('/api/admin/delete-user', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId }),
+            body: JSON.stringify({ 
+              userId,
+              adminEmail: adminEmail // Pass admin email for audit log
+            }),
           });
         }
       }

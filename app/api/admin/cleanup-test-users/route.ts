@@ -15,7 +15,7 @@ const supabaseAdmin = createClient(
 
 export async function POST(request: NextRequest) {
   try {
-    const { emails } = await request.json();
+    const { emails, adminEmail } = await request.json();
 
     if (!emails || !Array.isArray(emails)) {
       return NextResponse.json(
@@ -25,6 +25,12 @@ export async function POST(request: NextRequest) {
     }
 
     const results = [];
+
+    // Get IP and User Agent for audit
+    const ipAddress = request.headers.get('x-forwarded-for') || 
+                      request.headers.get('x-real-ip') || 
+                      'unknown';
+    const userAgent = request.headers.get('user-agent') || 'unknown';
 
     // Λήψη όλων των users
     const { data: { users: allUsers }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
@@ -48,6 +54,13 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
+      // Get user details BEFORE deletion for audit log
+      const { data: influencerData } = await supabaseAdmin
+        .from('influencers')
+        .select('id, display_name, contact_email, created_at, verified, approved')
+        .eq('id', user.id)
+        .maybeSingle();
+
       // 1. Διαγραφή από user_roles ΠΡΩΤΑ
       const { error: rolesError } = await supabaseAdmin
         .from('user_roles')
@@ -55,7 +68,7 @@ export async function POST(request: NextRequest) {
         .eq('id', user.id);
 
       if (rolesError) {
-        console.error('Error deleting from user_roles:', rolesError);
+        console.error('[CLEANUP TEST USERS] Error deleting from user_roles:', rolesError);
       }
 
       // 2. Διαγραφή από influencers table
@@ -82,6 +95,36 @@ export async function POST(request: NextRequest) {
           success: true,
           message: 'User deleted successfully'
         });
+
+        // Log to audit table (if exists)
+        try {
+          await supabaseAdmin
+            .from('admin_audit_log')
+            .insert({
+              action_type: 'delete_user',
+              admin_email: adminEmail || 'unknown',
+              target_type: 'influencer',
+              target_id: user.id,
+              target_email: influencerData?.contact_email || email,
+              target_name: influencerData?.display_name || 'unknown',
+              details: {
+                influencer_data: influencerData,
+                auth_email: email,
+                verified: influencerData?.verified,
+                approved: influencerData?.approved,
+                created_at: influencerData?.created_at,
+                cleanup_batch: true
+              },
+              ip_address: ipAddress,
+              user_agent: userAgent
+            });
+        } catch (auditError) {
+          // Don't fail the deletion if audit log fails
+          console.error('[CLEANUP TEST USERS] Error writing to audit log:', auditError);
+        }
+
+        // Console log for immediate visibility
+        console.log(`[CLEANUP TEST USERS] User deleted: ${influencerData?.display_name || 'unknown'} (${email}) by admin: ${adminEmail || 'unknown'} at ${new Date().toISOString()}`);
       }
     }
 

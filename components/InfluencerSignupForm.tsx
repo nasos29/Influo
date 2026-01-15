@@ -200,7 +200,7 @@ export default function InfluencerSignupForm() {
   // Data States
   const [displayName, setDisplayName] = useState("");
   const [gender, setGender] = useState("Female");
-  const [categories, setCategories] = useState<string[]>(["Lifestyle"]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [location, setLocation] = useState("");
   const [bio, setBio] = useState("");
   const [email, setEmail] = useState("");
@@ -333,6 +333,11 @@ export default function InfluencerSignupForm() {
       setLoading(true);
 
       try {
+          // Check if at least one category is selected
+          if (categories.length === 0) {
+              throw new Error(lang === "el" ? "Παρακαλώ επιλέξτε τουλάχιστον μία κατηγορία." : "Please select at least one category.");
+          }
+
           if (password.length < 6) {
               throw new Error(lang === "el" ? "Ο κωδικός πρέπει να έχει τουλάχιστον 6 χαρακτήρες." : "Password must be at least 6 characters long.");
           }
@@ -416,6 +421,10 @@ export default function InfluencerSignupForm() {
   const handleSubmit = async () => {
     setLoading(true);
     try {
+      // Validate categories before submitting
+      if (categories.length === 0) {
+          throw new Error(lang === "el" ? "Παρακαλώ επιλέξτε τουλάχιστον μία κατηγορία." : "Please select at least one category.");
+      }
       
       // 1. Auth: Δημιουργία Χρήστη (Sign Up)
       let authData: any;
@@ -520,7 +529,7 @@ export default function InfluencerSignupForm() {
           id: authUser.id,
           display_name: displayName, 
           gender: validGender, 
-          category: categories.length > 0 ? categories[0] : "Lifestyle", // Store primary category for compatibility (if single category column exists)
+          category: categories.length > 0 ? categories[0] : null, // Store primary category for compatibility (if single category column exists)
           // Note: If categories column exists as array, store all categories
           // Otherwise, categories are stored as comma-separated string in category field or first category
           location,
@@ -673,7 +682,7 @@ export default function InfluencerSignupForm() {
                                                     if (e.target.checked) {
                                                         setCategories([cat]);
                                                     } else {
-                                                        setCategories(["Lifestyle"]);
+                                                        setCategories([]);
                                                     }
                                                 } else {
                                                     // Remove "General" if selecting specific category
@@ -681,12 +690,7 @@ export default function InfluencerSignupForm() {
                                                         ? [...categories.filter(c => c !== "Γενικά" && c !== "General"), cat]
                                                         : categories.filter(c => c !== cat);
                                                     
-                                                    // Ensure at least one category is selected
-                                                    if (newCats.length === 0) {
-                                                        setCategories(["Lifestyle"]);
-                                                    } else {
-                                                        setCategories(newCats);
-                                                    }
+                                                    setCategories(newCats);
                                                 }
                                             }}
                                             className="w-5 h-5 text-blue-600 border-2 border-slate-300 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
