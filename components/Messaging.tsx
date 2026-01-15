@@ -74,7 +74,8 @@ const t = {
     agreementAccept: "Αποδοχή Συμφωνίας",
     agreementSaving: "Αποθήκευση...",
     agreementAccepted: "✅ Συμφωνία Αποδεκτή",
-    agreementPending: "⏳ Αναμονή Αποδοχής"
+    agreementPending: "⏳ Αναμονή Αποδοχής",
+    agreementSummary: "Σύνοψη Συμφωνίας"
   },
   en: {
     placeholder: "Type your message...",
@@ -98,7 +99,8 @@ const t = {
     agreementAccept: "Accept Agreement",
     agreementSaving: "Saving...",
     agreementAccepted: "✅ Agreement Accepted",
-    agreementPending: "⏳ Pending Acceptance"
+    agreementPending: "⏳ Pending Acceptance",
+    agreementSummary: "Agreement Summary"
   }
 };
 
@@ -701,6 +703,9 @@ export default function Messaging({
   const bothAccepted = proposalInfo && 
     proposalInfo.influencer_agreement_accepted && 
     proposalInfo.brand_agreement_accepted;
+
+  // Check if we can show agreement summary button (if there's a proposal or if conversation exists)
+  const canShowAgreementSummary = selectedConversation && !conversationClosed;
 
   const handleAcceptAgreement = async () => {
     if (!proposalId || !agreementAccepted) {
@@ -1582,7 +1587,7 @@ export default function Messaging({
                         </span>
                       </div>
                     )}
-                    {/* Agreement Button */}
+                    {/* Agreement Button - Shows when agreement needs to be accepted */}
                     {proposalInfo && needsAgreement && (
                       <button
                         onClick={() => setShowAgreementModal(true)}
@@ -1600,6 +1605,17 @@ export default function Messaging({
                       <div className="px-3 sm:px-4 py-1.5 text-xs sm:text-sm bg-green-100 text-green-700 rounded-lg font-medium">
                         {txt.agreementAccepted}
                       </div>
+                    )}
+                    {/* Agreement Summary Button - Always visible when there's a proposal, opens agreement modal */}
+                    {canShowAgreementSummary && proposalInfo && (
+                      <button
+                        onClick={() => setShowAgreementModal(true)}
+                        className="px-3 sm:px-4 py-1.5 text-xs sm:text-sm bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-lg font-semibold shadow-md hover:shadow-lg transition-all flex items-center gap-1.5 sm:gap-2"
+                      >
+                        <span className="text-sm sm:text-base">🤝</span>
+                        <span className="hidden sm:inline">{txt.agreementSummary}</span>
+                        <span className="sm:hidden">Σύνοψη</span>
+                      </button>
                     )}
                     {!conversationClosed && (
                       <button
