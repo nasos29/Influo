@@ -52,11 +52,11 @@ const TwitterIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c1 1 2.45 1.53 4 1.53a10.66 10.66 0 0 0 10-5.83v-.57a4.48 4.48 0 0 0 2-1.39z"></path></svg>
 );
 
-// Helper για μορφοποίηση αριθμών (15000 -> 15κ) - χρησιμοποιεί ελληνικό kappa
+// Helper για μορφοποίηση αριθμών (15000 -> 15k)
 const formatNum = (num?: number) => {
   if (num === undefined || num === null) return "";
   if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-  if (num >= 1000) return (num / 1000).toFixed(1) + 'κ';
+  if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
   return num.toString();
 };
 
