@@ -143,7 +143,7 @@ const t = {
     about: "About",
     portfolio: "Portfolio / Highlights",
     connect: "Connect",
-    collabs: "Συνεργασίες",
+    collabs: "Collaborations",
     no_bio: "No bio available.",
     no_vid: "No videos uploaded.",
     tab_over: "Overview",
@@ -1639,7 +1639,7 @@ export default function InfluencerProfile(props: { params: Params }) {
               <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-lg">🤝</span>
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{lang === 'el' ? 'Συνεργασίες' : 'Collabs'}</span>
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{txt.collabs}</span>
                 </div>
                 <p className="text-2xl font-extrabold text-purple-600">{profile.past_brands?.length || 0}</p>
               </div>
