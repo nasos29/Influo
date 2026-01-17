@@ -579,9 +579,10 @@ export default function InfluencerProfile(props: { params: Params }) {
         data.accounts.forEach((acc: any) => {
           if (acc.platform && acc.followers) {
             const platform = acc.platform.toLowerCase();
-            // Parse followers string (e.g., "15k" -> 15000, "1.5M" -> 1500000)
+            // Parse followers string (e.g., "15k" -> 15000, "1.5M" -> 1500000, "1,000" -> 1000)
             let followersNum = 0;
-            const followersStr = acc.followers.toString().toLowerCase().replace(/\s/g, '');
+            // Remove spaces and commas, then convert to lowercase
+            const followersStr = acc.followers.toString().toLowerCase().replace(/\s/g, '').replace(/,/g, '');
             if (followersStr.includes('m')) {
               followersNum = parseFloat(followersStr) * 1000000;
             } else if (followersStr.includes('k')) {
@@ -1754,9 +1755,8 @@ export default function InfluencerProfile(props: { params: Params }) {
                                       const followers = profile.followers || {};
                                       const count = followers.instagram || followers.tiktok || followers.youtube || followers.facebook || followers.twitter || 0;
                                       if (count === 0) return 'N/A';
-                                      return count >= 1000000 
-                                        ? (count / 1000000).toFixed(1) + 'M' 
-                                        : (count / 1000).toFixed(1) + 'k';
+                                      // Use formatNum helper for consistent formatting
+                                      return formatNum(count);
                                     })()}
                                 </p>
                              </div>
