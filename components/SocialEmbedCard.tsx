@@ -5,7 +5,7 @@ import Image from 'next/image';
 
 interface SocialEmbedCardProps {
   provider: "instagram" | "tiktok" | "youtube";
-  embedUrl: string;
+  embedUrl: string; // Can be API endpoint URL or direct Iframely URL
   thumbnailUrl?: string;
   width?: number; // Optional - will use provider-specific defaults if not provided
   height?: number; // Optional - will use provider-specific defaults if not provided
@@ -32,8 +32,33 @@ export default function SocialEmbedCard({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [showThumbnail, setShowThumbnail] = useState(!!thumbnailUrl);
+  const [finalEmbedUrl, setFinalEmbedUrl] = useState<string>(embedUrl);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // If embedUrl is an API endpoint, fetch the cached embed URL
+  useEffect(() => {
+    if (embedUrl.startsWith('/api/video-embed')) {
+      fetch(embedUrl)
+        .then(res => res.json())
+        .then(data => {
+          if (data.embed_url) {
+            setFinalEmbedUrl(data.embed_url);
+          } else {
+            setError(true);
+            setLoading(false);
+          }
+        })
+        .catch(err => {
+          console.error('Error fetching cached embed URL:', err);
+          setError(true);
+          setLoading(false);
+        });
+    } else {
+      // Direct Iframely URL, use as is
+      setFinalEmbedUrl(embedUrl);
+    }
+  }, [embedUrl]);
 
   // Provider-specific configurations
   const providerConfig = {
@@ -185,23 +210,25 @@ export default function SocialEmbedCard({
       )}
 
       {/* Iframe Embed */}
-      <div 
-        className="relative w-full"
-        style={{ 
-          aspectRatio: `${finalWidth} / ${finalHeight}`,
-          display: loading && showThumbnail ? 'none' : 'block'
-        }}
-      >
-        <iframe
-          ref={iframeRef}
-          src={embedUrl}
-          className="absolute top-0 left-0 w-full h-full border-0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-          onLoad={handleIframeLoad}
-          onError={handleIframeError}
-        />
-      </div>
+      {finalEmbedUrl && (
+        <div 
+          className="relative w-full"
+          style={{ 
+            aspectRatio: `${finalWidth} / ${finalHeight}`,
+            display: loading && showThumbnail ? 'none' : 'block'
+          }}
+        >
+          <iframe
+            ref={iframeRef}
+            src={finalEmbedUrl}
+            className="absolute top-0 left-0 w-full h-full border-0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            onLoad={handleIframeLoad}
+            onError={handleIframeError}
+          />
+        </div>
+      )}
     </div>
   );
 }

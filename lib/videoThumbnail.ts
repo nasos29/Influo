@@ -91,27 +91,29 @@ export function detectProvider(url: string): "instagram" | "tiktok" | "youtube" 
 // Helper to generate Iframely embed URL
 // Iframely format: https://iframe.ly/api/iframe?url={original_url}
 // Or with API key: https://iframe.ly/api/iframe?url={original_url}&api_key={api_key}
+// This function now returns a cached embed URL via API endpoint when available
 export function getIframelyEmbedUrl(originalUrl: string, apiKey?: string): string {
   if (!originalUrl) return '';
   
+  // On client-side, use the cached API endpoint
+  if (typeof window !== 'undefined') {
+    // Return API endpoint that will check cache first
+    return `/api/video-embed?url=${encodeURIComponent(originalUrl)}`;
+  }
+  
+  // Server-side: generate direct Iframely URL (will be cached by API endpoint when called)
   const baseUrl = 'https://iframe.ly/api/iframe';
   const params = new URLSearchParams({
     url: originalUrl,
   });
   
   // Use provided API key, or try to get from environment variable
-  // For client-side, use NEXT_PUBLIC_IFRAMELY_API_KEY
   // Fallback to default API key if not provided
   let iframelyApiKey = apiKey;
   
   if (!iframelyApiKey) {
-    // Try to get from public env var (available on client-side)
-    if (typeof window !== 'undefined') {
-      iframelyApiKey = process.env.NEXT_PUBLIC_IFRAMELY_API_KEY || '4355c593a3b2439820d35f';
-    } else {
-      // Server-side: use server env var or fallback
-      iframelyApiKey = process.env.IFRAMELY_API_KEY || '4355c593a3b2439820d35f';
-    }
+    // Server-side: use server env var or fallback
+    iframelyApiKey = process.env.IFRAMELY_API_KEY || process.env.NEXT_PUBLIC_IFRAMELY_API_KEY || '4355c593a3b2439820d35f';
   }
   
   if (iframelyApiKey) {
