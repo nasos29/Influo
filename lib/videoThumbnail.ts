@@ -99,8 +99,23 @@ export function getIframelyEmbedUrl(originalUrl: string, apiKey?: string): strin
     url: originalUrl,
   });
   
-  if (apiKey) {
-    params.append('api_key', apiKey);
+  // Use provided API key, or try to get from environment variable
+  // For client-side, use NEXT_PUBLIC_IFRAMELY_API_KEY
+  // Fallback to default API key if not provided
+  let iframelyApiKey = apiKey;
+  
+  if (!iframelyApiKey) {
+    // Try to get from public env var (available on client-side)
+    if (typeof window !== 'undefined') {
+      iframelyApiKey = process.env.NEXT_PUBLIC_IFRAMELY_API_KEY || '4355c593a3b2439820d35f';
+    } else {
+      // Server-side: use server env var or fallback
+      iframelyApiKey = process.env.IFRAMELY_API_KEY || '4355c593a3b2439820d35f';
+    }
+  }
+  
+  if (iframelyApiKey) {
+    params.append('api_key', iframelyApiKey);
   }
   
   return `${baseUrl}?${params.toString()}`;
