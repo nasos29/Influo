@@ -10,6 +10,7 @@ export interface Influencer {
   id: string | number;
   name: string;
   bio: string;
+  bio_en?: string | null; // English bio translation
   avatar: string;
   verified: boolean;
   socials: { [key: string]: string | undefined };
@@ -420,6 +421,7 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
               id: inf.id,
               name: inf.display_name,
               bio: inf.bio || "",
+              bio_en: inf.bio_en || null,
               avatar: inf.avatar_url || null,
               verified: inf.analytics_verified || false, // Use analytics_verified for verified badge (not approved)
               socials: socialsObj,

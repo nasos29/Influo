@@ -598,6 +598,7 @@ export default function InfluencerProfile(props: { params: Params }) {
         id: data.id,
         name: data.display_name,
         bio: data.bio || "",
+        bio_en: data.bio_en || null,
         avatar: data.avatar_url || null,
         verified: data.analytics_verified || false, // Use analytics_verified for verified badge
         contact_email: data.contact_email,
@@ -1732,7 +1733,9 @@ export default function InfluencerProfile(props: { params: Params }) {
                     <>
                         <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
                             <h2 className="text-xl font-bold text-slate-900 mb-4">{txt.about}</h2>
-                            <p className="text-slate-600 leading-relaxed whitespace-pre-wrap">{profile.bio || txt.no_bio}</p>
+                            <p className="text-slate-600 leading-relaxed whitespace-pre-wrap">
+                                {lang === 'en' && profile.bio_en ? profile.bio_en : (profile.bio || txt.no_bio)}
+                            </p>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                              <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm text-center">

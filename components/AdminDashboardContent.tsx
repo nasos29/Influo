@@ -52,6 +52,7 @@ interface DbInfluencer {
   min_rate: string | null;
   languages: string | null;
   bio: string | null;
+  bio_en: string | null; // English bio translation
   engagement_rate: string | null;
   audience_male_percent: number | null;
   audience_female_percent: number | null;
@@ -489,6 +490,7 @@ const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClos
 const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClose: () => void, onSave: (updatedUser: DbInfluencer) => void }) => {
     const [name, setName] = useState(user.display_name);
     const [bio, setBio] = useState(user.bio || "");
+    const [bioEn, setBioEn] = useState(user.bio_en || "");
     const [minRate, setMinRate] = useState(user.min_rate || "");
     const [location, setLocation] = useState(user.location || "");
     const [avgLikes, setAvgLikes] = useState(user.avg_likes || "");
@@ -823,7 +825,8 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
             
             const updateData: any = {
                 display_name: name, 
-                bio: bio, 
+                bio: bio,
+                bio_en: bioEn || null, // Store English bio
                 min_rate: minRate,
                 location: location, 
                 avg_likes: avgLikes, 
@@ -1086,10 +1089,17 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                             </div>
                         </div>
 
-                        {/* Bio */}
+                        {/* Bio - Greek */}
                         <div>
-                            <label className="block text-sm font-semibold text-slate-900 mb-1">Bio</label>
-                            <textarea value={bio} onChange={e => setBio(e.target.value)} rows={4} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900" />
+                            <label className="block text-sm font-semibold text-slate-900 mb-1">Bio (Ελληνικά)</label>
+                            <textarea value={bio} onChange={e => setBio(e.target.value)} rows={4} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900" placeholder="Βιογραφία στα Ελληνικά..." />
+                        </div>
+
+                        {/* Bio - English */}
+                        <div>
+                            <label className="block text-sm font-semibold text-slate-900 mb-1">Bio (English / Αγγλικά)</label>
+                            <textarea value={bioEn} onChange={e => setBioEn(e.target.value)} rows={4} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900" placeholder="Biography in English..." />
+                            <p className="text-xs text-slate-500 mt-1">Αυτή η βιογραφία θα εμφανίζεται όταν ο χρήστης επιλέξει Αγγλικά ως γλώσσα</p>
                         </div>
 
                         {/* Social Accounts */}

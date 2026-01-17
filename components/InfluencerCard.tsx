@@ -8,6 +8,7 @@ import { categoryTranslations } from "./categoryTranslations";
 interface InfluencerCardProps {
   name: string;
   bio: string;
+  bio_en?: string | null; // English bio translation
   avatar: string;
   verified: boolean;
   socials: { [key: string]: string | undefined };
@@ -72,6 +73,7 @@ const languageTranslations: { [key: string]: { el: string; en: string } } = {
 export default function InfluencerCard({
   name,
   bio,
+  bio_en,
   avatar,
   verified,
   socials,
@@ -120,7 +122,9 @@ export default function InfluencerCard({
         {/* Name & Bio */}
         <div className="mb-3">
             <h4 className="text-base font-semibold text-slate-900 truncate mb-1">{name}</h4>
-            <p className="text-slate-600 text-xs line-clamp-2 h-8 leading-relaxed">{bio}</p>
+            <p className="text-slate-600 text-xs line-clamp-2 h-8 leading-relaxed">
+                {lang === 'en' && bio_en ? bio_en : bio}
+            </p>
         </div>
 
         {/* Categories (Tags) */}
