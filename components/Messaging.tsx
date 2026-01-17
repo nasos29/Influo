@@ -137,6 +137,7 @@ export default function Messaging({
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
   const [savingAgreement, setSavingAgreement] = useState(false);
+  const [showConversationsList, setShowConversationsList] = useState(false); // Mobile: toggle conversations list
   const activityCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastActivityUpdateRef = useRef<number>(0);
   const warningStartTimeRef = useRef<number | null>(null);
@@ -1521,9 +1522,27 @@ export default function Messaging({
         <h2 className="text-lg sm:text-xl font-bold text-slate-900">{txt.messages}</h2>
       </div>
 
-      <div className="flex flex-col sm:flex-row flex-1 overflow-hidden">
+      <div className="flex flex-col sm:flex-row flex-1 overflow-hidden relative">
+        {/* Mobile: Backdrop overlay when conversations list is open */}
+        {showConversationsList && (
+          <div
+            onClick={() => setShowConversationsList(false)}
+            className="sm:hidden fixed inset-0 bg-black/50 z-30"
+          />
+        )}
+
+        {/* Mobile: Toggle button for conversations list */}
+        <button
+          onClick={() => setShowConversationsList(!showConversationsList)}
+          className="sm:hidden absolute top-2 right-2 z-50 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium shadow-lg hover:bg-blue-700 transition-colors"
+        >
+          {showConversationsList ? (lang === 'el' ? 'Κλείσιμο' : 'Close') : (lang === 'el' ? 'Συνομιλίες' : 'Conversations')}
+        </button>
+
         {/* Conversations List */}
-        <div className="w-full sm:w-64 border-b sm:border-b-0 sm:border-r border-slate-200 overflow-y-auto bg-slate-50 flex-shrink-0 max-h-[200px] sm:max-h-none">
+        <div className={`w-full sm:w-64 border-b sm:border-b-0 sm:border-r border-slate-200 overflow-y-auto bg-slate-50 flex-shrink-0 ${
+          showConversationsList ? 'block' : 'hidden sm:block'
+        } absolute sm:relative top-0 left-0 right-0 bottom-0 sm:bottom-auto z-40 sm:z-auto max-h-[calc(100vh-250px)] sm:max-h-none shadow-xl sm:shadow-none`}>
           {loading ? (
             <div className="p-4 text-center text-slate-500">Loading...</div>
           ) : conversations.length === 0 ? (
@@ -1536,6 +1555,8 @@ export default function Messaging({
                   key={conv.id}
                   onClick={() => {
                     setSelectedConversation(conv.id);
+                    // Close conversations list on mobile after selection
+                    setShowConversationsList(false);
                   }}
                   className={`w-full text-left p-3 sm:p-4 border-b border-slate-200 hover:bg-white transition-colors ${
                     selectedConversation === conv.id ? 'bg-white border-l-4 border-l-blue-600' : ''
@@ -1563,7 +1584,7 @@ export default function Messaging({
         </div>
 
         {/* Messages Area */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col relative z-10">
           {selectedConversation ? (
             <>
               {/* Chat Header */}
