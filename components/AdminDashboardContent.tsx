@@ -1387,6 +1387,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [deletingProposal, setDeletingProposal] = useState<number | null>(null);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [conversationMessages, setConversationMessages] = useState<Message[]>([]);
+  const [showConversationsDrawer, setShowConversationsDrawer] = useState(false); // Mobile: toggle conversations drawer
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
   const [blogSearchQuery, setBlogSearchQuery] = useState("");
   const [selectedBlogPost, setSelectedBlogPost] = useState<BlogPost | null>(null);
@@ -3055,9 +3056,29 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
               ) : conversations.length === 0 ? (
                 <div className="p-8 text-center text-slate-500">No conversations yet</div>
               ) : (
-                <div className="flex h-[600px]">
+                <div className="flex flex-col sm:flex-row h-[500px] sm:h-[600px] relative min-h-[400px]">
+                  {/* Mobile: Backdrop overlay when conversations drawer is open */}
+                  {showConversationsDrawer && (
+                    <div
+                      onClick={() => setShowConversationsDrawer(false)}
+                      className="sm:hidden fixed inset-0 bg-black/50 z-40"
+                    />
+                  )}
+
+                  {/* Mobile: Toggle button for conversations drawer */}
+                  {!selectedConversation && (
+                    <button
+                      onClick={() => setShowConversationsDrawer(true)}
+                      className="sm:hidden absolute top-2 right-2 z-50 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium shadow-lg hover:bg-blue-700 transition-colors"
+                    >
+                      {lang === 'el' ? '📋 Συνομιλίες' : '📋 Conversations'}
+                    </button>
+                  )}
+
                   {/* Conversations List */}
-                  <div className="w-80 border-r border-slate-200 overflow-y-auto">
+                  <div className={`w-full sm:w-80 border-r border-slate-200 overflow-y-auto bg-white ${
+                    showConversationsDrawer ? 'block' : 'hidden sm:block'
+                  } absolute sm:relative top-0 left-0 right-0 sm:right-auto bottom-0 sm:bottom-auto z-50 sm:z-auto shadow-xl sm:shadow-none max-h-full`}>
                     {conversations.map((conv) => (
                       <div
                         key={conv.id}
@@ -3066,7 +3087,11 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                         }`}
                       >
                         <button
-                          onClick={() => setSelectedConversation(conv)}
+                          onClick={() => {
+                            setSelectedConversation(conv);
+                            // Close drawer on mobile when conversation is selected
+                            setShowConversationsDrawer(false);
+                          }}
                           className="w-full text-left p-4 pr-12"
                         >
                           <div className="font-semibold text-slate-900">{conv.influencer_name}</div>
@@ -3091,11 +3116,23 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                   </div>
 
                   {/* Messages Area */}
-                  <div className="flex-1 overflow-y-auto p-6">
+                  <div className="flex-1 overflow-y-auto p-4 sm:p-6 relative z-10">
+                    {/* Mobile: Back button to show conversations list */}
+                    {selectedConversation && (
+                      <button
+                        onClick={() => {
+                          setSelectedConversation(null);
+                          setShowConversationsDrawer(true);
+                        }}
+                        className="sm:hidden mb-4 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200 transition-colors flex items-center gap-2"
+                      >
+                        ← {lang === 'el' ? 'Πίσω' : 'Back'}
+                      </button>
+                    )}
                     {selectedConversation ? (
                       <>
                         <div className="mb-4 pb-4 border-b border-slate-200">
-                          <h3 className="font-semibold text-slate-900">
+                          <h3 className="font-semibold text-slate-900 text-sm sm:text-base">
                             {selectedConversation.influencer_name} ↔ {selectedConversation.brand_name || selectedConversation.brand_email}
                           </h3>
                           <div className="text-sm text-slate-500 mt-1">
@@ -3139,8 +3176,14 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                         </div>
                       </>
                     ) : (
-                      <div className="flex items-center justify-center h-full text-slate-500">
-                        Επέλεξε μια συνομιλία για να δεις τα μηνύματα
+                      <div className="flex flex-col items-center justify-center h-full text-slate-500 p-4">
+                        <p className="text-center mb-4">{lang === 'el' ? 'Επέλεξε μια συνομιλία για να δεις τα μηνύματα' : 'Select a conversation to view messages'}</p>
+                        <button
+                          onClick={() => setShowConversationsDrawer(true)}
+                          className="sm:hidden px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                        >
+                          {lang === 'el' ? '📋 Προβολή Συνομιλιών' : '📋 View Conversations'}
+                        </button>
                       </div>
                     )}
                   </div>
