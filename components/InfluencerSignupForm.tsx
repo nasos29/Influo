@@ -966,12 +966,10 @@ export default function InfluencerSignupForm() {
                                 </div>
                                 {/* Preview with SocialEmbedCard for social media videos */}
                                 {vid && provider && embedUrl && !isImage && (
-                                    <div className="mt-2">
+                                    <div className="mt-2 w-full max-w-3xl">
                                         <SocialEmbedCard
                                             provider={provider}
                                             embedUrl={embedUrl}
-                                            width={500}
-                                            height={600}
                                             originalUrl={vid}
                                         />
                                     </div>

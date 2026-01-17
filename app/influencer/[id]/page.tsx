@@ -1765,7 +1765,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                          <div>
                             <h3 className="text-lg font-bold text-slate-900 mb-4">{txt.portfolio}</h3>
                             {profile.videos && profile.videos.length > 0 && profile.videos[0] !== "" ? (
-                                <div className="flex flex-wrap gap-4">
+                                <div className="flex flex-col gap-6">
                                     {profile.videos.map((vid, i) => {
                                         const isVideo = isDefinitelyVideo(vid);
                                         const isImage = isDefinitelyImage(vid);
@@ -1844,12 +1844,10 @@ export default function InfluencerProfile(props: { params: Params }) {
                                         // Use SocialEmbedCard for social media videos
                                         if (provider && embedUrl && !isImage) {
                                             return (
-                                                <div key={i} className="w-full sm:w-[calc(50%-0.5rem)] lg:w-[calc(33.333%-0.67rem)]">
+                                                <div key={i} className="w-full">
                                                     <SocialEmbedCard
                                                         provider={provider}
                                                         embedUrl={embedUrl}
-                                                        width={500}
-                                                        height={600}
                                                         originalUrl={vid}
                                                     />
                                                 </div>

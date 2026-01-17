@@ -7,8 +7,8 @@ interface SocialEmbedCardProps {
   provider: "instagram" | "tiktok" | "youtube";
   embedUrl: string;
   thumbnailUrl?: string;
-  width?: number;
-  height?: number;
+  width?: number; // Optional - will use provider-specific defaults if not provided
+  height?: number; // Optional - will use provider-specific defaults if not provided
   originalUrl?: string; // Original post URL for fallback button
 }
 
@@ -16,10 +16,19 @@ export default function SocialEmbedCard({
   provider,
   embedUrl,
   thumbnailUrl,
-  width = 500,
-  height = 600,
+  width,
+  height,
   originalUrl,
 }: SocialEmbedCardProps) {
+  // Default dimensions based on provider - optimized for better video display
+  const defaultDimensions = {
+    instagram: { width: 800, height: 1000 }, // Portrait/square posts - larger for better viewing
+    tiktok: { width: 800, height: 1000 }, // Portrait videos - larger for better viewing
+    youtube: { width: 1000, height: 562 }, // 16:9 landscape - standard YouTube aspect ratio
+  };
+  
+  const finalWidth = width || defaultDimensions[provider]?.width || 800;
+  const finalHeight = height || defaultDimensions[provider]?.height || 1000;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [showThumbnail, setShowThumbnail] = useState(!!thumbnailUrl);
@@ -138,7 +147,7 @@ export default function SocialEmbedCard({
       {showThumbnail && thumbnailUrl && (
         <div 
           className="relative w-full"
-          style={{ aspectRatio: `${width} / ${height}` }}
+          style={{ aspectRatio: `${finalWidth} / ${finalHeight}` }}
         >
           <Image
             src={thumbnailUrl}
@@ -165,7 +174,7 @@ export default function SocialEmbedCard({
         <div 
           className={`bg-gradient-to-br ${config.color} flex flex-col items-center justify-center p-8 relative w-full`}
           style={{ 
-            aspectRatio: `${width} / ${height}`,
+            aspectRatio: `${finalWidth} / ${finalHeight}`,
             minHeight: '300px'
           }}
         >
@@ -179,7 +188,7 @@ export default function SocialEmbedCard({
       <div 
         className="relative w-full"
         style={{ 
-          aspectRatio: `${width} / ${height}`,
+          aspectRatio: `${finalWidth} / ${finalHeight}`,
           display: loading && showThumbnail ? 'none' : 'block'
         }}
       >
