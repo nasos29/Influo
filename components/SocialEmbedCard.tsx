@@ -32,19 +32,34 @@ export default function SocialEmbedCard({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [showThumbnail, setShowThumbnail] = useState(!!thumbnailUrl);
-  const [finalEmbedUrl, setFinalEmbedUrl] = useState<string>(embedUrl);
+  // Initialize as null if it's an API endpoint, otherwise use embedUrl directly
+  const [finalEmbedUrl, setFinalEmbedUrl] = useState<string | null>(
+    embedUrl.startsWith('/api/video-embed') ? null : embedUrl
+  );
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // If embedUrl is an API endpoint, fetch the cached embed URL
   useEffect(() => {
     if (embedUrl.startsWith('/api/video-embed')) {
+      setLoading(true);
       fetch(embedUrl)
-        .then(res => res.json())
+        .then(res => {
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+          return res.json();
+        })
         .then(data => {
           if (data.embed_url) {
             setFinalEmbedUrl(data.embed_url);
+            setLoading(false);
+          } else if (data.error) {
+            console.error('API error:', data.error);
+            setError(true);
+            setLoading(false);
           } else {
+            console.error('No embed_url in response:', data);
             setError(true);
             setLoading(false);
           }
@@ -57,6 +72,7 @@ export default function SocialEmbedCard({
     } else {
       // Direct Iframely URL, use as is
       setFinalEmbedUrl(embedUrl);
+      setLoading(false);
     }
   }, [embedUrl]);
 
@@ -209,13 +225,13 @@ export default function SocialEmbedCard({
         </div>
       )}
 
-      {/* Iframe Embed */}
-      {finalEmbedUrl && (
+      {/* Iframe Embed - Only show when we have the final embed URL */}
+      {finalEmbedUrl && !loading && (
         <div 
           className="relative w-full"
           style={{ 
             aspectRatio: `${finalWidth} / ${finalHeight}`,
-            display: loading && showThumbnail ? 'none' : 'block'
+            display: showThumbnail ? 'none' : 'block'
           }}
         >
           <iframe
