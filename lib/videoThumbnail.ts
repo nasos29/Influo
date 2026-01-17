@@ -67,3 +67,42 @@ export function extractVideoId(url: string): string | null {
   return null;
 }
 
+
+// Helper to detect social media provider from URL
+export function detectProvider(url: string): "instagram" | "tiktok" | "youtube" | null {
+  if (!url) return null;
+  
+  const lowerUrl = url.toLowerCase();
+  
+  if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) {
+    return 'youtube';
+  }
+  
+  if (lowerUrl.includes('instagram.com')) {
+    return 'instagram';
+  }
+  
+  if (lowerUrl.includes('tiktok.com') || lowerUrl.includes('vm.tiktok.com') || lowerUrl.includes('vt.tiktok.com')) {
+    return 'tiktok';
+  }
+  
+  return null;
+}
+
+// Helper to generate Iframely embed URL
+// Iframely format: https://iframe.ly/api/iframe?url={original_url}
+// Or with API key: https://iframe.ly/api/iframe?url={original_url}&api_key={api_key}
+export function getIframelyEmbedUrl(originalUrl: string, apiKey?: string): string {
+  if (!originalUrl) return '';
+  
+  const baseUrl = 'https://iframe.ly/api/iframe';
+  const params = new URLSearchParams({
+    url: originalUrl,
+  });
+  
+  if (apiKey) {
+    params.append('api_key', apiKey);
+  }
+  
+  return ${baseUrl}?;
+}
