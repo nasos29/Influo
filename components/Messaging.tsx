@@ -1587,6 +1587,17 @@ export default function Messaging({
         <div className="flex-1 flex flex-col relative z-10">
           {selectedConversation ? (
             <>
+              {/* Mobile: Back button to show conversations list */}
+              <button
+                onClick={() => {
+                  setSelectedConversation(null);
+                  setShowConversationsList(true);
+                }}
+                className="sm:hidden px-4 py-2 mx-4 mt-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200 transition-colors flex items-center gap-2"
+              >
+                ← {lang === 'el' ? 'Πίσω' : 'Back'}
+              </button>
+
               {/* Chat Header */}
               <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200 bg-gradient-to-r from-white to-slate-50">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
@@ -1788,8 +1799,14 @@ export default function Messaging({
             </>
           ) : (
             <div className="flex-1 flex flex-col">
-              <div className="flex-1 flex items-center justify-center text-slate-500">
-                {txt.selectConversation}
+              <div className="flex-1 flex flex-col items-center justify-center text-slate-500 p-4">
+                <p className="text-center mb-4">{txt.selectConversation}</p>
+                <button
+                  onClick={() => setShowConversationsList(true)}
+                  className="sm:hidden px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                >
+                  {lang === 'el' ? '📋 Προβολή Συνομιλιών' : '📋 View Conversations'}
+                </button>
               </div>
               
               {/* Show message input even without selected conversation if we have influencerId and brandEmail */}
