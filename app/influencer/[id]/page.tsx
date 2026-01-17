@@ -52,11 +52,11 @@ const TwitterIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c1 1 2.45 1.53 4 1.53a10.66 10.66 0 0 0 10-5.83v-.57a4.48 4.48 0 0 0 2-1.39z"></path></svg>
 );
 
-// Helper για μορφοποίηση αριθμών (15000 -> 15k)
+// Helper για μορφοποίηση αριθμών (15000 -> 15κ) - χρησιμοποιεί ελληνικό kappa
 const formatNum = (num?: number) => {
   if (num === undefined || num === null) return "";
   if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-  if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
+  if (num >= 1000) return (num / 1000).toFixed(1) + 'κ';
   return num.toString();
 };
 
@@ -579,16 +579,38 @@ export default function InfluencerProfile(props: { params: Params }) {
         data.accounts.forEach((acc: any) => {
           if (acc.platform && acc.followers) {
             const platform = acc.platform.toLowerCase();
-            // Parse followers string (e.g., "15k" -> 15000, "1.5M" -> 1500000, "1,000" -> 1000)
+            // Parse followers string (e.g., "15k" -> 15000, "1.5M" -> 1500000, "14.600" -> 14600)
+            // Support both "k" and "κ" (Greek kappa), and handle dots as thousands separator
             let followersNum = 0;
             // Remove spaces and commas, then convert to lowercase
-            const followersStr = acc.followers.toString().toLowerCase().replace(/\s/g, '').replace(/,/g, '');
+            let followersStr = acc.followers.toString().toLowerCase().replace(/\s/g, '').replace(/,/g, '');
+            
+            // Check if it has 'm' or 'M' (millions)
             if (followersStr.includes('m')) {
               followersNum = parseFloat(followersStr) * 1000000;
-            } else if (followersStr.includes('k')) {
+            } 
+            // Check if it has 'k' or 'κ' (thousands) - Greek kappa support
+            else if (followersStr.includes('k') || followersStr.includes('κ')) {
               followersNum = parseFloat(followersStr) * 1000;
-            } else {
-              followersNum = parseFloat(followersStr) || 0;
+            } 
+            // No suffix - could be plain number or number with dot as thousands separator
+            else {
+              // If it has a dot, check if it's thousands separator (e.g., "14.600" -> 14600)
+              // or decimal (e.g., "14.6" -> 14.6)
+              if (followersStr.includes('.')) {
+                const parts = followersStr.split('.');
+                // If the part after dot has 3 digits, it's likely thousands separator (e.g., "14.600")
+                if (parts.length === 2 && parts[1].length === 3 && /^\d+$/.test(parts[1])) {
+                  // Thousands separator: remove dot and parse as integer
+                  followersNum = parseInt(parts[0] + parts[1], 10) || 0;
+                } else {
+                  // Decimal number: parse normally
+                  followersNum = parseFloat(followersStr) || 0;
+                }
+              } else {
+                // No dot, parse as integer
+                followersNum = parseFloat(followersStr) || 0;
+              }
             }
             followersObj[platform] = Math.round(followersNum);
           }

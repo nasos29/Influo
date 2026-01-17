@@ -37,11 +37,11 @@ const TwitterIcon = () => ( // <-- ΝΕΟ ICON (για το twitter/x)
 );
 
 
-// Helper για μορφοποίηση αριθμών (15000 -> 15k)
+// Helper για μορφοποίηση αριθμών (15000 -> 15κ) - χρησιμοποιεί ελληνικό kappa
 const formatNum = (num?: number) => {
     if (num === undefined || num === null) return "";
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'κ';
     return num.toString();
 };
 
