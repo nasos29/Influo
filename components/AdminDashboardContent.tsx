@@ -1285,7 +1285,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                                     // Use SocialEmbedCard for social media videos
                                                     if (provider && embedUrl && !isImage) {
                                                         return (
-                                                            <div className="mt-2 w-full max-w-3xl">
+                                                            <div className="mt-2 w-full max-w-lg">
                                                                 <SocialEmbedCard
                                                                     provider={provider}
                                                                     embedUrl={embedUrl}

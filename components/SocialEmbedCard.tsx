@@ -20,15 +20,15 @@ export default function SocialEmbedCard({
   height,
   originalUrl,
 }: SocialEmbedCardProps) {
-  // Default dimensions based on provider - optimized for better video display
+  // Default dimensions based on provider - optimized for compact but viewable display
   const defaultDimensions = {
-    instagram: { width: 800, height: 1000 }, // Portrait/square posts - larger for better viewing
-    tiktok: { width: 800, height: 1000 }, // Portrait videos - larger for better viewing
-    youtube: { width: 1000, height: 562 }, // 16:9 landscape - standard YouTube aspect ratio
+    instagram: { width: 400, height: 500 }, // Portrait/square posts - compact but viewable
+    tiktok: { width: 400, height: 600 }, // Portrait videos - 9:16 aspect ratio
+    youtube: { width: 560, height: 315 }, // 16:9 landscape - standard YouTube embed size
   };
   
-  const finalWidth = width || defaultDimensions[provider]?.width || 800;
-  const finalHeight = height || defaultDimensions[provider]?.height || 1000;
+  const finalWidth = width || defaultDimensions[provider]?.width || 400;
+  const finalHeight = height || defaultDimensions[provider]?.height || 500;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [showThumbnail, setShowThumbnail] = useState(!!thumbnailUrl);
