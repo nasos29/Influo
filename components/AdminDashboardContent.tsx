@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient"; 
 import Image from "next/image";
-import { isDefinitelyVideo, isDefinitelyImage } from "@/lib/videoThumbnail";
+import { isDefinitelyVideo, isDefinitelyImage, detectProvider, getIframelyEmbedUrl } from "@/lib/videoThumbnail";
 import VideoThumbnail from "./VideoThumbnail";
+import SocialEmbedCard from "./SocialEmbedCard";
 import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
 import { categoryTranslations } from "@/components/categoryTranslations";
 
@@ -1276,22 +1277,47 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                                 </div>
                                                 
                                                 {/* Video/Photo Preview */}
-                                                <div className="mt-2 relative w-full h-32 rounded-lg overflow-hidden border border-slate-200 bg-slate-100">
-                                                    <VideoThumbnail 
-                                                        url={video}
-                                                        manualThumbnail={thumbnailPreviews[video] || thumbnailUrlString || undefined}
-                                                        alt="Video/Photo thumbnail"
-                                                        fill
-                                                        className={isImage ? "object-contain" : "object-cover"}
-                                                    />
-                                                    {isVideo && !isInstagramPost && (
-                                                        <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
-                                                            <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center">
-                                                                <span className="text-xl text-slate-900 ml-1">▶</span>
+                                                {(() => {
+                                                    const provider = detectProvider(video);
+                                                    const embedUrl = provider ? getIframelyEmbedUrl(video) : null;
+                                                    const thumbnailUrl = thumbnailPreviews[video] || thumbnailUrlString || undefined;
+                                                    
+                                                    // Use SocialEmbedCard for social media videos
+                                                    if (provider && embedUrl && !isImage) {
+                                                        return (
+                                                            <div className="mt-2">
+                                                                <SocialEmbedCard
+                                                                    provider={provider}
+                                                                    embedUrl={embedUrl}
+                                                                    thumbnailUrl={thumbnailUrl}
+                                                                    width={500}
+                                                                    height={600}
+                                                                    originalUrl={video}
+                                                                />
                                                             </div>
+                                                        );
+                                                    }
+                                                    
+                                                    // Use VideoThumbnail for images or non-social media URLs
+                                                    return (
+                                                        <div className="mt-2 relative w-full h-32 rounded-lg overflow-hidden border border-slate-200 bg-slate-100">
+                                                            <VideoThumbnail 
+                                                                url={video}
+                                                                manualThumbnail={thumbnailUrl}
+                                                                alt="Video/Photo thumbnail"
+                                                                fill
+                                                                className={isImage ? "object-contain" : "object-cover"}
+                                                            />
+                                                            {isVideo && !isInstagramPost && (
+                                                                <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
+                                                                    <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center">
+                                                                        <span className="text-xl text-slate-900 ml-1">▶</span>
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                    )}
-                                                </div>
+                                                    );
+                                                })()}
                                             </>
                                         )}
                                     </div>

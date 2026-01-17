@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import Image from "next/image";
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
+import { detectProvider, getIframelyEmbedUrl, isDefinitelyImage } from "@/lib/videoThumbnail";
+import SocialEmbedCard from "./SocialEmbedCard";
 
 type Account = { platform: string; username: string; followers: string };
 type Lang = "el" | "en";
@@ -951,12 +953,32 @@ export default function InfluencerSignupForm() {
                 <div className="space-y-3">
                     <label className={labelClass}>{txt.videoLabel}</label>
                     <p className="text-xs text-gray-500 mb-2">{txt.videoDesc}</p>
-                    {videos.map((vid, i) => (
-                        <div key={i} className="flex gap-3">
-                            <input type="text" className={inputClass} value={vid} onChange={(e) => handleVideoChange(i, e.target.value)} placeholder="https://..." />
-                            {videos.length > 1 && <button onClick={() => removeVideo(i)} className="text-red-500 font-bold px-2 hover:bg-red-50 rounded">✕</button>}
-                        </div>
-                    ))}
+                    {videos.map((vid, i) => {
+                        const provider = detectProvider(vid);
+                        const embedUrl = provider ? getIframelyEmbedUrl(vid) : null;
+                        const isImage = isDefinitelyImage(vid);
+                        
+                        return (
+                            <div key={i} className="space-y-2">
+                                <div className="flex gap-3">
+                                    <input type="text" className={inputClass} value={vid} onChange={(e) => handleVideoChange(i, e.target.value)} placeholder="https://..." />
+                                    {videos.length > 1 && <button onClick={() => removeVideo(i)} className="text-red-500 font-bold px-2 hover:bg-red-50 rounded">✕</button>}
+                                </div>
+                                {/* Preview with SocialEmbedCard for social media videos */}
+                                {vid && provider && embedUrl && !isImage && (
+                                    <div className="mt-2">
+                                        <SocialEmbedCard
+                                            provider={provider}
+                                            embedUrl={embedUrl}
+                                            width={500}
+                                            height={600}
+                                            originalUrl={vid}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
                     <button onClick={addVideo} className="text-blue-600 text-sm font-bold hover:underline">{txt.addVideo}</button>
                 </div>
 

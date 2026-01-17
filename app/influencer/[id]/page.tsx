@@ -5,8 +5,9 @@ import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
 import { dummyInfluencers, Influencer } from "@/components/Directory"; 
 import { supabase } from "@/lib/supabaseClient";
-import { getVideoThumbnail, isVideoUrl, isDefinitelyVideo, isDefinitelyImage } from "@/lib/videoThumbnail";
+import { getVideoThumbnail, isVideoUrl, isDefinitelyVideo, isDefinitelyImage, detectProvider, getIframelyEmbedUrl } from "@/lib/videoThumbnail";
 import VideoThumbnail from "@/components/VideoThumbnail";
+import SocialEmbedCard from "@/components/SocialEmbedCard";
 import { getBadges, getBadgeStyles } from "@/lib/badges";
 import Avatar from "@/components/Avatar";
 import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
@@ -1837,6 +1838,25 @@ export default function InfluencerProfile(props: { params: Params }) {
                                             );
                                         };
                                         
+                                        const provider = detectProvider(vid);
+                                        const embedUrl = provider ? getIframelyEmbedUrl(vid) : null;
+                                        
+                                        // Use SocialEmbedCard for social media videos
+                                        if (provider && embedUrl && !isImage) {
+                                            return (
+                                                <div key={i} className="w-full sm:w-[calc(50%-0.5rem)] lg:w-[calc(33.333%-0.67rem)]">
+                                                    <SocialEmbedCard
+                                                        provider={provider}
+                                                        embedUrl={embedUrl}
+                                                        width={500}
+                                                        height={600}
+                                                        originalUrl={vid}
+                                                    />
+                                                </div>
+                                            );
+                                        }
+                                        
+                                        // Use VideoThumbnail for images or non-social media URLs
                                         return (
                                             <a 
                                                 key={i} 
