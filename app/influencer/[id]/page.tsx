@@ -1641,7 +1641,11 @@ export default function InfluencerProfile(props: { params: Params }) {
                     
                     return availablePlatforms.map((platform) => {
                       const Icon = platform.icon;
-                      const engagementRate = engagementRates[platform.key] || '-';
+                      let engagementRate = engagementRates[platform.key] || '-';
+                      // Add % if not already present
+                      if (engagementRate !== '-' && !engagementRate.includes('%')) {
+                        engagementRate = engagementRate + '%';
+                      }
                       return (
                         <div key={platform.key} className="flex items-center gap-1.5">
                           <span className={platform.color}>
@@ -1837,99 +1841,6 @@ export default function InfluencerProfile(props: { params: Params }) {
                             <p className="text-slate-600 leading-relaxed whitespace-pre-wrap">
                                 {lang === 'en' && profile.bio_en ? profile.bio_en : (profile.bio || txt.no_bio)}
                             </p>
-                        </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                             <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm text-center">
-                                <p className="text-slate-400 text-xs font-bold uppercase">{txt.stat_eng}</p>
-                                <div className="flex flex-wrap gap-1 justify-center items-center">
-                                  {(() => {
-                                    const followers = profile.followers || {};
-                                    const engagementRates = (typeof profile.engagement_rate === 'object' && profile.engagement_rate !== null && !Array.isArray(profile.engagement_rate)) 
-                                      ? profile.engagement_rate as { [key: string]: string }
-                                      : {};
-                                    const platforms = [
-                                      { key: 'instagram', icon: InstagramIcon, color: 'text-pink-600' },
-                                      { key: 'tiktok', icon: TiktokIcon, color: 'text-black' },
-                                      { key: 'youtube', icon: YoutubeIcon, color: 'text-red-600' },
-                                      { key: 'facebook', icon: FacebookIcon, color: 'text-blue-700' },
-                                      { key: 'twitter', icon: TwitterIcon, color: 'text-slate-800' },
-                                    ];
-                                    
-                                    const availablePlatforms = platforms.filter(platform => followers[platform.key as keyof typeof followers]);
-                                    
-                                    if (availablePlatforms.length === 0) {
-                                      return <span className="text-slate-400">-</span>;
-                                    }
-                                    
-                                    return availablePlatforms.map((platform) => {
-                                      const Icon = platform.icon;
-                                      const engagementRate = engagementRates[platform.key] || '-';
-                                      return (
-                                        <div key={platform.key} className="flex items-center gap-1">
-                                          <span className={platform.color + " text-sm"}>
-                                            <Icon />
-                                          </span>
-                                          <span className="text-lg font-bold text-blue-600">{engagementRate}</span>
-                                        </div>
-                                      );
-                                    });
-                                  })()}
-                                </div>
-                             </div>
-                             <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm text-center">
-                                <p className="text-slate-400 text-xs font-bold uppercase">{txt.stat_likes}</p>
-                                <div className="flex flex-wrap gap-1 justify-center items-center">
-                                  {(() => {
-                                    const followers = profile.followers || {};
-                                    const avgLikes = (typeof profile.avg_likes === 'object' && profile.avg_likes !== null && !Array.isArray(profile.avg_likes)) 
-                                      ? profile.avg_likes as { [key: string]: string }
-                                      : {};
-                                    const platforms = [
-                                      { key: 'instagram', icon: InstagramIcon, color: 'text-pink-600' },
-                                      { key: 'tiktok', icon: TiktokIcon, color: 'text-black' },
-                                      { key: 'youtube', icon: YoutubeIcon, color: 'text-red-600' },
-                                      { key: 'facebook', icon: FacebookIcon, color: 'text-blue-700' },
-                                      { key: 'twitter', icon: TwitterIcon, color: 'text-slate-800' },
-                                    ];
-                                    
-                                    const availablePlatforms = platforms.filter(platform => followers[platform.key as keyof typeof followers]);
-                                    
-                                    if (availablePlatforms.length === 0) {
-                                      return <span className="text-slate-400">-</span>;
-                                    }
-                                    
-                                    return availablePlatforms.map((platform) => {
-                                      const Icon = platform.icon;
-                                      const avgLikesValue = avgLikes[platform.key] || '-';
-                                      return (
-                                        <div key={platform.key} className="flex items-center gap-1">
-                                          <span className={platform.color + " text-sm"}>
-                                            <Icon />
-                                          </span>
-                                          <span className="text-lg font-bold text-slate-800">{avgLikesValue}</span>
-                                        </div>
-                                      );
-                                    });
-                                  })()}
-                                </div>
-                             </div>
-                             <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm text-center">
-                                <p className="text-slate-400 text-xs font-bold uppercase">{txt.foll}</p>
-                                <p className="text-2xl font-extrabold text-slate-800">
-                                    {(() => {
-                                      // Priority: Instagram > TikTok > YouTube > Facebook > Twitter/X
-                                      const followers = profile.followers || {};
-                                      const count = followers.instagram || followers.tiktok || followers.youtube || followers.facebook || followers.twitter || 0;
-                                      if (count === 0) return 'N/A';
-                                      // Use formatNum helper for consistent formatting
-                                      return formatNum(count);
-                                    })()}
-                                </p>
-                             </div>
-                             <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm text-center">
-                                <p className="text-slate-400 text-xs font-bold uppercase">{txt.collabs}</p>
-                                <p className="text-2xl font-extrabold text-purple-600">{profile.past_brands?.length || 0}</p>
-                             </div>
                         </div>
                          <div>
                             <h3 className="text-lg font-bold text-slate-900 mb-4">{txt.portfolio}</h3>
