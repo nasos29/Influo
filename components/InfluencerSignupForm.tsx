@@ -7,7 +7,7 @@ import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 import { detectProvider, getIframelyEmbedUrl, isDefinitelyImage } from "@/lib/videoThumbnail";
 import SocialEmbedCard from "./SocialEmbedCard";
 
-type Account = { platform: string; username: string; followers: string };
+type Account = { platform: string; username: string; followers: string; engagement_rate?: string };
 type Lang = "el" | "en";
 
 // --- FULL CATEGORY LIST ---
@@ -208,7 +208,7 @@ export default function InfluencerSignupForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState(""); 
   
-  const [accounts, setAccounts] = useState<Account[]>([{ platform: "Instagram", username: "", followers: "" }]);
+  const [accounts, setAccounts] = useState<Account[]>([{ platform: "Instagram", username: "", followers: "", engagement_rate: "" }]);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -254,15 +254,15 @@ export default function InfluencerSignupForm() {
 
   const handleAccountChange = (i: number, field: keyof Account, value: string) => {
     const copy = [...accounts]; 
-    // Replace comma with dot for followers field
-    if (field === 'followers') {
+    // Replace comma with dot for followers and engagement_rate fields
+    if (field === 'followers' || field === 'engagement_rate') {
       copy[i][field] = replaceCommaWithDot(value);
     } else {
       copy[i][field] = value;
     }
     setAccounts(copy);
   };
-  const addAccount = () => setAccounts([...accounts, { platform: "Instagram", username: "", followers: "" }]);
+  const addAccount = () => setAccounts([...accounts, { platform: "Instagram", username: "", followers: "", engagement_rate: "" }]);
   const removeAccount = (i: number) => { const copy = [...accounts]; copy.splice(i, 1); setAccounts(copy); };
 
   const handleVideoChange = (i: number, val: string) => { const copy = [...videos]; copy[i] = val; setVideos(copy); };
@@ -543,7 +543,6 @@ export default function InfluencerSignupForm() {
           videos: videos.filter(v => v !== ""),
           avatar_url: avatarUrl || null,
           insights_urls: insightUrls,
-          engagement_rate: engagementRate,
           avg_likes: avgLikes,
           audience_male_percent: parseInt(malePercent) || 0,
           audience_female_percent: parseInt(femalePercent) || 0,
@@ -811,9 +810,15 @@ export default function InfluencerSignupForm() {
                             </div>
 
                             {/* Followers */}
-                            <div className="w-full md:w-1/3">
+                            <div className="w-full md:w-1/4">
                                 <label className="text-[10px] uppercase font-bold text-gray-400 mb-1 block">{txt.follLabel}</label>
                                 <input type="text" className={`${inputClass} !py-2 !text-sm`} value={acc.followers} onChange={(e) => handleAccountChange(i, "followers", e.target.value)} placeholder="15k" />
+                            </div>
+
+                            {/* Engagement Rate */}
+                            <div className="w-full md:w-1/4">
+                                <label className="text-[10px] uppercase font-bold text-gray-400 mb-1 block">{txt.engageRateLabel}</label>
+                                <input type="text" className={`${inputClass} !py-2 !text-sm`} value={acc.engagement_rate || ""} onChange={(e) => handleAccountChange(i, "engagement_rate", e.target.value)} placeholder="5.5%" />
                             </div>
 
                             <button onClick={() => removeAccount(i)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold shadow-md hover:bg-red-600 transition-colors">✕</button>
@@ -937,16 +942,10 @@ export default function InfluencerSignupForm() {
                     </div>
                 </div>
 
-                {/* Engagement / Likes / Rate */}
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className={labelClass}>{txt.engageRateLabel}</label>
-                        <input type="text" className={inputClass} value={engagementRate} onChange={(e) => setEngagementRate(replaceCommaWithDot(e.target.value))} placeholder="5.5%" />
-                    </div>
-                    <div>
-                        <label className={labelClass}>{txt.avgLikesLabel}</label>
-                        <input type="text" className={inputClass} value={avgLikes} onChange={(e) => setAvgLikes(replaceCommaWithDot(e.target.value))} placeholder="3.2k" />
-                    </div>
+                {/* Average Likes (general) */}
+                <div>
+                    <label className={labelClass}>{txt.avgLikesLabel}</label>
+                    <input type="text" className={inputClass} value={avgLikes} onChange={(e) => setAvgLikes(replaceCommaWithDot(e.target.value))} placeholder="3.2k" />
                 </div>
 
                 {/* Videos */}

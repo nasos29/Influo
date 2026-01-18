@@ -62,6 +62,7 @@ interface Account {
   platform: string;
   username: string;
   followers: string;
+  engagement_rate?: string;
 }
 
 interface InfluencerData {
@@ -93,7 +94,6 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
     const [bio, setBio] = useState(user.bio || "");
     const [minRate, setMinRate] = useState(user.min_rate || "");
     const [location, setLocation] = useState(user.location || "");
-    const [engage, setEngage] = useState(user.engagement_rate || "");
     const [likes, setLikes] = useState(user.avg_likes || "");
     // Support multiple categories - parse comma-separated string or use single category
     const initialCategories = user.category 
@@ -133,8 +133,8 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
     const [gender, setGender] = useState(initialGender);
     const [accounts, setAccounts] = useState<Account[]>(
         user.accounts && Array.isArray(user.accounts) && user.accounts.length > 0
-            ? user.accounts
-            : [{ platform: "Instagram", username: "", followers: "" }]
+            ? user.accounts.map((acc: any) => ({ ...acc, engagement_rate: acc.engagement_rate || "" }))
+            : [{ platform: "Instagram", username: "", followers: "", engagement_rate: "" }]
     );
     const [malePercent, setMalePercent] = useState(user.audience_male_percent?.toString() || "");
     const [femalePercent, setFemalePercent] = useState(user.audience_female_percent?.toString() || "");
@@ -158,8 +158,8 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
 
     const handleAccountChange = (i: number, field: keyof Account, value: string) => {
         const copy = [...accounts];
-        // Replace comma with dot for followers field
-        if (field === 'followers') {
+        // Replace comma with dot for followers and engagement_rate fields
+        if (field === 'followers' || field === 'engagement_rate') {
             copy[i][field] = replaceCommaWithDot(value);
         } else {
             copy[i][field] = value;
@@ -168,7 +168,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
     };
 
     const addAccount = () => {
-        setAccounts([...accounts, { platform: "Instagram", username: "", followers: "" }]);
+        setAccounts([...accounts, { platform: "Instagram", username: "", followers: "", engagement_rate: "" }]);
     };
 
     const removeAccount = (i: number) => {
@@ -246,7 +246,6 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                 bio: bio, 
                 min_rate: minRate,
                 location: location,
-                engagement_rate: engage,
                 avg_likes: likes,
                 category: categoryString,
                 languages: languagesString,
@@ -274,7 +273,6 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                 bio: currentData.bio || '',
                 min_rate: currentData.min_rate || '',
                 location: currentData.location || '',
-                engagement_rate: currentData.engagement_rate || '',
                 avg_likes: currentData.avg_likes || '',
                 category: currentData.category || '',
                 languages: currentData.languages || '',
@@ -648,6 +646,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                     </select>
                                     <input type="text" placeholder="Username" value={acc.username} onChange={e => handleAccountChange(i, 'username', e.target.value)} className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" />
                                     <input type="text" placeholder="Followers" value={acc.followers} onChange={e => handleAccountChange(i, 'followers', e.target.value)} className="w-32 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" />
+                                    <input type="text" placeholder="Engagement %" value={acc.engagement_rate || ""} onChange={e => handleAccountChange(i, 'engagement_rate', e.target.value)} className="w-32 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" />
                                     {accounts.length > 1 && (
                                         <button type="button" onClick={() => removeAccount(i)} className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg">✕</button>
                                     )}

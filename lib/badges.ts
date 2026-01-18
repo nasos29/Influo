@@ -14,7 +14,7 @@ export interface Badge {
 interface InfluencerMetrics {
   verified?: boolean;
   followers?: { [key: string]: number | undefined };
-  engagement_rate?: string;
+  engagement_rate?: string | { [key: string]: string }; // Can be per-platform object or legacy string
   total_reviews?: number;
   avg_rating?: number;
   past_brands?: any[] | number;
@@ -29,9 +29,22 @@ const getMaxFollowers = (followers?: { [key: string]: number | undefined }): num
   return values.length ? Math.max(...values) : 0;
 };
 
-// Helper για engagement rate parsing
-const parseEngagementRate = (rate?: string): number => {
+// Helper για engagement rate parsing - supports both string and per-platform object
+const parseEngagementRate = (rate?: string | { [key: string]: string }): number => {
   if (!rate) return 0;
+  
+  // If it's an object (per-platform), calculate average
+  if (typeof rate === 'object' && rate !== null && !Array.isArray(rate)) {
+    const rates = Object.values(rate).filter(v => v && v !== '-');
+    if (rates.length === 0) return 0;
+    const sum = rates.reduce((acc, r) => {
+      const parsed = parseFloat(r.replace('%', '').replace(',', '.')) || 0;
+      return acc + parsed;
+    }, 0);
+    return sum / rates.length;
+  }
+  
+  // Legacy string format
   return parseFloat(rate.replace('%', '').replace(',', '.')) || 0;
 };
 

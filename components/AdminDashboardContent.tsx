@@ -494,7 +494,6 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
     const [minRate, setMinRate] = useState(user.min_rate || "");
     const [location, setLocation] = useState(user.location || "");
     const [avgLikes, setAvgLikes] = useState(user.avg_likes || "");
-    const [engage, setEngage] = useState(user.engagement_rate || "");
     // Ensure gender is valid (Female, Male, or Other)
     const initialGender = (user.gender === 'Female' || user.gender === 'Male' || user.gender === 'Other') ? user.gender : 'Female';
     const [gender, setGender] = useState(initialGender);
@@ -530,7 +529,11 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
     };
     const initialLanguages = parseLanguages(user.languages);
     const [selectedLanguages, setSelectedLanguages] = useState<string[]>(initialLanguages);
-    const [accounts, setAccounts] = useState<{ platform: string; username: string; followers: string }[]>(user.accounts || [{ platform: "Instagram", username: "", followers: "" }]);
+    const [accounts, setAccounts] = useState<{ platform: string; username: string; followers: string; engagement_rate?: string }[]>(
+        user.accounts && Array.isArray(user.accounts) && user.accounts.length > 0
+            ? user.accounts.map((acc: any) => ({ ...acc, engagement_rate: acc.engagement_rate || "" }))
+            : [{ platform: "Instagram", username: "", followers: "", engagement_rate: "" }]
+    );
     const [videos, setVideos] = useState<string[]>(Array.isArray(user.videos) ? user.videos : []);
     const [videoThumbnails, setVideoThumbnails] = useState<Record<string, string | { url: string; width?: number; height?: number; type?: string }>>(user.video_thumbnails || {});
     const [thumbnailFiles, setThumbnailFiles] = useState<Record<string, File | null>>({}); // Store files to upload
@@ -548,7 +551,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
         copy[i][field] = value; 
         setAccounts(copy);
     };
-    const addAccount = () => setAccounts([...accounts, { platform: "Instagram", username: "", followers: "" }]);
+    const addAccount = () => setAccounts([...accounts, { platform: "Instagram", username: "", followers: "", engagement_rate: "" }]);
     const removeAccount = (i: number) => { 
         const copy = [...accounts]; 
         copy.splice(i, 1); 
@@ -830,7 +833,6 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                 min_rate: minRate,
                 location: location, 
                 avg_likes: avgLikes, 
-                engagement_rate: engage,
                 gender: gender,
                 category: categoryString,
                 languages: selectedLanguages.map(code => {
@@ -1125,6 +1127,10 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                         <label className="block text-xs font-semibold text-slate-700 mb-1">Followers</label>
                                         <input type="text" value={account.followers} onChange={e => handleAccountChange(i, 'followers', e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" placeholder="e.g. 15k" />
                                     </div>
+                                    <div className="flex-1">
+                                        <label className="block text-xs font-semibold text-slate-700 mb-1">Engagement Rate (%)</label>
+                                        <input type="text" value={account.engagement_rate || ""} onChange={e => handleAccountChange(i, 'engagement_rate', e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" placeholder="e.g. 5.5%" />
+                                    </div>
                                     <button type="button" onClick={() => removeAccount(i)} className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">✕</button>
                                 </div>
                             ))}
@@ -1134,17 +1140,13 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                         {/* Analytics */}
                         <div>
                             <h3 className="text-sm font-bold text-slate-900 uppercase mb-3">Analytics</h3>
-                            <div className="grid grid-cols-3 gap-4">
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-900 mb-1">Min Rate (€)</label>
                                     <input type="text" value={minRate} onChange={e => setMinRate(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-semibold text-slate-900 mb-1">Engagement Rate (%)</label>
-                                    <input type="text" value={engage} onChange={e => setEngage(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-semibold text-slate-900 mb-1">Avg Likes/Views</label>
+                                    <label className="block text-sm font-semibold text-slate-900 mb-1">Avg Likes</label>
                                     <input type="text" value={avgLikes} onChange={e => setAvgLikes(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
                                 </div>
                             </div>

@@ -18,7 +18,7 @@ type Params = Promise<{ id: string }>;
 interface ProInfluencer extends Influencer {
   video_thumbnails?: Record<string, string> | null;
   contact_email?: string;
-  engagement_rate?: string;
+  engagement_rate?: string | { [key: string]: string }; // Can be per-platform object or legacy string
   avg_likes?: string;
   audience_data?: { male: number; female: number; top_age: string };
   rate_card?: { story?: string; post?: string; reel?: string; facebook?: string; youtube?: string };
@@ -573,8 +573,9 @@ export default function InfluencerProfile(props: { params: Params }) {
          data.accounts.forEach((acc: any) => { if(acc.platform) socialsObj[acc.platform.toLowerCase()] = acc.username; });
       }
       
-      // Build followers object from accounts
+      // Build followers object from accounts and engagement rates per platform
       const followersObj: { [key: string]: number } = {};
+      const engagementRatesObj: { [key: string]: string } = {};
       if (Array.isArray(data.accounts)) {
         data.accounts.forEach((acc: any) => {
           if (acc.platform && acc.followers) {
@@ -613,6 +614,11 @@ export default function InfluencerProfile(props: { params: Params }) {
               }
             }
             followersObj[platform] = Math.round(followersNum);
+            
+            // Store engagement rate per platform if available
+            if (acc.engagement_rate) {
+              engagementRatesObj[platform] = acc.engagement_rate;
+            }
           }
         });
       }
@@ -641,7 +647,7 @@ export default function InfluencerProfile(props: { params: Params }) {
         min_rate: data.min_rate,
         videos: Array.isArray(data.videos) ? data.videos : [],
         video_thumbnails: data.video_thumbnails || null,
-        engagement_rate: data.engagement_rate || "-",
+        engagement_rate: engagementRatesObj, // Store as object per platform
         avg_likes: data.avg_likes || "-",
         audience_data: {
           male: data.audience_male_percent || 50,
@@ -1610,7 +1616,9 @@ export default function InfluencerProfile(props: { params: Params }) {
                 <div className="flex flex-wrap gap-2 items-center">
                   {(() => {
                     const followers = profile.followers || {};
-                    const engagementRate = profile.engagement_rate || '-';
+                    const engagementRates = (typeof profile.engagement_rate === 'object' && profile.engagement_rate !== null && !Array.isArray(profile.engagement_rate)) 
+                      ? profile.engagement_rate as { [key: string]: string }
+                      : {};
                     const platforms = [
                       { key: 'instagram', icon: InstagramIcon, color: 'text-pink-600' },
                       { key: 'tiktok', icon: TiktokIcon, color: 'text-black' },
@@ -1621,12 +1629,13 @@ export default function InfluencerProfile(props: { params: Params }) {
                     
                     const availablePlatforms = platforms.filter(platform => followers[platform.key as keyof typeof followers]);
                     
-                    if (availablePlatforms.length === 0 || !engagementRate || engagementRate === '-') {
+                    if (availablePlatforms.length === 0) {
                       return <span className="text-sm text-slate-400">-</span>;
                     }
                     
                     return availablePlatforms.map((platform) => {
                       const Icon = platform.icon;
+                      const engagementRate = engagementRates[platform.key] || '-';
                       return (
                         <div key={platform.key} className="flex items-center gap-1.5">
                           <span className={platform.color}>
@@ -1823,7 +1832,40 @@ export default function InfluencerProfile(props: { params: Params }) {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                              <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm text-center">
                                 <p className="text-slate-400 text-xs font-bold uppercase">{txt.stat_eng}</p>
-                                <p className="text-2xl font-extrabold text-blue-600">{profile.engagement_rate}</p>
+                                <div className="flex flex-wrap gap-1 justify-center items-center">
+                                  {(() => {
+                                    const followers = profile.followers || {};
+                                    const engagementRates = (typeof profile.engagement_rate === 'object' && profile.engagement_rate !== null && !Array.isArray(profile.engagement_rate)) 
+                                      ? profile.engagement_rate as { [key: string]: string }
+                                      : {};
+                                    const platforms = [
+                                      { key: 'instagram', icon: InstagramIcon, color: 'text-pink-600' },
+                                      { key: 'tiktok', icon: TiktokIcon, color: 'text-black' },
+                                      { key: 'youtube', icon: YoutubeIcon, color: 'text-red-600' },
+                                      { key: 'facebook', icon: FacebookIcon, color: 'text-blue-700' },
+                                      { key: 'twitter', icon: TwitterIcon, color: 'text-slate-800' },
+                                    ];
+                                    
+                                    const availablePlatforms = platforms.filter(platform => followers[platform.key as keyof typeof followers]);
+                                    
+                                    if (availablePlatforms.length === 0) {
+                                      return <span className="text-slate-400">-</span>;
+                                    }
+                                    
+                                    return availablePlatforms.map((platform) => {
+                                      const Icon = platform.icon;
+                                      const engagementRate = engagementRates[platform.key] || '-';
+                                      return (
+                                        <div key={platform.key} className="flex items-center gap-1">
+                                          <span className={platform.color + " text-sm"}>
+                                            <Icon />
+                                          </span>
+                                          <span className="text-lg font-bold text-blue-600">{engagementRate}</span>
+                                        </div>
+                                      );
+                                    });
+                                  })()}
+                                </div>
                              </div>
                              <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm text-center">
                                 <p className="text-slate-400 text-xs font-bold uppercase">{txt.stat_likes}</p>
