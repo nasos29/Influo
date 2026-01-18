@@ -305,7 +305,23 @@ const ChevronDown = () => <svg className="w-4 h-4" fill="none" stroke="currentCo
 
 // --- HELPERS ---
 const parsePrice = (price?: string) => price ? parseFloat(price.replace(/[^0-9.]/g, '')) : 0;
-const parseEngagement = (rate?: string) => rate ? parseFloat(rate.replace('%', '')) : 0;
+const parseEngagement = (rate?: string | { [key: string]: string }) => {
+  if (!rate) return 0;
+  
+  // If it's an object (per-platform), calculate average or use first available
+  if (typeof rate === 'object' && rate !== null && !Array.isArray(rate)) {
+    const rates = Object.values(rate).filter(v => v && v !== '-');
+    if (rates.length === 0) return 0;
+    
+    // Parse all rates and calculate average
+    const parsedRates = rates.map(r => parseFloat(r.replace('%', '').replace(',', '.')) || 0);
+    const sum = parsedRates.reduce((acc, val) => acc + val, 0);
+    return sum / parsedRates.length;
+  }
+  
+  // Legacy string format
+  return rate ? parseFloat(rate.replace('%', '').replace(',', '.')) : 0;
+};
 const getMaxFollowers = (followers: any) => {
     const values = Object.values(followers).filter((v): v is number => v !== undefined);
     return values.length ? Math.max(...values as number[]) : 0;
