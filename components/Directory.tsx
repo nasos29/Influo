@@ -552,21 +552,32 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
 
     let languageMatch = true;
     if (languageFilter !== "All") {
-        if (!inf.languages || !Array.isArray(inf.languages)) {
+        if (!inf.languages || !Array.isArray(inf.languages) || inf.languages.length === 0) {
             languageMatch = false;
         } else {
-            // Check if any language matches (case-insensitive, support both Greek and English names)
-            const filterLower = languageFilter.toLowerCase();
-            const matches = inf.languages.some(lang => {
-                const langLower = lang.toLowerCase();
-                // Check if it matches the language code or name
-                const langObj = LANGUAGES.find(l => l.code === filterLower || l.el.toLowerCase() === langLower || l.en.toLowerCase() === langLower);
-                if (langObj) {
-                    return langObj.code === filterLower || langObj.el.toLowerCase() === langLower || langObj.en.toLowerCase() === langLower;
-                }
-                return langLower.includes(filterLower) || filterLower.includes(langLower);
-            });
-            if (!matches) languageMatch = false;
+            // Find the selected language object
+            const selectedLang = LANGUAGES.find(l => l.code === languageFilter);
+            if (!selectedLang) {
+                languageMatch = false;
+            } else {
+                // Check if any language in the influencer's languages matches (by code, Greek name, or English name)
+                const matches = inf.languages.some(lang => {
+                    const langStr = lang.toString().toLowerCase().trim();
+                    const selectedEl = selectedLang.el.toLowerCase();
+                    const selectedEn = selectedLang.en.toLowerCase();
+                    const selectedCode = selectedLang.code.toLowerCase();
+                    
+                    // Check if it matches the language code, Greek name, or English name
+                    return langStr === selectedCode || 
+                           langStr === selectedEl || 
+                           langStr === selectedEn ||
+                           langStr.includes(selectedEl) ||
+                           langStr.includes(selectedEn) ||
+                           selectedEl.includes(langStr) ||
+                           selectedEn.includes(langStr);
+                });
+                if (!matches) languageMatch = false;
+            }
         }
     }
 
