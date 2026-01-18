@@ -825,7 +825,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
             
             const updateData: any = {
                 display_name: name, 
-                bio: bio,
+                bio: bio, 
                 bio_en: bioEn || null, // Store English bio
                 min_rate: minRate,
                 location: location, 
@@ -1308,22 +1308,22 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                                     
                                                     // Use VideoThumbnail for images or non-social media URLs
                                                     return (
-                                                        <div className="mt-2 relative w-full h-32 rounded-lg overflow-hidden border border-slate-200 bg-slate-100">
-                                                            <VideoThumbnail 
-                                                                url={video}
+                                                <div className="mt-2 relative w-full h-32 rounded-lg overflow-hidden border border-slate-200 bg-slate-100">
+                                                    <VideoThumbnail 
+                                                        url={video}
                                                                 manualThumbnail={thumbnailUrl}
-                                                                alt="Video/Photo thumbnail"
-                                                                fill
-                                                                className={isImage ? "object-contain" : "object-cover"}
-                                                            />
-                                                            {isVideo && !isInstagramPost && (
-                                                                <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
-                                                                    <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center">
-                                                                        <span className="text-xl text-slate-900 ml-1">▶</span>
-                                                                    </div>
-                                                                </div>
-                                                            )}
+                                                        alt="Video/Photo thumbnail"
+                                                        fill
+                                                        className={isImage ? "object-contain" : "object-cover"}
+                                                    />
+                                                    {isVideo && !isInstagramPost && (
+                                                        <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
+                                                            <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center">
+                                                                <span className="text-xl text-slate-900 ml-1">▶</span>
+                                                            </div>
                                                         </div>
+                                                    )}
+                                                </div>
                                                     );
                                                 })()}
                                             </>

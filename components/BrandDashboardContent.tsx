@@ -615,6 +615,7 @@ export default function BrandDashboardContent() {
     category: '',
     minEngagement: 0,
     minRating: 0,
+    platform: '', // Filter by platform (instagram, tiktok, youtube, etc.)
   });
   const [showFilters, setShowFilters] = useState(false);
   // Load stats from localStorage on mount
@@ -834,7 +835,7 @@ export default function BrandDashboardContent() {
       // Fetch only approved influencers from database (same as Directory)
       const { data: influencersData, error } = await supabase
         .from('influencers')
-        .select('id, display_name, category, engagement_rate, min_rate, location, gender, avg_rating, total_reviews, verified, approved, analytics_verified, accounts, avatar_url, audience_male_percent, audience_female_percent, audience_top_age, bio')
+        .select('id, display_name, category, engagement_rate, avg_likes, min_rate, location, gender, avg_rating, total_reviews, verified, approved, analytics_verified, accounts, avatar_url, audience_male_percent, audience_female_percent, audience_top_age, bio')
         .eq('approved', true) // Only approved influencers (same as Directory)
         .order('created_at', { ascending: false }) // Sort by creation date
         .limit(200);
@@ -858,20 +859,44 @@ export default function BrandDashboardContent() {
       // Convert database influencers to InfluencerProfile format
       const dbInfluencerProfiles: InfluencerProfile[] = (influencersData || []).map((inf: any) => {
         console.log('[Brand Dashboard] Processing influencer:', inf.display_name, 'approved:', inf.approved, 'verified:', inf.verified);
-        // Calculate followers_count from accounts array
-        let maxFollowers = 0;
-        let followersStr = '0';
         
-        if (Array.isArray(inf.accounts)) {
-          inf.accounts.forEach((acc: any) => {
-            if (acc.followers) {
-              const followersNum = parseFollowerString(acc.followers);
-              if (followersNum > maxFollowers) {
-                maxFollowers = followersNum;
-                followersStr = acc.followers; // Keep original format
+        // If platform filter is set, use data from that specific platform
+        let selectedPlatformFollowers = 0;
+        let followersStr = '0';
+        let platformEngagementRate = inf.engagement_rate; // Default to general engagement rate
+        let platformAvgLikes = inf.avg_likes; // Default to general avg_likes
+        
+        if (recommendationFilters.platform && Array.isArray(inf.accounts)) {
+          const platformLower = recommendationFilters.platform.toLowerCase();
+          const platformAccount = inf.accounts.find((acc: any) => 
+            acc.platform?.toLowerCase() === platformLower
+          );
+          
+          if (platformAccount) {
+            selectedPlatformFollowers = parseFollowerString(platformAccount.followers);
+            followersStr = platformAccount.followers || '0';
+            // Use platform-specific engagement_rate and avg_likes if available in account
+            // For now, use general values as they're not stored per platform
+            platformEngagementRate = platformAccount.engagement_rate || inf.engagement_rate;
+            platformAvgLikes = platformAccount.avg_likes || inf.avg_likes;
+          } else {
+            // Influencer doesn't have this platform, skip by setting followers to 0
+            followersStr = '0';
+          }
+        } else {
+          // No platform filter - calculate max followers from all accounts
+          let maxFollowers = 0;
+          if (Array.isArray(inf.accounts)) {
+            inf.accounts.forEach((acc: any) => {
+              if (acc.followers) {
+                const followersNum = parseFollowerString(acc.followers);
+                if (followersNum > maxFollowers) {
+                  maxFollowers = followersNum;
+                  followersStr = acc.followers; // Keep original format
+                }
               }
-            }
-          });
+            });
+          }
         }
         
           return {
@@ -881,7 +906,7 @@ export default function BrandDashboardContent() {
             categories: inf.category 
               ? (inf.category.includes(',') ? inf.category.split(',').map((c: string) => c.trim()) : [inf.category])
               : undefined,
-            engagement_rate: inf.engagement_rate,
+            engagement_rate: platformEngagementRate, // Use platform-specific or general
           followers_count: followersStr,
           min_rate: inf.min_rate,
           location: inf.location,
@@ -898,6 +923,12 @@ export default function BrandDashboardContent() {
           bio: inf.bio,
           rate_card: undefined, // rate_card doesn't exist in DB, will be null
         };
+      }).filter(inf => {
+        // Filter out influencers that don't have the selected platform
+        if (recommendationFilters.platform && inf.followers_count === '0') {
+          return false;
+        }
+        return true;
       });
       
       // Category mapping from dummy data to standard categories
@@ -1010,8 +1041,20 @@ export default function BrandDashboardContent() {
       
       if (recommendationFilters.minEngagement > 0) {
         filteredProfiles = filteredProfiles.filter(inf => {
+          // Use platform-specific engagement rate if platform filter is set
           const rate = parseFloat(inf.engagement_rate?.replace('%', '').replace(',', '.') || '0');
           return !isNaN(rate) && rate >= recommendationFilters.minEngagement;
+        });
+      }
+      
+      // Filter by platform if specified
+      if (recommendationFilters.platform) {
+        filteredProfiles = filteredProfiles.filter(inf => {
+          if (!inf.accounts || !Array.isArray(inf.accounts)) return false;
+          const platformLower = recommendationFilters.platform.toLowerCase();
+          return inf.accounts.some((acc: any) => 
+            acc.platform?.toLowerCase() === platformLower
+          );
         });
       }
       
@@ -1360,7 +1403,7 @@ export default function BrandDashboardContent() {
           {/* Filters Panel */}
           {showFilters && (
             <div className="bg-white rounded-xl p-6 border border-slate-200 mb-6 shadow-sm">
-              <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4">
+              <div className="grid md:grid-cols-2 lg:grid-cols-6 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">{txt.min_score}</label>
                   <input
@@ -1422,6 +1465,21 @@ export default function BrandDashboardContent() {
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white"
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{lang === 'el' ? 'Πλατφόρμα' : 'Platform'}</label>
+                  <select
+                    value={recommendationFilters.platform}
+                    onChange={(e) => setRecommendationFilters({...recommendationFilters, platform: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white"
+                  >
+                    <option value="">{lang === 'el' ? 'Όλες' : 'All'}</option>
+                    <option value="instagram">Instagram</option>
+                    <option value="tiktok">TikTok</option>
+                    <option value="youtube">YouTube</option>
+                    <option value="facebook">Facebook</option>
+                    <option value="twitter">Twitter/X</option>
+                  </select>
+                </div>
               </div>
               <div className="flex gap-3 mt-4">
                 <button
@@ -1438,6 +1496,7 @@ export default function BrandDashboardContent() {
                       category: '',
                       minEngagement: 0,
                       minRating: 0,
+                      platform: '',
                     });
                     if (brandData) loadRecommendations(brandData);
                   }}

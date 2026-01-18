@@ -107,7 +107,7 @@ const t = {
     pricingFacebook: "Facebook Post (€)",
     pricingYouTube: "YouTube Video (€)",
     engageRateLabel: "Engagement Rate (%)", 
-    avgLikesLabel: "Μέσος Όρος Likes/Views", 
+    avgLikesLabel: "Μέσος Όρος Likes", 
     aud_title: "Δηλώστε τα στοιχεία Κοινού",
     aud_male: "Άνδρες (%)",
     aud_female: "Γυναίκες (%)",
@@ -961,9 +961,9 @@ export default function InfluencerSignupForm() {
                         return (
                             <div key={i} className="space-y-2">
                                 <div className="flex gap-3">
-                                    <input type="text" className={inputClass} value={vid} onChange={(e) => handleVideoChange(i, e.target.value)} placeholder="https://..." />
-                                    {videos.length > 1 && <button onClick={() => removeVideo(i)} className="text-red-500 font-bold px-2 hover:bg-red-50 rounded">✕</button>}
-                                </div>
+                            <input type="text" className={inputClass} value={vid} onChange={(e) => handleVideoChange(i, e.target.value)} placeholder="https://..." />
+                            {videos.length > 1 && <button onClick={() => removeVideo(i)} className="text-red-500 font-bold px-2 hover:bg-red-50 rounded">✕</button>}
+                        </div>
                                 {/* Preview with SocialEmbedCard for social media videos */}
                                 {vid && provider && embedUrl && !isImage && (
                                     <div className="mt-2 w-full max-w-lg">

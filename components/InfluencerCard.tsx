@@ -17,6 +17,8 @@ interface InfluencerCardProps {
   languages?: string[];
   badges?: Badge[];
   lang?: 'el' | 'en';
+  engagement_rate?: string; // General engagement rate (will be shown per platform)
+  avg_likes?: string; // General average likes (will be shown per platform)
 }
 
 // --- FULL ICONS ---
@@ -82,6 +84,8 @@ export default function InfluencerCard({
   languages = [],
   badges = [],
   lang = 'el',
+  engagement_rate,
+  avg_likes,
 }: InfluencerCardProps) {
   return (
     <div className="group bg-white rounded-lg border border-slate-200 overflow-hidden hover:shadow-md transition-shadow h-full flex flex-col cursor-pointer relative">
@@ -143,45 +147,85 @@ export default function InfluencerCard({
         </div>
 
         {/* Footer: Social Stats */}
-        <div className="mt-auto pt-3 border-t border-slate-200 grid grid-cols-2 gap-2">
+        <div className="mt-auto pt-3 border-t border-slate-200 space-y-2">
             
             {/* Instagram */}
             {socials.instagram && (
-                <div className="flex items-center gap-1.5 text-slate-600 text-xs bg-slate-50 p-1.5 rounded">
-                    <span className="text-pink-600"><InstagramIcon /></span>
-                    <span className="font-medium">{formatNum(followers.instagram)}</span>
+                <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-slate-600 text-xs bg-slate-50 p-1.5 rounded">
+                        <span className="text-pink-600"><InstagramIcon /></span>
+                        <span className="font-medium">{formatNum(followers.instagram)}</span>
+                    </div>
+                    {(engagement_rate || avg_likes) && (
+                        <div className="flex items-center gap-2 text-[10px] text-slate-500 pl-6">
+                            {engagement_rate && <span>ER: {engagement_rate}</span>}
+                            {avg_likes && <span>• Avg Likes: {avg_likes}</span>}
+                        </div>
+                    )}
                 </div>
             )}
             
             {/* TikTok */}
             {socials.tiktok && (
-                <div className="flex items-center gap-1.5 text-slate-600 text-xs bg-slate-50 p-1.5 rounded">
-                    <span className="text-black"><TiktokIcon /></span>
-                    <span className="font-bold">{formatNum(followers.tiktok)}</span>
+                <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-slate-600 text-xs bg-slate-50 p-1.5 rounded">
+                        <span className="text-black"><TiktokIcon /></span>
+                        <span className="font-bold">{formatNum(followers.tiktok)}</span>
+                    </div>
+                    {(engagement_rate || avg_likes) && (
+                        <div className="flex items-center gap-2 text-[10px] text-slate-500 pl-6">
+                            {engagement_rate && <span>ER: {engagement_rate}</span>}
+                            {avg_likes && <span>• Avg Likes: {avg_likes}</span>}
+                        </div>
+                    )}
                 </div>
             )}
             
             {/* YouTube */}
             {socials.youtube && (
-                <div className="flex items-center gap-1.5 text-slate-600 text-xs bg-slate-50 p-1.5 rounded">
-                    <span className="text-red-600"><YoutubeIcon /></span>
-                    <span className="font-medium">{formatNum(followers.youtube)}</span>
+                <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-slate-600 text-xs bg-slate-50 p-1.5 rounded">
+                        <span className="text-red-600"><YoutubeIcon /></span>
+                        <span className="font-medium">{formatNum(followers.youtube)}</span>
+                    </div>
+                    {(engagement_rate || avg_likes) && (
+                        <div className="flex items-center gap-2 text-[10px] text-slate-500 pl-6">
+                            {engagement_rate && <span>ER: {engagement_rate}</span>}
+                            {avg_likes && <span>• Avg Likes: {avg_likes}</span>}
+                        </div>
+                    )}
                 </div>
             )}
 
-            {/* Facebook (NEW) */}
+            {/* Facebook */}
             {socials.facebook && (
-                <div className="flex items-center gap-1.5 text-slate-600 text-xs bg-slate-50 p-1.5 rounded">
-                    <span className="text-blue-700"><FacebookIcon /></span>
-                    <span className="font-medium">{formatNum(followers.facebook)}</span>
+                <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-slate-600 text-xs bg-slate-50 p-1.5 rounded">
+                        <span className="text-blue-700"><FacebookIcon /></span>
+                        <span className="font-medium">{formatNum(followers.facebook)}</span>
+                    </div>
+                    {(engagement_rate || avg_likes) && (
+                        <div className="flex items-center gap-2 text-[10px] text-slate-500 pl-6">
+                            {engagement_rate && <span>ER: {engagement_rate}</span>}
+                            {avg_likes && <span>• Avg Likes: {avg_likes}</span>}
+                        </div>
+                    )}
                 </div>
             )}
 
-             {/* Twitter/X (NEW) */}
+            {/* Twitter/X */}
             {socials.twitter && (
-                <div className="flex items-center gap-1.5 text-slate-600 text-xs bg-slate-50 p-1.5 rounded">
-                    <span className="text-slate-800"><TwitterIcon /></span>
-                    <span className="font-medium">{formatNum(followers.twitter)}</span>
+                <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-slate-600 text-xs bg-slate-50 p-1.5 rounded">
+                        <span className="text-slate-800"><TwitterIcon /></span>
+                        <span className="font-medium">{formatNum(followers.twitter)}</span>
+                    </div>
+                    {(engagement_rate || avg_likes) && (
+                        <div className="flex items-center gap-2 text-[10px] text-slate-500 pl-6">
+                            {engagement_rate && <span>ER: {engagement_rate}</span>}
+                            {avg_likes && <span>• Avg Likes: {avg_likes}</span>}
+                        </div>
+                    )}
                 </div>
             )}
 

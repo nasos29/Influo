@@ -101,15 +101,20 @@ function calculateCategoryMatch(
   // Normalize category names for comparison
   const industryLower = brandIndustry.toLowerCase().trim();
   
-  // Check if influencer has "Γενικά" or "General" - matches everything with high score
+  // Check if influencer has "Γενικά" or "General" - lower priority than specialized categories
   const allCategories = influencerCategories || (influencerCategory ? [influencerCategory] : []);
   const hasGeneral = allCategories.some(cat => 
     cat.toLowerCase().trim() === 'γενικά' || cat.toLowerCase().trim() === 'general'
   );
   
-  if (hasGeneral) {
-    return 0.95; // Very high score for "General" category
+  // If influencer has ONLY "General" category (no specialized categories), give lower score
+  // This ensures specialized categories get priority
+  if (hasGeneral && allCategories.length === 1) {
+    return 0.5; // Lower score for "General" only - specialized categories should rank higher
   }
+  
+  // If influencer has "General" along with other categories, check other categories first
+  // (The code below will handle specialized categories)
   
   // Check all influencer categories against brand category
   let bestMatch = 0;
