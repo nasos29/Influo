@@ -653,8 +653,8 @@ export default function InfluencerProfile(props: { params: Params }) {
         min_rate: data.min_rate,
         videos: Array.isArray(data.videos) ? data.videos : [],
         video_thumbnails: data.video_thumbnails || null,
-        engagement_rate: engagementRatesObj, // Store as object per platform
-        avg_likes: avgLikesObj, // Store as object per platform
+        engagement_rate: Object.keys(engagementRatesObj).length > 0 ? engagementRatesObj : (data.engagement_rate || undefined), // Store as object per platform, fallback to legacy string
+        avg_likes: Object.keys(avgLikesObj).length > 0 ? avgLikesObj : (data.avg_likes || undefined), // Store as object per platform, fallback to legacy string
         audience_data: {
           male: data.audience_male_percent || 50,
           female: data.audience_female_percent || 50,
