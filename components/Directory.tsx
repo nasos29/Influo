@@ -419,6 +419,7 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
             
             const socialsObj: { [key: string]: string } = {};
             const followersObj: { [key: string]: number } = {};
+            const engagementRatesObj: { [key: string]: string } = {};
 
             if (Array.isArray(inf.accounts)) {
               inf.accounts.forEach((acc: any) => {
@@ -426,6 +427,10 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
                     const key = acc.platform.toLowerCase();
                     socialsObj[key] = acc.username;
                     followersObj[key] = parseFollowerString(acc.followers);
+                    // Store engagement rate per platform if available
+                    if (acc.engagement_rate) {
+                      engagementRatesObj[key] = acc.engagement_rate;
+                    }
                 }
               });
             }
@@ -455,7 +460,7 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
               location: inf.location,
               min_rate: inf.min_rate,
               avg_likes: inf.avg_likes,
-              engagement_rate: inf.engagement_rate,
+              engagement_rate: Object.keys(engagementRatesObj).length > 0 ? engagementRatesObj : (inf.engagement_rate || undefined),
               videos: Array.isArray(inf.videos) ? inf.videos : [],
               avg_rating: inf.avg_rating || 0,
               total_reviews: inf.total_reviews || 0,
