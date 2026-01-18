@@ -253,7 +253,7 @@ function calculateRatingQuality(
  */
 function calculateValueScore(
   minRate: string | null | undefined,
-  engagementRate: string | null | undefined,
+  engagementRate: string | { [key: string]: string } | null | undefined,
   followers: string | null | undefined
 ): number {
   const rate = parseMinRate(minRate);
