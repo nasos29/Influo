@@ -662,9 +662,9 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
 
                 <select value={languageFilter} onChange={(e) => setLanguageFilter(e.target.value)} className={`${selectClass} !bg-indigo-50 !border-indigo-100 !text-indigo-800`}>
                     <option value="All">{txt.langAll}</option>
-                    {LANGUAGES.map(lang => (
-                        <option key={lang.code} value={lang.code}>
-                            {lang[lang as 'el' | 'en']}
+                    {LANGUAGES.map(langItem => (
+                        <option key={langItem.code} value={langItem.code}>
+                            {langItem[lang]}
                         </option>
                     ))}
                 </select>
