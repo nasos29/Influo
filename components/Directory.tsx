@@ -319,8 +319,12 @@ const parseEngagement = (rate?: string | { [key: string]: string }) => {
     return sum / parsedRates.length;
   }
   
-  // Legacy string format
-  return rate ? parseFloat(rate.replace('%', '').replace(',', '.')) : 0;
+  // Legacy string format - rate is guaranteed to be string here
+  if (typeof rate === 'string') {
+    return parseFloat(rate.replace('%', '').replace(',', '.')) || 0;
+  }
+  
+  return 0;
 };
 const getMaxFollowers = (followers: any) => {
     const values = Object.values(followers).filter((v): v is number => v !== undefined);
