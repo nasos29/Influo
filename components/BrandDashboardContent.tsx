@@ -1042,7 +1042,23 @@ export default function BrandDashboardContent() {
       if (recommendationFilters.minEngagement > 0) {
         filteredProfiles = filteredProfiles.filter(inf => {
           // Use platform-specific engagement rate if platform filter is set
-          const rate = parseFloat(inf.engagement_rate?.replace('%', '').replace(',', '.') || '0');
+          let engagementRateStr: string | null = null;
+          
+          // If engagement_rate is an object (per-platform), use the filtered platform's rate
+          if (inf.engagement_rate && typeof inf.engagement_rate === 'object' && !Array.isArray(inf.engagement_rate)) {
+            if (recommendationFilters.platform) {
+              const platformLower = recommendationFilters.platform.toLowerCase();
+              engagementRateStr = inf.engagement_rate[platformLower] || null;
+            } else {
+              // If no platform filter, calculate average or use first available
+              const rates = Object.values(inf.engagement_rate).filter(v => v && v !== '-');
+              engagementRateStr = rates.length > 0 ? rates[0] : null;
+            }
+          } else if (typeof inf.engagement_rate === 'string') {
+            engagementRateStr = inf.engagement_rate;
+          }
+          
+          const rate = engagementRateStr ? parseFloat(engagementRateStr.replace('%', '').replace(',', '.')) : 0;
           return !isNaN(rate) && rate >= recommendationFilters.minEngagement;
         });
       }
