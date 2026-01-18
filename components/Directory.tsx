@@ -40,6 +40,20 @@ const CATEGORIES = [
   "DIY & Crafts", "Sustainability & Eco", "Cars & Automotive"
 ];
 
+// Languages list
+const LANGUAGES = [
+  { code: "el", el: "Ελληνικά", en: "Greek" },
+  { code: "en", el: "Αγγλικά", en: "English" },
+  { code: "de", el: "Γερμανικά", en: "German" },
+  { code: "fr", el: "Γαλλικά", en: "French" },
+  { code: "es", el: "Ισπανικά", en: "Spanish" },
+  { code: "it", el: "Ιταλικά", en: "Italian" },
+  { code: "pt", el: "Πορτογαλικά", en: "Portuguese" },
+  { code: "ru", el: "Ρωσικά", en: "Russian" },
+  { code: "zh", el: "Κινεζικά", en: "Chinese" },
+  { code: "ja", el: "Ιαπωνικά", en: "Japanese" }
+];
+
 // Category translations
 const categoryTranslations: { [key: string]: { el: string; en: string } } = {
   "Lifestyle": { el: "Lifestyle", en: "Lifestyle" },
@@ -89,6 +103,7 @@ const t = {
     engMin: "Ελάχ.",
     engGood: "Καλό",
     engHigh: "Υψηλό",
+    langAll: "Γλώσσα: Όλες",
     ratingAll: "Αξιολόγηση: Όλες",
     ratingMin: "Ελάχ.",
     noResults: "Δεν βρέθηκαν influencers",
@@ -354,6 +369,7 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
   const [followerRange, setFollowerRange] = useState("All");
   const [budgetMax, setBudgetMax] = useState("All");
   const [minEngagement, setMinEngagement] = useState("All");
+  const [languageFilter, setLanguageFilter] = useState("All");
   const [minRating, setMinRating] = useState("All");
 
   // Sort function: "New" influencers first, then by created_at descending
@@ -534,6 +550,26 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
         if (rate < min) engageMatch = false;
     }
 
+    let languageMatch = true;
+    if (languageFilter !== "All") {
+        if (!inf.languages || !Array.isArray(inf.languages)) {
+            languageMatch = false;
+        } else {
+            // Check if any language matches (case-insensitive, support both Greek and English names)
+            const filterLower = languageFilter.toLowerCase();
+            const matches = inf.languages.some(lang => {
+                const langLower = lang.toLowerCase();
+                // Check if it matches the language code or name
+                const langObj = LANGUAGES.find(l => l.code === filterLower || l.el.toLowerCase() === langLower || l.en.toLowerCase() === langLower);
+                if (langObj) {
+                    return langObj.code === filterLower || langObj.el.toLowerCase() === langLower || langObj.en.toLowerCase() === langLower;
+                }
+                return langLower.includes(filterLower) || filterLower.includes(langLower);
+            });
+            if (!matches) languageMatch = false;
+        }
+    }
+
     let ratingMatch = true;
     if (minRating !== "All") {
         const min = parseFloat(minRating);
@@ -541,13 +577,13 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
         if (rating < min) ratingMatch = false;
     }
 
-    return searchMatch && locationMatch && platformMatch && categoryMatch && genderMatch && followerMatch && budgetMatch && engageMatch && ratingMatch;
+    return searchMatch && locationMatch && platformMatch && categoryMatch && genderMatch && followerMatch && budgetMatch && engageMatch && languageMatch && ratingMatch;
   });
 
   const clearFilters = () => {
     setSearchQuery(""); setLocationQuery(""); setPlatformFilter("All");
     setCategoryFilter("All"); setGenderFilter("All"); setFollowerRange("All");
-    setBudgetMax("All"); setMinEngagement("All"); setMinRating("All");
+    setBudgetMax("All"); setMinEngagement("All"); setLanguageFilter("All"); setMinRating("All");
   };
 
   const selectClass = "w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 cursor-pointer";
@@ -622,6 +658,15 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
                     <option value="1">{txt.engMin} 1%</option>
                     <option value="3">{txt.engMin} 3% ({txt.engGood})</option>
                     <option value="5">{txt.engMin} 5% ({txt.engHigh})</option>
+                </select>
+
+                <select value={languageFilter} onChange={(e) => setLanguageFilter(e.target.value)} className={`${selectClass} !bg-indigo-50 !border-indigo-100 !text-indigo-800`}>
+                    <option value="All">{txt.langAll}</option>
+                    {LANGUAGES.map(lang => (
+                        <option key={lang.code} value={lang.code}>
+                            {lang[lang as 'el' | 'en']}
+                        </option>
+                    ))}
                 </select>
                 
                 <select value={minRating} onChange={(e) => setMinRating(e.target.value)} className={`${selectClass} !bg-amber-50 !border-amber-100 !text-amber-800`}>
