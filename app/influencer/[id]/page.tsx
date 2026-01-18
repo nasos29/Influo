@@ -1878,7 +1878,40 @@ export default function InfluencerProfile(props: { params: Params }) {
                              </div>
                              <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm text-center">
                                 <p className="text-slate-400 text-xs font-bold uppercase">{txt.stat_likes}</p>
-                                <p className="text-2xl font-extrabold text-slate-800">{profile.avg_likes}</p>
+                                <div className="flex flex-wrap gap-1 justify-center items-center">
+                                  {(() => {
+                                    const followers = profile.followers || {};
+                                    const avgLikes = (typeof profile.avg_likes === 'object' && profile.avg_likes !== null && !Array.isArray(profile.avg_likes)) 
+                                      ? profile.avg_likes as { [key: string]: string }
+                                      : {};
+                                    const platforms = [
+                                      { key: 'instagram', icon: InstagramIcon, color: 'text-pink-600' },
+                                      { key: 'tiktok', icon: TiktokIcon, color: 'text-black' },
+                                      { key: 'youtube', icon: YoutubeIcon, color: 'text-red-600' },
+                                      { key: 'facebook', icon: FacebookIcon, color: 'text-blue-700' },
+                                      { key: 'twitter', icon: TwitterIcon, color: 'text-slate-800' },
+                                    ];
+                                    
+                                    const availablePlatforms = platforms.filter(platform => followers[platform.key as keyof typeof followers]);
+                                    
+                                    if (availablePlatforms.length === 0) {
+                                      return <span className="text-slate-400">-</span>;
+                                    }
+                                    
+                                    return availablePlatforms.map((platform) => {
+                                      const Icon = platform.icon;
+                                      const avgLikesValue = avgLikes[platform.key] || '-';
+                                      return (
+                                        <div key={platform.key} className="flex items-center gap-1">
+                                          <span className={platform.color + " text-sm"}>
+                                            <Icon />
+                                          </span>
+                                          <span className="text-lg font-bold text-slate-800">{avgLikesValue}</span>
+                                        </div>
+                                      );
+                                    });
+                                  })()}
+                                </div>
                              </div>
                              <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm text-center">
                                 <p className="text-slate-400 text-xs font-bold uppercase">{txt.foll}</p>
