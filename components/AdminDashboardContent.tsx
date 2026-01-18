@@ -493,7 +493,6 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
     const [bioEn, setBioEn] = useState(user.bio_en || "");
     const [minRate, setMinRate] = useState(user.min_rate || "");
     const [location, setLocation] = useState(user.location || "");
-    const [avgLikes, setAvgLikes] = useState(user.avg_likes || "");
     // Ensure gender is valid (Female, Male, or Other)
     const initialGender = (user.gender === 'Female' || user.gender === 'Male' || user.gender === 'Other') ? user.gender : 'Female';
     const [gender, setGender] = useState(initialGender);
@@ -1143,15 +1142,9 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                         {/* Analytics */}
                         <div>
                             <h3 className="text-sm font-bold text-slate-900 uppercase mb-3">Analytics</h3>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-semibold text-slate-900 mb-1">Min Rate (€)</label>
-                                    <input type="text" value={minRate} onChange={e => setMinRate(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-semibold text-slate-900 mb-1">Avg Likes</label>
-                                    <input type="text" value={avgLikes} onChange={e => setAvgLikes(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
-                                </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-900 mb-1">Min Rate (€)</label>
+                                <input type="text" value={minRate} onChange={e => setMinRate(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
                             </div>
                         </div>
 
