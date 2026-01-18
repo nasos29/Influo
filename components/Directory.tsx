@@ -132,6 +132,7 @@ const t = {
     engMin: "Min",
     engGood: "Good",
     engHigh: "High",
+    langAll: "Language: All",
     ratingAll: "Rating: Any",
     ratingMin: "Min",
     noResults: "No influencers found",
