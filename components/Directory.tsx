@@ -23,7 +23,7 @@ export interface Influencer {
   languages?: string[];
   min_rate?: string;
   avg_likes?: string; 
-  engagement_rate?: string;
+  engagement_rate?: string | { [key: string]: string }; // Can be per-platform object or legacy string
   rate_card?: { story?: string; post?: string; reel?: string; facebook?: string };
   past_brands?: any[] | number;
   total_reviews?: number;
