@@ -135,24 +135,6 @@ export function getBadges(metrics: InfluencerMetrics, lang: 'el' | 'en' = 'el'):
   const avgRating = metrics.avg_rating || 0;
   const minRate = metrics.min_rate ? parseFloat(metrics.min_rate.replace(/[^0-9.]/g, '')) : 0;
 
-  // NEW - Account < 30 days
-  if (accountAgeDays < 30) {
-    badges.push({
-      type: 'new',
-      ...BADGE_DEFINITIONS.new,
-      label: lang === 'el' ? BADGE_LABELS_EL.new : BADGE_DEFINITIONS.new.label,
-    });
-  }
-
-  // RISING - Account 30-90 days με καλό engagement
-  if (accountAgeDays >= 30 && accountAgeDays < 90 && engagementRate > 3 && maxFollowers < 50000) {
-    badges.push({
-      type: 'rising',
-      ...BADGE_DEFINITIONS.rising,
-      label: lang === 'el' ? BADGE_LABELS_EL.rising : BADGE_DEFINITIONS.rising.label,
-    });
-  }
-
   // VERIFIED - Manual verification
   if (metrics.verified) {
     badges.push({
@@ -195,6 +177,29 @@ export function getBadges(metrics: InfluencerMetrics, lang: 'el' | 'en' = 'el'):
       type: 'vip',
       ...BADGE_DEFINITIONS.vip,
       label: lang === 'el' ? BADGE_LABELS_EL.vip : BADGE_DEFINITIONS.vip.label,
+    });
+  }
+
+  // RISING - Account 30-90 days με καλό engagement
+  if (accountAgeDays >= 30 && accountAgeDays < 90 && engagementRate > 3 && maxFollowers < 50000) {
+    badges.push({
+      type: 'rising',
+      ...BADGE_DEFINITIONS.rising,
+      label: lang === 'el' ? BADGE_LABELS_EL.rising : BADGE_DEFINITIONS.rising.label,
+    });
+  }
+
+  // NEW - Account < 30 days (μόνο αν δεν υπάρχει άλλο badge με μεγαλύτερο priority)
+  // Check if there are any high-priority badges (top_performer, pro, elite, vip)
+  const hasHighPriorityBadge = badges.some(b => 
+    b.type === 'top_performer' || b.type === 'pro' || b.type === 'elite' || b.type === 'vip'
+  );
+  
+  if (accountAgeDays < 30 && !hasHighPriorityBadge) {
+    badges.push({
+      type: 'new',
+      ...BADGE_DEFINITIONS.new,
+      label: lang === 'el' ? BADGE_LABELS_EL.new : BADGE_DEFINITIONS.new.label,
     });
   }
 
