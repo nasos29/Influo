@@ -1607,7 +1607,37 @@ export default function InfluencerProfile(props: { params: Params }) {
                   <span className="text-lg">📈</span>
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{lang === 'el' ? 'Αλληλεπίδραση' : 'Engagement'}</span>
                 </div>
-                <p className="text-2xl font-extrabold text-blue-600">{profile.engagement_rate || '-'}</p>
+                <div className="flex flex-wrap gap-2 items-center">
+                  {(() => {
+                    const followers = profile.followers || {};
+                    const engagementRate = profile.engagement_rate || '-';
+                    const platforms = [
+                      { key: 'instagram', icon: InstagramIcon, color: 'text-pink-600' },
+                      { key: 'tiktok', icon: TiktokIcon, color: 'text-black' },
+                      { key: 'youtube', icon: YoutubeIcon, color: 'text-red-600' },
+                      { key: 'facebook', icon: FacebookIcon, color: 'text-blue-700' },
+                      { key: 'twitter', icon: TwitterIcon, color: 'text-slate-800' },
+                    ];
+                    
+                    const availablePlatforms = platforms.filter(platform => followers[platform.key as keyof typeof followers]);
+                    
+                    if (availablePlatforms.length === 0 || !engagementRate || engagementRate === '-') {
+                      return <span className="text-sm text-slate-400">-</span>;
+                    }
+                    
+                    return availablePlatforms.map((platform) => {
+                      const Icon = platform.icon;
+                      return (
+                        <div key={platform.key} className="flex items-center gap-1.5">
+                          <span className={platform.color}>
+                            <Icon />
+                          </span>
+                          <span className="text-sm font-bold text-blue-600">{engagementRate}</span>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
               </div>
               
               {/* Followers */}
@@ -1655,7 +1685,37 @@ export default function InfluencerProfile(props: { params: Params }) {
                   <span className="text-lg">❤️</span>
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{lang === 'el' ? 'Μ.Ο. Likes' : 'Avg Likes'}</span>
                 </div>
-                <p className="text-2xl font-extrabold text-slate-900">{profile.avg_likes || '-'}</p>
+                <div className="flex flex-wrap gap-2 items-center">
+                  {(() => {
+                    const followers = profile.followers || {};
+                    const avgLikes = profile.avg_likes || '-';
+                    const platforms = [
+                      { key: 'instagram', icon: InstagramIcon, color: 'text-pink-600' },
+                      { key: 'tiktok', icon: TiktokIcon, color: 'text-black' },
+                      { key: 'youtube', icon: YoutubeIcon, color: 'text-red-600' },
+                      { key: 'facebook', icon: FacebookIcon, color: 'text-blue-700' },
+                      { key: 'twitter', icon: TwitterIcon, color: 'text-slate-800' },
+                    ];
+                    
+                    const availablePlatforms = platforms.filter(platform => followers[platform.key as keyof typeof followers]);
+                    
+                    if (availablePlatforms.length === 0 || !avgLikes || avgLikes === '-') {
+                      return <span className="text-sm text-slate-400">-</span>;
+                    }
+                    
+                    return availablePlatforms.map((platform) => {
+                      const Icon = platform.icon;
+                      return (
+                        <div key={platform.key} className="flex items-center gap-1.5">
+                          <span className={platform.color}>
+                            <Icon />
+                          </span>
+                          <span className="text-sm font-bold text-slate-900">{avgLikes}</span>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
               </div>
               
               {/* Collaborations */}
