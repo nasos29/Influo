@@ -529,10 +529,10 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
     };
     const initialLanguages = parseLanguages(user.languages);
     const [selectedLanguages, setSelectedLanguages] = useState<string[]>(initialLanguages);
-    const [accounts, setAccounts] = useState<{ platform: string; username: string; followers: string; engagement_rate?: string }[]>(
+    const [accounts, setAccounts] = useState<{ platform: string; username: string; followers: string; engagement_rate?: string; avg_likes?: string }[]>(
         user.accounts && Array.isArray(user.accounts) && user.accounts.length > 0
-            ? user.accounts.map((acc: any) => ({ ...acc, engagement_rate: acc.engagement_rate || "" }))
-            : [{ platform: "Instagram", username: "", followers: "", engagement_rate: "" }]
+            ? user.accounts.map((acc: any) => ({ ...acc, engagement_rate: acc.engagement_rate || "", avg_likes: acc.avg_likes || "" }))
+            : [{ platform: "Instagram", username: "", followers: "", engagement_rate: "", avg_likes: "" }]
     );
     const [videos, setVideos] = useState<string[]>(Array.isArray(user.videos) ? user.videos : []);
     const [videoThumbnails, setVideoThumbnails] = useState<Record<string, string | { url: string; width?: number; height?: number; type?: string }>>(user.video_thumbnails || {});
@@ -551,7 +551,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
         copy[i][field] = value; 
         setAccounts(copy);
     };
-    const addAccount = () => setAccounts([...accounts, { platform: "Instagram", username: "", followers: "", engagement_rate: "" }]);
+    const addAccount = () => setAccounts([...accounts, { platform: "Instagram", username: "", followers: "", engagement_rate: "", avg_likes: "" }]);
     const removeAccount = (i: number) => { 
         const copy = [...accounts]; 
         copy.splice(i, 1); 
@@ -832,7 +832,6 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                 bio_en: bioEn || null, // Store English bio
                 min_rate: minRate,
                 location: location, 
-                avg_likes: avgLikes, 
                 gender: gender,
                 category: categoryString,
                 languages: selectedLanguages.map(code => {
@@ -1130,6 +1129,10 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                     <div className="flex-1">
                                         <label className="block text-xs font-semibold text-slate-700 mb-1">Engagement Rate (%)</label>
                                         <input type="text" value={account.engagement_rate || ""} onChange={e => handleAccountChange(i, 'engagement_rate', e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" placeholder="e.g. 5.5%" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <label className="block text-xs font-semibold text-slate-700 mb-1">Avg Likes</label>
+                                        <input type="text" value={account.avg_likes || ""} onChange={e => handleAccountChange(i, 'avg_likes', e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" placeholder="e.g. 3.2k" />
                                     </div>
                                     <button type="button" onClick={() => removeAccount(i)} className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">✕</button>
                                 </div>

@@ -19,7 +19,7 @@ interface ProInfluencer extends Influencer {
   video_thumbnails?: Record<string, string> | null;
   contact_email?: string;
   engagement_rate?: string | { [key: string]: string }; // Can be per-platform object or legacy string
-  avg_likes?: string;
+  avg_likes?: string | { [key: string]: string }; // Can be per-platform object or legacy string
   audience_data?: { male: number; female: number; top_age: string };
   rate_card?: { story?: string; post?: string; reel?: string; facebook?: string; youtube?: string };
   past_brands?: string[];
@@ -573,9 +573,10 @@ export default function InfluencerProfile(props: { params: Params }) {
          data.accounts.forEach((acc: any) => { if(acc.platform) socialsObj[acc.platform.toLowerCase()] = acc.username; });
       }
       
-      // Build followers object from accounts and engagement rates per platform
+      // Build followers object from accounts, engagement rates and avg likes per platform
       const followersObj: { [key: string]: number } = {};
       const engagementRatesObj: { [key: string]: string } = {};
+      const avgLikesObj: { [key: string]: string } = {};
       if (Array.isArray(data.accounts)) {
         data.accounts.forEach((acc: any) => {
           if (acc.platform && acc.followers) {
@@ -619,6 +620,11 @@ export default function InfluencerProfile(props: { params: Params }) {
             if (acc.engagement_rate) {
               engagementRatesObj[platform] = acc.engagement_rate;
             }
+            
+            // Store avg likes per platform if available
+            if (acc.avg_likes) {
+              avgLikesObj[platform] = acc.avg_likes;
+            }
           }
         });
       }
@@ -648,7 +654,7 @@ export default function InfluencerProfile(props: { params: Params }) {
         videos: Array.isArray(data.videos) ? data.videos : [],
         video_thumbnails: data.video_thumbnails || null,
         engagement_rate: engagementRatesObj, // Store as object per platform
-        avg_likes: data.avg_likes || "-",
+        avg_likes: avgLikesObj, // Store as object per platform
         audience_data: {
           male: data.audience_male_percent || 50,
           female: data.audience_female_percent || 50,
@@ -1697,7 +1703,9 @@ export default function InfluencerProfile(props: { params: Params }) {
                 <div className="flex flex-wrap gap-2 items-center">
                   {(() => {
                     const followers = profile.followers || {};
-                    const avgLikes = profile.avg_likes || '-';
+                    const avgLikes = (typeof profile.avg_likes === 'object' && profile.avg_likes !== null && !Array.isArray(profile.avg_likes)) 
+                      ? profile.avg_likes as { [key: string]: string }
+                      : {};
                     const platforms = [
                       { key: 'instagram', icon: InstagramIcon, color: 'text-pink-600' },
                       { key: 'tiktok', icon: TiktokIcon, color: 'text-black' },
@@ -1708,18 +1716,19 @@ export default function InfluencerProfile(props: { params: Params }) {
                     
                     const availablePlatforms = platforms.filter(platform => followers[platform.key as keyof typeof followers]);
                     
-                    if (availablePlatforms.length === 0 || !avgLikes || avgLikes === '-') {
+                    if (availablePlatforms.length === 0) {
                       return <span className="text-sm text-slate-400">-</span>;
                     }
                     
                     return availablePlatforms.map((platform) => {
                       const Icon = platform.icon;
+                      const avgLikesValue = avgLikes[platform.key] || '-';
                       return (
                         <div key={platform.key} className="flex items-center gap-1.5">
                           <span className={platform.color}>
                             <Icon />
                           </span>
-                          <span className="text-sm font-bold text-slate-900">{avgLikes}</span>
+                          <span className="text-sm font-bold text-slate-900">{avgLikesValue}</span>
                         </div>
                       );
                     });
