@@ -14,7 +14,7 @@ export interface InfluencerProfile {
   display_name: string;
   category?: string; // Primary category (for compatibility)
   categories?: string[]; // All categories (if available)
-  engagement_rate?: string | null;
+  engagement_rate?: string | { [key: string]: string } | null; // Can be per-platform object or legacy string
   followers_count?: string | null;
   min_rate?: string | null;
   location?: string | null;
@@ -51,10 +51,31 @@ export interface MatchScore {
 }
 
 /**
- * Parse engagement rate from string (e.g., "3.5%", "3.5", "High")
+ * Parse engagement rate from string or per-platform object (e.g., "3.5%", "3.5", "High", or { instagram: "5.5%" })
  */
-function parseEngagementRate(rate: string | null | undefined): number {
+function parseEngagementRate(rate: string | { [key: string]: string } | null | undefined): number {
   if (!rate) return 0;
+  
+  // If it's an object (per-platform), calculate average or use first available
+  if (typeof rate === 'object' && rate !== null && !Array.isArray(rate)) {
+    const rates = Object.values(rate).filter(v => v && v !== '-');
+    if (rates.length === 0) return 0;
+    
+    // Parse all rates and calculate average
+    const parsedRates = rates.map(r => {
+      const clean = r.toString().toLowerCase().trim().replace('%', '').replace(',', '.');
+      if (clean.includes('high') || clean.includes('υψηλ')) return 4;
+      if (clean.includes('medium') || clean.includes('μεσαί')) return 2.5;
+      if (clean.includes('low') || clean.includes('χαμηλ')) return 1;
+      const num = parseFloat(clean);
+      return isNaN(num) ? 0 : num;
+    });
+    
+    const sum = parsedRates.reduce((acc, val) => acc + val, 0);
+    return sum / parsedRates.length;
+  }
+  
+  // Legacy string format
   const clean = rate.toString().toLowerCase().trim().replace('%', '').replace(',', '.');
   if (clean.includes('high') || clean.includes('υψηλ')) return 4;
   if (clean.includes('medium') || clean.includes('μεσαί')) return 2.5;
@@ -187,7 +208,7 @@ function calculateCategoryMatch(
 /**
  * Calculate engagement quality score (higher engagement = better)
  */
-function calculateEngagementQuality(engagementRate: string | null | undefined): number {
+function calculateEngagementQuality(engagementRate: string | { [key: string]: string } | null | undefined): number {
   const rate = parseEngagementRate(engagementRate);
   if (rate === 0) return 0.5; // Neutral if unknown
   
