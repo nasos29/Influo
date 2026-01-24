@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { recommendInfluencers, type InfluencerProfile, type BrandProfile } from '@/lib/recommendations';
-import { dummyInfluencers } from './Directory';
 import Messaging from '@/components/Messaging';
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 
@@ -932,73 +931,14 @@ export default function BrandDashboardContent() {
       });
       
       // Category mapping from dummy data to standard categories
-      const categoryMapping: { [key: string]: string } = {
-        'Beauty': 'Beauty & Makeup',
-        'Fitness': 'Health & Fitness',
-        'Tech': 'Tech & Gadgets',
-        'Travel': 'Travel',
-        'Gaming': 'Gaming & Esports',
-        'Business': 'Business & Finance',
-        'Fashion': 'Fashion & Style',
-        'Lifestyle': 'Lifestyle',
-      };
+      // Use only database influencers
+      const influencerProfiles: InfluencerProfile[] = dbInfluencerProfiles;
       
-      // Convert dummy influencers to InfluencerProfile format
-      const dummyProfiles: InfluencerProfile[] = dummyInfluencers
-        .filter(dummy => dummy.verified) // Only verified dummy influencers (filters out dummy-3)
-        .map((dummy) => {
-          // Get primary platform and followers
-          const primaryPlatform = dummy.platform?.toLowerCase() || 'instagram';
-          const primaryFollowers = dummy.followers?.[primaryPlatform] || 0;
-          const followersStr = primaryFollowers >= 1000000 
-            ? `${(primaryFollowers / 1000000).toFixed(1)}M`
-            : primaryFollowers >= 1000 
-            ? `${(primaryFollowers / 1000).toFixed(0)}K`
-            : primaryFollowers.toString();
-          
-          // Build accounts array
-          const accounts = Object.entries(dummy.socials || {})
-            .filter(([_, username]) => username)
-            .map(([platform, username]) => ({
-              platform: platform.charAt(0).toUpperCase() + platform.slice(1),
-              followers: dummy.followers?.[platform]?.toString() || '0'
-            }));
-          
-          // Map category from dummy data to standard category
-          // Use first category from array and map it
-          const dummyCategory = dummy.categories?.[0] || 'Lifestyle';
-          const mappedCategory = categoryMapping[dummyCategory] || 'Lifestyle';
-          
-          return {
-            id: dummy.id,
-            display_name: dummy.name,
-            category: mappedCategory,
-            engagement_rate: dummy.engagement_rate || '3.5%',
-            followers_count: followersStr,
-            min_rate: dummy.min_rate ? `€${dummy.min_rate}` : undefined,
-            location: dummy.location,
-            gender: dummy.gender,
-            avg_rating: dummy.avg_rating,
-            total_reviews: dummy.total_reviews || 0,
-            past_brands: dummy.past_brands || 0,
-            verified: dummy.verified || false,
-            accounts: accounts.length > 0 ? accounts : undefined,
-            avatar_url: dummy.avatar,
-            bio: dummy.bio,
-            rate_card: dummy.rate_card,
-          };
-        });
+      // Debug: Log influencers
+      console.log('[Brand Dashboard] Total influencers:', influencerProfiles.length);
+      console.log('[Brand Dashboard] Verified influencers:', influencerProfiles.filter(inf => inf.verified).length);
       
-      // Combine database and dummy influencers (database influencers first)
-      const influencerProfiles: InfluencerProfile[] = [...dbInfluencerProfiles, ...dummyProfiles];
-      
-      // Debug: Log combined influencers
-      console.log('[Brand Dashboard] Total influencers combined:', influencerProfiles.length);
-      console.log('[Brand Dashboard] DB influencers:', dbInfluencerProfiles.length);
-      console.log('[Brand Dashboard] Dummy influencers:', dummyProfiles.length);
-      console.log('[Brand Dashboard] Verified DB influencers:', dbInfluencerProfiles.filter(inf => inf.verified).length);
-      
-      // Always process recommendations, even if only dummy data exists
+      // Process recommendations
       // Get brand profile
       const brandProfile: BrandProfile = {
         id: brand.id,

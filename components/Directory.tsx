@@ -141,178 +141,6 @@ const t = {
   }
 };
 
-// --- FULL DUMMY DATA (8 PROFILES) ---
-export const dummyInfluencers: Influencer[] = [
-  {
-    id: "dummy-1",
-    name: "Μαρία Παπαδοπούλου",
-    bio: "Beauty & lifestyle creator. Λατρεύω τα ταξίδια και το skincare.",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80",
-    verified: true,
-    socials: { instagram: "maria_pap", tiktok: "maria.tok" },
-    followers: { instagram: 12000, tiktok: 54000 },
-    categories: ["Beauty", "Lifestyle"],
-    platform: "Instagram",
-    gender: "Female",
-    location: "Athens, Greece",
-    min_rate: "150",
-    rate_card: { story: "80€", post: "150€", reel: "200€", facebook: "120€" },
-    engagement_rate: "4.5%",
-    avg_likes: "2.5k",
-    past_brands: 8,
-    total_reviews: 12,
-    avg_rating: 4.8,
-    created_at: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString(), // 120 days ago
-  },
-  {
-    id: "dummy-2",
-    name: "Nikos Tech",
-    bio: "Tech reviewer, gadgets & unboxing. Όλα για την τεχνολογία.",
-    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80",
-    verified: true,
-    socials: { instagram: "nikos.tech", youtube: "nikostech" },
-    followers: { instagram: 8700, youtube: 150000 },
-    categories: ["Tech"],
-    platform: "YouTube",
-    gender: "Male",
-    location: "Thessaloniki, Greece",
-    min_rate: "300",
-    rate_card: { story: "200€", post: "300€", reel: "400€", facebook: "250€" },
-    engagement_rate: "2.1%",
-    avg_likes: "15k",
-    past_brands: 15,
-    total_reviews: 25,
-    avg_rating: 4.6,
-    created_at: new Date(Date.now() - 300 * 24 * 60 * 60 * 1000).toISOString(), // 300 days ago
-  },
-  {
-    id: "dummy-3",
-    name: "Ελένη Fitness",
-    bio: "Fitness coach & nutrition tips. Υγιεινή διατροφή για όλους.",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80",
-    verified: false,
-    socials: { instagram: "eleni_fit", tiktok: "eleni_tok" },
-    followers: { instagram: 15000, tiktok: 32000 },
-    categories: ["Fitness", "Lifestyle"],
-    platform: "Instagram",
-    gender: "Female",
-    location: "Athens, Greece",
-    min_rate: "100",
-    rate_card: { story: "50€", post: "100€", reel: "150€", facebook: "80€" },
-    engagement_rate: "6.8%",
-    avg_likes: "1.2k",
-    past_brands: 3,
-    total_reviews: 5,
-    avg_rating: 4.2,
-    created_at: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(), // 45 days ago - Rising
-  },
-  {
-    id: "dummy-4",
-    name: "Γιώργος Travel",
-    bio: "Travel vlogger, κόσμος & εμπειρίες. Backpacking around the world.",
-    avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&q=80",
-    verified: true,
-    socials: { youtube: "gtravel", instagram: "george_tr" },
-    followers: { youtube: 45000, instagram: 22000 },
-    categories: ["Travel"],
-    platform: "YouTube",
-    gender: "Male",
-    location: "Remote",
-    min_rate: "500",
-    rate_card: { story: "300€", post: "500€", reel: "700€", facebook: "400€" },
-    engagement_rate: "3.2%",
-    avg_likes: "5k",
-    past_brands: 22,
-    total_reviews: 35,
-    avg_rating: 4.7,
-    created_at: new Date(Date.now() - 450 * 24 * 60 * 60 * 1000).toISOString(), // 450 days ago
-  },
-   {
-    id: "dummy-5",
-    name: "Sofia Fashion",
-    bio: "Fashion model & OOTD inspiration. Zara & H&M Hauls.",
-    avatar: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80",
-    verified: true,
-    socials: { tiktok: "sofia_fash", instagram: "sofia_style" },
-    followers: { tiktok: 100000, instagram: 45000 },
-    categories: ["Lifestyle", "Beauty"],
-    platform: "TikTok",
-    gender: "Female",
-    location: "Athens, GR",
-    min_rate: "250",
-    rate_card: { story: "150€", post: "250€", reel: "350€", facebook: "200€" },
-    engagement_rate: "5.5%",
-    avg_likes: "12k",
-    past_brands: 6,
-    total_reviews: 10,
-    avg_rating: 4.5,
-    created_at: new Date(Date.now() - 200 * 24 * 60 * 60 * 1000).toISOString(), // 200 days ago
-  },
-  {
-    id: "dummy-6",
-    name: "Katerina Gaming",
-    bio: "Pro gamer & streamer. LoL & Valorant highlights.",
-    avatar: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=400&q=80",
-    verified: true,
-    socials: { youtube: "katerina_gaming" }, 
-    followers: { youtube: 32000 },
-    categories: ["Gaming"],
-    platform: "YouTube",
-    gender: "Female",
-    location: "Athens, GR",
-    min_rate: "200",
-    rate_card: { story: "120€", post: "200€", reel: "280€", facebook: "160€" },
-    engagement_rate: "4.1%",
-    avg_likes: "3k",
-    past_brands: 4,
-    total_reviews: 7,
-    avg_rating: 4.3,
-    created_at: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString(), // 180 days ago
-  },
-  {
-    id: "dummy-7",
-    name: "Dimitris Crypto",
-    bio: "Crypto analysis & web3 news. Bitcoin daily updates.",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80",
-    verified: true,
-    socials: { youtube: "dimitris_btc" },
-    followers: { youtube: 12000 },
-    categories: ["Tech", "Business"],
-    platform: "YouTube",
-    gender: "Male",
-    location: "Cyprus",
-    min_rate: "400",
-    rate_card: { story: "250€", post: "400€", reel: "550€", facebook: "320€" },
-    engagement_rate: "8.5%",
-    avg_likes: "1.5k",
-    past_brands: 12,
-    total_reviews: 18,
-    avg_rating: 4.9,
-    created_at: new Date(Date.now() - 250 * 24 * 60 * 60 * 1000).toISOString(), // 250 days ago
-  },
-  {
-    id: "dummy-8",
-    name: "Elena VIP",
-    bio: "TV Host & Celebrity Influencer. Luxury Lifestyle.",
-    avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=400&q=80",
-    verified: true,
-    socials: { instagram: "elena_vip" },
-    followers: { instagram: 500000 },
-    categories: ["Lifestyle", "Fashion"],
-    platform: "Instagram",
-    gender: "Female",
-    location: "Athens, GR",
-    min_rate: "1500",
-    rate_card: { story: "800€", post: "1500€", reel: "2000€", facebook: "1000€" },
-    engagement_rate: "3.5%",
-    avg_likes: "45k",
-    past_brands: 55,
-    total_reviews: 85,
-    avg_rating: 4.9,
-    created_at: new Date(Date.now() - 600 * 24 * 60 * 60 * 1000).toISOString(), // 600 days ago - VIP
-  }
-];
-
 // --- ICONS ---
 const SearchIcon = () => <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>;
 const LocationIcon = () => <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>;
@@ -355,7 +183,7 @@ const parseFollowerString = (str: string) => {
 };
 
 export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
-  const [influencers, setInfluencers] = useState<Influencer[]>(dummyInfluencers);
+  const [influencers, setInfluencers] = useState<Influencer[]>([]);
   const txt = t[lang];
   const isMountedRef = useRef(true);
 
@@ -420,9 +248,9 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
         
         if (!response.ok || result.error) {
           console.error('[Directory] API error:', result.error);
-          // If error, show dummy influencers as fallback
+          // If error, show empty list
           if (isMountedRef.current) {
-            setInfluencers(sortInfluencers(dummyInfluencers));
+            setInfluencers([]);
           }
           return;
         }
@@ -488,24 +316,23 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
             };
           });
           
-          // Combine and sort all influencers (real + dummy) with "New" first
-          const allInfluencers = [...realInfluencers, ...dummyInfluencers];
-          console.log('[Directory] Setting influencers:', { real: realInfluencers.length, dummy: dummyInfluencers.length, total: allInfluencers.length });
+          // Sort influencers with "New" first
+          console.log('[Directory] Setting influencers:', { real: realInfluencers.length, total: realInfluencers.length });
           if (isMountedRef.current) {
-            setInfluencers(sortInfluencers(allInfluencers));
+            setInfluencers(sortInfluencers(realInfluencers));
           }
         } else {
-          // No data returned, show dummy influencers
-          console.log('[Directory] No data returned, showing dummy influencers only');
+          // No data returned, show empty list
+          console.log('[Directory] No data returned');
           if (isMountedRef.current) {
-            setInfluencers(sortInfluencers(dummyInfluencers));
+            setInfluencers([]);
           }
         }
       } catch (err: any) {
         console.error('[Directory] Error in fetchReal:', err);
-        // On error, show dummy influencers as fallback
+        // On error, show empty list
         if (isMountedRef.current) {
-          setInfluencers(sortInfluencers(dummyInfluencers));
+          setInfluencers([]);
         }
       }
     };

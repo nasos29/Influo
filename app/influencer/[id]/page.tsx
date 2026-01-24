@@ -3,7 +3,7 @@
 import { useEffect, useState, use, Suspense, useRef } from "react";
 import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
-import { dummyInfluencers, Influencer } from "@/components/Directory"; 
+import { Influencer } from "@/components/Directory"; 
 import { supabase } from "@/lib/supabaseClient";
 import { getVideoThumbnail, isVideoUrl, isDefinitelyVideo, isDefinitelyImage, detectProvider, getIframelyEmbedUrl } from "@/lib/videoThumbnail";
 import VideoThumbnail from "@/components/VideoThumbnail";
@@ -323,7 +323,7 @@ export default function InfluencerProfile(props: { params: Params }) {
 
   // Check online status - only show online if influencer is actually logged in and active
   useEffect(() => {
-    if (!id || id.toString().includes("dummy")) return;
+    if (!id) return;
 
     const checkOnlineStatus = async () => {
       try {
@@ -521,34 +521,7 @@ export default function InfluencerProfile(props: { params: Params }) {
   const fetchProfile = async () => {
     if (!id) return;
 
-    // 1. DUMMY CHECK (Keep the logic as is)
-    if (id.toString().includes("dummy")) {
-      const found = dummyInfluencers.find((d) => String(d.id) === id);
-      if (found) {
-        setProfile({
-          ...found,
-          engagement_rate: found.engagement_rate || "5.2%",
-          avg_likes: found.avg_likes || "3.2k",
-          audience_data: { male: 35, female: 65, top_age: "18-34" },
-          rate_card: found.rate_card ? {
-            story: found.rate_card.story || (lang === 'el' ? "Ρώτησε" : "Ask"),
-            post: found.rate_card.post || (lang === 'el' ? "Ρώτησε" : "Ask"),
-            reel: found.rate_card.reel || (lang === 'el' ? "Ρώτησε" : "Ask"),
-            facebook: found.rate_card.facebook || (lang === 'el' ? "Ρώτησε" : "Ask")
-          } : {
-            story: lang === 'el' ? "Ρώτησε" : "Ask",
-            post: lang === 'el' ? "Ρώτησε" : "Ask",
-            reel: lang === 'el' ? "Ρώτησε" : "Ask",
-            facebook: lang === 'el' ? "Ρώτησε" : "Ask"
-          },
-          past_brands: ["Zara", "Vodafone", "e-Food"]
-        });
-        setLoading(false);
-        return;
-      }
-    }
-
-    // 2. REAL CHECK - Works with both UUIDs (new influencers) and numeric IDs (if any)
+    // Fetch influencer data - Works with both UUIDs (new influencers) and numeric IDs (if any)
     // Try to fetch by id (works for both UUIDs and numeric IDs)
     const { data, error } = await supabase.from("influencers").select("*").eq("id", id).single();
     
@@ -683,9 +656,9 @@ export default function InfluencerProfile(props: { params: Params }) {
     fetchProfile();
   }, [id]);
 
-  // Track profile view after profile loads (only for real influencers)
+  // Track profile view after profile loads
   useEffect(() => {
-    if (!id || id.toString().includes("dummy") || !profile) return;
+    if (!id || !profile) return;
 
     const trackProfileView = async () => {
       try {
@@ -758,7 +731,7 @@ export default function InfluencerProfile(props: { params: Params }) {
   // Load reviews
   useEffect(() => {
     const loadReviews = async () => {
-      if (!id || id.toString().includes("dummy")) return;
+      if (!id) return;
       try {
         const response = await fetch(`/api/reviews?influencerId=${id}`);
         const data = await response.json();
