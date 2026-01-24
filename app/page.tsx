@@ -681,6 +681,49 @@ export default function Home() {
                 );
               })}
               
+              {/* Dummy Data Brands - Always show */}
+              {[
+                { name: 'Nike', domain: 'nike.com', url: 'https://www.nike.com' },
+                { name: 'Apple', domain: 'apple.com', url: 'https://www.apple.com' },
+                { name: 'Skroutz', domain: 'skroutz.gr', url: 'https://www.skroutz.gr' },
+                { name: 'Samsung', domain: 'samsung.com', url: 'https://www.samsung.com' },
+                { name: 'Zara', domain: 'zara.com', url: 'https://www.zara.com' },
+                { name: 'Microsoft', domain: 'microsoft.com', url: 'https://www.microsoft.com' },
+                { name: 'Vodafone', domain: 'vodafone.gr', url: 'https://www.vodafone.gr' },
+                { name: 'Adidas', domain: 'adidas.com', url: 'https://www.adidas.com' },
+                { name: 'Google', domain: 'google.com', url: 'https://www.google.com' },
+                { name: 'Cosmote', domain: 'cosmote.gr', url: 'https://www.cosmote.gr' }
+              ].map((brand, idx) => {
+                const brandfetchUrl = `https://cdn.brandfetch.io/${brand.domain}?c=1idGP6EnrL-eVdz6PLO`;
+                return (
+                  <a 
+                    key={`dummy-${idx}`}
+                    href={brand.url}
+                    target="_blank"
+                    rel="nofollow noopener noreferrer"
+                    className="flex-shrink-0 flex items-center justify-center h-12 md:h-16 lg:h-20 opacity-60 hover:opacity-100 transition-opacity duration-300"
+                  >
+                    <img 
+                      src={brandfetchUrl}
+                      alt={brand.name}
+                      className="h-full w-auto max-w-[180px] md:max-w-[220px] lg:max-w-[260px] object-contain filter grayscale hover:grayscale-0 transition-all duration-300"
+                      loading="lazy"
+                      onError={(e) => {
+                        // Fallback to text if image fails to load
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        if (!target.nextElementSibling) {
+                          const textFallback = document.createElement('div');
+                          textFallback.className = 'font-semibold text-sm md:text-base lg:text-lg text-slate-400 whitespace-nowrap';
+                          textFallback.textContent = brand.name;
+                          target.parentElement?.appendChild(textFallback);
+                        }
+                      }}
+                    />
+                  </a>
+                );
+              })}
+              
               {/* Duplicate verified brands for seamless loop */}
               {verifiedBrands.map((brand) => {
                 const websiteUrl = brand.website 
@@ -718,6 +761,49 @@ export default function Home() {
                         {brand.brand_name}
                       </div>
                     )}
+                  </a>
+                );
+              })}
+              
+              {/* Duplicate dummy data for seamless loop */}
+              {[
+                { name: 'Nike', domain: 'nike.com', url: 'https://www.nike.com' },
+                { name: 'Apple', domain: 'apple.com', url: 'https://www.apple.com' },
+                { name: 'Skroutz', domain: 'skroutz.gr', url: 'https://www.skroutz.gr' },
+                { name: 'Samsung', domain: 'samsung.com', url: 'https://www.samsung.com' },
+                { name: 'Zara', domain: 'zara.com', url: 'https://www.zara.com' },
+                { name: 'Microsoft', domain: 'microsoft.com', url: 'https://www.microsoft.com' },
+                { name: 'Vodafone', domain: 'vodafone.gr', url: 'https://www.vodafone.gr' },
+                { name: 'Adidas', domain: 'adidas.com', url: 'https://www.adidas.com' },
+                { name: 'Google', domain: 'google.com', url: 'https://www.google.com' },
+                { name: 'Cosmote', domain: 'cosmote.gr', url: 'https://www.cosmote.gr' }
+              ].map((brand, idx) => {
+                const brandfetchUrl = `https://cdn.brandfetch.io/${brand.domain}?c=1idGP6EnrL-eVdz6PLO`;
+                return (
+                  <a 
+                    key={`dup-${idx}`}
+                    href={brand.url}
+                    target="_blank"
+                    rel="nofollow noopener noreferrer"
+                    className="flex-shrink-0 flex items-center justify-center h-12 md:h-16 lg:h-20 opacity-60 hover:opacity-100 transition-opacity duration-300"
+                  >
+                    <img 
+                      src={brandfetchUrl}
+                      alt={brand.name}
+                      className="h-full w-auto max-w-[180px] md:max-w-[220px] lg:max-w-[260px] object-contain filter grayscale hover:grayscale-0 transition-all duration-300"
+                      loading="lazy"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        const parent = target.parentElement;
+                        if (parent && !parent.querySelector('.text-fallback')) {
+                          const textFallback = document.createElement('div');
+                          textFallback.className = 'text-fallback font-semibold text-sm md:text-base lg:text-lg text-slate-400 whitespace-nowrap';
+                          textFallback.textContent = brand.name;
+                          parent.appendChild(textFallback);
+                        }
+                      }}
+                    />
                   </a>
                 );
               })}
