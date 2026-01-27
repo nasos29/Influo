@@ -57,6 +57,7 @@ const languageTranslations: { [key: string]: { el: string; en: string } } = {
   "Ρωσικά": { el: "Ρωσικά", en: "Russian" },
   "Κινεζικά": { el: "Κινεζικά", en: "Chinese" },
   "Ιαπωνικά": { el: "Ιαπωνικά", en: "Japanese" },
+  "Αλβανικά": { el: "Αλβανικά", en: "Albanian" },
   // Support both Greek and English names
   "Greek": { el: "Ελληνικά", en: "Greek" },
   "English": { el: "Αγγλικά", en: "English" },
@@ -68,6 +69,7 @@ const languageTranslations: { [key: string]: { el: string; en: string } } = {
   "Russian": { el: "Ρωσικά", en: "Russian" },
   "Chinese": { el: "Κινεζικά", en: "Chinese" },
   "Japanese": { el: "Ιαπωνικά", en: "Japanese" },
+  "Albanian": { el: "Αλβανικά", en: "Albanian" },
 };
 
 export default function InfluencerCard({

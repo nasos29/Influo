@@ -23,7 +23,8 @@ const LANGUAGES = [
   { code: "pt", el: "Πορτογαλικά", en: "Portuguese" },
   { code: "ru", el: "Ρωσικά", en: "Russian" },
   { code: "zh", el: "Κινεζικά", en: "Chinese" },
-  { code: "ja", el: "Ιαπωνικά", en: "Japanese" }
+  { code: "ja", el: "Ιαπωνικά", en: "Japanese" },
+  { code: "sq", el: "Αλβανικά", en: "Albanian" }
 ];
 
 // Function to parse and convert language strings to standardized format
