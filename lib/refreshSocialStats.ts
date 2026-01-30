@@ -6,6 +6,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import {
   fetchInstagramFromAuditpr,
+  fetchTiktokFromAuditpr,
   fetchTiktokFromApify,
   type SocialMetrics,
 } from '@/lib/socialRefresh';
@@ -30,6 +31,8 @@ export type RefreshResult = {
 
 /** Instagram metrics keyed by username (without @). Used when frontend fetches from local Auditpr. */
 export type InstagramOverrides = Record<string, { followers: string; engagement_rate: string; avg_likes: string }>;
+/** TikTok metrics keyed by username (without @). Used when frontend fetches from local Auditpr. */
+export type TikTokOverrides = Record<string, { followers: string; engagement_rate: string; avg_likes: string }>;
 
 export async function doRefreshSocialStats(
   supabaseAdmin: SupabaseClient,
@@ -39,9 +42,11 @@ export async function doRefreshSocialStats(
     apifyToken: string;
     /** When set, use these for Instagram instead of calling Auditpr from server (browser fetched from local). */
     instagramOverrides?: InstagramOverrides;
+    /** When set, use these for TikTok instead of calling Apify from server (browser fetched from local Auditpr). */
+    tiktokOverrides?: TikTokOverrides;
   }
 ): Promise<RefreshResult> {
-  const { influencerId, auditprBaseUrl, apifyToken, instagramOverrides } = options;
+  const { influencerId, auditprBaseUrl, apifyToken, instagramOverrides, tiktokOverrides } = options;
 
   let query = supabaseAdmin
     .from('influencers')
@@ -91,15 +96,24 @@ export async function doRefreshSocialStats(
         const uKey = username.replace(/^@/, '').trim();
         if (instagramOverrides?.[uKey]) {
           metrics = instagramOverrides[uKey];
-        } else if (!auditprBaseUrl) {
-          errors.push(`Instagram @${username}: AUDITPR_BASE_URL not set (ή εισάγετε Auditpr URL στο dashboard)`);
+        } else         if (!auditprBaseUrl) {
+          errors.push(`Instagram @${uKey}: AUDITPR_BASE_URL not set (ή εισάγετε Auditpr URL στο dashboard)`);
           continue;
         } else {
           metrics = await fetchInstagramFromAuditpr(auditprBaseUrl, username);
         }
       } else if (platformLower === 'tiktok') {
-        // Apify μόνο όταν ο influencer έχει TikTok account με username. Αν έχει μόνο Instagram/άλλα, δεν γίνεται κλήση.
-        metrics = await fetchTiktokFromApify(apifyToken, username);
+        const uKey = username.replace(/^@+/, '').trim();
+        if (tiktokOverrides?.[uKey]) {
+          metrics = tiktokOverrides[uKey];
+        } else if (auditprBaseUrl) {
+          metrics = await fetchTiktokFromAuditpr(auditprBaseUrl, username);
+        } else if (apifyToken) {
+          metrics = await fetchTiktokFromApify(apifyToken, username);
+        } else {
+          errors.push(`TikTok @${uKey}: AUDITPR_BASE_URL or APIFY_API_TOKEN required (ή εισάγετε Auditpr URL στο dashboard)`);
+          continue;
+        }
       } else {
         // Άλλες πλατφόρμες (YouTube, κλπ): skip, χωρίς API κλήση
         continue;
@@ -113,7 +127,8 @@ export async function doRefreshSocialStats(
           avg_likes: metrics.avg_likes,
         };
       } else {
-        errors.push(`${platform} @${username}: ${metrics.error}`);
+        const uDisplay = username.replace(/^@+/, '').trim();
+        errors.push(`${platform} @${uDisplay}: ${metrics.error}`);
       }
     }
 

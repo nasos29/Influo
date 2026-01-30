@@ -8,7 +8,7 @@ import VideoThumbnail from "./VideoThumbnail";
 import SocialEmbedCard from "./SocialEmbedCard";
 import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
 import { categoryTranslations } from "@/components/categoryTranslations";
-import { fetchInstagramFromAuditpr } from "@/lib/socialRefresh";
+import { fetchInstagramFromAuditpr, fetchTiktokFromAuditpr } from "@/lib/socialRefresh";
 
 // --- FULL CATEGORY LIST ---
 const CATEGORIES = [
@@ -1910,9 +1910,12 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     if (idStr) setRefreshingSocialFor(idStr); else setRefreshingSocialAll(true);
     try {
       let instagramOverrides: Record<string, { followers: string; engagement_rate: string; avg_likes: string }> | undefined;
+      let tiktokOverrides: Record<string, { followers: string; engagement_rate: string; avg_likes: string }> | undefined;
       if (user?.accounts?.length) {
         const igAccounts = user.accounts.filter((acc: { platform?: string }) => (acc.platform || '').toLowerCase() === 'instagram');
-        if (igAccounts.length > 0) {
+        const tiktokAccounts = user.accounts.filter((acc: { platform?: string }) => (acc.platform || '').toLowerCase() === 'tiktok');
+        const needsAuditpr = igAccounts.length > 0 || tiktokAccounts.length > 0;
+        if (needsAuditpr) {
           const storedUrl = typeof window !== 'undefined' ? (localStorage.getItem('influo_auditpr_url') || 'http://localhost:8000') : '';
           const promptMsg = lang === 'el'
             ? 'Auditpr URL (αν τρέχει τοπικά στο PC: http://localhost:8000). Αφήστε κενό για server.'
@@ -1926,20 +1929,38 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
           const url = auditprUrl.trim();
           if (url) {
             if (typeof window !== 'undefined') localStorage.setItem('influo_auditpr_url', url);
-            instagramOverrides = {};
-            for (const acc of igAccounts) {
-              const un = (acc.username || '').trim();
-              if (!un) continue;
-              const result = await fetchInstagramFromAuditpr(url, un);
-              if ('followers' in result) {
-                instagramOverrides[un.replace(/^@/, '')] = result;
+            if (igAccounts.length > 0) {
+              instagramOverrides = {};
+              for (const acc of igAccounts) {
+                const un = (acc.username || '').trim();
+                if (!un) continue;
+                const result = await fetchInstagramFromAuditpr(url, un);
+                if ('followers' in result) {
+                  instagramOverrides[un.replace(/^@+/, '').trim()] = result;
+                }
+              }
+            }
+            if (tiktokAccounts.length > 0) {
+              tiktokOverrides = {};
+              for (const acc of tiktokAccounts) {
+                const un = (acc.username || '').trim();
+                if (!un) continue;
+                const result = await fetchTiktokFromAuditpr(url, un);
+                if ('followers' in result) {
+                  tiktokOverrides[un.replace(/^@+/, '').trim()] = result;
+                }
               }
             }
           }
         }
       }
-      const body: { influencerId?: string; instagramOverrides?: Record<string, { followers: string; engagement_rate: string; avg_likes: string }> } = idStr ? { influencerId: idStr } : {};
+      const body: {
+        influencerId?: string;
+        instagramOverrides?: Record<string, { followers: string; engagement_rate: string; avg_likes: string }>;
+        tiktokOverrides?: Record<string, { followers: string; engagement_rate: string; avg_likes: string }>;
+      } = idStr ? { influencerId: idStr } : {};
       if (instagramOverrides && Object.keys(instagramOverrides).length > 0) body.instagramOverrides = instagramOverrides;
+      if (tiktokOverrides && Object.keys(tiktokOverrides).length > 0) body.tiktokOverrides = tiktokOverrides;
       const res = await fetch('/api/admin/refresh-social-stats', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

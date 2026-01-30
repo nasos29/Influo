@@ -47,6 +47,39 @@ export async function fetchInstagramFromAuditpr(
   }
 }
 
+/**
+ * Fetch TikTok metrics from Auditpr (no Apify cost on Influo server). Requires Auditpr running locally with APIFY_API_TOKEN.
+ */
+export async function fetchTiktokFromAuditpr(
+  baseUrl: string,
+  username: string
+): Promise<SocialMetrics | { error: string }> {
+  const u = username.replace(/^@+/, '').trim();
+  if (!u) return { error: 'Username required' };
+  const url = `${baseUrl.replace(/\/$/, '')}/metrics/tiktok/${encodeURIComponent(u)}`;
+  try {
+    const res = await fetch(url, { method: 'GET', signal: AbortSignal.timeout(120_000) });
+    if (!res.ok) {
+      const text = await res.text();
+      return { error: `Auditpr ${res.status}: ${text.slice(0, 200)}` };
+    }
+    const data = (await res.json()) as Record<string, unknown>;
+    if (data.status === 'Failed' && data.error) return { error: String(data.error) };
+    if (data.error) return { error: String(data.error) };
+    const followers = Number(data.followers) || 0;
+    const engagement_rate = typeof data.engagement_rate === 'string' ? data.engagement_rate : 'N/A';
+    const avg_likes = Number(data.avg_likes) ?? 0;
+    return {
+      followers: formatFollowers(followers),
+      engagement_rate,
+      avg_likes: String(avg_likes),
+    };
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { error: `Auditpr request failed: ${msg}` };
+  }
+}
+
 /** Parse TikTok Apify dataset items into followers, engagement_rate, avg_likes (Wednesday-style ER). */
 function parseTiktokItems(items: Record<string, unknown>[]): SocialMetrics | null {
   if (!items.length) return null;
