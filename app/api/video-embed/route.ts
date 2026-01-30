@@ -50,18 +50,20 @@ export async function GET(req: NextRequest) {
         .single();
 
       if (!cacheError && cached) {
-        // Check if cache is still valid (7 days expiration)
+        // Check if cache is still valid (30 days in DB)
         const expiresAt = new Date(cached.expires_at);
         const now = new Date();
         
         if (expiresAt > now) {
-          // Cache is valid, return cached embed URL
-          return NextResponse.json({
+          // Cache is valid, return cached embed URL (Cloudflare can cache this at edge)
+          const res = NextResponse.json({
             embed_url: cached.embed_url,
             provider: cached.provider,
             cached: true,
             cached_at: cached.cached_at
           });
+          res.headers.set('Cache-Control', 'public, max-age=604800, s-maxage=604800'); // 7 days
+          return res;
         } else {
           // Cache expired, delete it
           await supabaseAdmin
@@ -113,7 +115,7 @@ export async function GET(req: NextRequest) {
     // Cache the result in database
     try {
       const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7); // Cache for 7 days
+      expiresAt.setDate(expiresAt.getDate() + 30); // Cache for 30 days (fewer Iframely API calls)
 
       await supabaseAdmin
         .from('video_embed_cache')
@@ -131,11 +133,13 @@ export async function GET(req: NextRequest) {
       console.log('Cache save failed (table might not exist):', dbError);
     }
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       embed_url: embedUrl,
       provider: provider,
       cached: false
     });
+    res.headers.set('Cache-Control', 'public, max-age=86400, s-maxage=604800'); // browser 1 day, CDN 7 days
+    return res;
 
   } catch (error: any) {
     console.error('Error in video-embed:', error);

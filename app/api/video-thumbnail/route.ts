@@ -1,4 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { persistSession: false, autoRefreshToken: false } }
+);
+
+const CACHE_DAYS = 30;
+
+/** Save thumbnail to DB cache (if table exists). */
+async function saveThumbnailCache(originalUrl: string, thumbnailUrl: string | null, platform: string) {
+  if (!thumbnailUrl) return;
+  try {
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + CACHE_DAYS);
+    await supabaseAdmin.from('video_thumbnail_cache').upsert(
+      {
+        original_url: originalUrl,
+        thumbnail_url: thumbnailUrl,
+        platform: platform,
+        cached_at: new Date().toISOString(),
+        expires_at: expiresAt.toISOString(),
+      },
+      { onConflict: 'original_url' }
+    );
+  } catch {
+    // Table might not exist
+  }
+}
 
 // Get video thumbnail for various platforms
 export async function GET(req: NextRequest) {
@@ -9,8 +39,33 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'URL parameter is required' }, { status: 400 });
   }
 
+  const cleanUrl = url.split('?')[0].split('#')[0].trim();
+
   try {
-    // YouTube - direct thumbnail URL
+    // 1. Check DB cache first (λιγότερες κλήσεις Iframely)
+    try {
+      const { data: cached, error: cacheError } = await supabaseAdmin
+        .from('video_thumbnail_cache')
+        .select('thumbnail_url, platform, expires_at')
+        .eq('original_url', cleanUrl)
+        .single();
+      if (!cacheError && cached && cached.thumbnail_url) {
+        const expiresAt = new Date(cached.expires_at);
+        if (expiresAt > new Date()) {
+          const res = NextResponse.json({
+            thumbnail: cached.thumbnail_url,
+            platform: cached.platform || 'unknown',
+          });
+          res.headers.set('Cache-Control', 'public, max-age=604800, s-maxage=604800');
+          return res;
+        }
+        await supabaseAdmin.from('video_thumbnail_cache').delete().eq('original_url', cleanUrl);
+      }
+    } catch {
+      // Table might not exist
+    }
+
+    // YouTube - direct thumbnail URL (no Iframely, no cache needed)
     const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
     const youtubeMatch = url.match(youtubeRegex);
     if (youtubeMatch) {
@@ -103,11 +158,14 @@ export async function GET(req: NextRequest) {
                   }
                 }
                 
-                return NextResponse.json({ 
+                await saveThumbnailCache(cleanUrl, thumbnailUrl, 'instagram');
+                const res = NextResponse.json({ 
                   thumbnail: thumbnailUrl,
                   platform: 'instagram',
                   isCDN: isCDNUrl
                 });
+                res.headers.set('Cache-Control', 'public, max-age=86400, s-maxage=604800');
+                return res;
               } else {
                 // Log for debugging - check what Iframely actually returned
                 console.log('Iframely response for Instagram (no thumbnail found):', JSON.stringify(iframelyData, null, 2));
@@ -136,10 +194,10 @@ export async function GET(req: NextRequest) {
           if (response.ok) {
             const data = await response.json();
             if (data.thumbnail_url) {
-              return NextResponse.json({ 
-                thumbnail: data.thumbnail_url,
-                platform: 'instagram'
-              });
+              await saveThumbnailCache(cleanUrl, data.thumbnail_url, 'instagram');
+              const res = NextResponse.json({ thumbnail: data.thumbnail_url, platform: 'instagram' });
+              res.headers.set('Cache-Control', 'public, max-age=86400, s-maxage=604800');
+              return res;
             }
           }
         } catch (e) {
@@ -174,10 +232,10 @@ export async function GET(req: NextRequest) {
                 const imageUrl = match[1].trim();
                 if (imageUrl && (imageUrl.startsWith('http') || imageUrl.startsWith('//'))) {
                   const fullImageUrl = imageUrl.startsWith('//') ? `https:${imageUrl}` : imageUrl;
-                  return NextResponse.json({ 
-                    thumbnail: fullImageUrl,
-                    platform: 'instagram'
-                  });
+                  await saveThumbnailCache(cleanUrl, fullImageUrl, 'instagram');
+                  const res = NextResponse.json({ thumbnail: fullImageUrl, platform: 'instagram' });
+                  res.headers.set('Cache-Control', 'public, max-age=86400, s-maxage=604800');
+                  return res;
                 }
               }
             }
@@ -266,10 +324,10 @@ export async function GET(req: NextRequest) {
               
               if (thumbnailUrl) {
                 console.log('TikTok thumbnail found via Iframely:', thumbnailUrl);
-                return NextResponse.json({ 
-                  thumbnail: thumbnailUrl,
-                  platform: 'tiktok'
-                });
+                await saveThumbnailCache(cleanUrl, thumbnailUrl, 'tiktok');
+                const res = NextResponse.json({ thumbnail: thumbnailUrl, platform: 'tiktok' });
+                res.headers.set('Cache-Control', 'public, max-age=86400, s-maxage=604800');
+                return res;
               } else {
                 // Log full response for debugging
                 console.log('Iframely response for TikTok (no thumbnail found):', JSON.stringify(iframelyData, null, 2));
@@ -312,10 +370,10 @@ export async function GET(req: NextRequest) {
                 const imageUrl = match[1].trim();
                 if (imageUrl && (imageUrl.startsWith('http') || imageUrl.startsWith('//'))) {
                   const fullImageUrl = imageUrl.startsWith('//') ? `https:${imageUrl}` : imageUrl;
-                  return NextResponse.json({ 
-                    thumbnail: fullImageUrl,
-                    platform: 'tiktok'
-                  });
+                  await saveThumbnailCache(cleanUrl, fullImageUrl, 'tiktok');
+                  const res = NextResponse.json({ thumbnail: fullImageUrl, platform: 'tiktok' });
+                  res.headers.set('Cache-Control', 'public, max-age=86400, s-maxage=604800');
+                  return res;
                 }
               }
             }
@@ -349,10 +407,10 @@ export async function GET(req: NextRequest) {
         if (vimeoResponse.ok) {
           const vimeoData = await vimeoResponse.json();
           if (vimeoData.thumbnail_url) {
-            return NextResponse.json({ 
-              thumbnail: vimeoData.thumbnail_url,
-              platform: 'vimeo'
-            });
+            await saveThumbnailCache(cleanUrl, vimeoData.thumbnail_url, 'vimeo');
+            const res = NextResponse.json({ thumbnail: vimeoData.thumbnail_url, platform: 'vimeo' });
+            res.headers.set('Cache-Control', 'public, max-age=86400, s-maxage=604800');
+            return res;
           }
         }
       } catch (error) {

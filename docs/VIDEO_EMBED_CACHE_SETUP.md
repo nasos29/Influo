@@ -52,7 +52,8 @@ CREATE INDEX IF NOT EXISTS idx_video_embed_cache_provider ON video_embed_cache(p
 
 ## Cache Expiration
 
-- **Default**: 7 days
+- **Default**: 30 days (DB) – fewer Iframely API calls
+- **Response headers**: `Cache-Control: public, max-age=604800, s-maxage=604800` (7 days) so Cloudflare/CDN can cache at edge
 - **Automatic Cleanup**: Expired entries are deleted when accessed
 - **Manual Cleanup**: Run `cleanup_expired_embed_cache()` function to clean up all expired entries
 
@@ -109,7 +110,7 @@ SELECT cleanup_expired_embed_cache();
 
 ### Cache not updating
 
-- Cache expires after 7 days automatically
+- Cache expires after 30 days automatically
 - To force refresh, delete the cache entry:
   ```sql
   DELETE FROM video_embed_cache WHERE original_url = 'https://...';
@@ -119,4 +120,18 @@ SELECT cleanup_expired_embed_cache();
 
 - Cache lookups are fast (indexed on `original_url`)
 - Iframely API calls only happen on cache miss
-- Consider increasing cache duration if videos don't change often
+- **Cloudflare**: Το `/api/video-embed` στέλνει `Cache-Control` ώστε το Cloudflare να κρατά απάντηση στο edge (λιγότερα hits στο origin). Στο Cloudflare Dashboard → Caching → Cache Rules μπορείς να βάλεις rule: αν URL path είναι `/api/video-embed*`, Cache Level = Standard, Edge TTL = 7 days.
+
+### Cloudflare – λιγότερες κλήσεις Iframely
+
+1. **Cache at edge**: Το API ήδη στέλνει `Cache-Control: public, max-age=604800, s-maxage=604800`. Αν το site περνά από Cloudflare, το Cloudflare θα κρατά την απάντηση στο edge και δεν θα χτυπά το origin (ούτε τη DB) για κάθε request.
+2. **Cache Rule (προαιρετικό)**: Δημιούργησε Rule για path `/api/video-embed*` με Edge TTL 7 days ώστε να είσαι σίγουρος ότι cache-άρεται.
+3. **Άλλες ιδέες**: (α) Client-side: αν το ίδιο video φορτώνει σε πολλές σελίδες, μπορεί να προστεθεί in-memory cache (Map) για το session.
+
+### Thumbnail cache (video-thumbnail API)
+
+Το `/api/video-thumbnail?url=...` χρησιμοποιεί πλέον **DB cache** ώστε να μην καλείται το Iframely κάθε φορά:
+
+1. **Πίνακας**: `video_thumbnail_cache` (original_url, thumbnail_url, platform, expires_at). Δημιουργία: τρέξε στο Supabase το `docs/ADD_VIDEO_THUMBNAIL_CACHE.sql`.
+2. **Ροή**: (1) Έλεγχος cache με το normalized URL. Αν υπάρχει και δεν έχει λήξει (30 ημέρες), επιστροφή cached thumbnail + `Cache-Control`. (2) Αλλιώς κλήση Iframely/oEmbed/κλπ, αποθήκευση στο cache, επιστροφή με `Cache-Control`.
+3. **Λήξη**: 30 ημέρες (όπως και το embed cache). Λιγότερες κλήσεις στο Iframely.
