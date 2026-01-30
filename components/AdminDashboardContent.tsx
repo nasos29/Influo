@@ -8,6 +8,7 @@ import VideoThumbnail from "./VideoThumbnail";
 import SocialEmbedCard from "./SocialEmbedCard";
 import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
 import { categoryTranslations } from "@/components/categoryTranslations";
+import { fetchInstagramFromAuditpr } from "@/lib/socialRefresh";
 
 // --- FULL CATEGORY LIST ---
 const CATEGORIES = [
@@ -182,7 +183,9 @@ const t = {
     blog_slug: "Slug",
     blog_category: "Κατηγορία",
     blog_date: "Ημερομηνία",
-    blog_actions: "Ενέργειες"
+    blog_actions: "Ενέργειες",
+    refresh_social: "Ανανέωση",
+    refresh_social_all: "Ανανέωση social stats για όλους"
   },
   en: {
     title: "Admin Dashboard",
@@ -246,7 +249,9 @@ const t = {
     blog_slug: "Slug",
     blog_category: "Category",
     blog_date: "Date",
-    blog_actions: "Actions"
+    blog_actions: "Actions",
+    refresh_social: "Refresh",
+    refresh_social_all: "Refresh social stats for all"
   }
 };
 
@@ -1423,6 +1428,8 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
   const [brokenThumbnails, setBrokenThumbnails] = useState<Array<{ influencerId: number; influencerName: string; videoUrl: string; thumbnailUrl: string; reason: string }>>([]);
   const [checkingThumbnails, setCheckingThumbnails] = useState(false);
+  const [refreshingSocialFor, setRefreshingSocialFor] = useState<string | null>(null);
+  const [refreshingSocialAll, setRefreshingSocialAll] = useState(false);
 
   const fetchConversations = async () => {
     try {
@@ -1899,6 +1906,65 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     
     if(selectedUser?.id === id) {
         setSelectedUser(prev => prev ? {...prev, analytics_verified: !currentStatus} : null);
+    }
+  };
+
+  const refreshSocialStats = async (user?: DbInfluencer) => {
+    const confirmMsg = lang === 'el' ? 'Είσαι σίγουρος;' : 'Are you sure?';
+    if (!confirm(confirmMsg)) return;
+    const idStr = user != null ? String(user.id) : null;
+    if (idStr) setRefreshingSocialFor(idStr); else setRefreshingSocialAll(true);
+    try {
+      let instagramOverrides: Record<string, { followers: string; engagement_rate: string; avg_likes: string }> | undefined;
+      if (user?.accounts?.length) {
+        const igAccounts = user.accounts.filter((acc: { platform?: string }) => (acc.platform || '').toLowerCase() === 'instagram');
+        if (igAccounts.length > 0) {
+          const storedUrl = typeof window !== 'undefined' ? (localStorage.getItem('influo_auditpr_url') || 'http://localhost:8000') : '';
+          const promptMsg = lang === 'el'
+            ? 'Auditpr URL (αν τρέχει τοπικά στο PC: http://localhost:8000). Αφήστε κενό για server.'
+            : 'Auditpr URL (if running locally: http://localhost:8000). Leave empty for server.';
+          const auditprUrl = typeof window !== 'undefined' ? prompt(promptMsg, storedUrl) : null;
+          if (auditprUrl === null) {
+            setRefreshingSocialFor(null);
+            setRefreshingSocialAll(false);
+            return;
+          }
+          const url = auditprUrl.trim();
+          if (url) {
+            if (typeof window !== 'undefined') localStorage.setItem('influo_auditpr_url', url);
+            instagramOverrides = {};
+            for (const acc of igAccounts) {
+              const un = (acc.username || '').trim();
+              if (!un) continue;
+              const result = await fetchInstagramFromAuditpr(url, un);
+              if ('followers' in result) {
+                instagramOverrides[un.replace(/^@/, '')] = result;
+              }
+            }
+          }
+        }
+      }
+      const body: { influencerId?: string; instagramOverrides?: Record<string, { followers: string; engagement_rate: string; avg_likes: string }> } = idStr ? { influencerId: idStr } : {};
+      if (instagramOverrides && Object.keys(instagramOverrides).length > 0) body.instagramOverrides = instagramOverrides;
+      const res = await fetch('/api/admin/refresh-social-stats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      const summary = data.results?.length
+        ? data.results.map((r: { name: string; errors?: string[] }) =>
+            r.name + (r.errors?.length ? ': ' + r.errors.join('; ') : ' OK')
+          ).join('\n')
+        : '';
+      alert((data.message || 'Done') + ': ' + data.refreshed + (summary ? '\n\n' + summary : ''));
+      fetchData();
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Error');
+    } finally {
+      setRefreshingSocialFor(null);
+      setRefreshingSocialAll(false);
     }
   };
   
@@ -2555,6 +2621,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                 >
                   {txt.export}
                 </button>
+                <button
+                  onClick={() => refreshSocialStats()}
+                  disabled={refreshingSocialAll}
+                  className="px-4 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {refreshingSocialAll ? '...' : txt.refresh_social_all}
+                </button>
               </div>
 
               {/* Bulk Actions */}
@@ -2707,6 +2780,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                 }`}
                               >
                                 {u.analytics_verified ? txt.btn_unverify_analytics : txt.btn_verify_analytics}
+                              </button>
+                              <button
+                                onClick={() => refreshSocialStats(u)}
+                                disabled={refreshingSocialFor === String(u.id)}
+                                className="px-2 py-1 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {refreshingSocialFor === String(u.id) ? '...' : txt.refresh_social}
                               </button>
                               <button
                                 onClick={() => deleteUser(u.id)}
