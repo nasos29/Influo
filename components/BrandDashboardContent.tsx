@@ -1327,36 +1327,25 @@ export default function BrandDashboardContent() {
         {/* Recommendations Section */}
         {activeTab === 'recommendations' && (
         <div className="mb-12">
-          {/* Smart Service Banner */}
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 mb-6 text-white">
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="text-xl font-bold mb-2">{txt.smart_service_title}</h3>
-                <p className="text-blue-50 font-medium">{txt.smart_service_desc}</p>
-              </div>
-              <div className="text-4xl">🤖</div>
-            </div>
-          </div>
-
           <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2">{txt.recommendations_title}</h2>
-              <p className="text-slate-600">{txt.recommendations_subtitle}</p>
+              <h2 className="text-2xl font-semibold text-slate-900 tracking-tight">{txt.recommendations_title}</h2>
+              <p className="text-slate-500 text-sm mt-1">{txt.recommendations_subtitle}</p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-2">
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="px-4 py-2 bg-white border-2 border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-2"
+                className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-2"
               >
-                <span>🔍</span>
+                <span aria-hidden>🔍</span>
                 {txt.filters}
               </button>
               <button
                 onClick={() => brandData && loadRecommendations(brandData)}
                 disabled={recommendationsLoading}
-                className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="px-3 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
-                <span className={recommendationsLoading ? 'animate-spin' : ''}>🔄</span>
+                <span className={recommendationsLoading ? 'animate-spin' : ''} aria-hidden>↻</span>
                 {txt.refresh}
               </button>
             </div>
@@ -1364,7 +1353,7 @@ export default function BrandDashboardContent() {
 
           {/* Filters Panel */}
           {showFilters && (
-            <div className="bg-white rounded-xl p-6 border border-slate-200 mb-6 shadow-sm">
+            <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 mb-6">
               <div className="grid md:grid-cols-2 lg:grid-cols-6 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">{txt.min_score}</label>
@@ -1470,24 +1459,12 @@ export default function BrandDashboardContent() {
             </div>
           )}
 
-          {/* Stats */}
+          {/* Stats – compact */}
           {recommendationStats.totalViewed > 0 && (
-            <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl p-6 mb-6 border border-slate-200">
-              <h3 className="text-lg font-bold text-slate-900 mb-4">{txt.stats_title}</h3>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-blue-600">{recommendationStats.totalViewed}</div>
-                  <div className="text-sm text-slate-600">{txt.total_viewed}</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-green-600">{recommendationStats.profilesClicked}</div>
-                  <div className="text-sm text-slate-600">{txt.profiles_clicked}</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-purple-600">{recommendationStats.proposalsSent}</div>
-                  <div className="text-sm text-slate-600">{txt.proposals_sent}</div>
-                </div>
-              </div>
+            <div className="flex flex-wrap gap-6 mb-6 text-sm text-slate-600">
+              <span><strong className="text-slate-900">{recommendationStats.totalViewed}</strong> {txt.total_viewed}</span>
+              <span><strong className="text-slate-900">{recommendationStats.profilesClicked}</strong> {txt.profiles_clicked}</span>
+              <span><strong className="text-slate-900">{recommendationStats.proposalsSent}</strong> {txt.proposals_sent}</span>
             </div>
           )}
           
@@ -1526,18 +1503,17 @@ export default function BrandDashboardContent() {
                 return (
                   <div
                     key={inf.id}
-                    className="bg-white rounded-2xl border-2 border-slate-200 hover:border-blue-300 hover:shadow-xl transition-all overflow-hidden group"
+                    className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all overflow-hidden"
                   >
-                    {/* Match Score Badge */}
                     <div className="relative">
-                      <div className="absolute top-3 right-3 z-10">
-                        <div className={`px-3 py-1 rounded-full text-xs font-bold text-white ${
-                          match.score >= 80 ? 'bg-green-500' :
-                          match.score >= 65 ? 'bg-blue-500' :
-                          'bg-amber-500'
+                      <div className="absolute top-2 right-2 z-10">
+                        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold text-white ${
+                          match.score >= 80 ? 'bg-emerald-600' :
+                          match.score >= 65 ? 'bg-blue-600' :
+                          'bg-slate-500'
                         }`}>
-                          {match.score}% Match
-                        </div>
+                          {match.score}% {lang === 'el' ? 'Match' : 'Match'}
+                        </span>
                       </div>
                       
                       {/* Avatar */}
@@ -1551,12 +1527,7 @@ export default function BrandDashboardContent() {
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                         <div className="absolute bottom-3 left-3 right-3">
-                          {(inf.auditpr_audit?.niche_en || inf.auditpr_audit?.niche) && (
-                            <span className="inline-block px-2 py-0.5 bg-white/25 backdrop-blur-sm rounded text-xs text-white font-medium mb-1">
-                              {lang === 'en' ? (inf.auditpr_audit.niche_en || inf.auditpr_audit.niche) : (inf.auditpr_audit.niche || inf.auditpr_audit.niche_en)}
-                            </span>
-                          )}
-                          <h3 className="text-white font-bold text-lg mb-1">{inf.display_name}</h3>
+                          <h3 className="text-white font-bold text-lg mb-1.5">{inf.display_name}</h3>
                           {(inf.categories && inf.categories.length > 0 ? inf.categories : (inf.category ? [inf.category] : [])).slice(0, 3).map((cat: string, idx: number) => (
                             <span key={idx} className="inline-block px-2 py-1 bg-white/20 backdrop-blur-sm rounded text-xs text-white font-medium mr-1 mb-1">
                               {lang === 'el' ? 
@@ -1571,18 +1542,18 @@ export default function BrandDashboardContent() {
                     
                     {/* Content */}
                     <div className="p-4">
-                      {/* Stats – same source as profile page (accounts) */}
+                      {/* Stats – Followers, Engagement, Avg Likes only (reviews stay in algorithm, not shown) */}
                       <div className="grid grid-cols-2 gap-3 mb-4 text-xs">
                         {inf.followers_count && inf.followers_count !== '0' && (
                           <div>
-                            <div className="text-slate-500">{txt.followers}</div>
-                            <div className="font-bold text-slate-900">{inf.followers_count}</div>
+                            <div className="text-slate-500 uppercase tracking-wide">{txt.followers}</div>
+                            <div className="font-semibold text-slate-900">{inf.followers_count}</div>
                           </div>
                         )}
                         {(inf.engagement_rate && (typeof inf.engagement_rate === 'object' ? Object.keys(inf.engagement_rate).length > 0 : true)) && (
                           <div>
-                            <div className="text-slate-500">{txt.engagement_rate}</div>
-                            <div className="font-bold text-slate-900">
+                            <div className="text-slate-500 uppercase tracking-wide">{txt.engagement_rate}</div>
+                            <div className="font-semibold text-slate-900">
                               {typeof inf.engagement_rate === 'object' && inf.engagement_rate !== null && !Array.isArray(inf.engagement_rate)
                                 ? (Object.entries(inf.engagement_rate) as [string, string][]).map(([platform, rate]) => {
                                     const r = rate && !String(rate).includes('%') ? `${rate}%` : rate;
@@ -1593,29 +1564,28 @@ export default function BrandDashboardContent() {
                             </div>
                           </div>
                         )}
-                        {inf.avg_rating && (
+                        {inf.avg_likes && (typeof inf.avg_likes === 'object' ? Object.keys(inf.avg_likes).length > 0 : inf.avg_likes) && (
                           <div>
-                            <div className="text-slate-500">{txt.rating}</div>
-                            <div className="font-bold text-slate-900">
-                              {inf.avg_rating.toFixed(1)} ⭐
+                            <div className="text-slate-500 uppercase tracking-wide">{lang === 'el' ? 'Μ.Ο. Likes' : 'Avg Likes'}</div>
+                            <div className="font-semibold text-slate-900">
+                              {typeof inf.avg_likes === 'object' && inf.avg_likes !== null && !Array.isArray(inf.avg_likes)
+                                ? (Object.entries(inf.avg_likes) as [string, string][]).map(([platform, val]) => {
+                                    const label = platform === 'instagram' ? 'IG' : platform === 'tiktok' ? 'TT' : platform.slice(0, 2).toUpperCase();
+                                    return `${label} ${val}`;
+                                  }).join(' · ')
+                                : inf.avg_likes}
                             </div>
-                          </div>
-                        )}
-                        {inf.total_reviews !== undefined && (
-                          <div>
-                            <div className="text-slate-500">{txt.reviews}</div>
-                            <div className="font-bold text-slate-900">{inf.total_reviews || 0}</div>
                           </div>
                         )}
                       </div>
                       
                       {/* Match Reasons */}
                       <div className="mb-4">
-                        <div className="text-xs font-semibold text-slate-700 mb-2">{txt.why_match}:</div>
+                        <p className="text-xs font-medium text-slate-500 mb-1.5">{txt.why_match}</p>
                         <ul className="space-y-1">
                           {match.reasons.slice(0, 3).map((reason: string, i: number) => (
-                            <li key={i} className="text-xs text-slate-600 flex items-start gap-1">
-                              <span className="text-green-500 mt-0.5">✓</span>
+                            <li key={i} className="text-xs text-slate-700 flex items-start gap-2">
+                              <span className="text-emerald-500 shrink-0 mt-0.5" aria-hidden>•</span>
                               <span>{reason}</span>
                             </li>
                           ))}
@@ -1669,7 +1639,7 @@ export default function BrandDashboardContent() {
                               // Fail silently
                             }
                           }}
-                          className="flex-1 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-900 font-medium rounded-lg text-sm text-center transition-colors"
+                          className="flex-1 px-3 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg text-center transition-colors"
                         >
                           {txt.view_profile}
                         </Link>
@@ -1682,7 +1652,7 @@ export default function BrandDashboardContent() {
                             }
                             // Note: proposalsSent is now updated only after successful proposal submission
                           }}
-                          className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg text-sm text-center transition-colors"
+                          className="flex-1 px-3 py-2 text-sm font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-lg text-center transition-colors"
                         >
                           {txt.send_proposal}
                         </Link>
