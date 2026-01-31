@@ -55,22 +55,17 @@ export async function GET(req: NextRequest) {
         const now = new Date();
         
         if (expiresAt > now) {
-          // Cache is valid, return cached embed URL (Cloudflare can cache this at edge)
+          // Cache is valid, return cached embed URL (max TTL to minimize Iframely API hits)
           const res = NextResponse.json({
             embed_url: cached.embed_url,
             provider: cached.provider,
             cached: true,
             cached_at: cached.cached_at
           });
-          res.headers.set('Cache-Control', 'public, max-age=604800, s-maxage=604800'); // 7 days
+          res.headers.set('Cache-Control', 'public, max-age=31536000, s-maxage=31536000'); // 1 year
           return res;
-        } else {
-          // Cache expired, delete it
-          await supabaseAdmin
-            .from('video_embed_cache')
-            .delete()
-            .eq('original_url', originalUrl);
         }
+        // Expired: re-fetch below; do not delete so we can upsert again
       }
     } catch (dbError) {
       // If table doesn't exist, continue to fetch from Iframely
@@ -112,10 +107,10 @@ export async function GET(req: NextRequest) {
       provider = 'tiktok';
     }
 
-    // Cache the result in database
+    // Cache the result in database (max TTL to minimize Iframely API hits)
     try {
       const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 30); // Cache for 30 days (fewer Iframely API calls)
+      expiresAt.setDate(expiresAt.getDate() + 365); // 1 year
 
       await supabaseAdmin
         .from('video_embed_cache')
@@ -138,7 +133,7 @@ export async function GET(req: NextRequest) {
       provider: provider,
       cached: false
     });
-    res.headers.set('Cache-Control', 'public, max-age=86400, s-maxage=604800'); // browser 1 day, CDN 7 days
+    res.headers.set('Cache-Control', 'public, max-age=31536000, s-maxage=31536000'); // 1 year
     return res;
 
   } catch (error: any) {

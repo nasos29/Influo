@@ -34,7 +34,19 @@ interface ProInfluencer extends Influencer {
   calculatedCompletionRate?: number;
   created_at?: string;
   /** Gemini audit (updated only when followers/engagement/avg_likes are refreshed). */
-  auditpr_audit?: { scoreBreakdown: string[]; scoreBreakdown_en?: string[]; brandSafe: boolean; niche?: string; niche_en?: string };
+  auditpr_audit?: {
+    scoreBreakdown: string[];
+    scoreBreakdown_en?: string[];
+    whyWorkWithThem?: string;
+    whyWorkWithThem_en?: string;
+    positives?: string[];
+    positives_en?: string[];
+    negatives?: string[];
+    negatives_en?: string[];
+    brandSafe: boolean;
+    niche?: string;
+    niche_en?: string;
+  };
 }
 
 // --- SOCIAL MEDIA ICONS ---
@@ -134,7 +146,10 @@ const t = {
     message_desc: "Ξεκινήστε μια συνομιλία με αυτόν/αυτήν τον influencer",
     audit_title: "Στρατηγική Αξιολόγηση",
     audit_brand_safe: "Brand Safe",
-    audit_niche: "Niche"
+    audit_niche: "Niche",
+    why_work_with_them: "Γιατί να συνεργαστώ μαζί του: ",
+    positives: "Θετικά",
+    negatives: "Αρνητικά"
   },
   en: {
     back: "← Back",
@@ -207,7 +222,10 @@ const t = {
     message_desc: "Start a conversation with this influencer",
     audit_title: "Strategic Audit",
     audit_brand_safe: "Brand Safe",
-    audit_niche: "Niche"
+    audit_niche: "Niche",
+    why_work_with_them: "Why work with them: ",
+    positives: "Positives",
+    negatives: "Negatives"
   }
 };
 
@@ -1847,7 +1865,42 @@ export default function InfluencerProfile(props: { params: Params }) {
                                             <span>{item}</span>
                                         </li>
                                     ))}
+                                    {(lang === 'en' ? profile.auditpr_audit.whyWorkWithThem_en : profile.auditpr_audit.whyWorkWithThem) && (
+                                        <li className="flex gap-2">
+                                            <span className="text-indigo-500 mt-0.5 shrink-0">•</span>
+                                            <span>
+                                                {txt.why_work_with_them}
+                                                {lang === 'en' ? (profile.auditpr_audit.whyWorkWithThem_en ?? profile.auditpr_audit.whyWorkWithThem) : profile.auditpr_audit.whyWorkWithThem}
+                                            </span>
+                                        </li>
+                                    )}
                                 </ul>
+                                {((lang === 'en' ? profile.auditpr_audit.positives_en : profile.auditpr_audit.positives)?.length || (lang === 'en' ? profile.auditpr_audit.negatives_en : profile.auditpr_audit.negatives)?.length) ? (
+                                    <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                        <div>
+                                            <h3 className="text-sm font-semibold text-slate-800 mb-2">{txt.positives}</h3>
+                                            <ul className="space-y-1.5 text-slate-600 text-sm leading-relaxed list-none">
+                                                {(lang === 'en' ? profile.auditpr_audit.positives_en : profile.auditpr_audit.positives)?.map((item, idx) => (
+                                                    <li key={idx} className="flex gap-2">
+                                                        <span className="text-emerald-500 shrink-0">+</span>
+                                                        <span>{item}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                        <div>
+                                            <h3 className="text-sm font-semibold text-slate-800 mb-2">{txt.negatives}</h3>
+                                            <ul className="space-y-1.5 text-slate-600 text-sm leading-relaxed list-none">
+                                                {(lang === 'en' ? profile.auditpr_audit.negatives_en : profile.auditpr_audit.negatives)?.map((item, idx) => (
+                                                    <li key={idx} className="flex gap-2">
+                                                        <span className="text-amber-500 shrink-0">−</span>
+                                                        <span>{item}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                ) : null}
                             </div>
                         )}
                          <div>

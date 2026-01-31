@@ -7,7 +7,7 @@ const supabaseAdmin = createClient(
   { auth: { persistSession: false, autoRefreshToken: false } }
 );
 
-const CACHE_DAYS = 30;
+const CACHE_DAYS = 365; // Max TTL to minimize Iframely API hits
 
 /** Save thumbnail to DB cache (if table exists). */
 async function saveThumbnailCache(originalUrl: string, thumbnailUrl: string | null, platform: string) {
@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
             thumbnail: cached.thumbnail_url,
             platform: cached.platform || 'unknown',
           });
-          res.headers.set('Cache-Control', 'public, max-age=604800, s-maxage=604800');
+          res.headers.set('Cache-Control', 'public, max-age=31536000, s-maxage=31536000');
           return res;
         }
         await supabaseAdmin.from('video_thumbnail_cache').delete().eq('original_url', cleanUrl);
@@ -164,7 +164,7 @@ export async function GET(req: NextRequest) {
                   platform: 'instagram',
                   isCDN: isCDNUrl
                 });
-                res.headers.set('Cache-Control', 'public, max-age=86400, s-maxage=604800');
+                res.headers.set('Cache-Control', 'public, max-age=31536000, s-maxage=31536000');
                 return res;
               } else {
                 // Log for debugging - check what Iframely actually returned
@@ -196,7 +196,7 @@ export async function GET(req: NextRequest) {
             if (data.thumbnail_url) {
               await saveThumbnailCache(cleanUrl, data.thumbnail_url, 'instagram');
               const res = NextResponse.json({ thumbnail: data.thumbnail_url, platform: 'instagram' });
-              res.headers.set('Cache-Control', 'public, max-age=86400, s-maxage=604800');
+              res.headers.set('Cache-Control', 'public, max-age=31536000, s-maxage=31536000');
               return res;
             }
           }
@@ -234,7 +234,7 @@ export async function GET(req: NextRequest) {
                   const fullImageUrl = imageUrl.startsWith('//') ? `https:${imageUrl}` : imageUrl;
                   await saveThumbnailCache(cleanUrl, fullImageUrl, 'instagram');
                   const res = NextResponse.json({ thumbnail: fullImageUrl, platform: 'instagram' });
-                  res.headers.set('Cache-Control', 'public, max-age=86400, s-maxage=604800');
+                  res.headers.set('Cache-Control', 'public, max-age=31536000, s-maxage=31536000');
                   return res;
                 }
               }
@@ -326,7 +326,7 @@ export async function GET(req: NextRequest) {
                 console.log('TikTok thumbnail found via Iframely:', thumbnailUrl);
                 await saveThumbnailCache(cleanUrl, thumbnailUrl, 'tiktok');
                 const res = NextResponse.json({ thumbnail: thumbnailUrl, platform: 'tiktok' });
-                res.headers.set('Cache-Control', 'public, max-age=86400, s-maxage=604800');
+                res.headers.set('Cache-Control', 'public, max-age=31536000, s-maxage=31536000');
                 return res;
               } else {
                 // Log full response for debugging
@@ -372,7 +372,7 @@ export async function GET(req: NextRequest) {
                   const fullImageUrl = imageUrl.startsWith('//') ? `https:${imageUrl}` : imageUrl;
                   await saveThumbnailCache(cleanUrl, fullImageUrl, 'tiktok');
                   const res = NextResponse.json({ thumbnail: fullImageUrl, platform: 'tiktok' });
-                  res.headers.set('Cache-Control', 'public, max-age=86400, s-maxage=604800');
+                  res.headers.set('Cache-Control', 'public, max-age=31536000, s-maxage=31536000');
                   return res;
                 }
               }
@@ -409,7 +409,7 @@ export async function GET(req: NextRequest) {
           if (vimeoData.thumbnail_url) {
             await saveThumbnailCache(cleanUrl, vimeoData.thumbnail_url, 'vimeo');
             const res = NextResponse.json({ thumbnail: vimeoData.thumbnail_url, platform: 'vimeo' });
-            res.headers.set('Cache-Control', 'public, max-age=86400, s-maxage=604800');
+            res.headers.set('Cache-Control', 'public, max-age=31536000, s-maxage=31536000');
             return res;
           }
         }

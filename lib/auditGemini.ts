@@ -24,6 +24,12 @@ export type AuditShared = {
 export type AuditResult = {
   scoreBreakdown: string[];
   scoreBreakdown_en?: string[];
+  whyWorkWithThem?: string;
+  whyWorkWithThem_en?: string;
+  positives?: string[];
+  positives_en?: string[];
+  negatives?: string[];
+  negatives_en?: string[];
   brandSafe: boolean;
   niche?: string;
   niche_en?: string;
@@ -65,19 +71,25 @@ ${bioBlock}
 ${categoryBlock}
 
 TASK:
-Write a strategic profile that helps brands decide whether to work with this creator. Describe strengths AND weaknesses/concerns in a factual, neutral way. Do NOT give recommendations to the creator (e.g. avoid "should improve", "ought to"). Instead describe what IS: e.g. "Strong engagement on Instagram", "Limited reach on TikTok", "Consistent niche across platforms", "Engagement rate below average for this tier".
+Write a strategic profile that helps brands decide whether to work with this creator. Describe strengths AND weaknesses in a factual, neutral way. Use detailed bullets (2–3 sentences or 1–2 lines each). Do NOT give recommendations to the creator. Describe what IS.
 
 OUTPUT – Return ONLY valid JSON with these exact keys (no markdown, no extra text):
-- scoreBreakdown: array of exactly 4 short bullet points in GREEK (Ελληνικά), each one line. Each bullet describes a characteristic for brands (strengths and/or drawbacks). Neutral, descriptive tone – no advice to the creator.
-- scoreBreakdown_en: array of exactly 4 short bullet points in ENGLISH, same content as scoreBreakdown.
+- scoreBreakdown: array of exactly 4 bullet points in GREEK (Ελληνικά). Each bullet MUST be 2–3 sentences or 2–3 lines – rich, detailed text for brands. Use more words; avoid one-liners.
+- scoreBreakdown_en: array of exactly 4 bullet points in ENGLISH, same content and length as scoreBreakdown.
+- whyWorkWithThem: 2–4 sentences in GREEK: reasons a brand should work with this creator, based PRIMARILY on their profile (bio, category, metrics, niche). Do NOT include "Γιατί να συνεργαστώ μαζί του" – only the reasons.
+- whyWorkWithThem_en: same as whyWorkWithThem, in ENGLISH. Do NOT include "Why work with them" – only the reasons.
+- positives: array of 2–4 points in GREEK – key strengths for brands. Each point 1–2 sentences (e.g. "Δυνατό engagement στο Instagram και συνεπής απεικόνιση niche.").
+- positives_en: array of 2–4 points in ENGLISH, same content as positives.
+- negatives: array of 2–4 points in GREEK – drawbacks or concerns for brands. Each point 1–2 sentences. Can be empty array if no significant negatives.
+- negatives_en: array of 2–4 points in ENGLISH, same content as negatives.
 - brandSafe: boolean (true if content and metrics suggest brand-safe; false if risks).
-- niche: ONE niche label in GREEK (e.g. "Μόδα", "Fitness") – single term or very short phrase.
-- niche_en: ONE niche label in ENGLISH (e.g. Fashion, Fitness, Beauty & Makeup). Use standard categories: Fashion, Model, Beauty & Makeup, Fitness, Food, Travel, Gaming, Comedy, Music, Education, etc. Do NOT use: Creator, Content Creator, Influencer, Lifestyle as default.
+- niche: ONE niche label in GREEK (e.g. "Μόδα", "Fitness").
+- niche_en: ONE niche label in ENGLISH (Fashion, Fitness, Beauty & Makeup, etc.). Do NOT use: Creator, Content Creator, Influencer, Lifestyle as default.
 
 RULES:
-- Audience is brands. Highlight what matters for brand partnerships: reach, engagement quality, consistency, niche fit, risks.
-- Include both positives and negatives where relevant (e.g. "Δυνατό engagement" vs "Μικρό reach στο TikTok").
-- No advisory or coaching tone. Descriptive only.
+- Audience is brands. Be detailed in bullets; more words, not one-liners.
+- Include both positives and negatives where relevant.
+- No advisory tone. Descriptive only.
 - If the profile suggests fashion/model/aesthetic content, use Fashion, Model or Beauty & Makeup – not Humor/Comedy unless the bio clearly indicates comedy.`;
 }
 
@@ -93,6 +105,12 @@ function parseResponse(text: string): AuditResult {
   return {
     scoreBreakdown: (data.scoreBreakdown as string[]) || ['Ανάλυση δεν διαθέσιμη.'],
     scoreBreakdown_en: Array.isArray(data.scoreBreakdown_en) ? (data.scoreBreakdown_en as string[]) : undefined,
+    whyWorkWithThem: typeof data.whyWorkWithThem === 'string' ? (data.whyWorkWithThem as string).trim() : undefined,
+    whyWorkWithThem_en: typeof data.whyWorkWithThem_en === 'string' ? (data.whyWorkWithThem_en as string).trim() : undefined,
+    positives: Array.isArray(data.positives) ? (data.positives as string[]) : undefined,
+    positives_en: Array.isArray(data.positives_en) ? (data.positives_en as string[]) : undefined,
+    negatives: Array.isArray(data.negatives) ? (data.negatives as string[]) : undefined,
+    negatives_en: Array.isArray(data.negatives_en) ? (data.negatives_en as string[]) : undefined,
     brandSafe: Boolean(data.brandSafe !== false),
     niche: ((data.niche as string) || '').trim() || 'Creator',
     niche_en: ((data.niche_en as string) || '').trim() || undefined,
