@@ -79,8 +79,8 @@ export async function doRefreshSocialStats(
 
   const results: { id: string; name: string; accounts: number; errors: string[] }[] = [];
 
-  /** Audit result from Auditpr: only updated when we refresh followers/engagement/avg_likes (not on every page load). */
-  type AuditprAudit = { scoreBreakdown: string[]; brandSafe: boolean; niche?: string };
+  /** Audit result: only updated when we refresh followers/engagement/avg_likes (not on every page load). */
+  type AuditprAudit = { scoreBreakdown: string[]; scoreBreakdown_en?: string[]; brandSafe: boolean; niche?: string; niche_en?: string };
 
   for (const inf of influencers) {
     const accounts = (inf.accounts as AccountRow[] | null) || [];
@@ -179,8 +179,10 @@ export async function doRefreshSocialStats(
           if (auditResult && Array.isArray(auditResult.scoreBreakdown)) {
             updatePayload.auditpr_audit = {
               scoreBreakdown: auditResult.scoreBreakdown,
+              scoreBreakdown_en: auditResult.scoreBreakdown_en,
               brandSafe: auditResult.brandSafe,
               niche: auditResult.niche,
+              niche_en: auditResult.niche_en,
             };
           }
         }

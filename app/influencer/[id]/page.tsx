@@ -33,8 +33,8 @@ interface ProInfluencer extends Influencer {
   service_packages?: Array<{ name: string; description: string; price: string; includes: string[] }>;
   calculatedCompletionRate?: number;
   created_at?: string;
-  /** Gemini audit from Auditpr (updated only when followers/engagement/avg_likes are refreshed). */
-  auditpr_audit?: { scoreBreakdown: string[]; brandSafe: boolean; niche?: string };
+  /** Gemini audit (updated only when followers/engagement/avg_likes are refreshed). */
+  auditpr_audit?: { scoreBreakdown: string[]; scoreBreakdown_en?: string[]; brandSafe: boolean; niche?: string; niche_en?: string };
 }
 
 // --- SOCIAL MEDIA ICONS ---
@@ -1834,14 +1834,14 @@ export default function InfluencerProfile(props: { params: Params }) {
                                             {txt.audit_brand_safe}
                                         </span>
                                     )}
-                                    {profile.auditpr_audit.niche && (
+                                    {(lang === 'en' ? profile.auditpr_audit.niche_en : profile.auditpr_audit.niche) && (
                                         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
-                                            {profile.auditpr_audit.niche}
+                                            {lang === 'en' ? (profile.auditpr_audit.niche_en ?? profile.auditpr_audit.niche) : profile.auditpr_audit.niche}
                                         </span>
                                     )}
                                 </div>
                                 <ul className="space-y-2 text-slate-600 text-sm leading-relaxed list-none">
-                                    {profile.auditpr_audit.scoreBreakdown.map((item, idx) => (
+                                    {(lang === 'en' && profile.auditpr_audit.scoreBreakdown_en?.length ? profile.auditpr_audit.scoreBreakdown_en : profile.auditpr_audit.scoreBreakdown).map((item, idx) => (
                                         <li key={idx} className="flex gap-2">
                                             <span className="text-indigo-500 mt-0.5 shrink-0">•</span>
                                             <span>{item}</span>

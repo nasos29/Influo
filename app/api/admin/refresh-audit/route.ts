@@ -23,7 +23,7 @@ type AccountRow = {
   avg_likes?: string;
 };
 
-type AuditprAudit = { scoreBreakdown: string[]; brandSafe: boolean; niche?: string };
+type AuditprAudit = { scoreBreakdown: string[]; scoreBreakdown_en?: string[]; brandSafe: boolean; niche?: string; niche_en?: string };
 
 export async function POST(request: NextRequest) {
   try {
@@ -96,8 +96,10 @@ export async function POST(request: NextRequest) {
 
     const auditpr_audit: AuditprAudit = {
       scoreBreakdown: auditResult.scoreBreakdown,
+      scoreBreakdown_en: auditResult.scoreBreakdown_en,
       brandSafe: auditResult.brandSafe,
       niche: auditResult.niche,
+      niche_en: auditResult.niche_en,
     };
 
     const { error: updateError } = await supabaseAdmin

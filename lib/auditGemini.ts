@@ -22,8 +22,10 @@ export type AuditMetrics = {
 
 export type AuditResult = {
   scoreBreakdown: string[];
+  scoreBreakdown_en?: string[];
   brandSafe: boolean;
   niche?: string;
+  niche_en?: string;
 };
 
 function buildPrompt(platform: string, username: string, metrics: AuditMetrics): string {
@@ -63,8 +65,8 @@ function buildPrompt(platform: string, username: string, metrics: AuditMetrics):
   return (
     `Ανάλυσε το προφίλ @${username} στο ${platform}. ` +
     `Δεδομένα: Followers: ${followers}, ER: ${er}, Avg Likes: ${avg_likes}, Avg Comments: ${avg_comments}.${posts}${cat}${bio}${brand_mention}${engagement_note} ` +
-    `Δημιούργησε Strategic Audit (JSON): scoreBreakdown (4 strings, καθεμία στα Ελληνικά), brandSafe (boolean),${niche_rule}${lang_note} ` +
-    'Επίστρεψε ΜΟΝΟ έγκυρο JSON με τα πεδία scoreBreakdown, brandSafe, niche.'
+    `Δημιούργησε Strategic Audit (JSON): scoreBreakdown (4 strings, καθεμία στα Ελληνικά), scoreBreakdown_en (4 strings, same content in English), brandSafe (boolean),${niche_rule} niche_en (same niche in English, one word or short phrase).${lang_note} ` +
+    'Επίστρεψε ΜΟΝΟ έγκυρο JSON με τα πεδία scoreBreakdown, scoreBreakdown_en, brandSafe, niche, niche_en.'
   );
 }
 
@@ -79,8 +81,10 @@ function parseResponse(text: string): AuditResult {
   const data = JSON.parse(raw) as Record<string, unknown>;
   return {
     scoreBreakdown: (data.scoreBreakdown as string[]) || ['Ανάλυση δεν διαθέσιμη.'],
+    scoreBreakdown_en: Array.isArray(data.scoreBreakdown_en) ? (data.scoreBreakdown_en as string[]) : undefined,
     brandSafe: Boolean(data.brandSafe !== false),
     niche: ((data.niche as string) || '').trim() || 'Creator',
+    niche_en: ((data.niche_en as string) || '').trim() || undefined,
   };
 }
 
