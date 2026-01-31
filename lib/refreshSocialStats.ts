@@ -77,10 +77,15 @@ export async function doRefreshSocialStats(
 
   const results: { id: string; name: string; accounts: number; errors: string[] }[] = [];
 
+  /** Audit result from Auditpr: only updated when we refresh followers/engagement/avg_likes (not on every page load). */
+  type AuditprAudit = { scoreBreakdown: string[]; brandSafe: boolean; niche?: string };
+
   for (const inf of influencers) {
     const accounts = (inf.accounts as AccountRow[] | null) || [];
     const errors: string[] = [];
     let updatedAccounts = [...accounts];
+    /** First IG/TT account we successfully refreshed via Auditpr (server-side). Used to call /audit once per influencer. */
+    let firstRefreshedForAudit: { platform: string; username: string } | null = null;
 
     for (let i = 0; i < accounts.length; i++) {
       const acc = accounts[i];
@@ -90,8 +95,9 @@ export async function doRefreshSocialStats(
 
       const platformLower = platform.toLowerCase();
       let metrics: SocialMetrics | { error: string };
+      let fetchedViaAuditpr = false;
 
-      // Instagram: Auditpr or browser overrides. No Apify.
+      // Instagram: μόνο Auditpr ή overrides. Ποτέ Apify (αποφυγή ασκόπων εξόδων).
       if (platformLower === 'instagram') {
         const uKey = username.replace(/^@/, '').trim();
         if (instagramOverrides?.[uKey]) {
@@ -101,13 +107,16 @@ export async function doRefreshSocialStats(
           continue;
         } else {
           metrics = await fetchInstagramFromAuditpr(auditprBaseUrl, username);
+          fetchedViaAuditpr = true;
         }
       } else if (platformLower === 'tiktok') {
+        // TikTok: Apify μόνο για TikTok accounts (όχι για Instagram). Η κάρτα ΣΥΝΔΕΣΗ δείχνει ποιο username είναι TikTok/Instagram.
         const uKey = username.replace(/^@+/, '').trim();
         if (tiktokOverrides?.[uKey]) {
           metrics = tiktokOverrides[uKey];
         } else if (auditprBaseUrl) {
           metrics = await fetchTiktokFromAuditpr(auditprBaseUrl, username);
+          fetchedViaAuditpr = true;
         } else if (apifyToken) {
           metrics = await fetchTiktokFromApify(apifyToken, username);
         } else {
@@ -126,20 +135,58 @@ export async function doRefreshSocialStats(
           engagement_rate: metrics.engagement_rate,
           avg_likes: metrics.avg_likes,
         };
+        if (fetchedViaAuditpr && !firstRefreshedForAudit) {
+          firstRefreshedForAudit = { platform: platformLower, username: username.replace(/^@+/, '').trim() };
+        }
       } else {
         const uDisplay = username.replace(/^@+/, '').trim();
         errors.push(`${platform} @${uDisplay}: ${metrics.error}`);
       }
     }
 
-    let updatePayload: { accounts: AccountRow[]; last_social_refresh_at?: string } = {
+    let updatePayload: {
+      accounts: AccountRow[];
+      last_social_refresh_at?: string;
+      auditpr_audit?: AuditprAudit;
+    } = {
       accounts: updatedAccounts,
       last_social_refresh_at: new Date().toISOString(),
     };
 
+    // Gemini audit: only when we actually refreshed at least one IG/TT via Auditpr (economy on API).
+    if (auditprBaseUrl && firstRefreshedForAudit) {
+      try {
+        const base = auditprBaseUrl.replace(/\/$/, '');
+        const res = await fetch(`${base}/audit`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            platform: firstRefreshedForAudit.platform,
+            username: firstRefreshedForAudit.username,
+          }),
+        });
+        if (res.ok) {
+          const auditResult = (await res.json()) as AuditprAudit;
+          if (auditResult && Array.isArray(auditResult.scoreBreakdown)) {
+            updatePayload.auditpr_audit = {
+              scoreBreakdown: auditResult.scoreBreakdown,
+              brandSafe: Boolean(auditResult.brandSafe),
+              niche: auditResult.niche,
+            };
+          }
+        }
+      } catch (auditErr) {
+        errors.push(`Audit: ${auditErr instanceof Error ? auditErr.message : 'Failed'}`);
+      }
+    }
+
     let updateError = (await supabaseAdmin.from('influencers').update(updatePayload).eq('id', inf.id)).error;
     if (updateError && /column|last_social_refresh_at/i.test(updateError.message)) {
       delete updatePayload.last_social_refresh_at;
+      updateError = (await supabaseAdmin.from('influencers').update(updatePayload).eq('id', inf.id)).error;
+    }
+    if (updateError && /column|auditpr_audit/i.test(updateError.message)) {
+      delete updatePayload.auditpr_audit;
       updateError = (await supabaseAdmin.from('influencers').update(updatePayload).eq('id', inf.id)).error;
     }
     if (updateError) {

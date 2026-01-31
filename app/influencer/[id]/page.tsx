@@ -33,6 +33,8 @@ interface ProInfluencer extends Influencer {
   service_packages?: Array<{ name: string; description: string; price: string; includes: string[] }>;
   calculatedCompletionRate?: number;
   created_at?: string;
+  /** Gemini audit from Auditpr (updated only when followers/engagement/avg_likes are refreshed). */
+  auditpr_audit?: { scoreBreakdown: string[]; brandSafe: boolean; niche?: string };
 }
 
 // --- SOCIAL MEDIA ICONS ---
@@ -129,7 +131,10 @@ const t = {
     message_prompt_email: "Εισάγετε το email της επιχείρησής σας για να ξεκινήσετε τη συνομιλία:",
     message_prompt_name: "Εισάγετε το όνομα της επιχείρησής σας:",
     message_title: "Στείλτε Μήνυμα",
-    message_desc: "Ξεκινήστε μια συνομιλία με αυτόν/αυτήν τον influencer"
+    message_desc: "Ξεκινήστε μια συνομιλία με αυτόν/αυτήν τον influencer",
+    audit_title: "Στρατηγική Αξιολόγηση",
+    audit_brand_safe: "Brand Safe",
+    audit_niche: "Niche"
   },
   en: {
     back: "← Back",
@@ -199,7 +204,10 @@ const t = {
     message_prompt_email: "Enter your company email to start messaging:",
     message_prompt_name: "Enter your company name:",
     message_title: "Send Message",
-    message_desc: "Start a conversation with this influencer"
+    message_desc: "Start a conversation with this influencer",
+    audit_title: "Strategic Audit",
+    audit_brand_safe: "Brand Safe",
+    audit_niche: "Niche"
   }
 };
 
@@ -1815,6 +1823,32 @@ export default function InfluencerProfile(props: { params: Params }) {
                                 {lang === 'en' && profile.bio_en ? profile.bio_en : (profile.bio || txt.no_bio)}
                             </p>
                         </div>
+                        {profile.auditpr_audit && Array.isArray(profile.auditpr_audit.scoreBreakdown) && profile.auditpr_audit.scoreBreakdown.length > 0 && (
+                            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
+                                <div className="flex flex-wrap items-center gap-3 mb-4">
+                                    <h2 className="text-xl font-bold text-slate-900">{txt.audit_title}</h2>
+                                    {profile.auditpr_audit.brandSafe && (
+                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" aria-hidden />
+                                            {txt.audit_brand_safe}
+                                        </span>
+                                    )}
+                                    {profile.auditpr_audit.niche && (
+                                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                                            {profile.auditpr_audit.niche}
+                                        </span>
+                                    )}
+                                </div>
+                                <ul className="space-y-2 text-slate-600 text-sm leading-relaxed list-none">
+                                    {profile.auditpr_audit.scoreBreakdown.map((item, idx) => (
+                                        <li key={idx} className="flex gap-2">
+                                            <span className="text-indigo-500 mt-0.5 shrink-0">•</span>
+                                            <span>{item}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
                          <div>
                             <h3 className="text-lg font-bold text-slate-900 mb-4">{txt.portfolio}</h3>
                             {profile.videos && profile.videos.length > 0 && profile.videos[0] !== "" ? (
