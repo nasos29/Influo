@@ -1,11 +1,35 @@
 /**
- * Gemini strategic audit – same prompt as Auditpr (backend/services/gemini.py audit_with_gemini).
- * Used by /api/admin/refresh-audit so Influo can get the audit without calling localhost Auditpr.
+ * Gemini strategic audit – multi-platform: one unified audit from all IG/TikTok metrics.
+ * Used by /api/admin/refresh-audit, backfill-audit, and refreshSocialStats.
  * Requires GEMINI_API_KEY (or GOOGLE_GENERATIVE_AI_API_KEY) in env.
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+/** One social account (Instagram or TikTok) with metrics. */
+export type AuditAccount = {
+  platform: string;
+  username: string;
+  followers?: string;
+  engagement_rate?: string;
+  avg_likes?: string;
+};
+
+/** Shared profile data (bio, category). */
+export type AuditShared = {
+  biography?: string | null;
+  category_name?: string | null;
+};
+
+export type AuditResult = {
+  scoreBreakdown: string[];
+  scoreBreakdown_en?: string[];
+  brandSafe: boolean;
+  niche?: string;
+  niche_en?: string;
+};
+
+/** Legacy single-account metrics (for backward compatibility if needed). */
 export type AuditMetrics = {
   followers?: string | number | null;
   engagement_rate?: string | null;
@@ -20,54 +44,45 @@ export type AuditMetrics = {
   brand_mention_saturation?: number | string | null;
 };
 
-export type AuditResult = {
-  scoreBreakdown: string[];
-  scoreBreakdown_en?: string[];
-  brandSafe: boolean;
-  niche?: string;
-  niche_en?: string;
-};
+function buildMultiPlatformPrompt(accounts: AuditAccount[], shared: AuditShared): string {
+  const platformsBlock = accounts
+    .map(
+      (a) =>
+        `- ${(a.platform || '').trim()}: @${(a.username || '').trim().replace(/^@+/, '')} — Followers: ${a.followers ?? 'N/A'}, Engagement rate: ${a.engagement_rate ?? 'N/A'}, Avg likes: ${a.avg_likes ?? 'N/A'}`
+    )
+    .join('\n');
 
-function buildPrompt(platform: string, username: string, metrics: AuditMetrics): string {
-  const I = metrics;
-  const followers = I.followers ?? 'N/A';
-  const er = I.engagement_rate ?? 'N/A';
-  const avg_likes = I.avg_likes != null ? String(I.avg_likes) : 'N/A';
-  const avg_comments = I.avg_comments != null ? String(I.avg_comments) : 'N/A';
-  const posts =
-    I.posts_count != null ? ` Posts: ${I.posts_count}.` : '';
-  const cat = I.category_name ? ` Κατηγορία: ${I.category_name}.` : '';
-  const bio = I.biography
-    ? ` Bio: ${String(I.biography).slice(0, 300)}.`
-    : '';
-  const engagement_note = I.engagement_hidden
-    ? ' Σημείωση: Avg Likes/Comments και ER είναι εκτίμηση (ο λογαριασμός κρύβει τα likes).'
-    : '';
-  let brand_mention = '';
-  if (
-    I.brand_mention_er != null ||
-    I.brand_mention_effectiveness != null ||
-    I.brand_mention_saturation != null
-  ) {
-    brand_mention = ` Brand mention: ER ${I.brand_mention_er ?? '—'}%, Effectiveness ${I.brand_mention_effectiveness ?? '—'}%, Saturation ${I.brand_mention_saturation ?? '—'}%.`;
-  }
-  const is_tiktok = (platform || '').toLowerCase() === 'tiktok';
-  const lang_note = is_tiktok
-    ? ' Πλατφόρμα: TikTok. Κάθε scoreBreakdown ΑΠΟΚΛΕΙΣΤΙΚΑ στα Ελληνικά.'
-    : ' Κάθε scoreBreakdown στα Ελληνικά.';
-  const niche_rule =
-    ' niche: ΕΝΑ συγκεκριμένο niche στα αγγλικά, επαγγελματικά συμπερασμένο ΑΠΟ το περιεχόμενο (bio, κατηγορία, τόνος). ' +
-    'Π.χ. Fashion, Model, Beauty & Makeup, Fitness, Food, Travel, Gaming, Comedy, Music, Education. ' +
-    'ΣΗΜΑΝΤΙΚΟ: Αν το προφίλ δείχνει φωτογραφίες/μοντέλο/στυλ (fashion, modelling, aesthetic) ΜΗΝ βάζεις Humor ή Comedy – διάλεξε Fashion, Model ή Beauty & Makeup. ' +
-    'Χρησιμοποίησε Humor/Comedy ΜΟΝΟ αν το bio ή το context δείχνουν ξεκάθαρα αστείο περιεχόμενο. ' +
-    'ΑΠΑΓΟΡΕΥΕΤΑΙ: Creator, Content Creator, Influencer, Lifestyle (ως default). ΜΗΝ γράψεις Άγνωστο.';
+  const bio = (shared.biography || '').trim().slice(0, 400);
+  const cat = (shared.category_name || '').trim();
+  const bioBlock = bio ? `\nBIOGRAPHY (creator):\n${bio}` : '';
+  const categoryBlock = cat ? `\nCATEGORY: ${cat}` : '';
 
-  return (
-    `Ανάλυσε το προφίλ @${username} στο ${platform}. ` +
-    `Δεδομένα: Followers: ${followers}, ER: ${er}, Avg Likes: ${avg_likes}, Avg Comments: ${avg_comments}.${posts}${cat}${bio}${brand_mention}${engagement_note} ` +
-    `Δημιούργησε Strategic Audit (JSON): scoreBreakdown (4 strings, καθεμία στα Ελληνικά), scoreBreakdown_en (4 strings, same content in English), brandSafe (boolean),${niche_rule} niche_en (same niche in English, one word or short phrase).${lang_note} ` +
-    'Επίστρεψε ΜΟΝΟ έγκυρο JSON με τα πεδία scoreBreakdown, scoreBreakdown_en, brandSafe, niche, niche_en.'
-  );
+  return `You are a senior influencer marketing analyst. Produce ONE strategic audit for a creator based on their full multi-platform presence.
+
+CREATOR PROFILE – SOCIAL ACCOUNTS (metrics per platform):
+${platformsBlock}
+${bioBlock}
+${categoryBlock}
+
+TASK:
+Deliver a single, unified strategic audit that considers:
+- Combined reach and consistency across platforms
+- Engagement quality and audience fit per platform
+- Strengths and risks for brand partnerships
+- Overall brand safety and content tone
+- One clear niche that fits the whole profile (not per-platform)
+
+OUTPUT – Return ONLY valid JSON with these exact keys (no markdown, no extra text):
+- scoreBreakdown: array of exactly 4 short bullet points in GREEK (Ελληνικά), each one line, professional tone.
+- scoreBreakdown_en: array of exactly 4 short bullet points in ENGLISH, same content as scoreBreakdown, professional tone.
+- brandSafe: boolean (true if content and metrics suggest brand-safe; false if risks).
+- niche: ONE niche label in GREEK (e.g. "Μόδα", "Fitness") – single term or very short phrase.
+- niche_en: ONE niche label in ENGLISH (e.g. Fashion, Fitness, Beauty & Makeup) – single term or very short phrase. Use standard English categories: Fashion, Model, Beauty & Makeup, Fitness, Food, Travel, Gaming, Comedy, Music, Education, etc. Do NOT use: Creator, Content Creator, Influencer, Lifestyle as default.
+
+RULES:
+- If the profile suggests fashion/model/aesthetic content, use Fashion, Model or Beauty & Makeup – not Humor/Comedy unless the bio clearly indicates comedy.
+- scoreBreakdown points must be actionable and based on the data (followers, ER, avg likes, bio, category).
+- Consider all listed platforms together for one coherent audit.`;
 }
 
 function parseResponse(text: string): AuditResult {
@@ -95,23 +110,35 @@ const FALLBACK: AuditResult = {
 };
 
 /**
- * Run Gemini strategic audit with the same prompt as Auditpr.
+ * Run Gemini strategic audit from all platforms' metrics (one unified audit).
  * Uses GEMINI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY. Model: gemini-2.0-flash (or GEMINI_AUDIT_MODEL).
  */
 export async function runAuditGemini(
-  platform: string,
-  username: string,
-  metrics: AuditMetrics
+  accounts: AuditAccount[],
+  shared: AuditShared
 ): Promise<AuditResult> {
-  const apiKey =
-    (process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || '').trim();
+  const apiKey = (
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
+    ''
+  ).trim();
   if (!apiKey) {
     console.error('[auditGemini] GEMINI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY not set');
     return FALLBACK;
   }
 
+  const filtered = accounts.filter(
+    (a) =>
+      (a?.platform || '').trim() &&
+      (a?.username || '').trim()
+  );
+  if (filtered.length === 0) {
+    console.error('[auditGemini] No valid accounts (platform + username)');
+    return FALLBACK;
+  }
+
   const modelId = (process.env.GEMINI_AUDIT_MODEL || 'gemini-2.0-flash').trim();
-  const prompt = buildPrompt(platform, username, metrics);
+  const prompt = buildMultiPlatformPrompt(filtered, shared);
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);

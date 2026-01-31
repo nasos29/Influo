@@ -11,7 +11,7 @@ import {
   fetchTiktokFromApify,
   type SocialMetrics,
 } from '@/lib/socialRefresh';
-import { runAuditGemini, type AuditMetrics } from '@/lib/auditGemini';
+import { runAuditGemini } from '@/lib/auditGemini';
 
 type AccountRow = {
   platform: string;
@@ -155,27 +155,29 @@ export async function doRefreshSocialStats(
       last_social_refresh_at: new Date().toISOString(),
     };
 
-    // Gemini audit: only when we actually refreshed at least one IG/TT (metrics updated). Uses Gemini API directly (no Auditpr reachable).
+    // Gemini audit: only when we actually refreshed at least one IG/TT (metrics updated). Multi-platform: pass all IG/TT accounts.
     if (firstRefreshedForAudit) {
       try {
-        const acc = updatedAccounts.find(
-          (a) =>
-            (a?.platform || '').toLowerCase() === firstRefreshedForAudit!.platform &&
-            (a?.username || '').trim().replace(/^@+/, '') === firstRefreshedForAudit!.username
-        );
-        if (acc) {
-          const metrics: AuditMetrics = {
-            followers: acc.followers ?? undefined,
-            engagement_rate: acc.engagement_rate ?? undefined,
-            avg_likes: acc.avg_likes ?? undefined,
+        const igTtAccounts = updatedAccounts
+          .filter(
+            (a) =>
+              (a?.platform || '').trim() &&
+              (a?.username || '').trim() &&
+              ['instagram', 'tiktok'].includes((a.platform || '').toLowerCase())
+          )
+          .map((a) => ({
+            platform: (a.platform || '').trim().toLowerCase(),
+            username: (a.username || '').trim().replace(/^@+/, ''),
+            followers: a.followers ?? undefined,
+            engagement_rate: a.engagement_rate ?? undefined,
+            avg_likes: a.avg_likes ?? undefined,
+          }));
+        if (igTtAccounts.length > 0) {
+          const shared = {
             biography: (inf as { bio?: string }).bio ?? undefined,
             category_name: (inf as { category?: string }).category ?? undefined,
           };
-          const auditResult = await runAuditGemini(
-            firstRefreshedForAudit.platform,
-            firstRefreshedForAudit.username,
-            metrics
-          );
+          const auditResult = await runAuditGemini(igTtAccounts, shared);
           if (auditResult && Array.isArray(auditResult.scoreBreakdown)) {
             updatePayload.auditpr_audit = {
               scoreBreakdown: auditResult.scoreBreakdown,

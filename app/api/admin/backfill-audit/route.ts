@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { runAuditGemini, type AuditMetrics } from '@/lib/auditGemini';
+import { runAuditGemini, type AuditAccount, type AuditShared } from '@/lib/auditGemini';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -71,32 +71,32 @@ export async function POST(request: NextRequest) {
 
     for (const inf of influencers) {
       const accounts = (inf.accounts as AccountRow[] | null) ?? [];
-      const firstIg = accounts.find(
-        (a) => (a?.platform || '').toLowerCase() === 'instagram' && (a?.username || '').trim()
-      );
-      const firstTt = accounts.find(
-        (a) => (a?.platform || '').toLowerCase() === 'tiktok' && (a?.username || '').trim()
-      );
-      const acc = firstIg ?? firstTt;
-      if (!acc) {
+      const igTtAccounts: AuditAccount[] = accounts
+        .filter(
+          (a) =>
+            (a?.platform || '').trim() &&
+            (a?.username || '').trim() &&
+            ['instagram', 'tiktok'].includes((a.platform || '').toLowerCase())
+        )
+        .map((a) => ({
+          platform: (a.platform || '').trim().toLowerCase(),
+          username: (a.username || '').trim().replace(/^@+/, ''),
+          followers: a.followers ?? undefined,
+          engagement_rate: a.engagement_rate ?? undefined,
+          avg_likes: a.avg_likes ?? undefined,
+        }));
+
+      if (igTtAccounts.length === 0) {
         continue;
       }
 
-      const platform = (acc.platform || '').toLowerCase();
-      const username = (acc.username || '').trim().replace(/^@+/, '');
-      const bio = (inf.bio as string) ?? '';
-      const category = (inf.category as string) ?? '';
-
-      const metrics: AuditMetrics = {
-        followers: acc.followers ?? undefined,
-        engagement_rate: acc.engagement_rate ?? undefined,
-        avg_likes: acc.avg_likes ?? undefined,
-        biography: bio || undefined,
-        category_name: category || undefined,
+      const shared: AuditShared = {
+        biography: (inf.bio as string) ?? undefined,
+        category_name: (inf.category as string) ?? undefined,
       };
 
       try {
-        const auditResult = await runAuditGemini(platform, username, metrics);
+        const auditResult = await runAuditGemini(igTtAccounts, shared);
         const auditpr_audit: AuditprAudit = {
           scoreBreakdown: auditResult.scoreBreakdown,
           scoreBreakdown_en: auditResult.scoreBreakdown_en,
