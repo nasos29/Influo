@@ -653,6 +653,7 @@ export default function InfluencerProfile(props: { params: Params }) {
         service_packages: data.service_packages || [],
         calculatedCompletionRate: calculatedCompletionRate,
         created_at: data.created_at,
+        auditpr_audit: data.auditpr_audit ?? undefined,
       });
     }
     setLoading(false);
