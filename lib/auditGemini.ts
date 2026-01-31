@@ -6,7 +6,7 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-/** One social account (Instagram or TikTok) with metrics. */
+/** One social account (Instagram, TikTok, or YouTube) with metrics. YouTube: subscribers = followers. */
 export type AuditAccount = {
   platform: string;
   username: string;
@@ -65,7 +65,7 @@ function buildMultiPlatformPrompt(accounts: AuditAccount[], shared: AuditShared)
 
   return `You are a senior influencer marketing analyst. Your output is read by BRANDS who are evaluating this creator for potential partnerships. The goal is a complete, balanced profile FOR BRANDS – not advice to the creator.
 
-CREATOR DATA – SOCIAL ACCOUNTS (metrics per platform):
+CREATOR DATA – SOCIAL ACCOUNTS (metrics per platform). Platforms can be Instagram, TikTok, or YouTube (for YouTube, subscribers = followers).
 ${platformsBlock}
 ${bioBlock}
 ${categoryBlock}

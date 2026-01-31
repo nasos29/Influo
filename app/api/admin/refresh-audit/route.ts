@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
         (a) =>
           (a?.platform || '').trim() &&
           (a?.username || '').trim() &&
-          ['instagram', 'tiktok'].includes((a.platform || '').toLowerCase())
+          ['instagram', 'tiktok', 'youtube'].includes((a.platform || '').toLowerCase())
       )
       .map((a) => ({
         platform: (a.platform || '').trim().toLowerCase(),
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
 
     if (igTtAccounts.length === 0) {
       return NextResponse.json(
-        { error: 'No Instagram or TikTok account with username found for this influencer.' },
+        { error: 'No Instagram, TikTok, or YouTube account with username found for this influencer.' },
         { status: 400 }
       );
     }

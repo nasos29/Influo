@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
           (a) =>
             (a?.platform || '').trim() &&
             (a?.username || '').trim() &&
-            ['instagram', 'tiktok'].includes((a.platform || '').toLowerCase())
+            ['instagram', 'tiktok', 'youtube'].includes((a.platform || '').toLowerCase())
         )
         .map((a) => ({
           platform: (a.platform || '').trim().toLowerCase(),

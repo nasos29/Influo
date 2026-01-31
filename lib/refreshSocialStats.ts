@@ -9,6 +9,7 @@ import {
   fetchInstagramFromAuditpr,
   fetchTiktokFromAuditpr,
   fetchTiktokFromApify,
+  fetchYouTubeFromAuditpr,
   type SocialMetrics,
 } from '@/lib/socialRefresh';
 import { runAuditGemini } from '@/lib/auditGemini';
@@ -137,8 +138,17 @@ export async function doRefreshSocialStats(
           errors.push(`TikTok @${uKey}: AUDITPR_BASE_URL or APIFY_API_TOKEN required (ή εισάγετε Auditpr URL στο dashboard)`);
           continue;
         }
+      } else if (platformLower === 'youtube') {
+        // YouTube: μόνο Auditpr (YOUTUBE_API_KEY στο Auditpr .env)
+        const uKey = username.replace(/^@+/, '').trim();
+        if (!auditprBaseUrl) {
+          errors.push(`YouTube @${uKey}: AUDITPR_BASE_URL required (και YOUTUBE_API_KEY στο Auditpr)`);
+          continue;
+        }
+        metrics = await fetchYouTubeFromAuditpr(auditprBaseUrl, username);
+        fetchedViaAuditpr = true;
       } else {
-        // Άλλες πλατφόρμες (YouTube, κλπ): skip, χωρίς API κλήση
+        // Άλλες πλατφόρμες (Facebook, κλπ): skip αν δεν υπάρχει fetch
         continue;
       }
 
@@ -167,7 +177,7 @@ export async function doRefreshSocialStats(
       last_social_refresh_at: new Date().toISOString(),
     };
 
-    // Gemini audit: only when we actually refreshed at least one IG/TT (metrics updated). Multi-platform: pass all IG/TT accounts.
+    // Gemini audit: only when we actually refreshed at least one IG/TikTok/YouTube. Multi-platform: pass all IG, TikTok, and YouTube accounts.
     if (firstRefreshedForAudit) {
       try {
         const igTtAccounts = updatedAccounts
@@ -175,7 +185,7 @@ export async function doRefreshSocialStats(
             (a) =>
               (a?.platform || '').trim() &&
               (a?.username || '').trim() &&
-              ['instagram', 'tiktok'].includes((a.platform || '').toLowerCase())
+              ['instagram', 'tiktok', 'youtube'].includes((a.platform || '').toLowerCase())
           )
           .map((a) => ({
             platform: (a.platform || '').trim().toLowerCase(),

@@ -1,5 +1,5 @@
 /**
- * Social stats refresh: Instagram via Auditpr API, TikTok via Apify (sparingly).
+ * Social stats refresh: Instagram + YouTube via Auditpr API, TikTok via Auditpr or Apify (sparingly).
  * Used by cron/refresh-social-stats to update followers, engagement_rate, avg_likes per account.
  */
 
@@ -32,6 +32,40 @@ export async function fetchInstagramFromAuditpr(
       return { error: `Auditpr ${res.status}: ${text.slice(0, 200)}` };
     }
     const data = (await res.json()) as Record<string, unknown>;
+    if (data.error) return { error: String(data.error) };
+    const followers = Number(data.followers) || 0;
+    const engagement_rate = typeof data.engagement_rate === 'string' ? data.engagement_rate : 'N/A';
+    const avg_likes = Number(data.avg_likes) ?? 0;
+    return {
+      followers: formatFollowers(followers),
+      engagement_rate,
+      avg_likes: String(avg_likes),
+    };
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { error: `Auditpr request failed: ${msg}` };
+  }
+}
+
+/**
+ * Fetch YouTube metrics from Auditpr (YouTube Data API v3).
+ * Requires Auditpr running with YOUTUBE_API_KEY in .env.
+ */
+export async function fetchYouTubeFromAuditpr(
+  baseUrl: string,
+  username: string
+): Promise<SocialMetrics | { error: string }> {
+  const u = username.replace(/^@+/, '').trim();
+  if (!u) return { error: 'Username required' };
+  const url = `${baseUrl.replace(/\/$/, '')}/metrics/youtube/${encodeURIComponent(u)}`;
+  try {
+    const res = await fetch(url, { method: 'GET', signal: AbortSignal.timeout(45_000) });
+    if (!res.ok) {
+      const text = await res.text();
+      return { error: `Auditpr ${res.status}: ${text.slice(0, 200)}` };
+    }
+    const data = (await res.json()) as Record<string, unknown>;
+    if (data.status === 'Failed' && data.error) return { error: String(data.error) };
     if (data.error) return { error: String(data.error) };
     const followers = Number(data.followers) || 0;
     const engagement_rate = typeof data.engagement_rate === 'string' ? data.engagement_rate : 'N/A';
