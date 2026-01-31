@@ -112,7 +112,7 @@ const t = {
     loading: "Φόρτωση...",
     error: "Σφάλμα",
     recommendations_title: "Προτεινόμενοι Influencers για εσάς",
-    recommendations_subtitle: "Βάσει του industry σας, της στρατηγικής αξιολόγησης (niche, Brand Safe, engagement) και της αξίας για τα brands",
+    recommendations_subtitle: "Βάσει του industry σας, της στρατηγικής αξιολόγησης (niche, engagement) και της αξίας για τα brands",
     recommendations_loading: "Φόρτωση προτάσεων...",
     recommendations_empty: "Δεν βρέθηκαν προτάσεις αυτή τη στιγμή",
     match_score: "Match Score",
@@ -159,7 +159,7 @@ const t = {
     pending_agreements: "Agreements Pending Acceptance",
     no_pending: "No agreements pending acceptance",
     recommendations_title: "Recommended Influencers for You",
-    recommendations_subtitle: "Based on your industry, strategic audit (niche, Brand Safe, engagement) and value for brands",
+    recommendations_subtitle: "Based on your industry, strategic audit (niche, engagement) and value for brands",
     recommendations_loading: "Loading recommendations...",
     recommendations_empty: "No recommendations found at this time",
     match_score: "Match Score",
@@ -855,67 +855,71 @@ export default function BrandDashboardContent() {
         return parseFloat(clean) || 0;
       };
       
-      // Convert database influencers to InfluencerProfile format
-      const dbInfluencerProfiles: InfluencerProfile[] = (influencersData || []).map((inf: any) => {
-        console.log('[Brand Dashboard] Processing influencer:', inf.display_name, 'approved:', inf.approved, 'verified:', inf.verified);
-        
-        // If platform filter is set, use data from that specific platform
-        let selectedPlatformFollowers = 0;
+      // Build engagement_rate, followers, avg_likes from accounts (same source as influencer profile page) so metrics match
+      const buildMetricsFromAccounts = (accounts: any[] | null) => {
+        const engagementRates: { [key: string]: string } = {};
+        const avgLikes: { [key: string]: string } = {};
+        let maxFollowers = 0;
         let followersStr = '0';
-        let platformEngagementRate = inf.engagement_rate; // Default to general engagement rate
-        let platformAvgLikes = inf.avg_likes; // Default to general avg_likes
-        
-        if (recommendationFilters.platform && Array.isArray(inf.accounts)) {
-          const platformLower = recommendationFilters.platform.toLowerCase();
-          const platformAccount = inf.accounts.find((acc: any) => 
-            acc.platform?.toLowerCase() === platformLower
-          );
-          
-          if (platformAccount) {
-            selectedPlatformFollowers = parseFollowerString(platformAccount.followers);
-            followersStr = platformAccount.followers || '0';
-            // Use platform-specific engagement_rate and avg_likes if available in account
-            // For now, use general values as they're not stored per platform
-            platformEngagementRate = platformAccount.engagement_rate || inf.engagement_rate;
-            platformAvgLikes = platformAccount.avg_likes || inf.avg_likes;
-          } else {
-            // Influencer doesn't have this platform, skip by setting followers to 0
-            followersStr = '0';
+        if (!Array.isArray(accounts)) return { engagement_rate: undefined as string | { [key: string]: string } | undefined, followers_count: '0', avg_likes: undefined as string | { [key: string]: string } | undefined };
+        accounts.forEach((acc: any) => {
+          if (!acc?.platform) return;
+          const platform = acc.platform.toLowerCase();
+          if (acc.followers) {
+            const n = parseFollowerString(acc.followers);
+            if (n > maxFollowers) {
+              maxFollowers = n;
+              followersStr = acc.followers;
+            }
+          }
+          if (acc.engagement_rate) engagementRates[platform] = acc.engagement_rate;
+          if (acc.avg_likes) avgLikes[platform] = acc.avg_likes;
+        });
+        const engagement_rate = Object.keys(engagementRates).length > 0 ? engagementRates : undefined;
+        const avg_likes = Object.keys(avgLikes).length > 0 ? avgLikes : undefined;
+        return { engagement_rate, followers_count: followersStr, avg_likes };
+      };
+
+      // Convert database influencers to InfluencerProfile format (metrics from accounts = same as profile page)
+      const dbInfluencerProfiles: InfluencerProfile[] = (influencersData || []).map((inf: any) => {
+        const platformFilter = recommendationFilters.platform?.toLowerCase();
+        let engagement_rate: string | { [key: string]: string } | undefined;
+        let followers_count = '0';
+        let avg_likes: string | { [key: string]: string } | undefined;
+
+        if (platformFilter && Array.isArray(inf.accounts)) {
+          const acc = inf.accounts.find((a: any) => a.platform?.toLowerCase() === platformFilter);
+          if (acc) {
+            followers_count = acc.followers || '0';
+            engagement_rate = acc.engagement_rate ?? inf.engagement_rate;
+            avg_likes = acc.avg_likes ?? inf.avg_likes;
           }
         } else {
-          // No platform filter - calculate max followers from all accounts
-          let maxFollowers = 0;
-          if (Array.isArray(inf.accounts)) {
-            inf.accounts.forEach((acc: any) => {
-              if (acc.followers) {
-                const followersNum = parseFollowerString(acc.followers);
-                if (followersNum > maxFollowers) {
-                  maxFollowers = followersNum;
-                  followersStr = acc.followers; // Keep original format
-                }
-              }
-            });
-          }
+          const fromAccounts = buildMetricsFromAccounts(inf.accounts);
+          engagement_rate = fromAccounts.engagement_rate ?? inf.engagement_rate;
+          followers_count = fromAccounts.followers_count;
+          avg_likes = fromAccounts.avg_likes ?? inf.avg_likes;
         }
-        
-          return {
-            id: inf.id,
-            display_name: inf.display_name || 'Unknown',
-            category: inf.category, // Primary category
-            categories: inf.category 
-              ? (inf.category.includes(',') ? inf.category.split(',').map((c: string) => c.trim()) : [inf.category])
-              : undefined,
-            engagement_rate: platformEngagementRate, // Use platform-specific or general
-          followers_count: followersStr,
+
+        return {
+          id: inf.id,
+          display_name: inf.display_name || 'Unknown',
+          category: inf.category,
+          categories: inf.category
+            ? (inf.category.includes(',') ? inf.category.split(',').map((c: string) => c.trim()) : [inf.category])
+            : undefined,
+          engagement_rate,
+          followers_count,
+          avg_likes,
           min_rate: inf.min_rate,
           location: inf.location,
           gender: inf.gender,
           avg_rating: inf.avg_rating,
           total_reviews: inf.total_reviews || 0,
-          past_brands: inf.total_reviews || 0, // Use total_reviews as approximation for past_brands
-          verified: inf.analytics_verified || inf.verified || false, // Use analytics_verified for verified badge (same as Directory)
+          past_brands: inf.total_reviews || 0,
+          verified: inf.analytics_verified || inf.verified || false,
           accounts: inf.accounts,
-          avatar_url: inf.avatar_url, // Include avatar_url from database
+          avatar_url: inf.avatar_url,
           audience_male_percent: inf.audience_male_percent,
           audience_female_percent: inf.audience_female_percent,
           audience_top_age: inf.audience_top_age,
@@ -1547,19 +1551,12 @@ export default function BrandDashboardContent() {
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                         <div className="absolute bottom-3 left-3 right-3">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            {inf.auditpr_audit?.brandSafe && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-emerald-500/90 text-white">
-                                Brand Safe
-                              </span>
-                            )}
-                            {(inf.auditpr_audit?.niche_en || inf.auditpr_audit?.niche) && (
-                              <span className="inline-block px-2 py-0.5 bg-white/25 backdrop-blur-sm rounded text-xs text-white font-medium">
-                                {lang === 'en' ? (inf.auditpr_audit.niche_en || inf.auditpr_audit.niche) : (inf.auditpr_audit.niche || inf.auditpr_audit.niche_en)}
-                              </span>
-                            )}
-                          </div>
-                          <h3 className="text-white font-bold text-lg mb-1 mt-1">{inf.display_name}</h3>
+                          {(inf.auditpr_audit?.niche_en || inf.auditpr_audit?.niche) && (
+                            <span className="inline-block px-2 py-0.5 bg-white/25 backdrop-blur-sm rounded text-xs text-white font-medium mb-1">
+                              {lang === 'en' ? (inf.auditpr_audit.niche_en || inf.auditpr_audit.niche) : (inf.auditpr_audit.niche || inf.auditpr_audit.niche_en)}
+                            </span>
+                          )}
+                          <h3 className="text-white font-bold text-lg mb-1">{inf.display_name}</h3>
                           {(inf.categories && inf.categories.length > 0 ? inf.categories : (inf.category ? [inf.category] : [])).slice(0, 3).map((cat: string, idx: number) => (
                             <span key={idx} className="inline-block px-2 py-1 bg-white/20 backdrop-blur-sm rounded text-xs text-white font-medium mr-1 mb-1">
                               {lang === 'el' ? 
@@ -1574,18 +1571,26 @@ export default function BrandDashboardContent() {
                     
                     {/* Content */}
                     <div className="p-4">
-                      {/* Stats */}
+                      {/* Stats – same source as profile page (accounts) */}
                       <div className="grid grid-cols-2 gap-3 mb-4 text-xs">
-                        {inf.followers_count && (
+                        {inf.followers_count && inf.followers_count !== '0' && (
                           <div>
                             <div className="text-slate-500">{txt.followers}</div>
                             <div className="font-bold text-slate-900">{inf.followers_count}</div>
                           </div>
                         )}
-                        {inf.engagement_rate && (
+                        {(inf.engagement_rate && (typeof inf.engagement_rate === 'object' ? Object.keys(inf.engagement_rate).length > 0 : true)) && (
                           <div>
                             <div className="text-slate-500">{txt.engagement_rate}</div>
-                            <div className="font-bold text-slate-900">{inf.engagement_rate}</div>
+                            <div className="font-bold text-slate-900">
+                              {typeof inf.engagement_rate === 'object' && inf.engagement_rate !== null && !Array.isArray(inf.engagement_rate)
+                                ? (Object.entries(inf.engagement_rate) as [string, string][]).map(([platform, rate]) => {
+                                    const r = rate && !String(rate).includes('%') ? `${rate}%` : rate;
+                                    const label = platform === 'instagram' ? 'IG' : platform === 'tiktok' ? 'TT' : platform.slice(0, 2).toUpperCase();
+                                    return `${label} ${r}`;
+                                  }).join(' · ')
+                                : (inf.engagement_rate && !String(inf.engagement_rate).includes('%') ? `${inf.engagement_rate}%` : inf.engagement_rate)}
+                            </div>
                           </div>
                         )}
                         {inf.avg_rating && (

@@ -13,7 +13,6 @@ export interface BrandProfile {
 export interface AuditprAuditProfile {
   niche?: string | null;
   niche_en?: string | null;
-  brandSafe?: boolean;
   whyWorkWithThem?: string | null;
   whyWorkWithThem_en?: string | null;
   positives?: string[] | null;
@@ -25,8 +24,9 @@ export interface InfluencerProfile {
   display_name: string;
   category?: string; // Primary category (for compatibility)
   categories?: string[]; // All categories (if available)
-  engagement_rate?: string | { [key: string]: string } | null; // Can be per-platform object or legacy string
+  engagement_rate?: string | { [key: string]: string } | null; // Can be per-platform object or legacy string (same as profile page)
   followers_count?: string | null;
+  avg_likes?: string | { [key: string]: string } | null; // Per-platform or legacy (same as profile page)
   min_rate?: string | null;
   location?: string | null;
   gender?: string;
@@ -63,7 +63,6 @@ export interface MatchScore {
     valuePrice?: number;
     locationMatch?: number;
     verifiedStatus?: number;
-    brandSafe?: number;
   };
 }
 
@@ -372,7 +371,6 @@ export function recommendInfluencers(
         audit?.niche,
         audit?.niche_en
       );
-      const brandSafeScore = audit?.brandSafe === true ? 1.0 : 0.5;
 
       const strengths = {
         categoryMatch: categoryMatch,
@@ -386,36 +384,29 @@ export function recommendInfluencers(
         ),
         locationMatch: 0.5,
         verifiedStatus: influencer.verified ? 1.0 : 0.5,
-        brandSafe: brandSafeScore,
       };
 
-      // Weights: category/niche 38%, engagement 22%, brandSafe 10%, value 15%, verified 5%, rating 10%
+      // Weights: category/niche 40%, engagement 25%, value 15%, verified 5%, rating 15%
       let score = 0;
-      score += strengths.categoryMatch * 38;
-      score += strengths.engagementQuality * 22;
-      score += strengths.brandSafe * 10;
+      score += strengths.categoryMatch * 40;
+      score += strengths.engagementQuality * 25;
       score += strengths.valuePrice * 15;
       score += strengths.verifiedStatus * 5;
 
       if (influencer.total_reviews && influencer.total_reviews > 0) {
-        score += strengths.ratingQuality * 10;
+        score += strengths.ratingQuality * 15;
       } else {
-        score += 0.5 * 10;
+        score += 0.5 * 15;
       }
 
       let bonusPoints = 0;
       if (strengths.categoryMatch >= 0.9 && strengths.engagementQuality >= 0.7) bonusPoints += 5;
-      if (audit?.brandSafe && strengths.categoryMatch >= 0.8) bonusPoints += 3;
       if (influencer.total_reviews && influencer.total_reviews >= 10 && influencer.avg_rating && influencer.avg_rating >= 4.5) bonusPoints += 2;
       if (strengths.valuePrice >= 0.8 && strengths.engagementQuality >= 0.8) bonusPoints += 2;
       score += bonusPoints;
       score = Math.min(score, 100);
 
       const reasons: string[] = [];
-
-      if (audit?.brandSafe) {
-        reasons.push(isEn ? 'Brand Safe ✓' : 'Brand Safe ✓');
-      }
 
       if (strengths.categoryMatch >= 0.99) {
         reasons.push(isEn ? `Perfect niche match for ${brand.category || brand.industry || 'you'} 🎯` : `ΤΕΛΕΙΟ match - Είδος ${brand.category || brand.industry || 'σου'} 🎯⭐`);
