@@ -57,32 +57,28 @@ function buildMultiPlatformPrompt(accounts: AuditAccount[], shared: AuditShared)
   const bioBlock = bio ? `\nBIOGRAPHY (creator):\n${bio}` : '';
   const categoryBlock = cat ? `\nCATEGORY: ${cat}` : '';
 
-  return `You are a senior influencer marketing analyst. Produce ONE strategic audit for a creator based on their full multi-platform presence.
+  return `You are a senior influencer marketing analyst. Your output is read by BRANDS who are evaluating this creator for potential partnerships. The goal is a complete, balanced profile FOR BRANDS – not advice to the creator.
 
-CREATOR PROFILE – SOCIAL ACCOUNTS (metrics per platform):
+CREATOR DATA – SOCIAL ACCOUNTS (metrics per platform):
 ${platformsBlock}
 ${bioBlock}
 ${categoryBlock}
 
 TASK:
-Deliver a single, unified strategic audit that considers:
-- Combined reach and consistency across platforms
-- Engagement quality and audience fit per platform
-- Strengths and risks for brand partnerships
-- Overall brand safety and content tone
-- One clear niche that fits the whole profile (not per-platform)
+Write a strategic profile that helps brands decide whether to work with this creator. Describe strengths AND weaknesses/concerns in a factual, neutral way. Do NOT give recommendations to the creator (e.g. avoid "should improve", "ought to"). Instead describe what IS: e.g. "Strong engagement on Instagram", "Limited reach on TikTok", "Consistent niche across platforms", "Engagement rate below average for this tier".
 
 OUTPUT – Return ONLY valid JSON with these exact keys (no markdown, no extra text):
-- scoreBreakdown: array of exactly 4 short bullet points in GREEK (Ελληνικά), each one line, professional tone.
-- scoreBreakdown_en: array of exactly 4 short bullet points in ENGLISH, same content as scoreBreakdown, professional tone.
+- scoreBreakdown: array of exactly 4 short bullet points in GREEK (Ελληνικά), each one line. Each bullet describes a characteristic for brands (strengths and/or drawbacks). Neutral, descriptive tone – no advice to the creator.
+- scoreBreakdown_en: array of exactly 4 short bullet points in ENGLISH, same content as scoreBreakdown.
 - brandSafe: boolean (true if content and metrics suggest brand-safe; false if risks).
 - niche: ONE niche label in GREEK (e.g. "Μόδα", "Fitness") – single term or very short phrase.
-- niche_en: ONE niche label in ENGLISH (e.g. Fashion, Fitness, Beauty & Makeup) – single term or very short phrase. Use standard English categories: Fashion, Model, Beauty & Makeup, Fitness, Food, Travel, Gaming, Comedy, Music, Education, etc. Do NOT use: Creator, Content Creator, Influencer, Lifestyle as default.
+- niche_en: ONE niche label in ENGLISH (e.g. Fashion, Fitness, Beauty & Makeup). Use standard categories: Fashion, Model, Beauty & Makeup, Fitness, Food, Travel, Gaming, Comedy, Music, Education, etc. Do NOT use: Creator, Content Creator, Influencer, Lifestyle as default.
 
 RULES:
-- If the profile suggests fashion/model/aesthetic content, use Fashion, Model or Beauty & Makeup – not Humor/Comedy unless the bio clearly indicates comedy.
-- scoreBreakdown points must be actionable and based on the data (followers, ER, avg likes, bio, category).
-- Consider all listed platforms together for one coherent audit.`;
+- Audience is brands. Highlight what matters for brand partnerships: reach, engagement quality, consistency, niche fit, risks.
+- Include both positives and negatives where relevant (e.g. "Δυνατό engagement" vs "Μικρό reach στο TikTok").
+- No advisory or coaching tone. Descriptive only.
+- If the profile suggests fashion/model/aesthetic content, use Fashion, Model or Beauty & Makeup – not Humor/Comedy unless the bio clearly indicates comedy.`;
 }
 
 function parseResponse(text: string): AuditResult {
