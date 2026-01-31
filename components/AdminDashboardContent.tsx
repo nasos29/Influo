@@ -891,7 +891,8 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ influencerId: user.id }),
                 });
-                if (auditRes.ok) {
+                const ct = auditRes.headers.get('content-type') ?? '';
+                if (auditRes.ok && ct.includes('application/json')) {
                   const auditData = await auditRes.json();
                   if (auditData.auditpr_audit) {
                     (data as Record<string, unknown>).auditpr_audit = auditData.auditpr_audit;
@@ -2688,7 +2689,15 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     setBackfillingAudit(true);
                     try {
                       const res = await fetch('/api/admin/backfill-audit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
-                      const data = await res.json();
+                      const contentType = res.headers.get('content-type') ?? '';
+                      let data: { updated?: number; total?: number; errors?: string[]; error?: string } = {};
+                      if (contentType.includes('application/json')) {
+                        data = await res.json();
+                      } else {
+                        const text = await res.text();
+                        const msg = text.startsWith('<') ? (lang === 'el' ? `Ο server απάντησε με HTML αντί για JSON (πιθανό 404 ή redirect). Status: ${res.status}` : `Server returned HTML instead of JSON (possible 404 or redirect). Status: ${res.status}`) : `HTTP ${res.status}: ${text.slice(0, 200)}`;
+                        throw new Error(msg);
+                      }
                       if (res.ok) {
                         alert(lang === 'el' ? `Ολοκλήρωση: ${data.updated}/${data.total ?? data.updated} ενημερώθηκαν.${data.errors?.length ? '\nΣφάλματα: ' + data.errors.slice(0, 3).join(', ') : ''}` : `Done: ${data.updated}/${data.total ?? data.updated} updated.${data.errors?.length ? '\nErrors: ' + data.errors.slice(0, 3).join(', ') : ''}`);
                       } else {
