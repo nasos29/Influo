@@ -1911,7 +1911,9 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     try {
       let instagramOverrides: Record<string, { followers: string; engagement_rate: string; avg_likes: string }> | undefined;
       let tiktokOverrides: Record<string, { followers: string; engagement_rate: string; avg_likes: string }> | undefined;
-      if (user?.accounts?.length) {
+
+      if (idStr && user?.accounts?.length) {
+        // Refresh one: use this user's accounts
         const igAccounts = user.accounts.filter((acc: { platform?: string }) => (acc.platform || '').toLowerCase() === 'instagram');
         const tiktokAccounts = user.accounts.filter((acc: { platform?: string }) => (acc.platform || '').toLowerCase() === 'tiktok');
         const needsAuditpr = igAccounts.length > 0 || tiktokAccounts.length > 0;
@@ -1953,7 +1955,61 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
             }
           }
         }
+      } else if (!idStr) {
+        // Refresh all: get list of due influencers, prompt for Auditpr URL, fetch from local Auditpr for every IG/TikTok account
+        const listRes = await fetch('/api/admin/refresh-social-stats', { method: 'GET' });
+        const listData = await listRes.json();
+        const dueList = (listData.influencers ?? []) as { id: number; display_name: string; accounts: { platform?: string; username?: string }[] }[];
+        const igUsernames = new Set<string>();
+        const tiktokUsernames = new Set<string>();
+        for (const inf of dueList) {
+          const accounts = inf.accounts ?? [];
+          for (const acc of accounts) {
+            const platform = (acc.platform || '').toLowerCase();
+            const un = (acc.username || '').trim();
+            if (!un) continue;
+            if (platform === 'instagram') igUsernames.add(un);
+            if (platform === 'tiktok') tiktokUsernames.add(un);
+          }
+        }
+        const allIg = Array.from(igUsernames, (username) => ({ username }));
+        const allTiktok = Array.from(tiktokUsernames, (username) => ({ username }));
+        const needsAuditpr = allIg.length > 0 || allTiktok.length > 0;
+        if (needsAuditpr) {
+          const storedUrl = typeof window !== 'undefined' ? (localStorage.getItem('influo_auditpr_url') || 'http://localhost:8000') : '';
+          const promptMsg = lang === 'el'
+            ? 'Auditpr URL για ανανέωση όλων (τοπικά: http://localhost:8000). Αφήστε κενό για server (Apify).'
+            : 'Auditpr URL for refresh all (local: http://localhost:8000). Leave empty for server (Apify).';
+          const auditprUrl = typeof window !== 'undefined' ? prompt(promptMsg, storedUrl) : null;
+          if (auditprUrl === null) {
+            setRefreshingSocialAll(false);
+            return;
+          }
+          const url = auditprUrl.trim();
+          if (url) {
+            if (typeof window !== 'undefined') localStorage.setItem('influo_auditpr_url', url);
+            if (allIg.length > 0) {
+              instagramOverrides = {};
+              for (const { username: un } of allIg) {
+                const result = await fetchInstagramFromAuditpr(url, un);
+                if ('followers' in result) {
+                  instagramOverrides[un.replace(/^@+/, '').trim()] = result;
+                }
+              }
+            }
+            if (allTiktok.length > 0) {
+              tiktokOverrides = {};
+              for (const { username: un } of allTiktok) {
+                const result = await fetchTiktokFromAuditpr(url, un);
+                if ('followers' in result) {
+                  tiktokOverrides[un.replace(/^@+/, '').trim()] = result;
+                }
+              }
+            }
+          }
+        }
       }
+
       const body: {
         influencerId?: string;
         instagramOverrides?: Record<string, { followers: string; engagement_rate: string; avg_likes: string }>;
