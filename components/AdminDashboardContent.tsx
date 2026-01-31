@@ -2686,42 +2686,6 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                 </button>
                 <button
                   onClick={async () => {
-                    if (!confirm(lang === 'el' ? 'Τρέξιμο Gemini audit για τους πρώτους 15 influencers (αποφυγή timeout). Συνέχεια;' : 'Run Gemini audit for first 15 influencers (avoids timeout). Continue?')) return;
-                    setBackfillingAudit(true);
-                    try {
-                      const res = await fetch('/api/admin/backfill-audit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ limit: 15 }) });
-                      const contentType = res.headers.get('content-type') ?? '';
-                      let data: { updated?: number; total?: number; errors?: string[]; error?: string } = {};
-                      if (contentType.includes('application/json')) {
-                        data = await res.json();
-                      } else {
-                        const text = await res.text();
-                        const is524 = res.status === 524;
-                        const msg = text.startsWith('<')
-                          ? (is524
-                            ? (lang === 'el' ? 'Timeout (524): το audit διήρκησε πολύ. Δοκίμασε ξανά ή backfill για 1 influencer.' : 'Timeout (524): audit took too long. Try again or refresh one influencer.')
-                            : (lang === 'el' ? `Ο server απάντησε με HTML. Status: ${res.status}` : `Server returned HTML. Status: ${res.status}`))
-                          : `HTTP ${res.status}: ${text.slice(0, 200)}`;
-                        throw new Error(msg);
-                      }
-                      if (res.ok) {
-                        alert(lang === 'el' ? `Ολοκλήρωση: ${data.updated}/${data.total ?? data.updated} ενημερώθηκαν.${data.errors?.length ? '\nΣφάλματα: ' + data.errors.slice(0, 3).join(', ') : ''}` : `Done: ${data.updated}/${data.total ?? data.updated} updated.${data.errors?.length ? '\nErrors: ' + data.errors.slice(0, 3).join(', ') : ''}`);
-                      } else {
-                        alert((data.error || res.statusText) as string);
-                      }
-                    } catch (e) {
-                      alert(e instanceof Error ? e.message : 'Failed');
-                    } finally {
-                      setBackfillingAudit(false);
-                    }
-                  }}
-                  disabled={backfillingAudit}
-                  className="px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-amber-200"
-                >
-                  {backfillingAudit ? '...' : (lang === 'el' ? 'Backfill 15' : 'Backfill 15')}
-                </button>
-                <button
-                  onClick={async () => {
                     if (!confirm(lang === 'el' ? 'Τρέξιμο Gemini audit για όλους σε batch (15-15). Θα δεις την πρόοδο και θα τελειώσει μόνο του. Συνέχεια;' : 'Run Gemini audit for all in batches (15 at a time). You will see progress and it will finish automatically. Continue?')) return;
                     setBackfillingAudit(true);
                     setBackfillProgress(lang === 'el' ? 'Ξεκίνημα...' : 'Starting...');
