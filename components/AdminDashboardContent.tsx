@@ -1465,6 +1465,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [refreshingSocialFor, setRefreshingSocialFor] = useState<string | null>(null);
   const [refreshingSocialAll, setRefreshingSocialAll] = useState(false);
   const [backfillingAudit, setBackfillingAudit] = useState(false);
+  const [backfillProgress, setBackfillProgress] = useState<string | null>(null);
 
   const fetchConversations = async () => {
     try {
@@ -2685,17 +2686,22 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                 </button>
                 <button
                   onClick={async () => {
-                    if (!confirm(lang === 'el' ? 'Τρέξιμο Gemini audit για όλους τους influencers (μία φορά). Συνέχεια;' : 'Run Gemini audit for all influencers (once). Continue?')) return;
+                    if (!confirm(lang === 'el' ? 'Τρέξιμο Gemini audit για τους πρώτους 15 influencers (αποφυγή timeout). Συνέχεια;' : 'Run Gemini audit for first 15 influencers (avoids timeout). Continue?')) return;
                     setBackfillingAudit(true);
                     try {
-                      const res = await fetch('/api/admin/backfill-audit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+                      const res = await fetch('/api/admin/backfill-audit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ limit: 15 }) });
                       const contentType = res.headers.get('content-type') ?? '';
                       let data: { updated?: number; total?: number; errors?: string[]; error?: string } = {};
                       if (contentType.includes('application/json')) {
                         data = await res.json();
                       } else {
                         const text = await res.text();
-                        const msg = text.startsWith('<') ? (lang === 'el' ? `Ο server απάντησε με HTML αντί για JSON (πιθανό 404 ή redirect). Status: ${res.status}` : `Server returned HTML instead of JSON (possible 404 or redirect). Status: ${res.status}`) : `HTTP ${res.status}: ${text.slice(0, 200)}`;
+                        const is524 = res.status === 524;
+                        const msg = text.startsWith('<')
+                          ? (is524
+                            ? (lang === 'el' ? 'Timeout (524): το audit διήρκησε πολύ. Δοκίμασε ξανά ή backfill για 1 influencer.' : 'Timeout (524): audit took too long. Try again or refresh one influencer.')
+                            : (lang === 'el' ? `Ο server απάντησε με HTML. Status: ${res.status}` : `Server returned HTML. Status: ${res.status}`))
+                          : `HTTP ${res.status}: ${text.slice(0, 200)}`;
                         throw new Error(msg);
                       }
                       if (res.ok) {
@@ -2710,10 +2716,68 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     }
                   }}
                   disabled={backfillingAudit}
+                  className="px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-amber-200"
+                >
+                  {backfillingAudit ? '...' : (lang === 'el' ? 'Backfill 15' : 'Backfill 15')}
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!confirm(lang === 'el' ? 'Τρέξιμο Gemini audit για όλους σε batch (15-15). Θα δεις την πρόοδο και θα τελειώσει μόνο του. Συνέχεια;' : 'Run Gemini audit for all in batches (15 at a time). You will see progress and it will finish automatically. Continue?')) return;
+                    setBackfillingAudit(true);
+                    setBackfillProgress(lang === 'el' ? 'Ξεκίνημα...' : 'Starting...');
+                    let totalUpdated = 0;
+                    const limit = 15;
+                    let skip = 0;
+                    try {
+                      while (true) {
+                        setBackfillProgress(lang === 'el' ? `${totalUpdated} ενημερώθηκαν μέχρι τώρα...` : `${totalUpdated} updated so far...`);
+                        const res = await fetch('/api/admin/backfill-audit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ limit, skip }) });
+                        const contentType = res.headers.get('content-type') ?? '';
+                        let data: { updated?: number; hasMore?: boolean; errors?: string[]; error?: string } = {};
+                        if (contentType.includes('application/json')) {
+                          data = await res.json();
+                        } else {
+                          const text = await res.text();
+                          const is524 = res.status === 524;
+                          const msg = text.startsWith('<')
+                            ? (is524
+                              ? (lang === 'el' ? 'Timeout (524): το batch διήρκησε πολύ.' : 'Timeout (524): batch took too long.')
+                              : (lang === 'el' ? `Ο server απάντησε με HTML. Status: ${res.status}` : `Server returned HTML. Status: ${res.status}`))
+                            : `HTTP ${res.status}: ${text.slice(0, 200)}`;
+                          throw new Error(msg);
+                        }
+                        if (!res.ok) {
+                          alert((data.error || res.statusText) as string);
+                          break;
+                        }
+                        const batchUpdated = data.updated ?? 0;
+                        totalUpdated += batchUpdated;
+                        if (!data.hasMore || batchUpdated === 0) {
+                          setBackfillProgress(null);
+                          alert(lang === 'el' ? `Ολοκλήρωση: ${totalUpdated} influencers ενημερώθηκαν συνολικά.` : `Done: ${totalUpdated} influencers updated in total.`);
+                          break;
+                        }
+                        skip += limit;
+                        await new Promise((r) => setTimeout(r, 300));
+                      }
+                    } catch (e) {
+                      setBackfillProgress(null);
+                      alert(e instanceof Error ? e.message : 'Failed');
+                    } finally {
+                      setBackfillingAudit(false);
+                      setBackfillProgress(null);
+                    }
+                  }}
+                  disabled={backfillingAudit}
                   className="px-4 py-2 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {backfillingAudit ? '...' : txt.backfill_audit}
                 </button>
+                {backfillProgress && (
+                  <span className="text-sm text-amber-700 ml-1">
+                    {backfillProgress}
+                  </span>
+                )}
               </div>
 
               {/* Bulk Actions */}

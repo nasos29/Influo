@@ -2,7 +2,7 @@
  * Admin: one-time backfill – run Gemini audit for all influencers (or up to limit).
  * Use once so the "Στρατηγική Αξιολόγηση" card appears for everyone.
  * Thereafter audits run only when metrics (followers, engagement_rate, avg_likes) are updated.
- * POST body: { limit?: number }. Requires GEMINI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY.
+ * POST body: { limit?: number, skip?: number }. With limit, use skip for paging (batch). Returns hasMore when more pages exist.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -56,14 +56,16 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json().catch(() => ({}));
     const limit = typeof body?.limit === 'number' && body.limit > 0 ? Math.min(body.limit, 500) : undefined;
+    const skip = typeof body?.skip === 'number' && body.skip >= 0 ? body.skip : 0;
 
     let query = supabaseAdmin
       .from('influencers')
       .select('id, display_name, bio, category, accounts')
-      .not('accounts', 'is', null);
+      .not('accounts', 'is', null)
+      .order('id', { ascending: true });
 
-    if (limit) {
-      query = query.limit(limit);
+    if (typeof limit === 'number' && limit > 0) {
+      query = query.range(skip, skip + limit - 1);
     }
 
     const { data: influencers, error: fetchError } = await query;
@@ -145,6 +147,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       updated,
       total: influencers.length,
+      hasMore: limit != null && influencers.length === limit,
       errors: errors.slice(0, 20),
       message: `Backfill completed: ${updated}/${influencers.length} updated.`,
     });
