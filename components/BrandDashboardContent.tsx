@@ -112,7 +112,7 @@ const t = {
     loading: "Φόρτωση...",
     error: "Σφάλμα",
     recommendations_title: "Προτεινόμενοι Influencers για εσάς",
-    recommendations_subtitle: "Βάσει του industry σας, προτείνουμε αυτούς τους influencers",
+    recommendations_subtitle: "Βάσει του industry σας, της στρατηγικής αξιολόγησης (niche, Brand Safe, engagement) και της αξίας για τα brands",
     recommendations_loading: "Φόρτωση προτάσεων...",
     recommendations_empty: "Δεν βρέθηκαν προτάσεις αυτή τη στιγμή",
     match_score: "Match Score",
@@ -159,7 +159,7 @@ const t = {
     pending_agreements: "Agreements Pending Acceptance",
     no_pending: "No agreements pending acceptance",
     recommendations_title: "Recommended Influencers for You",
-    recommendations_subtitle: "Based on your industry, we recommend these influencers",
+    recommendations_subtitle: "Based on your industry, strategic audit (niche, Brand Safe, engagement) and value for brands",
     recommendations_loading: "Loading recommendations...",
     recommendations_empty: "No recommendations found at this time",
     match_score: "Match Score",
@@ -834,7 +834,7 @@ export default function BrandDashboardContent() {
       // Fetch only approved influencers from database (same as Directory)
       const { data: influencersData, error } = await supabase
         .from('influencers')
-        .select('id, display_name, category, engagement_rate, avg_likes, min_rate, location, gender, avg_rating, total_reviews, verified, approved, analytics_verified, accounts, avatar_url, audience_male_percent, audience_female_percent, audience_top_age, bio')
+        .select('id, display_name, category, engagement_rate, avg_likes, min_rate, location, gender, avg_rating, total_reviews, verified, approved, analytics_verified, accounts, avatar_url, audience_male_percent, audience_female_percent, audience_top_age, bio, auditpr_audit')
         .eq('approved', true) // Only approved influencers (same as Directory)
         .order('created_at', { ascending: false }) // Sort by creation date
         .limit(200);
@@ -920,7 +920,8 @@ export default function BrandDashboardContent() {
           audience_female_percent: inf.audience_female_percent,
           audience_top_age: inf.audience_top_age,
           bio: inf.bio,
-          rate_card: undefined, // rate_card doesn't exist in DB, will be null
+          rate_card: undefined,
+          auditpr_audit: inf.auditpr_audit ?? undefined,
         };
       }).filter(inf => {
         // Filter out influencers that don't have the selected platform
@@ -1030,6 +1031,7 @@ export default function BrandDashboardContent() {
         minScore: recommendationFilters.minScore,
         preferVerified: true,
         preferHighRating: true,
+        lang: lang,
       });
       
       console.log('[Brand Dashboard] Recommendations count:', matches.length);
@@ -1545,7 +1547,19 @@ export default function BrandDashboardContent() {
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                         <div className="absolute bottom-3 left-3 right-3">
-                          <h3 className="text-white font-bold text-lg mb-1">{inf.display_name}</h3>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {inf.auditpr_audit?.brandSafe && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-emerald-500/90 text-white">
+                                Brand Safe
+                              </span>
+                            )}
+                            {(inf.auditpr_audit?.niche_en || inf.auditpr_audit?.niche) && (
+                              <span className="inline-block px-2 py-0.5 bg-white/25 backdrop-blur-sm rounded text-xs text-white font-medium">
+                                {lang === 'en' ? (inf.auditpr_audit.niche_en || inf.auditpr_audit.niche) : (inf.auditpr_audit.niche || inf.auditpr_audit.niche_en)}
+                              </span>
+                            )}
+                          </div>
+                          <h3 className="text-white font-bold text-lg mb-1 mt-1">{inf.display_name}</h3>
                           {(inf.categories && inf.categories.length > 0 ? inf.categories : (inf.category ? [inf.category] : [])).slice(0, 3).map((cat: string, idx: number) => (
                             <span key={idx} className="inline-block px-2 py-1 bg-white/20 backdrop-blur-sm rounded text-xs text-white font-medium mr-1 mb-1">
                               {lang === 'el' ? 
@@ -1594,7 +1608,7 @@ export default function BrandDashboardContent() {
                       <div className="mb-4">
                         <div className="text-xs font-semibold text-slate-700 mb-2">{txt.why_match}:</div>
                         <ul className="space-y-1">
-                          {match.reasons.slice(0, 2).map((reason: string, i: number) => (
+                          {match.reasons.slice(0, 3).map((reason: string, i: number) => (
                             <li key={i} className="text-xs text-slate-600 flex items-start gap-1">
                               <span className="text-green-500 mt-0.5">✓</span>
                               <span>{reason}</span>

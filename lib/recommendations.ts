@@ -9,6 +9,17 @@ export interface BrandProfile {
   // We can add more fields later like budget_range, target_audience, etc.
 }
 
+/** Strategic audit from Gemini (auditpr_audit) – used for better matching and reasons. */
+export interface AuditprAuditProfile {
+  niche?: string | null;
+  niche_en?: string | null;
+  brandSafe?: boolean;
+  whyWorkWithThem?: string | null;
+  whyWorkWithThem_en?: string | null;
+  positives?: string[] | null;
+  scoreBreakdown?: string[] | null;
+}
+
 export interface InfluencerProfile {
   id: string | number;
   display_name: string;
@@ -34,19 +45,25 @@ export interface InfluencerProfile {
     reel?: string;
     facebook?: string;
   } | null;
+  /** Strategic audit – niche, brandSafe, whyWorkWithThem (for brands). */
+  auditpr_audit?: AuditprAuditProfile | null;
 }
 
 export interface MatchScore {
   influencer: InfluencerProfile;
   score: number; // 0-100
   reasons: string[];
+  /** First line of "why work with them" from audit (for UI). */
+  auditWhyLine?: string | null;
   strengths: {
     categoryMatch?: number;
+    nicheMatch?: number;
     engagementQuality?: number;
     ratingQuality?: number;
     valuePrice?: number;
     locationMatch?: number;
     verifiedStatus?: number;
+    brandSafe?: number;
   };
 }
 
@@ -110,99 +127,111 @@ function parseMinRate(rate: string | null | undefined): number {
 }
 
 /**
- * Calculate category match score
+ * Normalize label for matching (lowercase, trim, remove & and accents-like)
+ */
+function normalizeLabel(s: string | null | undefined): string {
+  if (!s) return '';
+  return s
+    .toLowerCase()
+    .trim()
+    .replace(/\s*&\s*/g, ' ')
+    .replace(/\s+/g, ' ');
+}
+
+/**
+ * Match brand industry to a single label (category or niche)
+ */
+function labelMatchScore(brandIndustry: string, label: string): number {
+  const brand = normalizeLabel(brandIndustry);
+  const labelNorm = normalizeLabel(label);
+  if (!brand || !labelNorm) return 0;
+  if (brand === labelNorm) return 1.0;
+  if (brand.includes(labelNorm) || labelNorm.includes(brand)) return 0.9;
+  // Word overlap
+  const brandWords = brand.split(' ');
+  const labelWords = labelNorm.split(' ');
+  if (brandWords.some((w) => labelWords.includes(w))) return 0.85;
+  return 0;
+}
+
+/**
+ * Calculate category + audit niche match (professional: use audit niche when available)
  */
 function calculateCategoryMatch(
   brandIndustry: string | null | undefined,
   influencerCategory: string | undefined,
-  influencerCategories?: string[]
+  influencerCategories?: string[],
+  auditNiche?: string | null,
+  auditNicheEn?: string | null
 ): number {
-  if (!brandIndustry) return 0.5; // Neutral if brand has no category
-  
-  // Normalize category names for comparison
+  if (!brandIndustry) return 0.5;
+
   const industryLower = brandIndustry.toLowerCase().trim();
-  
-  // Check if influencer has "Γενικά" or "General" - lower priority than specialized categories
   const allCategories = influencerCategories || (influencerCategory ? [influencerCategory] : []);
-  const hasGeneral = allCategories.some(cat => 
-    cat.toLowerCase().trim() === 'γενικά' || cat.toLowerCase().trim() === 'general'
+  const hasGeneral = allCategories.some(
+    (cat) => cat.toLowerCase().trim() === 'γενικά' || cat.toLowerCase().trim() === 'general'
   );
-  
-  // If influencer has ONLY "General" category (no specialized categories), give lower score
-  // This ensures specialized categories get priority
-  if (hasGeneral && allCategories.length === 1) {
-    return 0.5; // Lower score for "General" only - specialized categories should rank higher
-  }
-  
-  // If influencer has "General" along with other categories, check other categories first
-  // (The code below will handle specialized categories)
-  
-  // Check all influencer categories against brand category
+  if (hasGeneral && allCategories.length === 1) return 0.5;
+
   let bestMatch = 0;
-  
+
+  // 1) Audit niche (Gemini) – highest trust for brands
+  if (auditNicheEn || auditNiche) {
+    const nicheScoreEn = auditNicheEn ? labelMatchScore(brandIndustry, auditNicheEn) : 0;
+    const nicheScoreEl = auditNiche ? labelMatchScore(brandIndustry, auditNiche) : 0;
+    bestMatch = Math.max(bestMatch, nicheScoreEn, nicheScoreEl);
+    if (bestMatch >= 0.9) return Math.min(1.0, bestMatch + 0.05); // Slight bonus for audit niche
+  }
+
+  // 2) Category exact/partial
   for (const cat of allCategories) {
     if (!cat) continue;
-    
     const categoryLower = cat.toLowerCase().trim();
-    
-    // Exact match - highest priority!
-    if (industryLower === categoryLower) {
-      return 1.0; // Perfect match - return immediately
-    }
-    
-    // Check partial matches
+    if (industryLower === categoryLower) return 1.0;
     if (industryLower.includes(categoryLower) || categoryLower.includes(industryLower)) {
       bestMatch = Math.max(bestMatch, 0.9);
     }
   }
-  
-  // Return best match found if we have one
   if (bestMatch > 0) return bestMatch;
-  
-  // Fallback: If no match found in multiple categories, try primary category
+
   if (influencerCategory) {
     const categoryLower = influencerCategory.toLowerCase().trim();
-    // Exact match
     if (industryLower === categoryLower) return 1.0;
   }
-  
-  // Category mapping for better matching (only if no exact match found)
+
   const categoryMappings: { [key: string]: string[] } = {
-    'fashion': ['fashion & style', 'beauty & makeup', 'lifestyle'],
-    'tech': ['tech & gadgets', 'gaming & esports', 'business & finance'],
-    'food': ['food & drink', 'lifestyle', 'travel'],
-    'beauty': ['beauty & makeup', 'fashion & style', 'lifestyle'],
-    'fitness': ['health & fitness', 'sports & athletes', 'lifestyle'],
-    'travel': ['travel', 'lifestyle', 'photography'],
-    'business': ['business & finance', 'tech & gadgets', 'education & coaching'],
+    fashion: ['fashion & style', 'beauty & makeup', 'lifestyle'],
+    tech: ['tech & gadgets', 'gaming & esports', 'business & finance'],
+    food: ['food & drink', 'lifestyle', 'travel'],
+    beauty: ['beauty & makeup', 'fashion & style', 'lifestyle'],
+    fitness: ['health & fitness', 'sports & athletes', 'lifestyle'],
+    travel: ['travel', 'lifestyle', 'photography'],
+    business: ['business & finance', 'tech & gadgets', 'education & coaching'],
   };
-  
-  // Check if brand industry matches any mapped categories
+
   for (const [industry, mappedCats] of Object.entries(categoryMappings)) {
     if (industryLower.includes(industry) || industry.includes(industryLower)) {
       for (const cat of allCategories) {
         const catLower = cat.toLowerCase().trim();
-        if (mappedCats.some(mappedCat => catLower.includes(mappedCat) || mappedCat.includes(catLower))) {
+        if (mappedCats.some((mappedCat) => catLower.includes(mappedCat) || mappedCat.includes(catLower))) {
           bestMatch = Math.max(bestMatch, 0.85);
         }
       }
     }
   }
-  
-  // Partial match
+
   for (const cat of allCategories) {
     const catLower = cat.toLowerCase().trim();
     if (industryLower.includes(catLower) || catLower.includes(industryLower)) {
       bestMatch = Math.max(bestMatch, 0.75);
     }
   }
-  
-  // Lifestyle is a good general match
-  if (allCategories.some(cat => cat.toLowerCase().includes('lifestyle'))) {
+
+  if (allCategories.some((cat) => cat.toLowerCase().includes('lifestyle'))) {
     bestMatch = Math.max(bestMatch, 0.6);
   }
-  
-  return bestMatch > 0 ? bestMatch : 0.3; // Weak match if nothing found
+
+  return bestMatch > 0 ? bestMatch : 0.3;
 }
 
 /**
@@ -311,7 +340,7 @@ function calculateLocationMatch(
 }
 
 /**
- * Main recommendation function
+ * Main recommendation function – professional algorithm for brands (category/niche, engagement, brand safe, value).
  */
 export function recommendInfluencers(
   brand: BrandProfile,
@@ -321,36 +350,33 @@ export function recommendInfluencers(
     minScore?: number;
     preferVerified?: boolean;
     preferHighRating?: boolean;
+    lang?: 'el' | 'en';
   }
 ): MatchScore[] {
   const limit = options?.limit || 10;
   const minScore = options?.minScore || 30;
-  const preferVerified = options?.preferVerified !== false; // Default true
-  const preferHighRating = options?.preferHighRating !== false; // Default true
-  
-  // Include all influencers (verified and unverified), but verified get priority bonus
+  const preferVerified = options?.preferVerified !== false;
+  const preferHighRating = options?.preferHighRating !== false;
+  const lang = options?.lang || 'el';
+  const isEn = lang === 'en';
+
   console.log('[Recommendations] Processing', influencers.length, 'influencers for brand:', brand.brand_name, 'category:', brand.category || brand.industry);
-  
+
   const scores: MatchScore[] = influencers
-    // Remove filter - include all influencers (verified and unverified)
-    // .filter(inf => inf.verified !== false) // Only verified influencers
     .map((influencer, index) => {
-      // Debug first few influencers
-      if (index < 5) {
-        console.log('[Recommendations] Processing influencer:', influencer.display_name, {
-          verified: influencer.verified,
-          category: influencer.category,
-          categories: influencer.categories,
-          engagement_rate: influencer.engagement_rate,
-          id: influencer.id
-        });
-      }
+      const audit = influencer.auditpr_audit;
+      const categoryMatch = calculateCategoryMatch(
+        brand.category || brand.industry,
+        influencer.category,
+        influencer.categories,
+        audit?.niche,
+        audit?.niche_en
+      );
+      const brandSafeScore = audit?.brandSafe === true ? 1.0 : 0.5;
+
       const strengths = {
-        categoryMatch: calculateCategoryMatch(
-          brand.category || brand.industry, 
-          influencer.category,
-          influencer.categories
-        ),
+        categoryMatch: categoryMatch,
+        nicheMatch: categoryMatch,
         engagementQuality: calculateEngagementQuality(influencer.engagement_rate),
         ratingQuality: calculateRatingQuality(influencer.avg_rating, influencer.total_reviews),
         valuePrice: calculateValueScore(
@@ -358,118 +384,98 @@ export function recommendInfluencers(
           influencer.engagement_rate,
           influencer.followers_count
         ),
-        locationMatch: 0.5, // Can be improved if we add brand location
+        locationMatch: 0.5,
         verifiedStatus: influencer.verified ? 1.0 : 0.5,
+        brandSafe: brandSafeScore,
       };
-      
-      // Calculate weighted overall score with smart adjustments
+
+      // Weights: category/niche 38%, engagement 22%, brandSafe 10%, value 15%, verified 5%, rating 10%
       let score = 0;
-      
-      // Category match is most important (35% weight) - exact match gets bonus
-      score += strengths.categoryMatch * 35;
-      
-      // Engagement quality (25% weight)
-      score += strengths.engagementQuality * 25;
-      
-      // Rating quality (20% weight) - only if has reviews
-      if (influencer.total_reviews && influencer.total_reviews > 0) {
-        score += strengths.ratingQuality * 20;
-      } else {
-        // If no reviews, give neutral score (50%) but lower weight
-        score += 0.5 * 15; // Reduced weight for unrated influencers
-      }
-      
-      // Value/Price ratio (15% weight)
+      score += strengths.categoryMatch * 38;
+      score += strengths.engagementQuality * 22;
+      score += strengths.brandSafe * 10;
       score += strengths.valuePrice * 15;
-      
-      // Verified status (5% weight - bonus, not critical)
       score += strengths.verifiedStatus * 5;
-      
-      // Bonus points for multiple strengths
+
+      if (influencer.total_reviews && influencer.total_reviews > 0) {
+        score += strengths.ratingQuality * 10;
+      } else {
+        score += 0.5 * 10;
+      }
+
       let bonusPoints = 0;
-      if (strengths.categoryMatch >= 0.9 && strengths.engagementQuality >= 0.7) {
-        bonusPoints += 5; // High category match + good engagement
-      }
-      if (influencer.total_reviews && influencer.total_reviews >= 10 && influencer.avg_rating && influencer.avg_rating >= 4.5) {
-        bonusPoints += 3; // Well-reviewed and highly rated
-      }
-      if (strengths.valuePrice >= 0.8 && strengths.engagementQuality >= 0.8) {
-        bonusPoints += 2; // Great value + high engagement
-      }
-      
+      if (strengths.categoryMatch >= 0.9 && strengths.engagementQuality >= 0.7) bonusPoints += 5;
+      if (audit?.brandSafe && strengths.categoryMatch >= 0.8) bonusPoints += 3;
+      if (influencer.total_reviews && influencer.total_reviews >= 10 && influencer.avg_rating && influencer.avg_rating >= 4.5) bonusPoints += 2;
+      if (strengths.valuePrice >= 0.8 && strengths.engagementQuality >= 0.8) bonusPoints += 2;
       score += bonusPoints;
-      
-      // Cap at 100
       score = Math.min(score, 100);
-      
-      // Generate match reasons (prioritize most important)
+
       const reasons: string[] = [];
-      
-      // Category match is top priority - give extra emphasis for exact matches
-      if (strengths.categoryMatch >= 0.99) {
-        reasons.push(`ΤΕΛΕΙΟ match - Είδος ${brand.category || brand.industry || 'σου'} 🎯⭐`);
-      } else if (strengths.categoryMatch >= 0.9) {
-        reasons.push(`Τέλειο match στο niche ${brand.category || brand.industry || 'σου'} 🎯`);
-      } else if (strengths.categoryMatch >= 0.7) {
-        reasons.push(`Ταιριάζει στο niche ${brand.category || brand.industry || 'σου'}`);
+
+      if (audit?.brandSafe) {
+        reasons.push(isEn ? 'Brand Safe ✓' : 'Brand Safe ✓');
       }
-      
-      // Engagement quality
+
+      if (strengths.categoryMatch >= 0.99) {
+        reasons.push(isEn ? `Perfect niche match for ${brand.category || brand.industry || 'you'} 🎯` : `ΤΕΛΕΙΟ match - Είδος ${brand.category || brand.industry || 'σου'} 🎯⭐`);
+      } else if (strengths.categoryMatch >= 0.9) {
+        reasons.push(isEn ? `Strong niche match (${audit?.niche_en || audit?.niche || brand.category || 'your industry'}) 🎯` : `Τέλειο match στο niche ${brand.category || brand.industry || 'σου'} 🎯`);
+      } else if (strengths.categoryMatch >= 0.7) {
+        reasons.push(isEn ? `Good fit for ${brand.category || brand.industry || 'your industry'}` : `Ταιριάζει στο niche ${brand.category || brand.industry || 'σου'}`);
+      }
+
       if (strengths.engagementQuality >= 0.9) {
         const rate = parseEngagementRate(influencer.engagement_rate);
-        reasons.push(`Εξαιρετικό engagement (${rate.toFixed(1)}%) ⭐`);
+        reasons.push(isEn ? `Excellent engagement (${rate.toFixed(1)}%) ⭐` : `Εξαιρετικό engagement (${rate.toFixed(1)}%) ⭐`);
       } else if (strengths.engagementQuality >= 0.7) {
         const rate = parseEngagementRate(influencer.engagement_rate);
-        reasons.push(`Υψηλό engagement rate (${rate.toFixed(1)}%)`);
+        reasons.push(isEn ? `High engagement rate (${rate.toFixed(1)}%)` : `Υψηλό engagement rate (${rate.toFixed(1)}%)`);
       }
-      
-      // Rating quality (only if has reviews)
+
       if (influencer.total_reviews && influencer.total_reviews > 0) {
         if (strengths.ratingQuality >= 0.9 && influencer.avg_rating && influencer.avg_rating >= 4.5) {
-          reasons.push(`Εξαιρετική αξιολόγηση (${influencer.avg_rating.toFixed(1)}/5 από ${influencer.total_reviews} reviews) 🏆`);
+          reasons.push(isEn ? `Top rated (${influencer.avg_rating.toFixed(1)}/5, ${influencer.total_reviews} reviews) 🏆` : `Εξαιρετική αξιολόγηση (${influencer.avg_rating.toFixed(1)}/5 από ${influencer.total_reviews} reviews) 🏆`);
         } else if (strengths.ratingQuality >= 0.7 && influencer.avg_rating && influencer.avg_rating >= 4.0) {
-          reasons.push(`Καλή αξιολόγηση (${influencer.avg_rating.toFixed(1)}/5)`);
+          reasons.push(isEn ? `Good rating (${influencer.avg_rating.toFixed(1)}/5)` : `Καλή αξιολόγηση (${influencer.avg_rating.toFixed(1)}/5)`);
         }
       }
-      
-      // Value/Price
+
       if (strengths.valuePrice >= 0.8) {
-        reasons.push(`Εξαιρετική αναλογία τιμής/ποιοτικότητας 💰`);
+        reasons.push(isEn ? 'Great value for money 💰' : 'Εξαιρετική αναλογία τιμής/ποιοτικότητας 💰');
       } else if (strengths.valuePrice >= 0.6) {
-        reasons.push(`Καλή αναλογία τιμής/ποιοτικότητας`);
+        reasons.push(isEn ? 'Good value' : 'Καλή αναλογία τιμής/ποιοτικότητας');
       }
-      
-      // Experience
+
       if (influencer.total_reviews && influencer.total_reviews >= 20) {
-        reasons.push(`Έμπειρος με ${influencer.total_reviews}+ συνεργασίες`);
+        reasons.push(isEn ? `Experienced (${influencer.total_reviews}+ collaborations)` : `Έμπειρος με ${influencer.total_reviews}+ συνεργασίες`);
       } else if (influencer.total_reviews && influencer.total_reviews >= 10) {
-        reasons.push(`Έμπειρος creator`);
+        reasons.push(isEn ? 'Experienced creator' : 'Έμπειρος creator');
       }
-      
-      // Verified (always mention if verified)
+
       if (influencer.verified) {
-        reasons.push(`Επαληθευμένος ✅`);
+        reasons.push(isEn ? 'Verified ✅' : 'Επαληθευμένος ✅');
       }
-      
-      // Add default reason if none
+
+      const whyLine = isEn ? (audit?.whyWorkWithThem_en || audit?.whyWorkWithThem) : (audit?.whyWorkWithThem || audit?.whyWorkWithThem_en);
+      const auditWhyLine = whyLine ? (whyLine.split(/[.!]/)[0]?.trim() + (whyLine.includes('.') ? '.' : '') || whyLine.slice(0, 120)) : null;
+      if (auditWhyLine && reasons.length < 4) {
+        reasons.push(auditWhyLine.length > 100 ? auditWhyLine.slice(0, 97) + '...' : auditWhyLine);
+      }
+
       if (reasons.length === 0) {
-        reasons.push('Καλή επιλογή για το brand σας');
+        reasons.push(isEn ? 'Good fit for your brand' : 'Καλή επιλογή για το brand σας');
       }
-      
+
       return {
         influencer,
         score: Math.round(score),
         reasons,
+        auditWhyLine: auditWhyLine || null,
         strengths,
       };
     })
-    .filter(match => {
-      const passes = match.score >= minScore;
-      if (!passes && scores.length < 5) {
-        console.log('[Recommendations] Filtered out:', match.influencer.display_name, 'score:', match.score, 'min:', minScore);
-      }
-      return passes;
-    })
+    .filter((match) => match.score >= minScore)
     .sort((a, b) => b.score - a.score) // Sort by score descending
     .slice(0, limit); // Limit results
     
