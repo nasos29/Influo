@@ -90,6 +90,7 @@ RULES:
 - Audience is brands. Be detailed in bullets; more words, not one-liners.
 - Include both positives and negatives where relevant.
 - No advisory tone. Descriptive only.
+- In GREEK text when referring to companies/brands: use "επιχειρήσεις" (e.g. "Οι επιχειρήσεις πρέπει..."). Do NOT use "μάρκες". If you use the word "brands", write "τα brands" never "οι brands" (e.g. "Τα brands μπορούν..." – συνεργασία influencers με επιχειρήσεις/brands).
 - If the profile suggests fashion/model/aesthetic content, use Fashion, Model or Beauty & Makeup – not Humor/Comedy unless the bio clearly indicates comedy.`;
 }
 

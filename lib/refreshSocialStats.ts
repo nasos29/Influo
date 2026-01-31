@@ -80,7 +80,19 @@ export async function doRefreshSocialStats(
   const results: { id: string; name: string; accounts: number; errors: string[] }[] = [];
 
   /** Audit result: only updated when we refresh followers/engagement/avg_likes (not on every page load). */
-  type AuditprAudit = { scoreBreakdown: string[]; scoreBreakdown_en?: string[]; brandSafe: boolean; niche?: string; niche_en?: string };
+  type AuditprAudit = {
+    scoreBreakdown: string[];
+    scoreBreakdown_en?: string[];
+    whyWorkWithThem?: string;
+    whyWorkWithThem_en?: string;
+    positives?: string[];
+    positives_en?: string[];
+    negatives?: string[];
+    negatives_en?: string[];
+    brandSafe: boolean;
+    niche?: string;
+    niche_en?: string;
+  };
 
   for (const inf of influencers) {
     const accounts = (inf.accounts as AccountRow[] | null) || [];
@@ -182,6 +194,12 @@ export async function doRefreshSocialStats(
             updatePayload.auditpr_audit = {
               scoreBreakdown: auditResult.scoreBreakdown,
               scoreBreakdown_en: auditResult.scoreBreakdown_en,
+              whyWorkWithThem: auditResult.whyWorkWithThem,
+              whyWorkWithThem_en: auditResult.whyWorkWithThem_en,
+              positives: auditResult.positives,
+              positives_en: auditResult.positives_en,
+              negatives: auditResult.negatives,
+              negatives_en: auditResult.negatives_en,
               brandSafe: auditResult.brandSafe,
               niche: auditResult.niche,
               niche_en: auditResult.niche_en,
