@@ -1869,7 +1869,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                                         <li className="flex gap-2">
                                             <span className="text-indigo-500 mt-0.5 shrink-0">•</span>
                                             <span>
-                                                {txt.why_work_with_them}
+                                                <strong>{txt.why_work_with_them}</strong>
                                                 {lang === 'en' ? (profile.auditpr_audit.whyWorkWithThem_en ?? profile.auditpr_audit.whyWorkWithThem) : profile.auditpr_audit.whyWorkWithThem}
                                             </span>
                                         </li>
