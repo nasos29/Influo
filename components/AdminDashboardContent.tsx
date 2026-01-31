@@ -185,7 +185,8 @@ const t = {
     blog_date: "Ημερομηνία",
     blog_actions: "Ενέργειες",
     refresh_social: "Ανανέωση",
-    refresh_social_all: "Ανανέωση social stats για όλους"
+    refresh_social_all: "Ανανέωση social stats για όλους",
+    backfill_audit: "Backfill Gemini audit (μία φορά για όλους)"
   },
   en: {
     title: "Admin Dashboard",
@@ -251,7 +252,8 @@ const t = {
     blog_date: "Date",
     blog_actions: "Actions",
     refresh_social: "Refresh",
-    refresh_social_all: "Refresh social stats for all"
+    refresh_social_all: "Refresh social stats for all",
+    backfill_audit: "Backfill Gemini audit (once for all)"
   }
 };
 
@@ -868,6 +870,37 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
         if (error) {
             alert("Error saving: " + error.message);
         } else if (data) {
+            // Refresh Gemini audit only when metrics or audit-relevant fields changed (followers, engagement_rate, avg_likes, bio, category)
+            const prevAccounts = (user.accounts ?? []) as { followers?: string; engagement_rate?: string; avg_likes?: string }[];
+            const metricsChanged =
+              prevAccounts.length !== (accounts?.length ?? 0) ||
+              (accounts ?? []).some(
+                (b: { followers?: string; engagement_rate?: string; avg_likes?: string }, i: number) => {
+                  const a = prevAccounts[i];
+                  if (!a) return true;
+                  return (a.followers ?? '') !== (b.followers ?? '') || (a.engagement_rate ?? '') !== (b.engagement_rate ?? '') || (a.avg_likes ?? '') !== (b.avg_likes ?? '');
+                }
+              );
+            const bioOrCategoryChanged =
+              (user.bio ?? '') !== (bio ?? '') ||
+              (user.category ?? '') !== (categoryString ?? '');
+            if (metricsChanged || bioOrCategoryChanged) {
+              try {
+                const auditRes = await fetch('/api/admin/refresh-audit', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ influencerId: user.id }),
+                });
+                if (auditRes.ok) {
+                  const auditData = await auditRes.json();
+                  if (auditData.auditpr_audit) {
+                    (data as Record<string, unknown>).auditpr_audit = auditData.auditpr_audit;
+                  }
+                }
+              } catch (_) {
+                // Gemini unreachable – profile save still succeeded
+              }
+            }
             onSave(data as DbInfluencer);
             onClose();
         }
@@ -1430,6 +1463,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [checkingThumbnails, setCheckingThumbnails] = useState(false);
   const [refreshingSocialFor, setRefreshingSocialFor] = useState<string | null>(null);
   const [refreshingSocialAll, setRefreshingSocialAll] = useState(false);
+  const [backfillingAudit, setBackfillingAudit] = useState(false);
 
   const fetchConversations = async () => {
     try {
@@ -2647,6 +2681,29 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                   className="px-4 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {refreshingSocialAll ? '...' : txt.refresh_social_all}
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!confirm(lang === 'el' ? 'Τρέξιμο Gemini audit για όλους τους influencers (μία φορά). Συνέχεια;' : 'Run Gemini audit for all influencers (once). Continue?')) return;
+                    setBackfillingAudit(true);
+                    try {
+                      const res = await fetch('/api/admin/backfill-audit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+                      const data = await res.json();
+                      if (res.ok) {
+                        alert(lang === 'el' ? `Ολοκλήρωση: ${data.updated}/${data.total ?? data.updated} ενημερώθηκαν.${data.errors?.length ? '\nΣφάλματα: ' + data.errors.slice(0, 3).join(', ') : ''}` : `Done: ${data.updated}/${data.total ?? data.updated} updated.${data.errors?.length ? '\nErrors: ' + data.errors.slice(0, 3).join(', ') : ''}`);
+                      } else {
+                        alert((data.error || res.statusText) as string);
+                      }
+                    } catch (e) {
+                      alert(e instanceof Error ? e.message : 'Failed');
+                    } finally {
+                      setBackfillingAudit(false);
+                    }
+                  }}
+                  disabled={backfillingAudit}
+                  className="px-4 py-2 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {backfillingAudit ? '...' : txt.backfill_audit}
                 </button>
               </div>
 

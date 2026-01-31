@@ -1,6 +1,7 @@
 /**
  * Shared logic for refreshing social stats (followers, engagement_rate, avg_likes).
  * Used by GET /api/cron/refresh-social-stats and POST /api/admin/refresh-social-stats.
+ * Gemini audit runs only when we actually refresh at least one IG/TikTok account (not on every page load).
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
@@ -10,6 +11,7 @@ import {
   fetchTiktokFromApify,
   type SocialMetrics,
 } from '@/lib/socialRefresh';
+import { runAuditGemini, type AuditMetrics } from '@/lib/auditGemini';
 
 type AccountRow = {
   platform: string;
@@ -50,7 +52,7 @@ export async function doRefreshSocialStats(
 
   let query = supabaseAdmin
     .from('influencers')
-    .select('id, display_name, accounts');
+    .select('id, display_name, accounts, bio, category');
 
   if (influencerId) {
     query = query.eq('id', influencerId);
@@ -153,24 +155,31 @@ export async function doRefreshSocialStats(
       last_social_refresh_at: new Date().toISOString(),
     };
 
-    // Gemini audit: only when we actually refreshed at least one IG/TT via Auditpr (economy on API).
-    if (auditprBaseUrl && firstRefreshedForAudit) {
+    // Gemini audit: only when we actually refreshed at least one IG/TT (metrics updated). Uses Gemini API directly (no Auditpr reachable).
+    if (firstRefreshedForAudit) {
       try {
-        const base = auditprBaseUrl.replace(/\/$/, '');
-        const res = await fetch(`${base}/audit`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            platform: firstRefreshedForAudit.platform,
-            username: firstRefreshedForAudit.username,
-          }),
-        });
-        if (res.ok) {
-          const auditResult = (await res.json()) as AuditprAudit;
+        const acc = updatedAccounts.find(
+          (a) =>
+            (a?.platform || '').toLowerCase() === firstRefreshedForAudit!.platform &&
+            (a?.username || '').trim().replace(/^@+/, '') === firstRefreshedForAudit!.username
+        );
+        if (acc) {
+          const metrics: AuditMetrics = {
+            followers: acc.followers ?? undefined,
+            engagement_rate: acc.engagement_rate ?? undefined,
+            avg_likes: acc.avg_likes ?? undefined,
+            biography: (inf as { bio?: string }).bio ?? undefined,
+            category_name: (inf as { category?: string }).category ?? undefined,
+          };
+          const auditResult = await runAuditGemini(
+            firstRefreshedForAudit.platform,
+            firstRefreshedForAudit.username,
+            metrics
+          );
           if (auditResult && Array.isArray(auditResult.scoreBreakdown)) {
             updatePayload.auditpr_audit = {
               scoreBreakdown: auditResult.scoreBreakdown,
-              brandSafe: Boolean(auditResult.brandSafe),
+              brandSafe: auditResult.brandSafe,
               niche: auditResult.niche,
             };
           }
