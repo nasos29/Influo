@@ -80,8 +80,9 @@ const t = {
     passLabel: "Κωδικός (τουλάχιστον 6 χαρακτήρες)", 
     passShow: "Εμφάνιση",
     passHide: "Απόκρυψη",
-    bioLabel: "Σύντομο Βιογραφικό",
+    bioLabel: "Σύντομο Βιογραφικό *",
     bioPlace: "Πες μας λίγα λόγια για το στυλ σου...",
+    bioRequired: "Παρακαλώ συμπληρώστε το βιογραφικό σας.",
     socialsTitle: "Τα Κανάλια σου",
     socialsDesc: "Πρόσθεσε τα δίκτυα που είσαι ενεργός/ή και τους followers.",
     platLabel: "Πλατφόρμα",
@@ -142,8 +143,9 @@ const t = {
     passLabel: "Password (min 6 characters)", 
     passShow: "Show",
     passHide: "Hide",
-    bioLabel: "Short Bio",
+    bioLabel: "Short Bio *",
     bioPlace: "Tell brands about your style...",
+    bioRequired: "Please fill in your biography.",
     socialsTitle: "Your Channels",
     socialsDesc: "Add your active networks and follower counts.",
     platLabel: "Platform",
@@ -341,6 +343,11 @@ export default function InfluencerSignupForm() {
               throw new Error(lang === "el" ? "Παρακαλώ επιλέξτε τουλάχιστον μία κατηγορία." : "Please select at least one category.");
           }
 
+          // Check if biography is filled
+          if (!bio.trim()) {
+              throw new Error(txt.bioRequired);
+          }
+
           if (password.length < 6) {
               throw new Error(lang === "el" ? "Ο κωδικός πρέπει να έχει τουλάχιστον 6 χαρακτήρες." : "Password must be at least 6 characters long.");
           }
@@ -412,7 +419,7 @@ export default function InfluencerSignupForm() {
               }
           }
           
-          const errorMessage = err.message.includes("ήδη καταχωρημένο") || err.message.includes("already registered") || err.message.includes("6 χαρακτήρες") ? err.message : (lang === "el" ? "Σφάλμα: " : "Error: ") + err.message;
+          const errorMessage = err.message.includes("ήδη καταχωρημένο") || err.message.includes("already registered") || err.message.includes("6 χαρακτήρες") || err.message.includes("βιογραφικό") || err.message.includes("biography") ? err.message : (lang === "el" ? "Σφάλμα: " : "Error: ") + err.message;
           setMessage(errorMessage); 
       } finally {
           setLoading(false);
@@ -427,6 +434,11 @@ export default function InfluencerSignupForm() {
       // Validate categories before submitting
       if (categories.length === 0) {
           throw new Error(lang === "el" ? "Παρακαλώ επιλέξτε τουλάχιστον μία κατηγορία." : "Please select at least one category.");
+      }
+
+      // Validate biography
+      if (!bio.trim()) {
+          throw new Error(txt.bioRequired);
       }
       
       // 1. Auth: Δημιουργία Χρήστη (Sign Up)
@@ -580,7 +592,7 @@ export default function InfluencerSignupForm() {
       setStep(4);
     } catch (err: any) {
       console.error(err);
-      const errorMessage = err.message.includes("already registered") || err.message.includes("23505") || err.message.includes("κωδικός") 
+      const errorMessage = err.message.includes("already registered") || err.message.includes("23505") || err.message.includes("κωδικός") || err.message.includes("βιογραφικό") || err.message.includes("biography") 
           ? err.message 
           : (lang === "el" ? "Σφάλμα: " : "Error: ") + err.message;
       setMessage(errorMessage);
@@ -767,7 +779,7 @@ export default function InfluencerSignupForm() {
                 <div className="mt-8 pt-6 border-t border-slate-200">
                   <button 
                     onClick={handleCheckEmailAndNext} 
-                    disabled={!displayName || !email || !password || loading || !!emailError || checkingEmail} 
+                    disabled={!displayName || !email || !password || !bio.trim() || loading || !!emailError || checkingEmail} 
                     className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-blue-500/30 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading ? (lang === "el" ? "Έλεγχος..." : "Checking...") : txt.next}
