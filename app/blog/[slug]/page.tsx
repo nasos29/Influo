@@ -677,13 +677,13 @@ This allows you to reach different audiences and maximize your ROI. Many brands 
       en: "How to Measure Influencer Marketing ROI"
     },
     content: {
-      el: `# Πώς να Μετρήσετε το ROI του Influencer Marketing
+      el: `# Πώς να Μετρήσετε το ROI του Μάρκετινγκ από Influencers
 
 Η μέτρηση της απόδοσης επένδυσης (ROI) είναι καθοριστική για να αποδείξετε την αξία των καμπανιών σας με influencers και να πείσετε τη διοίκηση να συνεχίσει να επενδύει σε αυτό το κανάλι. Πολλές επωνυμίες δυσκολεύονται με τη μέτρηση, αλλά με τα σωστά εργαλεία και στρατηγική μπορείτε να παρακολουθήσετε πλήρως την απόδοση επένδυσής σας.
 
-## Γιατί είναι Σημαντικό το ROI Measurement;
+## Γιατί είναι Σημαντική η Μέτρηση ROI;
 
-Το μάρκετινγκ από influencers δεν είναι δωρεάν - κοστίζει χρόνο, πόρους, και προϋπολογισμό. Για να δικαιολογήσετε τα έξοδα και να βελτιστοποιήσετε τις μελλοντικές καμπάνιες, χρειάζεστε σαφή μετρικά στοιχεία. Χωρίς σωστή μέτρηση, δεν μπορείτε να ξέρετε αν οι καμπάνιές σας είναι επιτυχημένες ή αν πρέπει να αλλάξετε στρατηγική.
+Το μάρκετινγκ από influencers δεν είναι δωρεάν — κοστίζει χρόνο, πόρους και προϋπολογισμό. Για να δικαιολογήσετε τα έξοδα και να βελτιστοποιήσετε τις μελλοντικές καμπάνιες, χρειάζεστε σαφή μετρικά στοιχεία. Χωρίς σωστή μέτρηση, δεν μπορείτε να ξέρετε αν οι καμπάνιές σας είναι επιτυχημένες ή αν πρέπει να αλλάξετε στρατηγική.
 
 Επιπλέον, η μέτρηση ROI σας βοηθά να:
 - Αποδείξετε την αξία στον Διευθύνων Σύμβουλο και τα ενδιαφερόμενα μέρη
@@ -693,146 +693,146 @@ This allows you to reach different audiences and maximize your ROI. Many brands 
 
 ## Βασικά Μετρήσιμα Στοιχεία που πρέπει να Παρακολουθείτε
 
-### 1. Engagement Rate
+### 1. Ποσοστό Αλληλεπίδρασης (Engagement Rate)
 
-Ο engagement rate είναι ο πιο βασικός metric. Μετράει πόσο active είναι το audience του influencer.
+Το ποσοστό αλληλεπίδρασης είναι το πιο βασικό μετρήσιμο στοιχείο. Μετράει πόσο ενεργό είναι το κοινό του influencer.
 
-**Formula**: (Likes + Comments + Shares + Saves) / Followers × 100
+**Τύπος**: (Likes + Comments + Shares + Saves) / Followers × 100
 
-**Good benchmarks:**
-- Micro-influencers: 3-7%
-- Macro-influencers: 1-3%
-- Nano-influencers: 7-10%
+**Καλά πρότυπα αναφοράς:**
+- Μικρο-influencers: 3-7%
+- Μακρο-influencers: 1-3%
+- Νάνο-influencers: 7-10%
 
-### 2. Reach & Impressions
+### 2. Εμβέλεια και Εμφανίσεις (Reach & Impressions)
 
-- **Reach**: Unique users που είδαν το content
-- **Impressions**: Total views (μία persona μπορεί να δει το content multiple times)
+- **Εμβέλεια**: Μοναδικοί χρήστες που είδαν το περιεχόμενο
+- **Εμφανίσεις**: Συνολικές προβολές (ένα άτομο μπορεί να δει το περιεχόμενο πολλές φορές)
 
 Αυτά τα μετρήσιμα σας λένε πόσα άτομα είδαν το περιεχόμενό σας. Η εμβέλεια είναι πιο σημαντική από τις εμφανίσεις γιατί μετράει μοναδικούς χρήστες.
 
-### 3. Conversions
+### 3. Μετατροπές (Conversions)
 
-Αυτό είναι το πιο σημαντικό μετρήσιμο στοιχείο — πραγματικές πωλήσεις από τους συνδέσμους των influencers. Track conversions με:
-- UTM parameters
-- Discount codes unique per influencer
-- Affiliate links
-- Landing pages per campaign
+Αυτό είναι το πιο σημαντικό μετρήσιμο στοιχείο — πραγματικές πωλήσεις από τους συνδέσμους των influencers. Παρακολουθήστε τις μετατροπές με:
+- Παράμετροι UTM
+- Μοναδικοί κωδικοί έκπτωσης ανά influencer
+- Σύνδεσμοι affiliate
+- Σελίδες προορισμού ανά καμπάνια
 
-### 4. Brand Awareness Metrics
+### 4. Μετρήσιμα Στοιχεία Γνωριμίας με την Επωνυμία
 
-- **Hashtag usage**: Πόσα people χρησιμοποίησαν το branded hashtag
-- **Mentions**: Brand mentions στα social media
-- **Website traffic**: Traffic από influencer links
-- **Search volume**: Increase σε brand name searches
+- **Χρήση hashtag**: Πόσα άτομα χρησιμοποίησαν το branded hashtag
+- **Αναφορές**: Αναφορές της επωνυμίας στα μέσα κοινωνικής δικτύωσης
+- **Κίνηση ιστοσελίδας**: Κίνηση από συνδέσμους influencers
+- **Όγκος αναζητήσεων**: Αύξηση στις αναζητήσεις του ονόματος της επωνυμίας
 
-### 5. Cost Per Acquisition (CPA)
+### 5. Κόστος Αποκτήσεων (Cost Per Acquisition - CPA)
 
-**Formula**: Total Campaign Cost / Number of Conversions
+**Τύπος**: Συνολικό Κόστος Καμπάνιας / Αριθμός Μετατροπών
 
-Αυτό σας λέει πόσο κοστίζει κάθε conversion. Compare με άλλα marketing channels.
+Αυτό σας λέει πόσο κοστίζει κάθε μετατροπή. Συγκρίνετε με άλλα κανάλια μάρκετινγκ.
 
-### 6. Customer Lifetime Value (LTV)
+### 6. Αξία Επιμήκυνσης Ζωής Πελάτη (Customer Lifetime Value - LTV)
 
-Πόσο value έχει ένας customer που ήρθε από influencer collaboration. Αυτό σας βοηθάει να calculate long-term ROI.
+Πόση αξία έχει ένας πελάτης που ήρθε από συνεργασία με influencer. Αυτό σας βοηθά να υπολογίσετε το μακροπρόθεσμο ROI.
 
-## ROI Formula
+## Τύπος ROI
 
-**Basic ROI Formula**: ROI = (Revenue - Cost) / Cost × 100
+**Βασικός Τύπος ROI**: ROI = (Έσοδα - Κόστος) / Κόστος × 100
 
-**Example:**
-- Campaign Cost: €5,000
-- Revenue από campaign: €20,000
-- ROI = (20,000 - 5,000) / 5,000 × 100 = 300%
+**Παράδειγμα:**
+- Κόστος καμπάνιας: €5.000
+- Έσοδα από καμπάνια: €20.000
+- ROI = (20.000 - 5.000) / 5.000 × 100 = 300%
 
-Αυτό σημαίνει ότι για κάθε €1 που ξοδέψατε, πήρατε €4 back.
+Αυτό σημαίνει ότι για κάθε €1 που ξοδέψατε, πήρατε €4 πίσω.
 
-**Advanced ROI Calculation:**
+**Προχωρημένος Υπολογισμός ROI:**
 
-Include όλα τα costs:
-- Influencer fees
-- Product costs (gifted products)
-- Agency fees
-- Production costs (αν έχετε)
+Συμπεριλάβετε όλα τα έξοδα:
+- Αμοιβές influencers
+- Κόστος προϊόντων (δοσμένα προϊόντα)
+- Αμοιβές πρακτορείου
+- Κόστος παραγωγής (αν έχετε)
 
-Include όλα τα revenues:
-- Direct sales
-- Email list signups (με value per email)
-- Brand awareness value (αν είναι awareness campaign)
+Συμπεριλάβετε όλα τα έσοδα:
+- Άμεσες πωλήσεις
+- Εγγραφές στη λίστα email (με αξία ανά email)
+- Αξία γνωριμίας με την επωνυμία (αν είναι καμπάνια γνωριμίας)
 
-## Tools για ROI Measurement
+## Εργαλεία για τη Μέτρηση ROI
 
 ### 1. Google Analytics
 
-Track website traffic, conversions, και user behavior από influencer links. Χρησιμοποιήστε UTM parameters για να track κάθε influencer separately.
+Παρακολουθήστε την κίνηση ιστοσελίδας, τις μετατροπές και τη συμπεριφορά χρηστών από συνδέσμους influencers. Χρησιμοποιήστε παραμέτρους UTM για να παρακολουθήσετε κάθε influencer ξεχωριστά.
 
-### 2. Social Media Analytics
+### 2. Αναλυτικά Κοινωνικών Δικτύων
 
 - Instagram Insights
-- TikTok Analytics  
+- TikTok Analytics
 - YouTube Analytics
 
-Αυτά τα built-in tools σας δίνουν engagement, reach, impressions data.
+Αυτά τα ενσωματωμένα εργαλεία σας δίνουν δεδομένα αλληλεπίδρασης, εμβέλειας και εμφανίσεων.
 
-### 3. Influencer Marketing Platforms
+### 3. Πλατφόρμες Μάρκετινγκ από Influencers
 
-Platforms όπως Influo.gr σας βοηθούν να track όλα τα metrics από ένα μέρος.
+Πλατφόρμες όπως η Influo.gr σας βοηθούν να παρακολουθήσετε όλα τα μετρήσιμα στοιχεία από ένα μέρος.
 
-### 4. Affiliate Tracking Software
+### 4. Λογισμικό Παρακολούθησης Affiliate
 
-Για tracking conversions, sales, και commissions.
+Για παρακολούθηση μετατροπών, πωλήσεων και προμηθειών.
 
-### 5. Brand Monitoring Tools
+### 5. Εργαλεία Παρακολούθησης Επωνυμίας
 
-Tools όπως Hootsuite, Sprout Social για tracking mentions, hashtags, και brand sentiment.
+Εργαλεία όπως Hootsuite και Sprout Social για παρακολούθηση αναφορών, hashtags και αντίληψης της επωνυμίας.
 
-## Best Practices για ROI Measurement
+## Καλύτερες Πρακτικές για τη Μέτρηση ROI
 
-### 1. Set Clear KPIs Πριν το Campaign
+### 1. Ορίστε Σαφή KPI Πριν την Καμπάνια
 
-Πριν ξεκινήσετε, ορίστε clear goals:
-- Ποια metrics θέλετε να track;
-- Ποια είναι τα success criteria;
-- Ποιο είναι το target ROI;
+Πριν ξεκινήσετε, ορίστε σαφείς στόχους:
+- Ποια μετρήσιμα στοιχεία θέλετε να παρακολουθήσετε;
+- Ποια είναι τα κριτήρια επιτυχίας;
+- Ποιο είναι το στόχος ROI;
 
-### 2. Use UTM Parameters
+### 2. Χρησιμοποιήστε Παραμέτρους UTM
 
-UTM parameters είναι tags που προσθέτετε σε URLs για tracking. Format:
+Οι παράμετροι UTM είναι ετικέτες που προσθέτετε σε URLs για παρακολούθηση. Μορφή:
 \`yoursite.com/product?utm_source=instagram&utm_medium=influencer&utm_campaign=summer2025&utm_content=maria_pap\`
 
-### 3. Create Unique Discount Codes
+### 3. Δημιουργήστε Μοναδικούς Κωδικούς Έκπτωσης
 
-Δώστε unique discount codes σε κάθε influencer. Αυτό σας επιτρέπει να track exact conversions.
+Δώστε μοναδικούς κωδικούς έκπτωσης σε κάθε influencer. Αυτό σας επιτρέπει να παρακολουθήσετε τις ακριβείς μετατροπές.
 
-### 4. Track Everything
+### 4. Παρακολουθήστε τα Πάντα
 
-Track όλα τα metrics, ακόμα και αυτά που φαίνονται insignificant. Μπορεί να ανακαλύψετε patterns.
+Παρακολουθήστε όλα τα μετρήσιμα στοιχεία, ακόμα και αυτά που φαίνονται ασήμαντα. Μπορεί να ανακαλύψετε μοτίβα.
 
-### 5. Compare με Άλλα Marketing Channels
+### 5. Συγκρίνετε με Άλλα Κανάλια Μάρκετινγκ
 
-Compare το influencer marketing ROI με:
-- Paid ads (Facebook, Google)
-- Email marketing
+Συγκρίνετε το ROI μάρκετινγκ από influencers με:
+- Διαφημίσεις πληρωμής (Facebook, Google)
+- Email μάρκετινγκ
 - SEO
-- Other channels
+- Άλλα κανάλια
 
-Αυτό σας βοηθάει να allocate budget effectively.
+Αυτό σας βοηθά να κατανείμετε αποτελεσματικά τον προϋπολογισμό.
 
-### 6. Long-term Tracking
+### 6. Μακροπρόθεσμη Παρακολούθηση
 
-Μην μετρήτε μόνο immediate results. Track long-term metrics όπως customer retention, repeat purchases, brand loyalty.
+Μην μετρήτε μόνο τα άμεσα αποτελέσματα. Παρακολουθήστε μακροπρόθεσμα μετρήσιμα στοιχεία όπως διατήρηση πελατών, επαναλαμβανόμενες αγορές και αφοσίωση στην επωνυμία.
 
-## Common Mistakes στην ROI Measurement
+## Συνηθισμένα Λάθη στη Μέτρηση ROI
 
-- Μετρώντας μόνο engagement, όχι conversions
-- Ξεχνώντας να include όλα τα costs (product costs, agency fees)
-- Not tracking properly (no UTM, no discount codes)
-- Short-term thinking (ignoring long-term value)
-- Not comparing με other channels
+- Μετρώντας μόνο την αλληλεπίδραση, όχι τις μετατροπές
+- Ξεχνώντας να συμπεριλάβετε όλα τα έξοδα (κόστος προϊόντων, αμοιβές πρακτορείου)
+- Μη σωστή παρακολούθηση (χωρίς UTM, χωρίς κωδικούς έκπτωσης)
+- Βραχυπρόθεσμη σκέψη (αγνοώντας την μακροπρόθεσμη αξία)
+- Μη σύγκριση με άλλα κανάλια
 
 ## Συμπέρασμα
 
-Το ROI measurement είναι essential για successful influencer marketing. Με τα σωστά tools, clear KPIs, και proper tracking, μπορείτε να αποδείξετε την αξία των campaigns σας και να optimize για better results.`,
+Η μέτρηση ROI είναι απαραίτητη για επιτυχημένο μάρκετινγκ από influencers. Με τα σωστά εργαλεία, σαφή KPI και σωστή παρακολούθηση, μπορείτε να αποδείξετε την αξία των καμπανιών σας και να βελτιστοποιήσετε για καλύτερα αποτελέσματα.`,
       en: `# How to Measure Influencer Marketing ROI
 
 ROI measurement is crucial to prove the value of your influencer campaigns and convince management to continue investing in this channel. Many brands struggle with measurement, but with the right tools and strategy, you can fully track your ROI.
@@ -1753,219 +1753,220 @@ Fake followers are a serious problem in influencer marketing. By understanding w
   },
   "influencer-contract-essentials": {
     title: {
-      el: "Τι να Συμπεριλάβετε σε Influencer Contract: Essential Clauses",
+      el: "Τι να Συμπεριλάβετε στη Σύμβαση με Influencer: Απαραίτητες Ρήτρες",
       en: "What to Include in Influencer Contract: Essential Clauses"
     },
     content: {
-      el: `# Τι να Συμπεριλάβετε σε Influencer Contract: Essential Clauses
+      el: `# Τι να Συμπεριλάβετε στη Σύμβαση με Influencer: Απαραίτητες Ρήτρες
 
-Ένα καλά structured contract είναι essential για successful influencer collaborations. Προστατεύει και τις δύο πλευρές, sets clear expectations, και prevents misunderstandings. Ας δούμε τα essential clauses που πρέπει να υπάρχουν.
+Μια καλά δομημένη σύμβαση είναι απαραίτητη για επιτυχημένες συνεργασίες με influencers. Προστατεύει και τις δύο πλευρές, ορίζει σαφείς προσδοκίες και αποτρέπει παρενοχλήσεις. Ας δούμε τις απαραίτητες ρήτρες που πρέπει να περιλαμβάνονται.
 
-## Γιατί είναι Σημαντικό το Contract;
+## Γιατί είναι Σημαντική η Σύμβαση;
 
-Χωρίς contract, και οι δύο πλευρές είναι exposed σε risks:
-- Misunderstandings για deliverables
-- Payment disputes
-- Usage rights issues
-- Timeline conflicts
-- Content ownership questions
+Χωρίς σύμβαση, και οι δύο πλευρές εκτίθενται σε κινδύνους:
+- Παρενοχλήσεις σχετικά με τις παραδόσεις
+- Ενδοδιαφορές πληρωμών
+- Ζητήματα δικαιωμάτων χρήσης
+- Συγχρούσεις χρονοδιαγραμμάτων
+- Ερωτήσεις κυριότητας περιεχομένου
 
-Ένα clear contract prevents αυτά τα problems και ensures smooth collaboration.
+Μια σαφής σύμβαση αποτρέπει αυτά τα προβλήματα και διασφαλίζει ομαλή συνεργασία.
 
-## Essential Contract Clauses
+## Απαραίτητες Ρήτρες Σύμβασης
 
-### 1. Parties & Contact Information
-**Τι να συμπεριλάβετε:**
-- Full legal names και addresses
-- Contact information (email, phone)
-- Tax IDs (για payment purposes)
-
-**Γιατί:** Identifies clearly ποιος είναι responsible για τι.
-
-### 2. Deliverables & Scope of Work
+### 1. Μέρη και Στοιχεία Επικοινωνίας
 
 **Τι να συμπεριλάβετε:**
-- Exact number και type of posts (1 Instagram post, 3 Stories, 1 Reel)
-- Content specifications (format, duration, topics)
-- Deadlines για each deliverable
-- Approvals process (brand approval before posting)
+- Πλήρη νόμιμα ονόματα και διευθύνσεις
+- Στοιχεία επικοινωνίας (email, τηλέφωνο)
+- ΑΦΜ (για σκοπούς πληρωμής)
 
-**Example:**
-"Influencer agrees to create and publish:
-- 1 Instagram feed post featuring Product X
-- 3 Instagram Stories (one per day for 3 days)
-- 1 Reel video (30-60 seconds)
-All content must be approved by Brand before publication."
+**Γιατί:** Προσδιορίζει σαφώς ποιος είναι υπεύθυνος για τι.
 
-**Γιατί:** Clear deliverables prevent "I thought you wanted..." situations.
-
-### 3. Payment Terms
+### 2. Παραδόσεις και Εύρος Εργασίας
 
 **Τι να συμπεριλάβετε:**
-- Total payment amount
-- Payment schedule (50% upfront, 50% on delivery)
-- Payment method (bank transfer, PayPal, etc.)
-- Payment timeline (within 7 days, 30 days, etc.)
-- Late payment penalties (optional)
+- Ακριβής αριθμός και τύπος δημοσιεύσεων (1 δημοσίευση Instagram, 3 Stories, 1 Reel)
+- Προδιαγραφές περιεχομένου (μορφή, διάρκεια, θέματα)
+- Προθεσμίες για κάθε παράδοση
+- Διαδικασία έγκρισης (έγκριση επωνυμίας πριν την δημοσίευση)
 
-**Example:**
-"Total compensation: €1,500
-- €750 upon contract signing
-- €750 upon completion and approval of all deliverables
-Payment must be made within 14 days of invoice date."
+**Παράδειγμα:**
+«Ο influencer συμφωνεί να δημιουργήσει και να δημοσιεύσει:
+- 1 δημοσίευση Instagram feed με το Προϊόν X
+- 3 Instagram Stories (μία την ημέρα για 3 ημέρες)
+- 1 βίντεο Reel (30-60 δευτερόλεπτα)
+Όλο το περιεχόμενο πρέπει να εγκριθεί από την επωνυμία πριν τη δημοσίευση.»
 
-**Γιατί:** Prevents payment disputes.
+**Γιατί:** Οι σαφείς παραδόσεις αποτρέπουν καταστάσεις τύπου «νομίζα ότι ήθελες…».
 
-### 4. Timeline & Deadlines
-
-**Τι να συμπεριλάβετε:**
-- Start date
-- Content creation deadline
-- Approval deadline (brand review time)
-- Publication dates
-- Campaign end date
-
-**Example:**
-"Timeline:
-- Content creation: January 15-22, 2025
-- Brand approval: January 23-24, 2025
-- Publication: January 25-27, 2025
-- Campaign active: January 25 - February 10, 2025"
-
-**Γιατί:** Sets clear expectations για timing.
-
-### 5. Content Approval Process
+### 3. Όροι Πληρωμής
 
 **Τι να συμπεριλάβετε:**
-- Who approves content (brand contact person)
-- Approval timeline (brand has 48 hours to review)
-- Revision process (how many revisions allowed)
-- What happens αν brand rejects content
+- Συνολικό ποσό πληρωμής
+- Πρόγραμμα πληρωμών (50% προκαταβολή, 50% κατά την παράδοση)
+- Μέθοδος πληρωμής (τραπεζική μεταφορά, PayPal κ.λπ.)
+- Χρονοδιάγραμμα πληρωμής (εντός 7 ημερών, 30 ημερών κ.λπ.)
+- Ποινές καθυστερημένων πληρωμών (προαιρετικά)
 
-**Example:**
-"Influencer will submit draft content for brand approval 48 hours before planned publication. Brand has 48 hours to request revisions. Maximum 2 revision rounds allowed."
+**Παράδειγμα:**
+«Συνολική αμοιβή: €1.500
+- €750 κατά την υπογραφή της σύμβασης
+- €750 με την ολοκλήρωση και έγκριση όλων των παραδόσεων
+Η πληρωμή πρέπει να γίνει εντός 14 ημερών από την ημερομηνία τιμολόγησης.»
 
-**Γιατί:** Prevents last-minute rejections και delays.
+**Γιατί:** Αποτρέπει ενδοδιαφορές πληρωμών.
 
-### 6. Usage Rights & Content Ownership
-
-**Τι να συμπεριλάβετε:**
-- Who owns the content (usually influencer)
-- Usage rights για brand (can brand repost? use on website? in ads?)
-- Duration of usage rights (6 months, 1 year, perpetual?)
-- Geographic restrictions (Greece only? worldwide?)
-
-**Example:**
-"Influencer retains ownership of content. Brand receives non-exclusive license to use content on brand social media, website, and advertising for 12 months from publication date, within Greece only."
-
-**Γιατί:** Content ownership είναι complex - set it clear.
-
-### 7. Disclosure & FTC Compliance
+### 4. Χρονοδιάγραμμα και Προθεσμίες
 
 **Τι να συμπεριλάβετε:**
-- Requirement για #ad, #sponsored, #partnership tags
-- FTC guidelines compliance
-- Local regulations (Greece/EU laws)
+- Ημερομηνία έναρξης
+- Προθεσμία δημιουργίας περιεχομένου
+- Προθεσμία έγκρισης (χρόνος ελέγχου επωνυμίας)
+- Ημερομηνίες δημοσίευσης
+- Ημερομηνία λήξης καμπάνιας
 
-**Example:**
-"Influencer must clearly disclose partnership using #ad, #sponsored, or #partnership hashtags in all posts, in compliance with FTC and EU advertising guidelines."
+**Παράδειγμα:**
+«Χρονοδιάγραμμα:
+- Δημιουργία περιεχομένου: 15-22 Ιανουαρίου 2025
+- Έγκριση επωνυμίας: 23-24 Ιανουαρίου 2025
+- Δημοσίευση: 25-27 Ιανουαρίου 2025
+- Ενεργή καμπάνια: 25 Ιανουαρίου - 10 Φεβρουαρίου 2025»
 
-**Γιατί:** Legal requirement - non-compliance = fines.
+**Γιατί:** Ορίζει σαφείς προσδοκίες για το χρονοδιάγραμμα.
 
-### 8. Exclusivity & Competitor Restrictions
-
-**Τι να συμπεριλάβετε:**
-- Exclusivity period (cannot work με competing brands για X months)
-- Competitor definition (specific brands? entire category?)
-- Exceptions (preexisting partnerships)
-
-**Example:**
-"Influencer agrees not to collaborate with competing brands in the beauty/skincare category for 3 months after campaign end date. Exceptions: preexisting ongoing partnerships."
-
-**Γιατί:** Protects brand investment.
-
-### 9. Content Guidelines & Brand Requirements
+### 5. Διαδικασία Έγκρισης Περιεχομένου
 
 **Τι να συμπεριλάβετε:**
-- Brand guidelines (tone, messaging, do's and don'ts)
-- Product usage requirements (how to show product)
-- Mandatory elements (brand hashtag, @mention, link)
-- Prohibited content (controversial topics, etc.)
+- Ποιος εγκρίνει το περιεχόμενο (εκπρόσωπος επωνυμίας)
+- Χρονοδιάγραμμα έγκρισης (η επωνυμία έχει 48 ώρες για έλεγχο)
+- Διαδικασία αναθεώρησης (πόσες αναθεωρήσεις επιτρέπονται)
+- Τι συμβαίνει αν η επωνυμία απορρίψει το περιεχόμενο
 
-**Example:**
-"Content must:
-- Mention @brandname in caption
-- Include #brandhashtag
-- Feature product prominently
-- Maintain brand's positive, inclusive tone
-- Not include any controversial or political content"
+**Παράδειγμα:**
+«Ο influencer θα υποβάλει προσχέδιο περιεχομένου για έγκριση της επωνυμίας 48 ώρες πριν την προβλεπόμενη δημοσίευση. Η επωνυμία έχει 48 ώρες για να ζητήσει αναθεωρήσεις. Επιτρέπονται το πολύ 2 γύροι αναθεώρησης.»
 
-**Γιατί:** Ensures brand-appropriate content.
+**Γιατί:** Αποτρέπει τελευταίας στιγμής απορρίψεις και καθυστερήσεις.
 
-### 10. Cancellation & Termination
+### 6. Δικαιώματα Χρήσης και Κυριότητα Περιεχομένου
 
 **Τι να συμπεριλάβετε:**
-- Cancellation policy (who can cancel? when? how much notice?)
-- Payment on cancellation (partial payment if work started?)
-- Force majeure clause (unforeseen circumstances)
+- Ποιος κατέχει το περιεχόμενο (συνήθως ο influencer)
+- Δικαιώματα χρήσης για την επωνυμία (μπορεί να αναδημοσιεύσει; να χρησιμοποιήσει σε ιστοσελίδα; σε διαφημίσεις;)
+- Διάρκεια δικαιωμάτων χρήσης (6 μήνες, 1 έτος, αόριστα;)
+- Γεωγραφικοί περιορισμοί (μόνο Ελλάδα; παγκοσμίως;)
 
-**Example:**
-"Either party may cancel with 7 days written notice. If influencer has started work, brand will pay 50% of total fee. Force majeure events (natural disasters, platform shutdowns) exempt parties from liability."
+**Παράδειγμα:**
+«Ο influencer διατηρεί την κυριότητα του περιεχομένου. Η επωνυμία λαμβάνει μη αποκλειστική άδεια χρήσης του περιεχομένου στα μέσα κοινωνικής δικτύωσης, στην ιστοσελίδα και στη διαφήμιση της επωνυμίας για 12 μήνες από την ημερομηνία δημοσίευσης, μόνο στην Ελλάδα.»
 
-**Γιατί:** Protects both parties από unexpected situations.
+**Γιατί:** Η κυριότητα περιεχομένου είναι πολύπλοκη — ορίστε την σαφώς.
 
-### 11. Performance Metrics & Reporting
-
-**Τι να συμπεριλάβετε:**
-- Required metrics (engagement, reach, impressions)
-- Reporting timeline (when to provide analytics)
-- Format (screenshots? excel? platform analytics?)
-
-**Example:**
-"Influencer will provide campaign analytics (reach, impressions, engagement rate) within 7 days of campaign completion via Instagram Insights screenshots."
-
-**Γιατί:** Brands need data για ROI measurement.
-
-### 12. Indemnification & Liability
+### 7. Γνωστοποίηση και Συμμόρφωση FTC
 
 **Τι να συμπεριλάβετε:**
-- Who's liable για content issues (defamation, copyright infringement)
-- Insurance requirements (if applicable)
-- Limitations of liability
+- Απαίτηση για ετικέτες #ad, #sponsored, #partnership
+- Συμμόρφωση με τις οδηγίες FTC
+- Τοπικοί κανονισμοί (νόμοι Ελλάδας/ΕΕ)
 
-**Example:**
-"Influencer is responsible for ensuring content doesn't violate third-party rights. Brand is not liable for influencer's content that violates laws or platform terms."
+**Παράδειγμα:**
+«Ο influencer πρέπει να γνωστοποιήσει σαφώς τη συνεργασία χρησιμοποιώντας hashtags #ad, #sponsored ή #partnership σε όλες τις δημοσιεύσεις, σε συμμόρφωση με τις οδηγίες διαφήμισης FTC και ΕΕ.»
 
-**Γιατί:** Legal protection.
+**Γιατί:** Νομική απαίτηση — η μη συμμόρφωση οδηγεί σε πρόστιμα.
 
-### 13. Confidentiality
+### 8. Αποκλειστικότητα και Περιορισμοί Ανταγωνισμού
 
 **Τι να συμπεριλάβετε:**
-- NDA requirements
-- Confidential information definition
-- Duration of confidentiality
+- Περίοδος αποκλειστικότητας (δεν μπορεί να συνεργαστεί με ανταγωνιστικές επωνυμίες για X μήνες)
+- Ορισμός ανταγωνιστή (συγκεκριμένες επωνυμίες; ολόκληρη κατηγορία;)
+- Εξαιρέσεις (προϋπάρχουσες συνεργασίες)
 
-**Example:**
-"Influencer agrees to keep campaign details, product information, and pricing confidential for 12 months after campaign end."
+**Παράδειγμα:**
+«Ο influencer συμφωνεί να μην συνεργαστεί με ανταγωνιστικές επωνυμίες στην κατηγορία ομορφιάς/δερματικής φροντίδας για 3 μήνες μετά τη λήξη της καμπάνιας. Εξαιρέσεις: προϋπάρχουσες διαρκείς συνεργασίες.»
 
-**Γιατί:** Protects sensitive brand information.
+**Γιατί:** Προστατεύει την επένδυση της επωνυμίας.
 
-## Red Flags - Clauses to Avoid
+### 9. Οδηγίες Περιεχομένου και Απαιτήσεις Επωνυμίας
 
-**Unfair clauses:**
-- Perpetual usage rights without extra payment
-- Exclusivity without compensation
-- Unrealistic deadlines
-- No payment on cancellation (even if work completed)
-- Brand owns all content permanently
+**Τι να συμπεριλάβετε:**
+- Οδηγίες επωνυμίας (τόνος, μηνύματα, κάνε και μην κάνε)
+- Απαιτήσεις χρήσης προϊόντος (πώς να εμφανίζεται το προϊόν)
+- Υποχρεωτικά στοιχεία (hashtag επωνυμίας, @mention, σύνδεσμος)
+- Απαγορευμένο περιεχόμενο (αμφιλεγόμενα θέματα κ.λπ.)
 
-## Contract Templates
+**Παράδειγμα:**
+«Το περιεχόμενο πρέπει:
+- Να αναφέρει @brandname στο caption
+- Να περιλαμβάνει #brandhashtag
+- Να εμφανίζει το προϊόν έντονα
+- Να διατηρεί τον θετικό, περιεκτικό τόνο της επωνυμίας
+- Να μην περιλαμβάνει αμφιλεγόμενο ή πολιτικό περιεχόμενο»
 
-Μπορείτε να find contract templates online, αλλά always customize για specific collaboration. Consider consulting με lawyer για complex deals.
+**Γιατί:** Διασφαλίζει περιεχόμενο κατάλληλο για την επωνυμία.
+
+### 10. Ακύρωση και Τερματισμός
+
+**Τι να συμπεριλάβετε:**
+- Πολιτική ακύρωσης (ποιος μπορεί να ακυρώσει; πότε; πόση ειδοποίηση;)
+- Πληρωμή στην ακύρωση (μερική πληρωμή αν έχει ξεκινήσει η εργασία;)
+- Ρήτρα ανωτέρας βίας (απρόβλεπτες περιστάσεις)
+
+**Παράδειγμα:**
+«Κάθε πλευρά μπορεί να ακυρώσει με γραπτή ειδοποίηση 7 ημερών. Αν ο influencer έχει ξεκινήσει την εργασία, η επωνυμία θα πληρώσει το 50% του συνολικού ποσού. Τα γεγονότα ανωτέρας βίας (φυσικές καταστροφές, διακοπή πλατφόρμας) απαλλάσσουν τις πλευρές από ευθύνες.»
+
+**Γιατί:** Προστατεύει και τις δύο πλευρές από απρόβλεπτες καταστάσεις.
+
+### 11. Μετρήσιμα Στοιχεία Απόδοσης και Αναφορά
+
+**Τι να συμπεριλάβετε:**
+- Απαιτούμενα μετρήσιμα στοιχεία (αλληλεπίδραση, εμβέλεια, εμφανίσεις)
+- Χρονοδιάγραμμα αναφοράς (πότε να παρέχεται η αναλυτική)
+- Μορφή (screenshots; excel; αναλυτική πλατφόρμας;)
+
+**Παράδειγμα:**
+«Ο influencer θα παρέχει αναλυτικά καμπάνιας (εμβέλεια, εμφανίσεις, ποσοστό αλληλεπίδρασης) εντός 7 ημερών από την ολοκλήρωση της καμπάνιας μέσω screenshots Instagram Insights.»
+
+**Γιατί:** Οι επωνυμίες χρειάζονται δεδομένα για τη μέτρηση ROI.
+
+### 12. Αποζημίωση και Ευθύνη
+
+**Τι να συμπεριλάβετε:**
+- Ποιος ευθύνεται για ζητήματα περιεχομένου (δυσφήμηση, παράβλαση πνευματικών δικαιωμάτων)
+- Απαιτήσεις ασφάλισης (αν ισχύει)
+- Περιορισμοί ευθύνης
+
+**Παράδειγμα:**
+«Ο influencer είναι υπεύθυνος για τη διασφάλιση ότι το περιεχόμενο δεν παραβιάζει δικαιώματα τρίτων. Η επωνυμία δεν ευθύνεται για το περιεχόμενο του influencer που παραβιάζει νόμους ή όρους πλατφόρμας.»
+
+**Γιατί:** Νομική προστασία.
+
+### 13. Εμπιστευτικότητα
+
+**Τι να συμπεριλάβετε:**
+- Απαιτήσεις NDA (συμφωνία εμπιστευτικότητας)
+- Ορισμός εμπιστευτικών πληροφοριών
+- Διάρκεια εμπιστευτικότητας
+
+**Παράδειγμα:**
+«Ο influencer συμφωνεί να κρατήσει εμπιστευτικά τα στοιχεία καμπάνιας, τις πληροφορίες προϊόντος και τις τιμές για 12 μήνες μετά τη λήξη της καμπάνιας.»
+
+**Γιατί:** Προστατεύει ευαίσθητες πληροφορίες επωνυμίας.
+
+## Σημάδια Προειδοποίησης — Ρήτρες που Πρέπει να Αποφεύγετε
+
+**Άδικες ρήτρες:**
+- Αόριστα δικαιώματα χρήσης χωρίς επιπλέον πληρωμή
+- Αποκλειστικότητα χωρίς αποζημίωση
+- Αρεαλιστικές προθεσμίες
+- Μη πληρωμή στην ακύρωση (ακόμα και αν η εργασία ολοκληρώθηκε)
+- Η επωνυμία κατέχει μόνιμα όλο το περιεχόμενο
+
+## Προτύπα Συμβάσεων
+
+Μπορείτε να βρείτε προτύπα συμβάσεων online, αλλά πάντα προσαρμόστε τη σύμβαση για τη συγκεκριμένη συνεργασία. Εξετάστε τη διαβούλευση με δικηγόρο για πολύπλοκες συμφωνίες.
 
 ## Συμπέρασμα
 
-Ένα well-structured contract είναι foundation για successful influencer collaboration. It protects both parties, sets expectations, και prevents disputes. Take time να create comprehensive contracts - it's worth it.`,
+Μια καλά δομημένη σύμβαση είναι το θεμέλιο για επιτυχημένη συνεργασία με influencers. Προστατεύει και τις δύο πλευρές, ορίζει προσδοκίες και αποτρέπει διαφορές. Αφιερώστε χρόνο στη δημιουργία ολοκληρωμένων συμβάσεων — αξίζει τον κόπο.`,
       en: `# What to Include in Influencer Contract: Essential Clauses
 
 A well-structured contract is essential for successful influencer collaborations. It protects both parties, sets clear expectations, and prevents misunderstandings. Let's see the essential clauses that should be included.
@@ -2179,185 +2180,185 @@ A well-structured contract is the foundation for successful influencer collabora
   },
   "building-brand-influencer-relationships": {
     title: {
-      el: "Πώς να Χτίσετε Long-Term Relationships με Influencers",
+      el: "Πώς να Χτίσετε Μακροπρόθεσμες Σχέσεις με Influencers",
       en: "How to Build Long-Term Relationships with Influencers"
     },
     content: {
-      el: `# Πώς να Χτίσετε Long-Term Relationships με Influencers
+      el: `# Πώς να Χτίσετε Μακροπρόθεσμες Σχέσεις με Influencers
 
-Οι long-term relationships με influencers είναι game-changer για brands. Αντί για one-off collaborations, building lasting partnerships οδηγεί σε better content, higher ROI, και authentic brand representation. Ας δούμε πώς να build these relationships.
+Οι μακροπρόθεσμες σχέσεις με influencers αποτελούν καθοριστικό παράγοντα αλλαγής για τις επωνυμίες. Αντί για εφάπαξ συνεργασίες, η δημιουργία διαρκών εταίρων οδηγεί σε καλύτερο περιεχόμενο, υψηλότερη απόδοση επένδυσης και αυθεντική αναπαράσταση της επωνυμίας. Ας δούμε πώς να χτίσετε αυτές τις σχέσεις.
 
-## Γιατί Long-Term Relationships;
+## Γιατί οι Μακροπρόθεσμες Σχέσεις;
 
-**Benefits για Brands:**
-- **Better Content**: Influencers που know το brand σας create better, more authentic content
-- **Higher ROI**: Long-term partnerships έχουν 2-3x better ROI από one-off campaigns
-- **Consistent Messaging**: Maintained brand voice και messaging across all content
-- **Cost Efficiency**: Package deals = better rates
-- **Trust**: Established relationships = smoother collaborations
+**Οφέλη για τις Επωνυμίες:**
+- **Καλύτερο Περιεχόμενο**: Οι influencers που γνωρίζουν την επωνυμία σας δημιουργούν καλύτερο και πιο αυθεντικό περιεχόμενο
+- **Υψηλότερη Απόδοση Επένδυσης**: Οι μακροπρόθεσμες συνεργασίες έχουν 2-3 φορές καλύτερη απόδοση από τις εφάπαξ καμπάνιες
+- **Συνεπής Επικοινωνία**: Διατηρείται η φωνή της επωνυμίας και το μήνυμά της σε όλο το περιεχόμενο
+- **Αποτελεσματικότητα Κόστους**: Συνολικά πακέτα = καλύτεροι συντελεστές
+- **Εμπιστοσύνη**: Εδραιωμένες σχέσεις = ομαλότερες συνεργασίες
 
-**Benefits για Influencers:**
-- **Steady Income**: Recurring collaborations = financial stability
-- **Brand Expertise**: Become brand expert = better content creation
-- **Growth Opportunities**: Long-term partnerships often lead to ambassador roles
-- **Creative Freedom**: Established trust = more creative freedom
+**Οφέλη για τους Influencers:**
+- **Σταθερό Εισόδημα**: Επαναλαμβανόμενες συνεργασίες = οικονομική σταθερότητα
+- **Εξειδίκευση στην Επωνυμία**: Γίνεστε ειδικός της επωνυμίας = καλύτερη δημιουργία περιεχομένου
+- **Ευκαιρίες Ανάπτυξης**: Οι μακροπρόθεσμες συνεργασίες οδηγούν συχνά σε ρόλους πρεσβευτή
+- **Δημιουργική Ελευθερία**: Εδραιωμένη εμπιστοσύνη = μεγαλύτερη δημιουργική ελευθερία
 
-## Strategies για Building Relationships
+## Στρατηγικές για τη Δημιουργία Σχέσεων
 
-### 1. Start with Smaller Collaborations
+### 1. Ξεκινήστε με Μικρότερες Συνεργασίες
 
-Don't jump straight into long-term partnership. Start με:
-- One-off posts
-- Product reviews
-- Event collaborations
+Μην πετάξετε αμέσως σε μακροπρόθεσμη συνεργασία. Ξεκινήστε με:
+- Εφάπαξ δημοσιεύσεις
+- Ανασκοπήσεις προϊόντων
+- Συνεργασίες σε εκδηλώσεις
 
-Αυτό allows both sides να test the waters και see if there's a good fit.
+Έτσι και οι δύο πλευρές μπορούν να δοκιμάσουν τα νερά και να δουν αν ταιριάζουν.
 
-### 2. Communication is Key
+### 2. Η Επικοινωνία είναι το Κλειδί
 
-**Regular Check-ins:**
-- Monthly calls ή emails
-- Share brand updates και future plans
-- Ask για feedback και suggestions
+**Τακτικοί Έλεγχοι:**
+- Μηνιαίες τηλεφωνικές κλήσεις ή emails
+- Μοιραστείτε ενημερώσεις της επωνυμίας και μελλοντικά σχέδια
+- Ζητήστε σχόλια και προτάσεις
 
-**Be Responsive:**
-- Quick responses σε messages
-- Clear communication
-- Available για questions
+**Να Απαντάτε Γρήγορα:**
+- Άμεσες απαντήσεις σε μηνύματα
+- Ξεκάθαρη επικοινωνία
+- Διαθεσιμότητα για ερωτήσεις
 
-**Build Personal Connection:**
-- Remember personal details
-- Celebrate milestones (birthdays, achievements)
-- Treat them ως partners, όχι vendors
+**Χτίστε Προσωπική Σχέση:**
+- Θυμηθείτε προσωπικά στοιχεία
+- Γιορτάστε τα ορόσημα (γενέθλια, επιτεύγματα)
+- Αντιμετωπίστε τους ως εταίρους, όχι προμηθευτές
 
-### 3. Fair Compensation
+### 3. Δίκαιη Αποζημίωση
 
-**Pay Fairly:**
-- Don't lowball για long-term deals
-- Respect their worth
-- Consider increases για established relationships
+**Πληρώνετε Δίκαια:**
+- Μην προσφέρετε πολύ χαμηλές τιμές για μακροπρόθεσμες συμφωνίες
+- Σεβαστείτε την αξία τους
+- Εξετάστε αύξηνση για εδραιωμένες σχέσεις
 
-**Timely Payments:**
-- Pay on time (ή early)
-- Clear payment terms
-- No payment delays
+**Έγκαιρες Πληρωμές:**
+- Πληρώστε εγκαίρως (ή νωρίτερα)
+- Ξεκάθαροι όροι πληρωμής
+- Χωρίς καθυστερήσεις πληρωμών
 
-### 4. Give Creative Freedom
+### 4. Δώστε Δημιουργική Ελευθερία
 
-**Trust the Creator:**
-- Influencers know το audience τους best
-- Give guidelines, όχι scripts
-- Allow creative interpretation
+**Εμπιστευτείτε τον Δημιουργό:**
+- Οι influencers γνωρίζουν καλύτερα το κοινό τους
+- Δώστε οδηγίες, όχι σενάρια
+- Επιτρέψτε δημιουργική ερμηνεία
 
-**Learn from Them:**
-- Ask για content ideas
-- Listen to suggestions
-- Co-create content strategies
+**Μάθετε Από Αυτούς:**
+- Ζητήστε ιδέες για περιεχόμενο
+- Ακούστε τις προτάσεις τους
+- Συνδημιουργήστε στρατηγικές περιεχομένου
 
-### 5. Provide Value Beyond Money
+### 5. Παρέχετε Αξία Πέρα από το Χρήμα
 
-**Exclusive Access:**
-- Early access σε products
-- Invitations σε events
-- Behind-the-scenes content
+**Αποκλειστική Πρόσβαση:**
+- Πρόωρη πρόσβαση σε προϊόντα
+- Προσκλήσεις σε εκδηλώσεις
+- Περιεχόμενο πίσω από τις κάμερες
 
-**Growth Opportunities:**
-- Feature them σε brand channels
+**Ευκαιρίες Ανάπτυξης:**
+- Τους κάνετε γνωστούς στα κανάλια της επωνυμίας
 - Cross-promotion
-- Ambassador programs
+- Προγράμματα πρεσβευτών
 
-**Support:**
-- Help με technical issues
-- Provide resources (product info, assets)
-- Marketing support
+**Υποστήριξη:**
+- Βοήθεια με τεχνικά ζητήματα
+- Παρέχετε πόρους (πληροφορίες προϊόντος, υλικά)
+- Υποστήριξη μάρκετινγκ
 
-### 6. Long-Term Contracts
+### 6. Μακροπρόθεσμες Συμβάσεις
 
-**Structured Agreements:**
-- 6-month ή 1-year contracts
-- Clear deliverables schedule
-- Performance bonuses
+**Δομημένες Συμφωνίες:**
+- Συμβάσεις 6 μηνών ή 1 έτους
+- Ξεκάθαρο χρονοδιάγραμμα παραδόσεων
+- Μπόνους απόδοσης
 
-**Flexibility:**
-- Allow για adjustments
-- Review και renew regularly
-- Open για renegotiation
+**Ευελιξία:**
+- Επιτρέψτε προσαρμογές
+- Τακτική εξέταση και ανανέωση
+- Ανοικτότητα σε επαναδιαπραγμάτευση
 
-### 7. Recognition & Appreciation
+### 7. Αναγνώριση και Εκτίμηση
 
-**Show Appreciation:**
-- Thank you messages
-- Feature σε brand content
-- Testimonials και reviews
+**Δείξτε Εκτίμηση:**
+- Μηνύματα ευχαριστιών
+- Εμφάνιση στο περιεχόμενο της επωνυμίας
+- Μαρτυρίες και κριτικές
 
-**Recognition:**
-- Brand ambassador titles
-- Special acknowledgments
-- Highlight success stories
+**Αναγνώριση:**
+- Τίτλοι πρεσβευτή επωνυμίας
+- Ειδικές αναφορές
+- Τονισμός ιστοριών επιτυχίας
 
-### 8. Collaboration on Strategy
+### 8. Συνεργασία στη Στρατηγική
 
-**Involve Them:**
-- Ask για campaign ideas
-- Co-create content calendars
-- Share brand strategy (relevant parts)
+**Συμπεριλάβετέ τους:**
+- Ζητήστε ιδέες για καμπάνιες
+- Συνδημιουργήστε ημερολόγια περιεχομένου
+- Μοιραστείτε τη στρατηγική της επωνυμίας (τα σχετικά κομμάτια)
 
-**Feedback Loop:**
-- Regular performance reviews
-- What worked? What didn't?
-- How to improve?
+**Βρόχος Ανατροφοδότησης:**
+- Τακτικές αξιολογήσεις απόδοσης
+- Τι λειτούργησε; Τι όχι;
+- Πώς να βελτιωθούμε;
 
-## Building Ambassador Programs
+## Προγράμματα Πρεσβευτών
 
-Ambassador programs είναι formalized long-term relationships:
+Τα προγράμματα πρεσβευτών είναι τυποποιημένες μακροπρόθεσμες σχέσεις:
 
-**Benefits:**
-- Exclusive partnerships
-- Higher compensation
-- More creative freedom
-- Brand representation
+**Οφέλη:**
+- Αποκλειστικές συνεργασίες
+- Υψηλότερη αποζημίωση
+- Μεγαλύτερη δημιουργική ελευθερία
+- Ανάπαρασταση της επωνυμίας
 
-**Structure:**
-- 12-month contracts
-- Monthly content requirements
-- Quarterly campaigns
-- Annual renewal
+**Δομή:**
+- Συμβάσεις 12 μηνών
+- Μηνιαίες απαιτήσεις περιεχομένου
+- Τριμηνιαίες καμπάνιες
+- Ετήσια ανανέωση
 
-**Selection:**
-- Choose από successful collaborations
-- Aligned values
-- High performance
-- Genuine brand love
+**Επιλογή:**
+- Επιλέξτε από επιτυχημένες συνεργασίες
+- Ευθυγραμμισμένες αξίες
+- Υψηλή απόδοση
+- Γνήσιο ενδιαφέρον για την επωνυμία
 
-## Common Mistakes
+## Συνηθισμένα Λάθη
 
-**Avoid:**
-- Taking relationships for granted
-- Not communicating regularly
-- Unrealistic expectations
-- Ignoring feedback
-- Not evolving together
+**Αποφύγετε:**
+- Να θεωρείτε τις σχέσεις δεδομένες
+- Να μην επικοινωνείτε τακτικά
+- Αρεαλιστικές προσδοκίες
+- Να αγνοείτε τα σχόλια
+- Να μην εξελισσεσθε μαζί
 
-## Success Stories
+## Ιστορίες Επιτυχίας
 
-**Example 1:**
-Brand collaborates με micro-influencer για 3 months. Results are excellent. They extend σε 12-month ambassador program. Influencer becomes brand face, creates consistent content, και drives 300% ROI increase.
+**Παράδειγμα 1:**
+Η επωνυμία συνεργάζεται με μικρο-influencer για 3 μήνες. Τα αποτελέσματα είναι εξαιρετικά. Επεκτείνουν σε πρόγραμμα πρεσβευτή 12 μηνών. Ο influencer γίνεται το πρόσωπο της επωνυμίας, δημιουργεί συνεπές περιεχόμενο και επιφέρει αύξηση ROI 300%.
 
-**Example 2:**
-Brand starts με one-off post. Influencer loves product, creates amazing content. Brand offers 6-month partnership. Influencer becomes brand expert, content improves, audience engagement increases.
+**Παράδειγμα 2:**
+Η επωνυμία ξεκινά με εφάπαξ δημοσίευση. Ο influencer αγαπά το προϊόν και δημιουργεί εκπληκτικό περιεχόμενο. Η επωνυμία προσφέρει συνεργασία 6 μηνών. Ο influencer γίνεται ειδικός της επωνυμίας, το περιεχόμενο βελτιώνεται και η αλληλεπίδραση του κοινού αυξάνεται.
 
-## Tips για Influencers
+## Συμβουλές για Influencers
 
-**Πώς να Build Relationships:**
-- Deliver consistently high-quality content
-- Communicate proactively
-- Show genuine interest στο brand
-- Provide valuable feedback
-- Be professional και reliable
+**Πώς να Χτίσετε Σχέσεις:**
+- Παράγετε σταθερά περιεχόμενο υψηλής ποιότητας
+- Επικοινωνήστε προληπτικά
+- Δείξτε γνήσιο ενδιαφέρον για την επωνυμία
+- Παρέχετε πολύτιμα σχόλια
+- Να είστε επαγγελματίες και αξιόπιστοι
 
 ## Συμπέρασμα
 
-Long-term relationships με influencers είναι win-win. Takes effort, αλλά rewards are significant - better content, higher ROI, και authentic partnerships. Invest time να build these relationships - it pays off.`,
+Οι μακροπρόθεσμες σχέσεις με influencers ωφελούν και τις δύο πλευρές. Απαιτεί προσπάθεια, αλλά οι ανταμοιβές είναι σημαντικές — καλύτερο περιεχόμενο, υψηλότερη απόδοση επένδυσης και αυθεντικές συνεργασίες. Επενδύστε χρόνο στο χτίσιμο αυτών των σχέσεων — αποδίδει.`,
       en: `# How to Build Long-Term Relationships with Influencers
 
 Long-term relationships with influencers are a game-changer for brands. Instead of one-off collaborations, building lasting partnerships leads to better content, higher ROI, and authentic brand representation. Let's see how to build these relationships.

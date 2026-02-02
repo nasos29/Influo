@@ -135,7 +135,7 @@ export const initialBlogPosts: BlogPost[] = [
   {
     slug: "influencer-contract-essentials",
     title: {
-      el: "Τι να Συμπεριλάβετε σε Influencer Contract: Essential Clauses",
+      el: "Τι να Συμπεριλάβετε στη Σύμβαση με Influencer: Απαραίτητες Ρήτρες",
       en: "What to Include in Influencer Contract: Essential Clauses"
     },
     excerpt: {
@@ -150,7 +150,7 @@ export const initialBlogPosts: BlogPost[] = [
   {
     slug: "building-brand-influencer-relationships",
     title: {
-      el: "Πώς να Χτίσετε Long-Term Relationships με Influencers",
+      el: "Πώς να Χτίσετε Μακροπρόθεσμες Σχέσεις με Influencers",
       en: "How to Build Long-Term Relationships with Influencers"
     },
     excerpt: {
