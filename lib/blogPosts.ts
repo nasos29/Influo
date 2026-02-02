@@ -19,7 +19,7 @@ export const initialBlogPosts: BlogPost[] = [
       en: "The Complete Influencer Marketing Guide 2025"
     },
     excerpt: {
-      el: "Ανακαλύψτε τα τελευταία trends, best practices και strategies για αποτελεσματικό influencer marketing. Από την επιλογή του κατάλληλου creator μέχρι τη μέτρηση του ROI.",
+      el: "Ανακαλύψτε τις τελευταίες τάσεις, τις καλύτερες πρακτικές και τις στρατηγικές για αποτελεσματικό μάρκετινγκ από influencers. Από την επιλογή του κατάλληλου δημιουργού μέχρι τη μέτρηση της απόδοσης επένδυσης.",
       en: "Discover the latest trends, best practices and strategies for effective influencer marketing. From choosing the right creator to measuring ROI."
     },
     date: "2025-01-15",
@@ -34,7 +34,7 @@ export const initialBlogPosts: BlogPost[] = [
       en: "How to Become a Successful Influencer: 10 Important Tips"
     },
     excerpt: {
-      el: "Μάθετε τα βασικά secrets για να ξεκινήσετε την καριέρα σας ως influencer. Από τη δημιουργία quality content μέχρι την ανάπτυξη ενός πιστού audience.",
+      el: "Μάθετε τα βασικά μυστικά για να ξεκινήσετε την καριέρα σας ως influencer. Από τη δημιουργία ποιοτικού περιεχομένου μέχρι την ανάπτυξη πιστού κοινού.",
       en: "Learn the basic secrets to start your career as an influencer. From creating quality content to growing a loyal audience."
     },
     date: "2025-01-10",
@@ -49,7 +49,7 @@ export const initialBlogPosts: BlogPost[] = [
       en: "Micro vs Macro Influencers: Which Are Better?"
     },
     excerpt: {
-      el: "Συγκρίνετε micro και macro influencers. Μάθετε πότε να επιλέξετε τον καθένα, τα pros και cons, και πώς να μεγιστοποιήσετε το ROI σας.",
+      el: "Συγκρίνετε μικρο και μακρο influencers. Μάθετε πότε να επιλέξετε τον καθένα, πλεονεκτήματα και μειονεκτήματα, και πώς να μεγιστοποιήσετε την απόδοση επένδυσής σας.",
       en: "Compare micro and macro influencers. Learn when to choose each, pros and cons, and how to maximize your ROI."
     },
     date: "2025-01-05",
@@ -64,7 +64,7 @@ export const initialBlogPosts: BlogPost[] = [
       en: "Instagram vs TikTok vs YouTube: Which Platform for Influencer Marketing?"
     },
     excerpt: {
-      el: "Μια αναλυτική σύγκριση των κύριων social media platforms για influencer marketing. Μάθετε ποια πλατφόρμα ταιριάζει καλύτερα στο brand σας.",
+      el: "Μια αναλυτική σύγκριση των κύριων πλατφορμών κοινωνικών δικτύων για μάρκετινγκ από influencers. Μάθετε ποια πλατφόρμα ταιριάζει καλύτερα στην επωνυμία σας.",
       en: "An analytical comparison of the main social media platforms for influencer marketing. Learn which platform best fits your brand."
     },
     date: "2024-12-28",
@@ -94,7 +94,7 @@ export const initialBlogPosts: BlogPost[] = [
       en: "Engagement Rate: What It Is and How to Calculate It"
     },
     excerpt: {
-      el: "Μάθετε τι είναι το engagement rate, γιατί είναι σημαντικό, και πώς να το υπολογίσετε. Κατανόηση αυτού του metric είναι crucial για επιτυχημένο influencer marketing.",
+      el: "Μάθετε τι είναι το ποσοστό αλληλεπίδρασης, γιατί είναι σημαντικό και πώς να το υπολογίσετε. Η κατανόηση αυτού του δείκτη είναι καθοριστική για επιτυχημένο μάρκετινγκ από influencers.",
       en: "Learn what engagement rate is, why it matters, and how to calculate it. Understanding this metric is crucial for successful influencer marketing."
     },
     date: "2025-01-12",
@@ -109,7 +109,7 @@ export const initialBlogPosts: BlogPost[] = [
       en: "How to Negotiate Rates with Influencers: Complete Guide"
     },
     excerpt: {
-      el: "Μάθετε πώς να διαπραγματεύεστε fair prices με influencers, τι factors να λάβετε υπόψη, και πώς να φτιάξετε win-win agreements για και τις δύο πλευρές.",
+      el: "Μάθετε πώς να διαπραγματεύεστε δίκαιες τιμές με influencers, τι παράγοντες να λάβετε υπόψη και πώς να φτιάξετε συμφωνίες που ωφελούν και τις δύο πλευρές.",
       en: "Learn how to negotiate fair prices with influencers, what factors to consider, and how to create win-win agreements for both parties."
     },
     date: "2025-01-08",
@@ -124,7 +124,7 @@ export const initialBlogPosts: BlogPost[] = [
       en: "How to Detect Fake Followers: Guide for Brands"
     },
     excerpt: {
-      el: "Μάθετε τα warning signs των fake followers, τα tools που μπορείτε να χρησιμοποιήσετε, και πώς να προστατευτείτε από influencers με fake audience.",
+      el: "Μάθετε τα σημάδια προειδοποίησης για ψεύτικους ακόλουθους, τα εργαλεία που μπορείτε να χρησιμοποιήσετε και πώς να προστατευτείτε από influencers με ψεύτικο κοινό.",
       en: "Learn the warning signs of fake followers, tools you can use, and how to protect yourself from influencers with fake audiences."
     },
     date: "2025-01-03",
@@ -139,7 +139,7 @@ export const initialBlogPosts: BlogPost[] = [
       en: "What to Include in Influencer Contract: Essential Clauses"
     },
     excerpt: {
-      el: "Μάθετε τα essential clauses που πρέπει να υπάρχουν σε ένα influencer contract για να προστατεύσετε το brand σας και να εξασφαλίσετε clear expectations.",
+      el: "Μάθετε τις απαραίτητες ρήτρες που πρέπει να περιλαμβάνει η σύμβαση με influencer για να προστατέψετε την επωνυμία σας και να εξασφαλίσετε σαφείς προσδοκίες.",
       en: "Learn the essential clauses that should be in an influencer contract to protect your brand and ensure clear expectations."
     },
     date: "2024-12-15",
@@ -154,7 +154,7 @@ export const initialBlogPosts: BlogPost[] = [
       en: "How to Build Long-Term Relationships with Influencers"
     },
     excerpt: {
-      el: "Discover strategies για building lasting relationships με influencers. Long-term partnerships οδηγούν σε better content, higher ROI, και authentic brand representation.",
+      el: "Ανακαλύψτε στρατηγικές για τη δημιουργία μακροπρόθεσμων σχέσεων με influencers. Οι μακροπρόθεσμες συνεργασίες οδηγούν σε καλύτερο περιεχόμενο, υψηλότερη απόδοση και αυθεντική αναπαράσταση της επωνυμίας.",
       en: "Discover strategies for building lasting relationships with influencers. Long-term partnerships lead to better content, higher ROI, and authentic brand representation."
     },
     date: "2024-12-10",

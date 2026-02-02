@@ -10,65 +10,59 @@ import { getBlogPosts, type BlogPost as BlogPostType } from "@/lib/blogPosts";
 
 type Lang = "el" | "en";
 
-// Component για rendering του blog content
+// Ασφαλής HTML: επιτρέπει μόνο <strong>, <em>, <b>, <i> (αποφυγή XSS)
+function safeHtml(html: string): string {
+  if (!html) return '';
+  return html
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/&lt;(\/?(?:strong|em|b|i))&gt;/gi, '<$1>');
+}
+
+// Component για rendering του blog content (υποστηρίζει markdown ** και HTML <strong> κ.λπ.)
 function BlogContent({ content }: { content: string }) {
   const lines = content.split('\n');
   const elements: React.ReactElement[] = [];
   let currentParagraph: string[] = [];
-  
+  const flushParagraph = (key: string) => {
+    if (currentParagraph.length === 0) return;
+    const html = safeHtml(currentParagraph.join(' '));
+    elements.push(<p key={key} className="mb-4 text-slate-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: html }} />);
+    currentParagraph = [];
+  };
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
-    
+
     if (!line) {
-      if (currentParagraph.length > 0) {
-        elements.push(<p key={`p-${i}`} className="mb-4 text-slate-700 leading-relaxed">{currentParagraph.join(' ')}</p>);
-        currentParagraph = [];
-      }
+      flushParagraph(`p-${i}`);
       continue;
     }
-    
+
     if (line.startsWith('### ')) {
-      if (currentParagraph.length > 0) {
-        elements.push(<p key={`p-${i}`} className="mb-4 text-slate-700 leading-relaxed">{currentParagraph.join(' ')}</p>);
-        currentParagraph = [];
-      }
-      elements.push(<h3 key={`h3-${i}`} className="text-2xl font-bold text-slate-900 mt-8 mb-4">{line.replace(/^###\s+/, '')}</h3>);
+      flushParagraph(`p-${i}`);
+      elements.push(<h3 key={`h3-${i}`} className="text-2xl font-bold text-slate-900 mt-8 mb-4" dangerouslySetInnerHTML={{ __html: safeHtml(line.replace(/^###\s+/, '')) }} />);
     } else if (line.startsWith('## ')) {
-      if (currentParagraph.length > 0) {
-        elements.push(<p key={`p-${i}`} className="mb-4 text-slate-700 leading-relaxed">{currentParagraph.join(' ')}</p>);
-        currentParagraph = [];
-      }
-      elements.push(<h2 key={`h2-${i}`} className="text-3xl font-bold text-slate-900 mt-10 mb-6">{line.replace(/^##\s+/, '')}</h2>);
+      flushParagraph(`p-${i}`);
+      elements.push(<h2 key={`h2-${i}`} className="text-3xl font-bold text-slate-900 mt-10 mb-6" dangerouslySetInnerHTML={{ __html: safeHtml(line.replace(/^##\s+/, '')) }} />);
     } else if (line.startsWith('# ')) {
-      if (currentParagraph.length > 0) {
-        elements.push(<p key={`p-${i}`} className="mb-4 text-slate-700 leading-relaxed">{currentParagraph.join(' ')}</p>);
-        currentParagraph = [];
-      }
-      elements.push(<h1 key={`h1-${i}`} className="text-4xl font-bold text-slate-900 mt-8 mb-6">{line.replace(/^#\s+/, '')}</h1>);
+      flushParagraph(`p-${i}`);
+      elements.push(<h1 key={`h1-${i}`} className="text-4xl font-bold text-slate-900 mt-8 mb-6" dangerouslySetInnerHTML={{ __html: safeHtml(line.replace(/^#\s+/, '')) }} />);
     } else if (line.match(/^\d+\.\s+\*\*/)) {
-      if (currentParagraph.length > 0) {
-        elements.push(<p key={`p-${i}`} className="mb-4 text-slate-700 leading-relaxed">{currentParagraph.join(' ')}</p>);
-        currentParagraph = [];
-      }
+      flushParagraph(`p-${i}`);
       const text = line.replace(/^\d+\.\s+\*\*/, '').replace(/\*\*$/, '');
       elements.push(<p key={`p-${i}`} className="mb-3 text-slate-700 leading-relaxed"><strong className="text-slate-900">{text}</strong></p>);
     } else if (line.startsWith('- ')) {
-      if (currentParagraph.length > 0) {
-        elements.push(<p key={`p-${i}`} className="mb-4 text-slate-700 leading-relaxed">{currentParagraph.join(' ')}</p>);
-        currentParagraph = [];
-      }
+      flushParagraph(`p-${i}`);
       const text = line.replace(/^-\s+/, '').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-      elements.push(<li key={`li-${i}`} className="mb-2 text-slate-700 ml-6" dangerouslySetInnerHTML={{ __html: text }} />);
+      elements.push(<li key={`li-${i}`} className="mb-2 text-slate-700 ml-6" dangerouslySetInnerHTML={{ __html: safeHtml(text) }} />);
     } else {
       const processedLine = line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
       currentParagraph.push(processedLine);
     }
   }
-  
-  if (currentParagraph.length > 0) {
-    elements.push(<p key="p-final" className="mb-4 text-slate-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: currentParagraph.join(' ') }} />);
-  }
-  
+  flushParagraph('p-final');
+
   return <div>{elements}</div>;
 }
 
@@ -685,19 +679,19 @@ This allows you to reach different audiences and maximize your ROI. Many brands 
     content: {
       el: `# Πώς να Μετρήσετε το ROI του Influencer Marketing
 
-Το ROI measurement είναι crucial για να αποδείξετε την αξία των influencer campaigns σας και να πείσετε το management να συνεχίσει να επενδύει σε αυτό το channel. Πολλά brands struggle με το measurement, αλλά με τα σωστά tools και strategy, μπορείτε να track πλήρως το ROI σας.
+Η μέτρηση της απόδοσης επένδυσης (ROI) είναι καθοριστική για να αποδείξετε την αξία των καμπανιών σας με influencers και να πείσετε τη διοίκηση να συνεχίσει να επενδύει σε αυτό το κανάλι. Πολλές επωνυμίες δυσκολεύονται με τη μέτρηση, αλλά με τα σωστά εργαλεία και στρατηγική μπορείτε να παρακολουθήσετε πλήρως την απόδοση επένδυσής σας.
 
 ## Γιατί είναι Σημαντικό το ROI Measurement;
 
 Το μάρκετινγκ από influencers δεν είναι δωρεάν - κοστίζει χρόνο, πόρους, και προϋπολογισμό. Για να δικαιολογήσετε τα έξοδα και να βελτιστοποιήσετε τις μελλοντικές καμπάνιες, χρειάζεστε σαφή μετρικά στοιχεία. Χωρίς σωστή μέτρηση, δεν μπορείτε να ξέρετε αν οι καμπάνιές σας είναι επιτυχημένες ή αν πρέπει να αλλάξετε στρατηγική.
 
-Επιπλέον, το ROI measurement σας βοηθάει να:
-- Prove the value στον CEO και stakeholders
-- Optimize future campaigns based on data
-- Negotiate better rates με influencers
-- Allocate budget effectively
+Επιπλέον, η μέτρηση ROI σας βοηθά να:
+- Αποδείξετε την αξία στον Διευθύνων Σύμβουλο και τα ενδιαφερόμενα μέρη
+- Βελτιστοποιήσετε τις μελλοντικές καμπάνιες με βάση τα δεδομένα
+- Διαπραγματευτείτε καλύτερους συντελεστές με influencers
+- Κατανείμετε αποτελεσματικά τον προϋπολογισμό
 
-## Key Metrics που πρέπει να Παρακολουθείτε
+## Βασικά Μετρήσιμα Στοιχεία που πρέπει να Παρακολουθείτε
 
 ### 1. Engagement Rate
 
@@ -715,11 +709,11 @@ This allows you to reach different audiences and maximize your ROI. Many brands 
 - **Reach**: Unique users που είδαν το content
 - **Impressions**: Total views (μία persona μπορεί να δει το content multiple times)
 
-Αυτά τα metrics σας λένε πόσα άτομα είδαν το content σας. Το reach είναι πιο important από impressions γιατί μετράει unique users.
+Αυτά τα μετρήσιμα σας λένε πόσα άτομα είδαν το περιεχόμενό σας. Η εμβέλεια είναι πιο σημαντική από τις εμφανίσεις γιατί μετράει μοναδικούς χρήστες.
 
 ### 3. Conversions
 
-Αυτό είναι το πιο important metric - πραγματικές sales από influencer links. Track conversions με:
+Αυτό είναι το πιο σημαντικό μετρήσιμο στοιχείο — πραγματικές πωλήσεις από τους συνδέσμους των influencers. Track conversions με:
 - UTM parameters
 - Discount codes unique per influencer
 - Affiliate links
@@ -1013,7 +1007,7 @@ ROI measurement is essential for successful influencer marketing. With the right
 
 ## Γιατί είναι Σημαντικό;
 
-Ένας influencer με 100,000 followers αλλά 0.5% engagement rate είναι λιγότερο valuable από έναν με 50,000 followers και 5% engagement rate. Το engagement rate σας λέει αν οι followers είναι real, active, και interested στο content.
+Ένας influencer με 100.000 ακόλουθους αλλά 0,5% ποσοστό αλληλεπίδρασης είναι λιγότερο πολύτιμος από έναν με 50.000 ακόλουθους και 5% ποσοστό αλληλεπίδρασης. Το ποσοστό αλληλεπίδρασης σας λέει αν οι ακόλουθοι είναι πραγματικοί, ενεργοί και ενδιαφέρονται για το περιεχόμενο.
 
 **Υψηλό ποσοστό αλληλεπίδρασης** σημαίνει:
 - Πραγματικοί, ενεργοί ακόλουθοι
@@ -1087,7 +1081,7 @@ Posting στις ώρες που το audience είναι active αυξάνει 
 Engaging captions με questions ή calls-to-action αυξάνουν engagement. Trending hashtags βοηθούν στο reach.
 
 ### 5. Authenticity
-Authentic content έχει υψηλότερο engagement από overly promotional posts.
+Το αυθεντικό περιεχόμενο έχει υψηλότερη αλληλεπίδραση από τις υπερβολικά προωθητικές δημοσιεύσεις.
 
 ## Πώς να Μετρήσετε Engagement Rate
 

@@ -1646,6 +1646,39 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
           content = hardcodedPosts[post.slug].content;
         }
       }
+
+      // Fallback: load blog post page in hidden iframe to get content (page sets window.__blogPostsContent)
+      if (!content || (!content.el && !content.en)) {
+        try {
+          content = await new Promise<{ el: string; en: string } | null>((resolve) => {
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = `/blog/${post.slug}`;
+            const timeout = setTimeout(() => {
+              try { iframe.remove(); } catch { /* noop */ }
+              resolve(null);
+            }, 8000);
+            iframe.onload = () => {
+              try {
+                const win = (iframe.contentWindow as any);
+                if (win?.__blogPostsContent?.[post.slug]?.content) {
+                  clearTimeout(timeout);
+                  resolve(win.__blogPostsContent[post.slug].content);
+                } else {
+                  resolve(null);
+                }
+              } catch {
+                resolve(null);
+              } finally {
+                try { iframe.remove(); } catch { /* noop */ }
+              }
+            };
+            document.body.appendChild(iframe);
+          });
+        } catch (e) {
+          console.error('Iframe fallback for blog content failed:', e);
+        }
+      }
       
       if (content && (content.el || content.en)) {
         // Also update localStorage with this content for future use
