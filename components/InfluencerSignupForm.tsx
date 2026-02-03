@@ -76,6 +76,8 @@ const t = {
     female: "Γυναίκα",
     locationLabel: "Τοποθεσία",
     locationPlace: "π.χ. Αθήνα, Ελλάδα",
+    birthDateLabel: "Ημερομηνία Γέννησης",
+    birthDatePlace: "π.χ. 1995-01-15",
     emailLabel: "Email Επικοινωνίας",
     passLabel: "Κωδικός (τουλάχιστον 6 χαρακτήρες)", 
     passShow: "Εμφάνιση",
@@ -139,6 +141,8 @@ const t = {
     female: "Female",
     locationLabel: "Location",
     locationPlace: "e.g. Athens, Greece",
+    birthDateLabel: "Date of Birth",
+    birthDatePlace: "e.g. 1995-01-15",
     emailLabel: "Contact Email",
     passLabel: "Password (min 6 characters)", 
     passShow: "Show",
@@ -207,6 +211,7 @@ export default function InfluencerSignupForm() {
   const [gender, setGender] = useState("Female");
   const [categories, setCategories] = useState<string[]>([]);
   const [location, setLocation] = useState("");
+  const [birthDate, setBirthDate] = useState("");
   const [bio, setBio] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState(""); 
@@ -548,6 +553,7 @@ export default function InfluencerSignupForm() {
           // Note: If categories column exists as array, store all categories
           // Otherwise, categories are stored as comma-separated string in category field or first category
           location,
+          birth_date: birthDate || null,
           languages: selectedLanguages.join(", "), // Store as comma-separated string
           min_rate: minRate,
           contact_email: email,
@@ -726,6 +732,11 @@ export default function InfluencerSignupForm() {
                 <div>
                     <label className={labelClass}>{txt.locationLabel}</label>
                     <input type="text" className={inputClass} value={location} onChange={(e) => setLocation(e.target.value)} placeholder={txt.locationPlace} />
+                </div>
+
+                <div>
+                    <label className={labelClass}>{txt.birthDateLabel}</label>
+                    <input type="date" className={inputClass} value={birthDate} onChange={(e) => setBirthDate(e.target.value)} placeholder={txt.birthDatePlace} />
                 </div>
 
                 {/* EMAIL & PASSWORD FIELDS */}

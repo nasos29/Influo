@@ -2,6 +2,7 @@
 
 import { useEffect, useState, use, Suspense, useRef } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Influencer } from "@/components/Directory"; 
 import { supabase } from "@/lib/supabaseClient";
@@ -127,6 +128,9 @@ const t = {
     price_note: "* Οι τιμές ενδέχεται να αλλάξουν ανάλογα το project.",
     min_rate: "Ελάχιστη Χρέωση",
     min_rate_desc: "Η ελάχιστη χρέωση για κάθε συνεργασία",
+    min_rate_cta_login: "Σύνδεση",
+    min_rate_cta_signup: "Εγγραφή επιχείρησης",
+    min_rate_cta_suffix: "για να δείτε την τιμή",
     modal_title: "Συνεργασία με",
     modal_sub: "Στείλε την πρότασή σου. Θα ειδοποιηθούν άμεσα.",
     modal_srv: "Επιλογή Υπηρεσίας",
@@ -203,6 +207,9 @@ const t = {
     price_note: "* Prices may vary depending on project scope.",
     min_rate: "Minimum Rate",
     min_rate_desc: "The minimum charge for each collaboration",
+    min_rate_cta_login: "Login",
+    min_rate_cta_signup: "Register your company",
+    min_rate_cta_suffix: "to see the price",
     modal_title: "Work with",
     modal_sub: "Send a proposal. We'll notify them instantly.",
     modal_srv: "Select Service",
@@ -1740,14 +1747,16 @@ export default function InfluencerProfile(props: { params: Params }) {
                 </div>
               </div>
               
-              {/* Collaborations */}
-              <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-lg">🤝</span>
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{txt.collabs}</span>
+              {/* Collaborations - μόνο αν υπάρχει τουλάχιστον μία */}
+              {(profile.past_brands?.length || 0) > 0 && (
+                <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-lg">🤝</span>
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{txt.collabs}</span>
+                  </div>
+                  <p className="text-2xl font-extrabold text-purple-600">{profile.past_brands?.length || 0}</p>
                 </div>
-                <p className="text-2xl font-extrabold text-purple-600">{profile.past_brands?.length || 0}</p>
-              </div>
+              )}
             </div>
             
             {/* Additional Stats Row */}
@@ -1805,15 +1814,29 @@ export default function InfluencerProfile(props: { params: Params }) {
                 </p>
               </div>
               
-              {/* Minimum Rate */}
+              {/* Minimum Rate - θολή τιμή αν δεν είναι συνδεδεμένη επιχείρηση */}
               {profile.min_rate && (
                 <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 p-4 rounded-xl border-2 border-blue-200 shadow-sm hover:shadow-md transition-shadow">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-lg">💰</span>
                     <span className="text-xs font-bold text-blue-700 uppercase tracking-wider">{txt.min_rate}</span>
                   </div>
-                  <p className="text-2xl font-extrabold text-blue-700">{profile.min_rate}€</p>
-                  <p className="text-xs text-blue-600 mt-1">{txt.min_rate_desc}</p>
+                  {isBrand ? (
+                    <>
+                      <p className="text-2xl font-extrabold text-blue-700">{profile.min_rate}€</p>
+                      <p className="text-xs text-blue-600 mt-1">{txt.min_rate_desc}</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-2xl font-extrabold text-blue-700 select-none blur-md">{profile.min_rate}€</p>
+                      <p className="text-xs text-slate-600 mt-1">
+                        <Link href="/login" className="text-blue-600 underline hover:text-blue-800">{txt.min_rate_cta_login}</Link>
+                        {lang === 'el' ? ' ή ' : ' or '}
+                        <Link href="/brand/signup" className="text-blue-600 underline hover:text-blue-800">{txt.min_rate_cta_signup}</Link>
+                        {' '}{txt.min_rate_cta_suffix}
+                      </p>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -2068,15 +2091,29 @@ export default function InfluencerProfile(props: { params: Params }) {
                      <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
                         <h2 className="text-xl font-bold text-slate-900 mb-6">{txt.tab_price}</h2>
                         
-                        {/* Minimum Rate - Prominent Display */}
+                        {/* Minimum Rate - θολή τιμή αν δεν είναι συνδεδεμένη επιχείρηση */}
                         {profile.min_rate && (
                           <div className="mb-8 p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 shadow-md">
                             <div className="flex items-center gap-3 mb-2">
                               <span className="text-2xl">💰</span>
                               <h3 className="text-lg font-bold text-slate-900">{txt.min_rate}</h3>
                             </div>
-                            <p className="text-4xl font-extrabold text-blue-700 mb-2">{profile.min_rate}€</p>
-                            <p className="text-sm text-slate-600">{txt.min_rate_desc}</p>
+                            {isBrand ? (
+                              <>
+                                <p className="text-4xl font-extrabold text-blue-700 mb-2">{profile.min_rate}€</p>
+                                <p className="text-sm text-slate-600">{txt.min_rate_desc}</p>
+                              </>
+                            ) : (
+                              <>
+                                <p className="text-4xl font-extrabold text-blue-700 mb-2 select-none blur-md">{profile.min_rate}€</p>
+                                <p className="text-sm text-slate-600">
+                                  <Link href="/login" className="text-blue-600 underline hover:text-blue-800">{txt.min_rate_cta_login}</Link>
+                                  {lang === 'el' ? ' ή ' : ' or '}
+                                  <Link href="/brand/signup" className="text-blue-600 underline hover:text-blue-800">{txt.min_rate_cta_signup}</Link>
+                                  {' '}{txt.min_rate_cta_suffix}
+                                </p>
+                              </>
+                            )}
                           </div>
                         )}
                         
@@ -2261,16 +2298,15 @@ export default function InfluencerProfile(props: { params: Params }) {
                         ))}
                     </div>
                  </div>
-                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h3 className="font-bold text-slate-900 mb-4 text-sm uppercase">{txt.collabs}</h3>
-                    <div className="flex flex-wrap gap-2">
-                        {profile.past_brands && profile.past_brands.length > 0 ? (
-                            profile.past_brands.map((b, i) => <span key={i} className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs font-bold border border-slate-200">{b}</span>)
-                        ) : (
-                            <span className="text-slate-400 text-sm">-</span>
-                        )}
-                    </div>
-                 </div>
+                 {/* Συνεργασίες - μόνο αν υπάρχει τουλάχιστον μία */}
+                 {profile.past_brands && profile.past_brands.length > 0 && (
+                   <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                     <h3 className="font-bold text-slate-900 mb-4 text-sm uppercase">{txt.collabs}</h3>
+                     <div className="flex flex-wrap gap-2">
+                       {profile.past_brands.map((b, i) => <span key={i} className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs font-bold border border-slate-200">{b}</span>)}
+                     </div>
+                   </div>
+                 )}
             </div>
         </div>
       </div>

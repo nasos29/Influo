@@ -782,7 +782,7 @@ interface Proposal {
 export default function DashboardContent({ profile: initialProfile }: { profile: InfluencerData }) {
     const [profile, setProfile] = useState(initialProfile);
     const [showEditModal, setShowEditModal] = useState(false);
-    const [activeTab, setActiveTab] = useState<'profile' | 'messages' | 'proposals' | 'analytics'>('profile');
+    const [activeTab, setActiveTab] = useState<'profile' | 'messages' | 'proposals' | 'analytics' | 'announcements'>('profile');
     const [loading, setLoading] = useState(false);
     const [proposals, setProposals] = useState<Proposal[]>([]);
     const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
@@ -796,6 +796,9 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     const [selectedProposalForMessaging, setSelectedProposalForMessaging] = useState<Proposal | null>(null);
     const [pendingProposalsCount, setPendingProposalsCount] = useState(0);
     const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+    const [announcementsList, setAnnouncementsList] = useState<Array<{ id: string; title: string; body: string; created_at: string; read: boolean; read_at: string | null }>>([]);
+    const [unreadAnnouncementsCount, setUnreadAnnouncementsCount] = useState(0);
+    const [announcementsLoading, setAnnouncementsLoading] = useState(false);
 
     // Load proposals and counts
     useEffect(() => {
@@ -849,8 +852,23 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
             }
         };
         
+        const loadUnreadAnnouncementsCount = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.access_token) return;
+            try {
+                const res = await fetch('/api/announcements/unread-count', {
+                    headers: { Authorization: `Bearer ${session.access_token}` },
+                });
+                const data = await res.json();
+                if (res.ok && typeof data.count === 'number') setUnreadAnnouncementsCount(data.count);
+            } catch (e) {
+                console.error('Error loading unread announcements count:', e);
+            }
+        };
+
         loadProposals();
         loadUnreadMessages();
+        loadUnreadAnnouncementsCount();
         
         // Listen for messages read event to update count immediately
         const handleMessagesRead = () => {
@@ -862,6 +880,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
         const interval = setInterval(() => {
             loadProposals();
             loadUnreadMessages();
+            loadUnreadAnnouncementsCount();
         }, 30000);
         
         return () => {
@@ -1114,6 +1133,38 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                             >
                                 <span className="hidden md:inline">📊 </span>Στατιστικά
                             </button>
+                            <button
+                                onClick={async () => {
+                                    setActiveTab('announcements');
+                                    setAnnouncementsLoading(true);
+                                    try {
+                                        const { data: { session } } = await supabase.auth.getSession();
+                                        if (session?.access_token) {
+                                            const res = await fetch('/api/announcements', {
+                                                headers: { Authorization: `Bearer ${session.access_token}` },
+                                            });
+                                            const data = await res.json();
+                                            if (res.ok && Array.isArray(data.data)) setAnnouncementsList(data.data);
+                                        }
+                                    } catch (e) {
+                                        console.error('Error loading announcements:', e);
+                                    } finally {
+                                        setAnnouncementsLoading(false);
+                                    }
+                                }}
+                                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors relative whitespace-nowrap ${
+                                    activeTab === 'announcements'
+                                        ? 'border-slate-900 text-slate-900'
+                                        : 'border-transparent text-slate-500 hover:text-slate-700'
+                                }`}
+                            >
+                                <span className="hidden md:inline">📢 </span>Ανακοινώσεις
+                                {unreadAnnouncementsCount > 0 && (
+                                    <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 bg-red-500 text-white text-[9px] sm:text-[10px] font-bold rounded-full min-w-[14px] sm:min-w-[16px] h-[14px] sm:h-[16px] flex items-center justify-center px-0.5">
+                                        {unreadAnnouncementsCount > 99 ? '99+' : unreadAnnouncementsCount > 9 ? '9+' : unreadAnnouncementsCount}
+                                    </span>
+                                )}
+                            </button>
                             <Link
                                 href="/help-desk"
                                 className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors whitespace-nowrap ${
@@ -1293,6 +1344,72 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                             </div>
                         ) : activeTab === 'analytics' ? (
                             <Analytics influencerId={profile.id} lang="el" />
+                        ) : activeTab === 'announcements' ? (
+                            <div className="space-y-4">
+                                <h2 className="text-xl font-semibold text-slate-900">Ανακοινώσεις</h2>
+                                {announcementsLoading ? (
+                                    <div className="text-center py-8 text-slate-500">Φόρτωση...</div>
+                                ) : announcementsList.length === 0 ? (
+                                    <div className="text-center py-12 text-slate-500">
+                                        Δεν υπάρχουν ανακοινώσεις.
+                                    </div>
+                                ) : (
+                                    <ul className="space-y-3">
+                                        {announcementsList.map((a) => (
+                                            <li
+                                                key={a.id}
+                                                className={`border rounded-lg p-4 transition-colors ${
+                                                    a.read ? 'bg-slate-50 border-slate-200' : 'bg-white border-blue-200 ring-1 ring-blue-100'
+                                                }`}
+                                            >
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="font-semibold text-slate-900 flex items-center gap-2">
+                                                            {a.title}
+                                                            {!a.read && (
+                                                                <span className="shrink-0 inline-flex items-center justify-center w-2.5 h-2.5 rounded-full bg-red-500" title="Μη διαβασμένο" />
+                                                            )}
+                                                        </div>
+                                                        <p className="text-sm text-slate-600 mt-1 whitespace-pre-wrap">{a.body}</p>
+                                                        <p className="text-xs text-slate-500 mt-2">
+                                                            {new Date(a.created_at).toLocaleString('el-GR', { dateStyle: 'medium', timeStyle: 'short' })}
+                                                            {a.read && a.read_at && (
+                                                                <span className="ml-2">· Διαβάστηκε {new Date(a.read_at).toLocaleString('el-GR', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                                                            )}
+                                                        </p>
+                                                    </div>
+                                                    {!a.read && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={async () => {
+                                                                const { data: { session } } = await supabase.auth.getSession();
+                                                                if (!session?.access_token) return;
+                                                                try {
+                                                                    const res = await fetch(`/api/announcements/${a.id}/read`, {
+                                                                        method: 'POST',
+                                                                        headers: { Authorization: `Bearer ${session.access_token}` },
+                                                                    });
+                                                                    if (res.ok) {
+                                                                        setAnnouncementsList(prev =>
+                                                                            prev.map(x => x.id === a.id ? { ...x, read: true, read_at: new Date().toISOString() } : x)
+                                                                        );
+                                                                        setUnreadAnnouncementsCount(prev => Math.max(0, prev - 1));
+                                                                    }
+                                                                } catch (e) {
+                                                                    console.error('Error marking announcement as read:', e);
+                                                                }
+                                                            }}
+                                                            className="shrink-0 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                                                        >
+                                                            Σήμανση ως διαβασμένο
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
                         ) : activeTab === 'profile' ? (
                             <div className="space-y-6">
                                 <div className="flex items-center justify-between">

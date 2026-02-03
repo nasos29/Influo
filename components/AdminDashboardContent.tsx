@@ -36,6 +36,7 @@ const LANGUAGES = [
 
 interface DbInfluencer {
   id: number;
+  auth_user_id?: string | null; // UUID from auth.users(id) for announcements targeting
   created_at: string;
   display_name: string;
   gender: string;
@@ -184,6 +185,13 @@ const t = {
     blog_category: "Κατηγορία",
     blog_date: "Ημερομηνία",
     blog_actions: "Ενέργειες",
+    tab_announcements: "Ανακοινώσεις",
+    ann_title: "Τίτλος",
+    ann_body: "Κείμενο",
+    ann_to_all: "Όλοι οι influencers",
+    ann_to_one: "Συγκεκριμένος influencer",
+    ann_send: "Αποστολή ανακοινώσεως",
+    ann_sent: "Απεστάλη",
     refresh_social: "Ανανέωση",
     refresh_social_all: "Ανανέωση social stats για όλους",
     backfill_audit: "Backfill Gemini audit (μία φορά για όλους)"
@@ -251,6 +259,13 @@ const t = {
     blog_category: "Category",
     blog_date: "Date",
     blog_actions: "Actions",
+    tab_announcements: "Announcements",
+    ann_title: "Title",
+    ann_body: "Content",
+    ann_to_all: "All influencers",
+    ann_to_one: "Specific influencer",
+    ann_send: "Send announcement",
+    ann_sent: "Sent",
     refresh_social: "Refresh",
     refresh_social_all: "Refresh social stats for all",
     backfill_audit: "Backfill Gemini audit (once for all)"
@@ -1467,6 +1482,15 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [backfillingAudit, setBackfillingAudit] = useState(false);
   const [backfillProgress, setBackfillProgress] = useState<string | null>(null);
 
+  // Announcements (admin)
+  const [announcementTitle, setAnnouncementTitle] = useState("");
+  const [announcementBody, setAnnouncementBody] = useState("");
+  const [announcementTargetType, setAnnouncementTargetType] = useState<"all" | "specific">("all");
+  const [announcementTargetInfluencerId, setAnnouncementTargetInfluencerId] = useState<string>("");
+  const [announcementsList, setAnnouncementsList] = useState<Array<{ id: string; title: string; body: string; created_at: string; target_type: string; target_influencer_id: string | null }>>([]);
+  const [announcementsLoading, setAnnouncementsLoading] = useState(false);
+  const [announcementSending, setAnnouncementSending] = useState(false);
+
   const fetchConversations = async () => {
     try {
       const { data, error } = await supabase
@@ -1540,6 +1564,61 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       } else {
         setBlogPosts([]);
       }
+    }
+  };
+
+  const fetchAnnouncements = async () => {
+    setAnnouncementsLoading(true);
+    try {
+      const res = await fetch('/api/admin/announcements');
+      const data = await res.json();
+      if (res.ok && Array.isArray(data.data)) {
+        setAnnouncementsList(data.data);
+      } else {
+        setAnnouncementsList([]);
+      }
+    } catch (e) {
+      console.error('Error fetching announcements:', e);
+      setAnnouncementsList([]);
+    } finally {
+      setAnnouncementsLoading(false);
+    }
+  };
+
+  const sendAnnouncement = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!announcementTitle.trim() || !announcementBody.trim()) return;
+    if (announcementTargetType === 'specific' && !announcementTargetInfluencerId) {
+      alert(lang === 'el' ? 'Επιλέξτε influencer για στόχευση.' : 'Select an influencer to target.');
+      return;
+    }
+    setAnnouncementSending(true);
+    try {
+      const res = await fetch('/api/admin/announcements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: announcementTitle.trim(),
+          content: announcementBody.trim(),
+          target_type: announcementTargetType,
+          target_influencer_id: announcementTargetType === 'specific' ? announcementTargetInfluencerId : undefined,
+        }),
+      });
+      const result = await res.json();
+      if (res.ok && result.data) {
+        setAnnouncementTitle('');
+        setAnnouncementBody('');
+        setAnnouncementTargetInfluencerId('');
+        setAnnouncementsList(prev => [result.data, ...prev]);
+        alert(txt.ann_sent);
+      } else {
+        alert(result.error || (lang === 'el' ? 'Σφάλμα αποστολής' : 'Send failed'));
+      }
+    } catch (err: any) {
+      console.error('Send announcement error:', err);
+      alert(err.message || (lang === 'el' ? 'Σφάλμα αποστολής' : 'Send failed'));
+    } finally {
+      setAnnouncementSending(false);
     }
   };
 
@@ -1832,6 +1911,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     fetchConversations();
     fetchBrands();
     fetchBlogPosts();
+    fetchAnnouncements();
     
     // Refresh counts periodically - but NOT when edit modal is open
     // Increased interval to 2 minutes to avoid interrupting edits
@@ -2679,6 +2759,16 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
               >
                 {txt.tab_blog} ({blogPosts.length})
               </button>
+              <button 
+                onClick={() => setActiveTab("announcements")} 
+                className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === "announcements" 
+                    ? "border-slate-900 text-slate-900" 
+                    : "border-transparent text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                {txt.tab_announcements}
+              </button>
             </div>
           </div>
 
@@ -3271,6 +3361,123 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     )}
                   </tbody>
                 </table>
+              </div>
+            </>
+          )}
+
+          {activeTab === "announcements" && (
+            <>
+              <div className="p-4 border-b border-slate-200 space-y-4">
+                <form onSubmit={sendAnnouncement} className="space-y-4 max-w-2xl">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">{txt.ann_title}</label>
+                    <input
+                      type="text"
+                      value={announcementTitle}
+                      onChange={(e) => setAnnouncementTitle(e.target.value)}
+                      placeholder={lang === 'el' ? 'Τίτλος ανακοίνωσης' : 'Announcement title'}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">{txt.ann_body}</label>
+                    <textarea
+                      value={announcementBody}
+                      onChange={(e) => setAnnouncementBody(e.target.value)}
+                      placeholder={lang === 'el' ? 'Κείμενο ανακοίνωσης' : 'Announcement content'}
+                      rows={4}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <span className="block text-sm font-medium text-slate-700 mb-2">
+                      {lang === 'el' ? 'Στοχευμένοι παραλήπτες' : 'Recipients'}
+                    </span>
+                    <div className="flex flex-wrap gap-4">
+                      <label className="inline-flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="target"
+                          checked={announcementTargetType === 'all'}
+                          onChange={() => { setAnnouncementTargetType('all'); setAnnouncementTargetInfluencerId(''); }}
+                          className="rounded border-slate-300"
+                        />
+                        <span>{txt.ann_to_all}</span>
+                      </label>
+                      <label className="inline-flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="target"
+                          checked={announcementTargetType === 'specific'}
+                          onChange={() => setAnnouncementTargetType('specific')}
+                          className="rounded border-slate-300"
+                        />
+                        <span>{txt.ann_to_one}</span>
+                      </label>
+                      {announcementTargetType === 'specific' && (
+                        <select
+                          value={announcementTargetInfluencerId}
+                          onChange={(e) => setAnnouncementTargetInfluencerId(e.target.value)}
+                          className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[200px]"
+                          required={announcementTargetType === 'specific'}
+                        >
+                          <option value="">{lang === 'el' ? '— Επιλέξτε —' : '— Select —'}</option>
+                          {users.map((u) => {
+                            const uuid = u.auth_user_id || (typeof u.id === 'string' ? u.id : null);
+                            return (
+                              <option key={String(u.id)} value={uuid || ''} disabled={!uuid}>
+                                {u.display_name} {u.contact_email ? `(${u.contact_email})` : ''}
+                                {!uuid ? ` ${lang === 'el' ? '(χωρίς auth)' : '(no auth)'}` : ''}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={announcementSending}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {announcementSending ? '...' : txt.ann_send}
+                  </button>
+                </form>
+              </div>
+              <div className="p-4">
+                <h3 className="text-sm font-semibold text-slate-700 mb-3">
+                  {lang === 'el' ? 'Απεσταλμένες ανακοινώσεις' : 'Sent announcements'}
+                </h3>
+                {announcementsLoading ? (
+                  <p className="text-slate-500">{lang === 'el' ? 'Φόρτωση...' : 'Loading...'}</p>
+                ) : announcementsList.length === 0 ? (
+                  <p className="text-slate-500">{txt.no_data}</p>
+                ) : (
+                  <ul className="space-y-3">
+                    {announcementsList.map((a) => (
+                      <li key={a.id} className="border border-slate-200 rounded-lg p-4 bg-slate-50">
+                        <div className="font-medium text-slate-900">{a.title}</div>
+                        <div className="text-sm text-slate-600 mt-1 line-clamp-2">{a.body}</div>
+                        <div className="text-xs text-slate-500 mt-2">
+                          {new Date(a.created_at).toLocaleString(lang === 'el' ? 'el-GR' : 'en-GB')}
+                          {a.target_type === 'specific' && a.target_influencer_id && (
+                            <span className="ml-2">
+                              → {lang === 'el' ? 'Σε συγκεκριμένο' : 'To specific'}
+                              {(users.find(u => u.auth_user_id === a.target_influencer_id) || users.find(u => String(u.id) === a.target_influencer_id)) && (
+                                <>: {(users.find(u => u.auth_user_id === a.target_influencer_id) || users.find(u => String(u.id) === a.target_influencer_id))!.display_name}</>
+                              )}
+                            </span>
+                          )}
+                          {a.target_type === 'all' && (
+                            <span className="ml-2">→ {txt.ann_to_all}</span>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </>
           )}

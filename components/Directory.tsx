@@ -29,6 +29,7 @@ export interface Influencer {
   total_reviews?: number;
   avg_rating?: number;
   created_at?: string;
+  birth_date?: string | null;
 }
 
 // --- FULL CATEGORY LIST ---
@@ -107,6 +108,10 @@ const t = {
     langAll: "Γλώσσα: Όλες",
     ratingAll: "Αξιολόγηση: Όλες",
     ratingMin: "Ελάχ.",
+    ageAll: "Ηλικία: Όλες",
+    ageRange: "Ηλικία",
+    ageFrom: "Από",
+    ageTo: "Έως",
     noResults: "Δεν βρέθηκαν influencers",
     adjust: "Δοκίμασε διαφορετικά φίλτρα.",
     reset: "Επαναφορά"
@@ -136,6 +141,10 @@ const t = {
     langAll: "Language: All",
     ratingAll: "Rating: Any",
     ratingMin: "Min",
+    ageAll: "Age: All",
+    ageRange: "Age",
+    ageFrom: "From",
+    ageTo: "To",
     noResults: "No influencers found",
     adjust: "Try adjusting your filters.",
     reset: "Reset Filters"
@@ -182,6 +191,16 @@ const parseFollowerString = (str: string) => {
     if (clean.includes('m')) return parseFloat(clean) * 1000000;
     return parseFloat(clean) || 0;
 };
+const getAgeFromBirthDate = (birthDate?: string | null): number | null => {
+    if (!birthDate) return null;
+    const birth = new Date(birthDate);
+    if (isNaN(birth.getTime())) return null;
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    return age;
+};
 
 export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
   const [influencers, setInfluencers] = useState<Influencer[]>([]);
@@ -201,6 +220,8 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
   const [minEngagement, setMinEngagement] = useState("All");
   const [languageFilter, setLanguageFilter] = useState("All");
   const [minRating, setMinRating] = useState("All");
+  const [ageMin, setAgeMin] = useState("");
+  const [ageMax, setAgeMax] = useState("");
 
   // Sort function: "New" influencers first, then by created_at descending
   const sortInfluencers = (influencersList: Influencer[]): Influencer[] => {
@@ -314,6 +335,7 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
               completion_rate: inf.completion_rate || 100,
               past_brands: inf.past_brands || 0,
               created_at: inf.created_at,
+              birth_date: inf.birth_date || null,
             };
           });
           
@@ -417,13 +439,23 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
         if (rating < min) ratingMatch = false;
     }
 
-    return searchMatch && locationMatch && platformMatch && categoryMatch && genderMatch && followerMatch && budgetMatch && engageMatch && languageMatch && ratingMatch;
+    let ageMatch = true;
+    const age = getAgeFromBirthDate(inf.birth_date);
+    if (ageMin !== "" || ageMax !== "") {
+        const min = ageMin !== "" ? parseInt(ageMin, 10) : 0;
+        const max = ageMax !== "" ? parseInt(ageMax, 10) : 999;
+        if (age === null) ageMatch = false;
+        else if (age < min || age > max) ageMatch = false;
+    }
+
+    return searchMatch && locationMatch && platformMatch && categoryMatch && genderMatch && followerMatch && budgetMatch && engageMatch && languageMatch && ratingMatch && ageMatch;
   });
 
   const clearFilters = () => {
     setSearchQuery(""); setLocationQuery(""); setPlatformFilter("All");
     setCategoryFilter("All"); setGenderFilter("All"); setFollowerRange("All");
     setBudgetMax("All"); setMinEngagement("All"); setLanguageFilter("All"); setMinRating("All");
+    setAgeMin(""); setAgeMax("");
   };
 
   const selectClass = "w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 cursor-pointer";
@@ -515,6 +547,14 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
                     <option value="4">{txt.ratingMin} 4★</option>
                     <option value="4.5">{txt.ratingMin} 4.5★</option>
                 </select>
+
+                {/* Age filter (from birth_date) */}
+                <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-600 whitespace-nowrap">{txt.ageRange}:</span>
+                    <input type="number" min={18} max={99} placeholder={txt.ageFrom} value={ageMin} onChange={(e) => setAgeMin(e.target.value)} className={`${selectClass} !py-2`} />
+                    <span className="text-slate-400">-</span>
+                    <input type="number" min={18} max={99} placeholder={txt.ageTo} value={ageMax} onChange={(e) => setAgeMax(e.target.value)} className={`${selectClass} !py-2`} />
+                </div>
                 
                 {/* Location Filter - Second to Last */}
                 <div className="relative">
