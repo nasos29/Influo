@@ -89,6 +89,7 @@ const t = {
     portfolio: "Portfolio / Highlights",
     connect: "Σύνδεση",
     collabs: "Συνεργασίες",
+    platforms: "Πλατφόρμες",
     no_bio: "Δεν υπάρχει βιογραφικό.",
     no_vid: "Δεν έχουν ανέβει βίντεο.",
     tab_over: "Επισκοπηση",
@@ -168,6 +169,7 @@ const t = {
     portfolio: "Portfolio / Highlights",
     connect: "Connect",
     collabs: "Collaborations",
+    platforms: "Platforms",
     no_bio: "No bio available.",
     no_vid: "No videos uploaded.",
     tab_over: "Overview",
@@ -1747,14 +1749,24 @@ export default function InfluencerProfile(props: { params: Params }) {
                 </div>
               </div>
               
-              {/* Collaborations - μόνο αν υπάρχει τουλάχιστον μία */}
-              {(profile.past_brands?.length || 0) > 0 && (
+              {/* Collaborations ή Πλατφόρμες - συνεργασίες μόνο αν υπάρχει τουλάχιστον μία */}
+              {(profile.past_brands?.length || 0) > 0 ? (
                 <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-shadow">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-lg">🤝</span>
                     <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{txt.collabs}</span>
                   </div>
                   <p className="text-2xl font-extrabold text-purple-600">{profile.past_brands?.length || 0}</p>
+                </div>
+              ) : (
+                <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-lg">📱</span>
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{txt.platforms}</span>
+                  </div>
+                  <p className="text-2xl font-extrabold text-slate-700">
+                    {Object.keys(profile.socials || {}).length || 0}
+                  </p>
                 </div>
               )}
             </div>
