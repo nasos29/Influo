@@ -12,11 +12,19 @@ const supabaseAdmin = createClient(
   }
 );
 
+// Only columns needed for directory listing (exclude heavy: video_thumbnails, auditpr_audit, insights_urls)
+const DIRECTORY_COLUMNS = [
+  'id', 'display_name', 'bio', 'bio_en', 'avatar_url', 'analytics_verified',
+  'accounts', 'category', 'languages', 'gender', 'location', 'min_rate',
+  'engagement_rate', 'avg_likes', 'videos', 'past_brands', 'created_at',
+  'birth_date', 'avg_rating', 'total_reviews', 'avg_response_time', 'completion_rate'
+].join(', ');
+
 export async function GET() {
   try {
     const { data, error } = await supabaseAdmin
       .from('influencers')
-      .select('*')
+      .select(DIRECTORY_COLUMNS)
       .eq('approved', true);
 
     if (error) {

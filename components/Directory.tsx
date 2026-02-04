@@ -222,6 +222,7 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
   const [minRating, setMinRating] = useState("All");
   const [ageMin, setAgeMin] = useState("");
   const [ageMax, setAgeMax] = useState("");
+  const [loading, setLoading] = useState(true);
 
   // Sort function: "New" influencers first, then by created_at descending
   const sortInfluencers = (influencersList: Influencer[]): Influencer[] => {
@@ -247,41 +248,27 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
   };
 
   useEffect(() => {
-    console.log('[Directory] useEffect triggered');
     isMountedRef.current = true;
-    
+    setLoading(true);
+
     const fetchReal = async () => {
-      console.log('[Directory] fetchReal started');
-      
       try {
-        console.log('[Directory] Starting API call to /api/influencers/public...');
-        const startTime = Date.now();
-        
         const response = await fetch('/api/influencers/public');
         const result = await response.json();
-        
-        if (!isMountedRef.current) {
-          console.log('[Directory] Component unmounted, skipping state update');
-          return;
-        }
-        
-        const queryTime = Date.now() - startTime;
-        console.log('[Directory] API call completed in', queryTime, 'ms');
-        
+
+        if (!isMountedRef.current) return;
+
         if (!response.ok || result.error) {
-          console.error('[Directory] API error:', result.error);
-          // If error, show empty list
           if (isMountedRef.current) {
             setInfluencers([]);
+            setLoading(false);
           }
           return;
         }
-        
+
         const data = result.data || [];
-        console.log('[Directory] Fetch result:', { dataLength: data.length, hasData: data.length > 0, queryTime });
-        
+
         if (data.length > 0) {
-          console.log('[Directory] Processing', data.length, 'real influencers');
           const realInfluencers: Influencer[] = data.map((inf: any) => {
             
             const socialsObj: { [key: string]: string } = {};
@@ -338,30 +325,28 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
               birth_date: inf.birth_date || null,
             };
           });
-          
-          // Sort influencers with "New" first
-          console.log('[Directory] Setting influencers:', { real: realInfluencers.length, total: realInfluencers.length });
+
           if (isMountedRef.current) {
             setInfluencers(sortInfluencers(realInfluencers));
           }
         } else {
-          // No data returned, show empty list
-          console.log('[Directory] No data returned');
           if (isMountedRef.current) {
             setInfluencers([]);
           }
         }
-      } catch (err: any) {
-        console.error('[Directory] Error in fetchReal:', err);
-        // On error, show empty list
+      } catch (_err) {
         if (isMountedRef.current) {
           setInfluencers([]);
         }
+      } finally {
+        if (isMountedRef.current) {
+          setLoading(false);
+        }
       }
     };
-    
+
     fetchReal();
-    
+
     return () => {
       isMountedRef.current = false;
     };
@@ -589,7 +574,24 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
       </div>
 
       {/* Grid */}
-      {filtered.length > 0 ? (
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className="bg-slate-100 rounded-2xl overflow-hidden animate-pulse">
+              <div className="aspect-[4/3] bg-slate-200" />
+              <div className="p-4 space-y-3">
+                <div className="h-5 bg-slate-200 rounded w-3/4" />
+                <div className="h-3 bg-slate-200 rounded w-full" />
+                <div className="h-3 bg-slate-200 rounded w-5/6" />
+                <div className="flex gap-2 mt-3">
+                  <div className="h-6 bg-slate-200 rounded-full w-16" />
+                  <div className="h-6 bg-slate-200 rounded-full w-20" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : filtered.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
             {filtered.map((inf) => {
               // Calculate badges
@@ -634,9 +636,9 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
         </div>
       ) : (
         <div className="text-center py-20 bg-slate-50 rounded-2xl border border-dashed border-slate-300">
-            <h3 className="text-xl font-bold text-slate-900">{txt.noResults}</h3>
-            <p className="text-slate-500 mb-4">{txt.adjust}</p>
-            <button onClick={clearFilters} className="bg-slate-900 text-white px-6 py-2 rounded-lg font-bold">{txt.reset}</button>
+          <h3 className="text-xl font-bold text-slate-900">{txt.noResults}</h3>
+          <p className="text-slate-500 mb-4">{txt.adjust}</p>
+          <button onClick={clearFilters} className="bg-slate-900 text-white px-6 py-2 rounded-lg font-bold">{txt.reset}</button>
         </div>
       )}
     </div>

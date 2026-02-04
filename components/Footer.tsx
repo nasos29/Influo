@@ -174,7 +174,7 @@ export default function Footer({ lang = "el" }: FooterProps) {
             <h3 className="text-white font-semibold mb-4">{txt.company}</h3>
             <ul className="space-y-3">
               <li>
-                <Link href="#" className="text-slate-400 hover:text-white transition-colors text-sm">
+                <Link href="/about" className="text-slate-400 hover:text-white transition-colors text-sm">
                   {txt.about}
                 </Link>
               </li>
