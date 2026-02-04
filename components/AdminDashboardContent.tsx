@@ -2035,6 +2035,11 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ type: 'approved', email: userEmail, name: userName })
                 });
+                await fetch('/api/admin/notify-brands-new-influencer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ influencerId: id })
+                });
              } catch (e) {
                  console.error('Email sending error:', e);
              }
