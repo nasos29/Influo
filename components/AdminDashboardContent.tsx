@@ -61,6 +61,7 @@ interface DbInfluencer {
   audience_female_percent: number | null;
   audience_top_age: string | null;
   category?: string;
+  birth_date?: string | null;
 }
 
 interface Proposal {
@@ -516,6 +517,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
     const [bioEn, setBioEn] = useState(user.bio_en || "");
     const [minRate, setMinRate] = useState(user.min_rate || "");
     const [location, setLocation] = useState(user.location || "");
+    const [birthDate, setBirthDate] = useState(user.birth_date || "");
     // Ensure gender is valid (Female, Male, or Other)
     const initialGender = (user.gender === 'Female' || user.gender === 'Male' || user.gender === 'Other') ? user.gender : 'Female';
     const [gender, setGender] = useState(initialGender);
@@ -774,7 +776,8 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
             avatar_url: 'Avatar',
             audience_male_percent: 'Άνδρες %',
             audience_female_percent: 'Γυναίκες %',
-            audience_top_age: 'Κύρια Ηλικιακή Ομάδα'
+            audience_top_age: 'Κύρια Ηλικιακή Ομάδα',
+            birth_date: 'Ημερομηνία Γέννησης'
         };
         return labels[field] || field;
     };
@@ -853,7 +856,8 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                 bio: bio, 
                 bio_en: bioEn || null, // Store English bio
                 min_rate: minRate,
-                location: location, 
+                location: location,
+                birth_date: birthDate || null,
                 gender: gender,
                 category: categoryString,
                 languages: selectedLanguages.map(code => {
@@ -1040,6 +1044,11 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-900 mb-1">Location</label>
                                     <input type="text" value={location} onChange={e => setLocation(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-900 mb-1">Ημερομηνία Γέννησης</label>
+                                    <input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" />
+                                    <p className="text-xs text-slate-500 mt-1">Η ηλικία υπολογίζεται από αυτή την ημερομηνία</p>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-900 mb-1">Gender</label>
