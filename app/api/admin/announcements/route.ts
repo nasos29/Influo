@@ -61,7 +61,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Στείλε email σε όσους αφορά (με καθυστέρηση ανά email ώστε να μην φαίνεται σπαμ)
-    if (process.env.RESEND_API_KEY) {
+    if (!process.env.RESEND_API_KEY) {
+      console.warn('[admin announcements] RESEND_API_KEY not set, skipping email notifications');
+    } else {
       let emails: string[] = [];
       if (target_type === 'all') {
         const { data: infList } = await supabaseAdmin
@@ -73,13 +75,30 @@ export async function POST(request: NextRequest) {
           .map((r: { contact_email: string | null }) => r.contact_email)
           .filter((e): e is string => !!e && e.trim().length > 0);
       } else if (target_type === 'specific' && target_influencer_id) {
-        const { data: infRow } = await supabaseAdmin
+        // target_influencer_id από το admin UI μπορεί να είναι auth_user_id (UUID) ή influencers.id
+        let infRow: { contact_email: string | null } | null = null;
+        const byAuth = await supabaseAdmin
           .from('influencers')
           .select('contact_email')
           .eq('auth_user_id', target_influencer_id)
           .maybeSingle();
+        if (byAuth.data) {
+          infRow = byAuth.data;
+        } else {
+          const idNum = Number(target_influencer_id);
+          if (!Number.isNaN(idNum)) {
+            const byId = await supabaseAdmin
+              .from('influencers')
+              .select('contact_email')
+              .eq('id', idNum)
+              .maybeSingle();
+            if (byId.data) infRow = byId.data;
+          }
+        }
         if (infRow?.contact_email?.trim()) {
           emails = [infRow.contact_email.trim()];
+        } else if (target_type === 'specific') {
+          console.warn('[admin announcements] No contact_email for target_influencer_id', target_influencer_id);
         }
       }
       for (let i = 0; i < emails.length; i++) {

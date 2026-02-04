@@ -37,21 +37,27 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: annError.message }, { status: 500 });
     }
 
-    // Fetch read status for this user
+    // Fetch read/dismissed status for this user
     const { data: reads } = await supabase
       .from('announcement_reads')
-      .select('announcement_id, read_at')
+      .select('announcement_id, read_at, dismissed_at')
       .eq('influencer_id', user.id);
 
     const readSet = new Set((reads || []).map((r: any) => r.announcement_id));
     const readAtMap: Record<string, string> = {};
-    (reads || []).forEach((r: any) => { readAtMap[r.announcement_id] = r.read_at; });
+    const dismissedSet = new Set<string>();
+    (reads || []).forEach((r: any) => {
+      readAtMap[r.announcement_id] = r.read_at;
+      if (r.dismissed_at) dismissedSet.add(r.announcement_id);
+    });
 
-    const list = (announcements || []).map((a: any) => ({
-      ...a,
-      read: readSet.has(a.id),
-      read_at: readAtMap[a.id] || null,
-    }));
+    const list = (announcements || [])
+      .filter((a: any) => !dismissedSet.has(a.id))
+      .map((a: any) => ({
+        ...a,
+        read: readSet.has(a.id),
+        read_at: readAtMap[a.id] || null,
+      }));
 
     return NextResponse.json({ data: list });
   } catch (err: any) {

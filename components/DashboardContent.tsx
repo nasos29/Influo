@@ -1378,32 +1378,57 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                             )}
                                                         </p>
                                                     </div>
-                                                    {!a.read && (
+                                                    <div className="shrink-0 flex flex-col sm:flex-row gap-2">
+                                                        {!a.read && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={async () => {
+                                                                    const { data: { session } } = await supabase.auth.getSession();
+                                                                    if (!session?.access_token) return;
+                                                                    try {
+                                                                        const res = await fetch(`/api/announcements/${a.id}/read`, {
+                                                                            method: 'POST',
+                                                                            headers: { Authorization: `Bearer ${session.access_token}` },
+                                                                        });
+                                                                        if (res.ok) {
+                                                                            setAnnouncementsList(prev =>
+                                                                                prev.map(x => x.id === a.id ? { ...x, read: true, read_at: new Date().toISOString() } : x)
+                                                                            );
+                                                                            setUnreadAnnouncementsCount(prev => Math.max(0, prev - 1));
+                                                                        }
+                                                                    } catch (e) {
+                                                                        console.error('Error marking announcement as read:', e);
+                                                                    }
+                                                                }}
+                                                                className="px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                                                            >
+                                                                Σήμανση ως διαβασμένο
+                                                            </button>
+                                                        )}
                                                         <button
                                                             type="button"
                                                             onClick={async () => {
                                                                 const { data: { session } } = await supabase.auth.getSession();
                                                                 if (!session?.access_token) return;
                                                                 try {
-                                                                    const res = await fetch(`/api/announcements/${a.id}/read`, {
+                                                                    const res = await fetch(`/api/announcements/${a.id}/dismiss`, {
                                                                         method: 'POST',
                                                                         headers: { Authorization: `Bearer ${session.access_token}` },
                                                                     });
                                                                     if (res.ok) {
-                                                                        setAnnouncementsList(prev =>
-                                                                            prev.map(x => x.id === a.id ? { ...x, read: true, read_at: new Date().toISOString() } : x)
-                                                                        );
-                                                                        setUnreadAnnouncementsCount(prev => Math.max(0, prev - 1));
+                                                                        setAnnouncementsList(prev => prev.filter(x => x.id !== a.id));
+                                                                        if (!a.read) setUnreadAnnouncementsCount(prev => Math.max(0, prev - 1));
                                                                     }
                                                                 } catch (e) {
-                                                                    console.error('Error marking announcement as read:', e);
+                                                                    console.error('Error dismissing announcement:', e);
                                                                 }
                                                             }}
-                                                            className="shrink-0 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                                                            className="px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                                                            title="Απόκρυψη από τη λίστα"
                                                         >
-                                                            Σήμανση ως διαβασμένο
+                                                            Διαγραφή
                                                         </button>
-                                                    )}
+                                                    </div>
                                                 </div>
                                             </li>
                                         ))}

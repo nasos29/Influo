@@ -3466,23 +3466,47 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                 ) : (
                   <ul className="space-y-3">
                     {announcementsList.map((a) => (
-                      <li key={a.id} className="border border-slate-200 rounded-lg p-4 bg-slate-50">
-                        <div className="font-medium text-slate-900">{a.title}</div>
-                        <div className="text-sm text-slate-800 mt-1 line-clamp-2">{a.body}</div>
-                        <div className="text-xs text-slate-700 mt-2">
-                          {new Date(a.created_at).toLocaleString(lang === 'el' ? 'el-GR' : 'en-GB')}
-                          {a.target_type === 'specific' && a.target_influencer_id && (
-                            <span className="ml-2">
-                              → {lang === 'el' ? 'Σε συγκεκριμένο' : 'To specific'}
-                              {(users.find(u => u.auth_user_id === a.target_influencer_id) || users.find(u => String(u.id) === a.target_influencer_id)) && (
-                                <>: {(users.find(u => u.auth_user_id === a.target_influencer_id) || users.find(u => String(u.id) === a.target_influencer_id))!.display_name}</>
-                              )}
-                            </span>
-                          )}
-                          {a.target_type === 'all' && (
-                            <span className="ml-2">→ {txt.ann_to_all}</span>
-                          )}
+                      <li key={a.id} className="border border-slate-200 rounded-lg p-4 bg-slate-50 flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium text-slate-900">{a.title}</div>
+                          <div className="text-sm text-slate-800 mt-1 line-clamp-2">{a.body}</div>
+                          <div className="text-xs text-slate-700 mt-2">
+                            {new Date(a.created_at).toLocaleString(lang === 'el' ? 'el-GR' : 'en-GB')}
+                            {a.target_type === 'specific' && a.target_influencer_id && (
+                              <span className="ml-2">
+                                → {lang === 'el' ? 'Σε συγκεκριμένο' : 'To specific'}
+                                {(users.find(u => u.auth_user_id === a.target_influencer_id) || users.find(u => String(u.id) === a.target_influencer_id)) && (
+                                  <>: {(users.find(u => u.auth_user_id === a.target_influencer_id) || users.find(u => String(u.id) === a.target_influencer_id))!.display_name}</>
+                                )}
+                              </span>
+                            )}
+                            {a.target_type === 'all' && (
+                              <span className="ml-2">→ {txt.ann_to_all}</span>
+                            )}
+                          </div>
                         </div>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!confirm(lang === 'el' ? 'Διαγραφή ανακοίνωσης; Δεν μπορεί να αναιρεθεί.' : 'Delete this announcement? This cannot be undone.')) return;
+                            try {
+                              const res = await fetch(`/api/admin/announcements/${a.id}`, { method: 'DELETE' });
+                              if (res.ok) {
+                                setAnnouncementsList(prev => prev.filter(x => x.id !== a.id));
+                              } else {
+                                const j = await res.json().catch(() => ({}));
+                                alert(j.error || 'Error');
+                              }
+                            } catch (e) {
+                              console.error('Error deleting announcement:', e);
+                              alert(lang === 'el' ? 'Σφάλμα διαγραφής' : 'Delete failed');
+                            }
+                          }}
+                          className="shrink-0 px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                          title={lang === 'el' ? 'Διαγραφή ανακοίνωσης' : 'Delete announcement'}
+                        >
+                          {lang === 'el' ? 'Διαγραφή' : 'Delete'}
+                        </button>
                       </li>
                     ))}
                   </ul>
