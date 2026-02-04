@@ -3376,36 +3376,36 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
 
           {activeTab === "announcements" && (
             <>
-              <div className="p-4 border-b border-slate-200 space-y-4">
+              <div className="p-4 border-b border-slate-200 space-y-4 text-slate-900">
                 <form onSubmit={sendAnnouncement} className="space-y-4 max-w-2xl">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">{txt.ann_title}</label>
+                    <label className="block text-sm font-medium text-slate-900 mb-1">{txt.ann_title}</label>
                     <input
                       type="text"
                       value={announcementTitle}
                       onChange={(e) => setAnnouncementTitle(e.target.value)}
                       placeholder={lang === 'el' ? 'Τίτλος ανακοίνωσης' : 'Announcement title'}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">{txt.ann_body}</label>
+                    <label className="block text-sm font-medium text-slate-900 mb-1">{txt.ann_body}</label>
                     <textarea
                       value={announcementBody}
                       onChange={(e) => setAnnouncementBody(e.target.value)}
                       placeholder={lang === 'el' ? 'Κείμενο ανακοίνωσης' : 'Announcement content'}
                       rows={4}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white"
                       required
                     />
                   </div>
                   <div>
-                    <span className="block text-sm font-medium text-slate-700 mb-2">
+                    <span className="block text-sm font-medium text-slate-900 mb-2">
                       {lang === 'el' ? 'Στοχευμένοι παραλήπτες' : 'Recipients'}
                     </span>
                     <div className="flex flex-wrap gap-4">
-                      <label className="inline-flex items-center gap-2 cursor-pointer">
+                      <label className="inline-flex items-center gap-2 cursor-pointer text-slate-900">
                         <input
                           type="radio"
                           name="target"
@@ -3415,7 +3415,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                         />
                         <span>{txt.ann_to_all}</span>
                       </label>
-                      <label className="inline-flex items-center gap-2 cursor-pointer">
+                      <label className="inline-flex items-center gap-2 cursor-pointer text-slate-900">
                         <input
                           type="radio"
                           name="target"
@@ -3429,7 +3429,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                         <select
                           value={announcementTargetInfluencerId}
                           onChange={(e) => setAnnouncementTargetInfluencerId(e.target.value)}
-                          className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[200px]"
+                          className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[200px] text-slate-900 bg-white"
                           required={announcementTargetType === 'specific'}
                         >
                           <option value="">{lang === 'el' ? '— Επιλέξτε —' : '— Select —'}</option>
@@ -3455,21 +3455,21 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                   </button>
                 </form>
               </div>
-              <div className="p-4">
-                <h3 className="text-sm font-semibold text-slate-700 mb-3">
+              <div className="p-4 text-slate-900">
+                <h3 className="text-sm font-semibold text-slate-900 mb-3">
                   {lang === 'el' ? 'Απεσταλμένες ανακοινώσεις' : 'Sent announcements'}
                 </h3>
                 {announcementsLoading ? (
-                  <p className="text-slate-500">{lang === 'el' ? 'Φόρτωση...' : 'Loading...'}</p>
+                  <p className="text-slate-600">{lang === 'el' ? 'Φόρτωση...' : 'Loading...'}</p>
                 ) : announcementsList.length === 0 ? (
-                  <p className="text-slate-500">{txt.no_data}</p>
+                  <p className="text-slate-600">{txt.no_data}</p>
                 ) : (
                   <ul className="space-y-3">
                     {announcementsList.map((a) => (
                       <li key={a.id} className="border border-slate-200 rounded-lg p-4 bg-slate-50">
                         <div className="font-medium text-slate-900">{a.title}</div>
-                        <div className="text-sm text-slate-600 mt-1 line-clamp-2">{a.body}</div>
-                        <div className="text-xs text-slate-500 mt-2">
+                        <div className="text-sm text-slate-800 mt-1 line-clamp-2">{a.body}</div>
+                        <div className="text-xs text-slate-700 mt-2">
                           {new Date(a.created_at).toLocaleString(lang === 'el' ? 'el-GR' : 'en-GB')}
                           {a.target_type === 'specific' && a.target_influencer_id && (
                             <span className="ml-2">

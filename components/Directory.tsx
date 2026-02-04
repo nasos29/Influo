@@ -202,6 +202,17 @@ const getAgeFromBirthDate = (birthDate?: string | null): number | null => {
     return age;
 };
 
+/** Κανονικοποίηση για σύγκριση τοποθεσίας: lowercase + αφαίρεση τόνων (αθήνα = αθηνα = Αθήνα) */
+const normalizeLocation = (s: string): string => {
+  if (!s || typeof s !== 'string') return '';
+  const lower = s.toLowerCase().trim();
+  const noAccent = lower
+    .replace(/ά/g, 'α').replace(/έ/g, 'ε').replace(/ή/g, 'η').replace(/ί/g, 'ι')
+    .replace(/ό/g, 'ο').replace(/ύ/g, 'υ').replace(/ώ/g, 'ω')
+    .replace(/ϊ/g, 'ι').replace(/ϋ/g, 'υ');
+  return noAccent;
+};
+
 export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
   const [influencers, setInfluencers] = useState<Influencer[]>([]);
   const txt = t[lang];
@@ -355,8 +366,8 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
   const filtered = influencers.filter((inf) => {
     const searchMatch = inf.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                         inf.bio.toLowerCase().includes(searchQuery.toLowerCase());
-    const locationMatch = locationQuery === "" || 
-                          (inf.location && inf.location.toLowerCase().includes(locationQuery.toLowerCase()));
+    const locationMatch = locationQuery === "" ||
+                          (inf.location && normalizeLocation(inf.location).includes(normalizeLocation(locationQuery)));
     
     const platformMatch = platformFilter === "All" || (inf.socials && inf.socials[platformFilter.toLowerCase()] !== undefined);
     const categoryMatch = categoryFilter === "All" || inf.categories.includes(categoryFilter);

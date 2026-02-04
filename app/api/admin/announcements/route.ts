@@ -1,11 +1,24 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { Resend } from 'resend';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
   { auth: { autoRefreshToken: false, persistSession: false } }
 );
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr';
+const FROM_EMAIL = 'noreply@influo.gr';
+
+const ANNOUNCEMENT_EMAIL_SUBJECT = 'Υπάρχει μια νέα ανακοίνωση στο Influo';
+const ANNOUNCEMENT_EMAIL_HTML = `
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 560px; margin: 0 auto;">
+  <p style="margin: 0 0 16px 0;">Υπάρχει μια νέα ανακοίνωση στο Influo.</p>
+  <p style="margin: 0 0 20px 0;">Συνδέσου στο dashboard σου για να τη δεις.</p>
+  <p style="margin: 0;"><a href="${SITE_URL}/login?redirect=/dashboard" style="color: #2563eb; font-weight: 600;">Άνοιξε το Influo →</a></p>
+</div>`;
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,6 +59,46 @@ export async function POST(request: NextRequest) {
       console.error('[admin announcements]', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    // Στείλε email σε όσους αφορά (με καθυστέρηση ανά email ώστε να μην φαίνεται σπαμ)
+    if (process.env.RESEND_API_KEY) {
+      let emails: string[] = [];
+      if (target_type === 'all') {
+        const { data: infList } = await supabaseAdmin
+          .from('influencers')
+          .select('contact_email')
+          .eq('approved', true)
+          .not('contact_email', 'is', null);
+        emails = (infList || [])
+          .map((r: { contact_email: string | null }) => r.contact_email)
+          .filter((e): e is string => !!e && e.trim().length > 0);
+      } else if (target_type === 'specific' && target_influencer_id) {
+        const { data: infRow } = await supabaseAdmin
+          .from('influencers')
+          .select('contact_email')
+          .eq('auth_user_id', target_influencer_id)
+          .maybeSingle();
+        if (infRow?.contact_email?.trim()) {
+          emails = [infRow.contact_email.trim()];
+        }
+      }
+      for (let i = 0; i < emails.length; i++) {
+        try {
+          await resend.emails.send({
+            from: `Influo <${FROM_EMAIL}>`,
+            to: [emails[i]],
+            subject: ANNOUNCEMENT_EMAIL_SUBJECT,
+            html: ANNOUNCEMENT_EMAIL_HTML,
+          });
+        } catch (sendErr) {
+          console.error('[admin announcements] email send error for', emails[i], sendErr);
+        }
+        if (i < emails.length - 1) {
+          await new Promise((r) => setTimeout(r, 2000));
+        }
+      }
+    }
+
     return NextResponse.json({ data });
   } catch (err: any) {
     console.error('[admin announcements]', err);
