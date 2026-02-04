@@ -2302,12 +2302,17 @@ export default function InfluencerProfile(props: { params: Params }) {
                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                     <h3 className="font-bold text-slate-900 mb-4 text-sm uppercase">{txt.connect}</h3>
                     <div className="space-y-3">
-                         {Object.entries(profile.socials).map(([plat, user]) => (
-                            <a key={plat} href={`https://${plat}.com/${user}`} target="_blank" className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition border border-transparent hover:border-slate-200 group">
+                         {Object.entries(profile.socials).map(([plat, user]) => {
+                            const u = (user || '').trim();
+                            const href = plat.toLowerCase() === 'tiktok'
+                              ? `https://tiktok.com/${u.startsWith('@') ? u : `@${u}`}`
+                              : `https://${plat}.com/${u}`;
+                            return (
+                            <a key={plat} href={href} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition border border-transparent hover:border-slate-200 group">
                                 <span className="capitalize font-medium text-slate-700">{plat}</span>
                                 <span className="text-slate-400 group-hover:text-blue-600">↗</span>
                             </a>
-                        ))}
+                        ); })}
                     </div>
                  </div>
                  {/* Συνεργασίες - μόνο αν υπάρχει τουλάχιστον μία */}
