@@ -34,7 +34,7 @@ export async function POST(req: Request) {
     }
     
     // Some email types don't require email field (admin notifications)
-    if ((type === 'message_admin_notification' || type === 'proposal_admin_notification' || type === 'profile_edit_admin' || type === 'signup_admin')) {
+    if ((type === 'message_admin_notification' || type === 'proposal_admin_notification' || type === 'profile_edit_admin' || type === 'signup_admin' || type === 'signup_brand_admin')) {
       // Admin notifications - email is not required from body
     } else if (type === 'conversation_end' || type === 'message_offline') {
       // conversation_end and message_offline require email but it might be in body.email or body.toEmail
@@ -97,6 +97,29 @@ export async function POST(req: Request) {
             <div style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 8px; margin: 20px 0;">
               <p style="margin: 0 0 8px 0; font-size: 13px;"><strong style="color: #92400e;">Email:</strong> <span style="color: #1f2937;">${email}</span></p>
               <p style="margin: 0; font-size: 13px;"><strong style="color: #92400e;">Location:</strong> <span style="color: #1f2937;">${location || 'N/A'}</span></p>
+            </div>
+            <div style="margin: 24px 0; text-align: center;">
+              <a href="https://${host}/admin" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">📊 Πήγαινε στο Admin Dashboard</a>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    else if (type === 'signup_brand_admin') {
+      toEmail = ADMIN_RECEIVING_EMAIL;
+      const brandNameVal = name || brandName || 'Επιχείρηση';
+      const industryVal = body.industry || body.category || 'N/A';
+      subject = `🔔 Νέα Επιχείρηση: ${brandNameVal}`;
+      html = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 24px; border-radius: 12px 12px 0 0;">
+            <h1 style="color: #92400e; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">🔔 Νέα Επιχείρηση για Έλεγχο!</h1>
+          </div>
+          <div style="background: #ffffff; padding: 24px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
+            <p style="margin: 0 0 16px 0; font-size: 14px;">Η επιχείρηση <strong style="color: #1f2937;">${brandNameVal}</strong> μόλις έκανε εγγραφή.</p>
+            <div style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 8px; margin: 20px 0;">
+              <p style="margin: 0 0 8px 0; font-size: 13px;"><strong style="color: #92400e;">Email:</strong> <span style="color: #1f2937;">${email || 'N/A'}</span></p>
+              <p style="margin: 0 0 8px 0; font-size: 13px;"><strong style="color: #92400e;">Κατηγορία:</strong> <span style="color: #1f2937;">${industryVal}</span></p>
             </div>
             <div style="margin: 24px 0; text-align: center;">
               <a href="https://${host}/admin" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">📊 Πήγαινε στο Admin Dashboard</a>

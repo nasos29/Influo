@@ -281,6 +281,21 @@ export default function BrandSignupForm() {
       }
 
       setSuccess(true);
+
+      try {
+        await fetch('/api/emails', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'signup_brand_admin',
+            email: email.toLowerCase().trim(),
+            name: brandName.trim(),
+            industry: category.trim(),
+          }),
+        });
+      } catch (e) {
+        console.error('Admin notification email error:', e);
+      }
       
       // Redirect to dashboard or redirect URL after a short delay
       setTimeout(() => {

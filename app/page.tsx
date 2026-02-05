@@ -685,8 +685,10 @@ export default function Home() {
               {[
                 { name: 'Nike', domain: 'nike.com', url: 'https://www.nike.com' },
                 { name: 'Apple', domain: 'apple.com', url: 'https://www.apple.com' },
+                { name: 'KORRES', domain: 'korres.com', url: 'https://www.korres.com' },
                 { name: 'Skroutz', domain: 'skroutz.gr', url: 'https://www.skroutz.gr' },
                 { name: 'Samsung', domain: 'samsung.com', url: 'https://www.samsung.com' },
+                { name: "L'Oréal", domain: 'loreal.com', url: 'https://www.loreal.com' },
                 { name: 'Zara', domain: 'zara.com', url: 'https://www.zara.com' },
                 { name: 'Microsoft', domain: 'microsoft.com', url: 'https://www.microsoft.com' },
                 { name: 'Vodafone', domain: 'vodafone.gr', url: 'https://www.vodafone.gr' },

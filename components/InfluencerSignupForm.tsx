@@ -97,7 +97,7 @@ const t = {
     uploadBtn: "Ανέβασμα Φωτογραφίας",
     insightsLabel: "Αποδεικτικά Insights (Screenshots)",
     insightsDesc: "Ανέβασε screenshots από τα στατιστικά σου για επαλήθευση.",
-    insightsTip: "Συμπεριλάβετε οθόνες που δείχνουν το Κοινό (Φύλο/Ηλικία) και το Engagement Rate των τελευταίων 30 ημερών. Απαραίτητο για έγκριση.",
+    insightsTip: "Συμπεριλάβετε οθόνες που δείχνουν το Κοινό (Φύλο/Ηλικία) και τα Views των τελευταίων 30 ημερών. Απαραίτητο για έγκριση.",
     uploadInsightsBtn: "Ανέβασμα Screenshots",
     videoLabel: "Video Highlights (Links)",
     videoDesc: "Επικόλλησε links από TikTok, Reels ή YouTube. Μπορείτε επίσης να προσθέσετε links φωτογραφιών από δουλειές σας.",
@@ -162,7 +162,7 @@ const t = {
     uploadBtn: "Upload Photo",
     insightsLabel: "Insights Proof (Screenshots)",
     insightsDesc: "Upload screenshots of your stats for verification.",
-    insightsTip: "Tip: Please include screenshots showing Audience Demographics (Age/Gender) and Engagement Rate for the last 30 days. Required for approval.",
+    insightsTip: "Please include screenshots showing Audience Demographics (Age/Gender) and Views for the last 30 days. Required for approval.",
     uploadInsightsBtn: "Upload Screenshots",
     videoLabel: "Best Video Highlights (Links)",
     videoDesc: "Paste links from TikTok, Reels, or YouTube. You can also add photo links from your work.",
@@ -836,18 +836,6 @@ export default function InfluencerSignupForm() {
                             <div className="w-full md:w-1/4">
                                 <label className="text-[10px] uppercase font-bold text-gray-400 mb-1 block">{txt.follLabel}</label>
                                 <input type="text" className={`${inputClass} !py-2 !text-sm`} value={acc.followers} onChange={(e) => handleAccountChange(i, "followers", e.target.value)} placeholder="15k" />
-                            </div>
-
-                            {/* Engagement Rate */}
-                            <div className="w-full md:w-1/4">
-                                <label className="text-[10px] uppercase font-bold text-gray-400 mb-1 block">{txt.engageRateLabel}</label>
-                                <input type="text" className={`${inputClass} !py-2 !text-sm`} value={acc.engagement_rate || ""} onChange={(e) => handleAccountChange(i, "engagement_rate", e.target.value)} placeholder="5.5%" />
-                            </div>
-
-                            {/* Average Likes */}
-                            <div className="w-full md:w-1/4">
-                                <label className="text-[10px] uppercase font-bold text-gray-400 mb-1 block">{txt.avgLikesLabel}</label>
-                                <input type="text" className={`${inputClass} !py-2 !text-sm`} value={acc.avg_likes || ""} onChange={(e) => handleAccountChange(i, "avg_likes", e.target.value)} placeholder="3.2k" />
                             </div>
 
                             <button onClick={() => removeAccount(i)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold shadow-md hover:bg-red-600 transition-colors">✕</button>
