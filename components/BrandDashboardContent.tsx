@@ -1427,7 +1427,6 @@ export default function BrandDashboardContent() {
                     <option value="instagram">Instagram</option>
                     <option value="tiktok">TikTok</option>
                     <option value="youtube">YouTube</option>
-                    <option value="facebook">Facebook</option>
                     <option value="twitter">Twitter/X</option>
                   </select>
                 </div>

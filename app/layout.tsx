@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Roboto } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
@@ -68,7 +69,7 @@ export const metadata: Metadata = {
     canonical: "/",
     languages: {
       "el": "/",
-      "en": "/?lang=en",
+      "en": "/en",
     },
   },
   icons: {
@@ -85,11 +86,15 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const headersList = await headers();
+  const pathname = headersList.get("x-pathname") || "/";
+  const htmlLang = pathname.startsWith("/en") ? "en" : "el";
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Organization",
@@ -128,7 +133,7 @@ export default function RootLayout({
   };
 
   return (
-    <html lang="el">
+    <html lang={htmlLang}>
       <head>
         <link rel="icon" href="/logo-icon.svg" type="image/svg+xml" sizes="any" />
         <link rel="icon" href="/logo-icon.svg" type="image/svg+xml" sizes="48x48" />

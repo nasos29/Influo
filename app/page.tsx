@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import Directory from "../components/Directory";
 import InfluencerSignupForm from "../components/InfluencerSignupForm";
@@ -83,8 +84,10 @@ interface VerifiedBrand {
 }
 
 export default function Home() {
+  const pathname = usePathname();
+  const router = useRouter();
   const [showModal, setShowModal] = useState(false);
-  const [lang, setLang] = useState<Lang>("el"); // Default to Greek, will be updated in useEffect
+  const [lang, setLang] = useState<Lang>(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [verifiedBrands, setVerifiedBrands] = useState<VerifiedBrand[]>([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -93,9 +96,9 @@ export default function Home() {
   const [userName, setUserName] = useState<string | null>(null);
   const txt = t[lang];
 
-  // Load language from localStorage on client-side
+  // Load language from pathname (/en) or localStorage on client-side
   useEffect(() => {
-    setLang(getStoredLanguage());
+    setLang(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
     
     // Listen for language changes from Header component
     const handleLanguageChange = (event: CustomEvent) => {
@@ -107,7 +110,7 @@ export default function Home() {
     return () => {
       window.removeEventListener('languageChanged', handleLanguageChange as EventListener);
     };
-  }, []);
+  }, [pathname]);
 
   // Check if user is logged in and get user type
   useEffect(() => {
@@ -257,10 +260,10 @@ export default function Home() {
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "WebPage",
-            "name": "Influo.gr - Πλατφόρμα Influencer Marketing",
-            "description": "Η πιο σύγχρονη πλατφόρμα Influencer Marketing στην Ελλάδα. Σύνδεσε το ταλέντο σου με κορυφαίες Επιχειρήσεις.",
-            "url": process.env.NEXT_PUBLIC_SITE_URL || "https://influo.gr",
-            "inLanguage": "el",
+            "name": lang === "en" ? "Influo - Influencer Marketing Platform" : "Influo.gr - Πλατφόρμα Influencer Marketing",
+            "description": lang === "en" ? "The most modern Influencer Marketing platform in Greece. Connect your talent with top Brands. Create your professional profile and get hired today." : "Η πιο σύγχρονη πλατφόρμα Influencer Marketing στην Ελλάδα. Σύνδεσε το ταλέντο σου με κορυφαίες Επιχειρήσεις.",
+            "url": `${process.env.NEXT_PUBLIC_SITE_URL || "https://influo.gr"}${pathname?.startsWith("/en") ? "/en" : ""}`,
+            "inLanguage": lang === "en" ? "en" : "el",
             "alternateName": {
               "en": "Influo.gr - Influencer Marketing Platform",
               "el": "Influo.gr - Πλατφόρμα Influencer Marketing"
@@ -287,7 +290,7 @@ export default function Home() {
       {/* Header */}
         <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-200/50 shadow-sm">
         <div className="max-w-7xl mx-auto flex justify-between items-center px-4 sm:px-6 py-4">
-            <a href="/" className="flex items-center gap-2" aria-label="Influo Home">
+            <a href={lang === "en" ? "/en" : "/"} className="flex items-center gap-2" aria-label="Influo Home">
               <Image 
                 src="/logo.svg" 
                 alt="Influo.gr Logo" 
@@ -353,6 +356,8 @@ export default function Home() {
                   const newLang = lang === "el" ? "en" : "el";
                   setLang(newLang);
                   setStoredLanguage(newLang);
+                  if (newLang === "en") router.push("/en");
+                  else router.push("/");
                 }}
                 className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
                 aria-label="Toggle language"
@@ -392,6 +397,8 @@ export default function Home() {
                   const newLang = lang === "el" ? "en" : "el";
                   setLang(newLang);
                   setStoredLanguage(newLang);
+                  if (newLang === "en") router.push("/en");
+                  else router.push("/");
                 }}
                 className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
                 aria-label="Toggle language"

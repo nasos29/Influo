@@ -147,11 +147,10 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
     const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatar_url || null);
     
     // Rate card prices - removed since rate_card column doesn't exist in database
-    const [priceStory, setPriceStory] = useState('');
-    const [pricePost, setPricePost] = useState('');
-    const [priceReel, setPriceReel] = useState('');
-    const [priceFacebook, setPriceFacebook] = useState('');
-    const [priceYouTube, setPriceYouTube] = useState('');
+  const [priceStory, setPriceStory] = useState('');
+  const [pricePost, setPricePost] = useState('');
+  const [priceReel, setPriceReel] = useState('');
+  const [priceYouTube, setPriceYouTube] = useState('');
 
     // Helper function to replace commas with dots in numeric inputs
     const replaceCommaWithDot = (value: string): string => {
@@ -252,7 +251,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                 category: categoryString,
                 languages: languagesString,
                 gender: validGender,
-                accounts: accounts.filter(acc => acc.username && acc.platform),
+                accounts: accounts.filter(acc => acc.username && acc.platform && acc.platform !== 'Facebook'),
                 videos: videos.filter(v => v !== ""),
                 audience_male_percent: malePercent ? parseInt(malePercent) : null,
                 audience_female_percent: femalePercent ? parseInt(femalePercent) : null,
@@ -404,7 +403,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
         }
     };
 
-    const platforms = ["Instagram", "TikTok", "YouTube", "Facebook", "Twitter"];
+    const platforms = ["Instagram", "TikTok", "YouTube", "Twitter"];
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
@@ -572,16 +571,6 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                     onChange={e => setPriceReel(replaceCommaWithDot(e.target.value))} 
                                     className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" 
                                     placeholder="300" 
-                                />
-                        </div>
-                        <div>
-                                <label className="block text-xs font-semibold text-slate-900 mb-1">Facebook Post (€)</label>
-                                <input 
-                                    type="text" 
-                                    value={priceFacebook} 
-                                    onChange={e => setPriceFacebook(replaceCommaWithDot(e.target.value))} 
-                                    className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" 
-                                    placeholder="150" 
                                 />
                         </div>
                          <div>

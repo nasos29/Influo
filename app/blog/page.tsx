@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import Footer from "../../components/Footer";
@@ -10,14 +11,16 @@ import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
 type Lang = "el" | "en";
 
 export default function BlogPage() {
-  const [lang, setLang] = useState<Lang>("el"); // Default to Greek, will be updated in useEffect
+  const pathname = usePathname();
+  const router = useRouter();
+  const [lang, setLang] = useState<Lang>(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Load language from localStorage on client-side
+  // Load language from pathname (/en/blog) or localStorage on client-side
   useEffect(() => {
-    setLang(getStoredLanguage());
-  }, []);
+    setLang(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
+  }, [pathname]);
 
   useEffect(() => {
     // Initialize and load posts
@@ -215,11 +218,11 @@ export default function BlogPage() {
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-200/50 shadow-sm">
         <div className="max-w-7xl mx-auto flex justify-between items-center px-4 sm:px-6 py-4">
-          <Link href="/" className="flex items-center gap-2">
+          <Link href={lang === "en" ? "/en" : "/"} className="flex items-center gap-2">
             <Image src="/logo.svg" alt="Influo.gr Logo" width={160} height={64} className="h-10 w-auto" priority />
           </Link>
           <div className="flex items-center gap-6">
-            <Link href="/" className="text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors">
+            <Link href={lang === "en" ? "/en" : "/"} className="text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors">
               {lang === "el" ? "← Επιστροφή" : "← Back"}
             </Link>
             <button 
@@ -227,6 +230,8 @@ export default function BlogPage() {
                 const newLang = lang === "el" ? "en" : "el";
                 setLang(newLang);
                 setStoredLanguage(newLang);
+                if (newLang === "en") router.push("/en/blog");
+                else router.push("/blog");
               }}
               className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
             >
@@ -262,7 +267,7 @@ export default function BlogPage() {
               {displayPosts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((post) => (
               <Link 
                 key={post.slug} 
-                href={`/blog/${post.slug}`}
+                href={lang === "en" ? `/en/blog/${post.slug}` : `/blog/${post.slug}`}
                 className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden hover:shadow-xl transition-all group"
               >
                 <div className="relative h-48 overflow-hidden">

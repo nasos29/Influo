@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { use } from "react";
 import Footer from "../../../components/Footer";
 import React from "react";
 import { getBlogPosts, type BlogPost as BlogPostType } from "@/lib/blogPosts";
+import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
 
 type Lang = "el" | "en";
 
@@ -2544,8 +2546,10 @@ interface PostData {
 }
 
 export default function BlogPostPage({ params }: { params: Promise<{ slug: string }> }) {
+  const pathname = usePathname();
+  const router = useRouter();
   const resolvedParams = use(params);
-  const [lang, setLang] = useState<Lang>("el");
+  const [lang, setLang] = useState<Lang>(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
   const [post, setPost] = useState<PostData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -2553,6 +2557,10 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
   if (typeof window !== 'undefined') {
     (window as any).__blogPostsContent = posts;
   }
+
+  useEffect(() => {
+    setLang(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
+  }, [pathname]);
 
   useEffect(() => {
     const loadPost = () => {
@@ -2668,7 +2676,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-slate-900 mb-4">Article not found</h1>
-          <Link href="/blog" className="text-blue-600 hover:underline">
+          <Link href={pathname?.startsWith("/en") ? "/en/blog" : "/blog"} className="text-blue-600 hover:underline">
             ← Back to Blog
           </Link>
         </div>
@@ -2680,15 +2688,21 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-200/50 shadow-sm">
         <div className="max-w-7xl mx-auto flex justify-between items-center px-4 sm:px-6 py-4">
-          <Link href="/" className="flex items-center gap-2">
+          <Link href={lang === "en" ? "/en" : "/"} className="flex items-center gap-2">
             <Image src="/logo.svg" alt="Influo.gr Logo" width={160} height={64} className="h-10 w-auto" priority />
           </Link>
           <div className="flex items-center gap-6">
-            <Link href="/blog" className="text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors">
+            <Link href={lang === "en" ? "/en/blog" : "/blog"} className="text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors">
               {lang === "el" ? "← Blog" : "← Blog"}
             </Link>
             <button 
-              onClick={() => setLang(lang === "el" ? "en" : "el")}
+              onClick={() => {
+                const newLang = lang === "el" ? "en" : "el";
+                setLang(newLang);
+                setStoredLanguage(newLang);
+                if (newLang === "en") router.push(`/en/blog/${resolvedParams.slug}`);
+                else router.push(`/blog/${resolvedParams.slug}`);
+              }}
               className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
             >
               {lang === "el" ? "EN" : "EL"}

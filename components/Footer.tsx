@@ -87,7 +87,7 @@ export default function Footer({ lang = "el" }: FooterProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 md:gap-12 mb-12">
           {/* Brand Column */}
           <div className="lg:col-span-2">
-            <Link href="/" className="inline-block mb-4">
+            <Link href={lang === "en" ? "/en" : "/"} className="inline-block mb-4">
               <Image 
                 src="/logo.svg" 
                 alt="Influo.gr Logo" 
@@ -176,12 +176,12 @@ export default function Footer({ lang = "el" }: FooterProps) {
             <h3 className="text-white font-semibold mb-4">{txt.company}</h3>
             <ul className="space-y-3">
               <li>
-                <Link href="/about" className="text-slate-400 hover:text-white transition-colors text-sm">
+                <Link href={lang === "en" ? "/en/about" : "/about"} className="text-slate-400 hover:text-white transition-colors text-sm">
                   {txt.about}
                 </Link>
               </li>
               <li>
-                <Link href="/blog" className="text-slate-400 hover:text-white transition-colors text-sm">
+                <Link href={lang === "en" ? "/en/blog" : "/blog"} className="text-slate-400 hover:text-white transition-colors text-sm">
                   {txt.blog}
                 </Link>
               </li>

@@ -231,7 +231,6 @@ export default function InfluencerSignupForm() {
   const [priceStory, setPriceStory] = useState("");
   const [pricePost, setPricePost] = useState("");
   const [priceReel, setPriceReel] = useState("");
-  const [priceFacebook, setPriceFacebook] = useState("");
   const [priceYouTube, setPriceYouTube] = useState("");
 
   // NEW AUDIENCE STATES
@@ -558,7 +557,7 @@ export default function InfluencerSignupForm() {
           min_rate: minRate,
           contact_email: email,
           bio, 
-          accounts, 
+          accounts: accounts.filter(acc => acc.platform !== 'Facebook'), 
           videos: videos.filter(v => v !== ""),
           avatar_url: avatarUrl || null,
           insights_urls: insightUrls,
@@ -819,7 +818,6 @@ export default function InfluencerSignupForm() {
                                     <option>Instagram</option>
                                     <option>TikTok</option>
                                     <option>YouTube</option>
-                                    <option>Facebook</option>
                                 </select>
                             </div>
                             
@@ -1023,16 +1021,6 @@ export default function InfluencerSignupForm() {
                                 value={priceReel} 
                                 onChange={(e) => setPriceReel(replaceCommaWithDot(e.target.value))} 
                                 placeholder="300" 
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-900 mb-1">{txt.pricingFacebook}</label>
-                            <input 
-                                type="text" 
-                                className={inputClass} 
-                                value={priceFacebook} 
-                                onChange={(e) => setPriceFacebook(replaceCommaWithDot(e.target.value))} 
-                                placeholder="150" 
                             />
                         </div>
                         <div>

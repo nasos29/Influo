@@ -864,7 +864,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                     const lang = LANGUAGES.find(l => l.code === code);
                     return lang ? lang.el : code;
                 }).join(", "), // Store as comma-separated string with Greek names
-                accounts: accounts,
+                accounts: (accounts || []).filter((acc: { platform?: string }) => (acc.platform || '').toLowerCase() !== 'facebook'),
                 videos: videos.filter(v => v !== ""),
                 video_thumbnails: uploadedThumbnails,
                 audience_male_percent: parseInt(malePercent) || 0,
@@ -1177,7 +1177,6 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                             <option value="Instagram">Instagram</option>
                                             <option value="TikTok">TikTok</option>
                                             <option value="YouTube">YouTube</option>
-                                            <option value="Facebook">Facebook</option>
                                             <option value="Twitter">Twitter/X</option>
                                         </select>
                                     </div>
