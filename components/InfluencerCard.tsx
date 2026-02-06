@@ -4,6 +4,7 @@ import Image from "next/image";
 import { Badge, getBadgeStyles } from "../lib/badges";
 import Avatar from "./Avatar";
 import { categoryTranslations } from "./categoryTranslations";
+import { displayNameForLang } from "@/lib/greeklish";
 
 interface InfluencerCardProps {
   name: string;
@@ -109,7 +110,7 @@ export default function InfluencerCard({
         {/* Avatar & Verified Badge */}
         <div className="relative -mt-12 mb-4">
           <div className="relative w-20 h-20 rounded-full border-2 border-white shadow-md overflow-hidden bg-white">
-            <Avatar src={avatar} alt={name} size={80} />
+            <Avatar src={avatar} alt={displayNameForLang(name, lang || 'el')} size={80} />
           </div>
           {verified && (
             <div className="absolute bottom-0 left-14 bg-blue-600 text-white p-1 rounded-full border-2 border-white" title="Verified">
@@ -120,7 +121,7 @@ export default function InfluencerCard({
 
         {/* Name & Bio */}
         <div className="mb-3">
-            <h4 className="text-base font-semibold text-slate-900 truncate mb-1">{name}</h4>
+            <h4 className="text-base font-semibold text-slate-900 truncate mb-1">{displayNameForLang(name, lang || 'el')}</h4>
             <p className="text-slate-600 text-xs line-clamp-2 h-8 leading-relaxed">
                 {lang === 'en' && bio_en ? bio_en : bio}
             </p>

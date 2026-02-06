@@ -7,6 +7,7 @@ import { isDefinitelyVideo, isDefinitelyImage, detectProvider, getIframelyEmbedU
 import VideoThumbnail from "./VideoThumbnail";
 import SocialEmbedCard from "./SocialEmbedCard";
 import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
+import { displayNameForLang } from "@/lib/greeklish";
 import { categoryTranslations } from "@/components/categoryTranslations";
 import { fetchInstagramFromAuditpr, fetchTiktokFromAuditpr } from "@/lib/socialRefresh";
 
@@ -2946,7 +2947,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                 <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200">
                                   <Image 
                                     src={u.avatar_url} 
-                                    alt={u.display_name} 
+                                    alt={displayNameForLang(u.display_name, lang)} 
                                     width={40} 
                                     height={40} 
                                     className="object-cover w-full h-full"
@@ -2957,7 +2958,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                 <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200 flex items-center justify-center text-slate-400 text-xs">No Photo</div>
                               )}
                               <div>
-                                <div className="font-medium text-slate-900">{u.display_name}</div>
+                                <div className="font-medium text-slate-900">{displayNameForLang(u.display_name, lang)}</div>
                                 {u.category && (
                                   <div className="flex flex-wrap gap-1 mt-1">
                                     {(u.category.includes(',') ? u.category.split(',').map((c: string) => c.trim()) : [u.category]).map((cat: string, idx: number) => (

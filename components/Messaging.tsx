@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { displayNameForLang } from '@/lib/greeklish';
 
 interface Message {
   id: string;
@@ -1386,7 +1387,7 @@ export default function Messaging({
   const currentConversation = conversations.find(c => c.id === selectedConversation);
   const otherPartyName = mode === 'influencer' 
     ? currentConversation?.brand_name || currentConversation?.brand_email
-    : currentConversation?.influencer_name;
+    : displayNameForLang(currentConversation?.influencer_name, lang || 'el');
 
 
   // Check influencer status when conversation changes (for brand mode) - only check, don't update
@@ -1566,7 +1567,7 @@ export default function Messaging({
                     <div className="font-semibold text-slate-900">
                       {mode === 'influencer' 
                         ? (conv.brand_name || conv.brand_email)
-                        : conv.influencer_name}
+                        : displayNameForLang(conv.influencer_name, lang || 'el')}
                     </div>
                     {isClosed && (
                       <span className="text-xs text-red-600 font-medium">
@@ -1863,7 +1864,7 @@ export default function Messaging({
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <p className="text-sm text-blue-900 font-medium mb-2">
                   {lang === 'el' ? 'Συνεργασία με:' : 'Collaboration with:'} <strong>
-                    {mode === 'influencer' ? proposalInfo.brand_name : influencerName}
+                    {mode === 'influencer' ? proposalInfo.brand_name : displayNameForLang(influencerName, lang || 'el')}
                   </strong>
                 </p>
                 <p className="text-sm text-blue-800">

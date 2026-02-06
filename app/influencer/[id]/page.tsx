@@ -12,6 +12,7 @@ import SocialEmbedCard from "@/components/SocialEmbedCard";
 import { getBadges, getBadgeStyles } from "@/lib/badges";
 import Avatar from "@/components/Avatar";
 import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
+import { displayNameForLang } from "@/lib/greeklish";
 import { categoryTranslations } from "@/components/categoryTranslations";
 
 type Params = Promise<{ id: string }>;
@@ -1052,7 +1053,7 @@ export default function InfluencerProfile(props: { params: Params }) {
 
                 {!sent ? (
                     <div className="p-8">
-                        <h3 className="text-2xl font-bold text-slate-900 mb-2">{txt.modal_title} {profile.name}</h3>
+                        <h3 className="text-2xl font-bold text-slate-900 mb-2">{txt.modal_title} {displayNameForLang(profile.name, lang)}</h3>
                         <p className="text-slate-500 text-sm mb-6">{txt.modal_sub}</p>
                         
                         <form onSubmit={handleSendProposal} className="space-y-4">
@@ -1450,11 +1451,11 @@ export default function InfluencerProfile(props: { params: Params }) {
           {/* Top Section: Avatar, Name, Info */}
           <div className="p-6 md:p-8 flex flex-col md:flex-row items-center md:items-end gap-6 border-b border-slate-100">
             <div className="relative w-40 h-40 rounded-full border-4 border-white shadow-lg overflow-hidden bg-slate-100 -mt-6 md:mb-0 flex-shrink-0">
-                <Avatar src={profile.avatar} alt={profile.name} size={160} className="w-full h-full" />
+                <Avatar src={profile.avatar} alt={displayNameForLang(profile.name, lang)} size={160} className="w-full h-full" />
             </div>
             <div className="flex-1 text-center md:text-left">
                 <h1 className="text-3xl font-bold text-slate-900 flex items-center justify-center md:justify-start gap-2">
-                    {profile.name}
+                    {displayNameForLang(profile.name, lang)}
                 </h1>
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-1">
                     <p className="text-slate-500">{profile.location} • {profile.gender === "Male" ? txt.male : txt.female}</p>
@@ -2318,7 +2319,7 @@ export default function InfluencerProfile(props: { params: Params }) {
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-slate-900 mb-2">💰 Αντιπρόταση</h2>
               <p className="text-slate-600">
-                Ο/Η <strong>{profile?.name}</strong> σας έστειλε μια αντιπρόταση για τη συνεργασία:
+                Ο/Η <strong>{displayNameForLang(profile?.name, lang)}</strong> σας έστειλε μια αντιπρόταση για τη συνεργασία:
               </p>
             </div>
             

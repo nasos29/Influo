@@ -8,6 +8,7 @@ import Image from 'next/image';
 import { recommendInfluencers, type InfluencerProfile, type BrandProfile } from '@/lib/recommendations';
 import Messaging from '@/components/Messaging';
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
+import { displayNameForLang } from '@/lib/greeklish';
 
 // Categories (same as Directory and InfluencerSignupForm)
 const CATEGORIES = [
@@ -1519,14 +1520,14 @@ export default function BrandDashboardContent() {
                       <div className="relative h-48 bg-gradient-to-br from-blue-100 to-purple-100">
                         <Image
                           src={avatarUrl}
-                          alt={inf.display_name}
+                          alt={displayNameForLang(inf.display_name, lang)}
                           fill
                           className="object-cover"
                           unoptimized
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                         <div className="absolute bottom-3 left-3 right-3">
-                          <h3 className="text-white font-bold text-lg mb-1.5">{inf.display_name}</h3>
+                          <h3 className="text-white font-bold text-lg mb-1.5">{displayNameForLang(inf.display_name, lang)}</h3>
                           {(inf.categories && inf.categories.length > 0 ? inf.categories : (inf.category ? [inf.category] : [])).slice(0, 3).map((cat: string, idx: number) => (
                             <span key={idx} className="inline-block px-2 py-1 bg-white/20 backdrop-blur-sm rounded text-xs text-white font-medium mr-1 mb-1">
                               {lang === 'el' ? 
@@ -1705,7 +1706,7 @@ export default function BrandDashboardContent() {
                           <div className="flex items-center gap-2 mb-2">
                             <span className="bg-amber-500 text-white text-xs font-bold px-2 py-1 rounded">ΝΕΑ</span>
                             <h3 className="text-lg font-bold text-slate-900">
-                              {influencer?.display_name || 'Unknown Influencer'}
+                              {displayNameForLang(influencer?.display_name, lang) || 'Unknown Influencer'}
                             </h3>
                           </div>
                           <div className="grid grid-cols-2 gap-4 text-sm mb-3">
@@ -1770,7 +1771,7 @@ export default function BrandDashboardContent() {
                       <div className="flex justify-between items-start mb-4">
                         <div>
                           <h3 className="text-lg font-bold text-slate-900 mb-2">
-                            {influencer?.display_name || 'Unknown Influencer'}
+                            {displayNameForLang(influencer?.display_name, lang) || 'Unknown Influencer'}
                           </h3>
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
@@ -1858,7 +1859,7 @@ export default function BrandDashboardContent() {
                 <div className="space-y-3 text-sm">
                   <div className="flex items-center justify-between">
                     <span className="text-blue-700 font-medium">{txt.influencer}:</span>
-                    <span className="text-blue-900 font-bold">{influencers[selectedProposal.influencer_id]?.display_name || 'N/A'}</span>
+                    <span className="text-blue-900 font-bold">{displayNameForLang(influencers[selectedProposal.influencer_id]?.display_name, lang) || 'N/A'}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-blue-700 font-medium">{txt.service}:</span>
@@ -2096,11 +2097,11 @@ export default function BrandDashboardContent() {
                   <span className="text-sm text-slate-700">
                     {lang === 'el' ? (
                       <>
-                        <strong>Αποδέχομαι τους όρους χρήσης</strong> και συμφωνώ να προχωρήσω στη συνεργασία με τον/την <strong>{influencers[selectedProposal.influencer_id]?.display_name || 'influencer'}</strong> σύμφωνα με τους όρους που έχουν συμφωνηθεί.
+                        <strong>Αποδέχομαι τους όρους χρήσης</strong> και συμφωνώ να προχωρήσω στη συνεργασία με τον/την <strong>{displayNameForLang(influencers[selectedProposal.influencer_id]?.display_name, lang) || 'influencer'}</strong> σύμφωνα με τους όρους που έχουν συμφωνηθεί.
                       </>
                     ) : (
                       <>
-                        <strong>I accept the terms of service</strong> and agree to proceed with the collaboration with <strong>{influencers[selectedProposal.influencer_id]?.display_name || 'influencer'}</strong> according to the agreed terms.
+                        <strong>I accept the terms of service</strong> and agree to proceed with the collaboration with <strong>{displayNameForLang(influencers[selectedProposal.influencer_id]?.display_name, lang) || 'influencer'}</strong> according to the agreed terms.
                       </>
                     )}
                   </span>

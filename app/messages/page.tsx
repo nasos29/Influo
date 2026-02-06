@@ -4,6 +4,8 @@ import { useSearchParams } from 'next/navigation';
 import { Suspense, useState, useEffect } from 'react';
 import Messaging from '@/components/Messaging';
 import { supabase } from '@/lib/supabaseClient';
+import { getStoredLanguage } from '@/lib/language';
+import { displayNameForLang } from '@/lib/greeklish';
 
 function MessagesContent() {
   const searchParams = useSearchParams();
@@ -17,6 +19,11 @@ function MessagesContent() {
     email: string;
   } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [lang, setLang] = useState<'el' | 'en'>('el');
+
+  useEffect(() => {
+    setLang(getStoredLanguage());
+  }, []);
 
   useEffect(() => {
     if (influencerId) {
@@ -75,16 +82,16 @@ function MessagesContent() {
       <div className="max-w-6xl mx-auto">
         <div className="mb-6">
           <a href="/" className="text-blue-600 hover:underline mb-4 inline-block">← Πίσω στο Site</a>
-          <h1 className="text-3xl font-bold text-slate-900">Μηνύματα με {influencerData.name}</h1>
+          <h1 className="text-3xl font-bold text-slate-900">Μηνύματα με {displayNameForLang(influencerData.name, lang)}</h1>
         </div>
         <Messaging
           influencerId={influencerData.id}
-          influencerName={influencerData.name}
+          influencerName={displayNameForLang(influencerData.name, lang)}
           influencerEmail={influencerData.email}
           brandEmail={brandEmail}
           brandName={brandName ?? undefined}
           mode="brand"
-          lang="el"
+          lang={lang}
         />
       </div>
     </div>
