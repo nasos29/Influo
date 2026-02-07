@@ -1,11 +1,11 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: "Σχετικά με εμάς | Influo.gr",
+  title: "Σχετικά με εμάς",
   description: "Η αποστολή μας είναι να κάνουμε το influencer marketing πιο έξυπνο, δίκαιο και αποδοτικό. Γνωρίστε το Influo.",
   keywords: ["influo", "σχετικά με εμάς", "about", "influencer marketing", "πλατφόρμα"],
   openGraph: {
-    title: "Σχετικά με εμάς | Influo.gr",
+    title: "Σχετικά με εμάς",
     description: "Η αποστολή μας είναι να κάνουμε το influencer marketing πιο έξυπνο και δίκαιο.",
     url: "/about",
   },

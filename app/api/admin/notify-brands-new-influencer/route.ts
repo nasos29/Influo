@@ -89,10 +89,17 @@ export async function POST(request: NextRequest) {
 
     if (!process.env.RESEND_API_KEY) {
       console.warn('[notify-brands-new-influencer] RESEND_API_KEY not set, skipping emails');
-      return NextResponse.json({ success: true, sent: 0, skipped: toSend.length });
+      return NextResponse.json({ 
+        success: false, 
+        sent: 0, 
+        total: toSend.length, 
+        resendApiKeyMissing: true,
+        message: 'RESEND_API_KEY not configured'
+      });
     }
 
     let sent = 0;
+    const errors: string[] = [];
     for (let i = 0; i < toSend.length; i++) {
       const brand = toSend[i];
       const brandName = brand.brand_name || 'Επιχείρηση';
@@ -108,22 +115,34 @@ export async function POST(request: NextRequest) {
   <p style="margin: 0; font-size: 12px; color: #6b7280;">Με εκτίμηση,<br/>Η ομάδα ${PLATFORM_NAME}</p>
 </div>`;
       try {
-        await resend.emails.send({
+        const { data, error } = await resend.emails.send({
           from: `${PLATFORM_NAME} <${FROM_EMAIL}>`,
           to: [brand.contact_email.trim()],
           subject: `Νέος influencer στον κατάλογο – ${influencerName}`,
           html,
         });
-        sent++;
-      } catch (err) {
+        if (error) {
+          console.error('[notify-brands-new-influencer] send error for', brand.contact_email, error);
+          errors.push(`${brand.contact_email}: ${error.message}`);
+        } else {
+          sent++;
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
         console.error('[notify-brands-new-influencer] send error for', brand.contact_email, err);
+        errors.push(`${brand.contact_email}: ${msg}`);
       }
       if (i < toSend.length - 1) {
         await new Promise((r) => setTimeout(r, 2000));
       }
     }
 
-    return NextResponse.json({ success: true, sent, total: toSend.length });
+    return NextResponse.json({ 
+      success: errors.length === 0 || sent > 0, 
+      sent, 
+      total: toSend.length,
+      errors: errors.length > 0 ? errors : undefined,
+    });
   } catch (err: any) {
     console.error('[notify-brands-new-influencer]', err);
     return NextResponse.json(

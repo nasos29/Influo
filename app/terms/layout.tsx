@@ -1,11 +1,11 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: "Όροι Χρήσης | Influo.gr",
+  title: "Όροι Χρήσης",
   description: "Διαβάστε τους όρους χρήσης της πλατφόρμας Influo.gr. Κατανοήστε τα δικαιώματα και τις υποχρεώσεις σας ως χρήστης.",
   keywords: ["όροι χρήσης", "terms of service", "terms and conditions", "χρήση πλατφόρμας"],
   openGraph: {
-    title: "Όροι Χρήσης | Influo.gr",
+    title: "Όροι Χρήσης",
     description: "Διαβάστε τους όρους χρήσης της πλατφόρμας Influo.gr.",
     url: "/terms",
   },

@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Blog | Influo.gr",
+  title: "Blog",
   description: "Read articles, guides and tips for influencer marketing, brand collaborations, and how to increase your engagement rate.",
   keywords: ["blog influencer marketing", "marketing articles", "influencer tips", "marketing guides"],
   openGraph: {
-    title: "Blog | Influo.gr",
+    title: "Blog",
     description: "Read articles and guides for influencer marketing.",
     url: "/en/blog",
   },

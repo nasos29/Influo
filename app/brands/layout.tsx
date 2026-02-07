@@ -1,11 +1,11 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Κατάλογος Επιχειρήσεων | Influo.gr',
+  title: 'Κατάλογος Επιχειρήσεων',
   description: 'Ανακαλύψτε επαληθευμένες επιχειρήσεις που συνεργάζονται με influencers. Επικοινωνήστε με κορυφαία brands για συνεργασίες.',
   keywords: 'επιχειρήσεις, brands, καταλογος, verified companies, influencer marketing, συνεργασίες',
   openGraph: {
-    title: 'Κατάλογος Επιχειρήσεων | Influo.gr',
+    title: 'Κατάλογος Επιχειρήσεων',
     description: 'Ανακαλύψτε επαληθευμένες επιχειρήσεις που συνεργάζονται με influencers.',
     url: 'https://www.influo.gr/brands',
     siteName: 'Influo.gr',

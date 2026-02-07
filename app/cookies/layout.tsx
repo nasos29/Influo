@@ -1,11 +1,11 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: "Πολιτική Cookies | Influo.gr",
+  title: "Πολιτική Cookies",
   description: "Μάθετε πώς χρησιμοποιούμε cookies στην πλατφόρμα Influo.gr και ποια είναι τα δικαιώματά σας.",
   keywords: ["cookies", "πολιτική cookies", "cookie policy", "tracking"],
   openGraph: {
-    title: "Πολιτική Cookies | Influo.gr",
+    title: "Πολιτική Cookies",
     description: "Μάθετε πώς χρησιμοποιούμε cookies στην πλατφόρμα Influo.gr.",
     url: "/cookies",
   },

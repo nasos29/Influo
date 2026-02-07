@@ -2035,13 +2035,25 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ type: 'approved', email: userEmail, name: userName })
                 });
-                await fetch('/api/admin/notify-brands-new-influencer', {
+                const notifyRes = await fetch('/api/admin/notify-brands-new-influencer', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ influencerId: id })
                 });
+                const notifyData = await notifyRes.json();
+                if (!notifyRes.ok || notifyData.resendApiKeyMissing) {
+                    console.error('[Admin] Notify brands failed:', notifyData);
+                    if (notifyData.resendApiKeyMissing) {
+                        alert(lang === 'el' ? 'Προσοχή: RESEND_API_KEY δεν έχει οριστεί. Τα emails στις επιχειρήσεις δεν στάλθηκαν.' : 'Warning: RESEND_API_KEY is not set. Brand notification emails were not sent.');
+                    }
+                } else if (notifyData.total > 0 && notifyData.sent === 0) {
+                    alert(lang === 'el' ? `Προσοχή: Δεν στάλθηκαν emails στις επιχειρήσεις (${notifyData.total}). Ελέγξτε τα logs.` : `Warning: No emails sent to brands (${notifyData.total}). Check logs.`);
+                } else if (notifyData.sent > 0) {
+                    console.log(`[Admin] Sent ${notifyData.sent}/${notifyData.total} brand notification emails`);
+                }
              } catch (e) {
                  console.error('Email sending error:', e);
+                 alert(lang === 'el' ? 'Σφάλμα κατά την αποστολή emails στις επιχειρήσεις.' : 'Error sending emails to brands.');
              }
         }
     }
@@ -2552,7 +2564,22 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     try {
       for (const userId of selectedUsers) {
         if (action === 'approve') {
-          await supabase.from("influencers").update({ verified: true }).eq("id", userId);
+          const { error } = await supabase.from("influencers").update({ 
+            approved: true,
+            approved_at: new Date().toISOString()
+          }).eq("id", userId);
+          if (!error) {
+            try {
+              await fetch('/api/admin/notify-brands-new-influencer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ influencerId: userId })
+              });
+              await new Promise((r) => setTimeout(r, 500));
+            } catch (e) {
+              console.error('[Admin] Notify brands error for', userId, e);
+            }
+          }
         } else {
           await fetch('/api/admin/delete-user', {
             method: 'POST',

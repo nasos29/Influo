@@ -1,11 +1,11 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: "Οδηγός Χρήστη | Influo.gr",
+  title: "Οδηγός Χρήστη",
   description: "Ολοκληρωμένος οδηγός χρήσης της πλατφόρμας Influo για influencers και brands. Μάθετε πώς να χρησιμοποιήσετε όλες τις δυνατότητες της πλατφόρμας.",
   keywords: ["οδηγός χρήστη", "user guide", "οδηγίες influo", "πώς να χρησιμοποιήσω influo", "tutorial"],
   openGraph: {
-    title: "Οδηγός Χρήστη | Influo.gr",
+    title: "Οδηγός Χρήστη",
     description: "Ολοκληρωμένος οδηγός χρήσης της πλατφόρμας Influo.",
     url: "/docs",
   },
