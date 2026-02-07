@@ -150,7 +150,7 @@ export default function TermsPage() {
       {/* Header */}
       <header className="bg-white border-b border-slate-200">
         <div className="max-w-4xl mx-auto px-6 py-4 flex justify-between items-center">
-          <Link href="/" className="text-blue-600 hover:text-blue-700 font-medium text-sm flex items-center gap-2">
+          <Link href={lang === "en" ? "/en" : "/"} className="text-blue-600 hover:text-blue-700 font-medium text-sm flex items-center gap-2">
             {txt.back}
           </Link>
           <button 
@@ -158,6 +158,8 @@ export default function TermsPage() {
               const newLang = lang === "el" ? "en" : "el";
               setLang(newLang);
               setStoredLanguage(newLang);
+              if (newLang === "en") router.push("/en/terms");
+              else router.push("/terms");
             }} 
             className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
             aria-label="Toggle language"

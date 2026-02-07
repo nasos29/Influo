@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Influo.gr - Connect Your Talent with Top Brands | Influencer Marketing Platform",
+  title: {
+    default: "Influo.gr - Connect Your Talent with Top Brands | Influencer Marketing Platform",
+    template: "%s | Influo.gr",
+  },
   description: "The most modern Influencer Marketing platform in Greece. Connect your talent with top Brands. Create your professional profile and get hired today.",
   keywords: ["influencer marketing", "influencer marketing Greece", "brand collaborations", "content creators", "Greece", "influencer platform", "social media advertising", "creator economy", "influencer Greece"],
   openGraph: {
