@@ -11,6 +11,7 @@ export const metadata: Metadata = {
   },
   alternates: {
     canonical: "/cookies",
+    languages: { el: "/cookies", en: "/en/cookies" },
   },
 };
 

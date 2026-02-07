@@ -203,27 +203,27 @@ export default function Footer({ lang = "el" }: FooterProps) {
             <h3 className="text-white font-semibold mb-4">{txt.platform}</h3>
             <ul className="space-y-3">
               <li>
-                <Link href="/for-influencers" className="text-slate-400 hover:text-white transition-colors text-sm">
+                <Link href={lang === "en" ? "/en/for-influencers" : "/for-influencers"} className="text-slate-400 hover:text-white transition-colors text-sm">
                   {txt.forInfluencers}
                 </Link>
               </li>
               <li>
-                <Link href="/for-brands" className="text-slate-400 hover:text-white transition-colors text-sm">
+                <Link href={lang === "en" ? "/en/for-brands" : "/for-brands"} className="text-slate-400 hover:text-white transition-colors text-sm">
                   {txt.forBrands}
                 </Link>
               </li>
               <li>
-                <Link href="/directory" className="text-slate-400 hover:text-white transition-colors text-sm">
+                <Link href={lang === "en" ? "/en/directory" : "/directory"} className="text-slate-400 hover:text-white transition-colors text-sm">
                   {txt.directory}
                 </Link>
               </li>
               <li>
-                <Link href="/brands" className="text-slate-400 hover:text-white transition-colors text-sm">
+                <Link href={lang === "en" ? "/en/brands" : "/brands"} className="text-slate-400 hover:text-white transition-colors text-sm">
                   {lang === "el" ? "Κατάλογος Επιχειρήσεων" : "Brands Directory"}
                 </Link>
               </li>
               <li>
-                <Link href="/docs" className="text-slate-400 hover:text-white transition-colors text-sm">
+                <Link href={lang === "en" ? "/en/docs" : "/docs"} className="text-slate-400 hover:text-white transition-colors text-sm">
                   {txt.guide}
                 </Link>
               </li>
@@ -240,12 +240,12 @@ export default function Footer({ lang = "el" }: FooterProps) {
                 </Link>
               </li>
               <li>
-                <Link href="/contact" className="text-slate-400 hover:text-white transition-colors text-sm">
+                <Link href={lang === "en" ? "/en/contact" : "/contact"} className="text-slate-400 hover:text-white transition-colors text-sm">
                   {txt.contact}
                 </Link>
               </li>
               <li>
-                <Link href="/faq" className="text-slate-400 hover:text-white transition-colors text-sm">
+                <Link href={lang === "en" ? "/en/faq" : "/faq"} className="text-slate-400 hover:text-white transition-colors text-sm">
                   {txt.faq}
                 </Link>
               </li>
@@ -260,13 +260,13 @@ export default function Footer({ lang = "el" }: FooterProps) {
               © {new Date().getFullYear()} Influo Inc. {txt.rights}
             </p>
             <div className="flex flex-wrap gap-6 text-sm">
-              <Link href="/privacy" className="text-slate-400 hover:text-white transition-colors">
+              <Link href={lang === "en" ? "/en/privacy" : "/privacy"} className="text-slate-400 hover:text-white transition-colors">
                 {txt.privacy}
               </Link>
-              <Link href="/terms" className="text-slate-400 hover:text-white transition-colors">
+              <Link href={lang === "en" ? "/en/terms" : "/terms"} className="text-slate-400 hover:text-white transition-colors">
                 {txt.terms}
               </Link>
-              <Link href="/cookies" className="text-slate-400 hover:text-white transition-colors">
+              <Link href={lang === "en" ? "/en/cookies" : "/cookies"} className="text-slate-400 hover:text-white transition-colors">
                 {txt.cookies}
               </Link>
             </div>

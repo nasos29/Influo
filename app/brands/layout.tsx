@@ -13,11 +13,8 @@ export const metadata: Metadata = {
     type: 'website',
   },
   alternates: {
-    canonical: 'https://www.influo.gr/brands',
-    languages: {
-      'el': 'https://www.influo.gr/brands',
-      'en': 'https://www.influo.gr/brands',
-    },
+    canonical: "/brands",
+    languages: { el: "/brands", en: "/en/brands" },
   },
 };
 

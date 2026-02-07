@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import Footer from "../../components/Footer";
+import { usePathname, useRouter } from 'next/navigation';
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 
 type Lang = "el" | "en";
@@ -130,29 +131,32 @@ const t = {
 };
 
 export default function ForBrandsPage() {
-  const [lang, setLang] = useState<Lang>("el"); // Default to Greek, will be updated in useEffect
+  const pathname = usePathname();
+  const router = useRouter();
+  const [lang, setLang] = useState<Lang>(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
   const txt = t[lang];
 
-  // Load language from localStorage on client-side
   useEffect(() => {
-    setLang(getStoredLanguage());
-  }, []);
+    setLang(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
+  }, [pathname]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-xl border-b border-slate-200/50 shadow-sm">
         <div className="max-w-7xl mx-auto flex justify-between items-center px-4 sm:px-6 py-4">
-          <Link href="/" className="flex items-center gap-2">
+          <Link href={lang === "en" ? "/en" : "/"} className="flex items-center gap-2">
             <Image src="/logo.svg" alt="Influo.gr Logo" width={160} height={64} className="h-10 w-auto" priority />
           </Link>
           <div className="flex items-center gap-6">
-            <Link href="/" className="text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors">{txt.back}</Link>
+            <Link href={lang === "en" ? "/en" : "/"} className="text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors">{txt.back}</Link>
             <button 
               onClick={() => {
                 const newLang = lang === "el" ? "en" : "el";
                 setLang(newLang);
                 setStoredLanguage(newLang);
+                if (newLang === "en") router.push("/en/for-brands");
+                else router.push("/for-brands");
               }}
               className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
             >

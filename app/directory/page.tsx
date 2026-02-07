@@ -5,6 +5,7 @@ import Directory from "../../components/Directory";
 import Footer from "../../components/Footer";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { getStoredLanguage, setStoredLanguage, type Language } from "@/lib/language";
 
 type Lang = "el" | "en";
@@ -23,19 +24,20 @@ const t = {
 };
 
 export default function DirectoryPage() {
-  const [lang, setLang] = useState<Lang>("el"); // Default to Greek, will be updated in useEffect
+  const pathname = usePathname();
+  const router = useRouter();
+  const [lang, setLang] = useState<Lang>(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
 
-  // Load language from localStorage on client-side
   useEffect(() => {
-    setLang(getStoredLanguage());
-  }, []);
+    setLang(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
+  }, [pathname]);
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-200/50 shadow-sm">
         <div className="max-w-7xl mx-auto flex justify-between items-center px-4 sm:px-6 py-4">
-          <Link href="/" className="flex items-center gap-2" aria-label="Influo Home">
+          <Link href={lang === "en" ? "/en" : "/"} className="flex items-center gap-2" aria-label="Influo Home">
             <Image 
               src="/logo.svg" 
               alt="Influo.gr Logo" 
@@ -47,7 +49,7 @@ export default function DirectoryPage() {
           </Link>
           
           <nav className="flex items-center gap-6">
-            <Link href="/" className="text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors">
+            <Link href={lang === "en" ? "/en" : "/"} className="text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors">
               {lang === "el" ? "Αρχική" : "Home"}
             </Link>
             <button 
@@ -55,6 +57,8 @@ export default function DirectoryPage() {
                 const newLang = lang === "el" ? "en" : "el";
                 setLang(newLang);
                 setStoredLanguage(newLang);
+                if (newLang === "en") router.push("/en/directory");
+                else router.push("/directory");
               }}
               className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
               aria-label="Toggle language"
@@ -69,7 +73,7 @@ export default function DirectoryPage() {
       <main className="flex-1">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
           <div className="mb-8">
-            <Link href="/" className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium mb-4">
+            <Link href={lang === "en" ? "/en" : "/"} className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium mb-4">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>

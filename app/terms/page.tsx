@@ -3,15 +3,17 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 
 export default function TermsPage() {
-  const [lang, setLang] = useState<"el" | "en">("el"); // Default to Greek, will be updated in useEffect
+  const pathname = usePathname();
+  const router = useRouter();
+  const [lang, setLang] = useState<"el" | "en">(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
 
-  // Load language from localStorage on client-side
   useEffect(() => {
-    setLang(getStoredLanguage());
-  }, []);
+    setLang(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
+  }, [pathname]);
 
   const content = {
     el: {
@@ -262,7 +264,7 @@ export default function TermsPage() {
         </div>
 
         <div className="mt-12 pt-8 border-t border-slate-200">
-          <Link href="/" className="text-blue-600 hover:text-blue-700 font-medium">
+          <Link href={lang === "en" ? "/en" : "/"} className="text-blue-600 hover:text-blue-700 font-medium">
             {txt.back}
           </Link>
         </div>

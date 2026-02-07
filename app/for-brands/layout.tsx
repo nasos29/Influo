@@ -11,6 +11,7 @@ export const metadata: Metadata = {
   },
   alternates: {
     canonical: "/for-brands",
+    languages: { el: "/for-brands", en: "/en/for-brands" },
   },
 };
 

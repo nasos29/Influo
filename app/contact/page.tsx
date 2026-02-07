@@ -3,15 +3,17 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 
 export default function ContactPage() {
-  const [lang, setLang] = useState<"el" | "en">("el"); // Default to Greek, will be updated in useEffect
+  const pathname = usePathname();
+  const router = useRouter();
+  const [lang, setLang] = useState<"el" | "en">(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
 
-  // Load language from localStorage on client-side
   useEffect(() => {
-    setLang(getStoredLanguage());
-  }, []);
+    setLang(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
+  }, [pathname]);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -109,7 +111,7 @@ export default function ContactPage() {
       {/* Header */}
       <header className="bg-white border-b border-slate-200">
         <div className="max-w-4xl mx-auto px-6 py-4 flex justify-between items-center">
-          <Link href="/" className="text-blue-600 hover:text-blue-700 font-medium text-sm flex items-center gap-2">
+          <Link href={lang === "en" ? "/en" : "/"} className="text-blue-600 hover:text-blue-700 font-medium text-sm flex items-center gap-2">
             {txt.back}
           </Link>
           <button 
@@ -117,6 +119,8 @@ export default function ContactPage() {
               const newLang = lang === "el" ? "en" : "el";
               setLang(newLang);
               setStoredLanguage(newLang);
+              if (newLang === "en") router.push("/en/contact");
+              else router.push("/contact");
             }} 
             className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
             aria-label="Toggle language"
@@ -233,7 +237,7 @@ export default function ContactPage() {
         </div>
 
         <div className="mt-12 pt-8 border-t border-slate-200">
-          <Link href="/" className="text-blue-600 hover:text-blue-700 font-medium">
+          <Link href={lang === "en" ? "/en" : "/"} className="text-blue-600 hover:text-blue-700 font-medium">
             {txt.back}
           </Link>
         </div>

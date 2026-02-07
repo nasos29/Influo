@@ -213,13 +213,13 @@ export default function AboutPage() {
             <p>{t.ctaBody}</p>
             <div className="mt-6 flex flex-wrap gap-4">
               <Link
-                href="/for-brands"
+                href={lang === "en" ? "/en/for-brands" : "/for-brands"}
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-lg font-medium hover:bg-slate-800 transition-colors"
               >
                 {lang === "el" ? "Για Brands" : "For Brands"}
               </Link>
               <Link
-                href="/for-influencers"
+                href={lang === "en" ? "/en/for-influencers" : "/for-influencers"}
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
               >
                 {lang === "el" ? "Για Influencers" : "For Influencers"}

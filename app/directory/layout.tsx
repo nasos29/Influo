@@ -11,6 +11,7 @@ export const metadata: Metadata = {
   },
   alternates: {
     canonical: "/directory",
+    languages: { el: "/directory", en: "/en/directory" },
   },
 };
 
