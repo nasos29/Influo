@@ -30,9 +30,19 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { influencerId } = body;
-    if (!influencerId) {
+    if (influencerId === undefined || influencerId === null || influencerId === '') {
       return NextResponse.json(
         { error: 'influencerId is required' },
+        { status: 400 }
+      );
+    }
+
+    // id can be UUID (string) or legacy integer
+    const isUuid = typeof influencerId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(influencerId.trim());
+    const idFilter = isUuid ? String(influencerId).trim() : Number(influencerId);
+    if (!isUuid && (typeof idFilter !== 'number' || Number.isNaN(idFilter))) {
+      return NextResponse.json(
+        { error: 'Invalid influencerId' },
         { status: 400 }
       );
     }
@@ -40,7 +50,7 @@ export async function POST(request: NextRequest) {
     const { data: influencer, error: infError } = await supabaseAdmin
       .from('influencers')
       .select('id, display_name, category, followers, accounts')
-      .eq('id', Number(influencerId))
+      .eq('id', idFilter)
       .maybeSingle();
 
     if (infError || !influencer) {
