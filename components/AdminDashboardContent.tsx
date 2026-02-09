@@ -2028,33 +2028,46 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         }
         
         fetchData();
-        if (!currentStatus) { 
-             try {
-                await fetch('/api/emails', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ type: 'approved', email: userEmail, name: userName })
-                });
-                const notifyRes = await fetch('/api/admin/notify-brands-new-influencer', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ influencerId: id })
-                });
-                const notifyData = await notifyRes.json();
-                if (!notifyRes.ok || notifyData.resendApiKeyMissing) {
-                    console.error('[Admin] Notify brands failed:', notifyData);
-                    if (notifyData.resendApiKeyMissing) {
-                        alert(lang === 'el' ? 'Προσοχή: RESEND_API_KEY δεν έχει οριστεί. Τα emails στις επιχειρήσεις δεν στάλθηκαν.' : 'Warning: RESEND_API_KEY is not set. Brand notification emails were not sent.');
-                    }
-                } else if (notifyData.total > 0 && notifyData.sent === 0) {
-                    alert(lang === 'el' ? `Προσοχή: Δεν στάλθηκαν emails στις επιχειρήσεις (${notifyData.total}). Ελέγξτε τα logs.` : `Warning: No emails sent to brands (${notifyData.total}). Check logs.`);
-                } else if (notifyData.sent > 0) {
-                    console.log(`[Admin] Sent ${notifyData.sent}/${notifyData.total} brand notification emails`);
+        if (!currentStatus) {
+                // Email to influencer (approved) – independent from brand notifications
+                try {
+                    await fetch('/api/emails', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'approved', email: userEmail, name: userName })
+                    });
+                } catch (e) {
+                    console.error('Influencer approved email error:', e);
                 }
-             } catch (e) {
-                 console.error('Email sending error:', e);
-                 alert(lang === 'el' ? 'Σφάλμα κατά την αποστολή emails στις επιχειρήσεις.' : 'Error sending emails to brands.');
-             }
+                // Notify all registered brands – always run when approving
+                try {
+                    const notifyRes = await fetch('/api/admin/notify-brands-new-influencer', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ influencerId: id })
+                    });
+                    const notifyData = await notifyRes.json();
+                    if (!notifyRes.ok || notifyData.resendApiKeyMissing) {
+                        console.error('[Admin] Notify brands failed:', notifyData);
+                        if (notifyData.resendApiKeyMissing) {
+                            alert(lang === 'el' ? 'Προσοχή: RESEND_API_KEY δεν έχει οριστεί. Τα emails στις επιχειρήσεις δεν στάλθηκαν.' : 'Warning: RESEND_API_KEY is not set. Brand notification emails were not sent.');
+                        } else if (notifyData.error) {
+                            alert(lang === 'el' ? `Σφάλμα: ${notifyData.error}` : `Error: ${notifyData.error}`);
+                        }
+                    } else if (notifyData.total === 0) {
+                        console.warn('[Admin] No brands with contact_email found to notify.');
+                    } else if (notifyData.sent === 0) {
+                        alert(lang === 'el' ? `Προσοχή: Δεν στάλθηκαν emails στις επιχειρήσεις (${notifyData.total}). Ελέγξτε τα logs.` : `Warning: No emails sent to brands (${notifyData.total}). Check logs.`);
+                    } else {
+                        if (notifyData.sent < notifyData.total && notifyData.errors?.length) {
+                            console.error('[Admin] Notify brands partial:', notifyData.errors);
+                        }
+                        alert(lang === 'el' ? `Στάλθηκαν ${notifyData.sent}/${notifyData.total} emails σε επιχειρήσεις.` : `${notifyData.sent}/${notifyData.total} emails sent to brands.`);
+                    }
+                } catch (e) {
+                    console.error('Notify brands error:', e);
+                    alert(lang === 'el' ? 'Σφάλμα κατά την αποστολή emails στις επιχειρήσεις.' : 'Error sending emails to brands.');
+                }
         }
     }
     

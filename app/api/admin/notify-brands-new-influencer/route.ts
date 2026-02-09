@@ -75,17 +75,19 @@ export async function POST(request: NextRequest) {
 
     const { data: brands, error: brandsError } = await supabaseAdmin
       .from('brands')
-      .select('id, brand_name, contact_email')
-      .not('contact_email', 'is', null);
+      .select('id, brand_name, contact_email');
 
     if (brandsError) {
       console.error('[notify-brands-new-influencer] brands fetch', brandsError);
       return NextResponse.json({ error: brandsError.message }, { status: 500 });
     }
 
-    const toSend = (brands || []).filter(
-      (b: { contact_email: string | null }) => b.contact_email && b.contact_email.trim().length > 0
-    );
+    const toSend = (brands || [])
+      .filter((b: { contact_email?: string | null }) => (b.contact_email || '').trim().length > 0)
+      .map((b: { id: string; brand_name: string | null; contact_email: string }) => ({
+        ...b,
+        _email: b.contact_email.trim(),
+      }));
 
     if (!process.env.RESEND_API_KEY) {
       console.warn('[notify-brands-new-influencer] RESEND_API_KEY not set, skipping emails');
@@ -102,6 +104,7 @@ export async function POST(request: NextRequest) {
     const errors: string[] = [];
     for (let i = 0; i < toSend.length; i++) {
       const brand = toSend[i];
+      const toEmail = brand._email;
       const brandName = brand.brand_name || 'Επιχείρηση';
       const html = `
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 560px; margin: 0 auto;">
@@ -117,20 +120,20 @@ export async function POST(request: NextRequest) {
       try {
         const { data, error } = await resend.emails.send({
           from: `${PLATFORM_NAME} <${FROM_EMAIL}>`,
-          to: [brand.contact_email.trim()],
+          to: [toEmail],
           subject: `Νέος influencer στον κατάλογο – ${influencerName}`,
           html,
         });
         if (error) {
-          console.error('[notify-brands-new-influencer] send error for', brand.contact_email, error);
-          errors.push(`${brand.contact_email}: ${error.message}`);
+          console.error('[notify-brands-new-influencer] send error for', toEmail, error);
+          errors.push(`${toEmail}: ${error.message}`);
         } else {
           sent++;
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
-        console.error('[notify-brands-new-influencer] send error for', brand.contact_email, err);
-        errors.push(`${brand.contact_email}: ${msg}`);
+        console.error('[notify-brands-new-influencer] send error for', toEmail, err);
+        errors.push(`${toEmail}: ${msg}`);
       }
       if (i < toSend.length - 1) {
         await new Promise((r) => setTimeout(r, 2000));
