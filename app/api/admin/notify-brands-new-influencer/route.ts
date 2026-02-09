@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     const tryById = async (id: string | number) => {
       const { data, error } = await supabaseAdmin
         .from('influencers')
-        .select('id, display_name, category, followers, accounts')
+        .select('id, display_name, category, accounts')
         .eq('id', id)
         .maybeSingle();
       return { data, error };
@@ -69,9 +69,7 @@ export async function POST(request: NextRequest) {
     }
 
     let followersDisplay = '-';
-    if (influencer.followers && typeof influencer.followers === 'object') {
-      followersDisplay = formatFollowers(influencer.followers as Record<string, number>);
-    } else if (Array.isArray(influencer.accounts) && influencer.accounts.length > 0) {
+    if (Array.isArray(influencer.accounts) && influencer.accounts.length > 0) {
       const byPlatform: Record<string, number> = {};
       influencer.accounts.forEach((acc: { platform?: string; followers?: string | number }) => {
         const plat = (acc.platform || '').toLowerCase();
