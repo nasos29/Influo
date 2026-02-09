@@ -37,24 +37,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // id can be UUID (string) or legacy integer
-    const isUuid = typeof influencerId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(influencerId.trim());
-    const idFilter = isUuid ? String(influencerId).trim() : Number(influencerId);
-    if (!isUuid && (typeof idFilter !== 'number' || Number.isNaN(idFilter))) {
-      return NextResponse.json(
-        { error: 'Invalid influencerId' },
-        { status: 400 }
-      );
+    const rawId = influencerId;
+    const strId = typeof rawId === 'string' ? rawId.trim() : String(rawId);
+    const isUuidLike = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(strId);
+    const numId = Number(rawId);
+
+    const tryById = async (id: string | number) => {
+      const { data, error } = await supabaseAdmin
+        .from('influencers')
+        .select('id, display_name, category, followers, accounts')
+        .eq('id', id)
+        .maybeSingle();
+      return { data, error };
+    };
+
+    let result = await tryById(strId);
+    let influencer = result.data ?? null;
+    let infError = result.error ?? null;
+    if (!influencer && !Number.isNaN(numId)) {
+      result = await tryById(numId);
+      influencer = result.data ?? null;
+      if (!influencer) infError = result.error ?? infError;
     }
 
-    const { data: influencer, error: infError } = await supabaseAdmin
-      .from('influencers')
-      .select('id, display_name, category, followers, accounts')
-      .eq('id', idFilter)
-      .maybeSingle();
-
-    if (infError || !influencer) {
-      console.error('[notify-brands-new-influencer] influencer fetch', infError);
+    if (!influencer) {
+      console.error('[notify-brands-new-influencer] influencer fetch', { rawId, strId, numId, isUuidLike, error: infError });
       return NextResponse.json(
         { error: 'Influencer not found' },
         { status: 404 }

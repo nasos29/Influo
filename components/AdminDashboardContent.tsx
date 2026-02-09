@@ -2044,7 +2044,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     const notifyRes = await fetch('/api/admin/notify-brands-new-influencer', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ influencerId: id })
+                        body: JSON.stringify({ influencerId: String(id) })
                     });
                     const notifyData = await notifyRes.json();
                     if (!notifyRes.ok || notifyData.resendApiKeyMissing) {
@@ -2586,7 +2586,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
               await fetch('/api/admin/notify-brands-new-influencer', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ influencerId: userId })
+                body: JSON.stringify({ influencerId: String(userId) })
               });
               await new Promise((r) => setTimeout(r, 500));
             } catch (e) {
