@@ -13,10 +13,19 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr';
 const FROM_EMAIL = 'noreply@influo.gr';
 const PLATFORM_NAME = 'Influo';
 
+function parseFollowerString(str: string | number | null | undefined): number {
+  if (str == null || str === '') return 0;
+  const clean = String(str).toLowerCase().replace(/\s/g, '').replace(/,/g, '').trim();
+  if (clean.includes('k')) return parseFloat(clean) * 1000;
+  if (clean.includes('m')) return parseFloat(clean) * 1_000_000;
+  const num = parseFloat(clean);
+  return Number.isNaN(num) ? 0 : num;
+}
+
 function formatFollowers(followers: Record<string, number> | null | undefined): string {
   if (!followers || typeof followers !== 'object') return '-';
   const parts = Object.entries(followers)
-    .filter(([, n]) => n != null && !Number.isNaN(Number(n)))
+    .filter(([, n]) => n != null && !Number.isNaN(Number(n)) && n > 0)
     .map(([platform, n]) => {
       const num = Number(n);
       if (num >= 1_000_000) return `${platform}: ${(num / 1_000_000).toFixed(1)}M`;
@@ -74,8 +83,8 @@ export async function POST(request: NextRequest) {
       influencer.accounts.forEach((acc: { platform?: string; followers?: string | number }) => {
         const plat = (acc.platform || '').toLowerCase();
         if (!plat) return;
-        const n = typeof acc.followers === 'string' ? parseInt(acc.followers, 10) : Number(acc.followers);
-        if (!Number.isNaN(n)) byPlatform[plat] = (byPlatform[plat] || 0) + n;
+        const n = parseFollowerString(acc.followers);
+        if (n > 0) byPlatform[plat] = (byPlatform[plat] || 0) + n;
       });
       followersDisplay = formatFollowers(byPlatform);
     }
