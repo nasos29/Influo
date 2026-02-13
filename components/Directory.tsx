@@ -665,7 +665,7 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
               onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
               className="px-8 py-4 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-lg hover:shadow-xl"
             >
-              {txt.seeMore} ({displayedInfluencers.length}/{filtered.length})
+              {txt.seeMore}
             </button>
           </div>
         )}
