@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS brands (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     verified BOOLEAN DEFAULT FALSE
-);
+)ώτησε
 
 -- Add brand_id to proposals (optional reference)
 ALTER TABLE proposals ADD COLUMN IF NOT EXISTS brand_id UUID REFERENCES brands(id) ON DELETE SET NULL;

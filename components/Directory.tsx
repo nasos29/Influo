@@ -114,7 +114,8 @@ const t = {
     ageTo: "Έως",
     noResults: "Δεν βρέθηκαν influencers",
     adjust: "Δοκίμασε διαφορετικά φίλτρα.",
-    reset: "Επαναφορά"
+    reset: "Επαναφορά",
+    seeMore: "Δείτε Περισσότερους"
   },
   en: {
     searchPlace: "Search name...",
@@ -147,7 +148,8 @@ const t = {
     ageTo: "To",
     noResults: "No influencers found",
     adjust: "Try adjusting your filters.",
-    reset: "Reset Filters"
+    reset: "Reset Filters",
+    seeMore: "See More"
   }
 };
 
@@ -234,6 +236,8 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
   const [ageMin, setAgeMin] = useState("");
   const [ageMax, setAgeMax] = useState("");
   const [loading, setLoading] = useState(true);
+  const [visibleCount, setVisibleCount] = useState(20);
+  const PAGE_SIZE = 20;
 
   // Sort function: "New" influencers first, then by created_at descending
   const sortInfluencers = (influencersList: Influencer[]): Influencer[] => {
@@ -452,7 +456,16 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
     setCategoryFilter("All"); setGenderFilter("All"); setFollowerRange("All");
     setBudgetMax("All"); setMinEngagement("All"); setLanguageFilter("All"); setMinRating("All");
     setAgeMin(""); setAgeMax("");
+    setVisibleCount(PAGE_SIZE);
   };
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [searchQuery, locationQuery, platformFilter, categoryFilter, genderFilter, followerRange, budgetMax, minEngagement, languageFilter, minRating, ageMin, ageMax]);
+
+  const displayedInfluencers = filtered.slice(0, visibleCount);
+  const hasMore = filtered.length > visibleCount;
 
   const selectClass = "w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 cursor-pointer";
 
@@ -603,8 +616,9 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
           ))}
         </div>
       ) : filtered.length > 0 ? (
+        <>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
-            {filtered.map((inf) => {
+            {displayedInfluencers.map((inf) => {
               // Calculate badges
               const accountAgeDays = inf.created_at ? Math.floor((new Date().getTime() - new Date(inf.created_at).getTime()) / (1000 * 60 * 60 * 24)) : 999;
               const badges = getBadges({
@@ -645,6 +659,17 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
               );
             })}
         </div>
+        {hasMore && (
+          <div className="flex justify-center mt-10">
+            <button
+              onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+              className="px-8 py-4 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-lg hover:shadow-xl"
+            >
+              {txt.seeMore} ({displayedInfluencers.length}/{filtered.length})
+            </button>
+          </div>
+        )}
+        </>
       ) : (
         <div className="text-center py-20 bg-slate-50 rounded-2xl border border-dashed border-slate-300">
           <h3 className="text-xl font-bold text-slate-900">{txt.noResults}</h3>
