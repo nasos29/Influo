@@ -512,13 +512,19 @@ export default function Home() {
                   {txt.hero_desc}
                 </p>
                 
-                <div className="flex flex-col sm:flex-row justify-center lg:justify-start gap-4">
+                <div className="flex flex-col sm:flex-row flex-wrap justify-center lg:justify-start gap-4">
                   <button 
                     onClick={() => setShowModal(true)} 
                     className="px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl transition-all transform hover:scale-105 shadow-lg hover:shadow-xl text-lg"
                   >
                     {txt.hero_btn_primary}
                   </button>
+                  <a 
+                    href="/brand/signup"
+                    className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-all transform hover:scale-105 shadow-lg hover:shadow-xl text-lg text-center"
+                  >
+                    {txt.hero_btn_brand}
+                  </a>
                   <a 
                     href="#directory" 
                     className="px-8 py-4 bg-white hover:bg-slate-50 text-slate-900 font-semibold border-2 border-slate-200 rounded-xl transition-all transform hover:scale-105 shadow-md hover:shadow-lg text-lg"

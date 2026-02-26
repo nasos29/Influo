@@ -55,7 +55,7 @@ const t = {
     passwordLabel: "Κωδικός (τουλάχιστον 6 χαρακτήρες)",
     passwordShow: "Εμφάνιση",
     passwordHide: "Απόκρυψη",
-    afmLabel: "ΑΦΜ (9 ψηφία)",
+    afmLabel: "ΑΦΜ (προαιρετικό – μπορείτε να το προσθέσετε αργότερα)",
     afmPlace: "123456789",
     logoLabel: "Λογότυπο (Προαιρετικό)",
     logoUpload: "Ανέβασμα Λογοτύπου",
@@ -88,7 +88,7 @@ const t = {
     passwordLabel: "Password (min 6 characters)",
     passwordShow: "Show",
     passwordHide: "Hide",
-    afmLabel: "Tax ID (9 digits)",
+    afmLabel: "Tax ID (optional – add later in dashboard)",
     afmPlace: "123456789",
     logoLabel: "Logo (Optional)",
     logoUpload: "Upload Logo",
@@ -162,16 +162,15 @@ export default function BrandSignupForm() {
     setLoading(true);
 
     try {
-      // Validation
-      if (!brandName.trim() || !email.trim() || !password.trim() || password.length < 6 || !afm.trim() || !category.trim()) {
+      // Validation (AΦΜ optional to reduce signup friction)
+      if (!brandName.trim() || !email.trim() || !password.trim() || password.length < 6 || !category.trim()) {
         setMessage(txt.error_required);
         setLoading(false);
         return;
       }
 
-      // Validate AFM (9 digits)
       const afmClean = afm.replace(/\D/g, '');
-      if (afmClean.length !== 9) {
+      if (afmClean.length > 0 && afmClean.length !== 9) {
         setMessage(txt.error_afm_invalid);
         setLoading(false);
         return;
@@ -250,7 +249,7 @@ export default function BrandSignupForm() {
           brand_name: brandName.trim(),
           contact_email: email.toLowerCase().trim(),
           contact_person: contactPerson.trim() || null,
-          afm: afmClean,
+          afm: afmClean || null,
           website: normalizedWebsite || null,
           industry: category.trim() || null, // Keep 'industry' column name in DB for compatibility
           logo_url: logoUrl,
@@ -431,7 +430,7 @@ export default function BrandSignupForm() {
 
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">
-            {txt.afmLabel} *
+            {txt.afmLabel}
           </label>
           <input
             type="text"
@@ -442,7 +441,6 @@ export default function BrandSignupForm() {
             }}
             placeholder={txt.afmPlace}
             className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900"
-            required
             maxLength={9}
           />
         </div>
