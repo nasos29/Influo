@@ -151,6 +151,8 @@ const t = {
     audit_brand_safe: "Brand Safe",
     audit_niche: "Niche",
     why_work_with_them: "Γιατί να συνεργαστώ μαζί του: ",
+    why_work_with_them_male: "Γιατί να συνεργαστώ μαζί του: ",
+    why_work_with_them_female: "Γιατί να συνεργαστώ μαζί της: ",
     positives: "Θετικά",
     negatives: "Αρνητικά"
   },
@@ -231,6 +233,8 @@ const t = {
     audit_brand_safe: "Brand Safe",
     audit_niche: "Niche",
     why_work_with_them: "Why work with them: ",
+    why_work_with_them_male: "Why work with them: ",
+    why_work_with_them_female: "Why work with them: ",
     positives: "Positives",
     negatives: "Negatives"
   }
@@ -1899,7 +1903,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                                         <li className="flex gap-2">
                                             <span className="text-indigo-500 mt-0.5 shrink-0">•</span>
                                             <span>
-                                                <strong>{txt.why_work_with_them}</strong>
+                                                <strong>{lang === 'el' ? (profile.gender === 'Female' ? txt.why_work_with_them_female : txt.why_work_with_them_male) : txt.why_work_with_them}</strong>
                                                 {lang === 'en' ? (profile.auditpr_audit.whyWorkWithThem_en ?? profile.auditpr_audit.whyWorkWithThem) : profile.auditpr_audit.whyWorkWithThem}
                                             </span>
                                         </li>

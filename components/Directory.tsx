@@ -53,7 +53,8 @@ const LANGUAGES = [
   { code: "ru", el: "Ρωσικά", en: "Russian" },
   { code: "zh", el: "Κινεζικά", en: "Chinese" },
   { code: "ja", el: "Ιαπωνικά", en: "Japanese" },
-  { code: "sq", el: "Αλβανικά", en: "Albanian" }
+  { code: "sq", el: "Αλβανικά", en: "Albanian" },
+  { code: "bg", el: "Βουλγαρικά", en: "Bulgarian" }
 ];
 
 // Category translations

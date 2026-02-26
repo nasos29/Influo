@@ -15,10 +15,12 @@ export type AuditAccount = {
   avg_likes?: string;
 };
 
-/** Shared profile data (bio, category). */
+/** Shared profile data (bio, category, display name, gender for smarter copy). */
 export type AuditShared = {
   biography?: string | null;
   category_name?: string | null;
+  display_name?: string | null;
+  gender?: string | null;
 };
 
 export type AuditResult = {
@@ -60,25 +62,29 @@ function buildMultiPlatformPrompt(accounts: AuditAccount[], shared: AuditShared)
 
   const bio = (shared.biography || '').trim().slice(0, 400);
   const cat = (shared.category_name || '').trim();
+  const displayName = (shared.display_name || '').trim() || null;
+  const gender = (shared.gender || '').trim().toLowerCase() || null;
   const bioBlock = bio ? `\nBIOGRAPHY (creator):\n${bio}` : '';
   const categoryBlock = cat ? `\nCATEGORY: ${cat}` : '';
+  const nameBlock = displayName ? `\nCREATOR DISPLAY NAME (use this when referring to the person, NOT the username): ${displayName}` : '';
+  const genderNote = gender === 'female' ? '\nCREATOR GENDER: Female. In Greek text use feminine forms where relevant (e.g. "της", "αυτή", "η δημιουργός").' : gender === 'male' ? '\nCREATOR GENDER: Male. In Greek text use masculine forms where relevant (e.g. "του", "αυτός", "ο δημιουργός").' : '';
 
-  return `You are a senior influencer marketing analyst. Your output is read by BRANDS who are evaluating this creator for potential partnerships. The goal is a complete, balanced profile FOR BRANDS – not advice to the creator.
+  return `You are a senior influencer marketing analyst. Your output is read by BRANDS who are evaluating this creator for potential partnerships. The goal is a complete, balanced profile FOR BRANDS – not advice to the creator. Be thorough and nuanced: consider reach, engagement quality, content fit, audience overlap, and brand safety.
 
 CREATOR DATA – SOCIAL ACCOUNTS (metrics per platform). Platforms can be Instagram, TikTok, or YouTube (for YouTube, subscribers = followers).
 ${platformsBlock}
 ${bioBlock}
-${categoryBlock}
+${categoryBlock}${nameBlock}${genderNote}
 
 TASK:
-Write a strategic profile that helps brands decide whether to work with this creator. Describe strengths AND weaknesses in a factual, neutral way. Use detailed bullets (2–3 sentences or 1–2 lines each). Do NOT give recommendations to the creator. Describe what IS.
+Write a strategic profile that helps brands decide whether to work with this creator. Describe strengths AND weaknesses in a factual, neutral way. Use detailed bullets (2–3 sentences or 1–2 lines each). Do NOT give recommendations to the creator. Describe what IS. When referring to the creator in your text, use their DISPLAY NAME (e.g. "${displayName || 'the creator'}"), never their username or @handle.
 
 OUTPUT – Return ONLY valid JSON with these exact keys (no markdown, no extra text):
-- scoreBreakdown: array of exactly 4 bullet points in GREEK (Ελληνικά). Each bullet MUST be 2–3 sentences or 2–3 lines – rich, detailed text for brands. Use more words; avoid one-liners.
+- scoreBreakdown: array of exactly 4 bullet points in GREEK (Ελληνικά). Each bullet MUST be 2–3 sentences or 2–3 lines – rich, detailed, nuanced text for brands. Use more words; avoid one-liners. Reference the creator by display name where natural.
 - scoreBreakdown_en: array of exactly 4 bullet points in ENGLISH, same content and length as scoreBreakdown.
-- whyWorkWithThem: 2–4 sentences in GREEK: reasons a brand should work with this creator, based PRIMARILY on their profile (bio, category, metrics, niche). Do NOT include "Γιατί να συνεργαστώ μαζί του" – only the reasons.
+- whyWorkWithThem: 2–4 sentences in GREEK: reasons a brand should work with this creator, based PRIMARILY on their profile (bio, category, metrics, niche). Do NOT include "Γιατί να συνεργαστώ μαζί του/της" – only the reasons. Use the creator's display name, not username.
 - whyWorkWithThem_en: same as whyWorkWithThem, in ENGLISH. Do NOT include "Why work with them" – only the reasons.
-- positives: array of 2–4 points in GREEK – key strengths for brands. Each point 1–2 sentences (e.g. "Δυνατό engagement στο Instagram και συνεπής απεικόνιση niche.").
+- positives: array of 2–4 points in GREEK – key strengths for brands. Each point 1–2 sentences.
 - positives_en: array of 2–4 points in ENGLISH, same content as positives.
 - negatives: array of 2–4 points in GREEK – drawbacks or concerns for brands. Each point 1–2 sentences. Can be empty array if no significant negatives.
 - negatives_en: array of 2–4 points in ENGLISH, same content as negatives.
@@ -87,10 +93,10 @@ OUTPUT – Return ONLY valid JSON with these exact keys (no markdown, no extra t
 - niche_en: ONE niche label in ENGLISH (Fashion, Fitness, Beauty & Makeup, etc.). Do NOT use: Creator, Content Creator, Influencer, Lifestyle as default.
 
 RULES:
-- Audience is brands. Be detailed in bullets; more words, not one-liners.
+- Audience is brands. Be detailed and nuanced in bullets; more words, not one-liners.
 - Include both positives and negatives where relevant.
 - No advisory tone. Descriptive only.
-- In GREEK text when referring to companies/brands: use "επιχειρήσεις" (e.g. "Οι επιχειρήσεις πρέπει..."). Do NOT use "μάρκες". If you use the word "brands", write "τα brands" never "οι brands" (e.g. "Τα brands μπορούν..." – συνεργασία influencers με επιχειρήσεις/brands).
+- In GREEK text when referring to companies/brands: use "επιχειρήσεις" (e.g. "Οι επιχειρήσεις πρέπει..."). Do NOT use "μάρκες". If you use the word "brands", write "τα brands" never "οι brands".
 - If the profile suggests fashion/model/aesthetic content, use Fashion, Model or Beauty & Makeup – not Humor/Comedy unless the bio clearly indicates comedy.`;
 }
 
