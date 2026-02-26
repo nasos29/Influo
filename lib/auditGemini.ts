@@ -89,7 +89,7 @@ OUTPUT – Return ONLY valid JSON with these exact keys (no markdown, no extra t
 - whyWorkWithThem_en: same as whyWorkWithThem, in ENGLISH. Do NOT include "Why work with them". Use only display name or "the creator".
 - positives: array of 2–4 points in GREEK – key strengths for brands. Each point 1–2 sentences.
 - positives_en: array of 2–4 points in ENGLISH, same content as positives.
-- negatives: array of 2–4 points in GREEK – real drawbacks or concerns for brands (e.g. low reach, narrow niche, content risks). Each point 1–2 sentences. Can be empty array if no significant negatives. Do NOT use generic filler negatives: only mention "γεωγραφικό στόχο κοινού" or "no clear geographic target" if the profile explicitly lacks location/region AND that is a real limitation for local brands; apply the same standard to all creators and avoid repeating this point if it does not add value.
+- negatives: array of 2–4 points in GREEK – real drawbacks or concerns for brands (e.g. narrow niche, content risks). Each point 1–2 sentences. Can be empty array if no significant negatives. Do NOT use generic filler negatives: only mention "γεωγραφικό στόχο κοινού" or "no clear geographic target" if the profile explicitly lacks location/region AND that is a real limitation for local brands. Do NOT add negatives like "micro-influencer / ρεαλιστικές προσδοκίες για την απήχηση" or "businesses should have realistic expectations about reach" – audience size is visible from the metrics and is not a negative. Apply the same standard to all creators.
 - negatives_en: array of 2–4 points in ENGLISH, same content as negatives.
 - brandSafe: boolean (true if content and metrics suggest brand-safe; false if risks).
 - niche: ONE niche label in GREEK (e.g. "Μόδα", "Fitness").
@@ -97,7 +97,7 @@ OUTPUT – Return ONLY valid JSON with these exact keys (no markdown, no extra t
 
 RULES:
 - Audience is brands. Be detailed and nuanced in bullets; more words, not one-liners.
-- Include both positives and negatives where relevant. Negatives must be specific and factual, not generic fillers.
+- Include both positives and negatives where relevant. Negatives must be specific and factual, not generic fillers. Do not list "limited reach" or "realistic expectations for campaigns" as a negative – size is evident from the data.
 - No advisory tone. Descriptive only.
 - In GREEK text when referring to companies/brands: use "επιχειρήσεις" (e.g. "Οι επιχειρήσεις πρέπει..."). Do NOT use "μάρκες". If you use the word "brands", write "τα brands" never "οι brands".
 - If the profile suggests fashion/model/aesthetic content, use Fashion, Model or Beauty & Makeup – not Humor/Comedy unless the bio clearly indicates comedy.`;

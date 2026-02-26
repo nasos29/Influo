@@ -194,8 +194,9 @@ const t = {
     ann_to_one: "Συγκεκριμένος influencer",
     ann_send: "Αποστολή ανακοινώσεως",
     ann_sent: "Απεστάλη",
-    refresh_social: "Ανανέωση",
+    refresh_social: "Ανανέωση Social",
     refresh_social_all: "Ανανέωση social stats για όλους",
+    refresh_audit: "Ανανέωση AI",
     backfill_audit: "Backfill Gemini audit (μία φορά για όλους)"
   },
   en: {
@@ -268,8 +269,9 @@ const t = {
     ann_to_one: "Specific influencer",
     ann_send: "Send announcement",
     ann_sent: "Sent",
-    refresh_social: "Refresh",
+    refresh_social: "Refresh Social",
     refresh_social_all: "Refresh social stats for all",
+    refresh_audit: "Refresh AI",
     backfill_audit: "Backfill Gemini audit (once for all)"
   }
 };
@@ -1488,6 +1490,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [checkingThumbnails, setCheckingThumbnails] = useState(false);
   const [refreshingSocialFor, setRefreshingSocialFor] = useState<string | null>(null);
   const [refreshingSocialAll, setRefreshingSocialAll] = useState(false);
+  const [refreshingAuditFor, setRefreshingAuditFor] = useState<string | null>(null);
   const [backfillingAudit, setBackfillingAudit] = useState(false);
   const [backfillProgress, setBackfillProgress] = useState<string | null>(null);
 
@@ -2226,6 +2229,29 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       setRefreshingSocialAll(false);
     }
   };
+
+  const refreshAudit = async (user: DbInfluencer) => {
+    const idStr = String(user.id);
+    setRefreshingAuditFor(idStr);
+    try {
+      const res = await fetch('/api/admin/refresh-audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ influencerId: idStr }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      if (data.auditpr_audit && selectedUser?.id === user.id) {
+        setSelectedUser(prev => prev ? { ...prev, auditpr_audit: data.auditpr_audit } : null);
+      }
+      fetchData();
+      alert(lang === 'el' ? 'Η αξιολόγηση AI ανανεώθηκε.' : 'AI audit refreshed.');
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Error');
+    } finally {
+      setRefreshingAuditFor(null);
+    }
+  };
   
   const deleteUser = async (id: number) => {
     // Find user details for confirmation
@@ -2469,8 +2495,12 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         throw new Error(result.error || 'Failed to delete proposal');
       }
 
-      // Remove from local state
-      setProposals(prev => prev.filter(p => p.id !== proposalId));
+      // Remove from local state and recalc pending badge
+      setProposals(prev => {
+        const next = prev.filter(p => p.id !== proposalId);
+        setPendingProposalsCount(next.filter((p: Proposal) => p.status === 'pending').length);
+        return next;
+      });
 
       alert(lang === 'el' 
         ? 'Η πρόταση διαγράφηκε επιτυχώς.'
@@ -2744,7 +2774,10 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                 {txt.tab_inf} ({filteredUsers.length})
               </button>
               <button 
-                onClick={() => setActiveTab("proposals")} 
+                onClick={() => {
+                  setActiveTab("proposals");
+                  setPendingProposalsCount(0);
+                }} 
                 className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors relative whitespace-nowrap ${
                   activeTab === "proposals" 
                     ? "border-slate-900 text-slate-900" 
@@ -3078,6 +3111,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                 className="px-2 py-1 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 {refreshingSocialFor === String(u.id) ? '...' : txt.refresh_social}
+                              </button>
+                              <button
+                                onClick={() => refreshAudit(u)}
+                                disabled={refreshingAuditFor === String(u.id)}
+                                className="px-2 py-1 text-xs text-violet-600 hover:text-violet-700 hover:bg-violet-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {refreshingAuditFor === String(u.id) ? '...' : txt.refresh_audit}
                               </button>
                               <button
                                 onClick={() => deleteUser(u.id)}
