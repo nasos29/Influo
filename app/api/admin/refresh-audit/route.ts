@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
 
     const { data: influencer, error: fetchError } = await supabaseAdmin
       .from('influencers')
-      .select('id, display_name, gender, bio, category, accounts')
+      .select('id, display_name, gender, bio, category, location, accounts')
       .eq('id', influencerId)
       .single();
 
@@ -104,6 +104,7 @@ export async function POST(request: NextRequest) {
       category_name: (influencer.category as string) ?? undefined,
       display_name: (influencer.display_name as string) ?? undefined,
       gender: (influencer.gender as string) ?? undefined,
+      location: (influencer.location as string) ?? undefined,
     };
 
     const auditResult = await runAuditGemini(igTtAccounts, shared);

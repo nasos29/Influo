@@ -15,12 +15,13 @@ export type AuditAccount = {
   avg_likes?: string;
 };
 
-/** Shared profile data (bio, category, display name, gender for smarter copy). */
+/** Shared profile data (bio, category, display name, gender, location for smarter copy). */
 export type AuditShared = {
   biography?: string | null;
   category_name?: string | null;
   display_name?: string | null;
   gender?: string | null;
+  location?: string | null;
 };
 
 export type AuditResult = {
@@ -64,8 +65,10 @@ function buildMultiPlatformPrompt(accounts: AuditAccount[], shared: AuditShared)
   const cat = (shared.category_name || '').trim();
   const displayName = (shared.display_name || '').trim() || null;
   const gender = (shared.gender || '').trim().toLowerCase() || null;
+  const location = (shared.location || '').trim() || null;
   const bioBlock = bio ? `\nBIOGRAPHY (creator):\n${bio}` : '';
   const categoryBlock = cat ? `\nCATEGORY: ${cat}` : '';
+  const locationBlock = location ? `\nLOCATION (creator has set this): ${location}. If LOCATION is set, do NOT add any negative about geographic target or local businesses – the creator has declared their location.` : '';
   const creatorName = displayName || 'η δημιουργός';
   const nameBlock = displayName ? `\nCREATOR DISPLAY NAME (use ONLY this when referring to the person in your text): ${displayName}` : '\nCREATOR DISPLAY NAME: not provided – use "η δημιουργός" in Greek and "the creator" in English.';
   const genderNote = gender === 'female' ? '\nCREATOR GENDER: Female. In Greek text use feminine forms where relevant (e.g. "της", "αυτή", "η δημιουργός").' : gender === 'male' ? '\nCREATOR GENDER: Male. In Greek text use masculine forms where relevant (e.g. "του", "αυτός", "ο δημιουργός").' : '';
@@ -75,7 +78,7 @@ function buildMultiPlatformPrompt(accounts: AuditAccount[], shared: AuditShared)
 CREATOR DATA – SOCIAL ACCOUNTS (metrics per platform). Platforms can be Instagram, TikTok, or YouTube (for YouTube, subscribers = followers).
 ${platformsBlock}
 ${bioBlock}
-${categoryBlock}${nameBlock}${genderNote}
+${categoryBlock}${locationBlock}${nameBlock}${genderNote}
 
 CRITICAL – NAMES: In ALL output (scoreBreakdown, whyWorkWithThem, positives, negatives) you must NEVER write the creator's username, @handle, or social media handle. Always refer to the person ONLY by their display name ("${creatorName}") or as "η δημιουργός" / "the creator". If you see a username in the data above, do not repeat it in your text.
 
@@ -89,7 +92,7 @@ OUTPUT – Return ONLY valid JSON with these exact keys (no markdown, no extra t
 - whyWorkWithThem_en: same as whyWorkWithThem, in ENGLISH. Do NOT include "Why work with them". Use only display name or "the creator".
 - positives: array of 2–4 points in GREEK – key strengths for brands. Each point 1–2 sentences.
 - positives_en: array of 2–4 points in ENGLISH, same content as positives.
-- negatives: array of 2–4 points in GREEK – real drawbacks or concerns for brands (e.g. narrow niche, content risks). Each point 1–2 sentences. Can be empty array if no significant negatives. Do NOT use generic filler negatives: only mention "γεωγραφικό στόχο κοινού" or "no clear geographic target" if the profile explicitly lacks location/region AND that is a real limitation for local brands. Do NOT add negatives like "micro-influencer / ρεαλιστικές προσδοκίες για την απήχηση" or "businesses should have realistic expectations about reach" – audience size is visible from the metrics and is not a negative. Apply the same standard to all creators.
+- negatives: array of 2–4 points in GREEK – real drawbacks or concerns for brands (e.g. narrow niche, content risks, or limited reach when follower count is low). Each point 1–2 sentences. Can be empty array if no significant negatives. When mentioning reach or follower count (e.g. "μικρός αριθμός followers", "περιορίζει την απήχηση"), use ONLY the actual numbers from the creator data above – do not invent figures; the assessment must be fair. FORBIDDEN: "Δεν υπάρχει σαφής γεωγραφικός στόχος" / "no clear geographic target" / "τοπικές επιχειρήσεις" if LOCATION is provided in the data above; only if there is no location at all may you consider it, and prefer to omit it. Apply the same standard to all creators.
 - negatives_en: array of 2–4 points in ENGLISH, same content as negatives.
 - brandSafe: boolean (true if content and metrics suggest brand-safe; false if risks).
 - niche: ONE niche label in GREEK (e.g. "Μόδα", "Fitness").
@@ -97,7 +100,7 @@ OUTPUT – Return ONLY valid JSON with these exact keys (no markdown, no extra t
 
 RULES:
 - Audience is brands. Be detailed and nuanced in bullets; more words, not one-liners.
-- Include both positives and negatives where relevant. Negatives must be specific and factual, not generic fillers. Do not list "limited reach" or "realistic expectations for campaigns" as a negative – size is evident from the data.
+- Include both positives and negatives where relevant. Negatives must be specific and factual. When referring to reach or follower count, use only the actual numbers from the data above so the assessment is fair and accurate. Never add "γεωγραφικός στόχος" or "geographic target" if LOCATION was provided in the creator data.
 - No advisory tone. Descriptive only.
 - In GREEK text when referring to companies/brands: use "επιχειρήσεις" (e.g. "Οι επιχειρήσεις πρέπει..."). Do NOT use "μάρκες". If you use the word "brands", write "τα brands" never "οι brands".
 - If the profile suggests fashion/model/aesthetic content, use Fashion, Model or Beauty & Makeup – not Humor/Comedy unless the bio clearly indicates comedy.`;

@@ -53,7 +53,7 @@ export async function doRefreshSocialStats(
 
   let query = supabaseAdmin
     .from('influencers')
-    .select('id, display_name, gender, accounts, bio, category');
+    .select('id, display_name, gender, accounts, bio, category, location');
 
   if (influencerId) {
     query = query.eq('id', influencerId);
@@ -200,6 +200,7 @@ export async function doRefreshSocialStats(
             category_name: (inf as { category?: string }).category ?? undefined,
             display_name: (inf as { display_name?: string }).display_name ?? undefined,
             gender: (inf as { gender?: string }).gender ?? undefined,
+            location: (inf as { location?: string }).location ?? undefined,
           };
           const auditResult = await runAuditGemini(igTtAccounts, shared);
           if (auditResult && Array.isArray(auditResult.scoreBreakdown)) {

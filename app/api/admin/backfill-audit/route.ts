@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
 
     let query = supabaseAdmin
       .from('influencers')
-      .select('id, display_name, gender, bio, category, accounts')
+      .select('id, display_name, gender, bio, category, location, accounts')
       .not('accounts', 'is', null)
       .order('id', { ascending: true });
 
@@ -109,6 +109,7 @@ export async function POST(request: NextRequest) {
         category_name: (inf.category as string) ?? undefined,
         display_name: (inf.display_name as string) ?? undefined,
         gender: (inf.gender as string) ?? undefined,
+        location: (inf.location as string) ?? undefined,
       };
 
       try {
