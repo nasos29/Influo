@@ -8,6 +8,7 @@ import InfluencerSignupForm from "../components/InfluencerSignupForm";
 import Footer from "../components/Footer";
 import { supabase } from "@/lib/supabaseClient";
 import { getStoredLanguage, setStoredLanguage, type Language } from "@/lib/language";
+import { getCachedImageUrl } from "@/lib/imageProxy";
 
 type Lang = "el" | "en";
 
@@ -664,7 +665,7 @@ export default function Home() {
                   >
                     {brand.logo_url ? (
                       <img 
-                        src={brand.logo_url}
+                        src={getCachedImageUrl(brand.logo_url) ?? brand.logo_url}
                         alt={brand.brand_name}
                         className="h-full w-auto max-w-[180px] md:max-w-[220px] lg:max-w-[260px] object-contain filter grayscale hover:grayscale-0 transition-all duration-300"
                         loading="lazy"
@@ -755,7 +756,7 @@ export default function Home() {
                   >
                     {brand.logo_url ? (
                       <img 
-                        src={brand.logo_url}
+                        src={getCachedImageUrl(brand.logo_url) ?? brand.logo_url}
                         alt={brand.brand_name}
                         className="h-full w-auto max-w-[180px] md:max-w-[220px] lg:max-w-[260px] object-contain filter grayscale hover:grayscale-0 transition-all duration-300"
                         loading="lazy"

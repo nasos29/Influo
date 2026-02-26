@@ -9,6 +9,7 @@ import { recommendInfluencers, type InfluencerProfile, type BrandProfile } from 
 import Messaging from '@/components/Messaging';
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 import { displayNameForLang } from '@/lib/greeklish';
+import { getCachedImageUrl } from '@/lib/imageProxy';
 
 // Categories (same as Directory and InfluencerSignupForm)
 const CATEGORIES = [
@@ -1481,8 +1482,8 @@ export default function BrandDashboardContent() {
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               {recommendations.map((match, index) => {
                 const inf = match.influencer;
-                // Priority: 1) avatar_url from DB, 2) Instagram username from accounts, 3) fallback to initials
-                let avatarUrl = inf.avatar_url;
+                // Priority: 1) avatar_url from DB (via proxy to reduce Supabase egress), 2) Instagram/unavatar, 3) fallback to initials
+                let avatarUrl = getCachedImageUrl(inf.avatar_url) ?? inf.avatar_url;
                 if (!avatarUrl && inf.accounts && Array.isArray(inf.accounts)) {
                   // Try to find Instagram username first
                   const instagramAccount = inf.accounts.find((acc: any) => 

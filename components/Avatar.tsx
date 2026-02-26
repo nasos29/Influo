@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { getCachedImageUrl } from "@/lib/imageProxy";
 
 interface AvatarProps {
   src: string | null | undefined;
@@ -10,8 +11,8 @@ interface AvatarProps {
 }
 
 export default function Avatar({ src, alt, size = 80, className = "" }: AvatarProps) {
-  // Check if src is empty, null, undefined, or placeholder
-  const hasImage = src && src.trim() !== "" && !src.includes("placeholder") && !src.includes("default");
+  const displaySrc = getCachedImageUrl(src) ?? src;
+  const hasImage = displaySrc && displaySrc.trim() !== "" && !displaySrc.includes("placeholder") && !displaySrc.includes("default");
   
   if (!hasImage) {
     return (
@@ -32,11 +33,11 @@ export default function Avatar({ src, alt, size = 80, className = "" }: AvatarPr
       style={{ width: size, height: size }}
     >
       <Image
-        src={src}
+        src={displaySrc}
         alt={alt}
         fill
         className="object-cover"
-        unoptimized={src.startsWith('http') && (src.includes('supabase') || src.includes('localhost'))}
+        unoptimized={displaySrc.startsWith("/api/image-proxy") || (displaySrc.startsWith("http") && (displaySrc.includes("supabase") || displaySrc.includes("localhost")))}
       />
     </div>
   );

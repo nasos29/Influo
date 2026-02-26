@@ -10,6 +10,7 @@ import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
 import { displayNameForLang } from "@/lib/greeklish";
 import { categoryTranslations } from "@/components/categoryTranslations";
 import { fetchInstagramFromAuditpr, fetchTiktokFromAuditpr } from "@/lib/socialRefresh";
+import { getCachedImageUrl } from "@/lib/imageProxy";
 
 // --- FULL CATEGORY LIST ---
 const CATEGORIES = [
@@ -3019,7 +3020,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               {u.avatar_url ? (
                                 <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200">
                                   <Image 
-                                    src={u.avatar_url} 
+                                    src={getCachedImageUrl(u.avatar_url) ?? u.avatar_url} 
                                     alt={displayNameForLang(u.display_name, lang)} 
                                     width={40} 
                                     height={40} 
@@ -3244,7 +3245,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-3">
                               {b.logo_url ? (
-                                <img src={b.logo_url} alt={b.brand_name} className="w-8 h-8 rounded object-cover" />
+                                <img src={getCachedImageUrl(b.logo_url) ?? b.logo_url} alt={b.brand_name} className="w-8 h-8 rounded object-cover" />
                               ) : (
                                 <div className="w-8 h-8 rounded bg-slate-200 flex items-center justify-center text-slate-400 text-xs font-bold">
                                   {b.brand_name.charAt(0).toUpperCase()}
