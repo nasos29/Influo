@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { runAuditGemini, type AuditAccount, type AuditShared } from '@/lib/auditGemini';
+import { runAuditGemini, type AuditAccount, type AuditShared, type AuditResult } from '@/lib/auditGemini';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -107,7 +107,35 @@ export async function POST(request: NextRequest) {
       location: (influencer.location as string) ?? undefined,
     };
 
-    const auditResult = await runAuditGemini(igTtAccounts, shared);
+    // Fetch 1 example audit from another influencer (same category if possible) so the AI matches depth/style over time
+    const category = (influencer.category as string)?.trim() || null;
+    let exampleAudits: AuditResult[] | undefined;
+    const exampleQuery = supabaseAdmin
+      .from('influencers')
+      .select('auditpr_audit')
+      .neq('id', influencerId)
+      .not('auditpr_audit', 'is', null)
+      .limit(1);
+    if (category) {
+      const { data: sameCat } = await exampleQuery.eq('category', category).maybeSingle();
+      if (sameCat?.auditpr_audit && Array.isArray((sameCat.auditpr_audit as AuditprAudit).scoreBreakdown)) {
+        exampleAudits = [sameCat.auditpr_audit as unknown as AuditResult];
+      }
+    }
+    if (!exampleAudits?.length) {
+      const { data: anyAudit } = await supabaseAdmin
+        .from('influencers')
+        .select('auditpr_audit')
+        .neq('id', influencerId)
+        .not('auditpr_audit', 'is', null)
+        .limit(1)
+        .maybeSingle();
+      if (anyAudit?.auditpr_audit && Array.isArray((anyAudit.auditpr_audit as AuditprAudit).scoreBreakdown)) {
+        exampleAudits = [anyAudit.auditpr_audit as unknown as AuditResult];
+      }
+    }
+
+    const auditResult = await runAuditGemini(igTtAccounts, shared, { exampleAudits });
 
     const auditpr_audit: AuditprAudit = {
       scoreBreakdown: auditResult.scoreBreakdown,

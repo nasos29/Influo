@@ -6,7 +6,7 @@ export interface BrandProfile {
   industry?: string | null; // Can be category or industry
   category?: string | null; // Preferred field name
   contact_email: string;
-  // We can add more fields later like budget_range, target_audience, etc.
+  location?: string | null; // Optional: for location-based matching
 }
 
 /** Strategic audit from Gemini (auditpr_audit) – used for better matching and reasons. */
@@ -16,7 +16,9 @@ export interface AuditprAuditProfile {
   whyWorkWithThem?: string | null;
   whyWorkWithThem_en?: string | null;
   positives?: string[] | null;
+  positives_en?: string[] | null;
   scoreBreakdown?: string[] | null;
+  brandSafe?: boolean;
 }
 
 export interface InfluencerProfile {
@@ -63,6 +65,7 @@ export interface MatchScore {
     valuePrice?: number;
     locationMatch?: number;
     verifiedStatus?: number;
+    brandSafe?: number; // 1 if audit says brand-safe, 0.5 otherwise
   };
 }
 
@@ -137,6 +140,30 @@ function normalizeLabel(s: string | null | undefined): string {
     .replace(/\s+/g, ' ');
 }
 
+/** Greek industry/category keywords → English concept for better matching */
+const GREEK_TO_CONCEPT: { [key: string]: string } = {
+  μόδα: 'fashion',
+  μοδα: 'fashion',
+  ομορφιά: 'beauty',
+  ομορφια: 'beauty',
+  μακιγιάζ: 'beauty',
+  μακιαζ: 'beauty',
+  ταξίδια: 'travel',
+  ταξιδια: 'travel',
+  φαγητό: 'food',
+  φαγητο: 'food',
+  υγεία: 'fitness',
+  υγεια: 'fitness',
+  τεχνολογία: 'tech',
+  τεχνολογια: 'tech',
+  επιχειρήσεις: 'business',
+  οικονομικά: 'business',
+  gaming: 'gaming',
+  οικογένεια: 'family',
+  lifestyle: 'lifestyle',
+  γενικά: 'general',
+};
+
 /**
  * Match brand industry to a single label (category or niche)
  */
@@ -166,6 +193,8 @@ function calculateCategoryMatch(
   if (!brandIndustry) return 0.5;
 
   const industryLower = brandIndustry.toLowerCase().trim();
+  const industryNorm = normalizeLabel(brandIndustry);
+  const brandConcept = GREEK_TO_CONCEPT[industryNorm] || industryNorm.split(' ')[0] || industryNorm;
   const allCategories = influencerCategories || (influencerCategory ? [influencerCategory] : []);
   const hasGeneral = allCategories.some(
     (cat) => cat.toLowerCase().trim() === 'γενικά' || cat.toLowerCase().trim() === 'general'
@@ -209,10 +238,20 @@ function calculateCategoryMatch(
   };
 
   for (const [industry, mappedCats] of Object.entries(categoryMappings)) {
-    if (industryLower.includes(industry) || industry.includes(industryLower)) {
+    const brandMatchesIndustry =
+      industryLower.includes(industry) ||
+      industry.includes(industryLower) ||
+      brandConcept === industry ||
+      industryNorm.includes(industry);
+    if (brandMatchesIndustry) {
       for (const cat of allCategories) {
         const catLower = cat.toLowerCase().trim();
-        if (mappedCats.some((mappedCat) => catLower.includes(mappedCat) || mappedCat.includes(catLower))) {
+        const catNorm = normalizeLabel(cat);
+        const catConcept = GREEK_TO_CONCEPT[catNorm] || catNorm;
+        if (
+          mappedCats.some((mappedCat) => catLower.includes(mappedCat) || mappedCat.includes(catLower)) ||
+          (catConcept && industry === catConcept)
+        ) {
           bestMatch = Math.max(bestMatch, 0.85);
         }
       }
@@ -372,6 +411,11 @@ export function recommendInfluencers(
         audit?.niche_en
       );
 
+      const locationMatch = brand.location && influencer.location
+        ? calculateLocationMatch(brand.location, influencer.location)
+        : 0.5;
+      const brandSafeScore = audit?.brandSafe === true ? 1.0 : 0.5;
+
       const strengths = {
         categoryMatch: categoryMatch,
         nicheMatch: categoryMatch,
@@ -382,25 +426,34 @@ export function recommendInfluencers(
           influencer.engagement_rate,
           influencer.followers_count
         ),
-        locationMatch: 0.5,
+        locationMatch,
         verifiedStatus: influencer.verified ? 1.0 : 0.5,
+        brandSafe: brandSafeScore,
       };
 
-      // Weights: category/niche 40%, engagement 25%, value 15%, verified 5%, rating 15%
+      // Weights: category/niche 35%, engagement 22%, value 14%, verified 5%, rating 14%, brandSafe 5%, location 5% (when used)
       let score = 0;
-      score += strengths.categoryMatch * 40;
-      score += strengths.engagementQuality * 25;
-      score += strengths.valuePrice * 15;
+      score += strengths.categoryMatch * 35;
+      score += strengths.engagementQuality * 22;
+      score += strengths.valuePrice * 14;
       score += strengths.verifiedStatus * 5;
+      score += strengths.brandSafe * 5;
 
       if (influencer.total_reviews && influencer.total_reviews > 0) {
-        score += strengths.ratingQuality * 15;
+        score += strengths.ratingQuality * 14;
       } else {
-        score += 0.5 * 15;
+        score += 0.5 * 14;
+      }
+
+      if (locationMatch !== 0.5) {
+        score += strengths.locationMatch * 5;
+      } else {
+        score += 0.5 * 5;
       }
 
       let bonusPoints = 0;
       if (strengths.categoryMatch >= 0.9 && strengths.engagementQuality >= 0.7) bonusPoints += 5;
+      if (strengths.categoryMatch >= 0.9 && strengths.brandSafe === 1) bonusPoints += 2; // Niche + brand-safe
       if (influencer.total_reviews && influencer.total_reviews >= 10 && influencer.avg_rating && influencer.avg_rating >= 4.5) bonusPoints += 2;
       if (strengths.valuePrice >= 0.8 && strengths.engagementQuality >= 0.8) bonusPoints += 2;
       score += bonusPoints;
@@ -448,10 +501,24 @@ export function recommendInfluencers(
         reasons.push(isEn ? 'Verified ✅' : 'Επαληθευμένος ✅');
       }
 
+      if (audit?.brandSafe === true) {
+        reasons.push(isEn ? 'Brand Safe – low risk for campaigns ✓' : 'Ασφαλής για brands – χαμηλό ρίσκο για καμπάνιες ✓');
+      }
+
+      const positives = isEn ? (audit?.positives_en || audit?.positives) : (audit?.positives || audit?.positives_en);
+      if (positives?.length && reasons.length < 5) {
+        const shortPositive = positives.find((p) => p && p.length <= 120) || positives[0];
+        if (shortPositive) {
+          const text = shortPositive.length > 100 ? shortPositive.slice(0, 97) + '...' : shortPositive;
+          if (!reasons.some((r) => r.includes(text.slice(0, 30)))) reasons.push(text);
+        }
+      }
+
       const whyLine = isEn ? (audit?.whyWorkWithThem_en || audit?.whyWorkWithThem) : (audit?.whyWorkWithThem || audit?.whyWorkWithThem_en);
       const auditWhyLine = whyLine ? (whyLine.split(/[.!]/)[0]?.trim() + (whyLine.includes('.') ? '.' : '') || whyLine.slice(0, 120)) : null;
-      if (auditWhyLine && reasons.length < 4) {
-        reasons.push(auditWhyLine.length > 100 ? auditWhyLine.slice(0, 97) + '...' : auditWhyLine);
+      if (auditWhyLine && reasons.length < 5) {
+        const trimmed = auditWhyLine.length > 100 ? auditWhyLine.slice(0, 97) + '...' : auditWhyLine;
+        if (!reasons.includes(trimmed)) reasons.push(trimmed);
       }
 
       if (reasons.length === 0) {

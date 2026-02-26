@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { runAuditGemini, type AuditAccount, type AuditShared } from '@/lib/auditGemini';
+import { runAuditGemini, type AuditAccount, type AuditShared, type AuditResult } from '@/lib/auditGemini';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -83,6 +83,18 @@ export async function POST(request: NextRequest) {
     const errors: string[] = [];
     let updated = 0;
 
+    const idsInBatch = new Set(influencers.map((i) => i.id));
+    const { data: exampleRows } = await supabaseAdmin
+      .from('influencers')
+      .select('id, auditpr_audit')
+      .not('auditpr_audit', 'is', null)
+      .limit(5);
+    const exampleRow = exampleRows?.find((r) => !idsInBatch.has(r.id));
+    const exampleAudits: AuditResult[] | undefined =
+      exampleRow?.auditpr_audit && Array.isArray((exampleRow.auditpr_audit as AuditprAudit).scoreBreakdown)
+        ? [exampleRow.auditpr_audit as unknown as AuditResult]
+        : undefined;
+
     for (const inf of influencers) {
       const accounts = (inf.accounts as AccountRow[] | null) ?? [];
       const igTtAccounts: AuditAccount[] = accounts
@@ -113,7 +125,7 @@ export async function POST(request: NextRequest) {
       };
 
       try {
-        const auditResult = await runAuditGemini(igTtAccounts, shared);
+        const auditResult = await runAuditGemini(igTtAccounts, shared, { exampleAudits });
         const auditpr_audit: AuditprAudit = {
           scoreBreakdown: auditResult.scoreBreakdown,
           scoreBreakdown_en: auditResult.scoreBreakdown_en,
