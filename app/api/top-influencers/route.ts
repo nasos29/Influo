@@ -48,7 +48,7 @@ export async function GET() {
     // Fetch by id (Supabase UUID column accepts string array)
     const { data: influencers, error: infErr } = await supabaseAdmin
       .from('influencers')
-      .select('id, display_name, display_name_en, avatar_url, videos, video_thumbnails, accounts, category')
+      .select('id, display_name, avatar_url, videos, video_thumbnails, accounts, category')
       .eq('approved', true)
       .in('id', sortedIds);
 
