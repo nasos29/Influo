@@ -1,5 +1,5 @@
 /**
- * Top 5 influencers of the month by profile clicks only (last 30 days).
+ * Top 5 influencers by profile clicks (all time).
  * Only influencers with at least one profile_click appear. No fallback to random/approved.
  */
 
@@ -19,14 +19,10 @@ const supabaseAdmin = createClient(
 
 export async function GET() {
   try {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
     const { data: clickEvents, error: clickErr } = await supabaseAdmin
       .from('influencer_analytics')
       .select('influencer_id')
-      .eq('event_type', 'profile_click')
-      .gte('created_at', thirtyDaysAgo.toISOString());
+      .eq('event_type', 'profile_click');
 
     if (clickErr) {
       console.error('[top-influencers] Click events error:', clickErr);
