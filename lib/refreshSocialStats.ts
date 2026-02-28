@@ -36,6 +36,8 @@ export type RefreshResult = {
 export type InstagramOverrides = Record<string, { followers: string; engagement_rate: string; avg_likes: string }>;
 /** TikTok metrics keyed by username (without @). Used when frontend fetches from local Auditpr. */
 export type TikTokOverrides = Record<string, { followers: string; engagement_rate: string; avg_likes: string }>;
+/** YouTube metrics keyed by username (without @). Used when frontend fetches from local Auditpr. */
+export type YouTubeOverrides = Record<string, { followers: string; engagement_rate: string; avg_likes: string }>;
 
 export async function doRefreshSocialStats(
   supabaseAdmin: SupabaseClient,
@@ -47,9 +49,11 @@ export async function doRefreshSocialStats(
     instagramOverrides?: InstagramOverrides;
     /** When set, use these for TikTok instead of calling Apify from server (browser fetched from local Auditpr). */
     tiktokOverrides?: TikTokOverrides;
+    /** When set, use these for YouTube instead of calling Auditpr from server (browser fetched from local). */
+    youtubeOverrides?: YouTubeOverrides;
   }
 ): Promise<RefreshResult> {
-  const { influencerId, auditprBaseUrl, apifyToken, instagramOverrides, tiktokOverrides } = options;
+  const { influencerId, auditprBaseUrl, apifyToken, instagramOverrides, tiktokOverrides, youtubeOverrides } = options;
 
   let query = supabaseAdmin
     .from('influencers')
@@ -141,12 +145,15 @@ export async function doRefreshSocialStats(
       } else if (platformLower === 'youtube') {
         // YouTube: μόνο Auditpr (YOUTUBE_API_KEY στο Auditpr .env)
         const uKey = username.replace(/^@+/, '').trim();
-        if (!auditprBaseUrl) {
-          errors.push(`YouTube @${uKey}: AUDITPR_BASE_URL required (και YOUTUBE_API_KEY στο Auditpr)`);
+        if (youtubeOverrides?.[uKey]) {
+          metrics = youtubeOverrides[uKey];
+        } else if (!auditprBaseUrl) {
+          errors.push(`YouTube @${uKey}: AUDITPR_BASE_URL required (ή εισάγετε Auditpr URL στο dashboard)`);
           continue;
+        } else {
+          metrics = await fetchYouTubeFromAuditpr(auditprBaseUrl, username);
+          fetchedViaAuditpr = true;
         }
-        metrics = await fetchYouTubeFromAuditpr(auditprBaseUrl, username);
-        fetchedViaAuditpr = true;
       } else {
         // Άλλες πλατφόρμες (Facebook, κλπ): skip αν δεν υπάρχει fetch
         continue;

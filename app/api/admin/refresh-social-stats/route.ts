@@ -9,7 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { doRefreshSocialStats, type InstagramOverrides, type TikTokOverrides } from '@/lib/refreshSocialStats';
+import { doRefreshSocialStats, type InstagramOverrides, type TikTokOverrides, type YouTubeOverrides } from '@/lib/refreshSocialStats';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
     let influencerId: string | null = null;
     let instagramOverrides: InstagramOverrides | undefined;
     let tiktokOverrides: TikTokOverrides | undefined;
+    let youtubeOverrides: YouTubeOverrides | undefined;
     try {
       const body = await request.json().catch(() => ({}));
       influencerId = (body?.influencerId ?? '').trim() || null;
@@ -50,6 +51,9 @@ export async function POST(request: NextRequest) {
       }
       if (body?.tiktokOverrides && typeof body.tiktokOverrides === 'object') {
         tiktokOverrides = body.tiktokOverrides as TikTokOverrides;
+      }
+      if (body?.youtubeOverrides && typeof body.youtubeOverrides === 'object') {
+        youtubeOverrides = body.youtubeOverrides as YouTubeOverrides;
       }
     } catch {
       // no body
@@ -64,6 +68,7 @@ export async function POST(request: NextRequest) {
       apifyToken,
       instagramOverrides,
       tiktokOverrides,
+      youtubeOverrides,
     });
     return NextResponse.json(result);
   } catch (err: unknown) {
