@@ -64,12 +64,12 @@ function getTotalFollowers(accounts: TopInfluencer["accounts"]): number {
 const t = {
   el: {
     title: "Top Influencers",
-    subtitle: "Οι πιο δημοφιλείς creators βάσει κλικ",
+    subtitle: "Οι πιο δημοφιλείς creators βάσει προβολών προφίλ",
     views: "προβολές",
   },
   en: {
     title: "Top Influencers",
-    subtitle: "Most popular creators based on clicks",
+    subtitle: "Most popular creators based on profile views",
     views: "views",
   },
 };
@@ -207,13 +207,6 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
                     <div className="flex items-center gap-2 text-slate-600">
                       {totalFol > 0 && (
                         <span className="text-sm font-semibold">{formatNum(totalFol)} followers</span>
-                      )}
-                      {(inf.clicks > 0 || inf.views > 0) && (
-                        <span className="text-xs text-slate-500">
-                          {inf.clicks > 0 && `${inf.clicks} ${lang === "el" ? "κλικ" : "clicks"}`}
-                          {inf.clicks > 0 && inf.views > 0 && " · "}
-                          {inf.views > 0 && `${inf.views} ${txt.views}`}
-                        </span>
                       )}
                     </div>
                     <span className="text-blue-600 text-sm font-medium group-hover:underline">
