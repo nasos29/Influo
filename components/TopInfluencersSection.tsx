@@ -123,7 +123,7 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-12">
           <span className="inline-block px-3 py-1 text-xs font-semibold uppercase tracking-wider text-blue-600 bg-blue-50 rounded-full mb-4">
-            {lang === "el" ? "Δημοφιλείς" : "Trending"}
+            Trending
           </span>
           <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">{txt.title}</h2>
           <p className="text-slate-600 max-w-xl mx-auto">{txt.subtitle}</p>
@@ -217,7 +217,7 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
                       )}
                     </div>
                     <span className="text-blue-600 text-sm font-medium group-hover:underline">
-                      {lang === "el" ? "Προφίλ →" : "Profile →"}
+                      {lang === "el" ? "Προφίλ" : "Profile"}
                     </span>
                   </div>
                 </article>
