@@ -6,6 +6,7 @@ import Image from "next/image";
 import Directory from "../components/Directory";
 import InfluencerSignupForm from "../components/InfluencerSignupForm";
 import Footer from "../components/Footer";
+import TopInfluencersSection from "../components/TopInfluencersSection";
 import { supabase } from "@/lib/supabaseClient";
 import { getStoredLanguage, setStoredLanguage, type Language } from "@/lib/language";
 import { getCachedImageUrl } from "@/lib/imageProxy";
@@ -571,6 +572,9 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+      {/* Top Influencers of the Month */}
+        <TopInfluencersSection lang={lang} />
 
       {/* Directory Section */}
         <section className="relative py-20 px-6 bg-white" id="directory">

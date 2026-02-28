@@ -15,6 +15,22 @@ function formatFollowers(num: number): string {
   return String(num);
 }
 
+/** Parse followers from API: number, "39943", or "39.9k" / "1.2M" so we never lose precision. */
+function parseFollowersFromApi(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return Math.round(value);
+  const s = typeof value === 'string' ? value.trim() : String(value ?? '');
+  if (!s) return 0;
+  const num = Number(s);
+  if (Number.isFinite(num)) return Math.round(num);
+  const match = s.replace(/,/g, '').match(/^([\d.]+)\s*([kKmM])?$/);
+  if (!match) return 0;
+  const n = parseFloat(match[1]);
+  const suffix = (match[2] || '').toLowerCase();
+  if (suffix === 'k') return Math.round(n * 1_000);
+  if (suffix === 'm') return Math.round(n * 1_000_000);
+  return Math.round(n);
+}
+
 /**
  * Fetch Instagram metrics from Auditpr (no Apify cost). Requires Auditpr running with valid IG session.
  */
@@ -33,7 +49,7 @@ export async function fetchInstagramFromAuditpr(
     }
     const data = (await res.json()) as Record<string, unknown>;
     if (data.error) return { error: String(data.error) };
-    const followers = Number(data.followers) || 0;
+    const followers = parseFollowersFromApi(data.followers);
     const engagement_rate = typeof data.engagement_rate === 'string' ? data.engagement_rate : 'N/A';
     const avg_likes = Number(data.avg_likes) ?? 0;
     return {
@@ -67,7 +83,7 @@ export async function fetchYouTubeFromAuditpr(
     const data = (await res.json()) as Record<string, unknown>;
     if (data.status === 'Failed' && data.error) return { error: String(data.error) };
     if (data.error) return { error: String(data.error) };
-    const followers = Number(data.followers) || 0;
+    const followers = parseFollowersFromApi(data.followers);
     const engagement_rate = typeof data.engagement_rate === 'string' ? data.engagement_rate : 'N/A';
     const avg_likes = Number(data.avg_likes) ?? 0;
     return {
@@ -100,7 +116,7 @@ export async function fetchTiktokFromAuditpr(
     const data = (await res.json()) as Record<string, unknown>;
     if (data.status === 'Failed' && data.error) return { error: String(data.error) };
     if (data.error) return { error: String(data.error) };
-    const followers = Number(data.followers) || 0;
+    const followers = parseFollowersFromApi(data.followers);
     const engagement_rate = typeof data.engagement_rate === 'string' ? data.engagement_rate : 'N/A';
     const avg_likes = Number(data.avg_likes) ?? 0;
     return {

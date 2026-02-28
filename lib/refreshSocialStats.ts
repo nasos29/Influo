@@ -118,7 +118,7 @@ export async function doRefreshSocialStats(
 
       // Instagram: μόνο Auditpr ή overrides. Ποτέ Apify (αποφυγή ασκόπων εξόδων).
       if (platformLower === 'instagram') {
-        const uKey = username.replace(/^@/, '').trim();
+        const uKey = username.replace(/^@+/, '').trim();
         if (instagramOverrides?.[uKey]) {
           metrics = instagramOverrides[uKey];
         } else         if (!auditprBaseUrl) {
