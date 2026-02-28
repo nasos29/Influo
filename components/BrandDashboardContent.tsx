@@ -1625,7 +1625,7 @@ export default function BrandDashboardContent() {
                                 brandName = brandData?.brand_name || null;
                               }
                               
-                              await fetch('/api/analytics/track', {
+                              fetch('/api/analytics/track', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
@@ -1634,8 +1634,9 @@ export default function BrandDashboardContent() {
                                   brandEmail: brandEmail,
                                   brandName: brandName,
                                   metadata: { source: 'brand_dashboard' }
-                                })
-                              }).catch(() => {}); // Fail silently
+                                }),
+                                keepalive: true
+                              }).catch(() => {});
                             } catch (err) {
                               // Fail silently
                             }

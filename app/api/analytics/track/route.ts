@@ -33,11 +33,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Insert analytics event
+    // Insert analytics event (coerce influencerId to string for UUID column)
     const { data, error } = await supabaseAdmin
       .from('influencer_analytics')
       .insert([{
-        influencer_id: influencerId,
+        influencer_id: String(influencerId),
         event_type: eventType,
         brand_email: brandEmail || null,
         brand_name: brandName || null,

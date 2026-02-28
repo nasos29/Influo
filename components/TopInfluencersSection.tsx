@@ -144,18 +144,17 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
                 key={inf.id}
                 href={`/influencer/${inf.id}`}
                 className="group block"
-                onClick={async () => {
-                  try {
-                    await fetch("/api/analytics/track", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        influencerId: inf.id,
-                        eventType: "profile_click",
-                        metadata: { source: "top_influencers" },
-                      }),
-                    }).catch(() => {});
-                  } catch {}
+                onClick={() => {
+                  fetch("/api/analytics/track", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      influencerId: inf.id,
+                      eventType: "profile_click",
+                      metadata: { source: "top_influencers" },
+                    }),
+                    keepalive: true
+                  }).catch(() => {});
                 }}
               >
                 <article className="h-full bg-white rounded-2xl overflow-hidden border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-slate-300 transition-all duration-300 group-hover:-translate-y-1">
