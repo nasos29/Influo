@@ -63,13 +63,13 @@ function getTotalFollowers(accounts: TopInfluencer["accounts"]): number {
 
 const t = {
   el: {
-    title: "Top Influencers του Μήνα",
-    subtitle: "Οι πιο δημοφιλείς creators βάσει προβολών και κλικ",
+    title: "Top Influencers",
+    subtitle: "Οι πιο δημοφιλείς creators βάσει κλικ",
     views: "προβολές",
   },
   en: {
-    title: "Top Influencers of the Month",
-    subtitle: "Most popular creators based on views and clicks",
+    title: "Top Influencers",
+    subtitle: "Most popular creators based on clicks",
     views: "views",
   },
 };
