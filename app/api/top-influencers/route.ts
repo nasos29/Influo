@@ -30,8 +30,9 @@ export async function GET() {
     }
 
     const clickCounts: Record<string, number> = {};
-    clickEvents?.forEach((e: { influencer_id: string }) => {
-      clickCounts[e.influencer_id] = (clickCounts[e.influencer_id] || 0) + 1;
+    clickEvents?.forEach((e: { influencer_id?: string | null }) => {
+      const id = e.influencer_id != null ? String(e.influencer_id).trim().toLowerCase() : null;
+      if (id) clickCounts[id] = (clickCounts[id] || 0) + 1;
     });
 
     // Only influencers with at least 1 click; sort by clicks desc, top 5
@@ -44,6 +45,7 @@ export async function GET() {
       return NextResponse.json({ influencers: [] });
     }
 
+    // Fetch by id (Supabase UUID column accepts string array)
     const { data: influencers, error: infErr } = await supabaseAdmin
       .from('influencers')
       .select('id, display_name, display_name_en, avatar_url, videos, video_thumbnails, accounts, category')
@@ -59,11 +61,12 @@ export async function GET() {
     }
 
     const orderMap = Object.fromEntries(sortedIds.map((id, i) => [id, i]));
+    const idKey = (id: string) => String(id).trim().toLowerCase();
     const ordered = (influencers || []).sort(
-      (a, b) => (orderMap[a.id] ?? 999) - (orderMap[b.id] ?? 999)
+      (a, b) => (orderMap[idKey(a.id)] ?? 999) - (orderMap[idKey(b.id)] ?? 999)
     ).map((inf) => ({
       ...inf,
-      clicks: clickCounts[inf.id] || 0,
+      clicks: clickCounts[idKey(inf.id)] || 0,
       views: 0
     }));
 

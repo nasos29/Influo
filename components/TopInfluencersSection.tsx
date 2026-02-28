@@ -81,9 +81,12 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
   useEffect(() => {
     let cancelled = false;
     fetch("/api/top-influencers")
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) return { influencers: [] };
+        return r.json();
+      })
       .then((data) => {
-        if (!cancelled) setInfluencers(data.influencers || []);
+        if (!cancelled && Array.isArray(data?.influencers)) setInfluencers(data.influencers);
       })
       .catch(() => {
         if (!cancelled) setInfluencers([]);
@@ -128,20 +131,21 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 md:gap-8">
           {influencers.map((inf, idx) => {
+            if (!inf?.id) return null;
             const imgUrl = getBestImageUrl(inf);
             const name = displayNameForLang(
-              lang === "en" && inf.display_name_en ? inf.display_name_en : inf.display_name,
+              (lang === "en" && inf.display_name_en ? inf.display_name_en : inf.display_name) ?? "",
               lang
             );
             const mainCat = inf.category
-              ? (inf.category.includes(",") ? inf.category.split(",")[0].trim() : inf.category)
+              ? (typeof inf.category === "string" && inf.category.includes(",") ? inf.category.split(",")[0].trim() : inf.category)
               : null;
             const catLabel = mainCat ? (categoryTranslations[mainCat]?.[lang] || mainCat) : null;
             const totalFol = getTotalFollowers(inf.accounts);
 
             return (
               <Link
-                key={inf.id}
+                key={String(inf.id)}
                 href={`/influencer/${inf.id}`}
                 className="group block"
                 onClick={() => {
@@ -166,12 +170,20 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
                         alt={name}
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                         loading="lazy"
-                    />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-200 to-slate-300 text-slate-500 text-4xl">
-                        {name?.charAt(0) || "?"}
-                      </div>
-                    )}
+                        onError={(e) => {
+                          const el = e.currentTarget;
+                          el.style.display = "none";
+                          const fallback = el.nextElementSibling as HTMLElement | null;
+                          if (fallback) fallback.style.display = "flex";
+                        }}
+                      />
+                    ) : null}
+                    <div
+                      className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-200 to-slate-300 text-slate-500 text-4xl"
+                      style={{ display: imgUrl ? "none" : "flex" }}
+                    >
+                      {name?.charAt(0) || "?"}
+                    </div>
                     {/* Rank badge */}
                     <div
                       className="absolute top-3 left-3 w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white bg-slate-900/80 backdrop-blur-sm"
