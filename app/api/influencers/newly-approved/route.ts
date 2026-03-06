@@ -1,6 +1,7 @@
 /**
  * Newly approved influencers for homepage section.
- * Only influencers with approved = true, ordered by approved_at desc (newest first).
+ * Only influencers with approved = true, ordered by created_at desc (newest first).
+ * Uses created_at so it works even if approved_at column is missing.
  */
 
 import { NextResponse } from 'next/server';
@@ -25,7 +26,6 @@ export async function GET() {
       .from('influencers')
       .select('id, display_name, display_name_en, avatar_url, videos, video_thumbnails, accounts, category')
       .eq('approved', true)
-      .order('approved_at', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false })
       .limit(LIMIT);
 

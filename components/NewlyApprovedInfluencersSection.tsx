@@ -64,6 +64,7 @@ const t = {
     subtitle: "Επαληθευμένοι creators που μόλις εντάχθηκαν στην πλατφόρμα. Όλοι έχουν λάβει έγκριση και είναι έτοιμοι για συνεργασίες.",
     viewProfile: "Προφίλ",
     viewAll: "Δείτε όλο τον κατάλογο",
+    empty: "Οι νεοί εγκεκριμένοι creators θα εμφανίζονται εδώ μετά την έγκρισή τους από την πλατφόρμα.",
   },
   en: {
     badge: "New to the network",
@@ -71,6 +72,7 @@ const t = {
     subtitle: "Verified creators who just joined the platform. All have been approved and are ready for collaborations.",
     viewProfile: "Profile",
     viewAll: "View full directory",
+    empty: "Newly approved creators will appear here once they are approved by the platform.",
   },
 };
 
@@ -116,8 +118,6 @@ export default function NewlyApprovedInfluencersSection({ lang }: { lang: Lang }
     );
   }
 
-  if (influencers.length === 0) return null;
-
   const txt = t[lang];
 
   return (
@@ -131,6 +131,21 @@ export default function NewlyApprovedInfluencersSection({ lang }: { lang: Lang }
           <p className="text-slate-600 max-w-2xl mx-auto mb-8">{txt.subtitle}</p>
         </div>
 
+        {influencers.length === 0 ? (
+          <div className="text-center py-12 px-6 bg-white/60 rounded-2xl border border-slate-200/80">
+            <p className="text-slate-600 max-w-xl mx-auto mb-8">{txt.empty}</p>
+            <a
+              href="/directory"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl transition-all shadow-md hover:shadow-lg"
+            >
+              {txt.viewAll}
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+              </svg>
+            </a>
+          </div>
+        ) : (
+        <>
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-5 md:gap-6">
           {influencers.map((inf) => {
             if (!inf?.id) return null;
@@ -227,6 +242,8 @@ export default function NewlyApprovedInfluencersSection({ lang }: { lang: Lang }
             </svg>
           </a>
         </div>
+        </>
+        )}
       </div>
     </section>
   );
