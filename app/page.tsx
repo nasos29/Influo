@@ -7,6 +7,7 @@ import Directory from "../components/Directory";
 import InfluencerSignupForm from "../components/InfluencerSignupForm";
 import Footer from "../components/Footer";
 import TopInfluencersSection from "../components/TopInfluencersSection";
+import NewlyApprovedInfluencersSection from "../components/NewlyApprovedInfluencersSection";
 import { supabase } from "@/lib/supabaseClient";
 import { getStoredLanguage, setStoredLanguage, type Language } from "@/lib/language";
 import { getCachedImageUrl } from "@/lib/imageProxy";
@@ -591,6 +592,9 @@ export default function Home() {
           <Directory lang={lang} /> 
         </div>
       </section>
+
+      {/* Newly Approved Influencers */}
+      <NewlyApprovedInfluencersSection lang={lang} />
 
       {/* Brand Section */}
         <section className="relative py-20 px-6 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50" id="brands">
