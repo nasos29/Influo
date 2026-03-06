@@ -17,7 +17,7 @@ const supabaseAdmin = createClient(
   }
 );
 
-const LIMIT = 6;
+const LIMIT = 4;
 
 export async function GET() {
   try {
