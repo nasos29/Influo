@@ -1,7 +1,6 @@
 /**
- * Newly approved influencers for homepage section.
- * Only influencers with approved = true, ordered by created_at desc (newest first).
- * Uses created_at so it works even if approved_at column is missing.
+ * Newly approved influencers for homepage section (last 5–6).
+ * Only approved = true. Select matches top-influencers (no display_name_en to avoid missing column 500).
  */
 
 import { NextResponse } from 'next/server';
@@ -18,31 +17,32 @@ const supabaseAdmin = createClient(
   }
 );
 
-const LIMIT = 12;
+const LIMIT = 6;
 
 export async function GET() {
   try {
     const { data, error } = await supabaseAdmin
       .from('influencers')
-      .select('id, display_name, display_name_en, avatar_url, videos, video_thumbnails, accounts, category')
+      .select('id, display_name, avatar_url, videos, video_thumbnails, accounts, category')
       .eq('approved', true)
       .order('created_at', { ascending: false })
       .limit(LIMIT);
 
     if (error) {
-      console.error('[newly-approved] Error:', error);
+      console.error('[newly-approved] Supabase error:', error.message, error.details);
       return NextResponse.json(
-        { error: error.message },
-        { status: 500 }
+        { error: error.message, influencers: [] },
+        { status: 200 }
       );
     }
 
-    return NextResponse.json({ influencers: data ?? [] });
+    const list = Array.isArray(data) ? data : [];
+    return NextResponse.json({ influencers: list });
   } catch (err: unknown) {
-    console.error('[newly-approved]', err);
+    console.error('[newly-approved] Exception:', err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal server error' },
-      { status: 500 }
+      { error: err instanceof Error ? err.message : 'Internal server error', influencers: [] },
+      { status: 200 }
     );
   }
 }
