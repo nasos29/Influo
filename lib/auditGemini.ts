@@ -85,7 +85,7 @@ CRITICAL – NAMES: In ALL output (scoreBreakdown, whyWorkWithThem, positives, n
 TONE – "Με το γάντι": Be professional and honest but diplomatic. Criticism must be constructive and gentle, not harsh or accusatory. Avoid sounding like a warning or a reprimand. Frame limitations in a neutral or positive light where possible (e.g. "Μικρότερο κοινό – ιδανικό για targeted campaigns" rather than "περιορίζει την απήχηση σε σύγκριση με δημιουργούς με μεγαλύτερο κοινό"). Do NOT use phrases like "Απαιτείται προσεκτική αξιολόγηση", "προσεκτική αξιολόγηση της ποιότητας", or "διασφαλιστεί η συμβατότητα" – no generic advisory warnings.
 
 TASK:
-Write a strategic profile that helps brands decide whether to work with this creator. Describe strengths AND weaknesses in a factual, neutral way. Use detailed bullets (2–3 sentences or 1–2 lines each). Do NOT give recommendations to the creator. Describe what IS.
+Write a strategic profile that helps brands decide whether to work with this creator. Focus on strengths; only mention weaknesses when there is a clear, factual risk (not comparisons to other creators). Use detailed bullets (2–3 sentences or 1–2 lines each). Do NOT give recommendations to the creator. Describe what IS. Do not invent negatives that merely compare this creator unfavourably to others.
 
 OUTPUT – Return ONLY valid JSON with these exact keys (no markdown, no extra text):
 - scoreBreakdown: array of exactly 4 bullet points in GREEK (Ελληνικά). Each bullet MUST be 2–3 sentences or 2–3 lines – rich, detailed, nuanced text for brands. Reference the creator ONLY by display name or "η δημιουργός" – never by @username.
@@ -94,15 +94,15 @@ OUTPUT – Return ONLY valid JSON with these exact keys (no markdown, no extra t
 - whyWorkWithThem_en: same as whyWorkWithThem, in ENGLISH. Do NOT include "Why work with them". Use only display name or "the creator".
 - positives: array of 2–4 points in GREEK – key strengths for brands. Each point 1–2 sentences.
 - positives_en: array of 2–4 points in ENGLISH, same content as positives.
-- negatives: array of 2–4 points in GREEK – real drawbacks or concerns for brands, phrased gently ("με το γάντι"). Each point 1–2 sentences. Can be empty array if no significant negatives. When mentioning reach/followers: use ONLY the actual numbers from the data; phrase neutrally or positively (e.g. "Μικρότερο κοινό – κατάλληλο για niche στόχευση" / "Smaller audience – ideal for targeted campaigns"), never harshly (avoid "περιορίζει την απήχηση σε σύγκριση με δημιουργούς με μεγαλύτερο κοινό"). FORBIDDEN: "Δεν υπάρχει σαφής γεωγραφικός στόχος" if LOCATION is provided; generic warnings like "Απαιτείται προσεκτική αξιολόγηση της ποιότητας" or "προσεκτική αξιολόγηση για συμβατότητα με τις αξίες του brand". Apply the same standard to all creators.
-- negatives_en: array of 2–4 points in ENGLISH, same content as negatives.
+- negatives: array of 0–4 points in GREEK. PREFER EMPTY ARRAY. Only include a negative if it is a concrete, factual risk or drawback for brands (e.g. brand-safety concern, clearly inconsistent metrics), not a comparison to other creators. FORBIDDEN: (1) Any comparison to "other creators" or "δημιουργοί με μεγαλύτερη εμβέλεια/περισσότερα followers", (2) Criticising single-platform presence (e.g. "η παρουσία περιορίζεται στο TikTok" or "only on one platform limits reach"), (3) Suggesting they have "limited" reach or that "there are creators with bigger reach" – these diminish the creator. If in doubt, return [].
+- negatives_en: array of 0–4 points in ENGLISH, same content as negatives. Same rules: prefer empty; no comparative put-downs; no single-platform or reach-comparison negatives.
 - brandSafe: boolean (true if content and metrics suggest brand-safe; false if risks).
 - niche: ONE niche label in GREEK (e.g. "Μόδα", "Fitness").
 - niche_en: ONE niche label in ENGLISH (Fashion, Fitness, Beauty & Makeup, etc.). Do NOT use: Creator, Content Creator, Influencer, Lifestyle as default.
 
 RULES:
 - Audience is brands. Be detailed and nuanced in bullets; more words, not one-liners.
-- Include both positives and negatives where relevant. Negatives: specific, factual, and phrased with a light touch ("με το γάντι") – constructive, not harsh. When mentioning reach or follower count, use only the actual numbers; frame as neutral or positive (e.g. "smaller audience, good for targeted campaigns"), never as a put-down. Never add "γεωγραφικός στόχος" if LOCATION was provided.
+- Positives: always include 2–4 strong points. Negatives: PREFER TO OMIT. Only add negatives when there is a clear, factual risk (e.g. brand safety), not when the only "downside" is comparison to others (e.g. "others have more followers", "only on one platform"). Never write negatives that diminish the creator by comparison – better to return empty negatives [] than invent criticism.
 - No advisory or warning tone. No "απαιτείται προσεκτική αξιολόγηση" or similar. Descriptive only.
 - In GREEK text when referring to companies/brands: use "επιχειρήσεις" (e.g. "Οι επιχειρήσεις πρέπει..."). Do NOT use "μάρκες". If you use the word "brands", write "τα brands" never "οι brands".
 - If the profile suggests fashion/model/aesthetic content, use Fashion, Model or Beauty & Makeup – not Humor/Comedy unless the bio clearly indicates comedy.`;
