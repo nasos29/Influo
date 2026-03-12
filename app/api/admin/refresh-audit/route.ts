@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
 
     const { data: influencer, error: fetchError } = await supabaseAdmin
       .from('influencers')
-      .select('id, display_name, gender, bio, category, location, accounts')
+      .select('id, display_name, gender, bio, category, location, accounts, audience_male_percent, audience_female_percent')
       .eq('id', influencerId)
       .single();
 
@@ -105,6 +105,8 @@ export async function POST(request: NextRequest) {
       display_name: (influencer.display_name as string) ?? undefined,
       gender: (influencer.gender as string) ?? undefined,
       location: (influencer.location as string) ?? undefined,
+      audience_male_percent: (influencer as any).audience_male_percent ?? undefined,
+      audience_female_percent: (influencer as any).audience_female_percent ?? undefined,
     };
 
     // Fetch 1 example audit from another influencer (same category if possible) so the AI matches depth/style over time

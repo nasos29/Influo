@@ -15,13 +15,16 @@ export type AuditAccount = {
   avg_likes?: string;
 };
 
-/** Shared profile data (bio, category, display name, gender, location for smarter copy). */
+/** Shared profile data (bio, category, display name, gender, location, audience split for smarter copy). */
 export type AuditShared = {
   biography?: string | null;
   category_name?: string | null;
   display_name?: string | null;
   gender?: string | null;
   location?: string | null;
+   /** Optional audience gender split (percent values like 60, 40). */
+  audience_male_percent?: number | null;
+  audience_female_percent?: number | null;
 };
 
 export type AuditResult = {
@@ -66,9 +69,17 @@ function buildMultiPlatformPrompt(accounts: AuditAccount[], shared: AuditShared,
   const displayName = (shared.display_name || '').trim() || null;
   const gender = (shared.gender || '').trim().toLowerCase() || null;
   const location = (shared.location || '').trim() || null;
+  const malePct = typeof shared.audience_male_percent === 'number' ? shared.audience_male_percent : null;
+  const femalePct = typeof shared.audience_female_percent === 'number' ? shared.audience_female_percent : null;
   const bioBlock = bio ? `\nBIOGRAPHY (creator):\n${bio}` : '';
   const categoryBlock = cat ? `\nCATEGORY: ${cat}` : '';
   const locationBlock = location ? `\nLOCATION (creator has set this): ${location}. If LOCATION is set, do NOT add any negative about geographic target or local businesses – the creator has declared their location.` : '';
+  const audienceGenderBlock =
+    malePct != null || femalePct != null
+      ? `\nAUDIENCE GENDER SPLIT (approximate):${
+          femalePct != null ? `\n- Female: ~${Math.round(femalePct)}%` : ''
+        }${malePct != null ? `\n- Male: ~${Math.round(malePct)}%` : ''}\nWhen writing the analysis, explicitly mention this gender split so businesses understand if the audience skews more towards women, men, or is balanced.`
+      : '';
   const creatorName = displayName || 'η δημιουργός';
   const nameBlock = displayName ? `\nCREATOR DISPLAY NAME (use ONLY this when referring to the person in your text): ${displayName}` : '\nCREATOR DISPLAY NAME: not provided – use "η δημιουργός" in Greek and "the creator" in English.';
   const genderNote = gender === 'female' ? '\nCREATOR GENDER: Female. In Greek text use feminine forms where relevant (e.g. "της", "αυτή", "η δημιουργός").' : gender === 'male' ? '\nCREATOR GENDER: Male. In Greek text use masculine forms where relevant (e.g. "του", "αυτός", "ο δημιουργός").' : '';
@@ -78,7 +89,7 @@ function buildMultiPlatformPrompt(accounts: AuditAccount[], shared: AuditShared,
 CREATOR DATA – SOCIAL ACCOUNTS (metrics per platform). Platforms can be Instagram, TikTok, or YouTube (for YouTube, subscribers = followers).
 ${platformsBlock}
 ${bioBlock}
-${categoryBlock}${locationBlock}${nameBlock}${genderNote}
+${categoryBlock}${locationBlock}${audienceGenderBlock}${nameBlock}${genderNote}
 
 CRITICAL – NAMES: In ALL output (scoreBreakdown, whyWorkWithThem, positives, negatives) you must NEVER write the creator's username, @handle, or social media handle. Always refer to the person ONLY by their display name ("${creatorName}") or as "η δημιουργός" / "the creator". If you see a username in the data above, do not repeat it in your text.
 
@@ -94,15 +105,15 @@ OUTPUT – Return ONLY valid JSON with these exact keys (no markdown, no extra t
 - whyWorkWithThem_en: same as whyWorkWithThem, in ENGLISH. Do NOT include "Why work with them". Use only display name or "the creator".
 - positives: array of 2–4 points in GREEK – key strengths for brands. Each point 1–2 sentences.
 - positives_en: array of 2–4 points in ENGLISH, same content as positives.
-- negatives: array of 0–4 points in GREEK. PREFER EMPTY ARRAY. Only include a negative if it is a concrete, factual risk or drawback for brands (e.g. brand-safety concern, clearly inconsistent metrics), not a comparison to other creators. FORBIDDEN: (1) Any comparison to "other creators" or "δημιουργοί με μεγαλύτερη εμβέλεια/περισσότερα followers", (2) Criticising single-platform presence (e.g. "η παρουσία περιορίζεται στο TikTok" or "only on one platform limits reach"), (3) Suggesting they have "limited" reach or that "there are creators with bigger reach" – these diminish the creator. If in doubt, return [].
-- negatives_en: array of 0–4 points in ENGLISH, same content as negatives. Same rules: prefer empty; no comparative put-downs; no single-platform or reach-comparison negatives.
+- negatives: array of 1–4 points in GREEK. ALWAYS include at least 1 gentle point where you highlight limitations, trade-offs or points businesses should keep in mind (e.g. content consistency, posting frequency, audience concentration, dependence on a specific niche/platform, or uncertainty in metrics) as long as it is based on factual signals from the data. These must be framed diplomatically as “σημεία προσοχής για τις επιχειρήσεις”, not as attacks on the creator. FORBIDDEN: (1) Any comparison to "other creators" or "δημιουργοί με μεγαλύτερη εμβέλεια/περισσότερα followers", (2) Criticising single-platform presence itself (e.g. "η παρουσία περιορίζεται στο TikTok" or "only on one platform limits reach"), (3) Suggesting they have "limited" reach or that "there are creators with bigger reach" – these diminish the creator. When you mention negatives, keep the tone neutral and practical, never harsh.
+- negatives_en: array of 1–4 points in ENGLISH, same content as negatives. Same rules: always include at least one gentle limitation/consideration; no comparative put-downs; no single-platform or reach-comparison negatives.
 - brandSafe: boolean (true if content and metrics suggest brand-safe; false if risks).
 - niche: ONE niche label in GREEK (e.g. "Μόδα", "Fitness").
 - niche_en: ONE niche label in ENGLISH (Fashion, Fitness, Beauty & Makeup, etc.). Do NOT use: Creator, Content Creator, Influencer, Lifestyle as default.
 
 RULES:
 - Audience is brands. Be detailed and nuanced in bullets; more words, not one-liners.
-- Positives: always include 2–4 strong points. Negatives: PREFER TO OMIT. Only add negatives when there is a clear, factual risk (e.g. brand safety), not when the only "downside" is comparison to others (e.g. "others have more followers", "only on one platform"). Never write negatives that diminish the creator by comparison – better to return empty negatives [] than invent criticism.
+- Positives: always include 2–4 strong points. Negatives: always include 1–4 clear, factual limitations or points for businesses to keep in mind, phrased gently and constructively (e.g. “το κοινό είναι πιο περιορισμένο αλλά ιδιαίτερα στοχευμένο σε Χ”, “η συχνότητα περιεχομένου είναι μέτρια οπότε οι καμπάνιες λειτουργούν καλύτερα με έγκαιρο προγραμματισμό”). Never use comparisons with "other creators" or comments about "limited reach" vs others; focus on describing this creator’s reality for brands.
 - No advisory or warning tone. No "απαιτείται προσεκτική αξιολόγηση" or similar. Descriptive only.
 - In GREEK text when referring to companies/brands: use "επιχειρήσεις" (e.g. "Οι επιχειρήσεις πρέπει..."). Do NOT use "μάρκες". If you use the word "brands", write "τα brands" never "οι brands".
 - If the profile suggests fashion/model/aesthetic content, use Fashion, Model or Beauty & Makeup – not Humor/Comedy unless the bio clearly indicates comedy.`;

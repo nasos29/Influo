@@ -57,7 +57,7 @@ export async function doRefreshSocialStats(
 
   let query = supabaseAdmin
     .from('influencers')
-    .select('id, display_name, gender, accounts, bio, category, location');
+    .select('id, display_name, gender, accounts, bio, category, location, audience_male_percent, audience_female_percent');
 
   if (influencerId) {
     query = query.eq('id', influencerId);
@@ -208,6 +208,8 @@ export async function doRefreshSocialStats(
             display_name: (inf as { display_name?: string }).display_name ?? undefined,
             gender: (inf as { gender?: string }).gender ?? undefined,
             location: (inf as { location?: string }).location ?? undefined,
+            audience_male_percent: (inf as { audience_male_percent?: number | null }).audience_male_percent ?? undefined,
+            audience_female_percent: (inf as { audience_female_percent?: number | null }).audience_female_percent ?? undefined,
           };
           const auditResult = await runAuditGemini(igTtAccounts, shared);
           if (auditResult && Array.isArray(auditResult.scoreBreakdown)) {
