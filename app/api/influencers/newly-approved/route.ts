@@ -1,6 +1,6 @@
 /**
- * Newly approved influencers for homepage section (last 5–6).
- * Only approved = true. Select matches top-influencers (no display_name_en to avoid missing column 500).
+ * Newly approved influencers for homepage section (last 4).
+ * Same data shape as Directory: select('*') so images and badges work.
  */
 
 import { NextResponse } from 'next/server';
@@ -23,7 +23,7 @@ export async function GET() {
   try {
     const { data, error } = await supabaseAdmin
       .from('influencers')
-      .select('id, display_name, avatar_url, videos, video_thumbnails, accounts, category, verified, created_at, engagement_rate, avg_likes, past_brands, total_reviews, avg_rating, min_rate')
+      .select('*')
       .eq('approved', true)
       .order('created_at', { ascending: false })
       .limit(LIMIT);

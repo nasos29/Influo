@@ -10,6 +10,7 @@ import { getBadges, getBadgeStyles, type Badge } from "@/lib/badges";
 
 type Lang = "el" | "en";
 
+/** Raw row from API (select *), same shape as Directory source. */
 export type NewlyApprovedInfluencer = {
   id: string;
   display_name: string;
@@ -20,6 +21,7 @@ export type NewlyApprovedInfluencer = {
   accounts?: Array<{ platform?: string; username?: string; followers?: string; engagement_rate?: string }> | null;
   category?: string | null;
   verified?: boolean;
+  analytics_verified?: boolean;
   created_at?: string | null;
   engagement_rate?: string | Record<string, string> | null;
   avg_likes?: string | Record<string, string> | null;
@@ -89,19 +91,23 @@ function getAccountAgeDays(createdAt?: string | null): number {
   return Math.floor((Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24));
 }
 
-/** Primary badge to show on card: non-verified (Νέος, Top Performer, etc.) or fallback to "Νέος" for this section. */
+/** Same badge logic as Directory: build metrics from raw row, then getBadges. */
 function getPrimaryBadge(inf: NewlyApprovedInfluencer, lang: Lang): Badge | { type: string; label: string; icon: string; bgColor: string; color: string } {
-  const engagementRate = inf.engagement_rate;
-  const engagementObj = typeof engagementRate === "object" && engagementRate !== null
-    ? engagementRate
-    : typeof engagementRate === "string" && engagementRate
-      ? { ig: engagementRate, tiktok: engagementRate }
-      : {};
+  const engagementRatesObj: { [key: string]: string } = {};
+  if (Array.isArray(inf.accounts)) {
+    inf.accounts.forEach((acc) => {
+      const key = (acc.platform || "").toLowerCase();
+      if (key && acc.engagement_rate) engagementRatesObj[key] = acc.engagement_rate;
+    });
+  }
+  const engagementRate =
+    Object.keys(engagementRatesObj).length > 0 ? engagementRatesObj : (inf.engagement_rate as Record<string, string> | string) || undefined;
+  const verified = inf.analytics_verified ?? inf.verified ?? false;
   const badges = getBadges(
     {
-      verified: inf.verified ?? false,
+      verified,
       followers: buildFollowers(inf.accounts),
-      engagement_rate: Object.keys(engagementObj).length ? engagementObj : (inf.engagement_rate as string) || undefined,
+      engagement_rate: engagementRate,
       total_reviews: inf.total_reviews ?? 0,
       avg_rating: inf.avg_rating ?? 0,
       past_brands: Array.isArray(inf.past_brands) ? inf.past_brands.length : (inf.past_brands as number) ?? 0,
