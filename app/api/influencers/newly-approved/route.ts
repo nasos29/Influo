@@ -23,7 +23,7 @@ export async function GET() {
   try {
     const { data, error } = await supabaseAdmin
       .from('influencers')
-      .select('id, display_name, avatar_url, videos, video_thumbnails, accounts, category')
+      .select('id, display_name, display_name_en, avatar_url, videos, video_thumbnails, accounts, category, verified, created_at, engagement_rate, avg_likes, past_brands, total_reviews, avg_rating, min_rate')
       .eq('approved', true)
       .order('created_at', { ascending: false })
       .limit(LIMIT);

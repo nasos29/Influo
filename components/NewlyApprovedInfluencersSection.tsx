@@ -6,6 +6,7 @@ import { getCachedImageUrl } from "@/lib/imageProxy";
 import { isDefinitelyImage } from "@/lib/videoThumbnail";
 import { categoryTranslations } from "@/components/categoryTranslations";
 import { displayNameForLang } from "@/lib/greeklish";
+import { getBadges, getBadgeStyles, type Badge } from "@/lib/badges";
 
 type Lang = "el" | "en";
 
@@ -16,8 +17,16 @@ export type NewlyApprovedInfluencer = {
   avatar_url: string | null;
   videos?: string[] | null;
   video_thumbnails?: Record<string, string> | null;
-  accounts?: Array<{ platform?: string; username?: string; followers?: string }> | null;
+  accounts?: Array<{ platform?: string; username?: string; followers?: string; engagement_rate?: string }> | null;
   category?: string | null;
+  verified?: boolean;
+  created_at?: string | null;
+  engagement_rate?: string | Record<string, string> | null;
+  avg_likes?: string | Record<string, string> | null;
+  past_brands?: unknown[] | number | null;
+  total_reviews?: number | null;
+  avg_rating?: number | null;
+  min_rate?: string | null;
 };
 
 function getBestImageUrl(inf: NewlyApprovedInfluencer): string | null {
@@ -55,6 +64,61 @@ function parseFollowers(acc: { followers?: string }): number {
 function getTotalFollowers(accounts: NewlyApprovedInfluencer["accounts"]): number {
   if (!Array.isArray(accounts)) return 0;
   return accounts.reduce((sum, a) => sum + parseFollowers(a), 0);
+}
+
+function parseFollowerString(s?: string): number {
+  const str = String(s ?? "").toLowerCase().replace(/\s/g, "").replace(/,/g, "");
+  if (!str) return 0;
+  if (str.includes("m")) return Math.round(parseFloat(str) * 1000000);
+  if (str.includes("k") || str.includes("κ")) return Math.round(parseFloat(str) * 1000);
+  return parseInt(str, 10) || 0;
+}
+
+function buildFollowers(accounts: NewlyApprovedInfluencer["accounts"]): { [key: string]: number } {
+  const out: { [key: string]: number } = {};
+  if (!Array.isArray(accounts)) return out;
+  accounts.forEach((acc) => {
+    const platform = (acc.platform || "").toLowerCase();
+    if (platform) out[platform] = parseFollowerString(acc.followers);
+  });
+  return out;
+}
+
+function getAccountAgeDays(createdAt?: string | null): number {
+  if (!createdAt) return 999;
+  return Math.floor((Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24));
+}
+
+/** Primary badge to show on card: non-verified (Νέος, Top Performer, etc.) or fallback to "Νέος" for this section. */
+function getPrimaryBadge(inf: NewlyApprovedInfluencer, lang: Lang): Badge | { type: string; label: string; icon: string; bgColor: string; color: string } {
+  const engagementRate = inf.engagement_rate;
+  const engagementObj = typeof engagementRate === "object" && engagementRate !== null
+    ? engagementRate
+    : typeof engagementRate === "string" && engagementRate
+      ? { ig: engagementRate, tiktok: engagementRate }
+      : {};
+  const badges = getBadges(
+    {
+      verified: inf.verified ?? false,
+      followers: buildFollowers(inf.accounts),
+      engagement_rate: Object.keys(engagementObj).length ? engagementObj : (inf.engagement_rate as string) || undefined,
+      total_reviews: inf.total_reviews ?? 0,
+      avg_rating: inf.avg_rating ?? 0,
+      past_brands: Array.isArray(inf.past_brands) ? inf.past_brands.length : (inf.past_brands as number) ?? 0,
+      account_created_days: getAccountAgeDays(inf.created_at),
+      min_rate: inf.min_rate ?? undefined,
+    },
+    lang
+  );
+  const nonVerified = badges.find((b) => b.type !== "verified");
+  if (nonVerified) return nonVerified;
+  return {
+    type: "new",
+    label: lang === "el" ? "Νέος" : "New",
+    icon: "✨",
+    bgColor: "bg-blue-50 border-blue-200",
+    color: "text-blue-700",
+  };
 }
 
 const t = {
@@ -200,12 +264,18 @@ export default function NewlyApprovedInfluencersSection({ lang }: { lang: Lang }
                     >
                       {name?.charAt(0) || "?"}
                     </div>
-                    <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium text-white bg-indigo-600/90 backdrop-blur-sm">
-                      <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20" aria-hidden>
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
-                      </svg>
-                      {lang === "el" ? "Εγκεκριμένος" : "Approved"}
-                    </div>
+                    {(() => {
+                      const badge = getPrimaryBadge(inf, lang);
+                      const badgeStyles = "priority" in badge && typeof badge.priority === "number"
+                        ? getBadgeStyles(badge)
+                        : `${badge.bgColor} ${badge.color} border px-2 py-1 rounded-full text-[10px] font-bold inline-flex items-center gap-1`;
+                      return (
+                        <div className={`absolute top-3 left-3 flex items-center gap-1.5 px-2 py-1 rounded-full backdrop-blur-sm ${badgeStyles}`}>
+                          <span className="text-[10px]">{badge.icon}</span>
+                          <span>{badge.label}</span>
+                        </div>
+                      );
+                    })()}
                     <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 to-transparent" />
                     <div className="absolute bottom-3 left-3 right-3 text-white">
                       <h3 className="font-bold text-base md:text-lg leading-tight drop-shadow-md">{name}</h3>
