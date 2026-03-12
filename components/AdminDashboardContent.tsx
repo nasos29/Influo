@@ -3284,7 +3284,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                         b.contact_email.toLowerCase().includes(brandSearchQuery.toLowerCase())
                       ).map(b => (
                         <tr key={b.id} className="hover:bg-slate-50">
-                          <td className="px-4 py-3">
+                          <td className="px-3 py-2">
                             <div className="flex items-center gap-3">
                               {b.logo_url ? (
                                 <img src={getCachedImageUrl(b.logo_url) ?? b.logo_url} alt={b.brand_name} className="w-8 h-8 rounded object-cover" />
@@ -3296,9 +3296,9 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               <span className="font-medium text-slate-900">{b.brand_name}</span>
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-slate-600">{b.contact_email}</td>
-                          <td className="px-4 py-3 text-slate-600 font-mono text-sm">{b.afm}</td>
-                          <td className="px-4 py-3 text-slate-600">
+                          <td className="px-3 py-2 text-slate-600 text-xs sm:text-sm break-all max-w-[160px]">{b.contact_email}</td>
+                          <td className="px-3 py-2 text-slate-600 font-mono text-xs sm:text-sm whitespace-nowrap">{b.afm}</td>
+                          <td className="px-3 py-2 text-slate-600">
                             <div className="flex flex-col gap-1">
                               {b.contact_person && (
                                 <span className="text-sm">{b.contact_person}</span>
@@ -3315,11 +3315,11 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               )}
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-slate-600">{b.industry || '-'}</td>
-                          <td className="px-4 py-3 text-slate-600 text-sm">
+                          <td className="px-3 py-2 text-slate-600 text-xs sm:text-sm">{b.industry || '-'}</td>
+                          <td className="px-3 py-2 text-slate-600 text-xs sm:text-sm whitespace-nowrap">
                             {new Date(b.created_at).toLocaleDateString('el-GR')}
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-3 py-2">
                             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                               b.verified 
                                 ? 'bg-green-100 text-green-700' 
@@ -3328,19 +3328,19 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               {b.verified ? (lang === 'el' ? 'Επαληθευμένη' : 'Verified') : (lang === 'el' ? 'Αναμονή για έγκριση' : 'Pending Approval')}
                             </span>
                           </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
+                          <td className="px-3 py-2">
+                            <div className="flex flex-wrap items-center gap-1.5">
                               <button
                                 onClick={() => { setSelectedBrand(b); setShowBrandEditModal(true); }}
                                 disabled={updatingBrand === b.id || deletingBrand === b.id}
-                                className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                className="px-2.5 py-1 text-[11px] bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                               >
                                 {lang === 'el' ? 'Επεξεργασία' : 'Edit'}
                               </button>
                               <button
                                 onClick={() => handleToggleBrandVerification(b.id, b.verified)}
                                 disabled={updatingBrand === b.id || deletingBrand === b.id}
-                                className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                                className={`px-2.5 py-1 text-[11px] rounded-md transition-colors ${
                                   b.verified
                                     ? 'bg-red-100 text-red-700 hover:bg-red-200'
                                     : 'bg-green-100 text-green-700 hover:bg-green-200'
@@ -3356,7 +3356,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               <button
                                 onClick={() => deleteBrand(b.id, b.brand_name)}
                                 disabled={updatingBrand === b.id || deletingBrand === b.id}
-                                className="px-3 py-1.5 text-xs bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                className="px-2.5 py-1 text-[11px] bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                               >
                                 {deletingBrand === b.id 
                                   ? (lang === 'el' ? 'Διαγραφή...' : 'Deleting...')
