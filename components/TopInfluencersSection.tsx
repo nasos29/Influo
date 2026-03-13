@@ -6,6 +6,7 @@ import { getCachedImageUrl } from "@/lib/imageProxy";
 import { isDefinitelyImage } from "@/lib/videoThumbnail";
 import { categoryTranslations } from "@/components/categoryTranslations";
 import { displayNameForLang } from "@/lib/greeklish";
+import { getVisitorId } from "@/lib/visitorId";
 
 type Lang = "el" | "en";
 
@@ -155,6 +156,7 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
                     body: JSON.stringify({
                       influencerId: inf.id,
                       eventType: "profile_click",
+                      visitorId: getVisitorId(),
                       metadata: { source: "top_influencers" },
                     }),
                     keepalive: true

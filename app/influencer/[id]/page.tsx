@@ -13,6 +13,7 @@ import { getBadges, getBadgeStyles } from "@/lib/badges";
 import Avatar from "@/components/Avatar";
 import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
 import { displayNameForLang } from "@/lib/greeklish";
+import { getVisitorId } from "@/lib/visitorId";
 import { categoryTranslations } from "@/components/categoryTranslations";
 
 type Params = Promise<{ id: string }>;
@@ -726,7 +727,7 @@ export default function InfluencerProfile(props: { params: Params }) {
           // Ignore errors
         }
 
-        // Track profile view
+        // Track profile view (visitorId for unique-anon count when not brand)
         await fetch('/api/analytics/track', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -735,6 +736,7 @@ export default function InfluencerProfile(props: { params: Params }) {
             eventType: 'profile_view',
             brandEmail: brandEmail,
             brandName: brandName,
+            visitorId: getVisitorId(),
             metadata: { source: 'profile_page' }
           })
         }).catch(() => {}); // Fail silently

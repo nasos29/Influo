@@ -5,6 +5,7 @@ import Link from "next/link";
 import { supabase } from "../lib/supabaseClient";
 import InfluencerCard from "./InfluencerCard";
 import { getBadges } from "../lib/badges";
+import { getVisitorId } from "../lib/visitorId";
 
 export interface Influencer {
   id: string | number;
@@ -646,6 +647,7 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
                       body: JSON.stringify({
                         influencerId: inf.id,
                         eventType: 'profile_click',
+                        visitorId: getVisitorId(),
                         metadata: { source: 'directory' }
                       }),
                       keepalive: true

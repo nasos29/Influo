@@ -1,8 +1,7 @@
 /**
  * Top 5 influencers by a composite score (fairer: not just clicks).
- * Uses last N days of analytics. Score = weighted sum of events:
+ * Uses last N days of analytics. Score = weighted sum of UNIQUE users per event type (at most one per user per event per influencer).
  *   proposal_sent (10) > conversation_started (5) > message_sent (4) > profile_click (3) > profile_view (1)
- * So creators with real interest (proposals, messages) can rank above those with only many clicks.
  * Env TOP_INFLUENCERS_DAYS (default 30): window in days.
  */
 
@@ -32,6 +31,8 @@ const EVENT_WEIGHTS: Record<string, number> = {
   proposal_sent: 10,
 };
 
+type AnalyticsRow = { id?: string; influencer_id?: string | null; event_type?: string | null; brand_email?: string | null; visitor_id?: string | null };
+
 export async function GET() {
   try {
     const days = Math.max(1, parseInt(process.env.TOP_INFLUENCERS_DAYS || String(DEFAULT_DAYS), 10) || DEFAULT_DAYS);
@@ -39,21 +40,43 @@ export async function GET() {
     since.setDate(since.getDate() - days);
     const sinceIso = since.toISOString();
 
-    const { data: events, error: eventsErr } = await supabaseAdmin
+    let events: AnalyticsRow[] | null = null;
+    let eventsErr: { message: string } | null = null;
+    let sel = supabaseAdmin
       .from('influencer_analytics')
-      .select('influencer_id, event_type')
+      .select('id, influencer_id, event_type, brand_email, visitor_id')
       .gte('created_at', sinceIso)
       .in('event_type', Object.keys(EVENT_WEIGHTS));
+    const res = await sel;
+    eventsErr = res.error;
+    events = res.data as AnalyticsRow[] | null;
+
+    if (eventsErr && /visitor_id|column/i.test(eventsErr.message)) {
+      const res2 = await supabaseAdmin
+        .from('influencer_analytics')
+        .select('id, influencer_id, event_type, brand_email')
+        .gte('created_at', sinceIso)
+        .in('event_type', Object.keys(EVENT_WEIGHTS));
+      eventsErr = res2.error;
+      events = (res2.data ?? []).map((r: { id?: string; influencer_id?: string | null; event_type?: string | null; brand_email?: string | null }) => ({ ...r, visitor_id: null }));
+    }
 
     if (eventsErr) {
       console.error('[top-influencers] Analytics error:', eventsErr);
       return NextResponse.json({ influencers: [] });
     }
 
+    const eventsList: AnalyticsRow[] = events ?? [];
     const scores: Record<string, number> = {};
-    events?.forEach((e: { influencer_id?: string | null; event_type?: string }) => {
+    const uniq: Record<string, Set<string>> = {};
+    eventsList.forEach((e: AnalyticsRow) => {
       const id = e.influencer_id != null ? String(e.influencer_id).trim().toLowerCase() : null;
       if (!id) return;
+      const userKey = (e.brand_email || '').trim() || (e.visitor_id || '').trim() || (e.id != null ? String(e.id) : '');
+      const key = `${id}\t${e.event_type || ''}`;
+      if (!uniq[key]) uniq[key] = new Set();
+      if (userKey && uniq[key].has(userKey)) return;
+      uniq[key].add(userKey);
       const w = EVENT_WEIGHTS[e.event_type || ''] ?? 0;
       scores[id] = (scores[id] ?? 0) + w;
     });
