@@ -154,7 +154,7 @@ const t = {
     why_work_with_them_male: "Γιατί να συνεργαστώ μαζί του: ",
     why_work_with_them_female: "Γιατί να συνεργαστώ μαζί της: ",
     positives: "Θετικά",
-    negatives: "Αρνητικά"
+    negatives: "Σημεία προσοχής"
   },
   en: {
     back: "← Back",
@@ -236,7 +236,7 @@ const t = {
     why_work_with_them_male: "Why work with them: ",
     why_work_with_them_female: "Why work with them: ",
     positives: "Positives",
-    negatives: "Negatives"
+    negatives: "Points to consider"
   }
 };
 
