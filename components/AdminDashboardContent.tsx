@@ -2052,7 +2052,9 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                         body: JSON.stringify({ influencerId: String(id) })
                     });
                     const notifyData = await notifyRes.json();
-                    if (!notifyRes.ok || notifyData.resendApiKeyMissing) {
+                    if (notifyData.skipped) {
+                        // Re-approval: brands were already notified on first approval – no alert
+                    } else if (!notifyRes.ok || notifyData.resendApiKeyMissing) {
                         console.error('[Admin] Notify brands failed:', notifyData);
                         if (notifyData.resendApiKeyMissing) {
                             alert(lang === 'el' ? 'Προσοχή: RESEND_API_KEY δεν έχει οριστεί. Τα emails στις επιχειρήσεις δεν στάλθηκαν.' : 'Warning: RESEND_API_KEY is not set. Brand notification emails were not sent.');

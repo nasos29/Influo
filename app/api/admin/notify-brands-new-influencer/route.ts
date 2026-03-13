@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     const tryById = async (id: string | number) => {
       const { data, error } = await supabaseAdmin
         .from('influencers')
-        .select('id, display_name, category, accounts')
+        .select('id, display_name, category, accounts, brands_notified_at')
         .eq('id', id)
         .maybeSingle();
       return { data, error };
@@ -75,6 +75,18 @@ export async function POST(request: NextRequest) {
         { error: 'Influencer not found' },
         { status: 404 }
       );
+    }
+
+    // Send to brands only on first approval; re-approvals (e.g. after profile edit) do not resend
+    const alreadyNotified = (influencer as { brands_notified_at?: string | null }).brands_notified_at != null;
+    if (alreadyNotified) {
+      return NextResponse.json({
+        success: true,
+        sent: 0,
+        total: 0,
+        skipped: true,
+        message: 'Brands were already notified for this influencer (first approval only).',
+      });
     }
 
     let followersDisplay = '-';
@@ -162,6 +174,16 @@ export async function POST(request: NextRequest) {
       if (i < toSend.length - 1) {
         await new Promise((r) => setTimeout(r, 2000));
       }
+    }
+
+    // Mark that we have notified brands for this influencer (first approval only)
+    const influencerIdForUpdate = influencer.id;
+    const { error: updateErr } = await supabaseAdmin
+      .from('influencers')
+      .update({ brands_notified_at: new Date().toISOString() })
+      .eq('id', influencerIdForUpdate);
+    if (updateErr) {
+      console.warn('[notify-brands-new-influencer] could not set brands_notified_at (run ADD_BRANDS_NOTIFIED_AT.sql):', updateErr.message);
     }
 
     return NextResponse.json({ 
