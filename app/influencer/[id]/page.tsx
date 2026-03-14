@@ -97,6 +97,7 @@ const t = {
     tab_reviews: "Αξιολογήσεις",
     stat_eng: "Αλληλεπίδραση",
     stat_likes: "Μ.Ο. Likes",
+    stat_growth_30d: "Αύξηση 30 ημερών",
     stat_rating: "Αξιολόγηση",
     stat_reviews: "Αξιολογήσεις",
     stat_response: "Χρόνος Απάντησης",
@@ -179,6 +180,7 @@ const t = {
     tab_reviews: "Reviews",
     stat_eng: "Engagement",
     stat_likes: "Avg Likes",
+    stat_growth_30d: "Growth 30 days",
     stat_rating: "Rating",
     stat_reviews: "Reviews",
     stat_response: "Response Time",
@@ -290,6 +292,7 @@ export default function InfluencerProfile(props: { params: Params }) {
   const [reviewBrandName, setReviewBrandName] = useState("");
   const [reviewBrandEmail, setReviewBrandEmail] = useState("");
   const [isBrand, setIsBrand] = useState(false);
+  const [growth30d, setGrowth30d] = useState<{ growth: number; growthPct: number } | null>(null);
 
   // Check if current user is a brand
   useEffect(() => {
@@ -747,6 +750,24 @@ export default function InfluencerProfile(props: { params: Params }) {
 
     trackProfileView();
   }, [id, profile]);
+
+  // Fetch 30-day growth when profile is loaded (for stats card)
+  useEffect(() => {
+    if (!id || !profile) {
+      setGrowth30d(null);
+      return;
+    }
+    fetch(`/api/influencer/${id}/growth`)
+      .then((r) => r.json())
+      .then((data: { growth?: number; growthPct?: number }) => {
+        if (data.growth != null && data.growthPct != null) {
+          setGrowth30d({ growth: data.growth, growthPct: data.growthPct });
+        } else {
+          setGrowth30d(null);
+        }
+      })
+      .catch(() => setGrowth30d(null));
+  }, [id, profile?.id]);
 
   // Refresh when window gets focus (user might have edited in another tab)
   useEffect(() => {
@@ -1625,7 +1646,7 @@ export default function InfluencerProfile(props: { params: Params }) {
           
           {/* Statistics Section */}
           <div className="px-6 md:px-8 py-6 bg-gradient-to-br from-slate-50 to-blue-50/30">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {/* Engagement Rate */}
               <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-2 mb-2">
@@ -1706,6 +1727,25 @@ export default function InfluencerProfile(props: { params: Params }) {
                       );
                     });
                   })()}
+                </div>
+              </div>
+
+              {/* Growth 30 days */}
+              <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">📈</span>
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{txt.stat_growth_30d}</span>
+                </div>
+                <div className="flex flex-wrap gap-2 items-center">
+                  {growth30d != null ? (
+                    <>
+                      <span className={`text-sm font-bold ${growth30d.growth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {growth30d.growth >= 0 ? '+' : ''}{formatNum(growth30d.growth)} ({growth30d.growthPct >= 0 ? '+' : ''}{growth30d.growthPct}%)
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-sm text-slate-400">-</span>
+                  )}
                 </div>
               </div>
               

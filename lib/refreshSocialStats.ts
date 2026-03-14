@@ -13,6 +13,7 @@ import {
   type SocialMetrics,
 } from '@/lib/socialRefresh';
 import { runAuditGemini } from '@/lib/auditGemini';
+import { totalFollowersFromAccounts } from '@/lib/parseFollowers';
 
 type AccountRow = {
   platform: string;
@@ -244,6 +245,18 @@ export async function doRefreshSocialStats(
     }
     if (updateError) {
       errors.push(`DB update: ${updateError.message}`);
+    } else {
+      const total = totalFollowersFromAccounts(updatePayload.accounts);
+      if (total > 0) {
+        const { error: snapErr } = await supabaseAdmin.from('influencer_follower_snapshots').insert({
+          influencer_id: inf.id,
+          snapshot_at: new Date().toISOString(),
+          total_followers: total,
+        });
+        if (snapErr && !/relation|table|does not exist/i.test(snapErr.message)) {
+          errors.push(`Snapshot: ${snapErr.message}`);
+        }
+      }
     }
 
     results.push({
