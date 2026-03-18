@@ -418,7 +418,7 @@ export async function POST(req: Request) {
                   ${message ? `<div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #a7f3d0;"><p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #065f46;">Μήνυμα:</p><p style="margin: 0; font-size: 13px; color: #1f2937; white-space: pre-wrap;">${message.replace(/\n/g, '<br/>')}</p></div>` : ''}
                 </div>
                 <div style="margin: 24px 0; text-align: center;">
-                  <a href="https://${host}/dashboard" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">📊 Πήγαινε στο Dashboard</a>
+                  <a href="https://${host}/dashboard" style="display: inline-block; padding: 12px 32px; background-color: #10b981; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #064e3b !important; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">📊 Πήγαινε στο Dashboard</a>
                 </div>
                 <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
                   <p style="margin: 0; font-size: 12px; color: #9ca3af;">Η ομάδα του Influo</p>

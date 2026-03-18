@@ -208,7 +208,8 @@ export async function POST(req: Request) {
       }
 
       // Send email when brand sends to influencer (new conversation) - ΜΟΝΟ αν offline
-      if (senderType === 'brand' && process.env.RESEND_API_KEY) {
+      // ΣΚΙΠ: αν είναι νέα πρόταση (proposalId), το proposal_influencer_notification ήδη στάλθηκε
+      if (senderType === 'brand' && !proposalId && process.env.RESEND_API_KEY) {
         try {
           const { data: influencerRow } = await supabaseAdmin
             .from('influencers')
