@@ -15,7 +15,7 @@ export default function PushNotificationPrompt({
   userIdentifier,
   lang = "el",
 }: Props) {
-  const [status, setStatus] = useState<"idle" | "prompting" | "subscribing" | "subscribed" | "unsupported" | "denied" | "error">("idle");
+  const [status, setStatus] = useState<"idle" | "prompting" | "subscribing" | "subscribed" | "unsupported" | "denied" | "error" | "no_config">("idle");
   const [dismissed, setDismissed] = useState(false);
 
   const syncSubscriptionToApi = async (sub: PushSubscription) => {
@@ -33,7 +33,11 @@ export default function PushNotificationPrompt({
   };
 
   useEffect(() => {
-    if (!VAPID_PUBLIC || !userIdentifier || typeof window === "undefined") return;
+    if (typeof window === "undefined") return;
+    if (!VAPID_PUBLIC || !userIdentifier) {
+      setStatus("no_config");
+      return;
+    }
 
     const run = async () => {
       if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
@@ -62,17 +66,14 @@ export default function PushNotificationPrompt({
         const reg = await navigator.serviceWorker.ready;
         const sub = await reg.pushManager.getSubscription();
         if (sub) {
-          // Sync existing subscription for current user (same device, different account)
           const ok = await syncSubscriptionToApi(sub);
           setStatus(ok ? "subscribed" : "prompting");
           return;
         }
-
         const newSub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC) as BufferSource,
         });
-
         const ok = await syncSubscriptionToApi(newSub);
         setStatus(ok ? "subscribed" : "error");
       } catch (e) {
@@ -81,7 +82,10 @@ export default function PushNotificationPrompt({
       }
     }
 
-    run();
+    run().catch((e) => {
+      console.error("[Push] Init error:", e);
+      setStatus("error");
+    });
   }, [userType, userIdentifier]);
 
   const handleEnable = async () => {
@@ -115,6 +119,8 @@ export default function PushNotificationPrompt({
       enable: "Ενεργοποίηση ειδοποιήσεων",
       subscribing: "Αναμονή...",
       desc: "Λάβετε ειδοποιήσεις στο κινητό για νέα μηνύματα και προτάσεις.",
+      errorMsg: "Σφάλμα. Δοκιμάστε ξανά.",
+      noConfig: "Οι ειδοποιήσεις δεν είναι διαθέσιμες (λείπουν ρυθμίσεις).",
       dismissed: "Όχι τώρα",
       granted: "Ειδοποιήσεις ενεργές",
       denied: "Οι ειδοποιήσεις απενεργοποιήθηκαν.",
@@ -124,6 +130,8 @@ export default function PushNotificationPrompt({
       enable: "Enable notifications",
       subscribing: "Subscribing...",
       desc: "Get notifications on your phone for new messages and proposals.",
+      errorMsg: "Error. Please try again.",
+      noConfig: "Notifications are not available (missing configuration).",
       dismissed: "Not now",
       granted: "Notifications enabled",
       denied: "Notifications were denied.",
@@ -141,15 +149,19 @@ export default function PushNotificationPrompt({
       <span className="text-2xl">🔔</span>
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-sm">{t.enable}</p>
-        <p className="text-xs text-slate-300 mt-0.5">{t.desc}</p>
+        <p className="text-xs text-slate-300 mt-0.5">
+          {status === "no_config" ? t.noConfig : status === "error" ? t.errorMsg : t.desc}
+        </p>
         <div className="flex gap-2 mt-3">
-          <button
-            onClick={handleEnable}
-            disabled={status === "subscribing"}
-            className="text-xs font-medium px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded disabled:opacity-70 disabled:cursor-not-allowed"
-          >
-            {status === "subscribing" ? (lang === "el" ? "Αναμονή…" : "Please wait…") : t.enable}
-          </button>
+          {status !== "no_config" && (
+            <button
+              onClick={handleEnable}
+              disabled={status === "subscribing"}
+              className="text-xs font-medium px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {status === "subscribing" ? (lang === "el" ? "Αναμονή…" : "Please wait…") : t.enable}
+            </button>
+          )}
           <button
             onClick={() => setDismissed(true)}
             disabled={status === "subscribing"}
