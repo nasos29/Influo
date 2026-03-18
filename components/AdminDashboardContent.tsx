@@ -11,6 +11,7 @@ import { displayNameForLang } from "@/lib/greeklish";
 import { categoryTranslations } from "@/components/categoryTranslations";
 import { fetchInstagramFromAuditpr, fetchTiktokFromAuditpr, fetchYouTubeFromAuditpr } from "@/lib/socialRefresh";
 import { getCachedImageUrl } from "@/lib/imageProxy";
+import PushNotificationPrompt from "./PushNotificationPrompt";
 
 // --- FULL CATEGORY LIST ---
 const CATEGORIES = [
@@ -4032,6 +4033,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
           </div>
         </div>
       )}
+      <PushNotificationPrompt userType="brand" userIdentifier={adminEmail} lang={lang} />
     </div>
   );
 }
