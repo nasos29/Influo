@@ -192,7 +192,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     const { data: influencers, error } = await supabase
       .from('influencers')
-      .select('id, updated_at, created_at')
+      .select('id, created_at')
       .eq('verified', true)
       .order('created_at', { ascending: false })
       .limit(10000) // Limit to avoid too large sitemap
@@ -202,11 +202,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     } else if (influencers && influencers.length > 0) {
       influencerPages = influencers.map((influencer) => ({
         url: `${baseUrl}/influencer/${influencer.id}`,
-        lastModified: influencer.updated_at 
-          ? new Date(influencer.updated_at) 
-          : influencer.created_at 
-            ? new Date(influencer.created_at) 
-            : currentDate,
+        lastModified: influencer.created_at
+          ? new Date(influencer.created_at)
+          : currentDate,
         changeFrequency: 'weekly' as const,
         priority: 0.7,
       }))

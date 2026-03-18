@@ -43,6 +43,7 @@ export default function PushNotificationPrompt({
     };
 
     async function doSubscribe() {
+      if (!VAPID_PUBLIC) return;
       try {
         const reg = await navigator.serviceWorker.ready;
         const sub = await reg.pushManager.getSubscription();
