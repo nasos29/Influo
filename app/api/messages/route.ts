@@ -148,44 +148,32 @@ export async function POST(req: Request) {
         }
       }
 
-      // Send email notification when influencer sends a message to brand
-      // ONLY if brand is offline (if online, they see it in real-time)
+      // Send email when influencer sends to brand (new conversation)
       if (senderType === 'influencer' && brandEmail && process.env.RESEND_API_KEY) {
         try {
-          // Check if brand is online
           const { data: brandPresence } = await supabaseAdmin
             .from('brand_presence')
             .select('is_online, last_seen')
             .eq('brand_email', brandEmail.toLowerCase().trim())
             .maybeSingle();
-
           const now = new Date();
-          // Very strict: must be online AND last_seen within 60 seconds (1 minute)
-          const secondsSinceLastSeen = brandPresence && brandPresence.last_seen
-            ? (now.getTime() - new Date(brandPresence.last_seen).getTime()) / 1000
+          const minutesSinceLastSeen = brandPresence?.last_seen
+            ? (now.getTime() - new Date(brandPresence.last_seen).getTime()) / (60 * 1000)
             : Infinity;
-          const isBrandOnline = brandPresence && brandPresence.is_online && secondsSinceLastSeen < 60;
+          const isBrandOnline = !!brandPresence?.is_online && minutesSinceLastSeen < 5;
 
-          // Only send email if brand is offline
           if (!isBrandOnline) {
-            // Get influencer name
             const { data: influencerData } = await supabaseAdmin
               .from('influencers')
               .select('display_name')
               .eq('id', influencerId)
               .single();
-
             if (influencerData) {
-              // Check if brand has an account
               const { data: brandData } = await supabaseAdmin
                 .from('brands')
                 .select('id')
                 .eq('contact_email', brandEmail.toLowerCase().trim())
                 .maybeSingle();
-
-              const brandHasAccount = !!brandData;
-
-              // Send email notification to brand
               const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr'}/api/emails`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -196,23 +184,80 @@ export async function POST(req: Request) {
                   brandName: brandName || brandEmail,
                   influencerName: influencerData.display_name,
                   message: content,
-                  brandHasAccount: brandHasAccount
+                  brandHasAccount: !!brandData
                 })
               });
+              if (!emailResponse.ok) console.error('[Messages API] Failed to send email to brand:', await emailResponse.text());
+            }
+          }
+          // Admin notification (influencer → brand)
+          const { data: influencerData } = await supabaseAdmin.from('influencers').select('display_name').eq('id', influencerId).single();
+          await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr'}/api/emails`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'message_admin_notification',
+              senderName: influencerData?.display_name || 'Influencer',
+              senderType: 'influencer',
+              recipientName: brandName || brandEmail,
+              conversationId: convId,
+              messageContent: content
+            })
+          }).catch(() => {});
+        } catch (e) { console.error('[Messages API]', e); }
+      }
 
-              if (emailResponse.ok) {
-                console.log('[Messages API] Email notification sent to brand (offline):', brandEmail);
-              } else {
-                console.error('[Messages API] Failed to send email notification:', await emailResponse.text());
-              }
+      // Send email when brand sends to influencer (new conversation) - ΜΟΝΟ αν offline
+      if (senderType === 'brand' && process.env.RESEND_API_KEY) {
+        try {
+          const { data: influencerRow } = await supabaseAdmin
+            .from('influencers')
+            .select('display_name, contact_email')
+            .eq('id', influencerId)
+            .single();
+          if (influencerRow?.contact_email) {
+            const { data: infPresence } = await supabaseAdmin
+              .from('influencer_presence')
+              .select('is_online, last_seen')
+              .eq('influencer_id', influencerId)
+              .maybeSingle();
+            const now = new Date();
+            const minutesSinceLastSeen = infPresence?.last_seen
+              ? (now.getTime() - new Date(infPresence.last_seen).getTime()) / (60 * 1000)
+              : Infinity;
+            const isInfOnline = !!infPresence?.is_online && minutesSinceLastSeen < 5;
+            if (!isInfOnline) {
+              const emailRes = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr'}/api/emails`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'message_brand_to_influencer',
+                  email: influencerRow.contact_email,
+                  toEmail: influencerRow.contact_email,
+                  influencerName: influencerRow.display_name,
+                  brandName: brandName || brandEmail,
+                  message: content
+                })
+              });
+              if (!emailRes.ok) console.error('[Messages API] Failed to send email to influencer (new conv):', await emailRes.text());
             }
           } else {
-            console.log('[Messages API] Brand is online, skipping email notification');
+            console.warn('[Messages API] Influencer has no contact_email, cannot send:', influencerId);
           }
-        } catch (emailError: any) {
-          console.error('[Messages API] Error sending email notification:', emailError);
-          // Don't fail the request if email fails
-        }
+          // Admin notification (brand → influencer)
+          await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr'}/api/emails`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'message_admin_notification',
+              senderName: brandName || brandEmail,
+              senderType: 'brand',
+              recipientName: influencerRow?.display_name || 'Influencer',
+              conversationId: convId,
+              messageContent: content
+            })
+          }).catch(() => {});
+        } catch (e) { console.error('[Messages API]', e); }
       }
 
       // Track analytics: conversation_started (if new conversation) and message_sent
@@ -358,18 +403,18 @@ export async function POST(req: Request) {
       }
 
       // Send email notification when influencer sends a message to brand
-      // ONLY if brand is offline (if online, they see it in real-time)
+      // ONLY if brand is offline (last_seen > 5 min) - 5 min window
       if (senderType === 'influencer' && process.env.RESEND_API_KEY) {
         try {
           // Get conversation data
           const { data: convData } = await supabaseAdmin
             .from('conversations')
-            .select('influencer_id, influencer_name, brand_email, brand_name')
+            .select('id, influencer_id, influencer_name, brand_email, brand_name')
             .eq('id', conversationId)
             .single();
 
           if (convData && convData.brand_email) {
-            // Check if brand is online
+            // Check if brand is online (5 min window)
             const { data: brandPresence } = await supabaseAdmin
               .from('brand_presence')
               .select('is_online, last_seen')
@@ -377,22 +422,20 @@ export async function POST(req: Request) {
               .maybeSingle();
 
             const now = new Date();
-            const isBrandOnline = brandPresence && brandPresence.is_online && brandPresence.last_seen
-              ? (now.getTime() - new Date(brandPresence.last_seen).getTime()) / 60000 < 5
-              : false;
+            const minutesSinceLastSeen = brandPresence?.last_seen
+              ? (now.getTime() - new Date(brandPresence.last_seen).getTime()) / (60 * 1000)
+              : Infinity;
+            const isBrandOnline = !!brandPresence?.is_online && minutesSinceLastSeen < 5;
 
-            // Only send email if brand is offline
+            // Send email to brand if offline
             if (!isBrandOnline) {
-              // Check if brand has an account
               const { data: brandData } = await supabaseAdmin
                 .from('brands')
                 .select('id')
                 .eq('contact_email', convData.brand_email.toLowerCase().trim())
                 .maybeSingle();
-
               const brandHasAccount = !!brandData;
 
-              // Send email notification to brand
               const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr'}/api/emails`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -410,47 +453,54 @@ export async function POST(req: Request) {
               if (emailResponse.ok) {
                 console.log('[Messages API] Email notification sent to brand (offline):', convData.brand_email);
               } else {
-                console.error('[Messages API] Failed to send email notification:', await emailResponse.text());
+                console.error('[Messages API] Failed to send email to brand:', await emailResponse.text());
               }
-            } else {
-              console.log('[Messages API] Brand is online, skipping email notification');
+            }
+
+            // Always notify admin (influencer → brand)
+            const adminResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr'}/api/emails`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: 'message_admin_notification',
+                senderName: convData.influencer_name,
+                senderType: 'influencer',
+                recipientName: convData.brand_name || convData.brand_email,
+                conversationId,
+                messageContent: content
+              })
+            });
+            if (!adminResponse.ok) {
+              console.error('[Messages API] Failed to send admin notification:', await adminResponse.text());
             }
           }
         } catch (emailError: any) {
           console.error('[Messages API] Error sending email notification:', emailError);
-          // Don't fail the request if email fails
         }
       }
 
-      // Send email notification when brand sends a message to influencer
-      // ONLY if influencer is offline (if online, they see it in real-time)
+      // Send email when brand sends to influencer - ΜΟΝΟ αν influencer offline
       if (senderType === 'brand' && process.env.RESEND_API_KEY) {
         try {
-          // Get conversation data
           const { data: convData } = await supabaseAdmin
             .from('conversations')
-            .select('influencer_id, influencer_name, influencer_email, brand_email, brand_name')
+            .select('id, influencer_id, influencer_name, influencer_email, brand_email, brand_name')
             .eq('id', conversationId)
             .single();
 
           if (convData && convData.influencer_id) {
-            // Check if influencer is online
             const { data: influencerPresence } = await supabaseAdmin
               .from('influencer_presence')
               .select('is_online, last_seen')
               .eq('influencer_id', convData.influencer_id)
               .maybeSingle();
-
             const now = new Date();
-            // Very strict: must be online AND last_seen within 60 seconds (1 minute)
-            const secondsSinceLastSeen = influencerPresence && influencerPresence.last_seen
-              ? (now.getTime() - new Date(influencerPresence.last_seen).getTime()) / 1000
+            const minutesSinceLastSeen = influencerPresence?.last_seen
+              ? (now.getTime() - new Date(influencerPresence.last_seen).getTime()) / (60 * 1000)
               : Infinity;
-            const isInfluencerOnline = influencerPresence && influencerPresence.is_online && secondsSinceLastSeen < 60;
+            const isInfluencerOnline = !!influencerPresence?.is_online && minutesSinceLastSeen < 5;
 
-            // Only send email if influencer is offline
-            if (!isInfluencerOnline) {
-              // Send email notification to influencer
+            if (!isInfluencerOnline && convData.influencer_email) {
               const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr'}/api/emails`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -463,19 +513,32 @@ export async function POST(req: Request) {
                   message: content
                 })
               });
-
-              if (emailResponse.ok) {
-                console.log('[Messages API] Email notification sent to influencer (offline):', convData.influencer_email);
-              } else {
-                console.error('[Messages API] Failed to send email notification to influencer:', await emailResponse.text());
+              if (!emailResponse.ok) {
+                console.error('[Messages API] Failed to send email to influencer:', await emailResponse.text());
               }
-            } else {
-              console.log('[Messages API] Influencer is online, skipping email notification');
+            } else if (!convData.influencer_email) {
+              console.warn('[Messages API] No influencer_email for conversation', conversationId);
+            }
+
+            // Always notify admin of new message (brand → influencer)
+            const adminResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr'}/api/emails`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: 'message_admin_notification',
+                senderName: convData.brand_name || convData.brand_email,
+                senderType: 'brand',
+                recipientName: convData.influencer_name,
+                conversationId,
+                messageContent: content
+              })
+            });
+            if (!adminResponse.ok) {
+              console.error('[Messages API] Failed to send admin notification:', await adminResponse.text());
             }
           }
         } catch (emailError: any) {
           console.error('[Messages API] Error sending email notification to influencer:', emailError);
-          // Don't fail the request if email fails
         }
       }
 

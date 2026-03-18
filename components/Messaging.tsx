@@ -550,20 +550,18 @@ export default function Messaging({
         if (response.ok) {
           const result = await response.json();
           
-          // If conversation is inactive and not closed, trigger the cron endpoint to close it
+          // Αν inactive και ανοιχτή: κλείσιμο μέσω close-if-inactive (χωρίς CRON_SECRET)
           if (result.isInactive && !result.isClosed) {
-            // The cron endpoint will handle the actual closing
-            // We just trigger it (it will check authorization but Vercel Cron headers are not required for this)
             try {
-              await fetch('/api/cron/check-inactive-conversations', {
-                method: 'GET',
-                // Note: This might fail if CRON_SECRET is required, but that's ok
-                // The daily Vercel cron will handle it eventually
-              }).catch(() => {
-                // Ignore - daily cron will handle it
-              });
+              const closeRes = await fetch(`/api/conversations/close-if-inactive?conversationId=${selectedConversation}`);
+              if (closeRes.ok) {
+                const closeData = await closeRes.json();
+                if (closeData.closed) {
+                  setConversationClosed(true);
+                }
+              }
             } catch {
-              // Ignore - daily cron will handle it
+              // Ignore - Supabase pg_cron ή Vercel cron θα το κλείσει αργότερα
             }
           }
           

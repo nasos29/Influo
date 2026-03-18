@@ -8,7 +8,7 @@
 Το Vercel Hobby plan επιτρέπει μόνο **daily cron jobs** (μία φορά την ημέρα). Για αυτό:
 - Το `vercel.json` έχει schedule `0 0 * * *` (daily at midnight)
 - Το Messaging component κάνει **client-side polling** κάθε 5 λεπτά όταν ο χρήστης είναι online
-- Αν χρειάζεσαι πιο συχνά server-side checks (ακόμα και όταν ο browser είναι κλειστό), χρησιμοποίησε external cron service ή upgrade σε Vercel Pro
+- Αν χρειάζεσαι πιο συχνά server-side checks (ακόμα και όταν ο browser είναι κλειστό), δες **[SUPABASE_PG_CRON_SETUP.md](./SUPABASE_PG_CRON_SETUP.md)** για pg_cron κάθε 5 λεπτά
 
 ## Setup Instructions
 
@@ -27,7 +27,7 @@
 }
 ```
 
-**ΣΗΜΑΝΤΙΚΟ**: Vercel Hobby plan επιτρέπει μόνο daily cron jobs. Για πιο συχνά checks, χρησιμοποιείται client-side polling (βλέπε παρακάτω).
+**ΣΗΜΑΝΤΙΚΟ**: Vercel Hobby plan επιτρέπει μόνο daily cron jobs. Για πιο συχνά checks: (α) client-side polling με `/api/conversations/close-if-inactive`, ή (β) Supabase pg_cron (δες SUPABASE_PG_CRON_SETUP.md).
 
 **Ενεργοποίηση**: Vercel Dashboard → Project → Settings → Cron Jobs → Enable
 
