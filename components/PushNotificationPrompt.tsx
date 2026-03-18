@@ -15,8 +15,22 @@ export default function PushNotificationPrompt({
   userIdentifier,
   lang = "el",
 }: Props) {
-  const [status, setStatus] = useState<"idle" | "prompting" | "subscribed" | "unsupported" | "denied" | "error">("idle");
+  const [status, setStatus] = useState<"idle" | "prompting" | "subscribing" | "subscribed" | "unsupported" | "denied" | "error">("idle");
   const [dismissed, setDismissed] = useState(false);
+
+  const syncSubscriptionToApi = async (sub: PushSubscription) => {
+    const res = await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        subscription: sub.toJSON(),
+        userType,
+        userIdentifier,
+        userAgent: navigator.userAgent,
+      }),
+    });
+    return res.ok;
+  };
 
   useEffect(() => {
     if (!VAPID_PUBLIC || !userIdentifier || typeof window === "undefined") return;
@@ -48,7 +62,9 @@ export default function PushNotificationPrompt({
         const reg = await navigator.serviceWorker.ready;
         const sub = await reg.pushManager.getSubscription();
         if (sub) {
-          setStatus("subscribed");
+          // Sync existing subscription for current user (same device, different account)
+          const ok = await syncSubscriptionToApi(sub);
+          setStatus(ok ? "subscribed" : "prompting");
           return;
         }
 
@@ -57,22 +73,8 @@ export default function PushNotificationPrompt({
           applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC) as BufferSource,
         });
 
-        const res = await fetch("/api/push/subscribe", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            subscription: newSub.toJSON(),
-            userType,
-            userIdentifier,
-            userAgent: navigator.userAgent,
-          }),
-        });
-
-        if (res.ok) {
-          setStatus("subscribed");
-        } else {
-          setStatus("error");
-        }
+        const ok = await syncSubscriptionToApi(newSub);
+        setStatus(ok ? "subscribed" : "error");
       } catch (e) {
         console.error("[Push] Subscribe error:", e);
         setStatus("error");
@@ -85,6 +87,7 @@ export default function PushNotificationPrompt({
   const handleEnable = async () => {
     if (!VAPID_PUBLIC || !userIdentifier || typeof window === "undefined") return;
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+    setStatus("subscribing");
     try {
       const perm = await Notification.requestPermission();
       if (perm !== "granted") {
@@ -99,18 +102,8 @@ export default function PushNotificationPrompt({
           applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC) as BufferSource,
         });
       }
-      const res = await fetch("/api/push/subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          subscription: sub!.toJSON(),
-          userType,
-          userIdentifier,
-          userAgent: navigator.userAgent,
-        }),
-      });
-      if (res.ok) setStatus("subscribed");
-      else setStatus("error");
+      const ok = await syncSubscriptionToApi(sub!);
+      setStatus(ok ? "subscribed" : "error");
     } catch (e) {
       console.error("[Push] Enable error:", e);
       setStatus("error");
@@ -120,6 +113,7 @@ export default function PushNotificationPrompt({
   const txt = {
     el: {
       enable: "Ενεργοποίηση ειδοποιήσεων",
+      subscribing: "Αναμονή...",
       desc: "Λάβετε ειδοποιήσεις στο κινητό για νέα μηνύματα και προτάσεις.",
       dismissed: "Όχι τώρα",
       granted: "Ειδοποιήσεις ενεργές",
@@ -128,6 +122,7 @@ export default function PushNotificationPrompt({
     },
     en: {
       enable: "Enable notifications",
+      subscribing: "Subscribing...",
       desc: "Get notifications on your phone for new messages and proposals.",
       dismissed: "Not now",
       granted: "Notifications enabled",
@@ -150,13 +145,15 @@ export default function PushNotificationPrompt({
         <div className="flex gap-2 mt-3">
           <button
             onClick={handleEnable}
-            className="text-xs font-medium px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded"
+            disabled={status === "subscribing"}
+            className="text-xs font-medium px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            {t.enable}
+            {status === "subscribing" ? (lang === "el" ? "Αναμονή…" : "Please wait…") : t.enable}
           </button>
           <button
             onClick={() => setDismissed(true)}
-            className="text-xs text-slate-400 hover:text-slate-200"
+            disabled={status === "subscribing"}
+            className="text-xs text-slate-400 hover:text-slate-200 disabled:opacity-50"
           >
             {t.dismissed}
           </button>
