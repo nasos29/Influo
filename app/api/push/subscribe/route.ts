@@ -33,7 +33,6 @@ export async function POST(req: Request) {
           p256dh: subscription.keys.p256dh,
           auth: subscription.keys.auth,
           user_agent: userAgent,
-          updated_at: new Date().toISOString(),
         },
         { onConflict: 'endpoint', ignoreDuplicates: false }
       );
