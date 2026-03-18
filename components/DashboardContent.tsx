@@ -9,6 +9,7 @@ import { getVideoThumbnail, isVideoUrl, isDefinitelyVideo, isDefinitelyImage } f
 import VideoThumbnail from './VideoThumbnail';
 import Messaging from './Messaging';
 import Analytics from './Analytics';
+import PushNotificationPrompt from './PushNotificationPrompt';
 
 // --- FULL CATEGORY LIST ---
 const CATEGORIES = [
@@ -1016,6 +1017,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
 
     return (
         <div className="min-h-screen p-6 md:p-8 bg-slate-50">
+            <PushNotificationPrompt userType="influencer" userIdentifier={profile?.id || ''} lang="el" />
             <div className="max-w-6xl mx-auto">
                 {/* Back to Home Link */}
                 <div className="mb-4">

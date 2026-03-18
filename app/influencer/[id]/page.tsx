@@ -854,6 +854,22 @@ export default function InfluencerProfile(props: { params: Params }) {
             console.error("Influencer notification email failed:", emailError);
         }
 
+        // Push notification to influencer (new proposal)
+        try {
+            await fetch('/api/push/trigger-proposal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    influencerId: id,
+                    brandName: brandName,
+                    proposalType: proposalType,
+                    budget: budget,
+                }),
+            });
+        } catch (pushErr) {
+            console.error('Push notification failed:', pushErr);
+        }
+
         // 1.5. Auto-create conversation from proposal
         // NOTE: senderType should be 'brand' because the brand is sending the proposal
         if (proposalResult && proposalResult.id) {

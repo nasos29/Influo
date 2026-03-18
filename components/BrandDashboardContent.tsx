@@ -7,6 +7,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { recommendInfluencers, type InfluencerProfile, type BrandProfile } from '@/lib/recommendations';
 import Messaging from '@/components/Messaging';
+import PushNotificationPrompt from '@/components/PushNotificationPrompt';
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 import { displayNameForLang } from '@/lib/greeklish';
 import { getCachedImageUrl } from '@/lib/imageProxy';
@@ -1201,6 +1202,7 @@ export default function BrandDashboardContent() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <PushNotificationPrompt userType="brand" userIdentifier={brandData?.contact_email || ''} lang={lang} />
       <div className="bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">

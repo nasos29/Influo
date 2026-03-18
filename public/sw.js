@@ -1,0 +1,51 @@
+// Service Worker - Web Push notifications
+self.addEventListener('push', function (event) {
+  if (!event.data) return;
+
+  let data = {};
+  try {
+    data = event.data.json();
+  } catch {
+    data = { title: 'Influo', body: event.data.text() || 'Νέα ειδοποίηση' };
+  }
+
+  const title = data.title || 'Influo';
+  const body = data.body || 'Νέα ειδοποίηση';
+  const url = data.url || '/';
+  const tag = data.tag || 'influo-notification';
+
+  const options = {
+    body: body,
+    icon: '/logo-icon.svg',
+    badge: '/logo-icon.svg',
+    tag: tag,
+    data: { url: url },
+    requireInteraction: false,
+    vibrate: [200, 100, 200],
+    actions: [
+      { action: 'open', title: 'Άνοιγμα' },
+      { action: 'close', title: 'Κλείσιμο' },
+    ],
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', function (event) {
+  event.notification.close();
+
+  const url = event.notification.data?.url || '/';
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          client.navigate(url);
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(self.location.origin + (url.startsWith('/') ? url : '/' + url));
+      }
+    })
+  );
+});

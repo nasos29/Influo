@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { sendPushToInfluencer, sendPushToBrand } from '@/lib/push';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -204,6 +205,13 @@ export async function POST(req: Request) {
               messageContent: content
             })
           }).catch(() => {});
+          // Push to brand
+          const { data: infForPush } = await supabaseAdmin.from('influencers').select('display_name').eq('id', influencerId).single();
+          sendPushToBrand(brandEmail, {
+            title: '💬 Νέο μήνυμα',
+            body: `${infForPush?.display_name || 'Influencer'}: ${content.slice(0, 60)}${content.length > 60 ? '…' : ''}`,
+            url: '/brand/dashboard',
+          }).catch(() => {});
         } catch (e) { console.error('[Messages API]', e); }
       }
 
@@ -257,6 +265,12 @@ export async function POST(req: Request) {
               conversationId: convId,
               messageContent: content
             })
+          }).catch(() => {});
+          // Push notification to influencer (block only runs when !proposalId)
+          sendPushToInfluencer(influencerId, {
+            title: '💬 Νέο μήνυμα',
+            body: `${brandName || brandEmail}: ${content.slice(0, 60)}${content.length > 60 ? '…' : ''}`,
+            url: '/dashboard',
           }).catch(() => {});
         } catch (e) { console.error('[Messages API]', e); }
       }
@@ -474,6 +488,12 @@ export async function POST(req: Request) {
             if (!adminResponse.ok) {
               console.error('[Messages API] Failed to send admin notification:', await adminResponse.text());
             }
+            // Push notification to brand
+            sendPushToBrand(convData.brand_email, {
+              title: '💬 Νέο μήνυμα',
+              body: `${convData.influencer_name}: ${content.slice(0, 60)}${content.length > 60 ? '…' : ''}`,
+              url: '/brand/dashboard',
+            }).catch(() => {});
           }
         } catch (emailError: any) {
           console.error('[Messages API] Error sending email notification:', emailError);
@@ -537,6 +557,12 @@ export async function POST(req: Request) {
             if (!adminResponse.ok) {
               console.error('[Messages API] Failed to send admin notification:', await adminResponse.text());
             }
+            // Push notification to influencer
+            sendPushToInfluencer(convData.influencer_id, {
+              title: '💬 Νέο μήνυμα',
+              body: `${convData.brand_name || convData.brand_email}: ${content.slice(0, 60)}${content.length > 60 ? '…' : ''}`,
+              url: '/dashboard',
+            }).catch(() => {});
           }
         } catch (emailError: any) {
           console.error('[Messages API] Error sending email notification to influencer:', emailError);
