@@ -2715,8 +2715,8 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       u.location?.toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesStatus = statusFilter === 'all' || 
-      (statusFilter === 'verified' && u.verified) ||
-      (statusFilter === 'pending' && !u.verified);
+      (statusFilter === 'verified' && u.approved) ||
+      (statusFilter === 'pending' && !u.approved);
     
     return matchesSearch && matchesStatus;
   });

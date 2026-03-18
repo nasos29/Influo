@@ -215,7 +215,7 @@ export async function POST(req: Request) {
         html = `
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
               <div style="background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); padding: 24px; border-radius: 12px 12px 0 0;">
-                <h1 style="color: #0369a1; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">💬 Νέο Μήνυμα στη Συνέντευξη</h1>
+                <h1 style="color: #0369a1; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">💬 Έχετε Νέο Μήνυμα</h1>
               </div>
               <div style="background: #ffffff; padding: 24px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
                 <div style="background: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 16px; border-radius: 8px; margin: 20px 0;">
