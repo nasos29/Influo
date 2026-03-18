@@ -26,9 +26,9 @@ export default function PushNotificationPrompt({
         setStatus("unsupported");
         return;
       }
-      // Register service worker if not already
-      const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
-      await reg.ready;
+      // Register service worker and wait until ready
+      await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+      await navigator.serviceWorker.ready;
 
       if (Notification.permission === "granted") {
         await doSubscribe();
@@ -148,7 +148,7 @@ export default function PushNotificationPrompt({
         <p className="text-xs text-slate-300 mt-0.5">{t.desc}</p>
         <div className="flex gap-2 mt-3">
           <button
-            onClick={() => setStatus("prompting")}
+            onClick={handleEnable}
             className="text-xs font-medium px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded"
           >
             {t.enable}
