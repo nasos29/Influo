@@ -1,4 +1,13 @@
 // Service Worker - Web Push notifications
+
+self.addEventListener('install', function () {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', function (event) {
+  event.waitUntil(clients.claim());
+});
+
 self.addEventListener('push', function (event) {
   if (!event.data) return;
 
