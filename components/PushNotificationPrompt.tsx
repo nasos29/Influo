@@ -4,6 +4,16 @@ import { useEffect, useState } from "react";
 
 const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
+function isIOS(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
+function isStandalone(): boolean {
+  if (typeof window === "undefined") return false;
+  return (window.matchMedia("(display-mode: standalone)").matches) || !!(navigator as unknown as { standalone?: boolean }).standalone;
+}
+
 interface Props {
   userType: "influencer" | "brand";
   userIdentifier: string; // influencer id or brand email
@@ -118,7 +128,8 @@ export default function PushNotificationPrompt({
     el: {
       enable: "Ενεργοποίηση ειδοποιήσεων",
       subscribing: "Αναμονή...",
-      desc: "Λάβετε ειδοποιήσεις στο κινητό για νέα μηνύματα και προτάσεις.",
+      desc: "Λάβετε ειδοποιήσεις στη συσκευή σας για νέα μηνύματα και νέες προτάσεις.",
+      iosHint: "Για ειδοποιήσεις στο iPhone: Πρόσθεσε το Influo στην αρχική οθόνη (κουμπί κοινοποίησης → «Πρόσθεσε στην Αρχική Οθόνη») και ξανάνοιξε την εφαρμογή.",
       errorMsg: "Σφάλμα. Δοκιμάστε ξανά.",
       noConfig: "Οι ειδοποιήσεις δεν είναι διαθέσιμες (λείπουν ρυθμίσεις).",
       dismissed: "Όχι τώρα",
@@ -130,6 +141,7 @@ export default function PushNotificationPrompt({
       enable: "Enable notifications",
       subscribing: "Subscribing...",
       desc: "Get notifications on your phone for new messages and proposals.",
+      iosHint: "For notifications on iPhone: Add Influo to your Home Screen (Share button → Add to Home Screen), then open the app from there.",
       errorMsg: "Error. Please try again.",
       noConfig: "Notifications are not available (missing configuration).",
       dismissed: "Not now",
@@ -150,10 +162,16 @@ export default function PushNotificationPrompt({
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-sm">{t.enable}</p>
         <p className="text-xs text-slate-300 mt-0.5">
-          {status === "no_config" ? t.noConfig : status === "error" ? t.errorMsg : t.desc}
+          {status === "no_config"
+            ? t.noConfig
+            : status === "error"
+              ? t.errorMsg
+              : status === "prompting" && isIOS() && !isStandalone()
+                ? t.iosHint
+                : t.desc}
         </p>
         <div className="flex gap-2 mt-3">
-          {status !== "no_config" && (
+          {status !== "no_config" && !(status === "prompting" && isIOS() && !isStandalone()) && (
             <button
               onClick={handleEnable}
               disabled={status === "subscribing"}
