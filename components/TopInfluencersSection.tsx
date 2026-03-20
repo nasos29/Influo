@@ -80,6 +80,7 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isInView, setIsInView] = useState(false);
+  const [hasEnteredView, setHasEnteredView] = useState(false);
   const [cardsPerSlide, setCardsPerSlide] = useState(1);
   const sectionRef = useRef<HTMLElement | null>(null);
   const touchStartXRef = useRef<number | null>(null);
@@ -112,7 +113,11 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
       return;
     }
     const observer = new IntersectionObserver(
-      ([entry]) => setIsInView(entry.isIntersecting),
+      ([entry]) => {
+        const visible = entry.isIntersecting;
+        setIsInView(visible);
+        if (visible) setHasEnteredView(true);
+      },
       {
         threshold: 0.1,
         rootMargin: "0px 0px -10% 0px",
@@ -147,12 +152,12 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
   }, [currentIndex, slides.length]);
 
   useEffect(() => {
-    if (!isInView || slides.length <= 1) return;
+    if (!hasEnteredView || slides.length <= 1) return;
     const id = window.setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % slides.length);
     }, 5500);
     return () => window.clearInterval(id);
-  }, [isInView, slides.length]);
+  }, [hasEnteredView, slides.length]);
 
   if (loading) {
     return (
