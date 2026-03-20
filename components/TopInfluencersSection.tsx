@@ -185,7 +185,7 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
           <p className="text-slate-600 max-w-xl mx-auto">{txt.subtitle}</p>
         </div>
 
-        <div className="relative max-w-xl mx-auto">
+        <div className="relative max-w-7xl mx-auto">
           <div className="overflow-hidden rounded-2xl">
             <div
               className="flex transition-transform duration-700 ease-out"
