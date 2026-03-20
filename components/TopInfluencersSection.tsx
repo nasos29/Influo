@@ -112,6 +112,21 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
     return () => observer.disconnect();
   }, []);
 
+  const topTen = influencers.slice(0, 10);
+
+  useEffect(() => {
+    if (topTen.length === 0) return;
+    if (currentIndex >= topTen.length) setCurrentIndex(0);
+  }, [currentIndex, topTen.length]);
+
+  useEffect(() => {
+    if (!isInView || topTen.length <= 1) return;
+    const id = window.setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % topTen.length);
+    }, 5500);
+    return () => window.clearInterval(id);
+  }, [isInView, topTen.length]);
+
   if (loading) {
     return (
       <section className="relative py-16 md:py-24 px-6 bg-white border-b border-slate-100">
@@ -132,15 +147,6 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
   if (influencers.length === 0) return null;
 
   const txt = t[lang];
-  const topTen = influencers.slice(0, 10);
-
-  useEffect(() => {
-    if (!isInView || topTen.length <= 1) return;
-    const id = window.setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % topTen.length);
-    }, 5500);
-    return () => window.clearInterval(id);
-  }, [isInView, topTen.length]);
 
   const goPrev = () => {
     setCurrentIndex((prev) => (prev - 1 + topTen.length) % topTen.length);
