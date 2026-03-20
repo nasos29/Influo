@@ -1,5 +1,5 @@
 /**
- * Top 5 influencers by a composite score (fairer: not just clicks).
+ * Top 10 influencers by a composite score (fairer: not just clicks).
  * Uses last N days of analytics. Score = weighted sum of UNIQUE users per event type (at most one per user per event per influencer).
  *   proposal_sent (10) > conversation_started (5) > message_sent (4) > profile_click (3) > profile_view (1)
  * Env TOP_INFLUENCERS_DAYS (default 30): window in days.
@@ -20,7 +20,7 @@ const supabaseAdmin = createClient(
 );
 
 const DEFAULT_DAYS = 30;
-const TOP_N = 5;
+const TOP_N = 10;
 
 /** Weight per event type – higher = stronger signal of “top” performer. */
 const EVENT_WEIGHTS: Record<string, number> = {
