@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { getCachedImageUrl } from "@/lib/imageProxy";
 import { isDefinitelyImage } from "@/lib/videoThumbnail";
@@ -64,12 +64,12 @@ function getTotalFollowers(accounts: TopInfluencer["accounts"]): number {
 
 const t = {
   el: {
-    title: "Top Influencers του μήνα",
+    title: "Top Influencers",
     subtitle: "Οι πιο δημοφιλείς creators βάσει αλληλεπίδρασης στο Influo",
     views: "προβολές",
   },
   en: {
-    title: "Top Influencers of the month",
+    title: "Top Influencers",
     subtitle: "Most popular creators based on engagement on Influo",
     views: "views",
   },
@@ -78,6 +78,9 @@ const t = {
 export default function TopInfluencersSection({ lang }: { lang: Lang }) {
   const [influencers, setInfluencers] = useState<TopInfluencer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isInView, setIsInView] = useState(false);
+  const sectionRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -96,6 +99,17 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el || typeof window === "undefined") return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsInView(entry.isIntersecting),
+      { threshold: 0.35 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
   }, []);
 
   if (loading) {
@@ -118,9 +132,26 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
   if (influencers.length === 0) return null;
 
   const txt = t[lang];
+  const topTen = influencers.slice(0, 10);
+
+  useEffect(() => {
+    if (!isInView || topTen.length <= 1) return;
+    const id = window.setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % topTen.length);
+    }, 5500);
+    return () => window.clearInterval(id);
+  }, [isInView, topTen.length]);
+
+  const goPrev = () => {
+    setCurrentIndex((prev) => (prev - 1 + topTen.length) % topTen.length);
+  };
+
+  const goNext = () => {
+    setCurrentIndex((prev) => (prev + 1) % topTen.length);
+  };
 
   return (
-    <section className="relative py-16 md:py-24 px-6 bg-white border-b border-slate-100">
+    <section ref={sectionRef} className="relative py-16 md:py-24 px-6 bg-white border-b border-slate-100">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-12">
           <span className="inline-block px-3 py-1 text-xs font-semibold uppercase tracking-wider text-blue-600 bg-blue-50 rounded-full mb-4">
@@ -130,8 +161,13 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
           <p className="text-slate-600 max-w-xl mx-auto">{txt.subtitle}</p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 md:gap-8">
-          {influencers.map((inf, idx) => {
+        <div className="relative max-w-xl mx-auto">
+          <div className="overflow-hidden rounded-2xl">
+            <div
+              className="flex transition-transform duration-700 ease-out"
+              style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+            >
+              {topTen.map((inf, idx) => {
             if (!inf?.id) return null;
             const imgUrl = getBestImageUrl(inf);
             const name = displayNameForLang(
@@ -144,26 +180,26 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
             const catLabel = mainCat ? (categoryTranslations[mainCat]?.[lang] || mainCat) : null;
             const totalFol = getTotalFollowers(inf.accounts);
 
-            return (
-              <Link
-                key={String(inf.id)}
-                href={`/influencer/${inf.id}`}
-                className="group block"
-                onClick={() => {
-                  fetch("/api/analytics/track", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      influencerId: inf.id,
-                      eventType: "profile_click",
-                      visitorId: getVisitorId(),
-                      metadata: { source: "top_influencers" },
-                    }),
-                    keepalive: true
-                  }).catch(() => {});
-                }}
-              >
-                <article className="h-full bg-white rounded-2xl overflow-hidden border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-slate-300 transition-all duration-300 group-hover:-translate-y-1">
+              return (
+                <div key={String(inf.id)} className="w-full shrink-0 px-1">
+                  <Link
+                    href={`/influencer/${inf.id}`}
+                    className="group block"
+                    onClick={() => {
+                      fetch("/api/analytics/track", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          influencerId: inf.id,
+                          eventType: "profile_click",
+                          visitorId: getVisitorId(),
+                          metadata: { source: "top_influencers" },
+                        }),
+                        keepalive: true
+                      }).catch(() => {});
+                    }}
+                  >
+                    <article className="h-full bg-white rounded-2xl overflow-hidden border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-slate-300 transition-all duration-300 group-hover:-translate-y-1">
                   {/* Image - large gallery/thumbnail */}
                   <div className="relative aspect-[4/5] bg-slate-100 overflow-hidden">
                     {imgUrl ? (
@@ -215,10 +251,42 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
                       {lang === "el" ? "Προφίλ" : "Profile"}
                     </span>
                   </div>
-                </article>
-              </Link>
-            );
-          })}
+                    </article>
+                  </Link>
+                </div>
+              );
+            })}
+            </div>
+          </div>
+
+          {topTen.length > 1 && (
+            <>
+              <button
+                onClick={goPrev}
+                aria-label={lang === "el" ? "Προηγούμενο" : "Previous"}
+                className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/90 border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-white shadow-sm transition"
+              >
+                ←
+              </button>
+              <button
+                onClick={goNext}
+                aria-label={lang === "el" ? "Επόμενο" : "Next"}
+                className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/90 border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-white shadow-sm transition"
+              >
+                →
+              </button>
+              <div className="flex justify-center gap-1.5 mt-4">
+                {topTen.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrentIndex(i)}
+                    aria-label={`${lang === "el" ? "Μετάβαση στο" : "Go to"} ${i + 1}`}
+                    className={`h-1.5 rounded-full transition-all ${i === currentIndex ? "w-5 bg-slate-700" : "w-1.5 bg-slate-300"}`}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </section>
