@@ -79,10 +79,8 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
   const [influencers, setInfluencers] = useState<TopInfluencer[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isInView, setIsInView] = useState(false);
-  const [hasEnteredView, setHasEnteredView] = useState(false);
+  const [autoplayEnabled, setAutoplayEnabled] = useState(false);
   const [cardsPerSlide, setCardsPerSlide] = useState(1);
-  const sectionRef = useRef<HTMLElement | null>(null);
   const touchStartXRef = useRef<number | null>(null);
   const touchEndXRef = useRef<number | null>(null);
 
@@ -106,25 +104,8 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
   }, []);
 
   useEffect(() => {
-    const el = sectionRef.current;
-    if (!el || typeof window === "undefined") return;
-    if (typeof IntersectionObserver === "undefined") {
-      setIsInView(true);
-      return;
-    }
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        const visible = entry.isIntersecting;
-        setIsInView(visible);
-        if (visible) setHasEnteredView(true);
-      },
-      {
-        threshold: 0.1,
-        rootMargin: "0px 0px -10% 0px",
-      }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
+    const timer = window.setTimeout(() => setAutoplayEnabled(true), 5000);
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -152,12 +133,12 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
   }, [currentIndex, slides.length]);
 
   useEffect(() => {
-    if (!hasEnteredView || slides.length <= 1) return;
+    if (!autoplayEnabled || slides.length <= 1) return;
     const id = window.setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % slides.length);
     }, 5500);
     return () => window.clearInterval(id);
-  }, [hasEnteredView, slides.length]);
+  }, [autoplayEnabled, slides.length]);
 
   if (loading) {
     return (
@@ -213,7 +194,7 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
   };
 
   return (
-    <section ref={sectionRef} className="relative py-16 md:py-24 px-6 bg-white border-b border-slate-100">
+    <section className="relative py-16 md:py-24 px-6 bg-white border-b border-slate-100">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-12">
           <span className="inline-block px-3 py-1 text-xs font-semibold uppercase tracking-wider text-blue-600 bg-blue-50 rounded-full mb-4">
