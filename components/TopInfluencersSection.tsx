@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type TouchEvent } from "react";
 import Link from "next/link";
 import { getCachedImageUrl } from "@/lib/imageProxy";
 import { isDefinitelyImage } from "@/lib/videoThumbnail";
@@ -82,6 +82,8 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
   const [isInView, setIsInView] = useState(false);
   const [cardsPerSlide, setCardsPerSlide] = useState(1);
   const sectionRef = useRef<HTMLElement | null>(null);
+  const touchStartXRef = useRef<number | null>(null);
+  const touchEndXRef = useRef<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -105,9 +107,16 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
   useEffect(() => {
     const el = sectionRef.current;
     if (!el || typeof window === "undefined") return;
+    if (typeof IntersectionObserver === "undefined") {
+      setIsInView(true);
+      return;
+    }
     const observer = new IntersectionObserver(
       ([entry]) => setIsInView(entry.isIntersecting),
-      { threshold: 0.35 }
+      {
+        threshold: 0.1,
+        rootMargin: "0px 0px -10% 0px",
+      }
     );
     observer.observe(el);
     return () => observer.disconnect();
@@ -174,6 +183,30 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
     setCurrentIndex((prev) => (prev + 1) % slides.length);
   };
 
+  const handleTouchStart = (e: TouchEvent<HTMLDivElement>) => {
+    touchStartXRef.current = e.touches[0]?.clientX ?? null;
+    touchEndXRef.current = null;
+  };
+
+  const handleTouchMove = (e: TouchEvent<HTMLDivElement>) => {
+    touchEndXRef.current = e.touches[0]?.clientX ?? null;
+  };
+
+  const handleTouchEnd = () => {
+    const start = touchStartXRef.current;
+    const end = touchEndXRef.current;
+    if (start === null || end === null) return;
+    const delta = end - start;
+    const threshold = 50;
+    if (delta > threshold && slides.length > 1) {
+      goPrev();
+    } else if (delta < -threshold && slides.length > 1) {
+      goNext();
+    }
+    touchStartXRef.current = null;
+    touchEndXRef.current = null;
+  };
+
   return (
     <section ref={sectionRef} className="relative py-16 md:py-24 px-6 bg-white border-b border-slate-100">
       <div className="max-w-7xl mx-auto">
@@ -186,7 +219,12 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
         </div>
 
         <div className="relative max-w-7xl mx-auto">
-          <div className="overflow-hidden rounded-2xl">
+          <div
+            className="overflow-hidden rounded-2xl touch-pan-y"
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          >
             <div
               className="flex transition-transform duration-700 ease-out"
               style={{ transform: `translateX(-${currentIndex * 100}%)` }}
