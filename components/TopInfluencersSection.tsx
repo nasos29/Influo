@@ -64,12 +64,12 @@ function getTotalFollowers(accounts: TopInfluencer["accounts"]): number {
 
 const t = {
   el: {
-    title: "Top Influencers",
+    title: "Top 10 Influencers",
     subtitle: "Οι πιο δημοφιλείς creators βάσει αλληλεπίδρασης στο Influo",
     views: "προβολές",
   },
   en: {
-    title: "Top Influencers",
+    title: "Top 10 Influencers",
     subtitle: "Most popular creators based on engagement on Influo",
     views: "views",
   },
@@ -80,6 +80,7 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isInView, setIsInView] = useState(false);
+  const [cardsPerSlide, setCardsPerSlide] = useState(1);
   const sectionRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -112,20 +113,37 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const updateCardsPerSlide = () => {
+      const w = window.innerWidth;
+      if (w >= 1024) setCardsPerSlide(5); // desktop
+      else if (w >= 768) setCardsPerSlide(3); // tablet
+      else setCardsPerSlide(1); // mobile
+    };
+    updateCardsPerSlide();
+    window.addEventListener("resize", updateCardsPerSlide);
+    return () => window.removeEventListener("resize", updateCardsPerSlide);
+  }, []);
+
   const topTen = influencers.slice(0, 10);
+  const slides: TopInfluencer[][] = [];
+  for (let i = 0; i < topTen.length; i += cardsPerSlide) {
+    slides.push(topTen.slice(i, i + cardsPerSlide));
+  }
 
   useEffect(() => {
-    if (topTen.length === 0) return;
-    if (currentIndex >= topTen.length) setCurrentIndex(0);
-  }, [currentIndex, topTen.length]);
+    if (slides.length === 0) return;
+    if (currentIndex >= slides.length) setCurrentIndex(0);
+  }, [currentIndex, slides.length]);
 
   useEffect(() => {
-    if (!isInView || topTen.length <= 1) return;
+    if (!isInView || slides.length <= 1) return;
     const id = window.setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % topTen.length);
+      setCurrentIndex((prev) => (prev + 1) % slides.length);
     }, 5500);
     return () => window.clearInterval(id);
-  }, [isInView, topTen.length]);
+  }, [isInView, slides.length]);
 
   if (loading) {
     return (
@@ -149,11 +167,11 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
   const txt = t[lang];
 
   const goPrev = () => {
-    setCurrentIndex((prev) => (prev - 1 + topTen.length) % topTen.length);
+    setCurrentIndex((prev) => (prev - 1 + slides.length) % slides.length);
   };
 
   const goNext = () => {
-    setCurrentIndex((prev) => (prev + 1) % topTen.length);
+    setCurrentIndex((prev) => (prev + 1) % slides.length);
   };
 
   return (
@@ -173,7 +191,10 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
               className="flex transition-transform duration-700 ease-out"
               style={{ transform: `translateX(-${currentIndex * 100}%)` }}
             >
-              {topTen.map((inf, idx) => {
+              {slides.map((slide, pageIdx) => (
+                <div key={pageIdx} className="w-full shrink-0">
+                  <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 md:gap-8">
+                    {slide.map((inf, idx) => {
             if (!inf?.id) return null;
             const imgUrl = getBestImageUrl(inf);
             const name = displayNameForLang(
@@ -185,9 +206,10 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
               : null;
             const catLabel = mainCat ? (categoryTranslations[mainCat]?.[lang] || mainCat) : null;
             const totalFol = getTotalFollowers(inf.accounts);
+            const rank = pageIdx * cardsPerSlide + idx + 1;
 
               return (
-                <div key={String(inf.id)} className="w-full shrink-0 px-1">
+                <div key={String(inf.id)} className="w-full">
                   <Link
                     href={`/influencer/${inf.id}`}
                     className="group block"
@@ -233,7 +255,7 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
                       className="absolute top-3 left-3 w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white bg-slate-900/80 backdrop-blur-sm"
                       aria-hidden
                     >
-                      #{idx + 1}
+                      #{rank}
                     </div>
                     {/* Gradient overlay at bottom */}
                     <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 to-transparent" />
@@ -262,10 +284,13 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
                 </div>
               );
             })}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
-          {topTen.length > 1 && (
+          {slides.length > 1 && (
             <>
               <button
                 onClick={goPrev}
@@ -282,7 +307,7 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
                 →
               </button>
               <div className="flex justify-center gap-1.5 mt-4">
-                {topTen.map((_, i) => (
+                {slides.map((_, i) => (
                   <button
                     key={i}
                     onClick={() => setCurrentIndex(i)}
