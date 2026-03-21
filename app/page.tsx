@@ -28,7 +28,7 @@ const t = {
     hero_btn_primary: "Ξεκίνα Δωρεάν",
     hero_btn_brand: "Εγγραφή Επιχείρησης",
     hero_btn_secondary: "Εξερεύνηση",
-    brand_section_title: "Είστε Επιχείρηση;",
+    brand_section_title: "Έχετε Επιχείρηση;",
     brand_section_desc: "Βρείτε τους καλύτερους influencers για την εταιρεία σας. Αναζητήστε, επικοινωνήστε και συνεργαστείτε με verified creators. 🤖 Λάβετε AI-powered προτάσεις δωρεάν!",
     brand_section_btn: "Δημιούργησε Λογαριασμό Επιχείρησης",
     trusted_by: "ΤΗΝ ΕΜΠΙΣΤΕΥΟΝΤΑΙ CREATORS",
