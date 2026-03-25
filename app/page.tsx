@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import Directory from "../components/Directory";
 import InfluencerSignupForm from "../components/InfluencerSignupForm";
+import BrandSignupForm from "../components/BrandSignupForm";
 import Footer from "../components/Footer";
 import TopInfluencersSection from "../components/TopInfluencersSection";
 import NewlyApprovedInfluencersSection from "../components/NewlyApprovedInfluencersSection";
@@ -871,8 +872,6 @@ export default function Home() {
                     onClick={() => {
                       setSignupType("brand");
                       setShowSignupChoice(false);
-                      setShowModal(false);
-                      router.push("/brand/signup");
                     }}
                     className={`flex-1 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
                       signupType === "brand"
@@ -885,7 +884,7 @@ export default function Home() {
                 </div>
               </div>
             )}
-            <InfluencerSignupForm />
+            {signupType === "influencer" ? <InfluencerSignupForm /> : <BrandSignupForm />}
           </div>
         </div>
       )}
