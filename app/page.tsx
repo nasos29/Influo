@@ -603,12 +603,16 @@ export default function Home() {
             <div className="text-center mb-12">
               <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">{txt.brand_section_title}</h2>
               <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-8">{txt.brand_section_desc}</p>
-              <a 
-                href="/brand/signup"
+              <button
+                type="button"
+                onClick={() => {
+                  setSignupType("brand");
+                  setShowModal(true);
+                }}
                 className="inline-block px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-all transform hover:scale-105 shadow-lg hover:shadow-xl text-lg"
               >
                 {txt.brand_section_btn}
-              </a>
+              </button>
             </div>
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm transition-all duration-300 hover:shadow-lg hover:border-blue-300 hover:-translate-y-1">
@@ -843,8 +847,14 @@ export default function Home() {
 
       {/* Modal */}
       {showModal && (
-          <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md flex justify-center items-center z-50 p-4 animate-in fade-in duration-200">
-            <div className="relative w-full max-w-5xl animate-in zoom-in duration-300">
+          <div
+            className="fixed inset-0 bg-slate-900/70 backdrop-blur-md flex justify-center items-center z-50 p-4 animate-in fade-in duration-200"
+            onClick={() => setShowModal(false)}
+          >
+            <div
+              className="relative w-full max-w-5xl animate-in zoom-in duration-300"
+              onClick={(e) => e.stopPropagation()}
+            >
                <button
                  onClick={() => { setShowModal(false); }}
                  className="absolute -top-14 right-0 text-white font-bold text-base flex items-center gap-2 hover:text-slate-300 transition-colors bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg"
