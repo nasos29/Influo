@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import Footer from '@/components/Footer';
 
 export const metadata: Metadata = {
   title: "Επικοινωνία",
@@ -20,6 +21,11 @@ export default function ContactLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return (
+    <>
+      {children}
+      <Footer lang="el" />
+    </>
+  );
 }
 

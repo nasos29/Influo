@@ -371,7 +371,7 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
               <Image src="/logo.svg" alt="Influo.gr Logo" width={140} height={56} className="h-8 sm:h-10 w-auto" />
             </div>
             <div className="text-left w-full sm:flex-1 sm:text-center">
-              <h3 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 sm:mb-2 leading-[1.1]">{txt.headerTitle}</h3>
+              <h3 className="text-2xl md:text-3xl font-bold mb-1 sm:mb-2 leading-[1.1]">{txt.headerTitle}</h3>
               <p className="text-slate-300 text-xs sm:text-sm">{txt.headerDesc}</p>
               <div className="mt-3 sm:mt-4 bg-white/10 border border-white/15 rounded-lg p-2.5 sm:p-3 text-xs sm:text-sm">
                 <p className="text-white font-medium">{txt.smartFeature}</p>

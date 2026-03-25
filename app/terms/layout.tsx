@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import Footer from '@/components/Footer';
 
 export const metadata: Metadata = {
   title: "Όροι Χρήσης",
@@ -20,6 +21,11 @@ export default function TermsLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return (
+    <>
+      {children}
+      <Footer lang="el" />
+    </>
+  );
 }
 

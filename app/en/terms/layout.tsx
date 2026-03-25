@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
   title: "Terms of Use",
@@ -16,5 +17,10 @@ export const metadata: Metadata = {
 };
 
 export default function EnTermsLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <Footer lang="en" />
+    </>
+  );
 }

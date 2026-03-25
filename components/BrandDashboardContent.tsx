@@ -1220,6 +1220,12 @@ export default function BrandDashboardContent() {
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:gap-4">
               <Link
+                href="/"
+                className="text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-900 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-slate-100 transition-colors border border-slate-200"
+              >
+                {lang === "el" ? "🏠 Αρχική" : "🏠 Home"}
+              </Link>
+              <Link
                 href="/help-desk"
                 className="text-xs sm:text-sm font-medium text-purple-600 hover:text-purple-700 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-purple-50 transition-colors border border-purple-200"
               >
