@@ -364,16 +364,16 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
       )}
 
       {embedded && (
-        <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-purple-900 p-6 text-white relative overflow-hidden flex-shrink-0">
+        <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-purple-900 p-4 sm:p-6 text-white relative overflow-hidden flex-shrink-0">
           <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-pink-600/20" />
-          <div className="relative z-10 flex items-center justify-between gap-4">
-            <div className="flex items-center">
-              <Image src="/logo.svg" alt="Influo.gr Logo" width={140} height={56} className="h-10 w-auto" />
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+            <div className="flex items-center justify-start">
+              <Image src="/logo.svg" alt="Influo.gr Logo" width={140} height={56} className="h-8 sm:h-10 w-auto" />
             </div>
-            <div className="text-center flex-1">
-              <h3 className="text-2xl md:text-3xl font-bold mb-2 leading-[1.1]">{txt.headerTitle}</h3>
-              <p className="text-slate-300 text-sm">{txt.headerDesc}</p>
-              <div className="mt-4 bg-white/10 border border-white/15 rounded-lg p-3 text-sm">
+            <div className="text-left w-full sm:flex-1 sm:text-center">
+              <h3 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 sm:mb-2 leading-[1.1]">{txt.headerTitle}</h3>
+              <p className="text-slate-300 text-xs sm:text-sm">{txt.headerDesc}</p>
+              <div className="mt-3 sm:mt-4 bg-white/10 border border-white/15 rounded-lg p-2.5 sm:p-3 text-xs sm:text-sm">
                 <p className="text-white font-medium">{txt.smartFeature}</p>
               </div>
             </div>
