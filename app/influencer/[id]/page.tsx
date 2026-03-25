@@ -1542,8 +1542,8 @@ export default function InfluencerProfile(props: { params: Params }) {
                   </div>
                 )}
             </div>
-            <div className="relative flex flex-col items-end gap-3">
-              {/* Badges - Top Right above buttons */}
+            <div className="relative flex w-full flex-col items-center gap-3 md:w-auto md:items-end">
+              {/* Badges - centered on mobile, right-aligned on desktop */}
               {(() => {
                 // Calculate account age in days
                 let accountAgeDays = 999;
@@ -1589,7 +1589,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                 });
                 
                 return badges.length > 0 ? (
-                  <div className="flex flex-wrap gap-2 justify-end mb-2">
+                  <div className="mb-2 flex flex-wrap justify-center gap-2 md:justify-end">
                     {badges.map((badge, idx) => (
                       <span
                         key={idx}
@@ -1604,7 +1604,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                 ) : null;
               })()}
               {/* Action Buttons */}
-              <div className="flex gap-3 flex-col md:flex-row">
+              <div className="flex w-full flex-col justify-center gap-3 md:w-auto md:flex-row md:justify-end">
                 {/* Back to Proposals button for brands only */}
                 {isBrand && (
                   <a 
