@@ -336,7 +336,11 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
 
   return (
     <div
-      className={embedded ? "bg-white rounded-2xl shadow-2xl p-0 max-w-4xl w-full mx-auto border border-slate-200 overflow-hidden" : "bg-white rounded-2xl shadow-xl p-8 max-w-md w-full mx-auto"}
+      className={
+        embedded
+          ? "bg-white rounded-2xl shadow-2xl p-0 max-w-4xl w-full mx-auto border border-slate-200 overflow-hidden max-h-[85vh] flex flex-col"
+          : "bg-white rounded-2xl shadow-xl p-8 max-w-md w-full mx-auto"
+      }
     >
       {!embedded && (
         <>
@@ -377,7 +381,7 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
         </div>
       )}
 
-      <div className={embedded ? "p-8 overflow-y-auto" : ""}>
+      <div className={embedded ? "p-8 overflow-y-auto flex-1" : ""}>
 
       {message && (
         <div className={`mb-4 p-3 rounded-lg text-sm ${
