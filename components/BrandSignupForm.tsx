@@ -110,7 +110,7 @@ const t = {
   }
 };
 
-export default function BrandSignupForm() {
+export default function BrandSignupForm({ embedded = false }: { embedded?: boolean }) {
   const [lang, setLang] = useState<Lang>("el"); // Default to Greek, will be updated in useEffect
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -314,7 +314,9 @@ export default function BrandSignupForm() {
 
   if (success) {
     return (
-      <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full mx-auto">
+      <div
+        className={embedded ? "bg-white rounded-2xl shadow-2xl p-8 max-w-4xl w-full mx-auto border border-slate-200" : "bg-white rounded-2xl shadow-xl p-8 max-w-md w-full mx-auto"}
+      >
         <div className="text-center">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="text-3xl">✓</span>
@@ -333,24 +335,49 @@ export default function BrandSignupForm() {
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <button
-          onClick={() => router.back()}
-          className="text-slate-600 hover:text-slate-900 transition-colors"
-        >
-          {txt.back}
-        </button>
-        {/* Language toggle removed - use header toggle instead */}
-      </div>
+    <div
+      className={embedded ? "bg-white rounded-2xl shadow-2xl p-0 max-w-4xl w-full mx-auto border border-slate-200 overflow-hidden" : "bg-white rounded-2xl shadow-xl p-8 max-w-md w-full mx-auto"}
+    >
+      {!embedded && (
+        <>
+          <div className="flex justify-between items-center mb-6">
+            <button
+              onClick={() => router.back()}
+              className="text-slate-600 hover:text-slate-900 transition-colors"
+            >
+              {txt.back}
+            </button>
+          </div>
 
-      <div className="text-center mb-6">
-        <h1 className="text-2xl font-bold text-slate-900 mb-2">{txt.headerTitle}</h1>
-        <p className="text-slate-600 text-sm mb-3">{txt.headerDesc}</p>
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-3 text-sm">
-          <p className="text-blue-900 font-medium">{txt.smartFeature}</p>
+          <div className="text-center mb-6">
+            <h1 className="text-2xl font-bold text-slate-900 mb-2">{txt.headerTitle}</h1>
+            <p className="text-slate-600 text-sm mb-3">{txt.headerDesc}</p>
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-3 text-sm">
+              <p className="text-blue-900 font-medium">{txt.smartFeature}</p>
+            </div>
+          </div>
+        </>
+      )}
+
+      {embedded && (
+        <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-purple-900 p-6 text-white relative overflow-hidden flex-shrink-0">
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-pink-600/20" />
+          <div className="relative z-10 flex items-center justify-between gap-4">
+            <div className="flex items-center">
+              <Image src="/logo.svg" alt="Influo.gr Logo" width={140} height={56} className="h-10 w-auto" />
+            </div>
+            <div className="text-center flex-1">
+              <h1 className="text-2xl md:text-3xl font-bold mb-2">{txt.headerTitle}</h1>
+              <p className="text-slate-300 text-sm">{txt.headerDesc}</p>
+              <div className="mt-4 bg-white/10 border border-white/15 rounded-lg p-3 text-sm">
+                <p className="text-white font-medium">{txt.smartFeature}</p>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
+
+      <div className={embedded ? "p-8 overflow-y-auto" : ""}>
 
       {message && (
         <div className={`mb-4 p-3 rounded-lg text-sm ${
@@ -551,6 +578,7 @@ export default function BrandSignupForm() {
           {lang === 'el' ? 'Συνδεθείτε' : 'Sign In'}
         </a>
       </p>
+    </div>
     </div>
   );
 }
