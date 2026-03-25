@@ -855,16 +855,6 @@ export default function Home() {
               className="relative w-full max-w-5xl animate-in zoom-in duration-300"
               onClick={(e) => e.stopPropagation()}
             >
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                aria-label={lang === "el" ? "Κλείσιμο" : "Close"}
-                className="absolute top-3 right-3 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10"
-              >
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M18 6L6 18" />
-                </svg>
-              </button>
             <div className="mb-6">
               <div className="flex gap-3 bg-white/10 backdrop-blur-sm p-2 rounded-xl border border-white/10">
                 <button
@@ -891,7 +881,19 @@ export default function Home() {
                 </button>
               </div>
             </div>
-            {signupType === "influencer" ? <InfluencerSignupForm /> : <BrandSignupForm embedded />}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                aria-label={lang === "el" ? "Κλείσιμο" : "Close"}
+                className="absolute top-3 right-3 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 transition-colors border border-red-200 shadow-sm"
+              >
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+              {signupType === "influencer" ? <InfluencerSignupForm /> : <BrandSignupForm embedded />}
+            </div>
           </div>
         </div>
       )}

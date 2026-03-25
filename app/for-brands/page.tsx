@@ -6,6 +6,8 @@ import Link from "next/link";
 import Footer from "../../components/Footer";
 import { usePathname, useRouter } from 'next/navigation';
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
+import InfluencerSignupForm from "../../components/InfluencerSignupForm";
+import BrandSignupForm from "../../components/BrandSignupForm";
 
 type Lang = "el" | "en";
 
@@ -135,10 +137,17 @@ export default function ForBrandsPage() {
   const router = useRouter();
   const [lang, setLang] = useState<Lang>(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
   const txt = t[lang];
+  const [showModal, setShowModal] = useState(false);
+  const [signupType, setSignupType] = useState<"influencer" | "brand">("brand");
 
   useEffect(() => {
     setLang(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
   }, [pathname]);
+
+  const openBrandModal = () => {
+    setSignupType("brand");
+    setShowModal(true);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
@@ -192,12 +201,13 @@ export default function ForBrandsPage() {
                 {txt.hero_desc}
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Link 
-                  href="/brand/signup" 
+                <button
+                  type="button"
+                  onClick={openBrandModal}
                   className="px-8 py-4 bg-white text-blue-600 font-bold rounded-xl hover:bg-blue-50 transition-all transform hover:scale-105 shadow-xl text-center"
                 >
                   {txt.cta_primary}
-                </Link>
+                </button>
                 <Link 
                   href="/directory" 
                   className="px-8 py-4 bg-blue-500/20 backdrop-blur-sm text-white font-bold border-2 border-white/30 rounded-xl hover:bg-blue-500/30 transition-all text-center"
@@ -434,12 +444,13 @@ export default function ForBrandsPage() {
                   </li>
                 </ul>
                 <div className="mt-6">
-                  <Link
-                    href="/brand/signup"
+                  <button
+                    type="button"
+                    onClick={openBrandModal}
                     className="inline-block px-8 py-4 bg-white text-blue-600 font-bold rounded-xl hover:bg-blue-50 transition-all transform hover:scale-105 shadow-xl"
                   >
                     Ξεκινήστε Δωρεάν →
-                  </Link>
+                  </button>
                 </div>
               </div>
               <div className="relative h-64 md:h-80 rounded-2xl overflow-hidden bg-gradient-to-br from-white/20 to-white/5 border border-white/30">
@@ -656,16 +667,71 @@ export default function ForBrandsPage() {
         <div className="max-w-4xl mx-auto text-center relative z-10">
           <h2 className="text-4xl md:text-5xl font-bold mb-6">{txt.cta_section_title}</h2>
           <p className="text-xl md:text-2xl text-blue-100 mb-10">{txt.cta_section_desc}</p>
-          <Link 
-            href="/brand/signup" 
+          <button
+            type="button"
+            onClick={openBrandModal}
             className="inline-block px-12 py-5 bg-white text-blue-600 font-bold rounded-2xl hover:bg-blue-50 transition-all transform hover:scale-105 shadow-2xl text-xl"
           >
             {txt.cta_button} →
-          </Link>
+          </button>
         </div>
       </section>
 
       <Footer lang={lang} />
+
+      {/* Signup Modal */}
+      {showModal && (
+        <div
+          className="fixed inset-0 bg-slate-900/70 backdrop-blur-md flex justify-center items-center z-50 p-4 animate-in fade-in duration-200"
+          onClick={() => setShowModal(false)}
+        >
+          <div
+            className="relative w-full max-w-5xl animate-in zoom-in duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-6">
+              <div className="flex gap-3 bg-white/10 backdrop-blur-sm p-2 rounded-xl border border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setSignupType("influencer")}
+                  className={`flex-1 px-4 py-2 rounded-lg text-sm sm:text-base font-bold transition-all ${
+                    signupType === "influencer"
+                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-indigo-500/20"
+                      : "text-white/80 border border-white/10 hover:text-white hover:bg-white/10"
+                  }`}
+                >
+                  {lang === "el" ? "Είμαι Influencer" : "I'm an Influencer"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSignupType("brand")}
+                  className={`flex-1 px-4 py-2 rounded-lg text-sm sm:text-base font-bold transition-all ${
+                    signupType === "brand"
+                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-indigo-500/20"
+                      : "text-white/80 border border-white/10 hover:text-white hover:bg-white/10"
+                  }`}
+                >
+                  {lang === "el" ? "Έχω Επιχείρηση" : "I have a Business"}
+                </button>
+              </div>
+            </div>
+
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                aria-label={lang === "el" ? "Κλείσιμο" : "Close"}
+                className="absolute top-3 right-3 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 transition-colors border border-red-200 shadow-sm"
+              >
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+              {signupType === "influencer" ? <InfluencerSignupForm /> : <BrandSignupForm embedded />}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
