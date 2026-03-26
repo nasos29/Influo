@@ -80,6 +80,7 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [autoplayEnabled, setAutoplayEnabled] = useState(false);
+  const [hoverPaused, setHoverPaused] = useState(false);
   const [cardsPerSlide, setCardsPerSlide] = useState(1);
   const touchStartXRef = useRef<number | null>(null);
   const touchEndXRef = useRef<number | null>(null);
@@ -133,12 +134,12 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
   }, [currentIndex, slides.length]);
 
   useEffect(() => {
-    if (!autoplayEnabled || slides.length <= 1) return;
+    if (!autoplayEnabled || hoverPaused || slides.length <= 1) return;
     const id = window.setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % slides.length);
     }, 5500);
     return () => window.clearInterval(id);
-  }, [autoplayEnabled, slides.length]);
+  }, [autoplayEnabled, hoverPaused, slides.length]);
 
   if (loading) {
     return (
@@ -204,7 +205,11 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
           <p className="text-slate-600 max-w-xl mx-auto">{txt.subtitle}</p>
         </div>
 
-        <div className="relative max-w-7xl mx-auto">
+        <div
+          className="relative max-w-7xl mx-auto"
+          onMouseEnter={() => setHoverPaused(true)}
+          onMouseLeave={() => setHoverPaused(false)}
+        >
           <div
             className="overflow-hidden rounded-2xl touch-pan-y"
             onTouchStart={handleTouchStart}
