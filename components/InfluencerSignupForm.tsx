@@ -77,8 +77,10 @@ const t = {
     female: "Γυναίκα",
     locationLabel: "Τοποθεσία",
     locationPlace: "π.χ. Αθήνα, Ελλάδα",
-    birthDateLabel: "Ημερομηνία Γέννησης",
+    birthDateLabel: "Ημερομηνία Γέννησης *",
     birthDatePlace: "π.χ. 1995-01-15",
+    birthDateRequired: "Παρακαλώ συμπληρώστε την ημερομηνία γέννησής σας.",
+    birthDateInvalid: "Η ημερομηνία γέννησης δεν είναι έγκυρη.",
     emailLabel: "Email Επικοινωνίας",
     passLabel: "Κωδικός (τουλάχιστον 6 χαρακτήρες)", 
     passShow: "Εμφάνιση",
@@ -142,8 +144,10 @@ const t = {
     female: "Female",
     locationLabel: "Location",
     locationPlace: "e.g. Athens, Greece",
-    birthDateLabel: "Date of Birth",
+    birthDateLabel: "Date of Birth *",
     birthDatePlace: "e.g. 1995-01-15",
+    birthDateRequired: "Please enter your date of birth.",
+    birthDateInvalid: "The date of birth is not valid.",
     emailLabel: "Contact Email",
     passLabel: "Password (min 6 characters)", 
     passShow: "Show",
@@ -353,6 +357,13 @@ export default function InfluencerSignupForm() {
               throw new Error(txt.bioRequired);
           }
 
+          if (!birthDate.trim()) {
+              throw new Error(txt.birthDateRequired);
+          }
+          if (isNaN(new Date(birthDate).getTime())) {
+              throw new Error(txt.birthDateInvalid);
+          }
+
           if (password.length < 6) {
               throw new Error(lang === "el" ? "Ο κωδικός πρέπει να έχει τουλάχιστον 6 χαρακτήρες." : "Password must be at least 6 characters long.");
           }
@@ -424,7 +435,7 @@ export default function InfluencerSignupForm() {
               }
           }
           
-          const errorMessage = err.message.includes("ήδη καταχωρημένο") || err.message.includes("already registered") || err.message.includes("6 χαρακτήρες") || err.message.includes("βιογραφικό") || err.message.includes("biography") ? err.message : (lang === "el" ? "Σφάλμα: " : "Error: ") + err.message;
+          const errorMessage = err.message.includes("ήδη καταχωρημένο") || err.message.includes("already registered") || err.message.includes("6 χαρακτήρες") || err.message.includes("βιογραφικό") || err.message.includes("biography") || err.message.includes("ημερομηνία γέννησης") || err.message.includes("date of birth") || err.message.includes("Date of birth") ? err.message : (lang === "el" ? "Σφάλμα: " : "Error: ") + err.message;
           setMessage(errorMessage); 
       } finally {
           setLoading(false);
@@ -444,6 +455,15 @@ export default function InfluencerSignupForm() {
       // Validate biography
       if (!bio.trim()) {
           throw new Error(txt.bioRequired);
+      }
+
+      if (!birthDate.trim()) {
+          setStep(1);
+          throw new Error(txt.birthDateRequired);
+      }
+      if (isNaN(new Date(birthDate).getTime())) {
+          setStep(1);
+          throw new Error(txt.birthDateInvalid);
       }
       
       // 1. Auth: Δημιουργία Χρήστη (Sign Up)
@@ -553,7 +573,7 @@ export default function InfluencerSignupForm() {
           // Note: If categories column exists as array, store all categories
           // Otherwise, categories are stored as comma-separated string in category field or first category
           location,
-          birth_date: birthDate || null,
+          birth_date: birthDate,
           languages: selectedLanguages.join(", "), // Store as comma-separated string
           min_rate: minRate,
           contact_email: email,
@@ -598,7 +618,7 @@ export default function InfluencerSignupForm() {
       setStep(4);
     } catch (err: any) {
       console.error(err);
-      const errorMessage = err.message.includes("already registered") || err.message.includes("23505") || err.message.includes("κωδικός") || err.message.includes("βιογραφικό") || err.message.includes("biography") 
+      const errorMessage = err.message.includes("already registered") || err.message.includes("23505") || err.message.includes("κωδικός") || err.message.includes("βιογραφικό") || err.message.includes("biography") || err.message.includes("ημερομηνία γέννησης") || err.message.includes("date of birth") || err.message.includes("Date of birth")
           ? err.message 
           : (lang === "el" ? "Σφάλμα: " : "Error: ") + err.message;
       setMessage(errorMessage);
@@ -736,7 +756,15 @@ export default function InfluencerSignupForm() {
 
                 <div>
                     <label className={labelClass}>{txt.birthDateLabel}</label>
-                    <input type="date" className={inputClass} value={birthDate} onChange={(e) => setBirthDate(e.target.value)} placeholder={txt.birthDatePlace} />
+                    <input
+                      type="date"
+                      className={inputClass}
+                      value={birthDate}
+                      onChange={(e) => setBirthDate(e.target.value)}
+                      placeholder={txt.birthDatePlace}
+                      required
+                      max={new Date().toISOString().slice(0, 10)}
+                    />
                 </div>
 
                 {/* EMAIL & PASSWORD FIELDS */}
@@ -790,7 +818,7 @@ export default function InfluencerSignupForm() {
                 <div className="mt-8 pt-6 border-t border-slate-200">
                   <button 
                     onClick={handleCheckEmailAndNext} 
-                    disabled={!displayName || !email || !password || !bio.trim() || loading || !!emailError || checkingEmail} 
+                    disabled={!displayName || !email || !password || !bio.trim() || !birthDate || loading || !!emailError || checkingEmail} 
                     className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-blue-500/30 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading ? (lang === "el" ? "Έλεγχος..." : "Checking...") : txt.next}
