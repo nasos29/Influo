@@ -31,7 +31,20 @@ const EVENT_WEIGHTS: Record<string, number> = {
   proposal_sent: 10,
 };
 
-type AnalyticsRow = { id?: string; influencer_id?: string | null; event_type?: string | null; brand_email?: string | null; visitor_id?: string | null };
+type AnalyticsRow = {
+  id?: string;
+  influencer_id?: string | null;
+  event_type?: string | null;
+  brand_email?: string | null;
+  visitor_id?: string | null;
+  metadata?: unknown;
+};
+
+function isSocialOutboundProfileClick(e: { event_type?: string | null; metadata?: unknown }): boolean {
+  if (e.event_type !== 'profile_click') return false;
+  const m = e.metadata as Record<string, unknown> | null | undefined;
+  return !!m && typeof m === 'object' && m.source === 'social_outbound';
+}
 
 export async function GET() {
   try {
@@ -44,7 +57,7 @@ export async function GET() {
     let eventsErr: { message: string } | null = null;
     let sel = supabaseAdmin
       .from('influencer_analytics')
-      .select('id, influencer_id, event_type, brand_email, visitor_id')
+      .select('id, influencer_id, event_type, brand_email, visitor_id, metadata')
       .gte('created_at', sinceIso)
       .in('event_type', Object.keys(EVENT_WEIGHTS));
     const res = await sel;
@@ -54,11 +67,19 @@ export async function GET() {
     if (eventsErr && /visitor_id|column/i.test(eventsErr.message)) {
       const res2 = await supabaseAdmin
         .from('influencer_analytics')
-        .select('id, influencer_id, event_type, brand_email')
+        .select('id, influencer_id, event_type, brand_email, metadata')
         .gte('created_at', sinceIso)
         .in('event_type', Object.keys(EVENT_WEIGHTS));
       eventsErr = res2.error;
-      events = (res2.data ?? []).map((r: { id?: string; influencer_id?: string | null; event_type?: string | null; brand_email?: string | null }) => ({ ...r, visitor_id: null }));
+      events = (res2.data ?? []).map(
+        (r: {
+          id?: string;
+          influencer_id?: string | null;
+          event_type?: string | null;
+          brand_email?: string | null;
+          metadata?: unknown;
+        }) => ({ ...r, visitor_id: null })
+      );
     }
 
     if (eventsErr) {
@@ -70,6 +91,7 @@ export async function GET() {
     const scores: Record<string, number> = {};
     const uniq: Record<string, Set<string>> = {};
     eventsList.forEach((e: AnalyticsRow) => {
+      if (isSocialOutboundProfileClick(e)) return;
       const id = e.influencer_id != null ? String(e.influencer_id).trim().toLowerCase() : null;
       if (!id) return;
       const userKey = (e.brand_email || '').trim() || (e.visitor_id || '').trim() || (e.id != null ? String(e.id) : '');

@@ -6,6 +6,9 @@ import { supabase } from '@/lib/supabaseClient';
 interface AnalyticsStats {
   profileViews: number;
   profileClicks: number;
+  /** Clicks that open Instagram / TikTok / YouTube from the profile sidebar (tracked separately). */
+  socialOutboundClicks?: number;
+  socialOutboundByPlatform?: Record<string, number>;
   proposalsSent: number;
   messagesSent: number;
   conversationsStarted: number;
@@ -14,6 +17,7 @@ interface AnalyticsStats {
   eventsByDate: Record<string, {
     views: number;
     clicks: number;
+    socialOutbound: number;
     proposals: number;
     messages: number;
     conversations: number;
@@ -35,7 +39,8 @@ const t = {
     lastYear: "Τελευταίος χρόνος",
     custom: "Προσαρμοσμένο",
     profileViews: "Προβολές Προφίλ",
-    profileClicks: "Κλικ Προφίλ",
+    profileClicks: "Κλικ Προφίλ Influo",
+    socialOutbound: "Έξοδος (κοινωνικά)",
     proposalsSent: "Προσφορές",
     messagesSent: "Μηνύματα",
     conversationsStarted: "Συνομιλίες",
@@ -55,7 +60,8 @@ const t = {
     lastYear: "Last year",
     custom: "Custom",
     profileViews: "Profile Views",
-    profileClicks: "Profile Clicks",
+    profileClicks: "Influo profile clicks",
+    socialOutbound: "Outbound (social)",
     proposalsSent: "Proposals",
     messagesSent: "Messages",
     conversationsStarted: "Conversations",
@@ -128,6 +134,7 @@ export default function Analytics({ influencerId, lang = 'el' }: AnalyticsProps)
   const maxValue = stats ? Math.max(
     stats.profileViews,
     stats.profileClicks,
+    stats.socialOutboundClicks ?? 0,
     stats.proposalsSent,
     stats.messagesSent,
     stats.conversationsStarted
@@ -141,6 +148,7 @@ export default function Analytics({ influencerId, lang = 'el' }: AnalyticsProps)
       date: new Date(date).toLocaleDateString(lang === 'el' ? 'el-GR' : 'en-US', { month: 'short', day: 'numeric' }),
       views: data.views,
       clicks: data.clicks,
+      socialOutbound: data.socialOutbound ?? 0,
       proposals: data.proposals,
       messages: data.messages,
       conversations: data.conversations
@@ -245,7 +253,7 @@ export default function Analytics({ influencerId, lang = 'el' }: AnalyticsProps)
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
         <div className="bg-white rounded-xl border border-slate-200 p-6">
           <div className="text-2xl font-bold text-slate-900">{stats.profileViews}</div>
           <div className="text-sm text-slate-600 mt-1">{txt.profileViews}</div>
@@ -253,6 +261,10 @@ export default function Analytics({ influencerId, lang = 'el' }: AnalyticsProps)
         <div className="bg-white rounded-xl border border-slate-200 p-6">
           <div className="text-2xl font-bold text-slate-900">{stats.profileClicks}</div>
           <div className="text-sm text-slate-600 mt-1">{txt.profileClicks}</div>
+        </div>
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <div className="text-2xl font-bold text-slate-900">{stats.socialOutboundClicks ?? 0}</div>
+          <div className="text-sm text-slate-600 mt-1">{txt.socialOutbound}</div>
         </div>
         <div className="bg-white rounded-xl border border-slate-200 p-6">
           <div className="text-2xl font-bold text-slate-900">{stats.proposalsSent}</div>
@@ -282,7 +294,7 @@ export default function Analytics({ influencerId, lang = 'el' }: AnalyticsProps)
                 <div className="flex justify-between text-sm text-slate-600">
                   <span>{item.date}</span>
                   <span className="font-medium text-slate-900">
-                    {item.views + item.clicks + item.proposals + item.messages + item.conversations} {txt.total}
+                    {item.views + item.clicks + item.socialOutbound + item.proposals + item.messages + item.conversations} {txt.total}
                   </span>
                 </div>
                 <div className="flex gap-2 h-6">
@@ -298,6 +310,13 @@ export default function Analytics({ influencerId, lang = 'el' }: AnalyticsProps)
                       className="bg-purple-500 rounded"
                       style={{ width: `${(item.clicks / maxValue) * 100}%` }}
                       title={`${txt.profileClicks}: ${item.clicks}`}
+                    />
+                  )}
+                  {item.socialOutbound > 0 && (
+                    <div
+                      className="bg-cyan-500 rounded"
+                      style={{ width: `${(item.socialOutbound / maxValue) * 100}%` }}
+                      title={`${txt.socialOutbound}: ${item.socialOutbound}`}
                     />
                   )}
                   {item.proposals > 0 && (
@@ -333,6 +352,10 @@ export default function Analytics({ influencerId, lang = 'el' }: AnalyticsProps)
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-purple-500 rounded"></div>
               <span>{txt.profileClicks}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-cyan-500 rounded"></div>
+              <span>{txt.socialOutbound}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-green-500 rounded"></div>

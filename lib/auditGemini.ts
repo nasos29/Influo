@@ -5,6 +5,7 @@
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { cleanNegativesLists } from '@/lib/auditNegativesDefaults';
 
 /** One social account (Instagram, TikTok, or YouTube) with metrics. YouTube: subscribers = followers. */
 export type AuditAccount = {
@@ -105,8 +106,8 @@ OUTPUT – Return ONLY valid JSON with these exact keys (no markdown, no extra t
 - whyWorkWithThem_en: same as whyWorkWithThem, in ENGLISH. Do NOT include "Why work with them". Use only display name or "the creator".
 - positives: array of 2–4 points in GREEK – key strengths for brands. Each point 1–2 sentences.
 - positives_en: array of 2–4 points in ENGLISH, same content as positives.
-- negatives: array of 0–4 points in GREEK. ONLY include a point when there is a real limitation, trade-off or concrete risk for businesses (e.g. αβεβαιότητα στα metrics, ασυνέπεια στο περιεχόμενο, υπερβολική εξάρτηση από πολύ στενό niche, χαμηλή συχνότητα αναρτήσεων που μπορεί να επηρεάσει τον χρονισμό των καμπανιών). Μην βάζεις εδώ ουδέτερες παρατηρήσεις ή θετικά στοιχεία (π.χ. το πώς μοιράζεται το κοινό σε άνδρες/γυναίκες) – αυτά ανήκουν στο scoreBreakdown. Τα αρνητικά πρέπει να είναι διατυπωμένα σαν ήπια “σημεία προσοχής για τις επιχειρήσεις”, όχι σαν κριτική προς τη δημιουργό. FORBIDDEN: (1) Οποιαδήποτε σύγκριση με “άλλους δημιουργούς” ή “περισσότερα followers”, (2) κριτική επειδή είναι σε μία μόνο πλατφόρμα, (3) σχόλια τύπου “limited reach” σε σχέση με άλλους. Αν δεν υπάρχει σαφές μειονέκτημα, επέστρεψε κενό array [].
-- negatives_en: array of 0–4 points in ENGLISH, same content as negatives. Same rules: include a point only when there is a real limitation/trade-off for brands; never use neutral facts (like audience gender split) or comparative put‑downs; empty array [] is correct when there is no clear drawback.
+- negatives: array of 0–4 points in GREEK. ONLY when there is a real limitation, trade-off or concrete risk for businesses — ήπια διατύπωση (“σημεία προσοχής για τις επιχειρήσεις”). Αν δεν υπάρχει κάτι αξιοσημείωτο, επέστρεψε κενό array []. FORBIDDEN: σύγκριση με άλλους δημιουργούς, επίκληση λιγότερων followers vs άλλους, ουδέτερα demographics ως “αρνητικό”.
+- negatives_en: array of 0–4 points in ENGLISH, same rules; empty [] when nothing noteworthy.
 - brandSafe: boolean (true if content and metrics suggest brand-safe; false if risks).
 - niche: ONE niche label in GREEK (e.g. "Μόδα", "Fitness").
 - niche_en: ONE niche label in ENGLISH (Fashion, Fitness, Beauty & Makeup, etc.). Do NOT use: Creator, Content Creator, Influencer, Lifestyle as default.
@@ -114,7 +115,7 @@ OUTPUT – Return ONLY valid JSON with these exact keys (no markdown, no extra t
 RULES:
 - Audience is brands. Be detailed and nuanced in bullets; more words, not one-liners.
 - Positives: always include 2–4 strong points, με θετικό και δίκαιο τόνο προς τη δημιουργό.
-- Negatives: 0–4 σημεία, μόνο όταν υπάρχει πραγματικό μειονέκτημα για τις επιχειρήσεις. Ο τόνος πρέπει να είναι πάντα δίκαιος, ήπιος και περιγραφικός (“σημεία που πρέπει να έχουν στο μυαλό τους οι επιχειρήσεις”), ποτέ επικριτικός ή υπερβολικός.
+- Negatives: 0–4 σημεία μόνο όταν υπάρχει πραγματικό trade-off ή ρίσκο για τις επιχειρήσεις· αλλιώς κενό array. Τόνος ήπιος, επαγγελματικός.
 - Μην παρουσιάζεις ποτέ ως “αρνητικό” κάτι που είναι απλή περιγραφή του κοινού ή του προφίλ (π.χ. αναλογία ανδρών/γυναικών, χώρα, ηλικίες) εκτός αν δημιουργεί σαφή δυσκολία για συγκεκριμένο τύπο καμπανιών.
 - Never use comparisons with "other creators" or comments about "limited reach" vs others; focus on describing this creator’s reality for brands.
 - No advisory or warning tone. No "απαιτείται προσεκτική αξιολόγηση" or similar. Descriptive only.
@@ -159,6 +160,9 @@ function parseResponse(text: string): AuditResult {
   }
   raw = raw.trim();
   const data = JSON.parse(raw) as Record<string, unknown>;
+  const rawNeg = Array.isArray(data.negatives) ? (data.negatives as string[]) : undefined;
+  const rawNegEn = Array.isArray(data.negatives_en) ? (data.negatives_en as string[]) : undefined;
+  const cleanedNeg = cleanNegativesLists(rawNeg, rawNegEn);
   return {
     scoreBreakdown: (data.scoreBreakdown as string[]) || ['Ανάλυση δεν διαθέσιμη.'],
     scoreBreakdown_en: Array.isArray(data.scoreBreakdown_en) ? (data.scoreBreakdown_en as string[]) : undefined,
@@ -166,8 +170,8 @@ function parseResponse(text: string): AuditResult {
     whyWorkWithThem_en: typeof data.whyWorkWithThem_en === 'string' ? (data.whyWorkWithThem_en as string).trim() : undefined,
     positives: Array.isArray(data.positives) ? (data.positives as string[]) : undefined,
     positives_en: Array.isArray(data.positives_en) ? (data.positives_en as string[]) : undefined,
-    negatives: Array.isArray(data.negatives) ? (data.negatives as string[]) : undefined,
-    negatives_en: Array.isArray(data.negatives_en) ? (data.negatives_en as string[]) : undefined,
+    negatives: cleanedNeg.negatives,
+    negatives_en: cleanedNeg.negatives_en,
     brandSafe: Boolean(data.brandSafe !== false),
     niche: ((data.niche as string) || '').trim() || 'Creator',
     niche_en: ((data.niche_en as string) || '').trim() || undefined,
@@ -178,6 +182,8 @@ const FALLBACK: AuditResult = {
   scoreBreakdown: ['Προσωρινή αδυναμία ανάλυσης.'],
   brandSafe: true,
   niche: 'Creator',
+  negatives: [],
+  negatives_en: [],
 };
 
 /**

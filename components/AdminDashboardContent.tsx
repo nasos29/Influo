@@ -575,6 +575,13 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
     const [loading, setLoading] = useState(false);
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatar_url || null);
+    const [platformStats, setPlatformStats] = useState<{
+      profileViews: number;
+      profileClicks: number;
+      socialOutboundClicks: number;
+      socialOutboundByPlatform: Record<string, number>;
+    } | null>(null);
+    const [platformStatsLoading, setPlatformStatsLoading] = useState(false);
 
     const handleAccountChange = (i: number, field: keyof typeof accounts[0], value: string) => {
         const copy = [...accounts]; 
@@ -736,6 +743,34 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
             }
         };
         fetchChanges();
+    }, [user.id]);
+
+    useEffect(() => {
+      let cancelled = false;
+      (async () => {
+        setPlatformStatsLoading(true);
+        try {
+          const res = await fetch(
+            `/api/analytics/stats?influencerId=${encodeURIComponent(String(user.id))}`
+          );
+          if (!res.ok || cancelled) return;
+          const data = await res.json();
+          if (cancelled || !data?.stats) return;
+          setPlatformStats({
+            profileViews: data.stats.profileViews ?? 0,
+            profileClicks: data.stats.profileClicks ?? 0,
+            socialOutboundClicks: data.stats.socialOutboundClicks ?? 0,
+            socialOutboundByPlatform: data.stats.socialOutboundByPlatform ?? {},
+          });
+        } catch {
+          if (!cancelled) setPlatformStats(null);
+        } finally {
+          if (!cancelled) setPlatformStatsLoading(false);
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
     }, [user.id]);
 
     // Mark changes as reviewed
@@ -1037,6 +1072,67 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                     <p className="text-xs text-slate-500 mt-1">PNG, JPG, GIF up to 5MB</p>
                                 </div>
                             </div>
+                        </div>
+
+                        <div className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50/90 to-white p-4">
+                          <h3 className="text-sm font-bold text-indigo-900 uppercase mb-3">
+                            Στατιστικά Influo (κλικ στο site)
+                          </h3>
+                          {platformStatsLoading && (
+                            <p className="text-sm text-slate-600">Φόρτωση στατιστικών...</p>
+                          )}
+                          {!platformStatsLoading && platformStats && (
+                            <>
+                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+                                <div className="bg-white rounded-lg p-3 border border-slate-100 shadow-sm">
+                                  <div className="text-xl font-bold text-slate-900">{platformStats.profileViews}</div>
+                                  <div className="text-xs text-slate-600 mt-0.5">Προβολές προφίλ</div>
+                                </div>
+                                <div className="bg-white rounded-lg p-3 border border-slate-100 shadow-sm">
+                                  <div className="text-xl font-bold text-slate-900">{platformStats.profileClicks}</div>
+                                  <div className="text-xs text-slate-600 mt-0.5">Κλικ προς προφίλ Influo (κατάλογος κλπ.)</div>
+                                </div>
+                                <div className="bg-white rounded-lg p-3 border border-slate-100 shadow-sm col-span-2 sm:col-span-1">
+                                  <div className="text-xl font-bold text-slate-900">{platformStats.socialOutboundClicks}</div>
+                                  <div className="text-xs text-slate-600 mt-0.5">Έξοδος προς IG / TikTok / YouTube κτλ.</div>
+                                </div>
+                              </div>
+                              {Object.keys(platformStats.socialOutboundByPlatform).length > 0 && (
+                                <div className="space-y-2">
+                                  <p className="text-xs font-semibold text-slate-800">
+                                    Κατανομή εξωτερικών κλικ ανά πλατφόρμα
+                                  </p>
+                                  {Object.entries(platformStats.socialOutboundByPlatform)
+                                    .sort((a, b) => b[1] - a[1])
+                                    .map(([plat, n]) => {
+                                      const max = Math.max(
+                                        ...Object.values(platformStats.socialOutboundByPlatform),
+                                        1
+                                      );
+                                      return (
+                                        <div key={plat}>
+                                          <div className="flex justify-between text-xs mb-0.5">
+                                            <span className="capitalize text-slate-700">{plat}</span>
+                                            <span className="font-medium text-slate-900">{n}</span>
+                                          </div>
+                                          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                                            <div
+                                              className="h-full rounded-full bg-indigo-500"
+                                              style={{ width: `${(n / max) * 100}%` }}
+                                            />
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                </div>
+                              )}
+                            </>
+                          )}
+                          {!platformStatsLoading && !platformStats && (
+                            <p className="text-sm text-slate-500">
+                              Δεν ήταν δυνατή η φόρτωση στατιστικών.
+                            </p>
+                          )}
                         </div>
 
                         {/* Basic Info */}

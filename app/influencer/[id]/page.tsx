@@ -156,7 +156,9 @@ const t = {
     why_work_with_them_male: "Γιατί να συνεργαστώ μαζί του: ",
     why_work_with_them_female: "Γιατί να συνεργαστώ μαζί της: ",
     positives: "Θετικά",
-    negatives: "Σημεία προσοχής"
+    negatives: "Σημεία προσοχής",
+    negatives_none: "Δεν υπάρχουν σημεία προσοχής.",
+    positives_none: "Δεν υπάρχουν ξεχωριστά σημεία σε αυτή την ενότητα."
   },
   en: {
     back: "← Back",
@@ -239,7 +241,9 @@ const t = {
     why_work_with_them_male: "Why work with them: ",
     why_work_with_them_female: "Why work with them: ",
     positives: "Positives",
-    negatives: "Points to consider"
+    negatives: "Points to consider",
+    negatives_none: "No points to note.",
+    positives_none: "No separate bullet points in this section."
   }
 };
 
@@ -1967,10 +1971,10 @@ export default function InfluencerProfile(props: { params: Params }) {
                                         </li>
                                     )}
                                 </ul>
-                                {((lang === 'en' ? profile.auditpr_audit.positives_en : profile.auditpr_audit.positives)?.length || (lang === 'en' ? profile.auditpr_audit.negatives_en : profile.auditpr_audit.negatives)?.length) ? (
-                                    <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
                                         <div>
                                             <h3 className="text-sm font-semibold text-slate-800 mb-2">{txt.positives}</h3>
+                                            {((lang === 'en' ? profile.auditpr_audit.positives_en : profile.auditpr_audit.positives) ?? []).filter(Boolean).length ? (
                                             <ul className="space-y-1.5 text-slate-600 text-sm leading-relaxed list-none">
                                                 {(lang === 'en' ? profile.auditpr_audit.positives_en : profile.auditpr_audit.positives)?.map((item, idx) => (
                                                     <li key={idx} className="flex gap-2">
@@ -1979,9 +1983,13 @@ export default function InfluencerProfile(props: { params: Params }) {
                                                     </li>
                                                 ))}
                                             </ul>
+                                            ) : (
+                                              <p className="text-sm text-slate-500">{txt.positives_none}</p>
+                                            )}
                                         </div>
                                         <div>
                                             <h3 className="text-sm font-semibold text-slate-800 mb-2">{txt.negatives}</h3>
+                                            {((lang === 'en' ? profile.auditpr_audit.negatives_en : profile.auditpr_audit.negatives) ?? []).filter(Boolean).length ? (
                                             <ul className="space-y-1.5 text-slate-600 text-sm leading-relaxed list-none">
                                                 {(lang === 'en' ? profile.auditpr_audit.negatives_en : profile.auditpr_audit.negatives)?.map((item, idx) => (
                                                     <li key={idx} className="flex gap-2">
@@ -1990,9 +1998,11 @@ export default function InfluencerProfile(props: { params: Params }) {
                                                     </li>
                                                 ))}
                                             </ul>
+                                            ) : (
+                                              <p className="text-sm text-slate-500">{txt.negatives_none}</p>
+                                            )}
                                         </div>
                                     </div>
-                                ) : null}
                             </div>
                         )}
                          <div>
@@ -2354,7 +2364,26 @@ export default function InfluencerProfile(props: { params: Params }) {
                               ? `https://tiktok.com/${u.startsWith('@') ? u : `@${u}`}`
                               : `https://${plat}.com/${u}`;
                             return (
-                            <a key={plat} href={href} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition border border-transparent hover:border-slate-200 group">
+                            <a
+                              key={plat}
+                              href={href}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition border border-transparent hover:border-slate-200 group"
+                              onClick={() => {
+                                fetch("/api/analytics/track", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({
+                                    influencerId: id,
+                                    eventType: "profile_click",
+                                    visitorId: getVisitorId(),
+                                    metadata: { source: "social_outbound", platform: String(plat).toLowerCase() },
+                                  }),
+                                  keepalive: true,
+                                }).catch(() => {});
+                              }}
+                            >
                                 <span className="capitalize font-medium text-slate-700">{plat}</span>
                                 <span className="text-slate-400 group-hover:text-blue-600">↗</span>
                             </a>

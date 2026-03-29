@@ -12,6 +12,12 @@ const supabaseAdmin = createClient(
   }
 );
 
+function isSocialOutboundProfileClick(event: { event_type: string; metadata?: unknown }): boolean {
+  if (event.event_type !== 'profile_click') return false;
+  const m = event.metadata as Record<string, unknown> | null | undefined;
+  return !!m && typeof m === 'object' && m.source === 'social_outbound';
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -81,27 +87,62 @@ export async function GET(request: NextRequest) {
       // Continue without earnings if there's an error
     }
 
+    const list = events || [];
+    /** Clicks toward the Influo profile (κατάλογος, κλπ.) — όχι έξοδος προς IG/TikTok/YouTube. */
+    const influoProfileClicks = list.filter(
+      (e) => e.event_type === 'profile_click' && !isSocialOutboundProfileClick(e)
+    );
+    const socialOutbound = list.filter((e) => isSocialOutboundProfileClick(e));
+    const socialOutboundByPlatform: Record<string, number> = {};
+    socialOutbound.forEach((e) => {
+      const m = e.metadata as Record<string, unknown> | undefined;
+      const p = typeof m?.platform === 'string' ? m.platform.toLowerCase() : 'unknown';
+      socialOutboundByPlatform[p] = (socialOutboundByPlatform[p] || 0) + 1;
+    });
+
     // Calculate stats
     const stats = {
-      profileViews: events?.filter(e => e.event_type === 'profile_view').length || 0,
-      profileClicks: events?.filter(e => e.event_type === 'profile_click').length || 0,
-      proposalsSent: events?.filter(e => e.event_type === 'proposal_sent').length || 0,
-      messagesSent: events?.filter(e => e.event_type === 'message_sent').length || 0,
-      conversationsStarted: events?.filter(e => e.event_type === 'conversation_started').length || 0,
+      profileViews: list.filter((e) => e.event_type === 'profile_view').length,
+      profileClicks: influoProfileClicks.length,
+      socialOutboundClicks: socialOutbound.length,
+      socialOutboundByPlatform,
+      proposalsSent: list.filter((e) => e.event_type === 'proposal_sent').length,
+      messagesSent: list.filter((e) => e.event_type === 'message_sent').length,
+      conversationsStarted: list.filter((e) => e.event_type === 'conversation_started').length,
       totalEarnings: totalEarnings,
-      totalEvents: events?.length || 0,
-      eventsByDate: {} as Record<string, { views: number; clicks: number; proposals: number; messages: number; conversations: number }>
+      totalEvents: list.length,
+      eventsByDate: {} as Record<
+        string,
+        {
+          views: number;
+          clicks: number;
+          socialOutbound: number;
+          proposals: number;
+          messages: number;
+          conversations: number;
+        }
+      >,
     };
 
     // Group events by date
-    events?.forEach(event => {
+    list.forEach((event) => {
       const date = new Date(event.created_at).toISOString().split('T')[0];
       if (!stats.eventsByDate[date]) {
-        stats.eventsByDate[date] = { views: 0, clicks: 0, proposals: 0, messages: 0, conversations: 0 };
+        stats.eventsByDate[date] = {
+          views: 0,
+          clicks: 0,
+          socialOutbound: 0,
+          proposals: 0,
+          messages: 0,
+          conversations: 0,
+        };
       }
-      
+
       if (event.event_type === 'profile_view') stats.eventsByDate[date].views++;
-      if (event.event_type === 'profile_click') stats.eventsByDate[date].clicks++;
+      if (event.event_type === 'profile_click') {
+        if (isSocialOutboundProfileClick(event)) stats.eventsByDate[date].socialOutbound++;
+        else stats.eventsByDate[date].clicks++;
+      }
       if (event.event_type === 'proposal_sent') stats.eventsByDate[date].proposals++;
       if (event.event_type === 'message_sent') stats.eventsByDate[date].messages++;
       if (event.event_type === 'conversation_started') stats.eventsByDate[date].conversations++;
