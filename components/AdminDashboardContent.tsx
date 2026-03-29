@@ -2060,6 +2060,11 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                 } catch (e) {
                     console.error('Influencer approved email error:', e);
                 }
+                fetch('/api/push/trigger-influencer-approved', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ influencerId: String(id), displayName: userName }),
+                }).catch(() => {});
                 // Notify all registered brands – always run when approving
                 try {
                     const notifyRes = await fetch('/api/admin/notify-brands-new-influencer', {
@@ -2678,6 +2683,15 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ influencerId: String(userId) })
+              });
+              const approvedUser = users.find((u) => u.id === userId);
+              await fetch('/api/push/trigger-influencer-approved', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  influencerId: String(userId),
+                  displayName: approvedUser?.display_name || 'Influencer',
+                }),
               });
               await new Promise((r) => setTimeout(r, 500));
             } catch (e) {

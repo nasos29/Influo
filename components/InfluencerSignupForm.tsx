@@ -611,6 +611,12 @@ export default function InfluencerSignupForm() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ type: 'signup_admin', email: email, name: displayName, location: location }) 
         });
+
+        fetch('/api/push/trigger-admin-new-signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: displayName, email }),
+        }).catch(() => {});
       } catch (mailError) {
           console.error("Email sending failed:", mailError);
       }

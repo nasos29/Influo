@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { sendPushToBrand } from '@/lib/push';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -84,6 +85,22 @@ export async function POST(req: Request) {
         console.error('[Accept Proposal] Error sending email notification:', emailError);
         // Don't fail the request if email fails
       }
+    }
+
+    try {
+      const { data: inf } = await supabaseAdmin
+        .from('influencers')
+        .select('display_name')
+        .eq('id', proposal.influencer_id)
+        .maybeSingle();
+      await sendPushToBrand(proposal.brand_email, {
+        title: '✅ Η πρόταση εγκρίθηκε',
+        body: `${inf?.display_name || 'Influencer'} αποδέχτηκε την πρότασή σας.`,
+        url: '/brand/dashboard',
+        tag: 'proposal-accepted',
+      });
+    } catch (pushErr) {
+      console.warn('[Accept Proposal] push:', pushErr);
     }
 
     return NextResponse.json({ success: true });

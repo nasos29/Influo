@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { sendPushInfluencerAnnouncement } from '@/lib/push';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -116,6 +117,53 @@ export async function POST(request: NextRequest) {
           await new Promise((r) => setTimeout(r, 2000));
         }
       }
+    }
+
+    // Web push to influencers (best-effort; same targeting as emails where possible)
+    try {
+      if (target_type === 'all') {
+        const { data: idRows } = await supabaseAdmin
+          .from('influencers')
+          .select('id')
+          .eq('approved', true);
+        for (const row of idRows || []) {
+          if (row?.id != null) {
+            sendPushInfluencerAnnouncement(String(row.id), title).catch(() => {});
+          }
+        }
+      } else if (target_type === 'specific' && target_influencer_id) {
+        let infId: string | number | null = null;
+        const byAuth = await supabaseAdmin
+          .from('influencers')
+          .select('id')
+          .eq('auth_user_id', target_influencer_id)
+          .maybeSingle();
+        if (byAuth.data?.id != null) {
+          infId = byAuth.data.id;
+        } else {
+          const idNum = Number(target_influencer_id);
+          if (!Number.isNaN(idNum)) {
+            const byId = await supabaseAdmin
+              .from('influencers')
+              .select('id')
+              .eq('id', idNum)
+              .maybeSingle();
+            if (byId.data?.id != null) infId = byId.data.id;
+          } else {
+            const byStr = await supabaseAdmin
+              .from('influencers')
+              .select('id')
+              .eq('id', target_influencer_id)
+              .maybeSingle();
+            if (byStr.data?.id != null) infId = byStr.data.id;
+          }
+        }
+        if (infId != null) {
+          await sendPushInfluencerAnnouncement(String(infId), title);
+        }
+      }
+    } catch (pushErr) {
+      console.warn('[admin announcements] push notify:', pushErr);
     }
 
     return NextResponse.json({ data });

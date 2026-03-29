@@ -28,6 +28,55 @@ export interface PushPayload {
   tag?: string;
 }
 
+/** Admin receives web push under `user_type: brand` + ADMIN_EMAIL (see Admin PushNotificationPrompt). */
+export function getAdminPushRecipient(): string | null {
+  const e = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  return e || null;
+}
+
+/** Notify admin (pending influencer signup). */
+export async function sendPushAdminNewInfluencerPending(
+  displayName: string,
+  contactEmail: string
+): Promise<{ sent: number; failed: number }> {
+  const admin = getAdminPushRecipient();
+  if (!admin) {
+    console.warn('[Push] ADMIN_EMAIL not set, skip admin signup push');
+    return { sent: 0, failed: 0 };
+  }
+  return sendPushToBrand(admin, {
+    title: '🔔 Νέος influencer για έλεγχο',
+    body: `${displayName} (${contactEmail}) — εγγραφή προς έγκριση`,
+    url: '/admin',
+    tag: 'admin-pending-influencer',
+  });
+}
+
+export async function sendPushInfluencerAccountApproved(
+  influencerId: string,
+  displayName: string
+): Promise<{ sent: number; failed: number }> {
+  return sendPushToInfluencer(String(influencerId), {
+    title: '✅ Το προφίλ σου εγκρίθηκε',
+    body: `Γεια σου ${displayName}! Το Influo δημοσίευσε το προφίλ σου στο directory.`,
+    url: '/dashboard',
+    tag: 'influencer-approved',
+  });
+}
+
+export async function sendPushInfluencerAnnouncement(
+  influencerId: string,
+  title: string
+): Promise<{ sent: number; failed: number }> {
+  const short = title.length > 90 ? `${title.slice(0, 87)}…` : title;
+  return sendPushToInfluencer(String(influencerId), {
+    title: '📢 Νέα ανακοίνωση Influo',
+    body: short,
+    url: '/dashboard',
+    tag: 'announcement',
+  });
+}
+
 async function getSubscriptions(
   userType: 'influencer' | 'brand',
   userIdentifier: string
