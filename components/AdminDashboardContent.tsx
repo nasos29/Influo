@@ -582,6 +582,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
       socialOutboundByPlatform: Record<string, number>;
     } | null>(null);
     const [platformStatsLoading, setPlatformStatsLoading] = useState(false);
+    const [platformStatsRefresh, setPlatformStatsRefresh] = useState(0);
 
     const handleAccountChange = (i: number, field: keyof typeof accounts[0], value: string) => {
         const copy = [...accounts]; 
@@ -771,7 +772,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
       return () => {
         cancelled = true;
       };
-    }, [user.id]);
+    }, [user.id, platformStatsRefresh]);
 
     // Mark changes as reviewed
     const markChangesAsReviewed = async (changeIds: string[]) => {
@@ -1075,9 +1076,19 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                         </div>
 
                         <div className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50/90 to-white p-4">
-                          <h3 className="text-sm font-bold text-indigo-900 uppercase mb-3">
-                            Στατιστικά Influo (κλικ στο site)
-                          </h3>
+                          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                            <h3 className="text-sm font-bold text-indigo-900 uppercase">
+                              Στατιστικά Influo (κλικ στο site)
+                            </h3>
+                            <button
+                              type="button"
+                              onClick={() => setPlatformStatsRefresh((n) => n + 1)}
+                              disabled={platformStatsLoading}
+                              className="text-xs font-medium text-indigo-700 hover:text-indigo-900 underline disabled:opacity-50"
+                            >
+                              Ανανέωση
+                            </button>
+                          </div>
                           {platformStatsLoading && (
                             <p className="text-sm text-slate-600">Φόρτωση στατιστικών...</p>
                           )}

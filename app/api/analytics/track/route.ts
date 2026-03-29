@@ -52,6 +52,11 @@ export async function POST(request: NextRequest) {
       result = await supabaseAdmin.from('influencer_analytics').insert([payload]).select().single();
     }
 
+    if (result.error && /metadata|column/i.test(result.error.message)) {
+      delete payload.metadata;
+      result = await supabaseAdmin.from('influencer_analytics').insert([payload]).select().single();
+    }
+
     if (result.error) {
       console.error('[Analytics API] Error inserting event:', result.error);
       return NextResponse.json(

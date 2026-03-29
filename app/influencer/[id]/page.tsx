@@ -14,6 +14,7 @@ import Avatar from "@/components/Avatar";
 import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
 import { displayNameForLang } from "@/lib/greeklish";
 import { getVisitorId } from "@/lib/visitorId";
+import { trackOutboundSocialClick } from "@/lib/trackOutboundSocial";
 import { categoryTranslations } from "@/components/categoryTranslations";
 
 type Params = Promise<{ id: string }>;
@@ -2371,17 +2372,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                               rel="noopener noreferrer"
                               className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition border border-transparent hover:border-slate-200 group"
                               onClick={() => {
-                                fetch("/api/analytics/track", {
-                                  method: "POST",
-                                  headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify({
-                                    influencerId: id,
-                                    eventType: "profile_click",
-                                    visitorId: getVisitorId(),
-                                    metadata: { source: "social_outbound", platform: String(plat).toLowerCase() },
-                                  }),
-                                  keepalive: true,
-                                }).catch(() => {});
+                                trackOutboundSocialClick(id, String(plat));
                               }}
                             >
                                 <span className="capitalize font-medium text-slate-700">{plat}</span>
