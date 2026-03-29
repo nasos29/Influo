@@ -40,7 +40,7 @@ export async function GET(
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const { data: snapshot, error: snapErr } = await supabaseAdmin
       .from('influencer_follower_snapshots')
-      .select('total_followers')
+      .select('total_followers, snapshot_at')
       .eq('influencer_id', id)
       .lte('snapshot_at', thirtyDaysAgo.toISOString())
       .order('snapshot_at', { ascending: false })
@@ -57,19 +57,46 @@ export async function GET(
       });
     }
 
-    const oldTotal = snapshot?.total_followers ?? null;
+    if (snapErr) {
+      console.warn('[influencer growth] snapshot query:', snapErr.message);
+    }
+
+    // Postgres BIGINT may arrive as string; normalize.
+    const rawOld = snapshot?.total_followers;
+    const oldTotal =
+      rawOld == null ? null : Number(rawOld);
+    const snapshotAtMs = snapshot?.snapshot_at
+      ? new Date(snapshot.snapshot_at as string).getTime()
+      : NaN;
+
+    /** Reject baselines older than this: not a meaningful "30-day" comparison. */
+    const MAX_BASELINE_AGE_MS = 45 * 24 * 60 * 60 * 1000;
+    const baselineTooOld =
+      Number.isFinite(snapshotAtMs) &&
+      Date.now() - snapshotAtMs > MAX_BASELINE_AGE_MS;
+
     let growth: number | null = null;
     let growthPct: number | null = null;
-    if (oldTotal != null && typeof oldTotal === 'number' && oldTotal > 0) {
+
+    if (
+      oldTotal != null &&
+      Number.isFinite(oldTotal) &&
+      oldTotal > 0 &&
+      !baselineTooOld
+    ) {
       growth = currentTotal - oldTotal;
       growthPct = (growth / oldTotal) * 100;
     }
 
     return NextResponse.json({
       currentTotal,
-      oldTotal: oldTotal ?? undefined,
+      oldTotal:
+        oldTotal != null && Number.isFinite(oldTotal) ? oldTotal : undefined,
       growth: growth ?? undefined,
       growthPct: growthPct != null ? Math.round(growthPct * 10) / 10 : undefined,
+      ...(baselineTooOld && snapshot
+        ? { message: 'baseline_too_old' as const }
+        : {}),
     });
   } catch (err) {
     console.error('[influencer growth]', err);
