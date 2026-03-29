@@ -12,6 +12,7 @@ import { categoryTranslations } from "@/components/categoryTranslations";
 import { fetchInstagramFromAuditpr, fetchTiktokFromAuditpr, fetchYouTubeFromAuditpr } from "@/lib/socialRefresh";
 import { getCachedImageUrl } from "@/lib/imageProxy";
 import PushNotificationPrompt from "./PushNotificationPrompt";
+import AdminInfluencerStatsTab from "./AdminInfluencerStatsTab";
 
 // --- FULL CATEGORY LIST ---
 const CATEGORIES = [
@@ -137,6 +138,7 @@ const t = {
     reach: "Απήχηση",
     pipeline: "Pipeline",
     tab_inf: "Influencers",
+    tab_inf_analytics: "Στατιστικά",
     tab_deals: "Proposals",
     tab_brands: "Companies",
     tab_blog: "Blog",
@@ -212,6 +214,7 @@ const t = {
     reach: "Total Reach",
     pipeline: "Pipeline",
     tab_inf: "Influencers",
+    tab_inf_analytics: "Analytics",
     tab_deals: "Proposals",
     tab_brands: "Companies",
     tab_blog: "Blog",
@@ -575,15 +578,6 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
     const [loading, setLoading] = useState(false);
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatar_url || null);
-    const [platformStats, setPlatformStats] = useState<{
-      profileViews: number;
-      profileClicks: number;
-      socialOutboundClicks: number;
-      socialOutboundByPlatform: Record<string, number>;
-    } | null>(null);
-    const [platformStatsLoading, setPlatformStatsLoading] = useState(false);
-    const [platformStatsRefresh, setPlatformStatsRefresh] = useState(0);
-
     const handleAccountChange = (i: number, field: keyof typeof accounts[0], value: string) => {
         const copy = [...accounts]; 
         copy[i][field] = value; 
@@ -745,34 +739,6 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
         };
         fetchChanges();
     }, [user.id]);
-
-    useEffect(() => {
-      let cancelled = false;
-      (async () => {
-        setPlatformStatsLoading(true);
-        try {
-          const res = await fetch(
-            `/api/analytics/stats?influencerId=${encodeURIComponent(String(user.id))}`
-          );
-          if (!res.ok || cancelled) return;
-          const data = await res.json();
-          if (cancelled || !data?.stats) return;
-          setPlatformStats({
-            profileViews: data.stats.profileViews ?? 0,
-            profileClicks: data.stats.profileClicks ?? 0,
-            socialOutboundClicks: data.stats.socialOutboundClicks ?? 0,
-            socialOutboundByPlatform: data.stats.socialOutboundByPlatform ?? {},
-          });
-        } catch {
-          if (!cancelled) setPlatformStats(null);
-        } finally {
-          if (!cancelled) setPlatformStatsLoading(false);
-        }
-      })();
-      return () => {
-        cancelled = true;
-      };
-    }, [user.id, platformStatsRefresh]);
 
     // Mark changes as reviewed
     const markChangesAsReviewed = async (changeIds: string[]) => {
@@ -1073,77 +1039,6 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                     <p className="text-xs text-slate-500 mt-1">PNG, JPG, GIF up to 5MB</p>
                                 </div>
                             </div>
-                        </div>
-
-                        <div className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50/90 to-white p-4">
-                          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                            <h3 className="text-sm font-bold text-indigo-900 uppercase">
-                              Στατιστικά Influo (κλικ στο site)
-                            </h3>
-                            <button
-                              type="button"
-                              onClick={() => setPlatformStatsRefresh((n) => n + 1)}
-                              disabled={platformStatsLoading}
-                              className="text-xs font-medium text-indigo-700 hover:text-indigo-900 underline disabled:opacity-50"
-                            >
-                              Ανανέωση
-                            </button>
-                          </div>
-                          {platformStatsLoading && (
-                            <p className="text-sm text-slate-600">Φόρτωση στατιστικών...</p>
-                          )}
-                          {!platformStatsLoading && platformStats && (
-                            <>
-                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
-                                <div className="bg-white rounded-lg p-3 border border-slate-100 shadow-sm">
-                                  <div className="text-xl font-bold text-slate-900">{platformStats.profileViews}</div>
-                                  <div className="text-xs text-slate-600 mt-0.5">Προβολές προφίλ</div>
-                                </div>
-                                <div className="bg-white rounded-lg p-3 border border-slate-100 shadow-sm">
-                                  <div className="text-xl font-bold text-slate-900">{platformStats.profileClicks}</div>
-                                  <div className="text-xs text-slate-600 mt-0.5">Κλικ προς προφίλ Influo (κατάλογος κλπ.)</div>
-                                </div>
-                                <div className="bg-white rounded-lg p-3 border border-slate-100 shadow-sm col-span-2 sm:col-span-1">
-                                  <div className="text-xl font-bold text-slate-900">{platformStats.socialOutboundClicks}</div>
-                                  <div className="text-xs text-slate-600 mt-0.5">Έξοδος προς IG / TikTok / YouTube κτλ.</div>
-                                </div>
-                              </div>
-                              {Object.keys(platformStats.socialOutboundByPlatform).length > 0 && (
-                                <div className="space-y-2">
-                                  <p className="text-xs font-semibold text-slate-800">
-                                    Κατανομή εξωτερικών κλικ ανά πλατφόρμα
-                                  </p>
-                                  {Object.entries(platformStats.socialOutboundByPlatform)
-                                    .sort((a, b) => b[1] - a[1])
-                                    .map(([plat, n]) => {
-                                      const max = Math.max(
-                                        ...Object.values(platformStats.socialOutboundByPlatform),
-                                        1
-                                      );
-                                      return (
-                                        <div key={plat}>
-                                          <div className="flex justify-between text-xs mb-0.5">
-                                            <span className="capitalize text-slate-700">{plat}</span>
-                                            <span className="font-medium text-slate-900">{n}</span>
-                                          </div>
-                                          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                                            <div
-                                              className="h-full rounded-full bg-indigo-500"
-                                              style={{ width: `${(n / max) * 100}%` }}
-                                            />
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
-                                </div>
-                              )}
-                            </>
-                          )}
-                          {!platformStatsLoading && !platformStats && (
-                            <p className="text-sm text-slate-500">
-                              Δεν ήταν δυνατή η φόρτωση στατιστικών.
-                            </p>
-                          )}
                         </div>
 
                         {/* Basic Info */}
@@ -2926,6 +2821,17 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
               >
                 {txt.tab_inf} ({filteredUsers.length})
               </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("influencer_stats")}
+                className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === "influencer_stats"
+                    ? "border-slate-900 text-slate-900"
+                    : "border-transparent text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                {txt.tab_inf_analytics}
+              </button>
               <button 
                 onClick={() => {
                   setActiveTab("proposals");
@@ -3287,6 +3193,15 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                 </table>
               </div>
             </>
+          )}
+
+          {activeTab === "influencer_stats" && (
+            <div className="p-4 sm:p-6 border-t border-slate-100">
+              <AdminInfluencerStatsTab
+                influencers={users.map((u) => ({ id: u.id, display_name: u.display_name }))}
+                lang={lang}
+              />
+            </div>
           )}
 
           {activeTab === "proposals" && (
