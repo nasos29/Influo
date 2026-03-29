@@ -313,12 +313,12 @@ export default function AdminInfluencerStatsTab({
             placeholder={txt.search}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full mb-2 px-3 py-2 border border-slate-300 rounded-lg text-sm"
+            className="w-full mb-2 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-black placeholder:text-slate-500 [color-scheme:light]"
           />
           <select
             value={selectedId}
             onChange={(e) => setSelectedId(e.target.value)}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 text-sm"
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-black text-sm [color-scheme:light]"
           >
             {filtered.length === 0 ? (
               <option value="">{txt.noInfluencers}</option>
@@ -373,7 +373,7 @@ export default function AdminInfluencerStatsTab({
                   type="date"
                   value={customStart}
                   onChange={(e) => setCustomStart(e.target.value)}
-                  className="block mt-0.5 px-2 py-1 border border-slate-300 rounded text-sm"
+                  className="block mt-0.5 px-2 py-1 border border-slate-300 rounded text-sm bg-white text-black [color-scheme:light]"
                 />
               </div>
               <div>
@@ -382,7 +382,7 @@ export default function AdminInfluencerStatsTab({
                   type="date"
                   value={customEnd}
                   onChange={(e) => setCustomEnd(e.target.value)}
-                  className="block mt-0.5 px-2 py-1 border border-slate-300 rounded text-sm"
+                  className="block mt-0.5 px-2 py-1 border border-slate-300 rounded text-sm bg-white text-black [color-scheme:light]"
                 />
               </div>
             </div>

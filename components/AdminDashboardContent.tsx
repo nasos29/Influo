@@ -522,6 +522,7 @@ const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClos
 
 const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClose: () => void, onSave: (updatedUser: DbInfluencer) => void }) => {
     const [name, setName] = useState(user.display_name);
+    const [contactEmail, setContactEmail] = useState(user.contact_email || "");
     const [bio, setBio] = useState(user.bio || "");
     const [bioEn, setBioEn] = useState(user.bio_en || "");
     const [minRate, setMinRate] = useState(user.min_rate || "");
@@ -860,7 +861,8 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
             const categoryString = categories.length > 0 ? categories.join(',') : "Lifestyle";
             
             const updateData: any = {
-                display_name: name, 
+                display_name: name,
+                contact_email: contactEmail.trim(),
                 bio: bio, 
                 bio_en: bioEn || null, // Store English bio
                 min_rate: minRate,
@@ -1048,6 +1050,17 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-900 mb-1">Full Name</label>
                                     <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" required />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-900 mb-1">Email</label>
+                                    <input
+                                        type="email"
+                                        value={contactEmail}
+                                        onChange={(e) => setContactEmail(e.target.value)}
+                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900"
+                                        placeholder="contact@example.com"
+                                        autoComplete="email"
+                                    />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-900 mb-1">Location</label>
