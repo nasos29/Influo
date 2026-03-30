@@ -68,10 +68,10 @@ export async function sendPushInfluencerAnnouncement(
   influencerId: string,
   title: string
 ): Promise<{ sent: number; failed: number }> {
-  const short = title.length > 90 ? `${title.slice(0, 87)}…` : title;
+  const short = title.length > 72 ? `${title.slice(0, 69)}…` : title;
   return sendPushToInfluencer(String(influencerId), {
     title: '📢 Νέα ανακοίνωση Influo',
-    body: short,
+    body: `Υπάρχει νέα ανακοίνωση: ${short}`,
     url: '/dashboard',
     tag: 'announcement',
   });

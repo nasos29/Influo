@@ -26,7 +26,8 @@ self.addEventListener('push', function (event) {
   const options = {
     body: body,
     icon: '/logo-icon.svg',
-    badge: '/logo-icon.svg',
+    badge: '/push-badge.svg',
+    image: '/logo-icon.svg',
     tag: tag,
     data: { url: url },
     requireInteraction: false,

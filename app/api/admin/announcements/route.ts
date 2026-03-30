@@ -126,11 +126,15 @@ export async function POST(request: NextRequest) {
           .from('influencers')
           .select('id')
           .eq('approved', true);
-        for (const row of idRows || []) {
-          if (row?.id != null) {
-            sendPushInfluencerAnnouncement(String(row.id), title).catch(() => {});
-          }
-        }
+        const pushJobs = (idRows || [])
+          .filter((row) => row?.id != null)
+          .map((row) =>
+            sendPushInfluencerAnnouncement(String(row.id), title).catch((err) => {
+              console.warn('[admin announcements] push failed for', row?.id, err);
+              return { sent: 0, failed: 1 };
+            })
+          );
+        await Promise.all(pushJobs);
       } else if (target_type === 'specific' && target_influencer_id) {
         let infId: string | number | null = null;
         const byAuth = await supabaseAdmin
