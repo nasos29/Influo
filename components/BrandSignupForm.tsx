@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
+import { prepareImageForStorage } from '@/lib/prepareImageForStorage';
 
 type Lang = "el" | "en";
 
@@ -205,13 +206,14 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
       if (logoFile) {
         setUploadingLogo(true);
         try {
-          const fileExt = logoFile.name.split('.').pop();
-          const fileName = `brand-${authData.user.id}-${Date.now()}.${fileExt}`;
+          const preparedLogo = await prepareImageForStorage(logoFile, { maxSide: 640 });
+          const safeTail = preparedLogo.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+          const fileName = `brand-${authData.user.id}-${Date.now()}-${safeTail}`;
           const filePath = fileName;
 
           const { error: uploadError } = await supabase.storage
             .from('avatars')
-            .upload(filePath, logoFile, {
+            .upload(filePath, preparedLogo, {
               cacheControl: '3600',
               upsert: false
             });

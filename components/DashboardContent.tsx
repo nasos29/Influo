@@ -10,6 +10,7 @@ import VideoThumbnail from './VideoThumbnail';
 import Messaging from './Messaging';
 import Analytics from './Analytics';
 import PushNotificationPrompt from './PushNotificationPrompt';
+import { prepareImageForStorage } from '@/lib/prepareImageForStorage';
 
 // --- FULL CATEGORY LIST ---
 const CATEGORIES = [
@@ -223,8 +224,9 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
 
             // Upload avatar if new file selected
             if (avatarFile) {
-                const fileName = `avatar-${Date.now()}-${avatarFile.name}`;
-                const { error: uploadError } = await supabase.storage.from("avatars").upload(fileName, avatarFile);
+                const preparedAvatar = await prepareImageForStorage(avatarFile, { maxSide: 1024 });
+                const fileName = `avatar-${Date.now()}-${preparedAvatar.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+                const { error: uploadError } = await supabase.storage.from("avatars").upload(fileName, preparedAvatar);
                 
                 if (uploadError) {
                     throw uploadError;

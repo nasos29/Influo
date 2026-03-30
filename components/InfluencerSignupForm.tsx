@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabaseClient";
 import Image from "next/image";
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 import { detectProvider, getIframelyEmbedUrl, isDefinitelyImage } from "@/lib/videoThumbnail";
+import { prepareImageForStorage } from "@/lib/prepareImageForStorage";
 import SocialEmbedCard from "./SocialEmbedCard";
 
 type Account = { platform: string; username: string; followers: string; engagement_rate?: string; avg_likes?: string };
@@ -537,11 +538,12 @@ export default function InfluencerSignupForm() {
           authUser = authData.user;
       }
 
-      // 2. Uploads 
+      // 2. Uploads (WebP/JPEG resize client-side → less Storage egress)
       let avatarUrl = "";
       if (avatarFile) {
-        const fileName = `avatar-${Date.now()}-${avatarFile.name}`;
-        const { error: uploadError } = await supabase.storage.from("avatars").upload(fileName, avatarFile);
+        const preparedAvatar = await prepareImageForStorage(avatarFile, { maxSide: 1024 });
+        const fileName = `avatar-${Date.now()}-${preparedAvatar.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+        const { error: uploadError } = await supabase.storage.from("avatars").upload(fileName, preparedAvatar);
         if (!uploadError) {
             const { data } = supabase.storage.from("avatars").getPublicUrl(fileName);
             avatarUrl = data.publicUrl;
@@ -550,9 +552,10 @@ export default function InfluencerSignupForm() {
 
       const insightUrls: string[] = [];
       if (insightFiles.length > 0) {
-          await Promise.all(insightFiles.map(async (file) => {
-              const fileName = `proof-${Date.now()}-${file.name}`;
-              const { error } = await supabase.storage.from("avatars").upload(fileName, file);
+          await Promise.all(insightFiles.map(async (file, idx) => {
+              const prepared = await prepareImageForStorage(file, { maxSide: 1600 });
+              const fileName = `proof-${Date.now()}-${idx}-${prepared.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+              const { error } = await supabase.storage.from("avatars").upload(fileName, prepared);
               if (!error) {
                   const { data } = supabase.storage.from("avatars").getPublicUrl(fileName);
                   insightUrls.push(data.publicUrl);

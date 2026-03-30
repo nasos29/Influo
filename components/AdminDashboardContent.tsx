@@ -11,6 +11,7 @@ import { displayNameForLang } from "@/lib/greeklish";
 import { categoryTranslations } from "@/components/categoryTranslations";
 import { fetchInstagramFromAuditpr, fetchTiktokFromAuditpr, fetchYouTubeFromAuditpr } from "@/lib/socialRefresh";
 import { getCachedImageUrl } from "@/lib/imageProxy";
+import { prepareImageForStorage } from "@/lib/prepareImageForStorage";
 import PushNotificationPrompt from "./PushNotificationPrompt";
 import AdminInfluencerStatsTab from "./AdminInfluencerStatsTab";
 
@@ -316,8 +317,9 @@ const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClos
     if (logoFile) {
       setUploadingLogo(true);
       try {
-        const fileExt = logoFile.name.split('.').pop();
-        const fileName = `brand-${brand.id}-${Date.now()}.${fileExt}`;
+        const preparedLogo = await prepareImageForStorage(logoFile, { maxSide: 640 });
+        const safeTail = preparedLogo.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const fileName = `brand-${brand.id}-${Date.now()}-${safeTail}`;
         const filePath = fileName;
 
         // Delete old logo if exists
@@ -336,7 +338,7 @@ const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClos
         // Upload new logo to avatars bucket
         const { error: uploadError } = await supabase.storage
           .from('avatars')
-          .upload(filePath, logoFile, { 
+          .upload(filePath, preparedLogo, { 
             cacheControl: '3600',
             upsert: false 
           });
@@ -815,8 +817,9 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
 
             // Upload avatar if new file selected
             if (avatarFile) {
-                const fileName = `avatar-${Date.now()}-${avatarFile.name}`;
-                const { error: uploadError } = await supabase.storage.from("avatars").upload(fileName, avatarFile);
+                const preparedAvatar = await prepareImageForStorage(avatarFile, { maxSide: 1024 });
+                const fileName = `avatar-${Date.now()}-${preparedAvatar.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+                const { error: uploadError } = await supabase.storage.from("avatars").upload(fileName, preparedAvatar);
                 
                 if (uploadError) {
                     throw uploadError;
@@ -831,8 +834,9 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
             for (const [videoUrl, file] of Object.entries(thumbnailFiles)) {
                 if (file && videoUrl) {
                     try {
-                        const fileName = `thumbnails/${user.id}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-                        const { error: uploadError } = await supabase.storage.from("avatars").upload(fileName, file, {
+                        const preparedThumb = await prepareImageForStorage(file, { maxSide: 1280 });
+                        const fileName = `thumbnails/${user.id}/${Date.now()}-${preparedThumb.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+                        const { error: uploadError } = await supabase.storage.from("avatars").upload(fileName, preparedThumb, {
                             cacheControl: '3600',
                             upsert: false
                         });

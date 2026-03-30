@@ -11,6 +11,7 @@ import PushNotificationPrompt from '@/components/PushNotificationPrompt';
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 import { displayNameForLang } from '@/lib/greeklish';
 import { getCachedImageUrl } from '@/lib/imageProxy';
+import { prepareImageForStorage } from '@/lib/prepareImageForStorage';
 
 // Categories (same as Directory and InfluencerSignupForm)
 const CATEGORIES = [
@@ -235,8 +236,9 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, categorie
     if (logoFile) {
       setUploadingLogo(true);
       try {
-        const fileExt = logoFile.name.split('.').pop();
-        const fileName = `brand-${brand.id}-${Date.now()}.${fileExt}`;
+        const preparedLogo = await prepareImageForStorage(logoFile, { maxSide: 640 });
+        const safeTail = preparedLogo.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const fileName = `brand-${brand.id}-${Date.now()}-${safeTail}`;
         const filePath = fileName;
 
         // Delete old logo if exists
@@ -257,7 +259,7 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, categorie
         // Upload new logo to avatars bucket
         const { error: uploadError } = await supabase.storage
           .from('avatars')
-          .upload(filePath, logoFile, { 
+          .upload(filePath, preparedLogo, { 
             cacheControl: '3600',
             upsert: false 
           });
