@@ -81,23 +81,6 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Try email field for brands
-    const { data: brandDataByEmail } = await supabaseAdmin
-      .from('brands')
-      .select('logo_url, brand_name')
-      .ilike('email', user.email || '')
-      .maybeSingle();
-
-    if (brandDataByEmail) {
-      return NextResponse.json({
-        profile: {
-          type: 'brand',
-          logo_url: brandDataByEmail.logo_url,
-          brand_name: brandDataByEmail.brand_name
-        }
-      });
-    }
-
     return NextResponse.json({ profile: null });
   } catch (err: any) {
     console.error('[API /api/user/profile] Error:', err);

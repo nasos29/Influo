@@ -169,35 +169,20 @@ function LoginPageContent() {
         const isAdmin = email.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim();
 
         if (!isAdmin) {
-            // Check if email exists in influencers table
+            // Match server forgot-password: contact_email only (no brands.email — column may not exist → 400).
             const { data: influencer, error: influencerError } = await supabase
                 .from('influencers')
                 .select('contact_email')
-                .eq('contact_email', email)
+                .ilike('contact_email', email)
                 .maybeSingle();
 
-            // Check if email exists in brands table (case-insensitive)
-            // Check contact_email column
-            const { data: brandByContact, error: brandContactError } = await supabase
+            const { data: brandRow, error: brandError } = await supabase
                 .from('brands')
                 .select('contact_email')
                 .ilike('contact_email', email)
                 .maybeSingle();
-            
-            // Check email column if not found in contact_email
-            let brandExists = !!brandByContact;
-            let brandError = brandContactError;
-            if (!brandByContact && !brandContactError) {
-                const { data: brandByEmail, error: brandEmailError } = await supabase
-                    .from('brands')
-                    .select('email')
-                    .ilike('email', email)
-                    .maybeSingle();
-                brandExists = !!brandByEmail;
-                brandError = brandEmailError;
-            }
 
-            if ((influencerError || !influencer) && (brandError || !brandExists)) {
+            if ((influencerError || !influencer) && (brandError || !brandRow)) {
                 setMessage(lang === 'el' 
                     ? 'Το email που εισάγατε δεν βρέθηκε στη βάση δεδομένων. Παρακαλώ ελέγξτε το email σας ή επικοινωνήστε με την υποστήριξη.' 
                     : 'The email you entered was not found in our database. Please check your email or contact support.');

@@ -1,5 +1,9 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { Resend } from 'resend';
 import { NextResponse } from 'next/server';
+import { buildPasswordResetEmail } from '@/lib/passwordResetEmail';
+
+const NOREPLY = 'noreply@influo.gr';
 
 function originFromRequest(req: Request): string {
   const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '');
@@ -17,34 +21,22 @@ async function emailAllowedForReset(supabaseAdmin: SupabaseClient, email: string
   const ADMIN_EMAIL = 'nd.6@hotmail.com'.toLowerCase();
   if (normalized === ADMIN_EMAIL) return true;
 
+  // Brands table uses contact_email only in app schema; avoid querying non-existent `email` column (PostgREST 400).
   const { data: influencer, error: influencerError } = await supabaseAdmin
     .from('influencers')
-    .select('contact_email')
-    .eq('contact_email', email)
-    .maybeSingle();
-
-  const { data: brandByContact, error: brandContactError } = await supabaseAdmin
-    .from('brands')
-    .select('contact_email')
+    .select('id')
     .ilike('contact_email', email)
     .maybeSingle();
 
-  let brandExists = !!brandByContact;
-  let brandError = brandContactError;
-  if (!brandByContact && !brandContactError) {
-    const { data: brandByEmail, error: brandEmailError } = await supabaseAdmin
-      .from('brands')
-      .select('email')
-      .ilike('email', email)
-      .maybeSingle();
-    brandExists = !!brandByEmail;
-    brandError = brandEmailError;
-  }
+  const { data: brandRow, error: brandError } = await supabaseAdmin
+    .from('brands')
+    .select('id')
+    .ilike('contact_email', email)
+    .maybeSingle();
 
-  if ((influencerError || !influencer) && (brandError || !brandExists)) {
-    return false;
-  }
-  return true;
+  const okInfl = !influencerError && !!influencer;
+  const okBrand = !brandError && !!brandRow;
+  return okInfl || okBrand;
 }
 
 export async function POST(req: Request) {
@@ -55,6 +47,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'Server configuration error.' }, { status: 500 });
     }
 
+    if (!process.env.RESEND_API_KEY) {
+      return NextResponse.json({ success: false, error: 'Email service not configured.' }, { status: 500 });
+    }
+
     const body = await req.json().catch(() => ({}));
     const emailRaw = typeof body.email === 'string' ? body.email.trim() : '';
     const lang = body.lang === 'en' ? 'en' : 'el';
@@ -62,6 +58,8 @@ export async function POST(req: Request) {
     if (!emailRaw) {
       return NextResponse.json({ success: false, error: 'Missing email.' }, { status: 400 });
     }
+
+    const emailNorm = emailRaw.toLowerCase();
 
     const supabaseAdmin = createClient(url, serviceKey, {
       auth: { autoRefreshToken: false, persistSession: false },
@@ -81,7 +79,7 @@ export async function POST(req: Request) {
 
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'recovery',
-      email: emailRaw,
+      email: emailNorm,
       options: { redirectTo },
     });
 
@@ -93,22 +91,20 @@ export async function POST(req: Request) {
       );
     }
 
-    const emailRes = await fetch(`${origin}/api/emails`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'password_reset',
-        email: emailRaw,
-        resetLink: linkData.properties.action_link,
-        lang,
-      }),
+    const { subject, html } = buildPasswordResetEmail(linkData.properties.action_link, lang);
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    const { error: sendErr } = await resend.emails.send({
+      from: `Influo <${NOREPLY}>`,
+      to: [emailNorm],
+      subject,
+      html,
     });
 
-    const emailJson = await emailRes.json().catch(() => ({}));
-    if (!emailRes.ok || !emailJson.success) {
-      console.error('[forgot-password] email send failed:', emailRes.status, emailJson);
+    if (sendErr) {
+      console.error('[forgot-password] Resend error:', sendErr);
       return NextResponse.json(
-        { success: false, error: (emailJson as { error?: string }).error || 'Failed to send email.' },
+        { success: false, error: sendErr.message || 'Failed to send email.' },
         { status: 502 }
       );
     }

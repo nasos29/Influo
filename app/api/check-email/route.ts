@@ -38,25 +38,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 2. Check brands table (both contact_email and email columns, case-insensitive)
+    // 2. Check brands table (contact_email; matches app schema)
     const { count: brandCountByContact } = await supabaseAdmin
       .from('brands')
       .select('id', { count: 'exact', head: true })
       .ilike('contact_email', email);
 
     if (brandCountByContact && brandCountByContact > 0) {
-      return NextResponse.json({
-        exists: true,
-        message: 'Email is already registered as brand'
-      });
-    }
-
-    const { count: brandCountByEmail } = await supabaseAdmin
-      .from('brands')
-      .select('id', { count: 'exact', head: true })
-      .ilike('email', email);
-
-    if (brandCountByEmail && brandCountByEmail > 0) {
       return NextResponse.json({
         exists: true,
         message: 'Email is already registered as brand'
