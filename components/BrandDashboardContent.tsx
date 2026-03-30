@@ -730,7 +730,7 @@ export default function BrandDashboardContent() {
         .from('brands')
         .select('*')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
       if (!brandData) {
         router.push('/login');

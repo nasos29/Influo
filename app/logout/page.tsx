@@ -22,7 +22,7 @@ export default function LogoutPage() {
                             .from('influencers')
                             .select('id')
                             .eq('id', user.id)
-                            .single();
+                            .maybeSingle();
                         
                         if (influencerData) {
                             // Mark influencer as offline
@@ -47,7 +47,7 @@ export default function LogoutPage() {
                             .from('brands')
                             .select('contact_email')
                             .eq('id', user.id)
-                            .single();
+                            .maybeSingle();
                         
                         if (brandData?.contact_email) {
                             // Mark brand as offline

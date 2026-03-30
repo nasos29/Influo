@@ -22,7 +22,7 @@ export default function BrandDashboardPage() {
         .from('brands')
         .select('id')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
       if (!brandData) {
         router.push('/login');
