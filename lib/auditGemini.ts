@@ -57,6 +57,32 @@ export type AuditMetrics = {
   brand_mention_saturation?: number | string | null;
 };
 
+/** Normalize DB/profile gender strings for Greek agreement in audit copy. */
+function auditGenderBucket(raw: string | null | undefined): 'male' | 'female' | 'neutral' {
+  const g = (raw || '').trim().toLowerCase();
+  if (!g) return 'neutral';
+  if (
+    g === 'male' ||
+    g === 'm' ||
+    g === 'man' ||
+    g === 'άνδρας' ||
+    g === 'αντρας' ||
+    g === 'άντρας'
+  ) {
+    return 'male';
+  }
+  if (
+    g === 'female' ||
+    g === 'f' ||
+    g === 'woman' ||
+    g === 'γυναίκα' ||
+    g === 'γυναικα'
+  ) {
+    return 'female';
+  }
+  return 'neutral';
+}
+
 function buildMultiPlatformPrompt(accounts: AuditAccount[], shared: AuditShared, exampleAudits?: AuditResult[]): string {
   const platformsBlock = accounts
     .map(
@@ -68,7 +94,7 @@ function buildMultiPlatformPrompt(accounts: AuditAccount[], shared: AuditShared,
   const bio = (shared.biography || '').trim().slice(0, 400);
   const cat = (shared.category_name || '').trim();
   const displayName = (shared.display_name || '').trim() || null;
-  const gender = (shared.gender || '').trim().toLowerCase() || null;
+  const genderBucket = auditGenderBucket(shared.gender);
   const location = (shared.location || '').trim() || null;
   const malePct = typeof shared.audience_male_percent === 'number' ? shared.audience_male_percent : null;
   const femalePct = typeof shared.audience_female_percent === 'number' ? shared.audience_female_percent : null;
@@ -81,9 +107,20 @@ function buildMultiPlatformPrompt(accounts: AuditAccount[], shared: AuditShared,
           femalePct != null ? `\n- Female: ~${Math.round(femalePct)}%` : ''
         }${malePct != null ? `\n- Male: ~${Math.round(malePct)}%` : ''}\nWhen writing the analysis, explicitly mention this gender split so businesses understand if the audience skews more towards women, men, or is balanced.`
       : '';
-  const creatorName = displayName || 'η δημιουργός';
-  const nameBlock = displayName ? `\nCREATOR DISPLAY NAME (use ONLY this when referring to the person in your text): ${displayName}` : '\nCREATOR DISPLAY NAME: not provided – use "η δημιουργός" in Greek and "the creator" in English.';
-  const genderNote = gender === 'female' ? '\nCREATOR GENDER: Female. In Greek text use feminine forms where relevant (e.g. "της", "αυτή", "η δημιουργός").' : gender === 'male' ? '\nCREATOR GENDER: Male. In Greek text use masculine forms where relevant (e.g. "του", "αυτός", "ο δημιουργός").' : '';
+  const greekCreatorNom =
+    genderBucket === 'male' ? 'ο δημιουργός' : genderBucket === 'female' ? 'η δημιουργός' : 'ο/η δημιουργός';
+  const greekCreatorAcc =
+    genderBucket === 'male' ? 'τον δημιουργό' : genderBucket === 'female' ? 'την δημιουργό' : 'τον/την δημιουργό';
+  const creatorName = displayName || greekCreatorNom;
+  const nameBlock = displayName
+    ? `\nCREATOR DISPLAY NAME (use ONLY this when referring to the person in your text): ${displayName}`
+    : `\nCREATOR DISPLAY NAME: not provided – in Greek use "${greekCreatorNom}" (nominative) when you need a generic label; in English use "the creator".`;
+  const genderNote =
+    genderBucket === 'female'
+      ? '\nCREATOR GENDER: Female. In Greek text use feminine agreement throughout (e.g. "της", "αυτή", "η δημιουργός", "την δημιουργό").'
+      : genderBucket === 'male'
+        ? '\nCREATOR GENDER: Male. In Greek text use masculine agreement throughout (e.g. "του", "αυτός", "ο δημιουργός", "τον δημιουργό").'
+        : '\nCREATOR GENDER: Not specified. In Greek, avoid wrong gender: use "ο/η δημιουργός" / "τον/την δημιουργό" or rephrase in neuter/plural where clearer; never default to only feminine forms.';
 
   const base = `You are a senior influencer marketing analyst. Your output is read by BRANDS who are evaluating this creator for potential partnerships. The goal is a complete, balanced profile FOR BRANDS – not advice to the creator. Be thorough and nuanced: consider reach, engagement quality, content fit, audience overlap, and brand safety.
 
@@ -92,7 +129,7 @@ ${platformsBlock}
 ${bioBlock}
 ${categoryBlock}${locationBlock}${audienceGenderBlock}${nameBlock}${genderNote}
 
-CRITICAL – NAMES: In ALL output (scoreBreakdown, whyWorkWithThem, positives, negatives) you must NEVER write the creator's username, @handle, or social media handle. Always refer to the person ONLY by their display name ("${creatorName}") or as "η δημιουργός" / "the creator". If you see a username in the data above, do not repeat it in your text.
+CRITICAL – NAMES: In ALL output (scoreBreakdown, whyWorkWithThem, positives, negatives) you must NEVER write the creator's username, @handle, or social media handle. Always refer to the person ONLY by their display name ("${creatorName}") or as "${greekCreatorNom}" / "the creator". Match Greek grammatical gender to the creator (per CREATOR GENDER above). If you see a username in the data above, do not repeat it in your text.
 
 TONE – "Με το γάντι": Be professional and honest but diplomatic. Criticism must be constructive and gentle, not harsh or accusatory. Avoid sounding like a warning or a reprimand. Frame limitations in a neutral or positive light where possible (e.g. "Μικρότερο κοινό – ιδανικό για targeted campaigns" rather than "περιορίζει την απήχηση σε σύγκριση με δημιουργούς με μεγαλύτερο κοινό"). Do NOT use phrases like "Απαιτείται προσεκτική αξιολόγηση", "προσεκτική αξιολόγηση της ποιότητας", or "διασφαλιστεί η συμβατότητα" – no generic advisory warnings.
 
@@ -100,9 +137,9 @@ TASK:
 Write a strategic profile that helps brands decide whether to work with this creator. Focus on strengths; only mention weaknesses when there is a clear, factual risk (not comparisons to other creators). Use detailed bullets (2–3 sentences or 1–2 lines each). Do NOT give recommendations to the creator. Describe what IS. Do not invent negatives that merely compare this creator unfavourably to others.
 
 OUTPUT – Return ONLY valid JSON with these exact keys (no markdown, no extra text):
-- scoreBreakdown: array of exactly 4 bullet points in GREEK (Ελληνικά). Each bullet MUST be 2–3 sentences or 2–3 lines – rich, detailed, nuanced text for brands. Reference the creator ONLY by display name or "η δημιουργός" – never by @username.
+- scoreBreakdown: array of exactly 4 bullet points in GREEK (Ελληνικά). Each bullet MUST be 2–3 sentences or 2–3 lines – rich, detailed, nuanced text for brands. Reference the creator ONLY by display name or "${greekCreatorNom}" (with correct gender agreement) – never by @username.
 - scoreBreakdown_en: array of exactly 4 bullet points in ENGLISH, same content and length as scoreBreakdown.
-- whyWorkWithThem: 2–4 sentences in GREEK: reasons a brand should work with this creator. Do NOT include "Γιατί να συνεργαστώ μαζί του/της". Use ONLY the display name or "η δημιουργός", never @username.
+- whyWorkWithThem: 2–4 sentences in GREEK: reasons a brand should work with this creator. Do NOT include "Γιατί να συνεργαστώ μαζί του/της". Use ONLY the display name or "${greekCreatorNom}" (with correct agreement), never @username.
 - whyWorkWithThem_en: same as whyWorkWithThem, in ENGLISH. Do NOT include "Why work with them". Use only display name or "the creator".
 - positives: array of 2–4 points in GREEK – key strengths for brands. Each point 1–2 sentences.
 - positives_en: array of 2–4 points in ENGLISH, same content as positives.
@@ -114,7 +151,7 @@ OUTPUT – Return ONLY valid JSON with these exact keys (no markdown, no extra t
 
 RULES:
 - Audience is brands. Be detailed and nuanced in bullets; more words, not one-liners.
-- Positives: always include 2–4 strong points, με θετικό και δίκαιο τόνο προς τη δημιουργό.
+- Positives: always include 2–4 strong points, με θετικό και δίκαιο τόνο προς ${greekCreatorAcc}.
 - Negatives: 0–4 σημεία μόνο όταν υπάρχει πραγματικό trade-off ή ρίσκο για τις επιχειρήσεις· αλλιώς κενό array. Τόνος ήπιος, επαγγελματικός.
 - Μην παρουσιάζεις ποτέ ως “αρνητικό” κάτι που είναι απλή περιγραφή του κοινού ή του προφίλ (π.χ. αναλογία ανδρών/γυναικών, χώρα, ηλικίες) εκτός αν δημιουργεί σαφή δυσκολία για συγκεκριμένο τύπο καμπανιών.
 - Never use comparisons with "other creators" or comments about "limited reach" vs others; focus on describing this creator’s reality for brands.
