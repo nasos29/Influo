@@ -207,16 +207,20 @@ function LoginPageContent() {
             }
         }
 
-        // Email exists, send reset password email using Supabase
-        // The email template is configured in Supabase Dashboard with custom Greek content
-        const resetLink = `${window.location.origin}/reset-password`;
-        
-        const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: resetLink,
+        // Branded reset email via Resend (same verification link as Supabase recovery)
+        const resetRes = await fetch('/api/auth/forgot-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, lang }),
         });
+        const resetJson = await resetRes.json().catch(() => ({}));
 
-        if (resetError) {
-            setMessage(txt.reset_error + ' ' + resetError.message);
+        if (!resetRes.ok || !resetJson.success) {
+            const errMsg =
+                typeof resetJson.error === 'string' && resetJson.error
+                    ? resetJson.error
+                    : txt.reset_error + ' ' + (resetRes.statusText || '');
+            setMessage(errMsg);
             setMessageType('error');
             setResetLoading(false);
             return;
