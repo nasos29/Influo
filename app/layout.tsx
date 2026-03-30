@@ -153,6 +153,23 @@ export default async function RootLayout({
       <body
         className={`${roboto.variable} font-sans antialiased`}
       >
+        {/* Password recovery: Supabase may redirect to Site URL (/) if redirect_to is not allowlisted — send user to reset page with same hash. */}
+        <Script id="recovery-hash-redirect" strategy="beforeInteractive">
+          {`
+(function(){
+  try {
+    if (typeof location === 'undefined') return;
+    if (location.pathname === '/reset-password') return;
+    var h = location.hash;
+    if (!h || h.length < 2) return;
+    var params = new URLSearchParams(h.slice(1));
+    if (params.get('type') !== 'recovery') return;
+    if (!params.get('access_token')) return;
+    location.replace(location.origin + '/reset-password' + h);
+  } catch (e) {}
+})();
+          `}
+        </Script>
         {/* Google Analytics */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-WPL9D1TX3N"
