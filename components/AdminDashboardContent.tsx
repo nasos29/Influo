@@ -887,18 +887,29 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                 updateData.avatar_url = avatarUrl;
             }
 
-            const { data, error } = await supabase
-                .from('influencers')
-                .update(updateData)
-                .eq('id', user.id)
-                .select()
-                .single();
+            const saveRes = await fetch('/api/admin/influencers/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    influencerId: String(user.id),
+                    updates: updateData,
+                }),
+            });
+            const saveJson = await saveRes.json().catch(() => ({}));
 
         setLoading(false);
 
-        if (error) {
-            alert("Error saving: " + error.message);
-        } else if (data) {
+        if (!saveRes.ok) {
+            alert("Error saving: " + ((saveJson as { error?: string }).error || saveRes.statusText));
+        } else {
+            const payload = saveJson as { warning?: string; influencer?: DbInfluencer };
+            if (payload.warning) {
+                alert(payload.warning);
+            }
+            const data = payload.influencer;
+            if (!data) {
+                alert("Error saving: empty response");
+            } else {
             // Refresh Gemini audit only when metrics or audit-relevant fields changed (followers, engagement_rate, avg_likes, bio, category)
             const prevAccounts = (user.accounts ?? []) as { followers?: string; engagement_rate?: string; avg_likes?: string }[];
             const metricsChanged =
@@ -924,7 +935,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                 if (auditRes.ok && ct.includes('application/json')) {
                   const auditData = await auditRes.json();
                   if (auditData.auditpr_audit) {
-                    (data as Record<string, unknown>).auditpr_audit = auditData.auditpr_audit;
+                    (data as unknown as Record<string, unknown>).auditpr_audit = auditData.auditpr_audit;
                   }
                 }
               } catch (_) {
@@ -933,6 +944,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
             }
             onSave(data as DbInfluencer);
             onClose();
+            }
         }
         } catch (err: any) {
             setLoading(false);
