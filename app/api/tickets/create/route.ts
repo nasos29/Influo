@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
+import { sendPushAdminNewSupportTicket } from '@/lib/push';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -169,6 +170,12 @@ export async function POST(req: Request) {
         console.error('[Create Ticket] Resend API Key exists:', !!process.env.RESEND_API_KEY);
       }
     }
+
+    sendPushAdminNewSupportTicket({
+      subject,
+      userName: user_name || user_email,
+      userType: user_type,
+    }).catch((e) => console.warn('[Create Ticket] Admin push:', e));
 
     return NextResponse.json({ success: true, ticket });
   } catch (error: any) {

@@ -128,7 +128,7 @@ export default function PushNotificationPrompt({
     el: {
       enable: "Ενεργοποίηση ειδοποιήσεων",
       subscribing: "Αναμονή...",
-      desc: "Λάβετε ειδοποιήσεις για μηνύματα, προτάσεις/συνεργασίες, έγκριση προφίλ και ανακοινώσεις.",
+      desc: "Λάβετε ειδοποιήσεις για μηνύματα, προτάσεις, έγκριση, ανακοινώσεις και Help Desk (tickets).",
       iosHint: "Για ειδοποιήσεις στο iPhone: Πρόσθεσε το Influo στην αρχική οθόνη (κουμπί κοινοποίησης → «Πρόσθεσε στην Αρχική Οθόνη») και ξανάνοιξε την εφαρμογή.",
       errorMsg: "Σφάλμα. Δοκιμάστε ξανά.",
       noConfig: "Οι ειδοποιήσεις δεν είναι διαθέσιμες (λείπουν ρυθμίσεις).",
@@ -140,7 +140,7 @@ export default function PushNotificationPrompt({
     en: {
       enable: "Enable notifications",
       subscribing: "Subscribing...",
-      desc: "Get alerts for messages, proposals, profile approval, and announcements.",
+      desc: "Get alerts for messages, proposals, profile approval, announcements, and help desk tickets.",
       iosHint: "For notifications on iPhone: Add Influo to your Home Screen (Share button → Add to Home Screen), then open the app from there.",
       errorMsg: "Error. Please try again.",
       noConfig: "Notifications are not available (missing configuration).",

@@ -77,6 +77,102 @@ export async function sendPushInfluencerAnnouncement(
   });
 }
 
+function clipPushText(s: string, max: number): string {
+  const t = (s || '').trim();
+  if (t.length <= max) return t;
+  return `${t.slice(0, Math.max(0, max - 1))}…`;
+}
+
+/** Χρήστης άνοιξε ticket → ειδοποίηση admin (ίδιο ADMIN_EMAIL με push subscribe). */
+export async function sendPushAdminNewSupportTicket(opts: {
+  subject: string;
+  userName: string;
+  userType: string;
+}): Promise<{ sent: number; failed: number }> {
+  const admin = getAdminPushRecipient();
+  if (!admin) return { sent: 0, failed: 0 };
+  const role = opts.userType === 'brand' ? 'Brand' : 'Influencer';
+  return sendPushToBrand(admin, {
+    title: '🎫 Νέο ticket Help Desk',
+    body: `${clipPushText(opts.userName, 36)} (${role}): ${clipPushText(opts.subject, 72)}`,
+    url: '/admin/support',
+    tag: 'support-ticket-new',
+  });
+}
+
+/** Χρήστης απάντησε σε ticket → ειδοποίηση admin. */
+export async function sendPushAdminSupportTicketUserReply(opts: {
+  subject: string;
+  userName: string;
+}): Promise<{ sent: number; failed: number }> {
+  const admin = getAdminPushRecipient();
+  if (!admin) return { sent: 0, failed: 0 };
+  return sendPushToBrand(admin, {
+    title: '💬 Νέα απάντηση στο ticket',
+    body: `${clipPushText(opts.userName, 32)} — ${clipPushText(opts.subject, 78)}`,
+    url: '/admin/support',
+    tag: 'support-ticket-user-reply',
+  });
+}
+
+/** Admin απάντησε στο ticket → ειδοποίηση χρήστη (influencer id ή brand email). */
+export async function sendPushUserHelpDeskAdminReply(ticket: {
+  user_type: string;
+  user_id: string;
+  user_email: string;
+  subject: string;
+}): Promise<{ sent: number; failed: number }> {
+  const subj = clipPushText(ticket.subject, 78);
+  if (ticket.user_type === 'brand') {
+    const email = String(ticket.user_email || '').trim().toLowerCase();
+    if (!email) return { sent: 0, failed: 0 };
+    return sendPushToBrand(email, {
+      title: '✅ Απάντηση στο ticket σου',
+      body: `Θέμα: ${subj}`,
+      url: '/help-desk',
+      tag: 'support-ticket-admin-reply',
+    });
+  }
+  if (ticket.user_type === 'influencer' && ticket.user_id) {
+    return sendPushToInfluencer(String(ticket.user_id), {
+      title: '✅ Απάντηση στο ticket σου',
+      body: `Θέμα: ${subj}`,
+      url: '/help-desk',
+      tag: 'support-ticket-admin-reply',
+    });
+  }
+  return { sent: 0, failed: 0 };
+}
+
+/** Admin δημιούργησε ticket για χρήστη → ειδοποίηση χρήστη. */
+export async function sendPushUserHelpDeskTicketFromAdmin(opts: {
+  user_type: string;
+  user_id: string;
+  user_email: string;
+  subject: string;
+}): Promise<{ sent: number; failed: number }> {
+  const subj = clipPushText(opts.subject, 75);
+  if (opts.user_type === 'brand') {
+    const email = String(opts.user_email || '').trim().toLowerCase();
+    if (!email) return { sent: 0, failed: 0 };
+    return sendPushToBrand(email, {
+      title: '📧 Νέο ticket από το Influo',
+      body: `Θέμα: ${subj}`,
+      url: '/help-desk',
+      tag: 'support-ticket-from-admin',
+    });
+  }
+  if (opts.user_type === 'influencer' && opts.user_id) {
+    return sendPushToInfluencer(String(opts.user_id), {
+      title: '📧 Νέο ticket από το Influo',
+      body: `Θέμα: ${subj}`,
+      url: '/help-desk',
+      tag: 'support-ticket-from-admin',
+    });
+  }
+  return { sent: 0, failed: 0 };
+}
+
 async function getSubscriptions(
   userType: 'influencer' | 'brand',
   userIdentifier: string

@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { sendPushToBrand } from '@/lib/push';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -137,6 +138,7 @@ export async function POST(request: NextRequest) {
     }
 
     let sent = 0;
+    let pushSent = 0;
     const errors: string[] = [];
     for (let i = 0; i < toSend.length; i++) {
       const brand = toSend[i];
@@ -171,6 +173,19 @@ export async function POST(request: NextRequest) {
         console.error('[notify-brands-new-influencer] send error for', toEmail, err);
         errors.push(`${toEmail}: ${msg}`);
       }
+
+      try {
+        const pushResult = await sendPushToBrand(toEmail, {
+          title: 'Νέος influencer στον κατάλογο',
+          body: `${influencerName} · ${categoryDisplay}`,
+          url: profileLink.startsWith('http') ? profileLink : `${SITE_URL}${profileLink.startsWith('/') ? '' : '/'}${profileLink}`,
+          tag: `new-influencer-${String(influencer.id)}`,
+        });
+        pushSent += pushResult.sent;
+      } catch (pushErr) {
+        console.warn('[notify-brands-new-influencer] push for', toEmail, pushErr);
+      }
+
       if (i < toSend.length - 1) {
         await new Promise((r) => setTimeout(r, 2000));
       }
@@ -189,6 +204,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ 
       success: errors.length === 0 || sent > 0, 
       sent, 
+      pushSent,
       total: toSend.length,
       errors: errors.length > 0 ? errors : undefined,
     });

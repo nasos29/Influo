@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
+import { sendPushUserHelpDeskAdminReply } from '@/lib/push';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -101,6 +102,13 @@ export async function POST(req: Request) {
         // Don't fail the request if email fails
       }
     }
+
+    sendPushUserHelpDeskAdminReply({
+      user_type: ticket.user_type,
+      user_id: String(ticket.user_id),
+      user_email: ticket.user_email,
+      subject: ticket.subject,
+    }).catch((e) => console.warn('[Reply Ticket] User push:', e));
 
     return NextResponse.json({ success: true, ticket: updatedTicket });
   } catch (error: any) {
