@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { Resend } from 'resend';
 import { sendPushInfluencerAnnouncement } from '@/lib/push';
 
@@ -20,6 +20,124 @@ const ANNOUNCEMENT_EMAIL_HTML = `
   <p style="margin: 0 0 20px 0;">Συνδέσου στο dashboard σου για να τη δεις.</p>
   <p style="margin: 0;"><a href="${SITE_URL}/login?redirect=/dashboard" style="color: #2563eb; font-weight: 600;">Άνοιξε το Influo →</a></p>
 </div>`;
+
+async function notifyAnnouncementRecipients(
+  title: string,
+  target_type: 'all' | 'specific',
+  target_influencer_id?: string | null
+) {
+  // Emails
+  try {
+    if (!process.env.RESEND_API_KEY) {
+      console.warn('[admin announcements] RESEND_API_KEY not set, skipping email notifications');
+    } else {
+      let emails: string[] = [];
+      if (target_type === 'all') {
+        const { data: infList } = await supabaseAdmin
+          .from('influencers')
+          .select('contact_email')
+          .eq('approved', true)
+          .not('contact_email', 'is', null);
+        emails = (infList || [])
+          .map((r: { contact_email: string | null }) => r.contact_email)
+          .filter((e): e is string => !!e && e.trim().length > 0);
+      } else if (target_influencer_id) {
+        let infRow: { contact_email: string | null } | null = null;
+        const byAuth = await supabaseAdmin
+          .from('influencers')
+          .select('contact_email')
+          .eq('auth_user_id', target_influencer_id)
+          .maybeSingle();
+        if (byAuth.data) {
+          infRow = byAuth.data;
+        } else {
+          const idNum = Number(target_influencer_id);
+          if (!Number.isNaN(idNum)) {
+            const byId = await supabaseAdmin
+              .from('influencers')
+              .select('contact_email')
+              .eq('id', idNum)
+              .maybeSingle();
+            if (byId.data) infRow = byId.data;
+          }
+        }
+        if (infRow?.contact_email?.trim()) {
+          emails = [infRow.contact_email.trim()];
+        } else {
+          console.warn('[admin announcements] No contact_email for target_influencer_id', target_influencer_id);
+        }
+      }
+
+      const chunkSize = 50;
+      for (let i = 0; i < emails.length; i += chunkSize) {
+        const chunk = emails.slice(i, i + chunkSize);
+        await Promise.allSettled(
+          chunk.map((email) =>
+            resend.emails.send({
+              from: `Influo <${FROM_EMAIL}>`,
+              to: [email],
+              subject: ANNOUNCEMENT_EMAIL_SUBJECT,
+              html: ANNOUNCEMENT_EMAIL_HTML,
+            })
+          )
+        );
+      }
+    }
+  } catch (emailErr) {
+    console.warn('[admin announcements] email notify:', emailErr);
+  }
+
+  // Push notifications
+  try {
+    if (target_type === 'all') {
+      const { data: idRows } = await supabaseAdmin
+        .from('influencers')
+        .select('id')
+        .eq('approved', true);
+      const pushJobs = (idRows || [])
+        .filter((row) => row?.id != null)
+        .map((row) =>
+          sendPushInfluencerAnnouncement(String(row.id), title).catch((err) => {
+            console.warn('[admin announcements] push failed for', row?.id, err);
+            return { sent: 0, failed: 1 };
+          })
+        );
+      await Promise.allSettled(pushJobs);
+    } else if (target_influencer_id) {
+      let infId: string | number | null = null;
+      const byAuth = await supabaseAdmin
+        .from('influencers')
+        .select('id')
+        .eq('auth_user_id', target_influencer_id)
+        .maybeSingle();
+      if (byAuth.data?.id != null) {
+        infId = byAuth.data.id;
+      } else {
+        const idNum = Number(target_influencer_id);
+        if (!Number.isNaN(idNum)) {
+          const byId = await supabaseAdmin
+            .from('influencers')
+            .select('id')
+            .eq('id', idNum)
+            .maybeSingle();
+          if (byId.data?.id != null) infId = byId.data.id;
+        } else {
+          const byStr = await supabaseAdmin
+            .from('influencers')
+            .select('id')
+            .eq('id', target_influencer_id)
+            .maybeSingle();
+          if (byStr.data?.id != null) infId = byStr.data.id;
+        }
+      }
+      if (infId != null) {
+        await sendPushInfluencerAnnouncement(String(infId), title);
+      }
+    }
+  } catch (pushErr) {
+    console.warn('[admin announcements] push notify:', pushErr);
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -61,114 +179,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Στείλε email σε όσους αφορά (με καθυστέρηση ανά email ώστε να μην φαίνεται σπαμ)
-    if (!process.env.RESEND_API_KEY) {
-      console.warn('[admin announcements] RESEND_API_KEY not set, skipping email notifications');
-    } else {
-      let emails: string[] = [];
-      if (target_type === 'all') {
-        const { data: infList } = await supabaseAdmin
-          .from('influencers')
-          .select('contact_email')
-          .eq('approved', true)
-          .not('contact_email', 'is', null);
-        emails = (infList || [])
-          .map((r: { contact_email: string | null }) => r.contact_email)
-          .filter((e): e is string => !!e && e.trim().length > 0);
-      } else if (target_type === 'specific' && target_influencer_id) {
-        // target_influencer_id από το admin UI μπορεί να είναι auth_user_id (UUID) ή influencers.id
-        let infRow: { contact_email: string | null } | null = null;
-        const byAuth = await supabaseAdmin
-          .from('influencers')
-          .select('contact_email')
-          .eq('auth_user_id', target_influencer_id)
-          .maybeSingle();
-        if (byAuth.data) {
-          infRow = byAuth.data;
-        } else {
-          const idNum = Number(target_influencer_id);
-          if (!Number.isNaN(idNum)) {
-            const byId = await supabaseAdmin
-              .from('influencers')
-              .select('contact_email')
-              .eq('id', idNum)
-              .maybeSingle();
-            if (byId.data) infRow = byId.data;
-          }
-        }
-        if (infRow?.contact_email?.trim()) {
-          emails = [infRow.contact_email.trim()];
-        } else if (target_type === 'specific') {
-          console.warn('[admin announcements] No contact_email for target_influencer_id', target_influencer_id);
-        }
-      }
-      for (let i = 0; i < emails.length; i++) {
-        try {
-          await resend.emails.send({
-            from: `Influo <${FROM_EMAIL}>`,
-            to: [emails[i]],
-            subject: ANNOUNCEMENT_EMAIL_SUBJECT,
-            html: ANNOUNCEMENT_EMAIL_HTML,
-          });
-        } catch (sendErr) {
-          console.error('[admin announcements] email send error for', emails[i], sendErr);
-        }
-        if (i < emails.length - 1) {
-          await new Promise((r) => setTimeout(r, 2000));
-        }
-      }
-    }
-
-    // Web push to influencers (best-effort; same targeting as emails where possible)
-    try {
-      if (target_type === 'all') {
-        const { data: idRows } = await supabaseAdmin
-          .from('influencers')
-          .select('id')
-          .eq('approved', true);
-        const pushJobs = (idRows || [])
-          .filter((row) => row?.id != null)
-          .map((row) =>
-            sendPushInfluencerAnnouncement(String(row.id), title).catch((err) => {
-              console.warn('[admin announcements] push failed for', row?.id, err);
-              return { sent: 0, failed: 1 };
-            })
-          );
-        await Promise.all(pushJobs);
-      } else if (target_type === 'specific' && target_influencer_id) {
-        let infId: string | number | null = null;
-        const byAuth = await supabaseAdmin
-          .from('influencers')
-          .select('id')
-          .eq('auth_user_id', target_influencer_id)
-          .maybeSingle();
-        if (byAuth.data?.id != null) {
-          infId = byAuth.data.id;
-        } else {
-          const idNum = Number(target_influencer_id);
-          if (!Number.isNaN(idNum)) {
-            const byId = await supabaseAdmin
-              .from('influencers')
-              .select('id')
-              .eq('id', idNum)
-              .maybeSingle();
-            if (byId.data?.id != null) infId = byId.data.id;
-          } else {
-            const byStr = await supabaseAdmin
-              .from('influencers')
-              .select('id')
-              .eq('id', target_influencer_id)
-              .maybeSingle();
-            if (byStr.data?.id != null) infId = byStr.data.id;
-          }
-        }
-        if (infId != null) {
-          await sendPushInfluencerAnnouncement(String(infId), title);
-        }
-      }
-    } catch (pushErr) {
-      console.warn('[admin announcements] push notify:', pushErr);
-    }
+    after(() => notifyAnnouncementRecipients(title, target_type, target_influencer_id));
 
     return NextResponse.json({ data });
   } catch (err: any) {
