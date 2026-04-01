@@ -86,6 +86,7 @@ interface InfluencerData {
     languages: string | null;
     avatar_url: string | null;
     gender: string | null;
+    birth_date?: string | null;
     audience_male_percent: number | null;
     audience_female_percent: number | null;
     audience_top_age: string | null;
@@ -99,6 +100,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
     const [bio, setBio] = useState(user.bio || "");
     const [minRate, setMinRate] = useState(user.min_rate || "");
     const [location, setLocation] = useState(user.location || "");
+    const [birthDate, setBirthDate] = useState(user.birth_date || "");
     const [likes, setLikes] = useState(user.avg_likes || "");
     // Support multiple categories - parse comma-separated string or use single category
     const initialCategories = user.category 
@@ -251,6 +253,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                 bio: bio, 
                 min_rate: minRate,
                 location: location,
+                birth_date: birthDate || null,
                 avg_likes: likes,
                 category: categoryString,
                 languages: languagesString,
@@ -278,6 +281,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                 bio: currentData.bio || '',
                 min_rate: currentData.min_rate || '',
                 location: currentData.location || '',
+                birth_date: currentData.birth_date || null,
                 avg_likes: currentData.avg_likes || '',
                 category: currentData.category || '',
                 languages: currentData.languages || '',
@@ -293,7 +297,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
             // Find changed fields
             const changedFields: string[] = [];
             const fieldsToCheck = [
-                'display_name', 'bio', 'min_rate', 'location', 'engagement_rate', 
+                'display_name', 'bio', 'min_rate', 'location', 'birth_date', 'engagement_rate', 
                 'avg_likes', 'category', 'languages', 'gender', 'avatar_url',
                 'audience_male_percent', 'audience_female_percent', 'audience_top_age'
             ];
@@ -466,6 +470,10 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                             <div>
                                 <label className="block text-sm font-semibold text-slate-900 mb-1">Τοποθεσία</label>
                                 <input type="text" value={location} onChange={e => setLocation(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-900 mb-1">Ημερομηνία Γέννησης</label>
+                                <input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" />
                             </div>
                             <div>
                                 <label className="block text-xs font-semibold text-slate-900 mb-1">Κατηγορίες *</label>
