@@ -121,6 +121,16 @@ export default function Home() {
     };
   }, [pathname]);
 
+  // Ανοίγει το modal εγγραφής από URL π.χ. Google Ads: ?signup=brand | ?signup=influencer
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const signup = new URLSearchParams(window.location.search).get("signup");
+    if (signup === "brand" || signup === "influencer") {
+      setSignupType(signup);
+      setShowModal(true);
+    }
+  }, []);
+
   // Check if user is logged in and get user type
   useEffect(() => {
     const checkSession = async () => {
