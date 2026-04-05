@@ -46,7 +46,6 @@ const t = {
     campaign_card_desc: "Ανεβάστε την καμπάνια σας (τίτλος, περιγραφή, budget) από το brand dashboard. Οι verified influencers βλέπουν τις ανοιχτές καμπάνιες και κάνουν αίτηση ενδιαφέροντος — εσείς διαχειρίζεστε τις αιτήσεις.",
     campaign_hero_badge: "Νέο · Brand Dashboard",
     campaign_hero_cta: "Δημιούργησε την Πρώτη σου Καμπάνια",
-    campaign_hero_browse: "Ανοιχτές καμπάνιες (για influencers) →",
     
     how_title: "Πώς Λειτουργεί",
     step_1_title: "1. Εγγραφείτε ως Brand",
@@ -111,7 +110,6 @@ const t = {
     campaign_card_desc: "Publish your campaign (title, description, budget) from the brand dashboard. Verified influencers see open campaigns and apply — you manage applications in one place.",
     campaign_hero_badge: "New · Brand dashboard",
     campaign_hero_cta: "Create your first campaign",
-    campaign_hero_browse: "Open campaigns (for influencers) →",
     
     how_title: "How It Works",
     step_1_title: "1. Sign Up as Brand",
@@ -310,7 +308,7 @@ export default function ForBrandsPage() {
               <p className="text-lg text-slate-600 leading-relaxed mb-8 max-w-xl">
                 {txt.campaign_card_desc}
               </p>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <div>
                 {isLoggedIn ? (
                   <Link
                     href="/brand/dashboard?tab=campaigns"
@@ -327,12 +325,6 @@ export default function ForBrandsPage() {
                     {txt.campaign_hero_cta}
                   </button>
                 )}
-                <Link
-                  href={lang === "en" ? "/en/campaigns" : "/campaigns"}
-                  className="text-center sm:text-left text-teal-800 font-semibold hover:text-teal-950 underline-offset-4 hover:underline"
-                >
-                  {txt.campaign_hero_browse}
-                </Link>
               </div>
             </div>
             <div className="order-1 lg:order-2 relative w-full min-h-[300px] sm:min-h-[400px] lg:min-h-[min(32rem,70vh)] rounded-[2rem] overflow-hidden shadow-2xl ring-1 ring-teal-200/70">

@@ -42,7 +42,6 @@ const t = {
     campaign_hero_badge: "Νέο · Καμπάνιες από brands",
     campaign_hero_cta: "Άνοιξε τις καμπάνιες στο dashboard",
     campaign_hero_cta_guest: "Εγγραφή για αιτήσεις",
-    campaign_hero_browse: "Προεπισκόπηση ανοιχτών καμπανιών →",
     
     how_title: "Πώς Λειτουργεί",
     step_1_title: "1. Δημιουργήστε Προφίλ",
@@ -102,7 +101,6 @@ const t = {
     campaign_hero_badge: "New · Brand campaigns",
     campaign_hero_cta: "Open campaigns in your dashboard",
     campaign_hero_cta_guest: "Sign up to apply",
-    campaign_hero_browse: "Preview open campaigns →",
     
     how_title: "How It Works",
     step_1_title: "1. Create Profile",
@@ -290,7 +288,7 @@ export default function ForInfluencersPage() {
               <p className="text-lg text-slate-600 leading-relaxed mb-8 max-w-xl">
                 {txt.campaign_card_desc}
               </p>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <div>
                 {isLoggedIn ? (
                   <Link
                     href="/dashboard?tab=campaigns"
@@ -306,12 +304,6 @@ export default function ForInfluencersPage() {
                     {txt.campaign_hero_cta_guest}
                   </Link>
                 )}
-                <Link
-                  href={lang === "en" ? "/en/campaigns" : "/campaigns"}
-                  className="text-center sm:text-left text-violet-800 font-semibold hover:text-violet-950 underline-offset-4 hover:underline"
-                >
-                  {txt.campaign_hero_browse}
-                </Link>
               </div>
             </div>
             <div className="order-1 lg:order-2 relative w-full min-h-[300px] sm:min-h-[400px] lg:min-h-[min(32rem,70vh)] rounded-[2rem] overflow-hidden shadow-2xl ring-1 ring-violet-200/80">
