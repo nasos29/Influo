@@ -263,12 +263,43 @@ export default function DocsPage() {
             <h3 className="text-xl font-bold text-slate-900 mt-6 mb-3">
               {lang === 'el' ? 'Τι λαμβάνετε εσείς ως brand' : 'What you get as a brand'}
             </h3>
+            <p className="text-slate-700 mb-4">
+              {lang === 'el'
+                ? 'Για κάθε καμπάνια βλέπετε λίστα με τις αιτήσεις ενδιαφέροντος. Μπορείτε να αλλάξετε την κατάσταση κάθε αίτησης από το μενού κατάστασης (δίπλα στον influencer).'
+                : 'For each campaign you see a list of interest applications. You can change each application’s status from the status menu (next to the influencer).'}
+            </p>
+            <div className="bg-teal-50 border border-teal-200 rounded-xl p-6 mb-6">
+              <h4 className="font-bold text-teal-900 mb-3">
+                {lang === 'el' ? 'Τι σημαίνει κάθε κατάσταση αίτησης' : 'What each application status means'}
+              </h4>
+              <ul className="space-y-3 text-slate-700 text-sm list-none pl-0">
+                <li>
+                  <strong className="text-slate-900">{lang === 'el' ? 'Εκκρεμεί' : 'Pending'}:</strong>{' '}
+                  {lang === 'el'
+                    ? 'Η αίτηση μόλις υποβλήθηκε· δεν έχετε ακόμη αποφασίσει. Ο influencer περιμένει την απάντησή σας.'
+                    : 'The application was just submitted; you have not decided yet. The influencer is waiting for your response.'}
+                </li>
+                <li>
+                  <strong className="text-slate-900">{lang === 'el' ? 'Σε λίστα (shortlist)' : 'Shortlisted'}:</strong>{' '}
+                  {lang === 'el'
+                    ? 'Έχετε επιλέξει αυτόν τον influencer για περαιτέρω συζήτηση ή συνεργασία — δείχνει θετικό ενδιαφέρον από μέρους σας.'
+                    : 'You have selected this influencer for further discussion or collaboration — it shows positive interest on your side.'}
+                </li>
+                <li>
+                  <strong className="text-slate-900">{lang === 'el' ? 'Απόρριψη' : 'Rejected'}:</strong>{' '}
+                  {lang === 'el'
+                    ? 'Η αίτηση δεν ταιριάζει στην καμπάνια. Ο influencer βλέπει ότι δεν προχωράτε μαζί του για αυτή τη θέση.'
+                    : 'The application does not fit this campaign. The influencer sees that you are not proceeding with them for this brief.'}
+                </li>
+                <li>
+                  <strong className="text-slate-900">{lang === 'el' ? 'Αποσύρθηκε' : 'Withdrawn'}:</strong>{' '}
+                  {lang === 'el'
+                    ? 'Ο influencer απέσυρε ο ίδιος την αίτηση — δεν απαιτείται δική σας ενέργεια.'
+                    : 'The influencer withdrew their application themselves — no action required from you.'}
+                </li>
+              </ul>
+            </div>
             <ul className="list-disc list-inside space-y-2 text-slate-700 mb-6">
-              <li>
-                {lang === 'el'
-                  ? 'Λίστα αιτήσεων ανά καμπάνια — αλλαγή κατάστασης (π.χ. pending, shortlisted, rejected).'
-                  : 'A list of applications per campaign — update status (e.g. pending, shortlisted, rejected).'}
-              </li>
               <li>
                 {lang === 'el'
                   ? 'Κουμπί για άμεσο μήνυμα στον influencer από την αίτηση.'

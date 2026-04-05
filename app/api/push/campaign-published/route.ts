@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
         brand_id,
         status,
         title,
+        budget,
         brands ( brand_name )
       `
       )
@@ -68,7 +69,34 @@ export async function POST(req: NextRequest) {
       brandName,
     });
 
-    return NextResponse.json({ ok: true, ...result });
+    let adminEmailSent = false;
+    try {
+      const siteUrl = req.nextUrl.origin;
+      const emailRes = await fetch(`${siteUrl}/api/emails`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "campaign_published_admin",
+          campaignId: row.id,
+          campaignTitle: row.title,
+          brandName,
+          budget: row.budget,
+        }),
+      });
+      adminEmailSent = emailRes.ok;
+      if (!emailRes.ok) {
+        const errText = await emailRes.text();
+        console.error(
+          "[push/campaign-published] admin email API failed",
+          emailRes.status,
+          errText
+        );
+      }
+    } catch (emailErr) {
+      console.error("[push/campaign-published] admin email error", emailErr);
+    }
+
+    return NextResponse.json({ ok: true, ...result, adminEmailSent });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Server error";
     console.error("[push/campaign-published]", e);

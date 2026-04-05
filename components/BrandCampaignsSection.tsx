@@ -5,6 +5,32 @@ import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
 import InfluencerPresenceDot from "@/components/InfluencerPresenceDot";
 
+/** Local calendar YYYY-MM-DD */
+function formatLocalYmd(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function addDaysLocalYmd(ymd: string, days: number): string {
+  const [y, mo, da] = ymd.split("-").map(Number);
+  const d = new Date(y, mo - 1, da);
+  d.setDate(d.getDate() + days);
+  return formatLocalYmd(d);
+}
+
+function maxYmd(a: string, b: string): string {
+  return a >= b ? a : b;
+}
+
+/** Earliest allowed deadline: day after campaign start AND not before tomorrow (local dates). */
+function getMinCampaignDeadlineYmd(campaignStartYmd: string): string {
+  const dayAfterStart = addDaysLocalYmd(campaignStartYmd, 1);
+  const tomorrow = addDaysLocalYmd(formatLocalYmd(new Date()), 1);
+  return maxYmd(dayAfterStart, tomorrow);
+}
+
 const CATEGORIES = [
   "",
   "Γενικά",
@@ -71,6 +97,10 @@ const txt = {
     form_category: "Κατηγορία (προαιρετικό)",
     form_deliverables: "Παράδοση / deliverables (προαιρετικό)",
     form_deadline: "Προθεσμία (προαιρετικό)",
+    deadline_hint:
+      "Η προθεσμία πρέπει να είναι τουλάχιστον την επόμενη ημέρα από σήμερα και από την ημέρα δημιουργίας της καμπάνιας (δεν επιτρέπεται η ίδια μέρα με την έναρξη).",
+    deadline_invalid:
+      "Επιλέξτε ημερομηνία προθεσμίας από την επόμενη ημέρα και μετά (μετά την έναρξη της καμπάνιας).",
     form_status: "Κατάσταση",
     status_draft: "Πρόχειρο",
     status_open: "Ανοιχτή (δημόσια)",
@@ -114,6 +144,10 @@ const txt = {
     form_category: "Category (optional)",
     form_deliverables: "Deliverables (optional)",
     form_deadline: "Deadline (optional)",
+    deadline_hint:
+      "The deadline must be at least tomorrow and at least the day after the campaign start date (same day as start is not allowed).",
+    deadline_invalid:
+      "Pick a deadline on or after the next allowed day (after campaign start).",
     form_status: "Status",
     status_draft: "Draft",
     status_open: "Open (public)",
@@ -270,6 +304,17 @@ export default function BrandCampaignsSection({
     e.preventDefault();
     if (!brandVerified) return;
     if (!form.title.trim()) return;
+    if (form.deadline) {
+      const startYmd =
+        editing !== "new" && editing && "created_at" in editing
+          ? formatLocalYmd(new Date(editing.created_at))
+          : formatLocalYmd(new Date());
+      const minDl = getMinCampaignDeadlineYmd(startYmd);
+      if (form.deadline < minDl) {
+        alert(t.deadline_invalid);
+        return;
+      }
+    }
     setSaving(true);
     try {
       const payload = {
@@ -381,6 +426,15 @@ export default function BrandCampaignsSection({
     onApplicationsUpdated?.();
   };
 
+  const minDeadlineYmd =
+    editing != null
+      ? getMinCampaignDeadlineYmd(
+          editing !== "new" && "created_at" in editing
+            ? formatLocalYmd(new Date(editing.created_at))
+            : formatLocalYmd(new Date())
+        )
+      : "";
+
   if (schemaError) {
     return (
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-amber-900 text-sm">{t.table_missing}</div>
@@ -489,10 +543,12 @@ export default function BrandCampaignsSection({
               <label className="block text-sm font-medium text-slate-700 mb-1">{t.form_deadline}</label>
               <input
                 type="date"
+                min={minDeadlineYmd || undefined}
                 value={form.deadline}
                 onChange={(e) => setForm({ ...form, deadline: e.target.value })}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
               />
+              <p className="text-xs text-slate-500 mt-1">{t.deadline_hint}</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">{t.form_category}</label>

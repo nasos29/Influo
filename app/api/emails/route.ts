@@ -43,7 +43,7 @@ export async function POST(req: Request) {
     }
     
     // Some email types don't require email field (admin notifications)
-    if ((type === 'message_admin_notification' || type === 'proposal_admin_notification' || type === 'profile_edit_admin' || type === 'signup_admin' || type === 'signup_brand_admin')) {
+    if ((type === 'message_admin_notification' || type === 'proposal_admin_notification' || type === 'profile_edit_admin' || type === 'signup_admin' || type === 'signup_brand_admin' || type === 'campaign_published_admin')) {
       // Admin notifications - email is not required from body
     } else if (type === 'conversation_end' || type === 'message_offline') {
       // conversation_end and message_offline require email but it might be in body.email or body.toEmail
@@ -489,6 +489,42 @@ export async function POST(req: Request) {
                 <p style="margin: 16px 0 0 0; font-size: 12px; color: #6b7280; text-align: center;">Αν έχετε ενεργές ειδοποιήσεις, μπορεί να λάβατε και push· το email σάς βοηθά να μη χάσετε νέες αιτήσεις.</p>
                 <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
                   <p style="margin: 0; font-size: 12px; color: #9ca3af;">Η ομάδα του Influo</p>
+                </div>
+              </div>
+            </div>
+        `;
+    }
+    else if (type === 'campaign_published_admin') {
+        toEmail = ADMIN_RECEIVING_EMAIL;
+        const campaignTitleRaw = (body.campaignTitle as string) || '—';
+        const brandNameVal = (body.brandName as string) || 'Brand';
+        const campaignId = (body.campaignId as string) || '';
+        const budgetRaw = body.budget as number | string | undefined | null;
+        const budgetLabel =
+          budgetRaw !== undefined && budgetRaw !== null && String(budgetRaw).trim() !== ''
+            ? `€${escapeHtml(String(budgetRaw))}`
+            : '—';
+        const safeTitle = escapeHtml(campaignTitleRaw);
+        const safeBrand = escapeHtml(brandNameVal);
+        const subjTail =
+          campaignTitleRaw.length > 42 ? `${campaignTitleRaw.slice(0, 39)}…` : campaignTitleRaw;
+        subject = `📣 Νέα ανοιχτή καμπάνια: ${brandNameVal} — ${subjTail}`;
+        const adminLink = `https://${host}/admin`;
+        html = `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
+              <div style="background: linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%); padding: 24px; border-radius: 12px 12px 0 0;">
+                <h1 style="color: #0f766e; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">📣 Νέα ανοιχτή καμπάνια</h1>
+              </div>
+              <div style="background: #ffffff; padding: 24px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
+                <p style="margin: 0 0 16px 0; font-size: 14px; color: #4b5563;">Ένα verified brand δημοσίευσε καμπάνια με κατάσταση <strong>Open</strong>. Στάλθηκε ειδοποίηση push στους εγκεκριμένους influencers.</p>
+                <div style="background: #f0fdfa; border-left: 4px solid #14b8a6; padding: 16px; border-radius: 8px; margin: 16px 0;">
+                  <p style="margin: 0 0 8px 0; font-size: 13px;"><strong style="color: #0f766e;">Brand:</strong> <span style="color: #1f2937;">${safeBrand}</span></p>
+                  <p style="margin: 0 0 8px 0; font-size: 13px;"><strong style="color: #0f766e;">Τίτλος:</strong> <span style="color: #1f2937;">${safeTitle}</span></p>
+                  <p style="margin: 0 0 8px 0; font-size: 13px;"><strong style="color: #0f766e;">Budget:</strong> <span style="color: #1f2937;">${budgetLabel}</span></p>
+                  ${campaignId ? `<p style="margin: 0; font-size: 12px; color: #6b7280;">Campaign ID: <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;">${escapeHtml(campaignId)}</code></p>` : ''}
+                </div>
+                <div style="margin: 24px 0; text-align: center;">
+                  <a href="${adminLink}" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%); color: #ffffff !important; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">📊 Admin</a>
                 </div>
               </div>
             </div>
