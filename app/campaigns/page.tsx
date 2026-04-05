@@ -3,9 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname, useRouter } from "next/navigation";
 import Footer from "@/components/Footer";
 import { supabase } from "@/lib/supabaseClient";
 import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
+
+const ADMIN_EMAIL_FALLBACK = "nd.6@hotmail.com";
+
+type UserKind = "none" | "brand" | "influencer" | "admin";
 
 type Row = {
   id: string;
@@ -20,13 +25,43 @@ type Row = {
 };
 
 export default function PublicCampaignsPage() {
+  const pathname = usePathname();
+  const router = useRouter();
   const [lang, setLang] = useState<"el" | "en">("el");
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(false);
+  const [userKind, setUserKind] = useState<UserKind>("none");
 
   useEffect(() => {
-    setLang(getStoredLanguage() === "en" ? "en" : "el");
+    setLang(pathname?.startsWith("/en") ? "en" : getStoredLanguage() === "en" ? "en" : "el");
+  }, [pathname]);
+
+  useEffect(() => {
+    const resolveUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setUserKind("none");
+        return;
+      }
+      const em = user.email?.toLowerCase().trim();
+      if (em === ADMIN_EMAIL_FALLBACK.toLowerCase()) {
+        setUserKind("admin");
+        return;
+      }
+      const { data: brand } = await supabase.from("brands").select("id").eq("id", user.id).maybeSingle();
+      if (brand) {
+        setUserKind("brand");
+        return;
+      }
+      const { data: inf } = await supabase.from("influencers").select("id").eq("id", user.id).maybeSingle();
+      setUserKind(inf ? "influencer" : "none");
+    };
+    resolveUser();
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      resolveUser();
+    });
+    return () => sub.subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -74,8 +109,12 @@ export default function PublicCampaignsPage() {
       budget: "Budget",
       deliverables: "Παράδοση",
       login: "Σύνδεση για αίτηση",
+      myDashboard: "Το dashboard μου",
+      brandDashboard: "Dashboard επιχείρησης",
+      infDashboard: "Dashboard influencer",
+      adminDash: "Admin",
       signupInf: "Εγγραφή influencer",
-      signupBrand: "Είστε brand; Εγγραφή",
+      signupBrand: "Εγγραφή brand",
       loadErr: "Η λίστα δεν είναι διαθέσιμη. Αν μόλις ενεργοποιήσατε τη λειτουργία, εκτελέστε το SQL στο Supabase (docs/BRAND_CAMPAIGNS_SCHEMA.sql).",
       home: "Αρχική",
     },
@@ -86,12 +125,33 @@ export default function PublicCampaignsPage() {
       budget: "Budget",
       deliverables: "Deliverables",
       login: "Sign in to apply",
+      myDashboard: "My dashboard",
+      brandDashboard: "Brand dashboard",
+      infDashboard: "Influencer dashboard",
+      adminDash: "Admin",
       signupInf: "Influencer sign up",
       signupBrand: "Brand sign up",
       loadErr: "List unavailable. If you just enabled this feature, run the SQL migration (docs/BRAND_CAMPAIGNS_SCHEMA.sql).",
       home: "Home",
     },
   }[lang];
+
+  const dashboardPath =
+    userKind === "brand"
+      ? "/brand/dashboard"
+      : userKind === "influencer"
+        ? "/dashboard"
+        : userKind === "admin"
+          ? "/admin"
+          : "/login";
+  const dashboardLabel =
+    userKind === "brand"
+      ? t.brandDashboard
+      : userKind === "influencer"
+        ? t.infDashboard
+        : userKind === "admin"
+          ? t.adminDash
+          : t.login;
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
@@ -101,8 +161,8 @@ export default function PublicCampaignsPage() {
             <Image src="/logo.svg" alt="Influo" width={120} height={40} className="h-8 w-auto" />
           </Link>
           <div className="flex items-center gap-3 text-sm">
-            <Link href="/login" className="text-blue-600 font-medium hover:underline">
-              {t.login}
+            <Link href={dashboardPath} className="text-blue-600 font-medium hover:underline">
+              {dashboardLabel}
             </Link>
             <button
               type="button"
@@ -110,6 +170,7 @@ export default function PublicCampaignsPage() {
                 const next = lang === "el" ? "en" : "el";
                 setLang(next);
                 setStoredLanguage(next);
+                router.push(next === "en" ? "/en/campaigns" : "/campaigns");
               }}
               className="text-slate-600 border border-slate-200 rounded px-2 py-1"
             >
@@ -122,18 +183,25 @@ export default function PublicCampaignsPage() {
       <main className="flex-1 max-w-5xl mx-auto px-4 py-10 w-full">
         <h1 className="text-3xl font-bold text-slate-900">{t.title}</h1>
         <p className="text-slate-600 mt-2 max-w-2xl">{t.subtitle}</p>
-        <div className="mt-6 flex flex-wrap gap-3 text-sm">
-          <Link href="/dashboard" className="text-blue-600 font-medium hover:underline">
-            {t.login}
+        <div className="mt-6 flex flex-wrap gap-3 text-sm items-center">
+          <Link href={dashboardPath} className="text-blue-600 font-medium hover:underline">
+            {userKind === "none" ? t.login : t.myDashboard}
           </Link>
-          <span className="text-slate-300">|</span>
-          <Link href="/for-influencers" className="text-slate-700 hover:underline">
-            {t.signupInf}
-          </Link>
-          <span className="text-slate-300">|</span>
-          <Link href="/for-brands" className="text-slate-700 hover:underline">
-            {t.signupBrand}
-          </Link>
+          {userKind === "none" && (
+            <>
+              <span className="text-slate-300">|</span>
+              <Link
+                href={lang === "en" ? "/en/for-influencers" : "/for-influencers"}
+                className="text-slate-700 hover:underline"
+              >
+                {t.signupInf}
+              </Link>
+              <span className="text-slate-300">|</span>
+              <Link href={lang === "en" ? "/en/for-brands" : "/for-brands"} className="text-slate-700 hover:underline">
+                {t.signupBrand}
+              </Link>
+            </>
+          )}
         </div>
 
         {loading ? (

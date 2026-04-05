@@ -59,6 +59,41 @@ function LoginPageContent() {
         setLang(getStoredLanguage());
     }, []);
 
+    // Already signed in → go to the right dashboard (avoids showing login while session exists)
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user || cancelled) return;
+            const userEmail = user.email?.toLowerCase().trim();
+            const adminEmail = 'nd.6@hotmail.com'.toLowerCase().trim();
+            if (userEmail === adminEmail) {
+                router.replace('/admin');
+                return;
+            }
+            const { data: brandRow } = await supabase
+                .from('brands')
+                .select('id')
+                .eq('id', user.id)
+                .maybeSingle();
+            if (brandRow) {
+                router.replace('/brand/dashboard');
+                return;
+            }
+            const { data: infRow } = await supabase
+                .from('influencers')
+                .select('id')
+                .eq('id', user.id)
+                .maybeSingle();
+            if (infRow) {
+                router.replace('/dashboard');
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [router]);
+
     // Pre-fill email from URL parameter if provided
     useEffect(() => {
         const emailParam = searchParams?.get('email');
@@ -130,22 +165,20 @@ function LoginPageContent() {
         // Check if user is a brand (has AFM)
         const { data: brandData, error: brandError } = await supabase
             .from('brands')
-            .select('id, afm')
-            .eq('contact_email', userEmail)
+            .select('id')
+            .eq('id', data.user.id)
             .maybeSingle();
 
         // Check redirect parameter from URL
         const redirectParam = searchParams?.get('redirect');
         
-        if (!brandError && brandData && brandData.afm) {
-            // User is a brand (has AFM) -> redirect to brand dashboard or custom redirect
+        if (!brandError && brandData) {
             const redirectPath = redirectParam || '/brand/dashboard';
             router.push(redirectPath);
             setLoading(false);
             return;
         }
 
-        // User is an influencer (no AFM) -> redirect to influencer dashboard or custom redirect
         const redirectPath = redirectParam || '/dashboard';
         router.push(redirectPath);
 
