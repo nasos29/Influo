@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
+import { getStoredLanguage } from "@/lib/language";
 
 type CampaignWithBrand = {
   id: string;
@@ -30,6 +31,25 @@ type MyApplication = {
   } | null;
 };
 
+const pendingCopy = {
+  el: {
+    modal_title: "Απαιτείται έγκριση προφίλ",
+    modal_body:
+      "Για να βλέπετε και να κάνετε αίτηση σε καμπάνιες brands, το προφίλ σας πρέπει να έχει εγκριθεί από την ομάδα μας. Θα ενημερωθείτε όταν ολοκληρωθεί ο έλεγχος.",
+    modal_ok: "Κατάλαβα",
+    banner:
+      "Μόλις εγκριθεί το προφίλ σας, θα εμφανίζονται εδώ οι διαθέσιμες καμπάνιες και θα μπορείτε να υποβάλετε αίτηση ενδιαφέροντος.",
+  },
+  en: {
+    modal_title: "Profile approval required",
+    modal_body:
+      "To browse and apply to brand campaigns, your profile must be approved by our team. We will notify you when the review is complete.",
+    modal_ok: "Got it",
+    banner:
+      "Once your profile is approved, available campaigns will appear here and you can submit your interest.",
+  },
+};
+
 export default function InfluencerCampaignsPanel({
   influencerId,
   approved,
@@ -37,13 +57,22 @@ export default function InfluencerCampaignsPanel({
   influencerId: string;
   approved: boolean;
 }) {
+  const [uiLang, setUiLang] = useState<"el" | "en">("el");
+  const [dismissApprovalModal, setDismissApprovalModal] = useState(false);
+  const showApprovalModal = !approved && !dismissApprovalModal;
+  const pc = pendingCopy[uiLang];
+
   const [campaigns, setCampaigns] = useState<CampaignWithBrand[]>([]);
   const [mine, setMine] = useState<MyApplication[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!!approved);
   const [schemaError, setSchemaError] = useState(false);
   const [applyCampaign, setApplyCampaign] = useState<CampaignWithBrand | null>(null);
   const [applyMessage, setApplyMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    setUiLang(getStoredLanguage() === "en" ? "en" : "el");
+  }, []);
 
   const appliedCampaignIds = useMemo(() => {
     const s = new Set<string>();
@@ -113,8 +142,14 @@ export default function InfluencerCampaignsPanel({
   }, [influencerId]);
 
   useEffect(() => {
+    if (!approved) {
+      setLoading(false);
+      setCampaigns([]);
+      setMine([]);
+      return;
+    }
     load();
-  }, [load]);
+  }, [approved, load]);
 
   const submitApply = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,7 +164,7 @@ export default function InfluencerCampaignsPanel({
       });
       if (error) {
         if (error.code === "23505") {
-          alert("Έχετε ήδη κάνει αίτηση σε αυτή την καμπάνια.");
+          alert(uiLang === "el" ? "Έχετε ήδη κάνει αίτηση σε αυτή την καμπάνια." : "You have already applied to this campaign.");
         } else {
           alert(error.message);
         }
@@ -144,7 +179,7 @@ export default function InfluencerCampaignsPanel({
   };
 
   const withdraw = async (appId: string) => {
-    if (!confirm("Απόσυρση αίτησης;")) return;
+    if (!confirm(uiLang === "el" ? "Απόσυρση αίτησης;" : "Withdraw application?")) return;
     const { error } = await supabase
       .from("campaign_applications")
       .update({ status: "withdrawn" })
@@ -157,45 +192,96 @@ export default function InfluencerCampaignsPanel({
   if (schemaError) {
     return (
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900 text-sm">
-        Η λειτουργία καμπανιών δεν είναι ενεργή στη βάση. Ο διαχειριστής πρέπει να εκτελέσει το{" "}
-        <code className="bg-amber-100 px-1 rounded">docs/BRAND_CAMPAIGNS_SCHEMA.sql</code> στο Supabase.
+        {uiLang === "el" ? (
+          <>
+            Η λειτουργία καμπανιών δεν είναι ενεργή στη βάση. Ο διαχειριστής πρέπει να εκτελέσει το{" "}
+            <code className="bg-amber-100 px-1 rounded">docs/BRAND_CAMPAIGNS_SCHEMA.sql</code> στο Supabase.
+          </>
+        ) : (
+          <>
+            Campaigns are not enabled in the database. Run{" "}
+            <code className="bg-amber-100 px-1 rounded">docs/BRAND_CAMPAIGNS_SCHEMA.sql</code> in Supabase.
+          </>
+        )}
       </div>
     );
   }
 
   if (!approved) {
     return (
-      <div className="rounded-lg border border-slate-200 bg-slate-50 p-6 text-slate-700 text-sm">
-        Μόλις εγκριθεί το προφίλ σας από την ομάδα μας, θα μπορείτε να κάνετε αίτηση σε ανοιχτές καμπάνιες brands.
+      <div className="relative">
+        {showApprovalModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50">
+            <div
+              className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl border border-slate-200"
+              role="dialog"
+              aria-labelledby="approval-modal-title"
+            >
+              <h3 id="approval-modal-title" className="text-lg font-semibold text-slate-900">
+                {pc.modal_title}
+              </h3>
+              <p className="text-slate-600 text-sm mt-3 leading-relaxed">{pc.modal_body}</p>
+              <button
+                type="button"
+                onClick={() => setDismissApprovalModal(true)}
+                className="mt-6 w-full sm:w-auto px-5 py-2.5 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800"
+              >
+                {pc.modal_ok}
+              </button>
+            </div>
+          </div>
+        )}
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 text-sm">{pc.banner}</div>
       </div>
     );
   }
+
+  const campaignsLink = uiLang === "en" ? "/en/campaigns" : "/campaigns";
 
   return (
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <p className="text-slate-600 text-sm">
-          Δείτε ανοιχτές καμπάνιες από verified brands και δηλώστε ενδιαφέρον.{" "}
-          <Link href="/campaigns" className="text-blue-600 hover:underline font-medium">
-            Δημόσια λίστα καμπανιών
-          </Link>
+          {uiLang === "el" ? (
+            <>
+              Δείτε ανοιχτές καμπάνιες από επαληθευμένα brands και δηλώστε ενδιαφέρον.{" "}
+              <Link href={campaignsLink} className="text-blue-600 hover:underline font-medium">
+                Δημόσια λίστα καμπανιών
+              </Link>
+            </>
+          ) : (
+            <>
+              Browse open campaigns from verified brands and apply.{" "}
+              <Link href={campaignsLink} className="text-blue-600 hover:underline font-medium">
+                Public campaigns
+              </Link>
+            </>
+          )}
         </p>
       </div>
 
       {applyCampaign && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
           <div className="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-slate-900 mb-1">Αίτηση: {applyCampaign.title}</h3>
+            <h3 className="text-lg font-semibold text-slate-900 mb-1">
+              {uiLang === "el" ? "Αίτηση:" : "Apply:"} {applyCampaign.title}
+            </h3>
             <p className="text-sm text-slate-500 mb-4">{applyCampaign.brands?.brand_name}</p>
             <form onSubmit={submitApply} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Μήνυμα (προαιρετικό)</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  {uiLang === "el" ? "Μήνυμα (προαιρετικό)" : "Message (optional)"}
+                </label>
                 <textarea
                   rows={4}
                   value={applyMessage}
                   onChange={(e) => setApplyMessage(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
-                  placeholder="Γιατί ταιριάζετε σε αυτή την καμπάνια…"
+                  placeholder={
+                    uiLang === "el"
+                      ? "Γιατί ταιριάζετε σε αυτή την καμπάνια…"
+                      : "Why you are a good fit…"
+                  }
                 />
               </div>
               <div className="flex gap-2 justify-end">
@@ -207,14 +293,14 @@ export default function InfluencerCampaignsPanel({
                   }}
                   className="px-4 py-2 rounded-lg border border-slate-300 text-sm"
                 >
-                  Ακύρωση
+                  {uiLang === "el" ? "Ακύρωση" : "Cancel"}
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
                   className="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium disabled:opacity-50"
                 >
-                  Υποβολή αίτησης
+                  {uiLang === "el" ? "Υποβολή αίτησης" : "Submit application"}
                 </button>
               </div>
             </form>
@@ -223,12 +309,16 @@ export default function InfluencerCampaignsPanel({
       )}
 
       <section>
-        <h2 className="text-xl font-semibold text-slate-900 mb-3">Ανοιχτές καμπάνιες</h2>
+        <h2 className="text-xl font-semibold text-slate-900 mb-3">
+          {uiLang === "el" ? "Ανοιχτές καμπάνιες" : "Open campaigns"}
+        </h2>
         {loading ? (
-          <p className="text-slate-500 text-sm">Φόρτωση…</p>
+          <p className="text-slate-500 text-sm">{uiLang === "el" ? "Φόρτωση…" : "Loading…"}</p>
         ) : campaigns.length === 0 ? (
           <p className="text-slate-500 text-sm border border-dashed border-slate-200 rounded-xl p-8 text-center">
-            Δεν υπάρχουν ανοιχτές καμπάνιες αυτή τη στιγμή. Ελέγξτε ξανά αργότερα.
+            {uiLang === "el"
+              ? "Δεν υπάρχουν ανοιχτές καμπάνιες αυτή τη στιγμή. Ελέγξτε ξανά αργότερα."
+              : "No open campaigns right now. Check back later."}
           </p>
         ) : (
           <ul className="space-y-4">
@@ -243,21 +333,21 @@ export default function InfluencerCampaignsPanel({
                       <p className="text-sm text-slate-700 mt-2 whitespace-pre-wrap">{c.description}</p>
                       {c.deliverables && (
                         <p className="text-xs text-slate-500 mt-2">
-                          <strong>Παράδοση:</strong> {c.deliverables}
+                          <strong>{uiLang === "el" ? "Παράδοση:" : "Deliverables:"}</strong> {c.deliverables}
                         </p>
                       )}
                       <p className="text-sm font-medium text-slate-900 mt-2">
-                        Budget: €{Number(c.budget).toLocaleString("el-GR")}
+                        Budget: €{Number(c.budget).toLocaleString(uiLang === "el" ? "el-GR" : "en-GB")}
                         {c.category ? ` · ${c.category}` : ""}
                         {c.deadline
-                          ? ` · Έως ${new Date(c.deadline).toLocaleDateString("el-GR")}`
+                          ? ` · ${uiLang === "el" ? "Έως" : "Until"} ${new Date(c.deadline).toLocaleDateString(uiLang === "el" ? "el-GR" : "en-GB")}`
                           : ""}
                       </p>
                     </div>
                     <div className="shrink-0">
                       {already ? (
                         <span className="inline-block text-xs font-medium px-3 py-1.5 rounded-full bg-green-100 text-green-800">
-                          Έχετε ήδη αίτηση
+                          {uiLang === "el" ? "Έχετε ήδη αίτηση" : "Already applied"}
                         </span>
                       ) : (
                         <button
@@ -265,7 +355,7 @@ export default function InfluencerCampaignsPanel({
                           onClick={() => setApplyCampaign(c)}
                           className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
                         >
-                          Αίτηση ενδιαφέροντος
+                          {uiLang === "el" ? "Αίτηση ενδιαφέροντος" : "Apply"}
                         </button>
                       )}
                     </div>
@@ -278,9 +368,13 @@ export default function InfluencerCampaignsPanel({
       </section>
 
       <section>
-        <h2 className="text-xl font-semibold text-slate-900 mb-3">Οι αιτήσεις μου</h2>
+        <h2 className="text-xl font-semibold text-slate-900 mb-3">
+          {uiLang === "el" ? "Οι αιτήσεις μου" : "My applications"}
+        </h2>
         {mine.length === 0 ? (
-          <p className="text-slate-500 text-sm">Δεν έχετε υποβάλει αίτηση ακόμα.</p>
+          <p className="text-slate-500 text-sm">
+            {uiLang === "el" ? "Δεν έχετε υποβάλει αίτηση ακόμα." : "You have not applied yet."}
+          </p>
         ) : (
           <ul className="space-y-2">
             {mine.map((m) => (
@@ -290,13 +384,13 @@ export default function InfluencerCampaignsPanel({
               >
                 <div>
                   <p className="font-medium text-slate-900">
-                    {m.brand_campaigns?.title ?? "Καμπάνια"}{" "}
+                    {m.brand_campaigns?.title ?? (uiLang === "el" ? "Καμπάνια" : "Campaign")}{" "}
                     <span className="text-slate-500 font-normal">
                       · {m.brand_campaigns?.brands?.brand_name ?? ""}
                     </span>
                   </p>
                   <p className="text-xs text-slate-500 mt-1">
-                    {new Date(m.created_at).toLocaleString("el-GR")} ·{" "}
+                    {new Date(m.created_at).toLocaleString(uiLang === "el" ? "el-GR" : "en-GB")} ·{" "}
                     <span className="font-medium">{m.status}</span>
                   </p>
                 </div>
@@ -306,7 +400,7 @@ export default function InfluencerCampaignsPanel({
                     onClick={() => withdraw(m.id)}
                     className="text-sm text-red-600 hover:underline self-start sm:self-center"
                   >
-                    Απόσυρση
+                    {uiLang === "el" ? "Απόσυρση" : "Withdraw"}
                   </button>
                 )}
               </li>

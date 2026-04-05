@@ -79,7 +79,14 @@ const txt = {
     app_status: "Κατάσταση αίτησης",
     influencer: "Influencer",
     message: "Μήνυμα",
-    open_public: "Οι «Ανοιχτές» καμπάνιες εμφανίζονται στους verified influencers και στη δημόσια σελίδα καμπανιών.",
+    open_public:
+      "Μόνο επαληθευμένα brands μπορούν να δημοσιεύουν καμπάνιες. Οι «Ανοιχτές» καμπάνιες εμφανίζονται σε εγκεκριμένους influencers και στη δημόσια σελίδα (για verified brands).",
+    verified_banner:
+      "Η επιχείρησή σας δεν είναι ακόμη επαληθευμένη από την ομάδα μας. Μετά την επαλήθευση θα μπορείτε να δημιουργείτε και να επεξεργάζεστε καμπάνιες.",
+    verified_modal_title: "Επαλήθευση απαιτείται",
+    verified_modal_body:
+      "Για να αναρτήσετε καμπάνιες, το brand σας πρέπει να είναι επαληθευμένο. Θα ενημερωθείτε όταν ολοκληρωθεί ο έλεγχος.",
+    verified_modal_ok: "Κατάλαβα",
     table_missing:
       "Η λειτουργία καμπανιών δεν είναι ενεργή στη βάση. Εκτελέστε το αρχείο docs/BRAND_CAMPAIGNS_SCHEMA.sql στο Supabase.",
     confirm_delete: "Να διαγραφεί αυτή η καμπάνια και όλες οι αιτήσεις;",
@@ -109,7 +116,14 @@ const txt = {
     app_status: "Application status",
     influencer: "Influencer",
     message: "Message",
-    open_public: "“Open” campaigns appear to verified influencers and on the public campaigns page.",
+    open_public:
+      "Only verified brands can publish campaigns. Open campaigns appear to approved influencers and on the public page (verified brands only).",
+    verified_banner:
+      "Your company is not verified yet. Once verified by our team, you can create and edit campaigns.",
+    verified_modal_title: "Verification required",
+    verified_modal_body:
+      "To publish campaigns, your brand must be verified. We will notify you when the review is complete.",
+    verified_modal_ok: "Got it",
     table_missing:
       "Campaigns are not enabled in the database. Run docs/BRAND_CAMPAIGNS_SCHEMA.sql in Supabase.",
     confirm_delete: "Delete this campaign and all applications?",
@@ -119,11 +133,15 @@ const txt = {
 export default function BrandCampaignsSection({
   brandId,
   lang,
+  brandVerified,
 }: {
   brandId: string;
   lang: "el" | "en";
+  brandVerified: boolean;
 }) {
   const t = txt[lang];
+  const [dismissVerifiedModal, setDismissVerifiedModal] = useState(false);
+  const showVerifiedModal = !brandVerified && !dismissVerifiedModal;
   const [rows, setRows] = useState<BrandCampaignRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [schemaError, setSchemaError] = useState(false);
@@ -195,6 +213,10 @@ export default function BrandCampaignsSection({
   };
 
   const openNew = () => {
+    if (!brandVerified) {
+      setDismissVerifiedModal(false);
+      return;
+    }
     setForm({
       title: "",
       description: "",
@@ -208,6 +230,10 @@ export default function BrandCampaignsSection({
   };
 
   const openEdit = (row: BrandCampaignRow) => {
+    if (!brandVerified) {
+      setDismissVerifiedModal(false);
+      return;
+    }
     setForm({
       title: row.title,
       description: row.description,
@@ -222,6 +248,7 @@ export default function BrandCampaignsSection({
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!brandVerified) return;
     if (!form.title.trim()) return;
     setSaving(true);
     try {
@@ -288,6 +315,32 @@ export default function BrandCampaignsSection({
 
   return (
     <div className="space-y-6">
+      {showVerifiedModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50">
+          <div
+            className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl border border-slate-200"
+            role="dialog"
+            aria-labelledby="verified-modal-title"
+          >
+            <h3 id="verified-modal-title" className="text-lg font-semibold text-slate-900">
+              {t.verified_modal_title}
+            </h3>
+            <p className="text-slate-600 text-sm mt-3 leading-relaxed">{t.verified_modal_body}</p>
+            <button
+              type="button"
+              onClick={() => setDismissVerifiedModal(true)}
+              className="mt-6 w-full sm:w-auto px-5 py-2.5 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800"
+            >
+              {t.verified_modal_ok}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!brandVerified && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 text-sm">{t.verified_banner}</div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <h2 className="text-xl font-semibold text-slate-900">{t.title}</h2>
@@ -303,13 +356,14 @@ export default function BrandCampaignsSection({
         <button
           type="button"
           onClick={openNew}
-          className="shrink-0 px-4 py-2.5 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800"
+          disabled={!brandVerified}
+          className="shrink-0 px-4 py-2.5 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-slate-900"
         >
           {t.new}
         </button>
       </div>
 
-      {editing && (
+      {editing && brandVerified && (
         <form
           onSubmit={submit}
           className="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 space-y-4 shadow-sm"
@@ -448,25 +502,29 @@ export default function BrandCampaignsSection({
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
+                      disabled={!brandVerified}
                       onClick={() => {
+                        if (!brandVerified) return;
                         setExpandedId(expandedId === row.id ? null : row.id);
                         if (expandedId !== row.id) loadApplications(row.id);
                       }}
-                      className="text-sm px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50"
+                      className="text-sm px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {t.applications}
                     </button>
                     <button
                       type="button"
+                      disabled={!brandVerified}
                       onClick={() => openEdit(row)}
-                      className="text-sm px-3 py-1.5 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50"
+                      className="text-sm px-3 py-1.5 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {t.edit}
                     </button>
                     <button
                       type="button"
+                      disabled={!brandVerified}
                       onClick={() => remove(row)}
-                      className="text-sm px-3 py-1.5 rounded-lg border border-red-200 text-red-700 hover:bg-red-50"
+                      className="text-sm px-3 py-1.5 rounded-lg border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {t.delete}
                     </button>

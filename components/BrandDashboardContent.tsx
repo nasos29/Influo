@@ -1349,7 +1349,11 @@ export default function BrandDashboardContent() {
 
         {activeTab === 'campaigns' && brandData && (
           <div className="mb-12">
-            <BrandCampaignsSection brandId={brandData.id} lang={lang} />
+            <BrandCampaignsSection
+              brandId={brandData.id}
+              lang={lang}
+              brandVerified={!!brandData.verified}
+            />
           </div>
         )}
 

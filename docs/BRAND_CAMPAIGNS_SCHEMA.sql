@@ -1,5 +1,7 @@
 -- Brand campaigns + influencer applications (run in Supabase SQL Editor)
--- Brands publish campaigns (title, description, budget, etc.); influencers apply.
+-- Rules: only verified brands can create/edit campaigns; open campaigns visible to
+-- anon (verified brand only), approved influencers, and other logged-in brands;
+-- unapproved influencers see nothing via RLS.
 
 CREATE TABLE IF NOT EXISTS brand_campaigns (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -34,35 +36,52 @@ CREATE INDEX IF NOT EXISTS idx_campaign_applications_influencer ON campaign_appl
 ALTER TABLE brand_campaigns ENABLE ROW LEVEL SECURITY;
 ALTER TABLE campaign_applications ENABLE ROW LEVEL SECURITY;
 
--- brand_campaigns: anon sees open+verified only; logged-in users see all open; owner sees own (any status)
+-- SELECT: owner sees all own rows; others only open + verified brand + (anon OR approved influencer OR any brand user)
 DROP POLICY IF EXISTS "brand_campaigns_select" ON brand_campaigns;
 CREATE POLICY "brand_campaigns_select" ON brand_campaigns
   FOR SELECT
   USING (
-    (
+    (auth.uid() IS NOT NULL AND brand_id = auth.uid())
+    OR (
       status = 'open'
+      AND EXISTS (
+        SELECT 1 FROM brands b
+        WHERE b.id = brand_campaigns.brand_id AND COALESCE(b.verified, false) = true
+      )
       AND (
-        auth.uid() IS NOT NULL
+        auth.uid() IS NULL
         OR EXISTS (
-          SELECT 1 FROM brands b
-          WHERE b.id = brand_campaigns.brand_id AND COALESCE(b.verified, false) = true
+          SELECT 1 FROM influencers i
+          WHERE i.id = auth.uid() AND COALESCE(i.approved, false) = true
         )
+        OR EXISTS (SELECT 1 FROM brands b2 WHERE b2.id = auth.uid())
       )
     )
-    OR (auth.uid() IS NOT NULL AND brand_id = auth.uid())
   );
 
+-- INSERT/UPDATE only if brand is verified (owner)
 DROP POLICY IF EXISTS "brand_campaigns_insert" ON brand_campaigns;
 CREATE POLICY "brand_campaigns_insert" ON brand_campaigns
   FOR INSERT
-  WITH CHECK (brand_id = auth.uid());
+  WITH CHECK (
+    brand_id = auth.uid()
+    AND EXISTS (
+      SELECT 1 FROM brands b WHERE b.id = auth.uid() AND COALESCE(b.verified, false) = true
+    )
+  );
 
 DROP POLICY IF EXISTS "brand_campaigns_update" ON brand_campaigns;
 CREATE POLICY "brand_campaigns_update" ON brand_campaigns
   FOR UPDATE
   USING (brand_id = auth.uid())
-  WITH CHECK (brand_id = auth.uid());
+  WITH CHECK (
+    brand_id = auth.uid()
+    AND EXISTS (
+      SELECT 1 FROM brands b WHERE b.id = auth.uid() AND COALESCE(b.verified, false) = true
+    )
+  );
 
+-- DELETE: owner may remove own campaigns (e.g. cleanup) even if brand later unverified
 DROP POLICY IF EXISTS "brand_campaigns_delete" ON brand_campaigns;
 CREATE POLICY "brand_campaigns_delete" ON brand_campaigns
   FOR DELETE
@@ -91,7 +110,10 @@ CREATE POLICY "campaign_apps_insert" ON campaign_applications
     )
     AND EXISTS (
       SELECT 1 FROM brand_campaigns c
-      WHERE c.id = campaign_applications.campaign_id AND c.status = 'open'
+      INNER JOIN brands b ON b.id = c.brand_id
+      WHERE c.id = campaign_applications.campaign_id
+        AND c.status = 'open'
+        AND COALESCE(b.verified, false) = true
     )
   );
 

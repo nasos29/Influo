@@ -155,8 +155,8 @@ const faqs: FAQItem[] = [
       en: "How do I apply to a brand campaign?"
     },
     answer: {
-      el: "Από το influencer dashboard, καρτέλα «Καμπάνιες», βλέπετε τις ανοιχτές καμπάνιες verified brands. Αν το προφίλ σας είναι εγκεκριμένο, μπορείτε να υποβάλετε αίτηση με προαιρετικό μήνυμα. Μπορείτε επίσης να δείτε τη δημόσια λίστα στο μενού «Καμπάνιες» της αρχικής.",
-      en: "From the influencer dashboard, “Campaigns” tab, you see open campaigns from verified brands. If your profile is approved, you can apply with an optional message. You can also browse the public list from the home “Campaigns” link."
+      el: "Με εγκεκριμένο προφίλ, από την καρτέλα «Καμπάνιες» βλέπετε ανοιχτές καμπάνιες από επαληθευμένα brands και υποβάλλετε αίτηση. Αν δεν έχετε εγκριθεί ακόμα, εμφανίζεται ενημερωτικό μήνυμα. Η δημόσια λίστα (μενού «Καμπάνιες») δείχνει καμπάνιες επαληθευμένων brands· ως μη εγκεκριμένος χρήστης δεν εμφανίζονται λεπτομέρειες καμπανιών.",
+      en: "With an approved profile, the “Campaigns” tab lists open campaigns from verified brands and you can apply. If you are not approved yet, you’ll see an explanatory message. The public “Campaigns” page lists campaigns from verified brands; until you are approved, campaign details are not shown to you when logged in."
     }
   },
   {
