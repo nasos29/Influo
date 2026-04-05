@@ -41,9 +41,9 @@ interface ProposalInfo {
 }
 
 interface MessagingProps {
-  influencerId: string;
-  influencerName: string;
-  influencerEmail: string;
+  /** Brand mode: όταν ορίζεται, επιτρέπει νέα συνομιλία / εστίαση σε συγκεκριμένο influencer. */
+  influencerId?: string;
+  influencerName?: string;
   brandEmail?: string;
   brandName?: string;
   proposalId?: number;
@@ -57,8 +57,10 @@ const t = {
     placeholder: "Γράψε το μήνυμά σου...",
     online: "Online",
     offline: "Offline",
-    offlineNotice: "💬 Ο influencer είναι offline. Το μήνυμα θα σταλεί ως email.",
-    brandOfflineNotice: "💬 Η επιχείρηση είναι offline. Το μήνυμα θα σταλεί ως email.",
+    offlineNotice:
+      "💬 Ο influencer δεν είναι συνδεδεμένος τώρα. Το μήνυμα αποθηκεύεται εδώ· θα το δει όταν μπει στο Influo.",
+    brandOfflineNotice:
+      "💬 Η επιχείρηση δεν είναι συνδεδεμένη τώρα. Το μήνυμα αποθηκεύεται εδώ· θα το δει όταν μπει στο Influo.",
     sending: "Αποστολή...",
     send: "Αποστολή",
     messages: "Μηνύματα",
@@ -82,8 +84,10 @@ const t = {
     placeholder: "Type your message...",
     online: "Online",
     offline: "Offline",
-    offlineNotice: "💬 The influencer is offline. Message will be sent via email.",
-    brandOfflineNotice: "💬 The brand is offline. Message will be sent via email.",
+    offlineNotice:
+      "💬 The influencer is not connected right now. Your message is saved here; they will see it when they open Influo.",
+    brandOfflineNotice:
+      "💬 The brand is not connected right now. Your message is saved here; they will see it when they open Influo.",
     sending: "Sending...",
     send: "Send",
     messages: "Messages",
@@ -108,7 +112,6 @@ const t = {
 export default function Messaging({
   influencerId,
   influencerName,
-  influencerEmail,
   brandEmail,
   brandName,
   proposalId,
@@ -312,8 +315,8 @@ export default function Messaging({
     console.log('[End Conversation] Called with autoClose:', autoClose, 'conversationId:', selectedConversation);
 
     if (!autoClose && !confirm(lang === 'el' 
-      ? 'Είστε σίγουρος ότι θέλετε να τερματίσετε τη συνομιλία; Θα σταλεί email σε όλους με ολόκληρη τη συνομιλία.'
-      : 'Are you sure you want to end the conversation? An email will be sent to everyone with the full conversation.')) {
+      ? 'Είστε σίγουροι ότι θέλετε να τερματίσετε τη συνομιλία; Οι συμμετέχοντες ενημερώνονται μέσω της πλατφόρμας.'
+      : 'Are you sure you want to end the conversation? Participants are notified through the platform.')) {
       return;
     }
 
@@ -346,12 +349,12 @@ export default function Messaging({
       
       if (!autoClose) {
         alert(lang === 'el' 
-          ? 'Η συνομιλία έκλεισε. Έχει σταλεί email σε όλους με ολόκληρη τη συνομιλία.'
-          : 'Conversation closed. An email has been sent to everyone with the full conversation.');
+          ? 'Η συνομιλία έκλεισε. Οι συμμετέχοντες ενημερώθηκαν μέσω της πλατφόρμας.'
+          : 'Conversation closed. Participants were notified through the platform.');
       } else {
         alert(lang === 'el' 
-          ? 'Η συνομιλία έκλεισε λόγω αδράνειας. Έχει σταλεί email σε όλους με ολόκληρη τη συνομιλία.'
-          : 'Conversation closed due to inactivity. An email has been sent to everyone with the full conversation.');
+          ? 'Η συνομιλία έκλεισε λόγω αδράνειας. Οι συμμετέχοντες ενημερώθηκαν μέσω της πλατφόρμας.'
+          : 'Conversation closed due to inactivity. Participants were notified through the platform.');
       }
     } catch (error) {
       console.error('[End Conversation] Error:', error);
@@ -641,11 +644,16 @@ export default function Messaging({
         onUnreadCountChange(0);
       }
 
-      // Auto-select first conversation or create new if brandEmail provided
+      // Auto-select: αν έχει οριστεί influencerId (π.χ. από «Μήνυμα» σε αίτηση), διάλεξε τη σχετική συνομιλία· αλλιώς την πρώτη.
       if (mode === 'brand' && brandEmail && data && data.length === 0 && influencerId) {
-        // Will create conversation when first message is sent
+        // Νέα συνομιλία — το πρώτο μήνυμα δημιουργεί conversation
       } else if (data && data.length > 0 && !selectedConversation) {
-        setSelectedConversation(data[0].id);
+        if (mode === 'brand' && influencerId) {
+          const match = data.find((c) => c.influencer_id === influencerId);
+          if (match) setSelectedConversation(match.id);
+        } else {
+          setSelectedConversation(data[0].id);
+        }
         // Check brand status immediately when first conversation is auto-selected (for influencer mode)
         if (mode === 'influencer' && data[0]?.brand_email) {
           // Use setTimeout to ensure conversations state is updated first
@@ -795,6 +803,7 @@ export default function Messaging({
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim()) return;
+    if (mode === "influencer" && !influencerId) return;
 
     setSending(true);
     try {
@@ -807,45 +816,6 @@ export default function Messaging({
         // Send message to existing conversation
         const senderId = mode === 'influencer' ? influencerId : brandEmail!;
         
-        // If brand is sending and influencer is offline, send via email
-        // Get influencer email from the current conversation if not provided as prop
-        if (mode === 'brand' && !isInfluencerOnline && selectedConversation) {
-          try {
-            // Get influencer email from conversation
-            const currentConv = conversations.find(c => c.id === selectedConversation);
-            const targetInfluencerEmail = currentConv?.influencer_email || influencerEmail;
-            const targetInfluencerName = currentConv?.influencer_name || influencerName;
-            
-            // Only send email if we have a valid influencer email
-            if (!targetInfluencerEmail) {
-              console.warn('[Messaging] Cannot send offline email: influencer email not found');
-              return;
-            }
-            
-            const emailPayload = {
-              type: 'message_offline',
-              toEmail: targetInfluencerEmail,
-              influencerName: targetInfluencerName,
-              brandName: brandName || brandEmail,
-              message: newMessage,
-              conversationId: convId,
-            };
-            
-            const emailResponse = await fetch('/api/emails', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(emailPayload)
-            });
-            
-            if (!emailResponse.ok) {
-              const errorData = await emailResponse.json();
-              console.error('[Messaging] Offline email failed:', errorData);
-            }
-          } catch (emailError) {
-            console.error('[Messaging] Offline email error:', emailError);
-          }
-        }
-        
         const response = await fetch('/api/messages', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -854,7 +824,7 @@ export default function Messaging({
             senderId,
             senderType: mode,
             content: newMessage,
-            sendViaEmail: mode === 'brand' && !isInfluencerOnline,
+            sendViaEmail: false,
           })
         });
 
@@ -1384,7 +1354,7 @@ export default function Messaging({
 
   const currentConversation = conversations.find(c => c.id === selectedConversation);
   const otherPartyName = mode === 'influencer' 
-    ? currentConversation?.brand_name || currentConversation?.brand_email
+    ? currentConversation?.brand_name || (lang === 'el' ? 'Επιχείρηση' : 'Brand')
     : displayNameForLang(currentConversation?.influencer_name, lang || 'el');
 
 
@@ -1564,7 +1534,7 @@ export default function Messaging({
                   <div className="flex items-center justify-between">
                     <div className="font-semibold text-slate-900">
                       {mode === 'influencer' 
-                        ? (conv.brand_name || conv.brand_email)
+                        ? (conv.brand_name || (lang === 'el' ? 'Επιχείρηση' : 'Brand'))
                         : displayNameForLang(conv.influencer_name, lang || 'el')}
                     </div>
                     {isClosed && (
@@ -1610,7 +1580,7 @@ export default function Messaging({
                         </span>
                       </div>
                     )}
-                    {mode === 'influencer' && selectedConversation && (currentConversation?.brand_email || brandEmail) && (
+                    {mode === 'influencer' && selectedConversation && (
                       <div className="flex items-center gap-1.5 sm:gap-2">
                         <div className={`w-2 h-2 rounded-full ${isBrandOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
                         <span className="text-xs font-medium text-slate-600">
@@ -1664,7 +1634,7 @@ export default function Messaging({
                     {txt.offlineNotice}
                   </p>
                 )}
-                {mode === 'influencer' && currentConversation?.brand_email && !isBrandOnline && !conversationClosed && (
+                {mode === 'influencer' && selectedConversation && !isBrandOnline && !conversationClosed && (
                   <p className="text-xs text-amber-600 mt-1">
                     {txt.brandOfflineNotice}
                   </p>
@@ -1797,9 +1767,37 @@ export default function Messaging({
               </form>
             </>
           ) : (
-            <div className="flex-1 flex flex-col">
-              <div className="flex-1 flex flex-col items-center justify-center text-slate-500 p-4">
-                <p className="text-center mb-4">{txt.selectConversation}</p>
+            <div className="flex-1 flex flex-col min-h-0">
+              {mode === 'brand' && influencerId && influencerName && (
+                <div className="px-4 sm:px-6 py-3 border-b border-slate-200 bg-gradient-to-r from-white to-slate-50 shrink-0">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <h3 className="text-base font-semibold text-slate-900">
+                      {displayNameForLang(influencerName || 'Influencer', lang || 'el')}
+                    </h3>
+                    <div className="flex items-center gap-1.5">
+                      <div
+                        className={`w-2 h-2 rounded-full shrink-0 ${
+                          isInfluencerOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
+                        }`}
+                      />
+                      <span className="text-xs text-slate-600">
+                        {isInfluencerOnline ? txt.online : txt.offline}
+                      </span>
+                    </div>
+                  </div>
+                  {!isInfluencerOnline && (
+                    <p className="text-xs text-amber-600 mt-1">{txt.offlineNotice}</p>
+                  )}
+                </div>
+              )}
+              <div className="flex-1 flex flex-col items-center justify-center text-slate-500 p-4 min-h-0">
+                <p className="text-center mb-4">
+                  {mode === 'brand' && influencerId
+                    ? lang === 'el'
+                      ? 'Γράψε παρακάτω για να ανοίξει η συνομιλία. Οι υπόλοιπες συνομιλίες σου είναι στο αριστερό μενού.'
+                      : 'Type below to open the conversation. Your other chats are in the left list.'
+                    : txt.selectConversation}
+                </p>
                 <button
                   onClick={() => setShowConversationsList(true)}
                   className="sm:hidden px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
@@ -1807,15 +1805,15 @@ export default function Messaging({
                   {lang === 'el' ? '📋 Προβολή Συνομιλιών' : '📋 View Conversations'}
                 </button>
               </div>
-              
+
               {/* Show message input even without selected conversation if we have influencerId and brandEmail */}
               {influencerId && brandEmail && (
-                <form onSubmit={sendMessage} className="px-4 sm:px-6 py-3 sm:py-4 border-t border-slate-200 bg-white shadow-lg">
+                <form onSubmit={sendMessage} className="px-4 sm:px-6 py-3 sm:py-4 border-t border-slate-200 bg-white shadow-lg shrink-0">
                   <div className="mb-2 sm:mb-3 p-2 sm:p-3 bg-blue-50 border border-blue-200 rounded-lg">
                     <p className="text-xs sm:text-sm text-blue-700">
-                      {lang === 'el' 
-                        ? '💬 Ξεκίνα νέα συνομιλία ή στείλε μήνυμα σε υπάρχουσα κλειστή συνομιλία.'
-                        : '💬 Start a new conversation or send a message to an existing closed conversation.'}
+                      {lang === 'el'
+                        ? '💬 Ξεκίνα νέα συνομιλία — η ειδοποίηση λειτουργεί όπως στα υπόλοιπα μηνύματα.'
+                        : '💬 Start a new conversation — notifications work like your other messages.'}
                     </p>
                   </div>
                   <div className="flex gap-2 sm:gap-3">

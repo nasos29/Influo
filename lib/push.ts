@@ -295,7 +295,7 @@ export async function sendPushBrandNewCampaignApplication(opts: {
   return sendPushToBrand(email, {
     title: "📩 Νέα αίτηση καμπάνιας",
     body: `${clipPushText(opts.influencerName, 36)} — «${clipPushText(opts.campaignTitle, 56)}»`,
-    url: "/brand/dashboard",
+    url: "/brand/dashboard?tab=campaigns",
     tag: `campaign-app-${opts.applicationId}`,
   });
 }

@@ -9,6 +9,14 @@ const VERIFIED_SENDER_EMAIL = 'noreply@influo.gr';
 const SUPPORT_SENDER_EMAIL = 'support@influo.gr'; // For custom/admin emails
 const ADMIN_RECEIVING_EMAIL = process.env.ADMIN_EMAIL || 'nd.6@hotmail.com'; 
 
+function escapeHtml(s: string): string {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -421,6 +429,64 @@ export async function POST(req: Request) {
                 <div style="margin: 24px 0; text-align: center;">
                   <a href="https://${host}/dashboard" style="display: inline-block; padding: 12px 32px; background-color: #10b981; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #064e3b !important; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">📊 Πήγαινε στο Dashboard</a>
                 </div>
+                <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+                  <p style="margin: 0; font-size: 12px; color: #9ca3af;">Η ομάδα του Influo</p>
+                </div>
+              </div>
+            </div>
+        `;
+    }
+    else if (type === 'campaign_application_brand') {
+        toEmail = email || bodyToEmail;
+        const campaignTitleRaw = (body.campaignTitle as string) || 'Καμπάνια';
+        const brandNameVal = (body.brandName as string) || 'Επιχείρηση';
+        const infNameVal = (body.influencerName as string) || 'Influencer';
+        const applicationMessage = body.applicationMessage as string | null | undefined;
+        const brandHasAccount = !!(body.brandHasAccount as boolean | undefined);
+
+        if (!toEmail) {
+          console.error('[Email API] campaign_application_brand missing email');
+          return NextResponse.json(
+            { success: false, error: 'Missing required field: email or toEmail' },
+            { status: 400 }
+          );
+        }
+
+        const safeTitle = escapeHtml(campaignTitleRaw);
+        const safeBrand = escapeHtml(brandNameVal);
+        const safeInf = escapeHtml(infNameVal);
+        const msgBlock =
+          applicationMessage && String(applicationMessage).trim()
+            ? `<div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #c7d2fe;"><p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #3730a3;">Μήνυμα από τον influencer:</p><p style="margin: 0; font-size: 13px; color: #1f2937; white-space: pre-wrap;">${escapeHtml(String(applicationMessage).trim()).replace(/\n/g, '<br/>')}</p></div>`
+            : '';
+
+        const subjTitle = campaignTitleRaw.length > 55 ? `${campaignTitleRaw.slice(0, 52)}…` : campaignTitleRaw;
+        subject = `📣 Νέα αίτηση: ${subjTitle}`;
+
+        const brandSignupLink = `https://${host}/brand/signup?email=${encodeURIComponent(toEmail)}`;
+        const dashCampaigns = encodeURIComponent('/brand/dashboard?tab=campaigns');
+        const brandLoginLink = `https://${host}/login?redirect=${dashCampaigns}&email=${encodeURIComponent(toEmail)}`;
+        const brandLink = brandHasAccount ? brandLoginLink : brandSignupLink;
+        const ctaLabel = brandHasAccount ? '🔐 Ανοίξτε το Influo' : '📝 Συνδεθείτε ή δημιουργήστε λογαριασμό';
+
+        html = `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
+              <div style="background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); padding: 24px; border-radius: 12px 12px 0 0;">
+                <h1 style="color: #312e81; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">📣 Νέα αίτηση στην καμπάνια σας</h1>
+              </div>
+              <div style="background: #ffffff; padding: 24px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
+                <p style="margin: 0 0 12px 0; font-size: 14px;">Γεια σας <strong>${safeBrand}</strong>,</p>
+                <p style="margin: 0 0 16px 0; font-size: 14px; color: #4b5563;">Ο/Η <strong>${safeInf}</strong> υπέβαλε αίτηση ενδιαφέροντος για την καμπάνια <strong>${safeTitle}</strong>.</p>
+                <div style="background: #eef2ff; border-left: 4px solid #4f46e5; padding: 16px; border-radius: 8px; margin: 16px 0;">
+                  <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #4338ca;">Καμπάνια</p>
+                  <p style="margin: 0; font-size: 15px; color: #1f2937;">${safeTitle}</p>
+                  ${msgBlock}
+                </div>
+                <p style="margin: 16px 0; font-size: 13px; color: #4b5563;">Συνδεθείτε στο Influo για να δείτε την αίτηση και να απαντήσετε.</p>
+                <div style="margin: 24px 0; text-align: center;">
+                  <a href="${brandLink}" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); color: #ffffff !important; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">${ctaLabel}</a>
+                </div>
+                <p style="margin: 16px 0 0 0; font-size: 12px; color: #6b7280; text-align: center;">Αν έχετε ενεργές ειδοποιήσεις, μπορεί να λάβατε και push· το email σάς βοηθά να μη χάσετε νέες αιτήσεις.</p>
                 <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
                   <p style="margin: 0; font-size: 12px; color: #9ca3af;">Η ομάδα του Influo</p>
                 </div>

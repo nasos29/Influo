@@ -16,7 +16,6 @@ function MessagesContent() {
   const [influencerData, setInfluencerData] = useState<{
     id: string;
     name: string;
-    email: string;
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [lang, setLang] = useState<'el' | 'en'>('el');
@@ -37,7 +36,7 @@ function MessagesContent() {
     try {
       const { data, error } = await supabase
         .from('influencers')
-        .select('id, display_name, contact_email')
+        .select('id, display_name')
         .eq('id', influencerId)
         .single();
 
@@ -46,7 +45,6 @@ function MessagesContent() {
       setInfluencerData({
         id: data.id,
         name: data.display_name,
-        email: data.contact_email,
       });
     } catch (error) {
       console.error('Error loading influencer:', error);
@@ -87,7 +85,6 @@ function MessagesContent() {
         <Messaging
           influencerId={influencerData.id}
           influencerName={displayNameForLang(influencerData.name, lang)}
-          influencerEmail={influencerData.email}
           brandEmail={brandEmail}
           brandName={brandName ?? undefined}
           mode="brand"

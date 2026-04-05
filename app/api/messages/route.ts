@@ -8,6 +8,12 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 // Service role client for admin operations
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
+/**
+ * Όταν ο παραλήπτης είναι offline: Resend ειδοποίηση (νέο μήνυμα) — συμπληρωματικά στο push,
+ * για όσους δεν έχουν ενεργές ειδοποιήσεις. Το UI δεν εμφανίζει διευθύνσεις email.
+ */
+const SEND_MESSAGE_THREAD_EMAILS = true;
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -163,7 +169,7 @@ export async function POST(req: Request) {
             : Infinity;
           const isBrandOnline = !!brandPresence?.is_online && minutesSinceLastSeen < 5;
 
-          if (!isBrandOnline) {
+          if (!isBrandOnline && SEND_MESSAGE_THREAD_EMAILS) {
             const { data: influencerData } = await supabaseAdmin
               .from('influencers')
               .select('display_name')
@@ -235,7 +241,7 @@ export async function POST(req: Request) {
               ? (now.getTime() - new Date(infPresence.last_seen).getTime()) / (60 * 1000)
               : Infinity;
             const isInfOnline = !!infPresence?.is_online && minutesSinceLastSeen < 5;
-            if (!isInfOnline) {
+            if (!isInfOnline && SEND_MESSAGE_THREAD_EMAILS && influencerRow.contact_email) {
               const emailRes = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr'}/api/emails`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -251,7 +257,7 @@ export async function POST(req: Request) {
               if (!emailRes.ok) console.error('[Messages API] Failed to send email to influencer (new conv):', await emailRes.text());
             }
           } else {
-            console.warn('[Messages API] Influencer has no contact_email, cannot send:', influencerId);
+            console.warn('[Messages API] Influencer has no contact_email:', influencerId);
           }
           // Admin notification (brand → influencer)
           await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr'}/api/emails`, {
@@ -269,7 +275,7 @@ export async function POST(req: Request) {
           // Push notification to influencer (block only runs when !proposalId)
           sendPushToInfluencer(influencerId, {
             title: '💬 Νέο μήνυμα',
-            body: `${brandName || brandEmail}: ${content.slice(0, 60)}${content.length > 60 ? '…' : ''}`,
+            body: `${brandName || 'Επιχείρηση'}: ${content.slice(0, 60)}${content.length > 60 ? '…' : ''}`,
             url: '/dashboard',
           }).catch(() => {});
         } catch (e) { console.error('[Messages API]', e); }
@@ -442,8 +448,8 @@ export async function POST(req: Request) {
               : Infinity;
             const isBrandOnline = !!brandPresence?.is_online && minutesSinceLastSeen < 5;
 
-            // Send email to brand if offline
-            if (!isBrandOnline) {
+            // Optional Resend to brand if offline (disabled: in-app + push only)
+            if (!isBrandOnline && SEND_MESSAGE_THREAD_EMAILS) {
               const { data: brandData } = await supabaseAdmin
                 .from('brands')
                 .select('id')
@@ -521,7 +527,7 @@ export async function POST(req: Request) {
               : Infinity;
             const isInfluencerOnline = !!influencerPresence?.is_online && minutesSinceLastSeen < 5;
 
-            if (!isInfluencerOnline && convData.influencer_email) {
+            if (!isInfluencerOnline && convData.influencer_email && SEND_MESSAGE_THREAD_EMAILS) {
               const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr'}/api/emails`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -560,7 +566,7 @@ export async function POST(req: Request) {
             // Push notification to influencer
             sendPushToInfluencer(convData.influencer_id, {
               title: '💬 Νέο μήνυμα',
-              body: `${convData.brand_name || convData.brand_email}: ${content.slice(0, 60)}${content.length > 60 ? '…' : ''}`,
+              body: `${convData.brand_name || 'Επιχείρηση'}: ${content.slice(0, 60)}${content.length > 60 ? '…' : ''}`,
               url: '/dashboard',
             }).catch(() => {});
           }

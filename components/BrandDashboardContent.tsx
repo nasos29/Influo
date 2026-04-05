@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { recommendInfluencers, type InfluencerProfile, type BrandProfile } from '@/lib/recommendations';
@@ -13,6 +13,7 @@ import { displayNameForLang } from '@/lib/greeklish';
 import { getCachedImageUrl } from '@/lib/imageProxy';
 import { prepareImageForStorage } from '@/lib/prepareImageForStorage';
 import BrandCampaignsSection from '@/components/BrandCampaignsSection';
+import InfluencerPresenceDot from '@/components/InfluencerPresenceDot';
 
 // Categories (same as Directory and InfluencerSignupForm)
 const CATEGORIES = [
@@ -657,8 +658,26 @@ export default function BrandDashboardContent() {
   const [activeTab, setActiveTab] = useState<'recommendations' | 'campaigns' | 'proposals' | 'messages'>('recommendations');
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [pendingCampaignApplicationsCount, setPendingCampaignApplicationsCount] = useState(0);
+  /** Ανοίγει το tab Μηνύματα με συγκεκριμένο influencer (από αίτηση καμπάνιας ή πρόταση). */
+  const [messageTargetInfluencer, setMessageTargetInfluencer] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const txt = t[lang];
+
+  useEffect(() => {
+    const tab = searchParams?.get('tab');
+    if (
+      tab === 'campaigns' ||
+      tab === 'messages' ||
+      tab === 'proposals' ||
+      tab === 'recommendations'
+    ) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     loadData();
@@ -707,6 +726,12 @@ export default function BrandDashboardContent() {
       cancelled = true;
     };
   }, [brandData?.id, activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== "messages") {
+      setMessageTargetInfluencer(null);
+    }
+  }, [activeTab]);
 
   const loadUnreadMessageCount = async () => {
     if (!brandData?.contact_email) {
@@ -1415,6 +1440,13 @@ export default function BrandDashboardContent() {
                   setPendingCampaignApplicationsCount(count ?? 0);
                 })();
               }}
+              onOpenInfluencerMessage={(p) => {
+                setMessageTargetInfluencer({
+                  id: p.influencerId,
+                  name: p.displayName,
+                });
+                setActiveTab("messages");
+              }}
             />
           </div>
         )}
@@ -1752,6 +1784,22 @@ export default function BrandDashboardContent() {
                           {txt.send_proposal}
                         </Link>
                       </div>
+                      <div className="flex items-center gap-2 mt-2">
+                        <InfluencerPresenceDot influencerId={String(inf.id)} lang={lang} />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMessageTargetInfluencer({
+                              id: String(inf.id),
+                              name: inf.display_name,
+                            });
+                            setActiveTab("messages");
+                          }}
+                          className="flex-1 px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors"
+                        >
+                          {lang === "el" ? "💬 Μήνυμα" : "💬 Message"}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -1765,9 +1813,9 @@ export default function BrandDashboardContent() {
         {activeTab === 'messages' && brandData && (
           <div className="mb-12">
             <Messaging
-              influencerId={undefined as any}
-              influencerName=""
-              influencerEmail=""
+              key={messageTargetInfluencer?.id ?? "inbox"}
+              influencerId={messageTargetInfluencer?.id}
+              influencerName={messageTargetInfluencer?.name}
               brandEmail={brandData.contact_email}
               brandName={brandData.brand_name}
               proposalId={undefined}

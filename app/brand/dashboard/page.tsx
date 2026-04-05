@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import BrandDashboardContent from '@/components/BrandDashboardContent';
@@ -33,6 +33,16 @@ export default function BrandDashboardPage() {
     checkAuth();
   }, [router]);
 
-  return <BrandDashboardContent />;
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-600">
+          Loading…
+        </div>
+      }
+    >
+      <BrandDashboardContent />
+    </Suspense>
+  );
 }
 

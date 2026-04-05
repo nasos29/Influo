@@ -44,6 +44,9 @@ const t = {
     
     campaign_card_title: "📣 Καμπάνιες με αιτήσεις",
     campaign_card_desc: "Ανεβάστε την καμπάνια σας (τίτλος, περιγραφή, budget) από το brand dashboard. Οι verified influencers βλέπουν τις ανοιχτές καμπάνιες και κάνουν αίτηση ενδιαφέροντος — εσείς διαχειρίζεστε τις αιτήσεις.",
+    campaign_hero_badge: "Νέο · Brand Dashboard",
+    campaign_hero_cta: "Δημιούργησε την Πρώτη σου Καμπάνια",
+    campaign_hero_browse: "Ανοιχτές καμπάνιες (για influencers) →",
     
     how_title: "Πώς Λειτουργεί",
     step_1_title: "1. Εγγραφείτε ως Brand",
@@ -106,6 +109,9 @@ const t = {
     
     campaign_card_title: "📣 Campaign briefs & applications",
     campaign_card_desc: "Publish your campaign (title, description, budget) from the brand dashboard. Verified influencers see open campaigns and apply — you manage applications in one place.",
+    campaign_hero_badge: "New · Brand dashboard",
+    campaign_hero_cta: "Create your first campaign",
+    campaign_hero_browse: "Open campaigns (for influencers) →",
     
     how_title: "How It Works",
     step_1_title: "1. Sign Up as Brand",
@@ -283,6 +289,82 @@ export default function ForBrandsPage() {
         </div>
       </section>
 
+      {/* Campaign applications spotlight */}
+      <section className="relative py-16 md:py-24 px-4 sm:px-6 bg-gradient-to-br from-teal-50 via-cyan-50/90 to-indigo-50 border-y border-teal-100/80 overflow-hidden">
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.45]"
+          style={{
+            backgroundImage:
+              "radial-gradient(ellipse 80% 60% at 100% 0%, rgba(45, 212, 191, 0.25), transparent 55%), radial-gradient(ellipse 60% 50% at 0% 100%, rgba(99, 102, 241, 0.12), transparent 50%)",
+          }}
+        />
+        <div className="max-w-7xl mx-auto relative z-10">
+          <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+            <div className="order-2 lg:order-1">
+              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-teal-600/15 text-teal-900 text-sm font-semibold mb-5 ring-1 ring-teal-600/20">
+                {txt.campaign_hero_badge}
+              </span>
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 tracking-tight mb-5 leading-[1.15]">
+                {txt.campaign_card_title.replace(/^📣\s*/, "")}
+              </h2>
+              <p className="text-lg text-slate-600 leading-relaxed mb-8 max-w-xl">
+                {txt.campaign_card_desc}
+              </p>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                {isLoggedIn ? (
+                  <Link
+                    href="/brand/dashboard?tab=campaigns"
+                    className="inline-flex justify-center items-center px-8 py-4 rounded-2xl bg-gradient-to-r from-teal-600 to-cyan-600 text-white font-bold text-lg shadow-lg shadow-teal-600/25 hover:from-teal-700 hover:to-cyan-700 transition-all hover:scale-[1.02] text-center"
+                  >
+                    {txt.campaign_hero_cta}
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={openBrandModal}
+                    className="inline-flex justify-center items-center px-8 py-4 rounded-2xl bg-gradient-to-r from-teal-600 to-cyan-600 text-white font-bold text-lg shadow-lg shadow-teal-600/25 hover:from-teal-700 hover:to-cyan-700 transition-all hover:scale-[1.02]"
+                  >
+                    {txt.campaign_hero_cta}
+                  </button>
+                )}
+                <Link
+                  href={lang === "en" ? "/en/campaigns" : "/campaigns"}
+                  className="text-center sm:text-left text-teal-800 font-semibold hover:text-teal-950 underline-offset-4 hover:underline"
+                >
+                  {txt.campaign_hero_browse}
+                </Link>
+              </div>
+            </div>
+            <div className="order-1 lg:order-2 relative w-full min-h-[300px] sm:min-h-[400px] lg:min-h-[min(32rem,70vh)] rounded-[2rem] overflow-hidden shadow-2xl ring-1 ring-teal-200/70">
+              <Image
+                src="https://images.unsplash.com/photo-1533750349088-cd871a92f312?w=1600&q=85"
+                alt={lang === "el" ? "Καμπάνιες influencer marketing" : "Influencer marketing campaigns"}
+                fill
+                className="object-cover object-center"
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                priority
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-900/50 via-slate-900/10 to-transparent" />
+              <div className="absolute bottom-6 left-6 right-6 flex items-center gap-3 rounded-2xl bg-white/95 backdrop-blur-md px-5 py-4 shadow-xl border border-white/60">
+                <span className="text-3xl" aria-hidden>
+                  📣
+                </span>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-teal-700">
+                    {lang === "el" ? "Μία ροή για όλες τις αιτήσεις" : "One place for every application"}
+                  </p>
+                  <p className="text-sm text-slate-700 font-medium">
+                    {lang === "el"
+                      ? "Αιτήσεις, μηνύματα και ειδοποιήσεις μέσα στο Influo."
+                      : "Applications, messages, and alerts — all in Influo."}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Features Grid with Images */}
       <section className="py-24 px-6 bg-white">
         <div className="max-w-7xl mx-auto">
@@ -398,27 +480,6 @@ export default function ForBrandsPage() {
               </div>
             </div>
 
-            {isLoggedIn ? (
-              <Link
-                href={lang === "en" ? "/en/campaigns" : "/campaigns"}
-                className="group bg-gradient-to-br from-white to-teal-50/50 p-8 rounded-2xl shadow-lg border border-teal-200 hover:shadow-2xl transition-all hover:-translate-y-2 block md:col-span-2 lg:col-span-3"
-              >
-                <div className="relative w-20 h-20 bg-gradient-to-br from-teal-400 to-cyan-600 rounded-2xl flex items-center justify-center mb-6 transform group-hover:scale-110 transition-transform">
-                  <span className="text-4xl">📣</span>
-                </div>
-                <h3 className="text-2xl font-bold text-slate-900 mb-3">{txt.campaign_card_title.replace("📣 ", "")}</h3>
-                <p className="text-slate-600 leading-relaxed">{txt.campaign_card_desc}</p>
-                <p className="text-teal-700 font-medium text-sm mt-4">{lang === "el" ? "Δείτε ανοιχτές καμπάνιες →" : "View open campaigns →"}</p>
-              </Link>
-            ) : (
-              <div className="group bg-gradient-to-br from-white to-teal-50/50 p-8 rounded-2xl shadow-lg border border-teal-200 md:col-span-2 lg:col-span-3">
-                <div className="relative w-20 h-20 bg-gradient-to-br from-teal-400 to-cyan-600 rounded-2xl flex items-center justify-center mb-6">
-                  <span className="text-4xl">📣</span>
-                </div>
-                <h3 className="text-2xl font-bold text-slate-900 mb-3">{txt.campaign_card_title.replace("📣 ", "")}</h3>
-                <p className="text-slate-600 leading-relaxed">{txt.campaign_card_desc}</p>
-              </div>
-            )}
           </div>
         </div>
       </section>

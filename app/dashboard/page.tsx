@@ -1,7 +1,7 @@
 // app/dashboard/page.tsx
 "use client"; 
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient'; 
 import { useRouter } from 'next/navigation';
 import Link from 'next/link'; // <-- ΑΥΤΟ ΕΛΕΙΠΕ
@@ -53,5 +53,9 @@ export default function DashboardPage() {
     }
     
     // 3. Εμφάνιση Dashboard Content (περνώντας τα δεδομένα)
-    return <DashboardContent profile={profileData} />;
+    return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-600">Loading…</div>}>
+            <DashboardContent profile={profileData} />
+        </Suspense>
+    );
 }

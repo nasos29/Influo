@@ -249,6 +249,49 @@ export default function DocsPage() {
             </div>
           </section>
 
+          {/* Brand campaigns & applications */}
+          <section className="mb-12 border-t border-slate-200 pt-12">
+            <h2 className="text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3">
+              <span className="text-4xl">📣</span>
+              {lang === 'el' ? 'Καμπάνιες με αιτήσεις (Brands)' : 'Campaign briefs & applications (Brands)'}
+            </h2>
+            <p className="text-slate-600 mb-6">
+              {lang === 'el'
+                ? 'Από το Brand Dashboard μπορείτε να δημοσιεύετε καμπάνιες (τίτλος, περιγραφή, budget, προθεσμία). Οι verified influencers βλέπουν τις ανοιχτές καμπάνιες στο δικό τους dashboard και υποβάλλουν αίτηση ενδιαφέροντος με προαιρετικό μήνυμα.'
+                : 'From the Brand Dashboard you can publish campaigns (title, description, budget, deadline). Verified influencers see open campaigns in their dashboard and submit an application with an optional message.'}
+            </p>
+            <h3 className="text-xl font-bold text-slate-900 mt-6 mb-3">
+              {lang === 'el' ? 'Τι λαμβάνετε εσείς ως brand' : 'What you get as a brand'}
+            </h3>
+            <ul className="list-disc list-inside space-y-2 text-slate-700 mb-6">
+              <li>
+                {lang === 'el'
+                  ? 'Λίστα αιτήσεων ανά καμπάνια — αλλαγή κατάστασης (π.χ. pending, shortlisted, rejected).'
+                  : 'A list of applications per campaign — update status (e.g. pending, shortlisted, rejected).'}
+              </li>
+              <li>
+                {lang === 'el'
+                  ? 'Κουμπί για άμεσο μήνυμα στον influencer από την αίτηση.'
+                  : 'A button to message the influencer directly from an application.'}
+              </li>
+              <li>
+                {lang === 'el'
+                  ? 'Ειδοποίηση push (αν την έχετε ενεργοποιήσει) και email όταν υπάρχει νέα αίτηση, ώστε να μη χάνετε leads.'
+                  : 'Push notification (if enabled) and email when there is a new application, so you do not miss leads.'}
+              </li>
+            </ul>
+            <div className="bg-teal-50 border border-teal-200 rounded-xl p-6">
+              <h4 className="font-bold text-teal-900 mb-2">
+                {lang === 'el' ? 'Σύνδεση με τον οδηγό' : 'Link to this guide'}
+              </h4>
+              <p className="text-slate-700 text-sm mb-0">
+                {lang === 'el'
+                  ? 'Μπορείτε να ανοίξετε απευθείας το tab «Καμπάνιες» στο Brand Dashboard με το σύνδεσμο /brand/dashboard?tab=campaigns (π.χ. από email ειδοποίησης).'
+                  : 'You can open the Campaigns tab directly with /brand/dashboard?tab=campaigns (e.g. from notification emails).'}
+              </p>
+            </div>
+          </section>
+
           {/* Counter-Proposal Section */}
           <section className="mb-12 border-t border-slate-200 pt-12">
             <h2 className="text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3">

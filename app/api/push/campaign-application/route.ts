@@ -16,7 +16,7 @@ function userClient(accessToken: string) {
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-/** Μετά από νέα αίτηση influencer — push στο brand (επιβεβαίωση applicationId + influencer). */
+/** Μετά από νέα αίτηση influencer — push + πάντα email στο brand (για όσους δεν έχουν push). */
 export async function POST(req: NextRequest) {
   try {
     const authHeader = req.headers.get("authorization");
@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
       .select(
         `
         id,
+        message,
         influencer_id,
         brand_campaigns (
           title,
@@ -77,7 +78,9 @@ export async function POST(req: NextRequest) {
     } | null;
     const brandsRow = bc?.brands;
     const b =
-      Array.isArray(brandsRow) && brandsRow.length ? brandsRow[0] : (brandsRow as { contact_email?: string } | undefined);
+      Array.isArray(brandsRow) && brandsRow.length
+        ? brandsRow[0]
+        : (brandsRow as { brand_name?: string; contact_email?: string } | undefined);
     const contactEmail = b?.contact_email?.trim().toLowerCase();
     if (!contactEmail) {
       return NextResponse.json({ ok: true, skipped: true, reason: "no_brand_email" });
@@ -93,14 +96,55 @@ export async function POST(req: NextRequest) {
       (infRow as { display_name?: string } | null)?.display_name?.trim() ||
       "Influencer";
 
-    const result = await sendPushBrandNewCampaignApplication({
-      brandEmail: contactEmail,
-      campaignTitle: (bc?.title as string) || "Καμπάνια",
-      influencerName,
-      applicationId: app.id,
-    });
+    let pushResult: { sent: number; failed: number } = { sent: 0, failed: 0 };
+    try {
+      pushResult = await sendPushBrandNewCampaignApplication({
+        brandEmail: contactEmail,
+        campaignTitle: (bc?.title as string) || "Καμπάνια",
+        influencerName,
+        applicationId: app.id,
+      });
+    } catch (pushErr) {
+      console.error("[push/campaign-application] push failed", pushErr);
+    }
 
-    return NextResponse.json({ ok: true, ...result });
+    let emailSent = false;
+    try {
+      const { data: brandRow } = await admin
+        .from("brands")
+        .select("id")
+        .eq("contact_email", contactEmail)
+        .maybeSingle();
+      const brandHasAccount = !!brandRow;
+
+      const siteUrl = req.nextUrl.origin;
+      const emailRes = await fetch(`${siteUrl}/api/emails`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "campaign_application_brand",
+          email: contactEmail,
+          brandName: b?.brand_name || "Επιχείρηση",
+          campaignTitle: (bc?.title as string) || "Καμπάνια",
+          influencerName,
+          applicationMessage: (app as { message?: string | null }).message ?? null,
+          brandHasAccount,
+        }),
+      });
+      emailSent = emailRes.ok;
+      if (!emailRes.ok) {
+        const errText = await emailRes.text();
+        console.error(
+          "[push/campaign-application] email API failed",
+          emailRes.status,
+          errText
+        );
+      }
+    } catch (emailErr) {
+      console.error("[push/campaign-application] email error", emailErr);
+    }
+
+    return NextResponse.json({ ok: true, ...pushResult, emailSent });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Server error";
     console.error("[push/campaign-application]", e);

@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import Image from 'next/image';
@@ -785,6 +786,21 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     const [profile, setProfile] = useState(initialProfile);
     const [showEditModal, setShowEditModal] = useState(false);
     const [activeTab, setActiveTab] = useState<'profile' | 'messages' | 'proposals' | 'campaigns' | 'analytics' | 'announcements'>('profile');
+    const searchParams = useSearchParams();
+
+    useEffect(() => {
+        const tab = searchParams?.get('tab');
+        if (
+            tab === 'profile' ||
+            tab === 'messages' ||
+            tab === 'proposals' ||
+            tab === 'campaigns' ||
+            tab === 'analytics' ||
+            tab === 'announcements'
+        ) {
+            setActiveTab(tab);
+        }
+    }, [searchParams]);
     const [loading, setLoading] = useState(false);
     const [proposals, setProposals] = useState<Proposal[]>([]);
     const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
@@ -1514,7 +1530,6 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                             <Messaging
                                 influencerId={profile.id}
                                 influencerName={profile.display_name}
-                                influencerEmail={profile.contact_email}
                                 brandEmail={selectedProposalForMessaging?.brand_email}
                                 brandName={selectedProposalForMessaging?.brand_name}
                                 proposalId={selectedProposalForMessaging?.id}

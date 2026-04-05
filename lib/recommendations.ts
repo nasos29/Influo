@@ -49,6 +49,8 @@ export interface InfluencerProfile {
   } | null;
   /** Strategic audit – niche, brandSafe, whyWorkWithThem (for brands). */
   auditpr_audit?: AuditprAuditProfile | null;
+  /** Brand dashboard: email for messaging (not shown publicly). */
+  contact_email?: string | null;
 }
 
 export interface MatchScore {

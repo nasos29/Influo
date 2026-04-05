@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
+import InfluencerPresenceDot from "@/components/InfluencerPresenceDot";
 
 const CATEGORIES = [
   "",
@@ -84,6 +85,7 @@ const txt = {
     applications_heading: "Αιτήσεις",
     influencer: "Influencer",
     message: "Μήνυμα",
+    btn_chat: "Μήνυμα",
     open_public:
       "Μόνο επαληθευμένα brands μπορούν να δημοσιεύουν καμπάνιες. Οι «Ανοιχτές» καμπάνιες εμφανίζονται σε εγκεκριμένους influencers και στη δημόσια σελίδα (για verified brands).",
     verified_banner:
@@ -126,6 +128,7 @@ const txt = {
     applications_heading: "Applications",
     influencer: "Influencer",
     message: "Message",
+    btn_chat: "Message",
     open_public:
       "Only verified brands can publish campaigns. Open campaigns appear to approved influencers and on the public page (verified brands only).",
     verified_banner:
@@ -146,6 +149,7 @@ export default function BrandCampaignsSection({
   brandVerified,
   pendingApplicationsCount = 0,
   onApplicationsUpdated,
+  onOpenInfluencerMessage,
 }: {
   brandId: string;
   lang: "el" | "en";
@@ -153,6 +157,7 @@ export default function BrandCampaignsSection({
   /** Εκκρεμείς αιτήσεις (pending) σε όλες τις καμπάνιες — για badge «Αιτήσεις». */
   pendingApplicationsCount?: number;
   onApplicationsUpdated?: () => void;
+  onOpenInfluencerMessage?: (p: { influencerId: string; displayName: string }) => void;
 }) {
   const t = txt[lang];
   const [dismissVerifiedModal, setDismissVerifiedModal] = useState(false);
@@ -623,17 +628,23 @@ export default function BrandCampaignsSection({
                             <tr className="text-left text-slate-600 border-b border-slate-200">
                               <th className="pb-2 pr-4">{t.influencer}</th>
                               <th className="pb-2 pr-4">{t.message}</th>
-                              <th className="pb-2">{t.app_status}</th>
+                              <th className="pb-2 pr-4">{t.app_status}</th>
+                              <th className="pb-2 w-[1%] whitespace-nowrap">{lang === "el" ? "Επικοινωνία" : "Chat"}</th>
                             </tr>
                           </thead>
                           <tbody>
                             {(appsByCampaign[row.id] || []).map((app) => (
                               <tr key={app.id} className="border-b border-slate-100 last:border-0">
-                                <td className="py-2 pr-4 font-medium text-slate-900">
-                                  {app.influencers?.display_name || app.influencer_id}
+                                <td className="py-2 pr-4">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <InfluencerPresenceDot influencerId={app.influencer_id} lang={lang} />
+                                    <span className="font-medium text-slate-900">
+                                      {app.influencers?.display_name || app.influencer_id}
+                                    </span>
+                                  </div>
                                 </td>
                                 <td className="py-2 pr-4 text-slate-600 max-w-xs truncate">{app.message || "—"}</td>
-                                <td className="py-2">
+                                <td className="py-2 pr-4">
                                   {app.status === "withdrawn" ? (
                                     <span className="text-xs text-slate-500">{t.app_withdrawn}</span>
                                   ) : (
@@ -649,6 +660,20 @@ export default function BrandCampaignsSection({
                                       <option value="rejected">{t.app_rejected}</option>
                                     </select>
                                   )}
+                                </td>
+                                <td className="py-2 align-top">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      onOpenInfluencerMessage?.({
+                                        influencerId: app.influencer_id,
+                                        displayName: app.influencers?.display_name || "Influencer",
+                                      })
+                                    }
+                                    className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 whitespace-nowrap"
+                                  >
+                                    {t.btn_chat}
+                                  </button>
                                 </td>
                               </tr>
                             ))}
