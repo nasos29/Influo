@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import InstallAppCard from "./InstallAppCard";
+import { supabase } from "@/lib/supabaseClient";
 
 interface FooterProps {
   lang?: "el" | "en";
@@ -12,7 +13,23 @@ interface FooterProps {
 export default function Footer({ lang = "el" }: FooterProps) {
   // Anti-scraping email obfuscation - email is constructed client-side from encoded parts
   const [supportEmail, setSupportEmail] = useState<string>("");
-  
+  const [loggedIn, setLoggedIn] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!cancelled) setLoggedIn(!!session);
+    })();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      setLoggedIn(!!session);
+    });
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, []);
+
   useEffect(() => {
     // Construct email on client-side to avoid scraping
     // Split into parts with character codes to make it harder for scrapers
@@ -221,11 +238,13 @@ export default function Footer({ lang = "el" }: FooterProps) {
                   {txt.directory}
                 </Link>
               </li>
-              <li>
-                <Link href={lang === "en" ? "/en/campaigns" : "/campaigns"} className="text-slate-400 hover:text-white transition-colors text-sm">
-                  {txt.campaigns}
-                </Link>
-              </li>
+              {loggedIn && (
+                <li>
+                  <Link href={lang === "en" ? "/en/campaigns" : "/campaigns"} className="text-slate-400 hover:text-white transition-colors text-sm">
+                    {txt.campaigns}
+                  </Link>
+                </li>
+              )}
               <li>
                 <Link href={lang === "en" ? "/en/brands" : "/brands"} className="text-slate-400 hover:text-white transition-colors text-sm">
                   {lang === "el" ? "Κατάλογος Επιχειρήσεων" : "Brands Directory"}

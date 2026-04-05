@@ -342,11 +342,13 @@ export default function Home() {
                 <li><a href="/directory" className="hover:text-slate-900 transition-colors">
                   {txt.nav_directory}
                 </a></li>
-                <li>
-                  <a href={lang === "en" ? "/en/campaigns" : "/campaigns"} className="hover:text-slate-900 transition-colors">
-                    {txt.nav_campaigns}
-                  </a>
-                </li>
+                {isLoggedIn && (
+                  <li>
+                    <a href={lang === "en" ? "/en/campaigns" : "/campaigns"} className="hover:text-slate-900 transition-colors">
+                      {txt.nav_campaigns}
+                    </a>
+                  </li>
+                )}
                 {isLoggedIn ? (
                   <li><a href={userType === 'brand' ? '/brand/dashboard' : '/dashboard'} className="hover:text-slate-900 transition-colors">
                     {lang === "el" ? "Dashboard" : "Dashboard"}
@@ -483,13 +485,15 @@ export default function Home() {
               >
                 {txt.nav_directory}
               </a>
-              <a
-                href={lang === "en" ? "/en/campaigns" : "/campaigns"}
-                onClick={() => setMobileMenuOpen(false)}
-                className="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors"
-              >
-                {txt.nav_campaigns}
-              </a>
+              {isLoggedIn && (
+                <a
+                  href={lang === "en" ? "/en/campaigns" : "/campaigns"}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors"
+                >
+                  {txt.nav_campaigns}
+                </a>
+              )}
               {isLoggedIn ? (
                 <a 
                   href="/dashboard"
@@ -648,14 +652,11 @@ export default function Home() {
                 <h4 className="text-lg font-semibold text-slate-900 mb-2">{lang === "el" ? "Αναζήτηση" : "Search"}</h4>
                 <p className="text-slate-600 text-sm leading-relaxed">{lang === "el" ? "Βρείτε influencers ανά κατηγορία, engagement rate και budget." : "Find influencers by category, engagement rate and budget."}</p>
               </div>
-              <a
-                href={lang === "en" ? "/en/campaigns" : "/campaigns"}
-                className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm transition-all duration-300 hover:shadow-lg hover:border-teal-300 hover:-translate-y-1 block"
-              >
+              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm transition-all duration-300 hover:shadow-lg hover:border-teal-300 hover:-translate-y-1">
                 <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center text-2xl mb-4 transition-transform duration-300 hover:scale-110">📣</div>
                 <h4 className="text-lg font-semibold text-slate-900 mb-2">{txt.feat_4_title}</h4>
                 <p className="text-slate-600 text-sm leading-relaxed">{txt.feat_4_desc}</p>
-              </a>
+              </div>
               <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm transition-all duration-300 hover:shadow-lg hover:border-indigo-300 hover:-translate-y-1">
                 <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center text-2xl mb-4 transition-transform duration-300 hover:scale-110">💼</div>
                 <h4 className="text-lg font-semibold text-slate-900 mb-2">{lang === "el" ? "Διαχείριση" : "Management"}</h4>

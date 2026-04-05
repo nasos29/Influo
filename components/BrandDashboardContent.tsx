@@ -656,6 +656,7 @@ export default function BrandDashboardContent() {
   }, [recommendationStats]);
   const [activeTab, setActiveTab] = useState<'recommendations' | 'campaigns' | 'proposals' | 'messages'>('recommendations');
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  const [pendingCampaignApplicationsCount, setPendingCampaignApplicationsCount] = useState(0);
   const router = useRouter();
   const txt = t[lang];
 
@@ -671,6 +672,41 @@ export default function BrandDashboardContent() {
       return () => clearInterval(interval);
     }
   }, [brandData?.contact_email]);
+
+  /** Εκκρεμείς αιτήσεις (pending) σε όλες τις καμπάνιες του brand — badges «Καμπάνιες» / «Αιτήσεις». */
+  useEffect(() => {
+    if (!brandData?.id) {
+      setPendingCampaignApplicationsCount(0);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data: camps } = await supabase
+        .from("brand_campaigns")
+        .select("id")
+        .eq("brand_id", brandData.id);
+      if (cancelled) return;
+      if (!camps?.length) {
+        setPendingCampaignApplicationsCount(0);
+        return;
+      }
+      const ids = camps.map((c) => c.id);
+      const { count, error } = await supabase
+        .from("campaign_applications")
+        .select("*", { count: "exact", head: true })
+        .in("campaign_id", ids)
+        .eq("status", "pending");
+      if (cancelled) return;
+      if (error) {
+        console.error("[Brand Dashboard] pending campaign applications count", error);
+        return;
+      }
+      setPendingCampaignApplicationsCount(count ?? 0);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [brandData?.id, activeTab]);
 
   const loadUnreadMessageCount = async () => {
     if (!brandData?.contact_email) {
@@ -1278,13 +1314,18 @@ export default function BrandDashboardContent() {
               </button>
               <button
                 onClick={() => setActiveTab('campaigns')}
-                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors whitespace-nowrap ${
+                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors whitespace-nowrap relative ${
                   activeTab === 'campaigns'
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-slate-500 hover:text-slate-700'
                 }`}
               >
                 {lang === 'el' ? '📣 Καμπάνιες' : '📣 Campaigns'}
+                {pendingCampaignApplicationsCount > 0 && (
+                  <span className="absolute top-1.5 sm:top-2 right-0 sm:right-1 bg-red-500 text-white text-[10px] sm:text-xs font-bold rounded-full min-w-[16px] sm:min-w-[18px] h-[16px] sm:h-[18px] flex items-center justify-center px-1">
+                    {pendingCampaignApplicationsCount > 99 ? '99+' : pendingCampaignApplicationsCount}
+                  </span>
+                )}
               </button>
               <button
                 onClick={() => setActiveTab('proposals')}
@@ -1353,6 +1394,27 @@ export default function BrandDashboardContent() {
               brandId={brandData.id}
               lang={lang}
               brandVerified={!!brandData.verified}
+              pendingApplicationsCount={pendingCampaignApplicationsCount}
+              onApplicationsUpdated={() => {
+                if (!brandData?.id) return;
+                (async () => {
+                  const { data: camps } = await supabase
+                    .from("brand_campaigns")
+                    .select("id")
+                    .eq("brand_id", brandData.id);
+                  if (!camps?.length) {
+                    setPendingCampaignApplicationsCount(0);
+                    return;
+                  }
+                  const ids = camps.map((c) => c.id);
+                  const { count } = await supabase
+                    .from("campaign_applications")
+                    .select("*", { count: "exact", head: true })
+                    .in("campaign_id", ids)
+                    .eq("status", "pending");
+                  setPendingCampaignApplicationsCount(count ?? 0);
+                })();
+              }}
             />
           </div>
         )}

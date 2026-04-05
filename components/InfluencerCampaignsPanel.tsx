@@ -50,12 +50,30 @@ const pendingCopy = {
   },
 };
 
+const applicationStatusUi = {
+  el: {
+    pending: "Εκκρεμεί",
+    shortlisted: "Σε λίστα",
+    rejected: "Απόρριψη",
+    withdrawn: "Αποσύρθηκε",
+  },
+  en: {
+    pending: "Pending",
+    shortlisted: "Shortlisted",
+    rejected: "Rejected",
+    withdrawn: "Withdrawn",
+  },
+};
+
 export default function InfluencerCampaignsPanel({
   influencerId,
   approved,
+  onAttentionCountChange,
 }: {
   influencerId: string;
   approved: boolean;
+  /** Για badge στο tab «Καμπάνιες»: εκκρεμείς αιτήσεις + ανοιχτές καμπάνιες χωρίς αίτηση. */
+  onAttentionCountChange?: (count: number) => void;
 }) {
   const [uiLang, setUiLang] = useState<"el" | "en">("el");
   const [dismissApprovalModal, setDismissApprovalModal] = useState(false);
@@ -151,17 +169,31 @@ export default function InfluencerCampaignsPanel({
     load();
   }, [approved, load]);
 
+  useEffect(() => {
+    if (!approved) {
+      onAttentionCountChange?.(0);
+      return;
+    }
+    const pendingMine = mine.filter((m) => m.status === "pending").length;
+    const notAppliedCount = campaigns.filter((c) => !appliedCampaignIds.has(c.id)).length;
+    onAttentionCountChange?.(pendingMine + notAppliedCount);
+  }, [approved, campaigns, mine, appliedCampaignIds, onAttentionCountChange]);
+
   const submitApply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!applyCampaign || !approved) return;
     setSubmitting(true);
     try {
-      const { error } = await supabase.from("campaign_applications").insert({
-        campaign_id: applyCampaign.id,
-        influencer_id: influencerId,
-        message: applyMessage.trim() || null,
-        status: "pending",
-      });
+      const { data: insertedApp, error } = await supabase
+        .from("campaign_applications")
+        .insert({
+          campaign_id: applyCampaign.id,
+          influencer_id: influencerId,
+          message: applyMessage.trim() || null,
+          status: "pending",
+        })
+        .select("id")
+        .single();
       if (error) {
         if (error.code === "23505") {
           alert(uiLang === "el" ? "Έχετε ήδη κάνει αίτηση σε αυτή την καμπάνια." : "You have already applied to this campaign.");
@@ -169,6 +201,25 @@ export default function InfluencerCampaignsPanel({
           alert(error.message);
         }
         return;
+      }
+      if (insertedApp?.id) {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          try {
+            await fetch("/api/push/campaign-application", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify({ applicationId: insertedApp.id }),
+            });
+          } catch (e) {
+            console.error("[InfluencerCampaigns] campaign-application notify", e);
+          }
+        }
       }
       setApplyCampaign(null);
       setApplyMessage("");
@@ -368,8 +419,15 @@ export default function InfluencerCampaignsPanel({
       </section>
 
       <section>
-        <h2 className="text-xl font-semibold text-slate-900 mb-3">
+        <h2 className="text-xl font-semibold text-slate-900 mb-3 flex flex-wrap items-center gap-2">
           {uiLang === "el" ? "Οι αιτήσεις μου" : "My applications"}
+          {mine.some((m) => m.status === "pending") && (
+            <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold">
+              {mine.filter((m) => m.status === "pending").length > 99
+                ? "99+"
+                : mine.filter((m) => m.status === "pending").length}
+            </span>
+          )}
         </h2>
         {mine.length === 0 ? (
           <p className="text-slate-500 text-sm">
@@ -391,7 +449,9 @@ export default function InfluencerCampaignsPanel({
                   </p>
                   <p className="text-xs text-slate-500 mt-1">
                     {new Date(m.created_at).toLocaleString(uiLang === "el" ? "el-GR" : "en-GB")} ·{" "}
-                    <span className="font-medium">{m.status}</span>
+                    <span className="font-medium">
+                      {(applicationStatusUi[uiLang] as Record<string, string>)[m.status] || m.status}
+                    </span>
                   </p>
                 </div>
                 {m.status === "pending" && (

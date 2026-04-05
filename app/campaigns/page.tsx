@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { Session } from "@supabase/supabase-js";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -32,18 +33,44 @@ export default function PublicCampaignsPage() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(false);
   const [userKind, setUserKind] = useState<UserKind>("none");
+  const [authReady, setAuthReady] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
     setLang(pathname?.startsWith("/en") ? "en" : getStoredLanguage() === "en" ? "en" : "el");
   }, [pathname]);
 
   useEffect(() => {
-    const resolveUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setUserKind("none");
-        return;
+    let cancelled = false;
+    const path = pathname || "/campaigns";
+    (async () => {
+      const { data: { session: s } } = await supabase.auth.getSession();
+      if (cancelled) return;
+      setSession(s);
+      setAuthReady(true);
+      if (!s) {
+        router.replace(`/login?redirect=${encodeURIComponent(path)}`);
       }
+    })();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s);
+      if (!s) {
+        router.replace(`/login?redirect=${encodeURIComponent(pathname || "/campaigns")}`);
+      }
+    });
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, [pathname, router]);
+
+  useEffect(() => {
+    const user = session?.user;
+    if (!user) {
+      setUserKind("none");
+      return;
+    }
+    const resolveUser = async () => {
       const em = user.email?.toLowerCase().trim();
       if (em === ADMIN_EMAIL_FALLBACK.toLowerCase()) {
         setUserKind("admin");
@@ -58,13 +85,10 @@ export default function PublicCampaignsPage() {
       setUserKind(inf ? "influencer" : "none");
     };
     resolveUser();
-    const { data: sub } = supabase.auth.onAuthStateChange(() => {
-      resolveUser();
-    });
-    return () => sub.subscription.unsubscribe();
-  }, []);
+  }, [session?.user?.id]);
 
   useEffect(() => {
+    if (!session) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -99,7 +123,7 @@ export default function PublicCampaignsPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [session]);
 
   const t = {
     el: {
@@ -152,6 +176,19 @@ export default function PublicCampaignsPage() {
         : userKind === "admin"
           ? t.adminDash
           : t.login;
+
+  if (!authReady) {
+    return (
+      <div className="min-h-screen flex flex-col bg-slate-50">
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-slate-500">…</p>
+        </div>
+      </div>
+    );
+  }
+  if (!session) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">

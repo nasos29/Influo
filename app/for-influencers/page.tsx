@@ -6,6 +6,7 @@ import Link from "next/link";
 import Footer from "../../components/Footer";
 import { usePathname, useRouter } from 'next/navigation';
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
+import { supabase } from "@/lib/supabaseClient";
 
 type Lang = "el" | "en";
 
@@ -129,10 +130,26 @@ export default function ForInfluencersPage() {
   const router = useRouter();
   const [lang, setLang] = useState<Lang>(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
   const txt = t[lang];
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
     setLang(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
   }, [pathname]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!cancelled) setIsLoggedIn(!!session);
+    })();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      setIsLoggedIn(!!session);
+    });
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
@@ -359,17 +376,27 @@ export default function ForInfluencersPage() {
               </div>
             </div>
 
-            <Link
-              href={lang === "en" ? "/en/campaigns" : "/campaigns"}
-              className="group bg-gradient-to-br from-white to-violet-50/50 p-8 rounded-2xl shadow-lg border border-violet-200 hover:shadow-2xl transition-all hover:-translate-y-2 block md:col-span-2 lg:col-span-3"
-            >
-              <div className="relative w-20 h-20 bg-gradient-to-br from-violet-400 to-fuchsia-600 rounded-2xl flex items-center justify-center mb-6 transform group-hover:scale-110 transition-transform">
-                <span className="text-4xl">📣</span>
+            {isLoggedIn ? (
+              <Link
+                href={lang === "en" ? "/en/campaigns" : "/campaigns"}
+                className="group bg-gradient-to-br from-white to-violet-50/50 p-8 rounded-2xl shadow-lg border border-violet-200 hover:shadow-2xl transition-all hover:-translate-y-2 block md:col-span-2 lg:col-span-3"
+              >
+                <div className="relative w-20 h-20 bg-gradient-to-br from-violet-400 to-fuchsia-600 rounded-2xl flex items-center justify-center mb-6 transform group-hover:scale-110 transition-transform">
+                  <span className="text-4xl">📣</span>
+                </div>
+                <h3 className="text-2xl font-bold text-slate-900 mb-3">{txt.campaign_card_title.replace("📣 ", "")}</h3>
+                <p className="text-slate-600 leading-relaxed">{txt.campaign_card_desc}</p>
+                <p className="text-violet-700 font-medium text-sm mt-4">{lang === "el" ? "Δείτε καμπάνιες →" : "Browse campaigns →"}</p>
+              </Link>
+            ) : (
+              <div className="group bg-gradient-to-br from-white to-violet-50/50 p-8 rounded-2xl shadow-lg border border-violet-200 md:col-span-2 lg:col-span-3">
+                <div className="relative w-20 h-20 bg-gradient-to-br from-violet-400 to-fuchsia-600 rounded-2xl flex items-center justify-center mb-6">
+                  <span className="text-4xl">📣</span>
+                </div>
+                <h3 className="text-2xl font-bold text-slate-900 mb-3">{txt.campaign_card_title.replace("📣 ", "")}</h3>
+                <p className="text-slate-600 leading-relaxed">{txt.campaign_card_desc}</p>
               </div>
-              <h3 className="text-2xl font-bold text-slate-900 mb-3">{txt.campaign_card_title.replace("📣 ", "")}</h3>
-              <p className="text-slate-600 leading-relaxed">{txt.campaign_card_desc}</p>
-              <p className="text-violet-700 font-medium text-sm mt-4">{lang === "el" ? "Δείτε καμπάνιες →" : "Browse campaigns →"}</p>
-            </Link>
+            )}
           </div>
         </div>
       </section>

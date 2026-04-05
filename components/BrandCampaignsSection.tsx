@@ -77,6 +77,11 @@ const txt = {
     applications: "Αιτήσεις",
     no_apps: "Καμία αίτηση ακόμα.",
     app_status: "Κατάσταση αίτησης",
+    app_pending: "Εκκρεμεί",
+    app_shortlisted: "Σε λίστα",
+    app_rejected: "Απόρριψη",
+    app_withdrawn: "Αποσύρθηκε",
+    applications_heading: "Αιτήσεις",
     influencer: "Influencer",
     message: "Μήνυμα",
     open_public:
@@ -114,6 +119,11 @@ const txt = {
     applications: "Applications",
     no_apps: "No applications yet.",
     app_status: "Application status",
+    app_pending: "Pending",
+    app_shortlisted: "Shortlisted",
+    app_rejected: "Rejected",
+    app_withdrawn: "Withdrawn",
+    applications_heading: "Applications",
     influencer: "Influencer",
     message: "Message",
     open_public:
@@ -134,10 +144,15 @@ export default function BrandCampaignsSection({
   brandId,
   lang,
   brandVerified,
+  pendingApplicationsCount = 0,
+  onApplicationsUpdated,
 }: {
   brandId: string;
   lang: "el" | "en";
   brandVerified: boolean;
+  /** Εκκρεμείς αιτήσεις (pending) σε όλες τις καμπάνιες — για badge «Αιτήσεις». */
+  pendingApplicationsCount?: number;
+  onApplicationsUpdated?: () => void;
 }) {
   const t = txt[lang];
   const [dismissVerifiedModal, setDismissVerifiedModal] = useState(false);
@@ -263,20 +278,60 @@ export default function BrandCampaignsSection({
         updated_at: new Date().toISOString(),
       };
 
+      const shouldNotifyInfluencers =
+        brandVerified &&
+        payload.status === "open" &&
+        (editing === "new" ||
+          (editing !== null &&
+            typeof editing === "object" &&
+            "id" in editing &&
+            editing.status !== "open"));
+
+      let notifyCampaignId: string | null = null;
+
       if (editing === "new") {
-        const { error } = await supabase.from("brand_campaigns").insert({
-          brand_id: brandId,
-          ...payload,
-        });
+        const { data: inserted, error } = await supabase
+          .from("brand_campaigns")
+          .insert({
+            brand_id: brandId,
+            ...payload,
+          })
+          .select("id")
+          .single();
         if (error) throw error;
+        if (inserted?.id) notifyCampaignId = inserted.id;
       } else if (editing !== null && "id" in editing) {
-        const { error } = await supabase
+        const { data: updated, error } = await supabase
           .from("brand_campaigns")
           .update(payload)
           .eq("id", editing.id)
-          .eq("brand_id", brandId);
+          .eq("brand_id", brandId)
+          .select("id")
+          .single();
         if (error) throw error;
+        if (updated?.id) notifyCampaignId = updated.id;
       }
+
+      if (shouldNotifyInfluencers && notifyCampaignId) {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          try {
+            await fetch("/api/push/campaign-published", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify({ campaignId: notifyCampaignId }),
+            });
+          } catch (e) {
+            console.error("[BrandCampaigns] campaign-published notify", e);
+          }
+        }
+      }
+
       setEditing(null);
       await load();
     } catch (err: any) {
@@ -299,12 +354,26 @@ export default function BrandCampaignsSection({
   };
 
   const updateAppStatus = async (appId: string, status: string) => {
-    const { error } = await supabase.from("campaign_applications").update({ status }).eq("id", appId);
+    const { data, error } = await supabase
+      .from("campaign_applications")
+      .update({ status })
+      .eq("id", appId)
+      .select("id");
+
     if (error) {
       alert(error.message);
       return;
     }
+    if (!data?.length) {
+      alert(
+        lang === "el"
+          ? "Η ενημέρωση απέτυχε. Ελέγξτε ότι είστε συνδεδεμένοι ως brand και ότι η RLS πολιτική επιτρέπει ενημέρωση αιτήσεων."
+          : "Update failed. Check you are logged in as the brand owner."
+      );
+      return;
+    }
     if (expandedId) await loadApplications(expandedId);
+    onApplicationsUpdated?.();
   };
 
   if (schemaError) {
@@ -343,7 +412,18 @@ export default function BrandCampaignsSection({
 
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
-          <h2 className="text-xl font-semibold text-slate-900">{t.title}</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-xl font-semibold text-slate-900">{t.title}</h2>
+            <span className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-700">
+              <span className="text-slate-500">·</span>
+              {t.applications_heading}
+              {pendingApplicationsCount > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-red-500 text-white text-xs font-bold">
+                  {pendingApplicationsCount > 99 ? "99+" : pendingApplicationsCount}
+                </span>
+              )}
+            </span>
+          </div>
           <p className="text-slate-600 text-sm mt-1 max-w-2xl">{t.subtitle}</p>
           <p className="text-slate-500 text-xs mt-2">{t.open_public}</p>
           <Link
@@ -554,15 +634,21 @@ export default function BrandCampaignsSection({
                                 </td>
                                 <td className="py-2 pr-4 text-slate-600 max-w-xs truncate">{app.message || "—"}</td>
                                 <td className="py-2">
-                                  <select
-                                    value={app.status}
-                                    onChange={(e) => updateAppStatus(app.id, e.target.value)}
-                                    className="text-xs border border-slate-300 rounded px-2 py-1 bg-white"
-                                  >
-                                    <option value="pending">pending</option>
-                                    <option value="shortlisted">shortlisted</option>
-                                    <option value="rejected">rejected</option>
-                                  </select>
+                                  {app.status === "withdrawn" ? (
+                                    <span className="text-xs text-slate-500">{t.app_withdrawn}</span>
+                                  ) : (
+                                    <select
+                                      key={`${app.id}-${app.status}`}
+                                      value={app.status}
+                                      onChange={(e) => updateAppStatus(app.id, e.target.value)}
+                                      className="text-xs border border-slate-300 rounded px-2 py-1 bg-white min-w-[9rem]"
+                                      aria-label={t.app_status}
+                                    >
+                                      <option value="pending">{t.app_pending}</option>
+                                      <option value="shortlisted">{t.app_shortlisted}</option>
+                                      <option value="rejected">{t.app_rejected}</option>
+                                    </select>
+                                  )}
                                 </td>
                               </tr>
                             ))}

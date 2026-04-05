@@ -801,6 +801,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     const [announcementsList, setAnnouncementsList] = useState<Array<{ id: string; title: string; body: string; created_at: string; read: boolean; read_at: string | null }>>([]);
     const [unreadAnnouncementsCount, setUnreadAnnouncementsCount] = useState(0);
     const [announcementsLoading, setAnnouncementsLoading] = useState(false);
+    const [campaignAttentionCount, setCampaignAttentionCount] = useState(0);
 
     // Load proposals and counts
     useEffect(() => {
@@ -1062,13 +1063,18 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                             </button>
                             <button
                                 onClick={() => setActiveTab('campaigns')}
-                                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors whitespace-nowrap ${
+                                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors whitespace-nowrap relative ${
                                     activeTab === 'campaigns'
                                         ? 'border-slate-900 text-slate-900'
                                         : 'border-transparent text-slate-500 hover:text-slate-700'
                                 }`}
                             >
                                 <span className="hidden md:inline">📣 </span>Καμπάνιες
+                                {campaignAttentionCount > 0 && (
+                                    <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 bg-red-500 text-white text-[9px] sm:text-[10px] font-bold rounded-full min-w-[14px] sm:min-w-[16px] h-[14px] sm:h-[16px] flex items-center justify-center px-0.5">
+                                        {campaignAttentionCount > 99 ? '99+' : campaignAttentionCount > 9 ? '9+' : campaignAttentionCount}
+                                    </span>
+                                )}
                             </button>
                             <button
                                 onClick={() => setActiveTab('proposals')}
@@ -1196,6 +1202,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 <InfluencerCampaignsPanel
                                   influencerId={profile.id}
                                   approved={!!profile.approved}
+                                  onAttentionCountChange={setCampaignAttentionCount}
                                 />
                             </div>
                         ) : activeTab === 'proposals' ? (

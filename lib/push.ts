@@ -239,6 +239,67 @@ export async function sendPushToInfluencer(
   return { sent, failed };
 }
 
+/** Όταν ένα verified brand δημοσιεύει ανοιχτή καμπάνια — ειδοποίηση όλων των εγκεκριμένων influencers. */
+export async function sendPushNewOpenCampaignToAllApprovedInfluencers(opts: {
+  campaignTitle: string;
+  brandName: string;
+  campaignId: string;
+}): Promise<{ sent: number; failed: number }> {
+  const { data: influencers, error } = await supabaseAdmin
+    .from("influencers")
+    .select("id")
+    .eq("approved", true);
+  if (error) {
+    console.error("[Push] sendPushNewOpenCampaignToAllApprovedInfluencers", error);
+    return { sent: 0, failed: 0 };
+  }
+  if (!influencers?.length) return { sent: 0, failed: 0 };
+
+  const title = "📣 Νέα καμπάνια";
+  const body = `${clipPushText(opts.brandName, 28)}: ${clipPushText(opts.campaignTitle, 90)}`;
+  let sent = 0;
+  let failed = 0;
+
+  const chunkSize = 25;
+  for (let i = 0; i < influencers.length; i += chunkSize) {
+    const chunk = influencers.slice(i, i + chunkSize);
+    const results = await Promise.all(
+      chunk.map((row) =>
+        sendPushToInfluencer(String(row.id), {
+          title,
+          body,
+          url: "/dashboard",
+          tag: `campaign-open-${opts.campaignId}`,
+        })
+      )
+    );
+    for (const r of results) {
+      sent += r.sent;
+      failed += r.failed;
+    }
+  }
+  return { sent, failed };
+}
+
+/** Influencer υπέβαλε αίτηση σε καμπάνια — ειδοποίηση brand (web push με email ως user_identifier). */
+export async function sendPushBrandNewCampaignApplication(opts: {
+  brandEmail: string;
+  campaignTitle: string;
+  influencerName: string;
+  applicationId: string;
+}): Promise<{ sent: number; failed: number }> {
+  const email = String(opts.brandEmail || "")
+    .trim()
+    .toLowerCase();
+  if (!email) return { sent: 0, failed: 0 };
+  return sendPushToBrand(email, {
+    title: "📩 Νέα αίτηση καμπάνιας",
+    body: `${clipPushText(opts.influencerName, 36)} — «${clipPushText(opts.campaignTitle, 56)}»`,
+    url: "/brand/dashboard",
+    tag: `campaign-app-${opts.applicationId}`,
+  });
+}
+
 export async function sendPushToBrand(
   brandEmail: string,
   payload: PushPayload
