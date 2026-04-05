@@ -34,15 +34,21 @@ CREATE INDEX IF NOT EXISTS idx_campaign_applications_influencer ON campaign_appl
 ALTER TABLE brand_campaigns ENABLE ROW LEVEL SECURITY;
 ALTER TABLE campaign_applications ENABLE ROW LEVEL SECURITY;
 
--- brand_campaigns: public sees open campaigns from verified brands; brands see all their rows
+-- brand_campaigns: anon sees open+verified only; logged-in users see all open; owner sees own (any status)
 DROP POLICY IF EXISTS "brand_campaigns_select" ON brand_campaigns;
 CREATE POLICY "brand_campaigns_select" ON brand_campaigns
   FOR SELECT
   USING (
-    (status = 'open' AND EXISTS (
-      SELECT 1 FROM brands b
-      WHERE b.id = brand_campaigns.brand_id AND COALESCE(b.verified, false) = true
-    ))
+    (
+      status = 'open'
+      AND (
+        auth.uid() IS NOT NULL
+        OR EXISTS (
+          SELECT 1 FROM brands b
+          WHERE b.id = brand_campaigns.brand_id AND COALESCE(b.verified, false) = true
+        )
+      )
+    )
     OR (auth.uid() IS NOT NULL AND brand_id = auth.uid())
   );
 
@@ -85,9 +91,7 @@ CREATE POLICY "campaign_apps_insert" ON campaign_applications
     )
     AND EXISTS (
       SELECT 1 FROM brand_campaigns c
-      WHERE c.id = campaign_applications.campaign_id
-        AND c.status = 'open'
-        AND EXISTS (SELECT 1 FROM brands b WHERE b.id = c.brand_id AND COALESCE(b.verified, false) = true)
+      WHERE c.id = campaign_applications.campaign_id AND c.status = 'open'
     )
   );
 
