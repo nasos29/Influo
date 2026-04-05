@@ -138,6 +138,28 @@ const faqs: FAQItem[] = [
     }
   },
   {
+    category: { el: "Για Brands", en: "For Brands" },
+    question: {
+      el: "Τι είναι οι «Καμπάνιες» στο brand dashboard;",
+      en: "What are “Campaigns” in the brand dashboard?"
+    },
+    answer: {
+      el: "Μπορείτε να δημοσιεύσετε καμπάνια με τίτλο, περιγραφή, budget (€), προαιρετική κατηγορία, προθεσμία και deliverables. Όταν η κατάσταση είναι «Ανοιχτή», οι verified influencers τη βλέπουν στο dashboard τους και στη δημόσια σελίδα καμπανιών και μπορούν να υποβάλουν αίτηση ενδιαφέροντος. Διαχειρίζεστε τις αιτήσεις από την ίδια καρτέλα.",
+      en: "You can publish a campaign with title, description, budget (€), optional category, deadline and deliverables. When status is “Open”, verified influencers see it on their dashboard and on the public campaigns page and can submit an interest application. You manage applications in the same tab."
+    }
+  },
+  {
+    category: { el: "Για Influencers", en: "For Influencers" },
+    question: {
+      el: "Πώς κάνω αίτηση σε καμπάνια brand;",
+      en: "How do I apply to a brand campaign?"
+    },
+    answer: {
+      el: "Από το influencer dashboard, καρτέλα «Καμπάνιες», βλέπετε τις ανοιχτές καμπάνιες verified brands. Αν το προφίλ σας είναι εγκεκριμένο, μπορείτε να υποβάλετε αίτηση με προαιρετικό μήνυμα. Μπορείτε επίσης να δείτε τη δημόσια λίστα στο μενού «Καμπάνιες» της αρχικής.",
+      en: "From the influencer dashboard, “Campaigns” tab, you see open campaigns from verified brands. If your profile is approved, you can apply with an optional message. You can also browse the public list from the home “Campaigns” link."
+    }
+  },
+  {
     category: { el: "Συνεργασίες", en: "Collaborations" },
     question: {
       el: "Τι συμβαίνει μετά την αποδοχή μιας προσφοράς;",

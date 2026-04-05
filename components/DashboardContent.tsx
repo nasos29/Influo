@@ -11,6 +11,7 @@ import Messaging from './Messaging';
 import Analytics from './Analytics';
 import PushNotificationPrompt from './PushNotificationPrompt';
 import { prepareImageForStorage } from '@/lib/prepareImageForStorage';
+import InfluencerCampaignsPanel from './InfluencerCampaignsPanel';
 
 // --- FULL CATEGORY LIST ---
 const CATEGORIES = [
@@ -783,7 +784,7 @@ interface Proposal {
 export default function DashboardContent({ profile: initialProfile }: { profile: InfluencerData }) {
     const [profile, setProfile] = useState(initialProfile);
     const [showEditModal, setShowEditModal] = useState(false);
-    const [activeTab, setActiveTab] = useState<'profile' | 'messages' | 'proposals' | 'analytics' | 'announcements'>('profile');
+    const [activeTab, setActiveTab] = useState<'profile' | 'messages' | 'proposals' | 'campaigns' | 'analytics' | 'announcements'>('profile');
     const [loading, setLoading] = useState(false);
     const [proposals, setProposals] = useState<Proposal[]>([]);
     const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
@@ -1060,6 +1061,16 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 Προφίλ
                             </button>
                             <button
+                                onClick={() => setActiveTab('campaigns')}
+                                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors whitespace-nowrap ${
+                                    activeTab === 'campaigns'
+                                        ? 'border-slate-900 text-slate-900'
+                                        : 'border-transparent text-slate-500 hover:text-slate-700'
+                                }`}
+                            >
+                                <span className="hidden md:inline">📣 </span>Καμπάνιες
+                            </button>
+                            <button
                                 onClick={() => setActiveTab('proposals')}
                                 className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors relative whitespace-nowrap ${
                                     activeTab === 'proposals'
@@ -1179,7 +1190,15 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                     </div>
 
                     <div className="p-6">
-                        {activeTab === 'proposals' ? (
+                        {activeTab === 'campaigns' ? (
+                            <div className="space-y-4">
+                                <h2 className="text-xl font-semibold text-slate-900">Καμπάνιες · αιτήσεις ενδιαφέροντος</h2>
+                                <InfluencerCampaignsPanel
+                                  influencerId={profile.id}
+                                  approved={!!profile.approved}
+                                />
+                            </div>
+                        ) : activeTab === 'proposals' ? (
                             <div className="space-y-4">
                                 <h2 className="text-xl font-semibold text-slate-900">Προσφορές από Brands</h2>
                                 

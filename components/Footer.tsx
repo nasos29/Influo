@@ -37,6 +37,7 @@ export default function Footer({ lang = "el" }: FooterProps) {
       pricing: "Τιμές",
       guide: "Οδηγός",
       directory: "Κατάλογος",
+      campaigns: "Καμπάνιες",
       support: "Υποστήριξη",
       help: "Βοήθεια",
       contact: "Επικοινωνία",
@@ -63,6 +64,7 @@ export default function Footer({ lang = "el" }: FooterProps) {
       pricing: "Pricing",
       guide: "Guide",
       directory: "Directory",
+      campaigns: "Campaigns",
       support: "Support",
       help: "Help",
       contact: "Contact",
@@ -217,6 +219,11 @@ export default function Footer({ lang = "el" }: FooterProps) {
               <li>
                 <Link href={lang === "en" ? "/en/directory" : "/directory"} className="text-slate-400 hover:text-white transition-colors text-sm">
                   {txt.directory}
+                </Link>
+              </li>
+              <li>
+                <Link href={lang === "en" ? "/en/campaigns" : "/campaigns"} className="text-slate-400 hover:text-white transition-colors text-sm">
+                  {txt.campaigns}
                 </Link>
               </li>
               <li>

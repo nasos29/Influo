@@ -12,6 +12,7 @@ import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 import { displayNameForLang } from '@/lib/greeklish';
 import { getCachedImageUrl } from '@/lib/imageProxy';
 import { prepareImageForStorage } from '@/lib/prepareImageForStorage';
+import BrandCampaignsSection from '@/components/BrandCampaignsSection';
 
 // Categories (same as Directory and InfluencerSignupForm)
 const CATEGORIES = [
@@ -653,7 +654,7 @@ export default function BrandDashboardContent() {
       localStorage.setItem('brandDashboardStats', JSON.stringify(recommendationStats));
     }
   }, [recommendationStats]);
-  const [activeTab, setActiveTab] = useState<'recommendations' | 'proposals' | 'messages'>('recommendations');
+  const [activeTab, setActiveTab] = useState<'recommendations' | 'campaigns' | 'proposals' | 'messages'>('recommendations');
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const router = useRouter();
   const txt = t[lang];
@@ -1276,6 +1277,16 @@ export default function BrandDashboardContent() {
                 {lang === 'el' ? '🤖 Προτάσεις' : '🤖 Recommendations'}
               </button>
               <button
+                onClick={() => setActiveTab('campaigns')}
+                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === 'campaigns'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {lang === 'el' ? '📣 Καμπάνιες' : '📣 Campaigns'}
+              </button>
+              <button
                 onClick={() => setActiveTab('proposals')}
                 className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors whitespace-nowrap relative ${
                   activeTab === 'proposals'
@@ -1335,6 +1346,12 @@ export default function BrandDashboardContent() {
             </div>
           </div>
         </div>
+
+        {activeTab === 'campaigns' && brandData && (
+          <div className="mb-12">
+            <BrandCampaignsSection brandId={brandData.id} lang={lang} />
+          </div>
+        )}
 
         {/* Recommendations Section */}
         {activeTab === 'recommendations' && (

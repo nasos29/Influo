@@ -41,6 +41,9 @@ const t = {
     feat_7_title: "🤖 Έξυπνη Υπηρεσία Προτάσεων",
     feat_7_desc: "Το AI μας αναλύει το brand σας και προτείνει αυτόματα τους καλύτερους influencers. Match score, προσωποποιημένες αιτιολογίες και advanced filters. ΔΩΡΕΑΝ για όλες τις εγγεγραμμένες επιχειρήσεις!",
     
+    campaign_card_title: "📣 Καμπάνιες με αιτήσεις",
+    campaign_card_desc: "Ανεβάστε την καμπάνια σας (τίτλος, περιγραφή, budget) από το brand dashboard. Οι verified influencers βλέπουν τις ανοιχτές καμπάνιες και κάνουν αίτηση ενδιαφέροντος — εσείς διαχειρίζεστε τις αιτήσεις.",
+    
     how_title: "Πώς Λειτουργεί",
     step_1_title: "1. Εγγραφείτε ως Brand",
     step_1_desc: "Δημιουργήστε λογαριασμό brand, συμπληρώστε τα στοιχεία της εταιρείας σας και λάβετε πρόσβαση στο κατάλογο.",
@@ -99,6 +102,9 @@ const t = {
     
     feat_7_title: "🤖 Smart Recommendation Service",
     feat_7_desc: "Our AI analyzes your brand and automatically suggests the best influencers. Match scores, personalized reasons, and advanced filters. FREE for all registered businesses!",
+    
+    campaign_card_title: "📣 Campaign briefs & applications",
+    campaign_card_desc: "Publish your campaign (title, description, budget) from the brand dashboard. Verified influencers see open campaigns and apply — you manage applications in one place.",
     
     how_title: "How It Works",
     step_1_title: "1. Sign Up as Brand",
@@ -374,6 +380,18 @@ export default function ForBrandsPage() {
                 />
               </div>
             </div>
+
+            <Link
+              href={lang === "en" ? "/en/campaigns" : "/campaigns"}
+              className="group bg-gradient-to-br from-white to-teal-50/50 p-8 rounded-2xl shadow-lg border border-teal-200 hover:shadow-2xl transition-all hover:-translate-y-2 block md:col-span-2 lg:col-span-3"
+            >
+              <div className="relative w-20 h-20 bg-gradient-to-br from-teal-400 to-cyan-600 rounded-2xl flex items-center justify-center mb-6 transform group-hover:scale-110 transition-transform">
+                <span className="text-4xl">📣</span>
+              </div>
+              <h3 className="text-2xl font-bold text-slate-900 mb-3">{txt.campaign_card_title.replace("📣 ", "")}</h3>
+              <p className="text-slate-600 leading-relaxed">{txt.campaign_card_desc}</p>
+              <p className="text-teal-700 font-medium text-sm mt-4">{lang === "el" ? "Δείτε ανοιχτές καμπάνιες →" : "View open campaigns →"}</p>
+            </Link>
           </div>
         </div>
       </section>

@@ -20,6 +20,7 @@ const t = {
     nav_join: "Εγγραφή Influencer",
     nav_brand: "Εγγραφή Επιχείρησης",
     nav_directory: "Κατάλογος",
+    nav_campaigns: "Καμπάνιες",
     nav_features: "Δυνατότητες",
     nav_admin: "Admin",
     hero_badge: "ΝΕΑ ΠΛΑΤΦΟΡΜΑ",
@@ -44,6 +45,8 @@ const t = {
     feat_2_desc: "Απευθείας επικοινωνία με brands.",
     feat_3_title: "Πληρωμές",
     feat_3_desc: "Ασφαλείς και γρήγορες πληρωμές.",
+    feat_4_title: "Καμπάνιες",
+    feat_4_desc: "Τα brands δημοσιεύουν καμπάνιες με budget — οι creators κάνουν αίτηση ενδιαφέροντος.",
     footer_rights: "Με επιφύλαξη παντός δικαιώματος.",
     footer_privacy: "Απόρρητο",
     footer_terms: "Όροι Χρήσης",
@@ -53,6 +56,7 @@ const t = {
     nav_join: "Become an Influencer",
     nav_brand: "For Brands",
     nav_directory: "Directory",
+    nav_campaigns: "Campaigns",
     nav_features: "Features",
     nav_admin: "Admin",
     hero_badge: "NEW PLATFORM",
@@ -77,6 +81,8 @@ const t = {
     feat_2_desc: "Direct communication with brands.",
     feat_3_title: "Payments",
     feat_3_desc: "Secure and fast payouts.",
+    feat_4_title: "Campaigns",
+    feat_4_desc: "Brands publish campaigns with budget — creators apply if interested.",
     footer_rights: "All rights reserved.",
     footer_privacy: "Privacy",
     footer_terms: "Terms",
@@ -336,6 +342,11 @@ export default function Home() {
                 <li><a href="/directory" className="hover:text-slate-900 transition-colors">
                   {txt.nav_directory}
                 </a></li>
+                <li>
+                  <a href={lang === "en" ? "/en/campaigns" : "/campaigns"} className="hover:text-slate-900 transition-colors">
+                    {txt.nav_campaigns}
+                  </a>
+                </li>
                 {isLoggedIn ? (
                   <li><a href={userType === 'brand' ? '/brand/dashboard' : '/dashboard'} className="hover:text-slate-900 transition-colors">
                     {lang === "el" ? "Dashboard" : "Dashboard"}
@@ -471,6 +482,13 @@ export default function Home() {
                 className="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors"
               >
                 {txt.nav_directory}
+              </a>
+              <a
+                href={lang === "en" ? "/en/campaigns" : "/campaigns"}
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors"
+              >
+                {txt.nav_campaigns}
               </a>
               {isLoggedIn ? (
                 <a 
@@ -624,12 +642,20 @@ export default function Home() {
                 {txt.brand_section_btn}
               </button>
             </div>
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
               <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm transition-all duration-300 hover:shadow-lg hover:border-blue-300 hover:-translate-y-1">
                 <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-2xl mb-4 transition-transform duration-300 hover:scale-110">🔍</div>
                 <h4 className="text-lg font-semibold text-slate-900 mb-2">{lang === "el" ? "Αναζήτηση" : "Search"}</h4>
                 <p className="text-slate-600 text-sm leading-relaxed">{lang === "el" ? "Βρείτε influencers ανά κατηγορία, engagement rate και budget." : "Find influencers by category, engagement rate and budget."}</p>
               </div>
+              <a
+                href={lang === "en" ? "/en/campaigns" : "/campaigns"}
+                className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm transition-all duration-300 hover:shadow-lg hover:border-teal-300 hover:-translate-y-1 block"
+              >
+                <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center text-2xl mb-4 transition-transform duration-300 hover:scale-110">📣</div>
+                <h4 className="text-lg font-semibold text-slate-900 mb-2">{txt.feat_4_title}</h4>
+                <p className="text-slate-600 text-sm leading-relaxed">{txt.feat_4_desc}</p>
+              </a>
               <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm transition-all duration-300 hover:shadow-lg hover:border-indigo-300 hover:-translate-y-1">
                 <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center text-2xl mb-4 transition-transform duration-300 hover:scale-110">💼</div>
                 <h4 className="text-lg font-semibold text-slate-900 mb-2">{lang === "el" ? "Διαχείριση" : "Management"}</h4>
@@ -640,7 +666,7 @@ export default function Home() {
                 <h4 className="text-lg font-semibold text-slate-900 mb-2">{lang === "el" ? "Verified" : "Verified"}</h4>
                 <p className="text-slate-600 text-sm leading-relaxed">{lang === "el" ? "Όλοι οι influencers είναι verified με πραγματικά στοιχεία." : "All influencers are verified with real stats."}</p>
               </div>
-              <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-6 rounded-xl border-2 border-blue-400 shadow-lg transition-all duration-300 hover:shadow-xl hover:-translate-y-1 text-white md:col-span-2 lg:col-span-1">
+              <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-6 rounded-xl border-2 border-blue-400 shadow-lg transition-all duration-300 hover:shadow-xl hover:-translate-y-1 text-white md:col-span-2 lg:col-span-3 xl:col-span-1">
                 <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center text-2xl mb-4 transition-transform duration-300 hover:scale-110">🤖</div>
                 <div className="inline-block px-2 py-1 bg-green-500 rounded-full text-xs font-bold mb-2">🎁 {lang === "el" ? "ΔΩΡΕΑΝ" : "FREE"}</div>
                 <h4 className="text-lg font-semibold mb-2">{lang === "el" ? "AI Προτάσεις" : "AI Recommendations"}</h4>
