@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
 import Footer from "../../components/Footer";
+import { FaChevronDown } from "react-icons/fa";
 
 type Lang = "el" | "en";
 
@@ -24,10 +25,177 @@ const t = {
   }
 };
 
+type FaqEntry = { q: Record<Lang, string>; a: Record<Lang, string> };
+
+/** 3 αρχικές + 13 νέες — συνολικά 16 ερωτήσεις */
+const FAQ_ITEMS: FaqEntry[] = [
+  {
+    q: {
+      el: "Πώς μπορώ να αυξήσω το engagement rate μου;",
+      en: "How can I increase my engagement rate?",
+    },
+    a: {
+      el: "Συνεπής δημοσίευση, ποιοτικό περιεχόμενο που «μιλάει» στο κοινό σας, αλληλεπίδραση με σχόλια και μηνύματα, σωστή χρήση hashtags και αναλύσεις για το τι αποδίδει καλύτερα στα δικά σας posts.",
+      en: "Post consistently, create quality content your audience cares about, reply to comments and DMs, use hashtags thoughtfully, and review what performs best to double down on what works.",
+    },
+  },
+  {
+    q: {
+      el: "Πώς ξέρω αν ένας influencer είναι αξιόπιστος;",
+      en: "How do I know if an influencer is trustworthy?",
+    },
+    a: {
+      el: "Ελέγξτε το επαληθευμένο προφίλ (verified), ιστορικό reviews και μέσο rating, συνέπεια στο περιεχόμενο, ρεαλιστικό engagement σε σχέση με τους followers και χρόνο απόκρισης σε μηνύματα.",
+      en: "Look for verification, reviews and average rating, content consistency, engagement that fits the audience size, and how quickly they respond in messages.",
+    },
+  },
+  {
+    q: {
+      el: "Μπορώ να απορρίψω μια προσφορά;",
+      en: "Can I reject a proposal?",
+    },
+    a: {
+      el: "Ναι. Μπορείτε να την απορρίψετε ή να προτείνετε διαφορετικούς όρους μέσω αντιπροσφοράς (counter-proposal), ανάλογα με το τι σας ταιριάζει.",
+      en: "Yes. You can reject it or suggest different terms via a counter-proposal, depending on what works for you.",
+    },
+  },
+  {
+    q: {
+      el: "Πώς γίνομαι επαληθευμένος (verified) influencer;",
+      en: "How do I become a verified influencer?",
+    },
+    a: {
+      el: "Υποβάλλετε πλήρες προφίλ με αληθινά στοιχεία και συνδέσμους κοινωνικών δικτύων. Η ομάδα ελέγχει το αίτημα· μετά την έγκριση λαμβάνετε το σήμα επαλήθευσης και πρόσβαση σε λειτουργίες όπως οι ανοιχτές καμπάνιες.",
+      en: "Complete your profile with accurate info and social links. Our team reviews applications; once approved you get the verified badge and access to features such as open campaigns.",
+    },
+  },
+  {
+    q: {
+      el: "Τι είναι οι καμπάνιες και πώς κάνω αίτηση ως influencer;",
+      en: "What are campaigns and how do I apply as an influencer?",
+    },
+    a: {
+      el: "Οι καμπάνιες είναι briefs που δημοσιεύουν verified brands. Στο dashboard βλέπετε τις ανοιχτές καμπάνιες· μπορείτε να υποβάλετε αίτηση ενδιαφέροντος με προαιρετικό μήνυμα. Το brand βλέπει την αίτηση και ενημερώνει την κατάσταση (π.χ. εκκρεμεί, shortlist, απόρριψη).",
+      en: "Campaigns are briefs published by verified brands. In your dashboard you’ll see open campaigns; you can submit an interest application with an optional message. The brand reviews it and updates status (e.g. pending, shortlisted, rejected).",
+    },
+  },
+  {
+    q: {
+      el: "Πώς δημοσιεύω καμπάνια ως brand;",
+      en: "How do I publish campaigns as a brand?",
+    },
+    a: {
+      el: "Από το Brand Dashboard, στο tab Καμπάνιες, δημιουργείτε καμπάνια με τίτλο, περιγραφή, budget και προαιρετικά προθεσμία και deliverables. Το brand σας πρέπει να είναι επαληθευμένο. Όταν η κατάσταση είναι «Ανοιχτή», οι εγκεκριμένοι influencers τη βλέπουν και μπορούν να κάνουν αίτηση.",
+      en: "From Brand Dashboard → Campaigns, create a campaign with title, description, budget, and optional deadline and deliverables. Your brand must be verified. When status is Open, approved influencers can see it and apply.",
+    },
+  },
+  {
+    q: {
+      el: "Είναι δωρεάν η εγγραφή και η χρήση του Influo;",
+      en: "Is signing up and using Influo free?",
+    },
+    a: {
+      el: "Η εγγραφή και η βασική χρήση της πλατφόρμας (προφίλ, μηνύματα, προσφορές, καμπάνιες σύμφωνα με τους όρους) είναι διαθέσιμες χωρίς χρέωση από το Influo για τη σύνδεση brands και influencers. Ελέγξτε τους όρους χρήσης για εμπορικές λεπτομέρειες.",
+      en: "Signing up and core platform use (profile, messages, proposals, campaigns per our terms) is available without an Influo connection fee. See the Terms of Service for commercial details.",
+    },
+  },
+  {
+    q: {
+      el: "Πώς λειτουργούν τα μηνύματα και οι ειδοποιήσεις;",
+      en: "How do messages and notifications work?",
+    },
+    a: {
+      el: "Στέλνετε μηνύματα από προφίλ ή από το κέντρο συνομιλιών· οι συνομιλίες συνδέονται με προσφορές όπου ισχύει. Λαμβάνετε ειδοποιήσεις email για νέα μηνύματα και μπορείτε να ενεργοποιήσετε ειδοποιήσεις push στον browser για γρηγορότερη ενημέρωση.",
+      en: "Message from profiles or your inbox; conversations can link to proposals where relevant. You get email notifications for new messages and can enable browser push for faster updates.",
+    },
+  },
+  {
+    q: {
+      el: "Μπορώ να «εγκαταστήσω» το Influo ως εφαρμογή στο κινητό;",
+      en: "Can I install Influo as an app on my phone?",
+    },
+    a: {
+      el: "Ναι. Ανοίξτε το influo.gr από Chrome (Android) ή Safari (iPhone) και χρησιμοποιήστε «Εγκατάσταση» / «Προσθήκη στην αρχική οθόνη» για εμπειρία παρόμοια με εφαρμογή (PWA), χωρίς Play Store ή App Store.",
+      en: "Yes. Open influo.gr in Chrome (Android) or Safari (iOS) and use Install / Add to Home Screen for an app-like PWA experience without an app store download.",
+    },
+  },
+  {
+    q: {
+      el: "Πώς αφήνω review μετά από συνεργασία;",
+      en: "How do I leave a review after a collaboration?",
+    },
+    a: {
+      el: "Μετά την ολοκλήρωση της συνεργασίας, ως brand μπορείτε να επισκεφθείτε το προφίλ του influencer, tab Reviews, και να υποβάλετε βαθμολογία και κείμενο. Τα reviews ενισχύουν την αξιοπιστία στην πλατφόρμα.",
+      en: "After completion, as a brand visit the influencer’s profile → Reviews and submit a rating and text. Reviews build trust on the platform.",
+    },
+  },
+  {
+    q: {
+      el: "Τι σημαίνει «επαληθευμένο» brand;",
+      en: "What does a verified brand mean?",
+    },
+    a: {
+      el: "Σημαίνει ότι η ομάδα έχει ελέγξει στοιχεία της επιχείρησης ώστε να εμφανίζονται δημόσια καμπάνιες και να υπάρχει εμπιστοσύνη για τους influencers. Μόνο verified brands δημοσιεύουν ανοιχτές καμπάνιες.",
+      en: "It means our team has reviewed business details so public campaigns are shown and influencers can trust who they apply to. Only verified brands publish open campaigns.",
+    },
+  },
+  {
+    q: {
+      el: "Πώς επικοινωνώ με την υποστήριξη;",
+      en: "How do I contact support?",
+    },
+    a: {
+      el: "Στείλτε email στο support@influo.gr ή χρησιμοποιήστε τη φόρμα επικοινωνίας / help desk της ιστοσελίδας. Ωράριο ενδεικτικά: Δευτέρα–Παρασκευή, 10:00–18:00 (ώρα Ελλάδας).",
+      en: "Email support@influo.gr or use the site’s contact / help desk form. Indicative hours: Monday–Friday, 10:00–18:00 (Greece time).",
+    },
+  },
+  {
+    q: {
+      el: "Τα προσωπικά μου δεδομένα είναι ασφαλή;",
+      en: "Is my personal data secure?",
+    },
+    a: {
+      el: "Η πλατφόρμα χρησιμοποιεί σύγχρονη υποδομή (HTTPS), ασφαλή authentication και πρακτικές σύμφωνα με την πολιτική απορρήτου. Διαβάστε την Πολιτική Απορρήτου για λεπτομέρειες επεξεργασίας και δικαιωμάτων σας.",
+      en: "We use HTTPS, secure authentication, and practices described in our Privacy Policy. Read it for details on processing and your rights.",
+    },
+  },
+  {
+    q: {
+      el: "Μπορώ να έχω ταυτόχρονα λογαριασμό influencer και brand;",
+      en: "Can I have both an influencer and a brand account?",
+    },
+    a: {
+      el: "Συνήθως πρόκειται για ξεχωριστούς ρόλους και λογαριασμούς (διαφορετικό email/εγγραφή ανά ρόλο). Ακολουθήστε τις οδηγίες εγγραφής για κάθε τύπο λογαριασμού ώστε το προφίλ και τα δικαιώματα να είναι σωστά.",
+      en: "Usually these are separate roles and accounts (different signup per role). Follow the signup flow for each so your profile and permissions stay correct.",
+    },
+  },
+  {
+    q: {
+      el: "Πώς λειτουργεί η αντιπροσφορά (counter-proposal);",
+      en: "How does a counter-proposal work?",
+    },
+    a: {
+      el: "Όταν λάβετε προσφορά από brand, μπορείτε να προτείνετε διαφορετικό budget ή όρους. Το brand βλέπει την αντιπροσφορά και μπορεί να την αποδεχτεί ή να την απορρίψει. Έτσι συμφωνείτε χωρίς να ξεκινάτε από την αρχή.",
+      en: "When you receive a brand proposal, you can suggest different budget or terms. The brand accepts or rejects your counter. That way you align without restarting from scratch.",
+    },
+  },
+  {
+    q: {
+      el: "Τι είναι η συμφωνία συνεργασίας (agreement) και γιατί χρειάζεται;",
+      en: "What is the collaboration agreement and why does it matter?",
+    },
+    a: {
+      el: "Μετά την αποδοχή προσφοράς, εμφανίζονται όροι που πρέπει να αποδεχτούν και οι δύο πλευρές. Μόνο όταν γίνει αμοιβαία αποδοχή η συνεργασία καταγράφεται επίσημα (π.χ. Past Brands). Προστατεύει brand και influencer με κοινούς κανόνες.",
+      en: "After a proposal is accepted, terms appear that both sides must accept. Only after mutual acceptance is the collaboration recorded officially (e.g. Past Brands). It protects both parties with shared rules.",
+    },
+  },
+];
+
 export default function DocsPage() {
   const pathname = usePathname();
   const router = useRouter();
   const [lang, setLang] = useState<Lang>(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
   const txt = t[lang];
 
   useEffect(() => {
@@ -496,40 +664,57 @@ export default function DocsPage() {
             </div>
           </section>
 
-          {/* FAQ Section */}
+          {/* FAQ Section — accordion */}
           <section className="mb-12 border-t border-slate-200 pt-12">
-            <h2 className="text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3">
-              <span className="text-4xl">🆘</span>
-              {lang === 'el' ? 'Συχνές Ερωτήσεις (FAQ)' : 'Frequently Asked Questions (FAQ)'}
+            <h2 className="text-3xl font-bold text-slate-900 mb-3 flex items-center gap-3">
+              <span className="text-4xl" aria-hidden>
+                🆘
+              </span>
+              {lang === "el" ? "Συχνές Ερωτήσεις (FAQ)" : "Frequently Asked Questions (FAQ)"}
             </h2>
+            <p className="text-slate-600 text-sm mb-8 max-w-2xl">
+              {lang === "el"
+                ? "Πατήστε μια ερώτηση για να δείτε την απάντηση. Όλες οι απαντήσεις είναι ενδεικτικές· για λεπτομέρειες ισχύουν οι όροι χρήσης και η πολιτική απορρήτου."
+                : "Tap a question to reveal the answer. Answers are indicative; the Terms of Service and Privacy Policy apply for details."}
+            </p>
 
-            <div className="space-y-6">
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-6">
-                <h4 className="font-bold text-slate-900 mb-2">
-                  {lang === 'el' ? 'Q: Πώς μπορώ να αυξήσω το engagement rate μου;' : 'Q: How can I increase my engagement rate?'}
-                </h4>
-                <p className="text-slate-700">
-                  {lang === 'el' ? 'Α: Συνεπής δημοσίευση, ποιοτικό περιεχόμενο, αλληλεπίδραση με τους followers, hashtags.' : 'A: Consistent posting, quality content, interaction with followers, hashtags.'}
-                </p>
-              </div>
-
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-6">
-                <h4 className="font-bold text-slate-900 mb-2">
-                  {lang === 'el' ? 'Q: Πώς ξέρω αν ένας influencer είναι αξιόπιστος;' : 'Q: How do I know if an influencer is trustworthy?'}
-                </h4>
-                <p className="text-slate-700">
-                  {lang === 'el' ? 'A: Ελέγξτε: Verified badge, reviews, completion rate, response time.' : 'A: Check: Verified badge, reviews, completion rate, response time.'}
-                </p>
-              </div>
-
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-6">
-                <h4 className="font-bold text-slate-900 mb-2">
-                  {lang === 'el' ? 'Q: Μπορώ να απορρίψω μια προσφορά;' : 'Q: Can I reject a proposal?'}
-                </h4>
-                <p className="text-slate-700">
-                  {lang === 'el' ? 'A: Ναι, μπορείτε να απορρίψετε ή να κάνετε αντιπροσφορά.' : 'A: Yes, you can reject or make a counter-proposal.'}
-                </p>
-              </div>
+            <div className="max-w-3xl space-y-2">
+              {FAQ_ITEMS.map((item, i) => {
+                const open = openFaqIndex === i;
+                return (
+                  <div
+                    key={i}
+                    className="overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm transition-shadow hover:shadow-md"
+                  >
+                    <button
+                      type="button"
+                      id={`faq-trigger-${i}`}
+                      aria-expanded={open}
+                      aria-controls={`faq-panel-${i}`}
+                      onClick={() => setOpenFaqIndex((prev) => (prev === i ? null : i))}
+                      className="flex w-full items-start justify-between gap-4 px-5 py-4 text-left font-semibold text-slate-900 transition-colors hover:bg-slate-50/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                    >
+                      <span className="min-w-0 flex-1 pt-0.5 leading-snug">{item.q[lang]}</span>
+                      <FaChevronDown
+                        className={`mt-1 h-4 w-4 shrink-0 text-slate-500 transition-transform duration-300 ease-out ${open ? "rotate-180" : ""}`}
+                        aria-hidden
+                      />
+                    </button>
+                    <div
+                      id={`faq-panel-${i}`}
+                      role="region"
+                      aria-labelledby={`faq-trigger-${i}`}
+                      className={`grid transition-[grid-template-rows] duration-300 ease-out ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
+                    >
+                      <div className="min-h-0 overflow-hidden">
+                        <div className="border-t border-slate-100 bg-slate-50/50 px-5 py-4">
+                          <p className="text-sm leading-relaxed text-slate-700">{item.a[lang]}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </section>
 
