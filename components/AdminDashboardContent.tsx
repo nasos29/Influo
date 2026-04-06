@@ -117,6 +117,38 @@ interface Brand {
   created_at: string;
 }
 
+interface AdminBrandCampaignRow {
+  id: string;
+  brand_id: string;
+  title: string;
+  description: string;
+  budget: number;
+  category: string | null;
+  status: string;
+  deadline: string | null;
+  created_at: string;
+  updated_at: string;
+  brands:
+    | { brand_name: string | null; contact_email: string | null; verified: boolean | null }
+    | Array<{ brand_name: string | null; contact_email: string | null; verified: boolean | null }>
+    | null;
+}
+
+function getCampaignBrandMeta(row: AdminBrandCampaignRow): {
+  name: string;
+  email: string | null;
+  verified: boolean;
+} {
+  const b = row.brands;
+  if (!b) return { name: "—", email: null, verified: false };
+  const o = Array.isArray(b) ? b[0] : b;
+  return {
+    name: o?.brand_name ?? "—",
+    email: o?.contact_email ?? null,
+    verified: !!o?.verified,
+  };
+}
+
 interface BlogPost {
   slug: string;
   title: { el: string; en: string };
@@ -142,6 +174,7 @@ const t = {
     tab_inf_analytics: "Στατιστικά",
     tab_deals: "Proposals",
     tab_brands: "Companies",
+    tab_campaigns: "Καμπάνιες brands",
     tab_blog: "Blog",
     col_inf: "Influencer",
     col_loc: "Τοποθεσία",
@@ -203,7 +236,14 @@ const t = {
     refresh_social: "Ανανέωση Social",
     refresh_social_all: "Ανανέωση social stats για όλους",
     refresh_audit: "Ανανέωση AI",
-    backfill_audit: "Backfill Gemini audit (μία φορά για όλους)"
+    backfill_audit: "Backfill Gemini audit (μία φορά για όλους)",
+    col_campaign_title: "Τίτλος καμπάνιας",
+    col_campaign_status: "Κατάσταση",
+    campaigns_schema_missing:
+      "Ο πίνακας brand_campaigns δεν υπάρχει στη βάση. Εκτελέστε docs/BRAND_CAMPAIGNS_SCHEMA.sql στο Supabase.",
+    campaigns_refresh: "Ανανέωση λίστας",
+    campaign_delete_confirm:
+      "Να διαγραφεί αυτή η καμπάνια και όλες οι σχετικές αιτήσεις influencers; Η ενέργεια δεν αναιρείται.",
   },
   en: {
     title: "Admin Dashboard",
@@ -279,8 +319,16 @@ const t = {
     refresh_social: "Refresh Social",
     refresh_social_all: "Refresh social stats for all",
     refresh_audit: "Refresh AI",
-    backfill_audit: "Backfill Gemini audit (once for all)"
-  }
+    backfill_audit: "Backfill Gemini audit (once for all)",
+    tab_campaigns: "Brand campaigns",
+    col_campaign_title: "Campaign title",
+    col_campaign_status: "Status",
+    campaigns_schema_missing:
+      "The brand_campaigns table is missing. Run docs/BRAND_CAMPAIGNS_SCHEMA.sql in Supabase.",
+    campaigns_refresh: "Refresh list",
+    campaign_delete_confirm:
+      "Delete this campaign and all related influencer applications? This cannot be undone.",
+  },
 };
 
 // Edit Brand Modal Component
@@ -1483,6 +1531,11 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [deletingBrand, setDeletingBrand] = useState<string | null>(null);
   const [deletingConversation, setDeletingConversation] = useState<string | null>(null);
   const [deletingProposal, setDeletingProposal] = useState<number | null>(null);
+  const [adminCampaigns, setAdminCampaigns] = useState<AdminBrandCampaignRow[]>([]);
+  const [campaignsLoading, setCampaignsLoading] = useState(false);
+  const [campaignsSchemaMissing, setCampaignsSchemaMissing] = useState(false);
+  const [deletingCampaignId, setDeletingCampaignId] = useState<string | null>(null);
+  const [campaignSearchQuery, setCampaignSearchQuery] = useState("");
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [conversationMessages, setConversationMessages] = useState<Message[]>([]);
   const [showConversationsDrawer, setShowConversationsDrawer] = useState(false); // Mobile: toggle conversations drawer
@@ -1587,6 +1640,50 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     } catch (error: any) {
       console.error('Error fetching brands:', error);
       setBrands([]);
+    }
+  };
+
+  const fetchAdminCampaigns = async () => {
+    setCampaignsLoading(true);
+    setCampaignsSchemaMissing(false);
+    try {
+      const response = await fetch("/api/admin/campaigns");
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        console.error("[Admin] campaigns fetch", result.error);
+        setAdminCampaigns([]);
+        return;
+      }
+      setCampaignsSchemaMissing(!!result.schemaMissing);
+      setAdminCampaigns(result.campaigns || []);
+    } catch (e) {
+      console.error("[Admin] campaigns fetch", e);
+      setAdminCampaigns([]);
+    } finally {
+      setCampaignsLoading(false);
+    }
+  };
+
+  const deleteAdminCampaign = async (row: AdminBrandCampaignRow) => {
+    if (!confirm(txt.campaign_delete_confirm)) return;
+    setDeletingCampaignId(row.id);
+    try {
+      const response = await fetch("/api/admin/campaigns", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ campaignId: row.id }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Delete failed");
+      }
+      setAdminCampaigns((prev) => prev.filter((c) => c.id !== row.id));
+      alert(lang === "el" ? "Η καμπάνια διαγράφηκε." : "Campaign deleted.");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
+      alert(lang === "el" ? `Σφάλμα: ${message}` : `Error: ${message}`);
+    } finally {
+      setDeletingCampaignId(null);
     }
   };
 
@@ -2938,6 +3035,20 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
               >
                 {txt.tab_brands} ({brands.length})
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("campaigns");
+                  fetchAdminCampaigns();
+                }}
+                className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === "campaigns"
+                    ? "border-slate-900 text-slate-900"
+                    : "border-transparent text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                {txt.tab_campaigns} ({adminCampaigns.length})
+              </button>
               <button 
                 onClick={() => setActiveTab("blog")} 
                 className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
@@ -3435,6 +3546,167 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                           </td>
                         </tr>
                       ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+
+          {activeTab === "campaigns" && (
+            <>
+              {campaignsSchemaMissing && (
+                <div className="p-4 bg-amber-50 border-b border-amber-200 text-amber-900 text-sm">
+                  {txt.campaigns_schema_missing}
+                </div>
+              )}
+              <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+                <input
+                  type="text"
+                  placeholder={txt.search}
+                  value={campaignSearchQuery}
+                  onChange={(e) => setCampaignSearchQuery(e.target.value)}
+                  className="flex-1 min-w-[12rem] px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={fetchAdminCampaigns}
+                  disabled={campaignsLoading}
+                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60 transition-colors shrink-0"
+                >
+                  {campaignsLoading
+                    ? lang === "el"
+                      ? "Φόρτωση…"
+                      : "Loading…"
+                    : txt.campaigns_refresh}
+                </button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">
+                        {txt.col_brand}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">
+                        {txt.col_campaign_title}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">
+                        {txt.col_campaign_status}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">
+                        {txt.col_bud}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">
+                        {lang === "el" ? "Προθεσμία" : "Deadline"}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">
+                        {txt.col_date}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">
+                        {txt.col_act}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {campaignsLoading && adminCampaigns.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
+                          {lang === "el" ? "Φόρτωση…" : "Loading…"}
+                        </td>
+                      </tr>
+                    ) : (
+                      (() => {
+                        const q = campaignSearchQuery.trim().toLowerCase();
+                        const filtered = q
+                          ? adminCampaigns.filter((c) => {
+                              const meta = getCampaignBrandMeta(c);
+                              return (
+                                c.title.toLowerCase().includes(q) ||
+                                meta.name.toLowerCase().includes(q) ||
+                                (meta.email && meta.email.toLowerCase().includes(q))
+                              );
+                            })
+                          : adminCampaigns;
+                        if (filtered.length === 0) {
+                          return (
+                            <tr>
+                              <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
+                                {adminCampaigns.length === 0
+                                  ? lang === "el"
+                                    ? "Δεν υπάρχουν καμπάνιες."
+                                    : "No campaigns yet."
+                                  : txt.no_data}
+                              </td>
+                            </tr>
+                          );
+                        }
+                        return filtered.map((c) => {
+                          const meta = getCampaignBrandMeta(c);
+                          const statusEn = c.status === "open" ? "Open" : c.status === "closed" ? "Closed" : "Draft";
+                          const statusEl =
+                            c.status === "open" ? "Ανοιχτή" : c.status === "closed" ? "Κλειστή" : "Πρόχειρο";
+                          const statusCls =
+                            c.status === "open"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : c.status === "closed"
+                                ? "bg-slate-200 text-slate-700"
+                                : "bg-amber-100 text-amber-800";
+                          return (
+                            <tr key={c.id} className="hover:bg-slate-50">
+                              <td className="px-3 py-2 align-top">
+                                <div className="font-medium text-slate-900">{meta.name}</div>
+                                {meta.email && (
+                                  <div className="text-xs text-slate-500 break-all max-w-[180px]">{meta.email}</div>
+                                )}
+                                {meta.verified ? (
+                                  <span className="mt-1 inline-flex text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-800">
+                                    verified
+                                  </span>
+                                ) : null}
+                              </td>
+                              <td className="px-3 py-2 align-top max-w-[220px]">
+                                <div className="font-medium text-slate-800 line-clamp-2">{c.title}</div>
+                                {c.category ? (
+                                  <div className="text-xs text-slate-500 mt-0.5">{c.category}</div>
+                                ) : null}
+                              </td>
+                              <td className="px-3 py-2 align-top whitespace-nowrap">
+                                <span
+                                  className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusCls}`}
+                                >
+                                  {lang === "el" ? statusEl : statusEn}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 align-top text-sm whitespace-nowrap">
+                                €{Number(c.budget || 0).toLocaleString(lang === "el" ? "el-GR" : "en-GB")}
+                              </td>
+                              <td className="px-3 py-2 align-top text-sm text-slate-600 whitespace-nowrap">
+                                {c.deadline
+                                  ? new Date(c.deadline).toLocaleDateString(lang === "el" ? "el-GR" : "en-GB")
+                                  : "—"}
+                              </td>
+                              <td className="px-3 py-2 align-top text-sm text-slate-600 whitespace-nowrap">
+                                {new Date(c.created_at).toLocaleDateString(lang === "el" ? "el-GR" : "en-GB")}
+                              </td>
+                              <td className="px-3 py-2 align-top">
+                                <button
+                                  type="button"
+                                  onClick={() => deleteAdminCampaign(c)}
+                                  disabled={deletingCampaignId === c.id}
+                                  className="px-2.5 py-1 text-[11px] bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+                                >
+                                  {deletingCampaignId === c.id
+                                    ? lang === "el"
+                                      ? "Διαγραφή…"
+                                      : "Deleting…"
+                                    : txt.btn_delete}
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        });
+                      })()
                     )}
                   </tbody>
                 </table>
