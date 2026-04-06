@@ -22,12 +22,17 @@ self.addEventListener('push', function (event) {
   const body = data.body || 'Νέα ειδοποίηση';
   const url = data.url || '/';
   const tag = data.tag || 'influo-notification';
+  // Android Chrome εμφανίζει λάθος/γενικό εικονίδιο με SVG — χρησιμοποιούμε PNG από το λογότυπο
+  const base = self.location.origin;
+  const iconUrl = data.icon || `${base}/push-icon-192.png`;
+  const badgeUrl = data.badge || `${base}/push-badge-96.png`;
+  const imageUrl = data.image || `${base}/push-image-512.png`;
 
   const options = {
     body: body,
-    icon: '/logo-icon.svg',
-    badge: '/push-badge.svg',
-    image: '/logo-icon.svg',
+    icon: iconUrl,
+    badge: badgeUrl,
+    image: imageUrl,
     tag: tag,
     data: { url: url },
     requireInteraction: false,
