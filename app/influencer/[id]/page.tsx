@@ -375,11 +375,17 @@ export default function InfluencerProfile(props: { params: Params }) {
       try {
         // First check if this influencer is actually logged in
         // We can't directly check, but we can verify the presence record is recent and valid
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('influencer_presence')
           .select('is_online, last_seen, updated_at')
           .eq('influencer_id', id)
-          .single();
+          .maybeSingle();
+
+        if (error && error.code !== 'PGRST116') {
+          console.error('Error checking online status:', error);
+          setIsOnline(false);
+          return;
+        }
 
         if (data) {
           const lastSeen = new Date(data.last_seen);
