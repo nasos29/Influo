@@ -1,9 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import sharp from 'sharp';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+async function optimizeTicketImage(
+  file: File
+): Promise<{ buffer: Buffer; contentType: string; extension: string; optimized: boolean }> {
+  const isRasterImage =
+    file.type.startsWith('image/') &&
+    file.type !== 'image/svg+xml' &&
+    file.type !== 'image/gif';
+
+  if (!isRasterImage) {
+    const raw = Buffer.from(await file.arrayBuffer());
+    return { buffer: raw, contentType: file.type, extension: file.name.split('.').pop() || 'bin', optimized: false };
+  }
+
+  const input = Buffer.from(await file.arrayBuffer());
+  const image = sharp(input, { failOn: 'none' }).rotate().resize({
+    width: 1600,
+    height: 1600,
+    fit: 'inside',
+    withoutEnlargement: true,
+  });
+
+  // Prefer WebP for best size/cost reduction.
+  const output = await image.webp({ quality: 78 }).toBuffer();
+  return { buffer: output, contentType: 'image/webp', extension: 'webp', optimized: true };
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -59,18 +86,21 @@ export async function POST(req: NextRequest) {
     // Generate unique filename
     const timestamp = Date.now();
     const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const baseName = sanitizedFileName.replace(/\.[^/.]+$/, '') || 'file';
+
+    const optimizedUpload = await optimizeTicketImage(file);
+    const finalFileName = `${baseName}.${optimizedUpload.extension}`;
     const filePath = ticketId 
-      ? `tickets/${ticketId}/${timestamp}_${sanitizedFileName}`
+      ? `tickets/${ticketId}/${timestamp}_${finalFileName}`
       : userId 
-        ? `tickets/temp/${userId}/${timestamp}_${sanitizedFileName}`
-        : `tickets/temp/admin/${timestamp}_${sanitizedFileName}`;
+        ? `tickets/temp/${userId}/${timestamp}_${finalFileName}`
+        : `tickets/temp/admin/${timestamp}_${finalFileName}`;
 
     // Upload to Supabase Storage
-    const fileBuffer = await file.arrayBuffer();
     const { data, error } = await supabaseAdmin.storage
       .from('ticket-attachments')
-      .upload(filePath, fileBuffer, {
-        contentType: file.type,
+      .upload(filePath, optimizedUpload.buffer, {
+        contentType: optimizedUpload.contentType,
         upsert: false,
       });
 
@@ -92,8 +122,9 @@ export async function POST(req: NextRequest) {
       file: {
         url: urlData.publicUrl,
         filename: file.name,
-        size: file.size,
-        content_type: file.type,
+        size: optimizedUpload.buffer.byteLength,
+        content_type: optimizedUpload.contentType,
+        optimized: optimizedUpload.optimized,
         uploaded_at: new Date().toISOString(),
       },
     });
