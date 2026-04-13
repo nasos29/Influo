@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { getCachedImageUrl } from "@/lib/imageProxy";
 
 interface BrandCardProps {
   id: string;
@@ -46,7 +47,7 @@ export default function BrandCard({
           <div className="relative w-full h-24 rounded-lg border-2 border-white shadow-md overflow-hidden bg-white flex items-center justify-center">
             {logo_url && logo_url.trim() !== '' ? (
               <img
-                src={logo_url}
+                src={getCachedImageUrl(logo_url) ?? logo_url}
                 alt={brand_name}
                 className="w-full h-full object-contain p-1"
                 onError={(e) => {

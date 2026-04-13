@@ -8,6 +8,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Footer from "@/components/Footer";
 import { supabase } from "@/lib/supabaseClient";
 import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
+import { getCachedImageUrl } from "@/lib/imageProxy";
 
 const ADMIN_EMAIL_FALLBACK = "nd.6@hotmail.com";
 
@@ -254,7 +255,7 @@ export default function PublicCampaignsPage() {
                 <div className="flex items-start gap-3">
                   {c.brands?.logo_url ? (
                     <Image
-                      src={c.brands.logo_url}
+                      src={getCachedImageUrl(c.brands.logo_url) ?? c.brands.logo_url}
                       alt=""
                       width={48}
                       height={48}
