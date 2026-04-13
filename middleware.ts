@@ -12,3 +12,13 @@ export function middleware(request: NextRequest) {
     },
   });
 }
+
+/**
+ * Run middleware only for real app pages.
+ * Skips API/static assets to reduce unnecessary Vercel compute transfer.
+ */
+export const config = {
+  matcher: [
+    "/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt|xml)$).*)",
+  ],
+};
