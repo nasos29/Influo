@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
       
       try {
         // Method 1: Try Iframely API (best option with API key)
-        const iframelyApiKey = process.env.IFRAMELY_API_KEY || '4355c593a3b2439820d35f';
+        const iframelyApiKey = process.env.IFRAMELY_API_KEY || process.env.NEXT_PUBLIC_IFRAMELY_API_KEY;
         if (iframelyApiKey) {
           try {
             const iframelyUrl = `https://iframe.ly/api/iframely?url=${encodeURIComponent(cleanUrl)}&api_key=${iframelyApiKey}`;
@@ -279,7 +279,7 @@ export async function GET(req: NextRequest) {
       
       try {
         // Use Iframely API for TikTok thumbnails (best option)
-        const iframelyApiKey = process.env.IFRAMELY_API_KEY || '4355c593a3b2439820d35f';
+        const iframelyApiKey = process.env.IFRAMELY_API_KEY || process.env.NEXT_PUBLIC_IFRAMELY_API_KEY;
         if (iframelyApiKey) {
           try {
             const iframelyUrl = `https://iframe.ly/api/iframely?url=${encodeURIComponent(cleanUrl)}&api_key=${iframelyApiKey}`;

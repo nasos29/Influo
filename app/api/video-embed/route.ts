@@ -1,85 +1,109 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const IFRAMELY_API_KEY = process.env.IFRAMELY_API_KEY || process.env.NEXT_PUBLIC_IFRAMELY_API_KEY || '4355c593a3b2439820d35f';
+const IFRAMELY_API_KEY = process.env.IFRAMELY_API_KEY || process.env.NEXT_PUBLIC_IFRAMELY_API_KEY;
 
-// Create admin client for database operations
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
   {
     auth: {
       autoRefreshToken: false,
-      persistSession: false
-    }
+      persistSession: false,
+    },
   }
 );
 
 const IFRAMELY_API_URL = 'https://iframe.ly/api/iframe';
-
-interface CachedEmbed {
-  original_url: string;
-  embed_url: string;
-  provider: string;
-  cached_at: string;
-  expires_at: string;
-}
+const EMBED_CACHE_SECONDS = 60 * 60 * 24 * 365; // 1 year
 
 /**
  * GET /api/video-embed?url={originalUrl}
- * Returns cached embed URL or fetches from Iframely if not cached
+ * - default mode: returns JSON with local embed URL (cached in DB)
+ * - frame mode (?frame=1): proxies Iframely HTML via server (no API key leakage)
  */
 export async function GET(req: NextRequest) {
   try {
     const searchParams = req.nextUrl.searchParams;
     const originalUrl = searchParams.get('url');
+    const frameMode = searchParams.get('frame') === '1';
 
     if (!originalUrl) {
-      return NextResponse.json(
-        { error: 'URL parameter is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'URL parameter is required' }, { status: 400 });
     }
 
-    // Check cache in database
+    if (!IFRAMELY_API_KEY) {
+      return NextResponse.json({ error: 'IFRAMELY_API_KEY not configured' }, { status: 500 });
+    }
+
+    // Frame mode for iframe src: fetch Iframely HTML server-side with key, return cached HTML.
+    if (frameMode) {
+      const iframelyFrameUrl = `${IFRAMELY_API_URL}?url=${encodeURIComponent(originalUrl)}&api_key=${IFRAMELY_API_KEY}`;
+      const iframeRes = await fetch(iframelyFrameUrl, {
+        cache: 'force-cache',
+        next: { revalidate: EMBED_CACHE_SECONDS },
+        headers: {
+          'User-Agent': 'Mozilla/5.0',
+          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        },
+      });
+
+      if (!iframeRes.ok) {
+        const txt = await iframeRes.text();
+        console.error('Iframely frame fetch error:', iframeRes.status, txt);
+        return NextResponse.json(
+          { error: 'Failed to fetch iframe HTML', status: iframeRes.status },
+          { status: iframeRes.status }
+        );
+      }
+
+      const html = await iframeRes.text();
+      return new NextResponse(html, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': `public, max-age=${EMBED_CACHE_SECONDS}, s-maxage=${EMBED_CACHE_SECONDS}, stale-while-revalidate=86400`,
+        },
+      });
+    }
+
+    // Default mode: DB cache lookup first
     try {
       const { data: cached, error: cacheError } = await supabaseAdmin
         .from('video_embed_cache')
         .select('*')
         .eq('original_url', originalUrl)
-        .single();
+        .maybeSingle();
 
       if (!cacheError && cached) {
-        // Check if cache is still valid (30 days in DB)
         const expiresAt = new Date(cached.expires_at);
-        const now = new Date();
-        
-        if (expiresAt > now) {
-          // Cache is valid, return cached embed URL (max TTL to minimize Iframely API hits)
+        if (expiresAt > new Date()) {
           const res = NextResponse.json({
             embed_url: cached.embed_url,
             provider: cached.provider,
             cached: true,
-            cached_at: cached.cached_at
+            cached_at: cached.cached_at,
           });
-          res.headers.set('Cache-Control', 'public, max-age=31536000, s-maxage=31536000'); // 1 year
+          res.headers.set(
+            'Cache-Control',
+            `public, max-age=${EMBED_CACHE_SECONDS}, s-maxage=${EMBED_CACHE_SECONDS}`
+          );
           return res;
         }
-        // Expired: re-fetch below; do not delete so we can upsert again
       }
     } catch (dbError) {
-      // If table doesn't exist, continue to fetch from Iframely
       console.log('Cache check failed (table might not exist):', dbError);
     }
 
-    // Cache miss or expired - fetch from Iframely
+    // Warm Iframely once server-side (helps detect failures early)
     const iframelyUrl = `${IFRAMELY_API_URL}?url=${encodeURIComponent(originalUrl)}&api_key=${IFRAMELY_API_KEY}`;
-    
     const iframelyResponse = await fetch(iframelyUrl, {
+      cache: 'force-cache',
+      next: { revalidate: EMBED_CACHE_SECONDS },
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-      }
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
     });
 
     if (!iframelyResponse.ok) {
@@ -91,51 +115,48 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Iframely returns an HTML page with an iframe
-    // The embed URL is the iframely URL itself, which will be used as iframe src
-    // This URL contains the API key and original URL, and Iframely serves the embed HTML
-    const embedUrl = iframelyUrl;
+    // Never expose API key to client.
+    const embedUrl = `/api/video-embed?url=${encodeURIComponent(originalUrl)}&frame=1`;
 
-    // Detect provider from original URL
     let provider = 'unknown';
     const lowerUrl = originalUrl.toLowerCase();
-    if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) {
-      provider = 'youtube';
-    } else if (lowerUrl.includes('instagram.com')) {
-      provider = 'instagram';
-    } else if (lowerUrl.includes('tiktok.com') || lowerUrl.includes('vm.tiktok.com') || lowerUrl.includes('vt.tiktok.com')) {
+    if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) provider = 'youtube';
+    else if (lowerUrl.includes('instagram.com')) provider = 'instagram';
+    else if (
+      lowerUrl.includes('tiktok.com') ||
+      lowerUrl.includes('vm.tiktok.com') ||
+      lowerUrl.includes('vt.tiktok.com')
+    ) {
       provider = 'tiktok';
     }
 
-    // Cache the result in database (max TTL to minimize Iframely API hits)
     try {
       const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 365); // 1 year
-
-      await supabaseAdmin
-        .from('video_embed_cache')
-        .upsert({
+      expiresAt.setDate(expiresAt.getDate() + 365);
+      await supabaseAdmin.from('video_embed_cache').upsert(
+        {
           original_url: originalUrl,
           embed_url: embedUrl,
-          provider: provider,
+          provider,
           cached_at: new Date().toISOString(),
-          expires_at: expiresAt.toISOString()
-        }, {
-          onConflict: 'original_url'
-        });
+          expires_at: expiresAt.toISOString(),
+        },
+        { onConflict: 'original_url' }
+      );
     } catch (dbError) {
-      // If table doesn't exist, continue without caching
       console.log('Cache save failed (table might not exist):', dbError);
     }
 
     const res = NextResponse.json({
       embed_url: embedUrl,
-      provider: provider,
-      cached: false
+      provider,
+      cached: false,
     });
-    res.headers.set('Cache-Control', 'public, max-age=31536000, s-maxage=31536000'); // 1 year
+    res.headers.set(
+      'Cache-Control',
+      `public, max-age=${EMBED_CACHE_SECONDS}, s-maxage=${EMBED_CACHE_SECONDS}`
+    );
     return res;
-
   } catch (error: any) {
     console.error('Error in video-embed:', error);
     return NextResponse.json(

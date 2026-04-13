@@ -113,7 +113,7 @@ export function getIframelyEmbedUrl(originalUrl: string, apiKey?: string): strin
   
   if (!iframelyApiKey) {
     // Server-side: use server env var or fallback
-    iframelyApiKey = process.env.IFRAMELY_API_KEY || process.env.NEXT_PUBLIC_IFRAMELY_API_KEY || '4355c593a3b2439820d35f';
+    iframelyApiKey = process.env.IFRAMELY_API_KEY || process.env.NEXT_PUBLIC_IFRAMELY_API_KEY;
   }
   
   if (iframelyApiKey) {
