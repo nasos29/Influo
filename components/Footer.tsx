@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import InstallAppCard from "./InstallAppCard";
+import InfluoAppPromoSection from "./InfluoAppPromoSection";
 import { supabase } from "@/lib/supabaseClient";
 
 interface FooterProps {
@@ -53,6 +53,7 @@ export default function Footer({ lang = "el" }: FooterProps) {
       forBrands: "Για Brands",
       pricing: "Τιμές",
       guide: "Οδηγός",
+      getApp: "Εγκατάσταση app",
       directory: "Κατάλογος",
       campaigns: "Καμπάνιες",
       support: "Υποστήριξη",
@@ -80,6 +81,7 @@ export default function Footer({ lang = "el" }: FooterProps) {
       forBrands: "For Brands",
       pricing: "Pricing",
       guide: "Guide",
+      getApp: "Get the app",
       directory: "Directory",
       campaigns: "Campaigns",
       support: "Support",
@@ -101,9 +103,10 @@ export default function Footer({ lang = "el" }: FooterProps) {
   const txt = t[lang];
 
   return (
-    <footer className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-t border-slate-700">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
-        <InstallAppCard lang={lang} />
+    <footer className="border-t border-slate-700">
+      <InfluoAppPromoSection lang={lang} />
+      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
         {/* Main Footer Content */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 md:gap-12 mb-12">
           {/* Brand Column */}
@@ -255,6 +258,11 @@ export default function Footer({ lang = "el" }: FooterProps) {
                   {txt.guide}
                 </Link>
               </li>
+              <li>
+                <Link href={lang === "en" ? "/en/get-app" : "/get-app"} className="text-slate-400 hover:text-white transition-colors text-sm">
+                  {txt.getApp}
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -299,6 +307,7 @@ export default function Footer({ lang = "el" }: FooterProps) {
               </Link>
             </div>
           </div>
+        </div>
         </div>
       </div>
     </footer>
