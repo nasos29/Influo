@@ -41,17 +41,17 @@ function PhoneMock({
   const rotate = tilt === "left" ? "-rotate-6" : "rotate-6";
   return (
     <div
-      className={`relative w-[140px] sm:w-[160px] md:w-[180px] shrink-0 rounded-[1.75rem] border-[6px] border-slate-800 bg-slate-900 shadow-2xl ${rotate} ${className ?? ""}`}
+      className={`relative w-[118px] sm:w-[132px] md:w-[148px] shrink-0 rounded-[1.5rem] border-[5px] border-slate-800 bg-slate-900 shadow-2xl ${rotate} ${className ?? ""}`}
       style={{ boxShadow: "0 25px 50px -12px rgba(0,0,0,0.45)" }}
     >
       <div className="absolute top-2 left-1/2 h-4 w-20 -translate-x-1/2 rounded-full bg-slate-800" aria-hidden />
-      <div className="mt-8 mx-2 mb-3 rounded-xl overflow-hidden bg-gradient-to-br from-blue-600 to-purple-600 px-2 py-2">
+      <div className="mt-6 mx-1.5 mb-2 rounded-lg overflow-hidden bg-gradient-to-br from-blue-600 to-purple-600 px-1.5 py-1.5">
         <div className="flex items-center gap-1.5">
           <Image src="/logo-icon.svg" alt="" width={22} height={22} className="rounded-md bg-white/95 p-0.5" />
           <span className="text-[10px] font-bold text-white truncate">Influo</span>
         </div>
       </div>
-      <div className="space-y-1.5 px-2 pb-4">
+      <div className="space-y-1 px-1.5 pb-3">
         {rows.map((label, i) => (
           <div
             key={label}
@@ -97,41 +97,43 @@ export default function InfluoAppPromoSection({ lang }: { lang: Lang }) {
   return (
     <section
       id="influo-app"
-      className="relative w-full overflow-x-hidden bg-transparent pt-10 pb-0 md:pt-14 md:pb-0"
+      className="relative w-full overflow-x-hidden overflow-y-visible bg-transparent pb-0 pt-14 sm:pt-16 md:pt-[4.25rem] lg:pt-20"
       aria-labelledby="influo-app-heading"
     >
-      <div className="relative w-full shadow-lg ring-1 ring-white/10">
+      <div className="relative w-full overflow-visible shadow-lg ring-1 ring-white/10">
         <div className="absolute inset-0 overflow-hidden" aria-hidden>
           <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700" />
           <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
           <div className="absolute -bottom-16 -left-16 h-56 w-56 rounded-full bg-purple-400/20 blur-3xl" />
         </div>
 
-        <div className="relative mx-auto grid max-w-7xl gap-10 px-5 py-12 sm:px-8 md:grid-cols-12 md:gap-8 md:px-10 md:py-14 lg:items-center">
-          <div className="relative z-10 flex justify-center md:col-span-4 md:justify-start lg:-mt-12 lg:mb-2">
-            <div className="flex items-end justify-center gap-0 pl-2 pr-6 sm:pl-4">
+        <div className="relative mx-auto grid max-w-7xl items-end gap-6 px-4 py-6 sm:px-6 sm:py-7 md:grid-cols-12 md:gap-6 md:px-8 md:py-8 lg:gap-8 lg:py-7">
+          <div className="relative z-20 flex justify-center md:col-span-4 md:justify-start md:self-end lg:-mt-2">
+            <div className="-mt-10 flex translate-y-[-18%] items-end justify-center gap-0 pl-1 pr-4 sm:-mt-12 sm:translate-y-[-20%] md:-mt-14 md:translate-y-[-22%] lg:-mt-16 lg:translate-y-[-24%]">
               <PhoneMock tilt="left" className="z-10 scale-95 opacity-95" rows={rows} />
-              <PhoneMock tilt="right" className="-ml-10 z-20 scale-100" rows={rows} />
+              <PhoneMock tilt="right" className="-ml-8 z-20 scale-100 sm:-ml-9 md:-ml-10" rows={rows} />
             </div>
           </div>
 
-          <div className="relative z-10 text-center md:col-span-5 md:text-left">
+          <div className="relative z-10 pb-1 text-center md:col-span-5 md:self-center md:text-left md:pb-0">
             <h2
               id="influo-app-heading"
-              className="text-2xl font-bold leading-snug tracking-tight text-white sm:text-3xl md:text-[1.65rem] md:leading-tight lg:text-3xl xl:text-4xl"
+              className="text-xl font-bold leading-snug tracking-tight text-white sm:text-2xl md:text-[1.35rem] md:leading-snug lg:text-2xl xl:text-3xl"
             >
               {t.headline}
             </h2>
-            <p className="mt-4 text-sm leading-relaxed text-indigo-100/95 sm:text-base md:max-w-xl">{t.sub}</p>
+            <p className="mt-2 text-xs leading-relaxed text-indigo-100/95 sm:text-sm md:mt-2 md:max-w-xl md:text-sm">
+              {t.sub}
+            </p>
           </div>
 
-          <div className="relative z-10 flex flex-col items-center gap-5 md:col-span-3 md:items-end">
-            <div className="flex w-full max-w-[280px] flex-col gap-3 md:max-w-none md:items-stretch">
+          <div className="relative z-10 flex flex-col items-center gap-3 md:col-span-3 md:items-end md:self-center md:gap-3">
+            <div className="flex w-full max-w-[260px] flex-col gap-2 md:max-w-none md:items-stretch">
               <a
                 href={installUrl}
-                className="flex items-center gap-3 rounded-xl border border-white/25 bg-black/20 px-4 py-3 text-white backdrop-blur-sm transition hover:bg-black/30"
+                className="flex items-center gap-2.5 rounded-xl border border-white/25 bg-black/20 px-3 py-2.5 text-white backdrop-blur-sm transition hover:bg-black/30"
               >
-                <FaGooglePlay className="h-8 w-8 shrink-0 text-white" aria-hidden />
+                <FaGooglePlay className="h-7 w-7 shrink-0 text-white sm:h-8 sm:w-8" aria-hidden />
                 <div className="text-left leading-tight">
                   <span className="block text-[10px] font-semibold uppercase tracking-wide text-white/80">
                     {lang === "el" ? "Εγκατάσταση" : "Install"}
@@ -141,9 +143,9 @@ export default function InfluoAppPromoSection({ lang }: { lang: Lang }) {
               </a>
               <a
                 href={installUrl}
-                className="flex items-center gap-3 rounded-xl border border-white/25 bg-black/20 px-4 py-3 text-white backdrop-blur-sm transition hover:bg-black/30"
+                className="flex items-center gap-2.5 rounded-xl border border-white/25 bg-black/20 px-3 py-2.5 text-white backdrop-blur-sm transition hover:bg-black/30"
               >
-                <FaApple className="h-8 w-8 shrink-0 text-white" aria-hidden />
+                <FaApple className="h-7 w-7 shrink-0 text-white sm:h-8 sm:w-8" aria-hidden />
                 <div className="text-left leading-tight">
                   <span className="block text-[10px] font-semibold uppercase tracking-wide text-white/80">
                     {lang === "el" ? "Εγκατάσταση" : "Install"}
@@ -153,16 +155,16 @@ export default function InfluoAppPromoSection({ lang }: { lang: Lang }) {
               </a>
             </div>
 
-            <div className="flex w-full max-w-[320px] flex-row items-center justify-center gap-4 md:max-w-none md:justify-end">
+            <div className="flex w-full max-w-[300px] flex-row items-center justify-center gap-3 md:max-w-none md:justify-end">
               <a
                 href={installUrl}
-                className="rounded-xl border-4 border-white bg-white p-1.5 shadow-lg transition hover:opacity-95"
+                className="rounded-lg border-[3px] border-white bg-white p-1 shadow-lg transition hover:opacity-95"
                 aria-label={lang === "el" ? "Σύνδεσμος εγκατάστασης app" : "Install app link"}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={qrSrc} alt="" width={120} height={120} className="h-[120px] w-[120px] md:h-[132px] md:w-[132px]" />
+                <img src={qrSrc} alt="" width={104} height={104} className="h-[92px] w-[92px] sm:h-[100px] sm:w-[100px] md:h-[108px] md:w-[108px]" />
               </a>
-              <p className="max-w-[140px] text-left text-xs font-bold uppercase leading-snug tracking-wide text-white md:max-w-[160px] md:text-sm">
+              <p className="max-w-[120px] text-left text-[10px] font-bold uppercase leading-snug tracking-wide text-white sm:max-w-[130px] sm:text-xs md:max-w-[150px] md:text-sm">
                 {t.scan}
               </p>
             </div>
