@@ -68,24 +68,20 @@ async function main() {
   );
   console.log("Influencers with such a baseline:", readyForGrowth);
 
-  const fortyFiveDaysAgo = new Date();
-  fortyFiveDaysAgo.setDate(fortyFiveDaysAgo.getDate() - 45);
-  let blockedByOldBaseline = 0;
+  let fallbackGrowth = 0;
   for (const [, snaps] of byInf) {
-    const candidates = snaps.filter((s) => s.snapshot_at <= thirtyIso);
-    if (candidates.length === 0) continue;
-    const baseline = candidates.reduce((a, b) =>
-      new Date(a.snapshot_at) > new Date(b.snapshot_at) ? a : b
+    const hasBaseline = snaps.some((s) => s.snapshot_at <= thirtyIso);
+    if (hasBaseline) continue;
+    const oldest = snaps.reduce((a, b) =>
+      new Date(a.snapshot_at) < new Date(b.snapshot_at) ? a : b
     );
-    const ageMs = Date.now() - new Date(baseline.snapshot_at).getTime();
-    if (ageMs > 45 * 24 * 60 * 60 * 1000) blockedByOldBaseline++;
+    const ageMs = Date.now() - new Date(oldest.snapshot_at).getTime();
+    if (ageMs >= 24 * 60 * 60 * 1000 && Number(oldest.total_followers) > 0) fallbackGrowth++;
   }
-  if (blockedByOldBaseline > 0) {
-    console.log(
-      "(API may hide growth if ONLY baselines are >45 days old; needs snapshot in ~30–45d window.)"
-    );
-    console.log("Influencers possibly affected:", blockedByOldBaseline);
-  }
+  console.log(
+    "Influencers without T−30d baseline but with ≥24h oldest snapshot (API uses fallback):",
+    fallbackGrowth
+  );
 
   console.log("\nDone.");
 }

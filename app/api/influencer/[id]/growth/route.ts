@@ -38,11 +38,13 @@ export async function GET(
 
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const { data: snapshot, error: snapErr } = await supabaseAdmin
+    const thirtyIso = thirtyDaysAgo.toISOString();
+
+    const { data: snapshot30, error: snapErr } = await supabaseAdmin
       .from('influencer_follower_snapshots')
       .select('total_followers, snapshot_at')
       .eq('influencer_id', id)
-      .lte('snapshot_at', thirtyDaysAgo.toISOString())
+      .lte('snapshot_at', thirtyIso)
       .order('snapshot_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -59,6 +61,28 @@ export async function GET(
 
     if (snapErr) {
       console.warn('[influencer growth] snapshot query:', snapErr.message);
+    }
+
+    // If every snapshot is newer than T−30d (common right after snapshots ship, or rare
+    // refreshes), fall back to the earliest snapshot so the card is not blank — still a
+    // meaningful delta vs first recorded total, as long as it is not same-moment noise.
+    let snapshot = snapshot30;
+    if (!snapshot30) {
+      const { data: oldest, error: oldErr } = await supabaseAdmin
+        .from('influencer_follower_snapshots')
+        .select('total_followers, snapshot_at')
+        .eq('influencer_id', id)
+        .order('snapshot_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (!oldErr && oldest?.snapshot_at) {
+        const at = new Date(oldest.snapshot_at as string).getTime();
+        const ageMs = Date.now() - at;
+        const MIN_FALLBACK_BASELINE_MS = 24 * 60 * 60 * 1000;
+        if (Number.isFinite(at) && ageMs >= MIN_FALLBACK_BASELINE_MS) {
+          snapshot = oldest;
+        }
+      }
     }
 
     // Postgres BIGINT may arrive as string; normalize.
