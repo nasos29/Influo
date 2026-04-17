@@ -8,6 +8,7 @@ import InfluencerSignupForm from "../components/InfluencerSignupForm";
 import BrandSignupForm from "../components/BrandSignupForm";
 import Footer from "../components/Footer";
 import TopInfluencersSection from "../components/TopInfluencersSection";
+import InfluoAppPromoSection from "../components/InfluoAppPromoSection";
 import NewlyApprovedInfluencersSection from "../components/NewlyApprovedInfluencersSection";
 import { supabase } from "@/lib/supabaseClient";
 import { getStoredLanguage, setStoredLanguage, type Language } from "@/lib/language";
@@ -609,6 +610,8 @@ export default function Home() {
 
       {/* Top Influencers of the Month */}
         <TopInfluencersSection lang={lang} />
+
+      <InfluoAppPromoSection lang={lang} />
 
       {/* Directory Section */}
         <section className="relative py-20 px-6 bg-white" id="directory">
