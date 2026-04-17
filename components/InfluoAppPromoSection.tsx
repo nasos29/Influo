@@ -7,11 +7,13 @@ import { buildAppInstallUrl, resolvePublicBaseUrl } from "@/lib/pwaAppUrl";
 
 type Lang = "el" | "en";
 
-/** Stock photos — tall/narrow crop; swap URLs anytime. */
+/**
+ * Hand + product handset — both read clearly as phones (promo-style). Swap URLs anytime.
+ */
 const PHONE_IMG_BACK =
-  "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=420&h=920&q=80";
+  "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=520&h=960&q=85";
 const PHONE_IMG_FRONT =
-  "https://images.unsplash.com/photo-1556656793-08538906a9f8?auto=format&fit=crop&w=420&h=920&q=80";
+  "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=520&h=960&q=85";
 
 const copy: Record<
   Lang,
@@ -24,7 +26,7 @@ const copy: Record<
     scan: "ΣΚΑΝΑΡΕΤΕ ΓΙΑ ΝΑ ΕΓΚΑΤΑΣΤΗΣΕΤΕ ΤΟ APP",
     android: "Για Android",
     ios: "Για iPhone / iPad",
-    phoneAlt: "Εφαρμογή Influo σε κινητό",
+    phoneAlt: "Κινητό με εφαρμογή",
   },
   en: {
     headline:
@@ -33,11 +35,11 @@ const copy: Record<
     scan: "SCAN TO INSTALL THE APP",
     android: "For Android",
     ios: "For iPhone / iPad",
-    phoneAlt: "Influo app on a smartphone",
+    phoneAlt: "Smartphone in hand",
   },
 };
 
-/** Narrow portrait frame (~9:19) with photo inside — like slim handsets in promos. */
+/** Slim device frame; object-contain keeps the full handset visible from the photo. */
 function PhonePhoto({
   src,
   alt,
@@ -49,17 +51,19 @@ function PhonePhoto({
   tilt: "left" | "right";
   className?: string;
 }) {
-  const rotate = tilt === "left" ? "-rotate-[9deg]" : "rotate-[9deg]";
+  const rotate = tilt === "left" ? "-rotate-[8deg]" : "rotate-[8deg]";
   return (
     <div
-      className={`relative shrink-0 overflow-hidden rounded-[2rem] border-[5px] border-slate-900 bg-slate-900 shadow-2xl ring-1 ring-white/10 ${rotate} ${className ?? ""}`}
+      className={`relative shrink-0 rounded-[2.35rem] border-[6px] border-slate-900 bg-slate-950 p-1 shadow-2xl ring-1 ring-black/40 ${rotate} ${className ?? ""}`}
       style={{
-        boxShadow: "0 22px 48px -10px rgba(0,0,0,0.55)",
-        width: "clamp(72px, 16vw, 96px)",
-        aspectRatio: "9 / 19.5",
+        boxShadow: "0 24px 50px -12px rgba(0,0,0,0.55)",
+        width: "clamp(84px, 17vw, 112px)",
+        aspectRatio: "10 / 20",
       }}
     >
-      <Image src={src} alt={alt} fill className="object-cover object-center" sizes="96px" />
+      <div className="relative h-full w-full overflow-hidden rounded-[1.85rem] bg-slate-950">
+        <Image src={src} alt={alt} fill className="object-contain object-center" sizes="112px" />
+      </div>
     </div>
   );
 }
@@ -101,32 +105,38 @@ export default function InfluoAppPromoSection({ lang }: { lang: Lang }) {
             <div className="absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-purple-400/25 blur-3xl md:h-48 md:w-48" />
           </div>
 
-          <div className="relative z-10 grid items-center gap-4 px-4 pb-4 pt-4 sm:gap-5 sm:px-5 sm:pb-5 sm:pt-5 md:grid-cols-12 md:gap-6 md:px-6 md:pb-5 md:pt-4 lg:gap-8 lg:px-8 lg:pb-6 lg:pt-5">
-            <div className="relative z-30 flex min-h-[9rem] justify-center md:col-span-4 md:min-h-[6rem] md:justify-start lg:min-h-0">
-              <div className="absolute bottom-full left-1/2 z-30 flex -translate-x-1/2 translate-y-[18%] items-end sm:translate-y-[20%] md:left-4 md:translate-x-0 md:translate-y-[14%] lg:left-8 lg:translate-y-[10%]">
-                <PhonePhoto src={PHONE_IMG_BACK} alt={t.phoneAlt} tilt="left" className="z-10 scale-[0.98] opacity-95" />
-                <PhonePhoto
-                  src={PHONE_IMG_FRONT}
-                  alt={t.phoneAlt}
-                  tilt="right"
-                  className="-ml-11 z-20 scale-100 sm:-ml-12 md:-ml-14 lg:-ml-[3.75rem]"
-                />
+          {/* Flex: phones + copy grouped (tight gap), CTAs on the right — like reference band */}
+          <div className="relative z-10 flex flex-col gap-5 px-4 pb-4 pt-4 sm:px-5 sm:pb-5 sm:pt-5 md:flex-row md:items-start md:gap-3 md:px-5 md:pb-5 md:pt-4 lg:gap-4 lg:px-7 lg:pb-6 lg:pt-5">
+            {/* Phones + headline block */}
+            <div className="relative z-30 flex min-h-[9rem] w-full flex-col items-center gap-4 md:min-h-[6.5rem] md:max-w-[min(100%,52rem)] md:flex-1 md:flex-row md:items-start md:justify-start md:gap-3 lg:min-h-0 lg:gap-4">
+              <div className="relative flex shrink-0 justify-center md:justify-start">
+                <div className="absolute bottom-full left-1/2 z-30 flex -translate-x-1/2 translate-y-[16%] items-end sm:translate-y-[18%] md:static md:translate-x-0 md:translate-y-0 lg:-translate-y-[6%]">
+                  <div className="flex translate-y-[8%] items-end md:translate-y-[10%] lg:translate-y-[6%]">
+                    <PhonePhoto src={PHONE_IMG_BACK} alt={t.phoneAlt} tilt="left" className="z-10 opacity-95" />
+                    <PhonePhoto
+                      src={PHONE_IMG_FRONT}
+                      alt={t.phoneAlt}
+                      tilt="right"
+                      className="-ml-10 z-20 sm:-ml-11 md:-ml-12 lg:-ml-14"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="relative z-10 w-full min-w-0 flex-1 text-center md:pt-1 md:text-left">
+                <h2
+                  id="influo-app-heading"
+                  className="text-lg font-bold leading-snug tracking-tight text-white sm:text-xl md:text-[1.15rem] md:leading-snug lg:text-xl xl:text-2xl"
+                >
+                  {t.headline}
+                </h2>
+                <p className="mt-1.5 text-[11px] leading-relaxed text-indigo-100/95 sm:text-xs md:mt-2 md:text-[13px] md:leading-relaxed lg:text-sm">
+                  {t.sub}
+                </p>
               </div>
             </div>
 
-            <div className="relative z-10 text-center md:col-span-5 md:text-left">
-              <h2
-                id="influo-app-heading"
-                className="text-lg font-bold leading-snug tracking-tight text-white sm:text-xl md:text-[1.2rem] md:leading-snug lg:text-2xl xl:text-[1.65rem]"
-              >
-                {t.headline}
-              </h2>
-              <p className="mt-1.5 text-[11px] leading-relaxed text-indigo-100/95 sm:text-xs md:mt-2 md:max-w-xl md:text-sm">
-                {t.sub}
-              </p>
-            </div>
-
-            <div className="relative z-10 flex flex-col items-center gap-2.5 md:col-span-3 md:items-end md:gap-2.5">
+            <div className="relative z-10 flex w-full shrink-0 flex-col items-center gap-2.5 md:w-[200px] md:items-end md:gap-2.5 lg:w-[220px]">
               <div className="flex w-full max-w-[260px] flex-col gap-1.5 md:max-w-none md:items-stretch">
                 <a
                   href={installUrl}
