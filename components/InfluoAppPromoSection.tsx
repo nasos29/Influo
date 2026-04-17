@@ -41,7 +41,7 @@ function PhoneMock({
   const rotate = tilt === "left" ? "-rotate-6" : "rotate-6";
   return (
     <div
-      className={`relative w-[118px] sm:w-[132px] md:w-[148px] shrink-0 rounded-[1.5rem] border-[5px] border-slate-800 bg-slate-900 shadow-2xl ${rotate} ${className ?? ""}`}
+      className={`relative w-[128px] sm:w-[148px] md:w-[168px] shrink-0 rounded-[1.65rem] border-[5px] border-slate-800 bg-slate-900 shadow-2xl ${rotate} ${className ?? ""}`}
       style={{ boxShadow: "0 25px 50px -12px rgba(0,0,0,0.45)" }}
     >
       <div className="absolute top-2 left-1/2 h-4 w-20 -translate-x-1/2 rounded-full bg-slate-800" aria-hidden />
@@ -97,25 +97,26 @@ export default function InfluoAppPromoSection({ lang }: { lang: Lang }) {
   return (
     <section
       id="influo-app"
-      className="relative w-full overflow-x-hidden overflow-y-visible bg-transparent pb-0 pt-14 sm:pt-16 md:pt-[4.25rem] lg:pt-20"
+      className="relative w-full overflow-x-hidden overflow-y-visible bg-transparent pb-0 pt-0"
       aria-labelledby="influo-app-heading"
     >
+      {/* Padding lives INSIDE this box so the gradient covers the full height (no gray strip above). */}
       <div className="relative w-full overflow-visible shadow-lg ring-1 ring-white/10">
         <div className="absolute inset-0 overflow-hidden" aria-hidden>
           <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700" />
-          <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
-          <div className="absolute -bottom-16 -left-16 h-56 w-56 rounded-full bg-purple-400/20 blur-3xl" />
+          <div className="absolute -right-16 top-0 h-52 w-52 rounded-full bg-white/15 blur-3xl md:-right-20 md:h-64 md:w-64" />
+          <div className="absolute -bottom-12 -left-12 h-44 w-44 rounded-full bg-purple-400/25 blur-3xl md:-bottom-16 md:-left-16 md:h-56 md:w-56" />
         </div>
 
-        <div className="relative mx-auto grid max-w-7xl items-end gap-6 px-4 py-6 sm:px-6 sm:py-7 md:grid-cols-12 md:gap-6 md:px-8 md:py-8 lg:gap-8 lg:py-7">
-          <div className="relative z-20 flex justify-center md:col-span-4 md:justify-start md:self-end lg:-mt-2">
-            <div className="-mt-10 flex translate-y-[-18%] items-end justify-center gap-0 pl-1 pr-4 sm:-mt-12 sm:translate-y-[-20%] md:-mt-14 md:translate-y-[-22%] lg:-mt-16 lg:translate-y-[-24%]">
-              <PhoneMock tilt="left" className="z-10 scale-95 opacity-95" rows={rows} />
-              <PhoneMock tilt="right" className="-ml-8 z-20 scale-100 sm:-ml-9 md:-ml-10" rows={rows} />
+        <div className="relative z-10 mx-auto grid max-w-7xl items-end gap-5 px-4 pb-5 pt-16 sm:gap-6 sm:px-6 sm:pb-6 sm:pt-20 md:grid-cols-12 md:gap-6 md:px-8 md:pb-6 md:pt-[4.5rem] lg:gap-8 lg:pb-7 lg:pt-[5rem]">
+          <div className="relative z-20 flex justify-center md:col-span-4 md:justify-start md:self-end">
+            <div className="flex -translate-y-[42%] items-end justify-center sm:-translate-y-[46%] md:-translate-y-[50%] lg:-translate-y-[52%]">
+              <PhoneMock tilt="left" className="z-10 scale-[0.96] opacity-95" rows={rows} />
+              <PhoneMock tilt="right" className="-ml-9 z-20 scale-100 sm:-ml-10 md:-ml-11" rows={rows} />
             </div>
           </div>
 
-          <div className="relative z-10 pb-1 text-center md:col-span-5 md:self-center md:text-left md:pb-0">
+          <div className="relative z-10 pb-0.5 text-center md:col-span-5 md:-mt-12 md:self-center md:text-left md:pb-0 lg:-mt-14">
             <h2
               id="influo-app-heading"
               className="text-xl font-bold leading-snug tracking-tight text-white sm:text-2xl md:text-[1.35rem] md:leading-snug lg:text-2xl xl:text-3xl"
