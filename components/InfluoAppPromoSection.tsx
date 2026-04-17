@@ -1,8 +1,9 @@
 "use client";
 
 import Image from "next/image";
+import { useEffect, useMemo, useState } from "react";
 import { FaApple, FaGooglePlay } from "react-icons/fa";
-import { getAppInstallAbsoluteUrl } from "@/lib/pwaAppUrl";
+import { buildAppInstallUrl, resolvePublicBaseUrl } from "@/lib/pwaAppUrl";
 
 type Lang = "el" | "en";
 
@@ -75,8 +76,23 @@ const phoneRows: Record<Lang, [string, string, string]> = {
 export default function InfluoAppPromoSection({ lang }: { lang: Lang }) {
   const t = copy[lang];
   const rows = phoneRows[lang];
-  const installUrl = getAppInstallAbsoluteUrl(lang, "utm_source=footer_qr");
-  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=4&color=312e81&bgcolor=ffffff&data=${encodeURIComponent(installUrl)}`;
+  const [baseOrigin, setBaseOrigin] = useState(resolvePublicBaseUrl);
+
+  useEffect(() => {
+    const h = window.location.hostname;
+    if (h === "localhost" || h === "127.0.0.1") return;
+    setBaseOrigin(window.location.origin);
+  }, []);
+
+  const installUrl = useMemo(
+    () => buildAppInstallUrl(baseOrigin, lang, "utm_source=footer_qr"),
+    [baseOrigin, lang]
+  );
+  const qrSrc = useMemo(
+    () =>
+      `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=4&color=312e81&bgcolor=ffffff&data=${encodeURIComponent(installUrl)}`,
+    [installUrl]
+  );
 
   return (
     <section
