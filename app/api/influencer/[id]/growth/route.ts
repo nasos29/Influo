@@ -65,25 +65,13 @@ export async function GET(
     const rawOld = snapshot?.total_followers;
     const oldTotal =
       rawOld == null ? null : Number(rawOld);
-    const snapshotAtMs = snapshot?.snapshot_at
-      ? new Date(snapshot.snapshot_at as string).getTime()
-      : NaN;
-
-    /** Reject baselines older than this: not a meaningful "30-day" comparison. */
-    const MAX_BASELINE_AGE_MS = 45 * 24 * 60 * 60 * 1000;
-    const baselineTooOld =
-      Number.isFinite(snapshotAtMs) &&
-      Date.now() - snapshotAtMs > MAX_BASELINE_AGE_MS;
-
     let growth: number | null = null;
     let growthPct: number | null = null;
 
-    if (
-      oldTotal != null &&
-      Number.isFinite(oldTotal) &&
-      oldTotal > 0 &&
-      !baselineTooOld
-    ) {
+    // Compare to the newest snapshot at or before T−30d. Do not cap how old that
+    // baseline may be: a 45d max-age here combined with "lte 30d ago" left only a
+    // ~15d window and hid growth for most sparse snapshot schedules.
+    if (oldTotal != null && Number.isFinite(oldTotal) && oldTotal > 0) {
       growth = currentTotal - oldTotal;
       growthPct = (growth / oldTotal) * 100;
     }
@@ -94,9 +82,6 @@ export async function GET(
         oldTotal != null && Number.isFinite(oldTotal) ? oldTotal : undefined,
       growth: growth ?? undefined,
       growthPct: growthPct != null ? Math.round(growthPct * 10) / 10 : undefined,
-      ...(baselineTooOld && snapshot
-        ? { message: 'baseline_too_old' as const }
-        : {}),
     });
   } catch (err) {
     console.error('[influencer growth]', err);
