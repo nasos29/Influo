@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type TouchEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type TouchEvent } from "react";
 import Link from "next/link";
 import { getCachedImageUrl } from "@/lib/imageProxy";
 import { isDefinitelyImage } from "@/lib/videoThumbnail";
@@ -40,6 +40,67 @@ function getBestImageUrl(inf: TopInfluencer): string | null {
     }
   }
   return inf.avatar_url || null;
+}
+
+/** Ordered URLs to try as img src (primary may be expired CDN or bad thumbnail). */
+function getPortraitImageCandidates(inf: TopInfluencer): string[] {
+  const out: string[] = [];
+  const add = (u: string | null | undefined) => {
+    if (!u || typeof u !== "string") return;
+    const t = u.trim();
+    if (!t || out.includes(t)) return;
+    out.push(t);
+  };
+
+  add(getBestImageUrl(inf));
+  add(inf.avatar_url);
+
+  const videos = inf.videos && Array.isArray(inf.videos) ? inf.videos : [];
+  for (const v of videos) {
+    if (!v) continue;
+    if (isDefinitelyImage(v)) add(v);
+    const thumb = inf.video_thumbnails?.[v];
+    if (thumb) add(thumb);
+    if (/youtube\.com|youtu\.be/i.test(v)) {
+      const m = v.match(/(?:v=|\/)([^"&?/\s]{11})/);
+      if (m) add(`https://img.youtube.com/vi/${m[1]}/maxresdefault.jpg`);
+    }
+  }
+
+  return out;
+}
+
+function TopInfluencerPortrait({ inf, name }: { inf: TopInfluencer; name: string }) {
+  const candidates = useMemo(() => getPortraitImageCandidates(inf), [inf]);
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    setAttempt(0);
+  }, [inf.id]);
+
+  const canShowImg = attempt < candidates.length;
+  const raw = canShowImg ? candidates[attempt] : null;
+  const src = raw ? (getCachedImageUrl(raw) ?? raw) : null;
+
+  return (
+    <div className="relative aspect-[4/5] bg-slate-100 overflow-hidden">
+      <div className="absolute inset-0 z-0 flex items-center justify-center bg-gradient-to-br from-slate-200 to-slate-300 text-slate-500 text-4xl">
+        {name?.charAt(0) || "?"}
+      </div>
+      {canShowImg && src ? (
+        <img
+          key={`${inf.id}-${attempt}-${src}`}
+          src={src}
+          alt={name}
+          className="absolute inset-0 z-10 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          loading="lazy"
+          onError={() => {
+            setAttempt((a) => (a + 1 < candidates.length ? a + 1 : candidates.length));
+          }}
+        />
+      ) : null}
+    </div>
+  );
 }
 
 function formatNum(num?: number): string {
@@ -225,7 +286,6 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
                   <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 md:gap-8">
                     {slide.map((inf, idx) => {
             if (!inf?.id) return null;
-            const imgUrl = getBestImageUrl(inf);
             const name = displayNameForLang(
               (lang === "en" && inf.display_name_en ? inf.display_name_en : inf.display_name) ?? "",
               lang
@@ -257,45 +317,22 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
                     }}
                   >
                     <article className="h-full bg-white rounded-2xl overflow-hidden border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-slate-300 transition-all duration-300 group-hover:-translate-y-1">
-                  {/* Image - large gallery/thumbnail */}
-                  <div className="relative aspect-[4/5] bg-slate-100 overflow-hidden">
-                    {imgUrl ? (
-                      <img
-                        src={getCachedImageUrl(imgUrl) ?? imgUrl}
-                        alt={name}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        loading="lazy"
-                        onError={(e) => {
-                          const el = e.currentTarget;
-                          el.style.display = "none";
-                          const fallback = el.nextElementSibling as HTMLElement | null;
-                          if (fallback) fallback.style.display = "flex";
-                        }}
-                      />
-                    ) : null}
-                    <div
-                      className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-200 to-slate-300 text-slate-500 text-4xl"
-                      style={{ display: imgUrl ? "none" : "flex" }}
-                    >
-                      {name?.charAt(0) || "?"}
-                    </div>
-                    {/* Rank badge */}
-                    <div
-                      className="absolute top-3 left-3 w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white bg-slate-900/80 backdrop-blur-sm"
-                      aria-hidden
-                    >
-                      #{rank}
-                    </div>
-                    {/* Gradient overlay at bottom */}
-                    <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 to-transparent" />
-                    {/* Name & category overlay */}
-                    <div className="absolute bottom-3 left-3 right-3 text-white">
-                      <h3 className="font-bold text-lg leading-tight drop-shadow-md">{name}</h3>
-                      {catLabel && (
-                        <p className="text-xs md:text-sm text-white/90 mt-0.5">{catLabel}</p>
-                      )}
-                    </div>
-                  </div>
+                      <div className="relative">
+                        <TopInfluencerPortrait inf={inf} name={name} />
+                        <div
+                          className="pointer-events-none absolute top-3 left-3 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-slate-900/80 text-sm font-bold text-white backdrop-blur-sm"
+                          aria-hidden
+                        >
+                          #{rank}
+                        </div>
+                        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-24 bg-gradient-to-t from-black/60 to-transparent" />
+                        <div className="pointer-events-none absolute bottom-3 left-3 right-3 z-20 text-white">
+                          <h3 className="text-lg font-bold leading-tight drop-shadow-md">{name}</h3>
+                          {catLabel && (
+                            <p className="mt-0.5 text-xs text-white/90 md:text-sm">{catLabel}</p>
+                          )}
+                        </div>
+                      </div>
 
                   {/* Stats footer */}
                   <div className="px-4 py-4 flex items-center justify-between bg-slate-50/80 border-t border-slate-100">
