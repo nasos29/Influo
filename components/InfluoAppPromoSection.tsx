@@ -91,7 +91,7 @@ export default function InfluoAppPromoSection({ lang }: { lang: Lang }) {
   return (
     <section
       id="influo-app"
-      className="relative w-full overflow-x-hidden overflow-y-visible bg-white pb-0 pt-10 sm:pt-12 md:pt-14"
+      className="relative w-full overflow-x-clip overflow-y-visible bg-white pb-0 pt-10 sm:pt-12 md:pt-14"
       aria-labelledby="influo-app-heading"
     >
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6">
@@ -107,23 +107,23 @@ export default function InfluoAppPromoSection({ lang }: { lang: Lang }) {
 
           {/* Flex: phones + copy grouped (tight gap), CTAs on the right — like reference band */}
           <div className="relative z-10 flex flex-col gap-5 px-4 pb-4 pt-4 sm:px-5 sm:pb-5 sm:pt-5 md:flex-row md:items-start md:gap-3 md:px-5 md:pb-5 md:pt-4 lg:gap-4 lg:px-7 lg:pb-6 lg:pt-5">
-            {/* Phones + headline block */}
-            <div className="relative z-30 flex min-h-[9rem] w-full flex-col items-center gap-4 md:min-h-[6.5rem] md:max-w-[min(100%,52rem)] md:flex-1 md:flex-row md:items-start md:justify-start md:gap-3 lg:min-h-0 lg:gap-4">
-              <div className="relative flex shrink-0 justify-center md:justify-start">
-                <div className="absolute bottom-full left-1/2 z-30 flex -translate-x-1/2 translate-y-[16%] items-end sm:translate-y-[18%] md:static md:translate-x-0 md:translate-y-0 lg:-translate-y-[6%]">
-                  <div className="flex translate-y-[8%] items-end md:translate-y-[10%] lg:translate-y-[6%]">
-                    <PhonePhoto src={PHONE_IMG_BACK} alt={t.phoneAlt} tilt="left" className="z-10 opacity-95" />
+            {/* Phones + headline: in-flow on mobile (no absolute overlap / clipping); row from md */}
+            <div className="relative z-10 flex w-full flex-col items-center gap-4 md:max-w-[min(100%,52rem)] md:flex-1 md:flex-row md:items-start md:justify-start md:gap-3 lg:gap-4">
+              <div className="relative flex w-full shrink-0 justify-center md:w-auto md:justify-start">
+                <div className="relative z-10 flex items-end justify-center md:z-30 md:translate-y-[10%] lg:-translate-y-[6%]">
+                  <div className="flex items-end">
+                    <PhonePhoto src={PHONE_IMG_BACK} alt={t.phoneAlt} tilt="left" className="opacity-95" />
                     <PhonePhoto
                       src={PHONE_IMG_FRONT}
                       alt={t.phoneAlt}
                       tilt="right"
-                      className="-ml-10 z-20 sm:-ml-11 md:-ml-12 lg:-ml-14"
+                      className="-ml-10 sm:-ml-11 md:-ml-12 lg:-ml-14"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="relative z-10 w-full min-w-0 flex-1 text-center md:pt-1 md:text-left">
+              <div className="relative z-20 w-full min-w-0 flex-1 text-center md:z-10 md:pt-1 md:text-left">
                 <h2
                   id="influo-app-heading"
                   className="text-lg font-bold leading-snug tracking-tight text-white sm:text-xl md:text-[1.15rem] md:leading-snug lg:text-xl xl:text-2xl"
