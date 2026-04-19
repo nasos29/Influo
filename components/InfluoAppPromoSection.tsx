@@ -91,7 +91,7 @@ export default function InfluoAppPromoSection({ lang }: { lang: Lang }) {
   return (
     <section
       id="influo-app"
-      className="relative w-full overflow-x-clip overflow-y-visible bg-white pb-0 pt-10 sm:pt-12 md:pt-14"
+      className="relative w-full overflow-x-clip overflow-y-visible border-t border-slate-200 bg-white pb-0 pt-10 sm:pt-12 md:pt-14"
       aria-labelledby="influo-app-heading"
     >
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6">
