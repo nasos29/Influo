@@ -7,7 +7,12 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { runAuditGemini, type AuditAccount, type AuditShared, type AuditResult } from '@/lib/auditGemini';
+import {
+  runAuditGeminiStrict,
+  type AuditAccount,
+  type AuditShared,
+  type AuditResult,
+} from '@/lib/auditGemini';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -127,7 +132,7 @@ export async function POST(request: NextRequest) {
       };
 
       try {
-        const auditResult = await runAuditGemini(igTtAccounts, shared, { exampleAudits });
+        const auditResult = await runAuditGeminiStrict(igTtAccounts, shared, { exampleAudits });
         const auditpr_audit: AuditprAudit = {
           scoreBreakdown: auditResult.scoreBreakdown,
           scoreBreakdown_en: auditResult.scoreBreakdown_en,

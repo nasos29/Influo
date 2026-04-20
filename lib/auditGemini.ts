@@ -42,6 +42,8 @@ export type AuditResult = {
   niche_en?: string;
 };
 
+export const AUDIT_FALLBACK_MESSAGE = 'Προσωρινή αδυναμία ανάλυσης.';
+
 /** Legacy single-account metrics (for backward compatibility if needed). */
 export type AuditMetrics = {
   followers?: string | number | null;
@@ -216,12 +218,80 @@ function parseResponse(text: string): AuditResult {
 }
 
 const FALLBACK: AuditResult = {
-  scoreBreakdown: ['Προσωρινή αδυναμία ανάλυσης.'],
+  scoreBreakdown: [AUDIT_FALLBACK_MESSAGE],
   brandSafe: true,
   niche: 'Creator',
   negatives: [],
   negatives_en: [],
 };
+
+/** Detect synthetic fallback so API routes can fail loudly instead of storing placeholder audits. */
+export function isAuditFallbackResult(audit: AuditResult): boolean {
+  return (
+    Array.isArray(audit.scoreBreakdown) &&
+    audit.scoreBreakdown.length === 1 &&
+    (audit.scoreBreakdown[0] || '').trim() === AUDIT_FALLBACK_MESSAGE &&
+    (audit.niche || '').trim() === 'Creator' &&
+    audit.brandSafe === true
+  );
+}
+
+/**
+ * Strict variant for admin APIs: throws explicit errors instead of returning fallback.
+ * Use this when UI must show actionable failure reason.
+ */
+export async function runAuditGeminiStrict(
+  accounts: AuditAccount[],
+  shared: AuditShared,
+  options?: { exampleAudits?: AuditResult[] }
+): Promise<AuditResult> {
+  const apiKey = (
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
+    ''
+  ).trim();
+  if (!apiKey) {
+    throw new Error('Gemini API key missing (GEMINI_API_KEY / GOOGLE_GENERATIVE_AI_API_KEY).');
+  }
+
+  const filtered = accounts.filter(
+    (a) =>
+      (a?.platform || '').trim() &&
+      (a?.username || '').trim()
+  );
+  if (filtered.length === 0) {
+    throw new Error('No valid social accounts (platform + username) for audit.');
+  }
+
+  const modelId = (process.env.GEMINI_AUDIT_MODEL || 'gemini-2.0-flash').trim();
+  const prompt = buildMultiPlatformPrompt(filtered, shared, options?.exampleAudits);
+
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: modelId });
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const text = response.text?.()?.trim() ?? '';
+    if (!text) {
+      throw new Error(`Gemini returned empty response (model: ${modelId}).`);
+    }
+    try {
+      const parsed = parseResponse(text);
+      if (isAuditFallbackResult(parsed)) {
+        throw new Error(`Gemini returned fallback placeholder (model: ${modelId}).`);
+      }
+      return parsed;
+    } catch (parseErr) {
+      if (parseErr instanceof Error) {
+        throw new Error(`Gemini response parse failed: ${parseErr.message}`);
+      }
+      throw new Error('Gemini response parse failed.');
+    }
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new Error(`Gemini request failed (${modelId}): ${msg}`);
+  }
+}
 
 /**
  * Run Gemini strategic audit from all platforms' metrics (one unified audit).

@@ -7,7 +7,12 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { runAuditGemini, type AuditAccount, type AuditShared, type AuditResult } from '@/lib/auditGemini';
+import {
+  runAuditGeminiStrict,
+  type AuditAccount,
+  type AuditShared,
+  type AuditResult,
+} from '@/lib/auditGemini';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -137,7 +142,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const auditResult = await runAuditGemini(igTtAccounts, shared, { exampleAudits });
+    let auditResult: AuditResult;
+    try {
+      auditResult = await runAuditGeminiStrict(igTtAccounts, shared, { exampleAudits });
+    } catch (auditErr: unknown) {
+      const reason = auditErr instanceof Error ? auditErr.message : 'Gemini audit failed';
+      return NextResponse.json({ error: reason }, { status: 502 });
+    }
 
     const auditpr_audit: AuditprAudit = {
       scoreBreakdown: auditResult.scoreBreakdown,
