@@ -2418,8 +2418,20 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ influencerId: idStr }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed');
+      const ct = res.headers.get('content-type') || '';
+      let data: { error?: string; auditpr_audit?: unknown } = {};
+      if (ct.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const raw = await res.text();
+        const snippet = raw.replace(/\s+/g, ' ').slice(0, 180);
+        throw new Error(
+          lang === 'el'
+            ? `Το API επέστρεψε μη έγκυρη απάντηση (όχι JSON). HTTP ${res.status}. ${snippet}`
+            : `API returned non-JSON response. HTTP ${res.status}. ${snippet}`
+        );
+      }
+      if (!res.ok) throw new Error(data.error || `Failed (${res.status})`);
       if (data.auditpr_audit && selectedUser?.id === user.id) {
         setSelectedUser(prev => prev ? { ...prev, auditpr_audit: data.auditpr_audit } : null);
       }
