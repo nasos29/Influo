@@ -14,6 +14,9 @@ import {
   type AuditResult,
 } from '@/lib/auditGemini';
 
+export const runtime = 'nodejs';
+export const maxDuration = 60;
+
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
