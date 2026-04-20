@@ -43,7 +43,14 @@ export type AuditResult = {
 };
 
 export const AUDIT_FALLBACK_MESSAGE = 'Προσωρινή αδυναμία ανάλυσης.';
-const GEMINI_TIMEOUT_MS = 20000;
+const GEMINI_TIMEOUT_MS = Math.min(
+  120000,
+  Math.max(15000, Number(process.env.GEMINI_TIMEOUT_MS || 45000))
+);
+const GEMINI_MAX_RETRIES = Math.min(
+  3,
+  Math.max(0, Number(process.env.GEMINI_MAX_RETRIES || 2))
+);
 
 /** Legacy single-account metrics (for backward compatibility if needed). */
 export type AuditMetrics = {
@@ -251,6 +258,37 @@ async function generateContentWithTimeout(
   return Promise.race([model.generateContent(prompt), timeoutPromise]);
 }
 
+function isRetryableGeminiError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return (
+    msg.includes('429') ||
+    msg.toLowerCase().includes('resource exhausted') ||
+    msg.toLowerCase().includes('timeout')
+  );
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function generateContentResilient(
+  model: ReturnType<GoogleGenerativeAI['getGenerativeModel']>,
+  prompt: string
+) {
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt <= GEMINI_MAX_RETRIES; attempt++) {
+    try {
+      return await generateContentWithTimeout(model, prompt, GEMINI_TIMEOUT_MS);
+    } catch (err: unknown) {
+      lastError = err;
+      if (attempt === GEMINI_MAX_RETRIES || !isRetryableGeminiError(err)) break;
+      const delayMs = Math.min(10000, 1500 * Math.pow(2, attempt));
+      await sleep(delayMs);
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
+}
+
 /**
  * Strict variant for admin APIs: throws explicit errors instead of returning fallback.
  * Use this when UI must show actionable failure reason.
@@ -284,7 +322,7 @@ export async function runAuditGeminiStrict(
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: modelId });
-    const result = await generateContentWithTimeout(model, prompt, GEMINI_TIMEOUT_MS);
+    const result = await generateContentResilient(model, prompt);
     const response = result.response;
     const text = response.text?.()?.trim() ?? '';
     if (!text) {
@@ -343,7 +381,7 @@ export async function runAuditGemini(
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: modelId });
-    const result = await generateContentWithTimeout(model, prompt, GEMINI_TIMEOUT_MS);
+    const result = await generateContentResilient(model, prompt);
     const response = result.response;
     const text = response.text?.()?.trim() ?? '';
     if (!text) return FALLBACK;
