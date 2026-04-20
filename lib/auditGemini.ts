@@ -43,6 +43,7 @@ export type AuditResult = {
 };
 
 export const AUDIT_FALLBACK_MESSAGE = 'Προσωρινή αδυναμία ανάλυσης.';
+const GEMINI_TIMEOUT_MS = 20000;
 
 /** Legacy single-account metrics (for backward compatibility if needed). */
 export type AuditMetrics = {
@@ -236,6 +237,20 @@ export function isAuditFallbackResult(audit: AuditResult): boolean {
   );
 }
 
+async function generateContentWithTimeout(
+  model: ReturnType<GoogleGenerativeAI['getGenerativeModel']>,
+  prompt: string,
+  timeoutMs: number
+) {
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    const timer = setTimeout(() => {
+      clearTimeout(timer);
+      reject(new Error(`Gemini request timeout after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+  return Promise.race([model.generateContent(prompt), timeoutPromise]);
+}
+
 /**
  * Strict variant for admin APIs: throws explicit errors instead of returning fallback.
  * Use this when UI must show actionable failure reason.
@@ -269,7 +284,7 @@ export async function runAuditGeminiStrict(
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: modelId });
-    const result = await model.generateContent(prompt);
+    const result = await generateContentWithTimeout(model, prompt, GEMINI_TIMEOUT_MS);
     const response = result.response;
     const text = response.text?.()?.trim() ?? '';
     if (!text) {
@@ -328,7 +343,7 @@ export async function runAuditGemini(
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: modelId });
-    const result = await model.generateContent(prompt);
+    const result = await generateContentWithTimeout(model, prompt, GEMINI_TIMEOUT_MS);
     const response = result.response;
     const text = response.text?.()?.trim() ?? '';
     if (!text) return FALLBACK;
