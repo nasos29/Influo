@@ -30,6 +30,9 @@ const t = {
     hero_btn_primary: "Ξεκίνα Δωρεάν",
     hero_btn_brand: "Εγγραφή Επιχείρησης",
     hero_btn_secondary: "Εξερεύνηση",
+    hero_brand_title_1: "Σύνδεσε το Brand σου",
+    hero_brand_title_2: "με κορυφαιους Influencers",
+    hero_brand_desc: "Έχετε επιχείρηση; Ανακαλύψτε influencers που ταιριάζουν στο κοινό σας, προβάλετε τα προϊόντα ή τις υπηρεσίες σας και ξεκινήστε συνεργασίες μέσα από το Influo. Η εγγραφή είναι δωρεάν.",
     signup_choice_influencer: "Είμαι Influencer",
     signup_choice_brand: "Έχω Επιχείρηση",
     brand_section_title: "Έχετε Επιχείρηση;",
@@ -66,6 +69,9 @@ const t = {
     hero_btn_primary: "Start for Free",
     hero_btn_brand: "For Brands",
     hero_btn_secondary: "Explore",
+    hero_brand_title_1: "Connect your Brand",
+    hero_brand_title_2: "with Top Influencers",
+    hero_brand_desc: "Own a business? Find influencers that match your audience, promote your products or services and start successful collaborations through Influo. Registration is free.",
     signup_choice_influencer: "I am an Influencer",
     signup_choice_brand: "I have a Company",
     brand_section_title: "Are you a Company?",
@@ -568,6 +574,15 @@ export default function Home() {
                     {txt.hero_btn_secondary}
                   </a>
                 </div>
+                <h1 className="text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-bold text-slate-900 mb-6 leading-[1.1] tracking-tight mt-10">
+                  <span className="block">{txt.hero_brand_title_1}</span>
+                  <span className="block bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                    {txt.hero_brand_title_2}
+                  </span>
+                </h1>
+                <p className="text-lg md:text-xl lg:text-2xl text-slate-600 mb-10 leading-relaxed max-w-xl mx-auto lg:mx-0">
+                  {txt.hero_brand_desc}
+                </p>
               </div>
               
               {/* Right Image */}
