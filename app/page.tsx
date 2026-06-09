@@ -31,7 +31,7 @@ const t = {
     hero_btn_brand: "Εγγραφή Επιχείρησης",
     hero_btn_secondary: "Εξερεύνηση",
     hero_brand_title_1: "Σύνδεσε το Brand σου",
-    hero_brand_title_2: "με κορυφαιους Influencers",
+    hero_brand_title_2: "με κορυφαίους Influencers",
     hero_brand_desc: "Έχετε επιχείρηση; Ανακαλύψτε influencers που ταιριάζουν στο κοινό σας, προβάλετε τα προϊόντα ή τις υπηρεσίες σας και ξεκινήστε συνεργασίες μέσα από το Influo. Η εγγραφή είναι δωρεάν.",
     signup_choice_influencer: "Είμαι Influencer",
     signup_choice_brand: "Έχω Επιχείρηση",
