@@ -2818,11 +2818,19 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     try {
       for (const userId of selectedUsers) {
         if (action === 'approve') {
-          const { error } = await supabase.from("influencers").update({ 
-            approved: true,
-            approved_at: new Date().toISOString()
-          }).eq("id", userId);
-          if (!error) {
+          const response = await fetch('/api/admin/influencers/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              influencerId: userId,
+              updates: {
+                approved: true,
+                approved_at: new Date().toISOString()
+              }
+            })
+          });
+          const data = await response.json();
+          if (data.success) {
             try {
               await fetch('/api/admin/notify-brands-new-influencer', {
                 method: 'POST',
