@@ -2138,12 +2138,23 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   };
 
   const toggleApproval = async (id: number, currentStatus: boolean, userEmail: string, userName: string) => {
-    const { error } = await supabase.from("influencers").update({ 
-      approved: !currentStatus,
-      approved_at: !currentStatus ? new Date().toISOString() : null
-    }).eq("id", id);
+    const response = await fetch('/api/admin/influencers/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        influencerId: id,
+        updates: {
+          approved: !currentStatus,
+          approved_at: !currentStatus ? new Date().toISOString() : null
+        }
+      })
+    });
+    const data = await response.json();
     
-    if (!error) {
+    if (data.success) {
+        if(selectedUser?.id === id) {
+            setSelectedUser(prev => prev ? {...prev, approved: !currentStatus} : null);
+        }
         // If approving, mark all unreviewed changes as reviewed
         if (!currentStatus) {
             try {
@@ -2219,12 +2230,20 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   };
 
   const toggleAnalyticsVerification = async (id: number, currentStatus: boolean) => {
-    const { error } = await supabase.from("influencers").update({ 
-      analytics_verified: !currentStatus,
-      analytics_verified_at: !currentStatus ? new Date().toISOString() : null
-    }).eq("id", id);
+    const response = await fetch('/api/admin/influencers/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        influencerId: id,
+        updates: {
+          analytics_verified: !currentStatus,
+          analytics_verified_at: !currentStatus ? new Date().toISOString() : null
+        }
+      })
+    });
+    const data = await response.json();
     
-    if (!error) {
+    if (data.success) {
         fetchData();
     }
     
