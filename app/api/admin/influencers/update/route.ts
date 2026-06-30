@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { insertFollowerSnapshot } from '@/lib/parseFollowers';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
 
     const { data: existing, error: fetchErr } = await supabaseAdmin
       .from('influencers')
-      .select('id, contact_email')
+      .select('id, contact_email, accounts')
       .eq('id', influencerId)
       .maybeSingle();
 
@@ -49,6 +50,13 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('[admin/influencers/update]', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // Insert snapshot if accounts changed
+    const accountsChanged = 
+      (patch.accounts && JSON.stringify(patch.accounts) !== JSON.stringify(existing.accounts));
+    if (accountsChanged && data.accounts) {
+      await insertFollowerSnapshot(supabaseAdmin, influencerId, data.accounts);
     }
 
     const newEmail =

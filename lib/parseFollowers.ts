@@ -17,7 +17,36 @@ export function parseFollowerString(str: string | number | null | undefined): nu
 }
 
 /** Sum followers from accounts array (e.g. influencer.accounts). */
-export function totalFollowersFromAccounts(accounts: Array<{ followers?: string | number | null }> | null | undefined): number {
+export function totalFollowersFromAccounts(accounts: { followers?: string | number | null }[] | null | undefined): number {
   if (!Array.isArray(accounts)) return 0;
   return accounts.reduce((sum, acc) => sum + parseFollowerString(acc?.followers), 0);
+}
+
+/**
+ * Insert a follower snapshot for an influencer into the database.
+ * @param supabaseAdmin - Supabase admin client
+ * @param influencerId - The influencer's ID
+ * @param accounts - The influencer's social media accounts (to calculate total followers)
+ */
+export async function insertFollowerSnapshot(
+  supabaseAdmin: any,
+  influencerId: string,
+  accounts: { followers?: string | number | null }[] | null | undefined
+): Promise<void> {
+  const totalFollowers = totalFollowersFromAccounts(accounts);
+  if (totalFollowers <= 0) {
+    return;
+  }
+  
+  try {
+    await supabaseAdmin
+      .from('influencer_follower_snapshots')
+      .insert({
+        influencer_id: influencerId,
+        snapshot_at: new Date().toISOString(),
+        total_followers: totalFollowers,
+      });
+  } catch (err) {
+    console.error('Error inserting follower snapshot:', err);
+  }
 }

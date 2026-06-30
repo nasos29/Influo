@@ -600,6 +600,21 @@ export default function InfluencerSignupForm() {
           throw insertError;
       }
 
+      // Insert follower snapshot
+      try {
+        await fetch('/api/influencer/snapshot', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            influencerId: authUser.id,
+            accounts: accounts.filter(acc => acc.platform !== 'Facebook'),
+          }),
+        });
+      } catch (snapshotErr) {
+        console.error('Error inserting follower snapshot:', snapshotErr);
+        // Don't fail the whole signup if snapshot fails
+      }
+
       // 5. Send Emails
       try {
         // Mail 1: Στον Influencer (Confirmation)

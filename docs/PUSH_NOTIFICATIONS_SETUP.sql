@@ -17,3 +17,6 @@ CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user
   ON push_subscriptions(user_type, user_identifier);
 
 COMMENT ON TABLE push_subscriptions IS 'Web Push: influencers (id), brands (email). Admin uses brand row with email = ADMIN_EMAIL env — must match logged-in admin email for subscriptions.';
+
+-- Security: only server (service_role) writes via /api/push/subscribe
+ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;

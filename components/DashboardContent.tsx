@@ -387,6 +387,23 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                 }
             }
 
+            // Insert follower snapshot if accounts changed
+            if (changedFields.includes('accounts') && data.accounts) {
+                try {
+                    await fetch('/api/influencer/snapshot', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            influencerId: String(user.id),
+                            accounts: data.accounts,
+                        }),
+                    });
+                } catch (snapshotErr) {
+                    console.error('Error inserting follower snapshot:', snapshotErr);
+                    // Don't fail the whole edit if snapshot fails
+                }
+            }
+
             setLoading(false);
 
             // Send email notification to admin
