@@ -53,11 +53,23 @@ WITH CHECK (auth.role() = 'authenticated');
 -- 5) Proposals table: RLS policies
 ALTER TABLE IF EXISTS proposals ENABLE ROW LEVEL SECURITY;
 
--- Allow anyone to view proposals (public)
-CREATE POLICY "Proposals are viewable by everyone"
+-- Allow influencers to view their own proposals
+CREATE POLICY "Influencers can view their own proposals"
 ON public.proposals
 FOR SELECT
-USING (true);
+USING (auth.uid() = influencer_id);
+
+-- Allow brands to view their own proposals (via email)
+CREATE POLICY "Brands can view their own proposals"
+ON public.proposals
+FOR SELECT
+USING (
+  EXISTS (
+    SELECT 1 FROM brands 
+    WHERE brands.contact_email = public.proposals.brand_email 
+    AND brands.id = auth.uid()
+  )
+);
 
 -- Allow authenticated users to insert proposals
 CREATE POLICY "Authenticated users can insert proposals"
@@ -65,12 +77,31 @@ ON public.proposals
 FOR INSERT
 WITH CHECK (auth.role() = 'authenticated');
 
--- Allow proposal creators to update/delete their own proposals
-CREATE POLICY "Proposal creators can update/delete their own proposals"
+-- Allow influencers to update their own proposals
+CREATE POLICY "Influencers can update their own proposals"
 ON public.proposals
-FOR ALL
-USING (auth.uid() = created_by)
-WITH CHECK (auth.uid() = created_by);
+FOR UPDATE
+USING (auth.uid() = influencer_id)
+WITH CHECK (auth.uid() = influencer_id);
+
+-- Allow brands to update their own proposals
+CREATE POLICY "Brands can update their own proposals"
+ON public.proposals
+FOR UPDATE
+USING (
+  EXISTS (
+    SELECT 1 FROM brands 
+    WHERE brands.contact_email = public.proposals.brand_email 
+    AND brands.id = auth.uid()
+  )
+)
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM brands 
+    WHERE brands.contact_email = public.proposals.brand_email 
+    AND brands.id = auth.uid()
+  )
+);
 
 -- 6) Re-check after fix (should return 0 rows for fixed tables):
 SELECT c.relname AS table_name
