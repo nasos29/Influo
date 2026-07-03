@@ -28,12 +28,24 @@ ON public.influencers
 FOR SELECT
 USING (true);
 
+-- Allow authenticated users to insert their own influencer profile
+CREATE POLICY "Users can insert their own influencer profile"
+ON public.influencers
+FOR INSERT
+WITH CHECK (auth.uid() = id);
+
 -- Allow influencers to update their own profile
 CREATE POLICY "Influencers can update their own profile"
 ON public.influencers
 FOR UPDATE
 USING (auth.uid() = id)
 WITH CHECK (auth.uid() = id);
+
+-- Allow influencers to delete their own profile
+CREATE POLICY "Influencers can delete their own profile"
+ON public.influencers
+FOR DELETE
+USING (auth.uid() = id);
 
 -- 4) Influencer reviews table: RLS policies
 ALTER TABLE IF EXISTS influencer_reviews ENABLE ROW LEVEL SECURITY;
@@ -103,7 +115,35 @@ WITH CHECK (
   )
 );
 
--- 6) Re-check after fix (should return 0 rows for fixed tables):
+-- 6) Brands table: RLS policies
+ALTER TABLE IF EXISTS brands ENABLE ROW LEVEL SECURITY;
+
+-- Allow authenticated users to view brands (public profiles)
+CREATE POLICY "Brands are viewable by everyone"
+ON public.brands
+FOR SELECT
+USING (true);
+
+-- Allow authenticated users to insert their own brand profile
+CREATE POLICY "Users can insert their own brand profile"
+ON public.brands
+FOR INSERT
+WITH CHECK (auth.uid() = id);
+
+-- Allow brands to update their own profile
+CREATE POLICY "Brands can update their own profile"
+ON public.brands
+FOR UPDATE
+USING (auth.uid() = id)
+WITH CHECK (auth.uid() = id);
+
+-- Allow brands to delete their own profile
+CREATE POLICY "Brands can delete their own profile"
+ON public.brands
+FOR DELETE
+USING (auth.uid() = id);
+
+-- 7) Re-check after fix (should return 0 rows for fixed tables):
 SELECT c.relname AS table_name
 FROM pg_class c
 JOIN pg_namespace n ON n.oid = c.relnamespace
