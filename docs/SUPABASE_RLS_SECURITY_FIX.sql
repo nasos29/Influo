@@ -22,6 +22,12 @@ ALTER TABLE IF EXISTS user_roles ENABLE ROW LEVEL SECURITY;
 -- 3) Influencers table: RLS policies
 ALTER TABLE IF EXISTS influencers ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies first
+DROP POLICY IF EXISTS "Influencers are viewable by everyone" ON public.influencers;
+DROP POLICY IF EXISTS "Users can insert their own influencer profile" ON public.influencers;
+DROP POLICY IF EXISTS "Influencers can update their own profile" ON public.influencers;
+DROP POLICY IF EXISTS "Influencers can delete their own profile" ON public.influencers;
+
 -- Allow anyone to view influencers (public profiles)
 CREATE POLICY "Influencers are viewable by everyone"
 ON public.influencers
@@ -50,6 +56,10 @@ USING (auth.uid() = id);
 -- 4) Influencer reviews table: RLS policies
 ALTER TABLE IF EXISTS influencer_reviews ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies first
+DROP POLICY IF EXISTS "Influencer reviews are viewable by everyone" ON public.influencer_reviews;
+DROP POLICY IF EXISTS "Authenticated users can insert reviews" ON public.influencer_reviews;
+
 -- Allow anyone to view reviews
 CREATE POLICY "Influencer reviews are viewable by everyone"
 ON public.influencer_reviews
@@ -64,6 +74,13 @@ WITH CHECK (auth.role() = 'authenticated');
 
 -- 5) Proposals table: RLS policies
 ALTER TABLE IF EXISTS proposals ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies first
+DROP POLICY IF EXISTS "Influencers can view their own proposals" ON public.proposals;
+DROP POLICY IF EXISTS "Brands can view their own proposals" ON public.proposals;
+DROP POLICY IF EXISTS "Authenticated users can insert proposals" ON public.proposals;
+DROP POLICY IF EXISTS "Influencers can update their own proposals" ON public.proposals;
+DROP POLICY IF EXISTS "Brands can update their own proposals" ON public.proposals;
 
 -- Allow influencers to view their own proposals
 CREATE POLICY "Influencers can view their own proposals"
@@ -117,6 +134,12 @@ WITH CHECK (
 
 -- 6) Brands table: RLS policies
 ALTER TABLE IF EXISTS brands ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies first
+DROP POLICY IF EXISTS "Brands are viewable by everyone" ON public.brands;
+DROP POLICY IF EXISTS "Users can insert their own brand profile" ON public.brands;
+DROP POLICY IF EXISTS "Brands can update their own profile" ON public.brands;
+DROP POLICY IF EXISTS "Brands can delete their own profile" ON public.brands;
 
 -- Allow authenticated users to view brands (public profiles)
 CREATE POLICY "Brands are viewable by everyone"
