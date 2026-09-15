@@ -15,7 +15,7 @@ function isAuthorizedCron(req: NextRequest): boolean {
   const cronSecret = process.env.CRON_SECRET;
   const isVercelCron =
     req.headers.get('x-vercel-cron') === '1' ||
-    req.headers.get('user-agent')?.includes('vercel-cron');
+    (req.headers.get('user-agent')?.includes('vercel-cron') ?? false);
 
   if (!cronSecret) {
     return isVercelCron;
