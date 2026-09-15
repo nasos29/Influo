@@ -134,10 +134,12 @@ export async function fetchTiktokFromAuditpr(
 function parseTiktokItems(items: Record<string, unknown>[]): SocialMetrics | null {
   if (!items.length) return null;
   const first = items[0] as Record<string, unknown>;
-  const author = (first.authorMeta ?? first.author) as Record<string, unknown> | undefined;
+  const channel = (first.channel ?? first.authorMeta ?? first.author) as
+    | Record<string, unknown>
+    | undefined;
   let followers =
     Number(first.followers ?? first.followerCount) ||
-    (author ? Number(author.fans ?? author.followers) : 0) ||
+    (channel ? Number(channel.followers ?? channel.fans ?? channel.followerCount) : 0) ||
     0;
 
   const likesList: number[] = [];

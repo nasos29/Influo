@@ -836,6 +836,39 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     const [unreadAnnouncementsCount, setUnreadAnnouncementsCount] = useState(0);
     const [announcementsLoading, setAnnouncementsLoading] = useState(false);
     const [campaignAttentionCount, setCampaignAttentionCount] = useState(0);
+    const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
+    const [deletingAccount, setDeletingAccount] = useState(false);
+    const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null);
+
+    const handleDeleteAccount = async () => {
+        setDeletingAccount(true);
+        setDeleteAccountError(null);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.access_token) {
+                throw new Error('Δεν βρέθηκε ενεργή σύνδεση. Συνδεθείτε ξανά.');
+            }
+
+            const res = await fetch('/api/account/delete', {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${session.access_token}`,
+                },
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(data.error || 'Η διαγραφή απέτυχε. Δοκιμάστε ξανά.');
+            }
+
+            await supabase.auth.signOut();
+            window.location.href = '/?account_deleted=1';
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Η διαγραφή απέτυχε. Δοκιμάστε ξανά.';
+            setDeleteAccountError(message);
+        } finally {
+            setDeletingAccount(false);
+        }
+    };
 
     // Load proposals and counts
     useEffect(() => {
@@ -1538,10 +1571,25 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                         </div>
                                 )}
                                 
-                                <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row gap-3">
-                                    <Link href="/logout" className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium text-center transition-colors">
-                                        Αποσύνδεση
-                        </Link>
+                                <div className="pt-4 border-t border-slate-200 space-y-4">
+                                    <div className="flex flex-col sm:flex-row gap-3">
+                                        <Link href="/logout" className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium text-center transition-colors">
+                                            Αποσύνδεση
+                                        </Link>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setDeleteAccountError(null);
+                                                setShowDeleteAccountModal(true);
+                                            }}
+                                            className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg font-medium transition-colors"
+                                        >
+                                            Διαγραφή Λογαριασμού
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-slate-500 max-w-xl">
+                                        Η διαγραφή λογαριασμού είναι οριστική και αφαιρεί το προφίλ σας, τις συνομιλίες και όλα τα σχετικά δεδομένα από την πλατφόρμα.
+                                    </p>
                                 </div>
                             </div>
                         ) : (
@@ -1565,6 +1613,51 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                     onClose={() => setShowEditModal(false)}
                     onSave={handleProfileSave}
                 />
+            )}
+
+            {showDeleteAccountModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+                        <div className="px-6 py-5 border-b border-slate-200">
+                            <h2 className="text-xl font-bold text-slate-900">Διαγραφή λογαριασμού</h2>
+                        </div>
+                        <div className="px-6 py-5 space-y-4">
+                            <p className="text-sm text-slate-600 leading-relaxed">
+                                Είστε σίγουροι/η ότι θέλετε να διαγράψετε οριστικά τον λογαριασμό σας;
+                            </p>
+                            <p className="text-sm text-slate-600 leading-relaxed">
+                                Θα διαγραφούν όλα τα στοιχεία του προφίλ σας, οι συνομιλίες, οι προτάσεις συνεργασίας, οι αιτήσεις σε καμπάνιες και η πρόσβασή σας στην Influo. Η ενέργεια <strong>δεν μπορεί να αναιρεθεί</strong>.
+                            </p>
+                            {deleteAccountError && (
+                                <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                                    {deleteAccountError}
+                                </p>
+                            )}
+                        </div>
+                        <div className="px-6 py-4 border-t border-slate-200 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (deletingAccount) return;
+                                    setShowDeleteAccountModal(false);
+                                    setDeleteAccountError(null);
+                                }}
+                                disabled={deletingAccount}
+                                className="px-4 py-2 rounded-lg font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-60"
+                            >
+                                Όχι, ακύρωση
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleDeleteAccount}
+                                disabled={deletingAccount}
+                                className="px-4 py-2 rounded-lg font-medium bg-red-600 hover:bg-red-700 text-white disabled:opacity-60"
+                            >
+                                {deletingAccount ? 'Διαγραφή…' : 'Ναι, διαγραφή'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* Agreement Modal */}

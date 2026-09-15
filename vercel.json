@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/check-inactive-conversations",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/weekly-brand-influencer-digest",
+      "schedule": "0 6 * * 1"
     }
   ]
 }
