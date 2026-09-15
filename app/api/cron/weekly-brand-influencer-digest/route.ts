@@ -13,9 +13,10 @@ const supabaseAdmin = createClient(
 
 function isAuthorizedCron(req: NextRequest): boolean {
   const cronSecret = process.env.CRON_SECRET;
-  const isVercelCron =
+  const isVercelCron = Boolean(
     req.headers.get('x-vercel-cron') === '1' ||
-    (req.headers.get('user-agent')?.includes('vercel-cron') ?? false);
+      req.headers.get('user-agent')?.includes('vercel-cron')
+  );
 
   if (!cronSecret) {
     return isVercelCron;
