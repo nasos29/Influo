@@ -1,6 +1,6 @@
 /**
- * Social stats refresh: Instagram + YouTube via Auditpr API, TikTok via Auditpr or Apify (sparingly).
- * Used by cron/refresh-social-stats to update followers, engagement_rate, avg_likes per account.
+ * Social stats refresh via Auditpr (session-only: IG/TikTok cookies + Playwright on Auditpr).
+ * Used by admin "Ανανέωση Social" and cron refresh routes.
  */
 
 export type SocialMetrics = {
@@ -40,7 +40,7 @@ export async function fetchInstagramFromAuditpr(
 ): Promise<SocialMetrics | { error: string }> {
   const u = username.replace(/^@/, '').trim();
   if (!u) return { error: 'Username required' };
-  const url = `${baseUrl.replace(/\/$/, '')}/metrics/instagram/${encodeURIComponent(u)}`;
+  const url = `${baseUrl.replace(/\/$/, '')}/metrics/instagram/${encodeURIComponent(u)}?for_import=true`;
   try {
     const res = await fetch(url, { method: 'GET', signal: AbortSignal.timeout(45_000) });
     if (!res.ok) {
@@ -48,7 +48,9 @@ export async function fetchInstagramFromAuditpr(
       return { error: `Auditpr ${res.status}: ${text.slice(0, 200)}` };
     }
     const data = (await res.json()) as Record<string, unknown>;
-    if (data.error) return { error: String(data.error) };
+    if (data.status === 'Failed' || data.error) {
+      return { error: String(data.error || data.error_detail || 'Auditpr metrics failed') };
+    }
     const followers = parseFollowersFromApi(data.followers);
     const engagement_rate = typeof data.engagement_rate === 'string' ? data.engagement_rate : 'N/A';
     const avg_likes = Number(data.avg_likes) ?? 0;
@@ -73,7 +75,7 @@ export async function fetchYouTubeFromAuditpr(
 ): Promise<SocialMetrics | { error: string }> {
   const u = username.replace(/^@+/, '').trim();
   if (!u) return { error: 'Username required' };
-  const url = `${baseUrl.replace(/\/$/, '')}/metrics/youtube/${encodeURIComponent(u)}`;
+  const url = `${baseUrl.replace(/\/$/, '')}/metrics/youtube/${encodeURIComponent(u)}?for_import=true`;
   try {
     const res = await fetch(url, { method: 'GET', signal: AbortSignal.timeout(45_000) });
     if (!res.ok) {
@@ -81,8 +83,9 @@ export async function fetchYouTubeFromAuditpr(
       return { error: `Auditpr ${res.status}: ${text.slice(0, 200)}` };
     }
     const data = (await res.json()) as Record<string, unknown>;
-    if (data.status === 'Failed' && data.error) return { error: String(data.error) };
-    if (data.error) return { error: String(data.error) };
+    if (data.status === 'Failed' || data.error) {
+      return { error: String(data.error || data.error_detail || 'Auditpr metrics failed') };
+    }
     const followers = parseFollowersFromApi(data.followers);
     const engagement_rate = typeof data.engagement_rate === 'string' ? data.engagement_rate : 'N/A';
     const avg_likes = Number(data.avg_likes) ?? 0;
@@ -98,7 +101,7 @@ export async function fetchYouTubeFromAuditpr(
 }
 
 /**
- * Fetch TikTok metrics from Auditpr (no Apify cost on Influo server). Requires Auditpr running locally with APIFY_API_TOKEN.
+ * Fetch TikTok metrics from Auditpr (session cookies + Playwright; TIKTOK_USE_APIFY_ONLY=0 on Auditpr).
  */
 export async function fetchTiktokFromAuditpr(
   baseUrl: string,
@@ -106,7 +109,7 @@ export async function fetchTiktokFromAuditpr(
 ): Promise<SocialMetrics | { error: string }> {
   const u = username.replace(/^@+/, '').trim();
   if (!u) return { error: 'Username required' };
-  const url = `${baseUrl.replace(/\/$/, '')}/metrics/tiktok/${encodeURIComponent(u)}`;
+  const url = `${baseUrl.replace(/\/$/, '')}/metrics/tiktok/${encodeURIComponent(u)}?for_import=true`;
   try {
     const res = await fetch(url, { method: 'GET', signal: AbortSignal.timeout(120_000) });
     if (!res.ok) {
@@ -114,8 +117,9 @@ export async function fetchTiktokFromAuditpr(
       return { error: `Auditpr ${res.status}: ${text.slice(0, 200)}` };
     }
     const data = (await res.json()) as Record<string, unknown>;
-    if (data.status === 'Failed' && data.error) return { error: String(data.error) };
-    if (data.error) return { error: String(data.error) };
+    if (data.status === 'Failed' || data.error) {
+      return { error: String(data.error || data.error_detail || 'Auditpr metrics failed') };
+    }
     const followers = parseFollowersFromApi(data.followers);
     const engagement_rate = typeof data.engagement_rate === 'string' ? data.engagement_rate : 'N/A';
     const avg_likes = Number(data.avg_likes) ?? 0;
@@ -130,128 +134,105 @@ export async function fetchTiktokFromAuditpr(
   }
 }
 
-/** Parse TikTok Apify dataset items into followers, engagement_rate, avg_likes (Wednesday-style ER). */
-function parseTiktokItems(items: Record<string, unknown>[]): SocialMetrics | null {
-  if (!items.length) return null;
-  const first = items[0] as Record<string, unknown>;
-  const channel = (first.channel ?? first.authorMeta ?? first.author) as
-    | Record<string, unknown>
-    | undefined;
-  let followers =
-    Number(first.followers ?? first.followerCount) ||
-    (channel ? Number(channel.followers ?? channel.fans ?? channel.followerCount) : 0) ||
-    0;
+export type AccountFetchResult = {
+  platform: string;
+  username: string;
+  status: 'success' | 'failed';
+  followers?: string;
+  engagement_rate?: string;
+  avg_likes?: string;
+  error?: string;
+};
 
-  const likesList: number[] = [];
-  const commentsList: number[] = [];
-  const sharesList: number[] = [];
-  for (const item of items) {
-    const o = item as Record<string, unknown>;
-    const lk = Number(o.likes ?? o.diggCount ?? o.heartCount ?? 0);
-    const comm = Number(o.comment_count ?? o.commentCount ?? o.comments ?? 0);
-    const sh = Number(o.share_count ?? o.shareCount ?? o.shares ?? 0);
-    if (lk >= 0) likesList.push(lk);
-    if (comm >= 0) commentsList.push(comm);
-    if (sh >= 0) sharesList.push(sh);
+export type SocialOverridesBundle = {
+  instagramOverrides: Record<string, SocialMetrics>;
+  tiktokOverrides: Record<string, SocialMetrics>;
+  youtubeOverrides: Record<string, SocialMetrics>;
+  errors: string[];
+  accountResults: AccountFetchResult[];
+};
+
+/** Quick health check before batch refresh from admin browser. */
+export async function checkAuditprHealth(baseUrl: string): Promise<{ ok: boolean; error?: string }> {
+  const url = `${baseUrl.replace(/\/$/, '')}/health`;
+  try {
+    const res = await fetch(url, { method: 'GET', signal: AbortSignal.timeout(8000) });
+    if (!res.ok) return { ok: false, error: `Auditpr health ${res.status}` };
+    return { ok: true };
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, error: msg };
   }
-  const avgLikes = likesList.length ? Math.round(likesList.reduce((a, b) => a + b, 0) / likesList.length) : 0;
-  const avgComments = commentsList.length
-    ? commentsList.reduce((a, b) => a + b, 0) / commentsList.length
-    : 0;
-  const avgShares = sharesList.length ? sharesList.reduce((a, b) => a + b, 0) / sharesList.length : 0;
-  const totalEngagement = avgLikes + avgComments + avgShares;
-  const engagement_rate =
-    followers > 0 && totalEngagement >= 0
-      ? `${((totalEngagement / followers) * 100).toFixed(2)}%`
-      : 'N/A';
-
-  return {
-    followers: formatFollowers(followers),
-    engagement_rate,
-    avg_likes: String(avgLikes),
-  };
 }
-
-/** Run Apify TikTok actor, poll until done, return dataset items. Use sparingly (cost). */
-async function runApifyTiktok(
-  token: string,
-  actorId: string,
-  input: Record<string, unknown>
-): Promise<{ items: Record<string, unknown>[]; error?: string }> {
-  const runRes = await fetch(
-    `https://api.apify.com/v2/acts/${actorId}/runs?token=${encodeURIComponent(token)}`,
-    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) }
-  );
-  if (!runRes.ok) return { items: [], error: `Apify run ${runRes.status}` };
-  const runData = (await runRes.json()) as { data?: { id?: string } };
-  const runId = runData?.data?.id;
-  if (!runId) return { items: [], error: 'Apify run failed' };
-
-  const maxAttempts = 60;
-  const pollIntervalMs = 2000;
-  for (let i = 0; i < maxAttempts; i++) {
-    await new Promise((r) => setTimeout(r, pollIntervalMs));
-    const statusRes = await fetch(
-      `https://api.apify.com/v2/actor-runs/${runId}?token=${encodeURIComponent(token)}`
-    );
-    if (!statusRes.ok) return { items: [], error: 'Apify status failed' };
-    const statusData = (await statusRes.json()) as { data?: { status?: string; defaultDatasetId?: string } };
-    const status = statusData?.data?.status;
-    if (status === 'SUCCEEDED') {
-      const datasetId = statusData?.data?.defaultDatasetId;
-      if (!datasetId) return { items: [], error: 'No dataset' };
-      const itemsRes = await fetch(
-        `https://api.apify.com/v2/datasets/${datasetId}/items?token=${encodeURIComponent(token)}`
-      );
-      if (!itemsRes.ok) return { items: [], error: 'Apify dataset failed' };
-      const raw = (await itemsRes.json()) as unknown;
-      const items = Array.isArray(raw) ? raw : raw != null ? [raw] : [];
-      return { items: items as Record<string, unknown>[] };
-    }
-    if (status === 'FAILED' || status === 'ABORTED' || status === 'TIMED-OUT') {
-      return { items: [], error: status ?? 'Run failed' };
-    }
-  }
-  return { items: [], error: 'Apify timed out' };
-}
-
-const TIKTOK_MAX_ITEMS = 25;
 
 /**
- * Fetch TikTok metrics via Apify (costs). Use sparingly. Tries apidojo then clockworks.
+ * Fetch IG/TikTok/YouTube metrics from Auditpr for a list of accounts (deduped).
+ * Used by admin dashboard refresh (single + all influencers).
  */
-export async function fetchTiktokFromApify(
-  apifyToken: string,
-  username: string
-): Promise<SocialMetrics | { error: string }> {
-  const u = username.replace(/^@/, '').trim();
-  if (!u) return { error: 'Username required' };
-  if (!apifyToken.trim()) return { error: 'APIFY_API_TOKEN required for TikTok' };
+export async function fetchAuditprOverridesForAccounts(
+  baseUrl: string,
+  accounts: { platform?: string; username?: string }[],
+  options?: { delayMs?: number }
+): Promise<SocialOverridesBundle> {
+  const instagramOverrides: Record<string, SocialMetrics> = {};
+  const tiktokOverrides: Record<string, SocialMetrics> = {};
+  const youtubeOverrides: Record<string, SocialMetrics> = {};
+  const errors: string[] = [];
+  const accountResults: AccountFetchResult[] = [];
+  const delayMs = options?.delayMs ?? 1500;
 
-  let items: Record<string, unknown>[] = [];
-  let lastError = 'No results';
-
-  // 1) apidojo
-  const run1 = await runApifyTiktok(apifyToken, 'apidojo~tiktok-profile-scraper', {
-    usernames: [u],
-    maxItems: TIKTOK_MAX_ITEMS,
-  });
-  if (run1.error) lastError = run1.error;
-  else {
-    const real = run1.items.filter((x) => x && !(x as Record<string, unknown>).demo && !(x as Record<string, unknown>).noResults);
-    const parsed = real.length ? parseTiktokItems(real) : null;
-    if (parsed) return parsed;
-    lastError = 'Apify returned demo/empty';
+  const jobs: { platform: 'instagram' | 'tiktok' | 'youtube'; username: string }[] = [];
+  const seen = new Set<string>();
+  for (const acc of accounts) {
+    const platform = (acc.platform || '').trim().toLowerCase();
+    const username = (acc.username || '').trim();
+    if (!platform || !username) continue;
+    if (platform !== 'instagram' && platform !== 'tiktok' && platform !== 'youtube') continue;
+    const uKey = username.replace(/^@+/, '').trim();
+    const dedupeKey = `${platform}:${uKey.toLowerCase()}`;
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
+    jobs.push({ platform, username: uKey });
   }
 
-  // 2) clockworks fallback
-  const run2 = await runApifyTiktok(apifyToken, 'clockworks~tiktok-profile-scraper', {
-    profiles: [u],
-    resultsPerPage: TIKTOK_MAX_ITEMS,
-  });
-  if (run2.error) return { error: `${lastError}. Clockworks: ${run2.error}` };
-  items = run2.items;
-  const parsed = parseTiktokItems(items);
-  if (parsed) return parsed;
-  return { error: `${lastError}. Both actors returned no usable data.` };
+  for (let i = 0; i < jobs.length; i++) {
+    const { platform, username } = jobs[i];
+    let result: SocialMetrics | { error: string };
+    if (platform === 'instagram') {
+      result = await fetchInstagramFromAuditpr(baseUrl, username);
+    } else if (platform === 'tiktok') {
+      result = await fetchTiktokFromAuditpr(baseUrl, username);
+    } else {
+      result = await fetchYouTubeFromAuditpr(baseUrl, username);
+    }
+
+    if ('followers' in result) {
+      if (platform === 'instagram') instagramOverrides[username] = result;
+      else if (platform === 'tiktok') tiktokOverrides[username] = result;
+      else youtubeOverrides[username] = result;
+      accountResults.push({
+        platform,
+        username,
+        status: 'success',
+        followers: result.followers,
+        engagement_rate: result.engagement_rate,
+        avg_likes: result.avg_likes,
+      });
+    } else {
+      const errMsg = result.error;
+      errors.push(`${platform} @${username}: ${errMsg}`);
+      accountResults.push({
+        platform,
+        username,
+        status: 'failed',
+        error: errMsg,
+      });
+    }
+
+    if (i < jobs.length - 1 && delayMs > 0) {
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+
+  return { instagramOverrides, tiktokOverrides, youtubeOverrides, errors, accountResults };
 }

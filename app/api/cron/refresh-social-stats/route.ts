@@ -1,12 +1,11 @@
 /**
  * Refresh social stats (followers, engagement_rate, avg_likes) for influencers.
- * - Instagram: fetched via Auditpr API (no Apify cost; Auditpr must be running with valid IG session).
- * - TikTok: fetched directly via Apify from Influo (use sparingly – has cost).
+ * Instagram + TikTok + YouTube via Auditpr API (session-only on Auditpr; no Apify).
  *
  * Cron: call with CRON_SECRET in Authorization header.
  * Dashboard: use POST /api/admin/refresh-social-stats instead (no secret needed).
  *
- * Env: AUDITPR_BASE_URL, APIFY_API_TOKEN (for TikTok), optional CRON_SECRET.
+ * Env: AUDITPR_BASE_URL (public/tunnel URL to Auditpr), optional CRON_SECRET.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -32,12 +31,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const influencerId = searchParams.get('influencerId')?.trim() || null;
     const auditprBaseUrl = (process.env.AUDITPR_BASE_URL || '').trim();
-    const apifyToken = (process.env.APIFY_API_TOKEN || '').trim();
 
     const result = await doRefreshSocialStats(supabaseAdmin, {
       influencerId,
       auditprBaseUrl,
-      apifyToken,
     });
     return NextResponse.json(result);
   } catch (err: unknown) {

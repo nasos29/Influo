@@ -15,6 +15,8 @@ import { getCachedImageUrl } from "@/lib/imageProxy";
 
 type Lang = "el" | "en";
 
+const HERO_INFLUENCER_IMAGE = "/hero-influencer-left.png";
+
 const t = {
   el: {
     nav_join: "Εγγραφή Influencer",
@@ -539,11 +541,12 @@ export default function Home() {
               {/* Left Image */}
               <div className="hidden lg:block relative h-[500px] rounded-2xl overflow-hidden shadow-2xl">
                 <Image 
-                  src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&q=80"
-                  alt="Creative content creator"
+                  src={HERO_INFLUENCER_IMAGE}
+                  alt="Trendy influencer creating content for social media"
                   fill
-                  className="object-cover"
+                  className="object-cover object-center"
                   priority
+                  sizes="(max-width: 1024px) 100vw, 33vw"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
               </div>
@@ -602,10 +605,11 @@ export default function Home() {
             <div className="lg:hidden grid grid-cols-2 gap-4 mt-12">
               <div className="relative h-[300px] rounded-2xl overflow-hidden shadow-xl">
                 <Image 
-                  src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&q=80"
-                  alt="Creative content creator"
+                  src={HERO_INFLUENCER_IMAGE}
+                  alt="Trendy influencer creating content for social media"
                   fill
-                  className="object-cover"
+                  className="object-cover object-center"
+                  sizes="50vw"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
               </div>

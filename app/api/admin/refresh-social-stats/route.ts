@@ -4,7 +4,7 @@
  *
  * GET: returns list of influencers due for refresh (id, display_name, accounts) so the browser can fetch from local Auditpr and then POST.
  * POST body: { influencerId?: string } – if omitted, refreshes all due (last_social_refresh_at > 30 days ago).
- * When instagramOverrides / tiktokOverrides are set (browser fetched from local Auditpr), those are used. Otherwise server uses AUDITPR_BASE_URL / APIFY.
+ * When instagramOverrides / tiktokOverrides are set (browser fetched from local Auditpr), those are used. Otherwise server uses AUDITPR_BASE_URL (session-only).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -60,12 +60,10 @@ export async function POST(request: NextRequest) {
     }
 
     const auditprBaseUrl = (process.env.AUDITPR_BASE_URL || '').trim();
-    const apifyToken = (process.env.APIFY_API_TOKEN || '').trim();
 
     const result = await doRefreshSocialStats(supabaseAdmin, {
       influencerId,
       auditprBaseUrl,
-      apifyToken,
       instagramOverrides,
       tiktokOverrides,
       youtubeOverrides,

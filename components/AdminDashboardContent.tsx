@@ -9,7 +9,8 @@ import SocialEmbedCard from "./SocialEmbedCard";
 import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
 import { displayNameForLang } from "@/lib/greeklish";
 import { categoryTranslations } from "@/components/categoryTranslations";
-import { fetchInstagramFromAuditpr, fetchTiktokFromAuditpr, fetchYouTubeFromAuditpr } from "@/lib/socialRefresh";
+import { checkAuditprHealth, fetchAuditprOverridesForAccounts, type AccountFetchResult } from "@/lib/socialRefresh";
+import { downloadSocialRefreshReportExcel } from "@/lib/socialRefreshReport";
 import { getCachedImageUrl } from "@/lib/imageProxy";
 import { prepareImageForStorage } from "@/lib/prepareImageForStorage";
 import PushNotificationPrompt from "./PushNotificationPrompt";
@@ -2221,6 +2222,25 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     }
   };
 
+  const promptAuditprUrl = (): string | null => {
+    if (typeof window === 'undefined') return null;
+    const stored = localStorage.getItem('influo_auditpr_url') || 'http://localhost:8000';
+    const promptMsg = lang === 'el'
+      ? `Auditpr URL (session-only, χωρίς Apify).\nΤο EGGRISH/Auditpr πρέπει να τρέχει στο PC σας με συγχρονισμένα cookies Instagram/TikTok.\nΠροεπιλογή: ${stored}`
+      : `Auditpr URL (session-only, no Apify).\nEGGRISH/Auditpr must run on your PC with synced Instagram/TikTok cookies.\nDefault: ${stored}`;
+    const auditprUrl = prompt(promptMsg, stored);
+    if (auditprUrl === null) return null;
+    const url = auditprUrl.trim();
+    if (!url) {
+      alert(lang === 'el'
+        ? 'Απαιτείται Auditpr URL (π.χ. http://localhost:8000). Βεβαιωθείτε ότι τρέχει το EGGRISH.bat.'
+        : 'Auditpr URL is required (e.g. http://localhost:8000). Make sure EGGRISH.bat is running.');
+      return null;
+    }
+    localStorage.setItem('influo_auditpr_url', url);
+    return url;
+  };
+
   const refreshSocialStats = async (user?: DbInfluencer) => {
     const confirmMsg = lang === 'el' ? 'Είσαι σίγουρος;' : 'Are you sure?';
     if (!confirm(confirmMsg)) return;
@@ -2230,140 +2250,65 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       let instagramOverrides: Record<string, { followers: string; engagement_rate: string; avg_likes: string }> | undefined;
       let tiktokOverrides: Record<string, { followers: string; engagement_rate: string; avg_likes: string }> | undefined;
       let youtubeOverrides: Record<string, { followers: string; engagement_rate: string; avg_likes: string }> | undefined;
+      let fetchErrors: string[] = [];
+      let accountFetchResults: AccountFetchResult[] = [];
+      let dueListForReport: { id: number; display_name: string; accounts: { platform?: string; username?: string }[] }[] = [];
+
+      let accountsToFetch: { platform?: string; username?: string }[] = [];
 
       if (idStr && user?.accounts?.length) {
-        // Refresh one: use this user's accounts
-        const igAccounts = user.accounts.filter((acc: { platform?: string }) => (acc.platform || '').toLowerCase() === 'instagram');
-        const tiktokAccounts = user.accounts.filter((acc: { platform?: string }) => (acc.platform || '').toLowerCase() === 'tiktok');
-        const youtubeAccounts = user.accounts.filter((acc: { platform?: string }) => (acc.platform || '').toLowerCase() === 'youtube');
-        const needsAuditpr = igAccounts.length > 0 || tiktokAccounts.length > 0 || youtubeAccounts.length > 0;
-        if (needsAuditpr) {
-          const storedUrl = typeof window !== 'undefined' ? (localStorage.getItem('influo_auditpr_url') || 'http://localhost:8000') : '';
-          const promptMsg = lang === 'el'
-            ? 'Auditpr URL (αν τρέχει τοπικά στο PC: http://localhost:8000). Αφήστε κενό για server (YouTube απαιτεί Auditpr URL).'
-            : 'Auditpr URL (if running locally: http://localhost:8000). Leave empty for server (YouTube requires Auditpr URL).';
-          const auditprUrl = typeof window !== 'undefined' ? prompt(promptMsg, storedUrl) : null;
-          if (auditprUrl === null) {
-            setRefreshingSocialFor(null);
-            setRefreshingSocialAll(false);
-            return;
-          }
-          const url = auditprUrl.trim();
-          if (url) {
-            if (typeof window !== 'undefined') localStorage.setItem('influo_auditpr_url', url);
-            if (igAccounts.length > 0) {
-              instagramOverrides = {};
-              for (const acc of igAccounts) {
-                const un = (acc.username || '').trim();
-                if (!un) continue;
-                const result = await fetchInstagramFromAuditpr(url, un);
-                if ('followers' in result) {
-                  instagramOverrides[un.replace(/^@+/, '').trim()] = result;
-                }
-              }
-            }
-            if (tiktokAccounts.length > 0) {
-              tiktokOverrides = {};
-              for (const acc of tiktokAccounts) {
-                const un = (acc.username || '').trim();
-                if (!un) continue;
-                const result = await fetchTiktokFromAuditpr(url, un);
-                if ('followers' in result) {
-                  tiktokOverrides[un.replace(/^@+/, '').trim()] = result;
-                }
-              }
-            }
-            if (youtubeAccounts.length > 0) {
-              youtubeOverrides = {};
-              for (const acc of youtubeAccounts) {
-                const un = (acc.username || '').trim();
-                if (!un) continue;
-                const result = await fetchYouTubeFromAuditpr(url, un);
-                if ('followers' in result) {
-                  youtubeOverrides[un.replace(/^@+/, '').trim()] = result;
-                }
-              }
-            }
-          }
-        }
+        accountsToFetch = user.accounts;
       } else if (!idStr) {
-        // Refresh all: get list of due influencers, prompt for Auditpr URL, fetch from local Auditpr for every IG/TikTok/YouTube account
         const listRes = await fetch('/api/admin/refresh-social-stats', { method: 'GET' });
         const listData = await listRes.json();
         const dueList = (listData.influencers ?? []) as { id: number; display_name: string; accounts: { platform?: string; username?: string }[] }[];
         if (!dueList.length) {
           alert(lang === 'el' ? 'Δεν υπάρχουν influencers για ανανέωση (τελευταίες 30 ημέρες).' : 'No influencers due for refresh (last 30 days).');
-          setRefreshingSocialAll(false);
           return;
         }
         const proceedAll = confirm(
           lang === 'el'
-            ? `Θα ανανεωθούν ${dueList.length} influencers (όσοι δεν έχουν ανανεωθεί τις τελευταίες 30 ημέρες). Συνέχεια;`
-            : `This will refresh ${dueList.length} influencers (those not refreshed in the last 30 days). Continue?`
+            ? `Θα ανανεωθούν ${dueList.length} influencers (όσοι δεν έχουν ανανεωθεί τις τελευταίες 30 ημέρες).\n\nΤα metrics θα φορτωθούν από Auditpr (session-only). Μπορεί να πάρει αρκετά λεπτά. Στο τέλος θα ληφθεί αρχείο Excel με αναλυτικά αποτελέσματα. Συνέχεια;`
+            : `This will refresh ${dueList.length} influencers (not refreshed in the last 30 days).\n\nMetrics will be fetched from Auditpr (session-only). This may take several minutes. An Excel report will download when finished. Continue?`
         );
-        if (!proceedAll) {
-          setRefreshingSocialAll(false);
+        if (!proceedAll) return;
+        dueListForReport = dueList;
+        accountsToFetch = dueList.flatMap((inf) => inf.accounts ?? []);
+      }
+
+      const needsAuditpr = accountsToFetch.some((acc) => {
+        const platform = (acc.platform || '').toLowerCase();
+        return platform === 'instagram' || platform === 'tiktok' || platform === 'youtube';
+      });
+
+      if (needsAuditpr) {
+        const auditprUrl = promptAuditprUrl();
+        if (!auditprUrl) return;
+
+        const health = await checkAuditprHealth(auditprUrl);
+        if (!health.ok) {
+          alert(lang === 'el'
+            ? `Δεν συνδέεται το Auditpr στο ${auditprUrl}.\n${health.error || ''}\n\nΤρέξτε EGGRISH.bat και δοκιμάστε ξανά.`
+            : `Cannot reach Auditpr at ${auditprUrl}.\n${health.error || ''}\n\nStart EGGRISH.bat and try again.`);
           return;
         }
-        const igUsernames = new Set<string>();
-        const tiktokUsernames = new Set<string>();
-        const youtubeUsernames = new Set<string>();
-        for (const inf of dueList) {
-          const accounts = inf.accounts ?? [];
-          for (const acc of accounts) {
-            const platform = (acc.platform || '').toLowerCase();
-            const un = (acc.username || '').trim();
-            if (!un) continue;
-            if (platform === 'instagram') igUsernames.add(un);
-            if (platform === 'tiktok') tiktokUsernames.add(un);
-            if (platform === 'youtube') youtubeUsernames.add(un);
-          }
-        }
-        const allIg = Array.from(igUsernames, (username) => ({ username }));
-        const allTiktok = Array.from(tiktokUsernames, (username) => ({ username }));
-        const allYoutube = Array.from(youtubeUsernames, (username) => ({ username }));
-        const needsAuditpr = allIg.length > 0 || allTiktok.length > 0 || allYoutube.length > 0;
-        if (needsAuditpr) {
-          const storedUrl = typeof window !== 'undefined' ? (localStorage.getItem('influo_auditpr_url') || 'http://localhost:8000') : '';
-          const promptMsg = lang === 'el'
-            ? 'Auditpr URL για ανανέωση όλων (τοπικά: http://localhost:8000). Αφήστε κενό για server (Apify). (YouTube απαιτεί Auditpr URL)'
-            : 'Auditpr URL for refresh all (local: http://localhost:8000). Leave empty for server (Apify). (YouTube requires Auditpr URL)';
-          const auditprUrl = typeof window !== 'undefined' ? prompt(promptMsg, storedUrl) : null;
-          if (auditprUrl === null) {
-            setRefreshingSocialAll(false);
-            return;
-          }
-          const url = auditprUrl.trim();
-          if (url) {
-            if (typeof window !== 'undefined') localStorage.setItem('influo_auditpr_url', url);
-            if (allIg.length > 0) {
-              instagramOverrides = {};
-              for (const { username: un } of allIg) {
-                const result = await fetchInstagramFromAuditpr(url, un);
-                if ('followers' in result) {
-                  instagramOverrides[un.replace(/^@+/, '').trim()] = result;
-                }
-              }
-            }
-            if (allTiktok.length > 0) {
-              tiktokOverrides = {};
-              for (const { username: un } of allTiktok) {
-                const result = await fetchTiktokFromAuditpr(url, un);
-                if ('followers' in result) {
-                  tiktokOverrides[un.replace(/^@+/, '').trim()] = result;
-                }
-              }
-            }
-            if (allYoutube.length > 0) {
-              youtubeOverrides = {};
-              for (const { username: un } of allYoutube) {
-                const result = await fetchYouTubeFromAuditpr(url, un);
-                if ('followers' in result) {
-                  youtubeOverrides[un.replace(/^@+/, '').trim()] = result;
-                }
-              }
-            }
-          }
+
+        const bundle = await fetchAuditprOverridesForAccounts(auditprUrl, accountsToFetch, { delayMs: 1500 });
+        fetchErrors = bundle.errors;
+        accountFetchResults = bundle.accountResults;
+        if (Object.keys(bundle.instagramOverrides).length > 0) instagramOverrides = bundle.instagramOverrides;
+        if (Object.keys(bundle.tiktokOverrides).length > 0) tiktokOverrides = bundle.tiktokOverrides;
+        if (Object.keys(bundle.youtubeOverrides).length > 0) youtubeOverrides = bundle.youtubeOverrides;
+
+        const fetchedCount =
+          Object.keys(bundle.instagramOverrides).length +
+          Object.keys(bundle.tiktokOverrides).length +
+          Object.keys(bundle.youtubeOverrides).length;
+        if (fetchedCount === 0) {
+          alert(lang === 'el'
+            ? `Δεν ανανεώθηκε κανένα account από το Auditpr.\n\n${fetchErrors.join('\n') || 'Άγνωστο σφάλμα.'}`
+            : `No accounts were refreshed from Auditpr.\n\n${fetchErrors.join('\n') || 'Unknown error.'}`);
+          return;
         }
       }
 
@@ -2388,7 +2333,30 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
             r.name + (r.errors?.length ? ': ' + r.errors.join('; ') : ' OK')
           ).join('\n')
         : '';
-      alert((data.message || 'Done') + ': ' + data.refreshed + (summary ? '\n\n' + summary : ''));
+      const fetchNote = fetchErrors.length
+        ? (lang === 'el' ? '\n\nAuditpr (μερικά απέτυχαν):\n' : '\n\nAuditpr (some failed):\n') + fetchErrors.join('\n')
+        : '';
+
+      if (!idStr && dueListForReport.length > 0) {
+        try {
+          await downloadSocialRefreshReportExcel({
+            lang,
+            dueList: dueListForReport,
+            accountResults: accountFetchResults,
+            refreshResults: (data.results ?? []) as { id: string; name: string; accounts: number; errors?: string[] }[],
+          });
+        } catch (exportErr) {
+          console.error('[Admin] Excel export failed:', exportErr);
+          alert(lang === 'el'
+            ? 'Η ανανέωση ολοκληρώθηκε αλλά η εξαγωγή Excel απέτυχε. Δείτε την κονσόλα.'
+            : 'Refresh completed but Excel export failed. Check the console.');
+        }
+      }
+
+      const excelNote = !idStr && dueListForReport.length > 0
+        ? (lang === 'el' ? '\n\n📊 Κατέβηκε αρχείο Excel με αναλυτικά αποτελέσματα.' : '\n\n📊 Excel report downloaded with detailed results.')
+        : '';
+      alert((data.message || 'Done') + ': ' + data.refreshed + (summary ? '\n\n' + summary : '') + fetchNote + excelNote);
       fetchData();
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : 'Error');

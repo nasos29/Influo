@@ -8,7 +8,6 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import {
   fetchInstagramFromAuditpr,
   fetchTiktokFromAuditpr,
-  fetchTiktokFromApify,
   fetchYouTubeFromAuditpr,
   type SocialMetrics,
 } from '@/lib/socialRefresh';
@@ -45,16 +44,15 @@ export async function doRefreshSocialStats(
   options: {
     influencerId?: string | null;
     auditprBaseUrl: string;
-    apifyToken: string;
     /** When set, use these for Instagram instead of calling Auditpr from server (browser fetched from local). */
     instagramOverrides?: InstagramOverrides;
-    /** When set, use these for TikTok instead of calling Apify from server (browser fetched from local Auditpr). */
+    /** When set, use these for TikTok instead of calling Auditpr from server (browser fetched from local Auditpr). */
     tiktokOverrides?: TikTokOverrides;
     /** When set, use these for YouTube instead of calling Auditpr from server (browser fetched from local). */
     youtubeOverrides?: YouTubeOverrides;
   }
 ): Promise<RefreshResult> {
-  const { influencerId, auditprBaseUrl, apifyToken, instagramOverrides, tiktokOverrides, youtubeOverrides } = options;
+  const { influencerId, auditprBaseUrl, instagramOverrides, tiktokOverrides, youtubeOverrides } = options;
 
   let query = supabaseAdmin
     .from('influencers')
@@ -130,18 +128,15 @@ export async function doRefreshSocialStats(
           fetchedViaAuditpr = true;
         }
       } else if (platformLower === 'tiktok') {
-        // TikTok: Apify μόνο για TikTok accounts (όχι για Instagram). Η κάρτα ΣΥΝΔΕΣΗ δείχνει ποιο username είναι TikTok/Instagram.
         const uKey = username.replace(/^@+/, '').trim();
         if (tiktokOverrides?.[uKey]) {
           metrics = tiktokOverrides[uKey];
-        } else if (auditprBaseUrl) {
+        } else if (!auditprBaseUrl) {
+          errors.push(`TikTok @${uKey}: AUDITPR_BASE_URL not set (ή εισάγετε Auditpr URL στο dashboard)`);
+          continue;
+        } else {
           metrics = await fetchTiktokFromAuditpr(auditprBaseUrl, username);
           fetchedViaAuditpr = true;
-        } else if (apifyToken) {
-          metrics = await fetchTiktokFromApify(apifyToken, username);
-        } else {
-          errors.push(`TikTok @${uKey}: AUDITPR_BASE_URL or APIFY_API_TOKEN required (ή εισάγετε Auditpr URL στο dashboard)`);
-          continue;
         }
       } else if (platformLower === 'youtube') {
         // YouTube: μόνο Auditpr (YOUTUBE_API_KEY στο Auditpr .env)
