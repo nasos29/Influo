@@ -42,7 +42,8 @@ export async function fetchInstagramFromAuditpr(
   if (!u) return { error: 'Username required' };
   const url = `${baseUrl.replace(/\/$/, '')}/metrics/instagram/${encodeURIComponent(u)}?for_import=true`;
   try {
-    const res = await fetch(url, { method: 'GET', signal: AbortSignal.timeout(45_000) });
+    // Playwright IG fallback on Auditpr can take up to ~90s per profile.
+    const res = await fetch(url, { method: 'GET', signal: AbortSignal.timeout(95_000) });
     if (!res.ok) {
       const text = await res.text();
       return { error: `Auditpr ${res.status}: ${text.slice(0, 200)}` };

@@ -120,6 +120,7 @@ export async function doRefreshSocialStats(
         const uKey = username.replace(/^@+/, '').trim();
         if (instagramOverrides?.[uKey]) {
           metrics = instagramOverrides[uKey];
+          fetchedViaAuditpr = true;
         } else         if (!auditprBaseUrl) {
           errors.push(`Instagram @${uKey}: AUDITPR_BASE_URL not set (ή εισάγετε Auditpr URL στο dashboard)`);
           continue;
@@ -131,6 +132,7 @@ export async function doRefreshSocialStats(
         const uKey = username.replace(/^@+/, '').trim();
         if (tiktokOverrides?.[uKey]) {
           metrics = tiktokOverrides[uKey];
+          fetchedViaAuditpr = true;
         } else if (!auditprBaseUrl) {
           errors.push(`TikTok @${uKey}: AUDITPR_BASE_URL not set (ή εισάγετε Auditpr URL στο dashboard)`);
           continue;
@@ -143,6 +145,7 @@ export async function doRefreshSocialStats(
         const uKey = username.replace(/^@+/, '').trim();
         if (youtubeOverrides?.[uKey]) {
           metrics = youtubeOverrides[uKey];
+          fetchedViaAuditpr = true;
         } else if (!auditprBaseUrl) {
           errors.push(`YouTube @${uKey}: AUDITPR_BASE_URL required (ή εισάγετε Auditpr URL στο dashboard)`);
           continue;
