@@ -16,6 +16,7 @@ import { getCachedImageUrl } from "@/lib/imageProxy";
 type Lang = "el" | "en";
 
 const HERO_INFLUENCER_IMAGE = "/hero-influencer-left.png";
+const HERO_BRAND_COLLAB_IMAGE = "/hero-brand-collab-right.png";
 
 const t = {
   el: {
@@ -591,11 +592,12 @@ export default function Home() {
               {/* Right Image */}
               <div className="hidden lg:block relative h-[500px] rounded-2xl overflow-hidden shadow-2xl">
                 <Image 
-                  src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&q=80"
-                  alt="Company collaboration"
+                  src={HERO_BRAND_COLLAB_IMAGE}
+                  alt="Big brand starting a collaboration with a trendy influencer"
                   fill
-                  className="object-cover"
+                  className="object-cover object-center"
                   priority
+                  sizes="(max-width: 1024px) 100vw, 33vw"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
               </div>
@@ -615,10 +617,11 @@ export default function Home() {
               </div>
               <div className="relative h-[300px] rounded-2xl overflow-hidden shadow-xl">
                 <Image 
-                  src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&q=80"
-                  alt="Company collaboration"
+                  src={HERO_BRAND_COLLAB_IMAGE}
+                  alt="Big brand starting a collaboration with a trendy influencer"
                   fill
-                  className="object-cover"
+                  className="object-cover object-center"
+                  sizes="50vw"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
               </div>

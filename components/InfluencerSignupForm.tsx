@@ -93,12 +93,15 @@ const t = {
     socialsTitle: "Τα Κανάλια σου",
     socialsDesc: "Πρόσθεσε τα δίκτυα που είσαι ενεργός/ή και τους followers.",
     platLabel: "Πλατφόρμα",
-    userLabel: "Username (χωρίς @)",
+    userLabel: "Username (χωρίς @) *",
+    userRequired: "Το username είναι υποχρεωτικό.",
+    socialsRequired: "Πρόσθεσε τουλάχιστον μία πλατφόρμα και συμπλήρωσε το username.",
     follLabel: "Followers (π.χ. 15k)",
     addAccount: "+ Προσθήκη Πλατφόρμας",
     langsLabel: "Γλώσσες Επικοινωνίας",
     langsDesc: "Επιλέξτε τις γλώσσες που μιλάτε",
-    photoLabel: "Φωτογραφία Προφίλ",
+    photoLabel: "Φωτογραφία Προφίλ *",
+    photoRequired: "Η φωτογραφία προφίλ είναι υποχρεωτική.",
     uploadBtn: "Ανέβασμα Φωτογραφίας",
     insightsLabel: "Αποδεικτικά Insights (Screenshots)",
     insightsDesc: "Ανέβασε screenshots από τα στατιστικά σου για επαλήθευση.",
@@ -160,12 +163,15 @@ const t = {
     socialsTitle: "Your Channels",
     socialsDesc: "Add your active networks and follower counts.",
     platLabel: "Platform",
-    userLabel: "Username (no @)",
+    userLabel: "Username (no @) *",
+    userRequired: "Username is required.",
+    socialsRequired: "Add at least one platform and fill in the username.",
     follLabel: "Followers (e.g. 15k)",
     addAccount: "+ Add Platform",
     langsLabel: "Γλώσσες Επικοινωνίας",
     langsDesc: "Επιλέξτε τις γλώσσες που μιλάτε",
-    photoLabel: "Profile Photo",
+    photoLabel: "Profile Photo *",
+    photoRequired: "Profile photo is required.",
     uploadBtn: "Upload Photo",
     insightsLabel: "Insights Proof (Screenshots)",
     insightsDesc: "Upload screenshots of your stats for verification.",
@@ -212,6 +218,8 @@ export default function InfluencerSignupForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [emailError, setEmailError] = useState("");
   const [checkingEmail, setCheckingEmail] = useState(false);
+  const [showSocialErrors, setShowSocialErrors] = useState(false);
+  const [showAvatarError, setShowAvatarError] = useState(false);
 
   // Data States
   const [displayName, setDisplayName] = useState("");
@@ -246,11 +254,22 @@ export default function InfluencerSignupForm() {
   const [topAge, setTopAge] = useState("");
 
   // Handlers
+  const normalizeUsername = (value: string) => value.trim().replace(/^@+/, "");
+
+  const accountMissingUsername = (acc: Account) => !normalizeUsername(acc.username);
+
+  const validateSocialAccounts = (): string | null => {
+    if (accounts.length === 0) return txt.socialsRequired;
+    if (accounts.some(accountMissingUsername)) return txt.userRequired;
+    return null;
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setAvatarFile(file);
       setAvatarPreview(URL.createObjectURL(file));
+      setShowAvatarError(false);
     }
   };
 
@@ -271,13 +290,33 @@ export default function InfluencerSignupForm() {
     // Replace comma with dot for followers, engagement_rate and avg_likes fields
     if (field === 'followers' || field === 'engagement_rate' || field === 'avg_likes') {
       copy[i][field] = replaceCommaWithDot(value);
+    } else if (field === "username") {
+      copy[i][field] = value.replace(/^@+/, "");
     } else {
       copy[i][field] = value;
     }
     setAccounts(copy);
+    if (field === "username" && !copy.some(accountMissingUsername)) setShowSocialErrors(false);
   };
   const addAccount = () => setAccounts([...accounts, { platform: "Instagram", username: "", followers: "", engagement_rate: "", avg_likes: "" }]);
-  const removeAccount = (i: number) => { const copy = [...accounts]; copy.splice(i, 1); setAccounts(copy); };
+  const removeAccount = (i: number) => {
+    if (accounts.length <= 1) return;
+    const copy = [...accounts];
+    copy.splice(i, 1);
+    setAccounts(copy);
+  };
+
+  const handleStep2Next = () => {
+    const socialError = validateSocialAccounts();
+    if (socialError) {
+      setShowSocialErrors(true);
+      setMessage(socialError);
+      return;
+    }
+    setShowSocialErrors(false);
+    setMessage("");
+    setStep(3);
+  };
 
   const handleVideoChange = (i: number, val: string) => { const copy = [...videos]; copy[i] = val; setVideos(copy); };
   const addVideo = () => setVideos([...videos, ""]);
@@ -447,6 +486,19 @@ export default function InfluencerSignupForm() {
 
   // Submit Logic (Final Step)
   const handleSubmit = async () => {
+    if (!avatarFile) {
+      setShowAvatarError(true);
+      setMessage(txt.photoRequired);
+      return;
+    }
+    const socialError = validateSocialAccounts();
+    if (socialError) {
+      setShowSocialErrors(true);
+      setStep(2);
+      setMessage(socialError);
+      return;
+    }
+
     setLoading(true);
     try {
       // Validate categories before submitting
@@ -540,15 +592,16 @@ export default function InfluencerSignupForm() {
       }
 
       // 2. Uploads (WebP/JPEG resize client-side → less Storage egress)
-      let avatarUrl = "";
-      if (avatarFile) {
-        const preparedAvatar = await prepareImageForStorage(avatarFile, { maxSide: 1024 });
-        const fileName = `avatar-${Date.now()}-${preparedAvatar.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-        const { error: uploadError } = await supabase.storage.from("avatars").upload(fileName, preparedAvatar);
-        if (!uploadError) {
-            const { data } = supabase.storage.from("avatars").getPublicUrl(fileName);
-            avatarUrl = data.publicUrl;
-        }
+      const preparedAvatar = await prepareImageForStorage(avatarFile, { maxSide: 1024 });
+      const fileName = `avatar-${Date.now()}-${preparedAvatar.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+      const { error: uploadError } = await supabase.storage.from("avatars").upload(fileName, preparedAvatar);
+      if (uploadError) {
+        throw new Error(lang === "el" ? "Αποτυχία ανεβάσματος φωτογραφίας. Δοκίμασε ξανά." : "Photo upload failed. Please try again.");
+      }
+      const { data: avatarData } = supabase.storage.from("avatars").getPublicUrl(fileName);
+      const avatarUrl = avatarData.publicUrl;
+      if (!avatarUrl) {
+        throw new Error(lang === "el" ? "Αποτυχία ανεβάσματος φωτογραφίας. Δοκίμασε ξανά." : "Photo upload failed. Please try again.");
       }
 
       const insightUrls: string[] = [];
@@ -568,6 +621,10 @@ export default function InfluencerSignupForm() {
       // Ensure gender is valid (Female, Male, or Other)
       const validGender = (gender === 'Female' || gender === 'Male' || gender === 'Other') ? gender : 'Female';
       
+      const socialAccounts = accounts
+        .filter(acc => acc.platform !== 'Facebook')
+        .map(acc => ({ ...acc, username: normalizeUsername(acc.username) }));
+
       const { error: insertError } = await supabase.from("influencers").insert([
         { 
           id: authUser.id,
@@ -582,9 +639,9 @@ export default function InfluencerSignupForm() {
           min_rate: minRate,
           contact_email: email,
           bio, 
-          accounts: accounts.filter(acc => acc.platform !== 'Facebook'), 
+          accounts: socialAccounts, 
           videos: videos.filter(v => v !== ""),
-          avatar_url: avatarUrl || null,
+          avatar_url: avatarUrl,
           insights_urls: insightUrls,
           audience_male_percent: parseInt(malePercent) || 0,
           audience_female_percent: parseInt(femalePercent) || 0,
@@ -607,7 +664,7 @@ export default function InfluencerSignupForm() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             influencerId: authUser.id,
-            accounts: accounts.filter(acc => acc.platform !== 'Facebook'),
+            accounts: socialAccounts,
           }),
         });
       } catch (snapshotErr) {
@@ -643,7 +700,7 @@ export default function InfluencerSignupForm() {
       setStep(4);
     } catch (err: any) {
       console.error(err);
-      const errorMessage = err.message.includes("already registered") || err.message.includes("23505") || err.message.includes("κωδικός") || err.message.includes("βιογραφικό") || err.message.includes("biography") || err.message.includes("ημερομηνία γέννησης") || err.message.includes("date of birth") || err.message.includes("Date of birth")
+      const errorMessage = err.message.includes("already registered") || err.message.includes("23505") || err.message.includes("κωδικός") || err.message.includes("βιογραφικό") || err.message.includes("biography") || err.message.includes("ημερομηνία γέννησης") || err.message.includes("date of birth") || err.message.includes("Date of birth") || err.message.includes("username") || err.message.includes("φωτογραφία") || err.message.includes("photo") || err.message.includes("πλατφόρμα") || err.message.includes("platform")
           ? err.message 
           : (lang === "el" ? "Σφάλμα: " : "Error: ") + err.message;
       setMessage(errorMessage);
@@ -863,8 +920,10 @@ export default function InfluencerSignupForm() {
                         <p className="text-xs text-gray-500 mb-3">{txt.socialsDesc}</p>
                     </div>
                     
-                    {accounts.map((acc, i) => (
-                        <div key={i} className="flex flex-col md:flex-row gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 relative group">
+                    {accounts.map((acc, i) => {
+                        const usernameInvalid = showSocialErrors && accountMissingUsername(acc);
+                        return (
+                        <div key={i} className={`flex flex-col md:flex-row gap-3 p-3 bg-gray-50 rounded-lg border relative group ${usernameInvalid ? "border-red-400" : "border-gray-200"}`}>
                             {/* Platform */}
                             <div className="w-full md:w-1/4">
                                 <label className="text-[10px] uppercase font-bold text-gray-400 mb-1 block">{txt.platLabel}</label>
@@ -880,8 +939,9 @@ export default function InfluencerSignupForm() {
                                 <label className="text-[10px] uppercase font-bold text-gray-400 mb-1 block">{txt.userLabel}</label>
                                 <div className="relative">
                                     <span className="absolute left-3 top-2.5 text-gray-500 text-sm">@</span>
-                                    <input type="text" className={`${inputClass} !py-2 !pl-7 !text-sm`} value={acc.username} onChange={(e) => handleAccountChange(i, "username", e.target.value)} placeholder="username" />
+                                    <input type="text" className={`${inputClass} !py-2 !pl-7 !text-sm ${usernameInvalid ? "!border-red-500" : ""}`} value={acc.username} onChange={(e) => handleAccountChange(i, "username", e.target.value)} placeholder="username" required />
                                 </div>
+                                {usernameInvalid && <p className="text-red-600 text-xs mt-1 font-medium">{txt.userRequired}</p>}
                             </div>
 
                             {/* Followers */}
@@ -890,9 +950,12 @@ export default function InfluencerSignupForm() {
                                 <input type="text" className={`${inputClass} !py-2 !text-sm`} value={acc.followers} onChange={(e) => handleAccountChange(i, "followers", e.target.value)} placeholder="15k" />
                             </div>
 
-                            <button onClick={() => removeAccount(i)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold shadow-md hover:bg-red-600 transition-colors">✕</button>
+                            {accounts.length > 1 && (
+                              <button type="button" onClick={() => removeAccount(i)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold shadow-md hover:bg-red-600 transition-colors">✕</button>
+                            )}
                         </div>
-                    ))}
+                        );
+                    })}
                     
                     <button onClick={addAccount} className="text-blue-600 text-sm font-bold hover:underline flex items-center gap-1">
                         {txt.addAccount}
@@ -947,10 +1010,12 @@ export default function InfluencerSignupForm() {
                     )}
                 </div>
                 
+                {message && <p className="text-red-600 text-sm text-center mt-2 font-medium bg-red-50 p-2 rounded">{message}</p>}
+
                 {/* Buttons at the end of Step 2 */}
                 <div className="mt-8 pt-6 border-t border-slate-200 flex gap-4">
                   <button onClick={() => { setStep(1); setMessage(""); }} className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-all">{txt.back}</button>
-                  <button onClick={() => { setStep(3); setMessage(""); }} className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-500/30 transition-all">{txt.next}</button>
+                  <button onClick={handleStep2Next} className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-500/30 transition-all">{txt.next}</button>
                 </div>
             </div>
         )}
@@ -961,7 +1026,7 @@ export default function InfluencerSignupForm() {
                 <h2 className="text-xl font-bold text-black border-b border-gray-200 pb-2">{txt.step3}</h2>
                 
                 {/* Photo */}
-                <div className="flex items-center gap-6 p-4 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                <div className={`flex items-center gap-6 p-4 bg-gray-50 rounded-xl border border-dashed ${showAvatarError && !avatarFile ? "border-red-500 bg-red-50" : "border-gray-300"}`}>
                     <div className="relative w-20 h-20 rounded-full bg-white shadow-sm border border-gray-200 overflow-hidden flex items-center justify-center">
                         {avatarPreview ? <Image src={avatarPreview} alt="Avatar preview" fill className="object-cover" /> : <span className="text-3xl">📸</span>}
                     </div>
@@ -971,6 +1036,9 @@ export default function InfluencerSignupForm() {
                             {txt.uploadBtn}
                             <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
                         </label>
+                        {showAvatarError && !avatarFile && (
+                          <p className="text-red-600 text-xs mt-2 font-medium">{txt.photoRequired}</p>
+                        )}
                     </div>
                 </div>
 
