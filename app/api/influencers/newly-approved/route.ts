@@ -1,5 +1,5 @@
 /**
- * Newly approved influencers for homepage section (last 4).
+ * Newly approved influencers for homepage section (last 8: two rows of 4).
  * Same data shape as Directory: select('*') so images and badges work.
  */
 
@@ -17,7 +17,7 @@ const supabaseAdmin = createClient(
   }
 );
 
-const LIMIT = 4;
+const LIMIT = 8;
 
 export async function GET() {
   try {
