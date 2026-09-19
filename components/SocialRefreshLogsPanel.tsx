@@ -71,12 +71,12 @@ export default function SocialRefreshLogsPanel({ lang }: { lang: "el" | "en" }) 
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold">
-            {lang === "el" ? "Ανανέωση social stats (Oracle, κάθε 15 μέρες)" : "Social stats refresh (Oracle, every 15 days)"}
+            {lang === "el" ? "Oracle crons: social refresh + έγκριση νέων" : "Oracle crons: social refresh + new approvals"}
           </h3>
           <p className="text-sm text-slate-600 mt-1 max-w-3xl">
             {lang === "el"
-              ? "Τρέχει στο Oracle AuditPro, όχι τοπικά. Αν ένα προφίλ βγάλει error, ο influencer αποεγκρίνεται. Αν πεθάνουν τα Instagram/TikTok session, η διαδικασία σταματά. Τα logs διαγράφονται αυτόματα μετά από "
-              : "Runs on Oracle AuditPro, not locally. One profile error unapproves that influencer. Dead Instagram/TikTok sessions abort the whole run. Logs auto-delete after "}
+              ? "Κάθε 15 μέρες ανανεώνει social stats για όλους. Κάθε 4 ώρες κοιτάζει μόνο νέους (ποτέ εγκεκριμένους): social refresh, μετάφραση bio, επαλήθευση analytics και έγκριση. Χωρίς social username μένουν unapproved. Αν πεθάνουν τα session, σταματά. Τα logs διαγράφονται μετά από "
+              : "Every 15 days refreshes social stats for everyone. Every 4 hours checks only new (never approved) influencers: social refresh, bio translation, analytics verify, then approve. No social username stays unapproved. Dead sessions abort. Logs auto-delete after "}
             {retentionDays}
             {lang === "el" ? " ημέρες." : " days."}
           </p>

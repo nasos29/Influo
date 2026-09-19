@@ -1,0 +1,13 @@
+[Unit]
+Description=Influo 4-hour new-influencer approval via Oracle AuditPro
+After=network-online.target auditpro.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/home/ubuntu/auditpro
+EnvironmentFile=/home/ubuntu/auditpro/social-refresh.env
+ExecStart=/home/ubuntu/auditpro/venv/bin/python /home/ubuntu/auditpro/scripts/new_influencer_approval_batch.py
+Nice=10
+TimeoutStartSec=0

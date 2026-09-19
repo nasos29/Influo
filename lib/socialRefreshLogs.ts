@@ -56,14 +56,15 @@ export async function purgeOldSocialRefreshLogs(
 
 export async function createSocialRefreshRun(
   supabaseAdmin: SupabaseClient,
-  influencersTotal: number
+  influencersTotal: number,
+  message = 'Started on Oracle AuditPro'
 ): Promise<SocialRefreshRun> {
   const { data, error } = await supabaseAdmin
     .from('social_refresh_runs')
     .insert({
       status: 'running',
       influencers_total: influencersTotal,
-      message: 'Started on Oracle AuditPro',
+      message,
     })
     .select('*')
     .single();
