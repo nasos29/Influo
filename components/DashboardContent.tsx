@@ -1276,6 +1276,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                             <InfluencerToolsPanel
                                 approved={!!profile.approved}
                                 displayName={profile.display_name}
+                                profile={profile}
                             />
                         ) : activeTab === 'campaigns' ? (
                             <div className="space-y-4">

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
+import { openMediaKitPrint } from '@/lib/mediaKit';
 
 type LinkInfo = {
   approved: boolean;
@@ -28,9 +29,18 @@ function bioText(info: LinkInfo): string {
 export default function InfluencerToolsPanel({
   approved,
   displayName,
+  profile,
 }: {
   approved?: boolean;
   displayName: string;
+  profile?: {
+    bio?: string | null;
+    location?: string | null;
+    category?: string | null;
+    min_rate?: string | null;
+    avatar_url?: string | null;
+    accounts?: { platform?: string; username?: string; followers?: string; engagement_rate?: string }[] | null;
+  };
 }) {
   const [info, setInfo] = useState<LinkInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -236,6 +246,37 @@ export default function InfluencerToolsPanel({
             Λήψη PNG
           </button>
         </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-800">Media kit PDF</h3>
+          <p className="text-sm text-slate-600 mt-1">
+            Μία σελίδα με φωτο, bio, socials, min rate και το Influo link. Άνοιξε την και πάτα «Αποθήκευση ως PDF».
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            try {
+              openMediaKitPrint({
+                displayName: info.displayName || displayName,
+                bio: profile?.bio,
+                location: profile?.location,
+                category: profile?.category || info.category,
+                minRate: profile?.min_rate,
+                avatarUrl: profile?.avatar_url,
+                accounts: profile?.accounts,
+                profileUrl: info.url,
+              });
+            } catch (e: unknown) {
+              setError(e instanceof Error ? e.message : 'Δεν άνοιξε το media kit');
+            }
+          }}
+          className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 whitespace-nowrap"
+        >
+          Άνοιγμα media kit
+        </button>
       </div>
     </div>
   );
