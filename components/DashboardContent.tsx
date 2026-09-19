@@ -106,7 +106,6 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
     const [minRate, setMinRate] = useState(user.min_rate || "");
     const [location, setLocation] = useState(user.location || "");
     const [birthDate, setBirthDate] = useState(user.birth_date || "");
-    const [likes, setLikes] = useState(user.avg_likes || "");
     // Support multiple categories - parse comma-separated string or use single category
     const initialCategories = user.category 
         ? (user.category.includes(',') ? user.category.split(',').map(c => c.trim()) : [user.category])
@@ -257,7 +256,6 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                 min_rate: minRate,
                 location: location,
                 birth_date: birthDate || null,
-                avg_likes: likes,
                 category: categoryString,
                 languages: languagesString,
                 gender: validGender,
@@ -283,7 +281,6 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                 min_rate: currentData.min_rate || '',
                 location: currentData.location || '',
                 birth_date: currentData.birth_date || null,
-                avg_likes: currentData.avg_likes || '',
                 category: currentData.category || '',
                 languages: currentData.languages || '',
                 gender: oldGender,
@@ -298,8 +295,8 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
             // Find changed fields
             const changedFields: string[] = [];
             const fieldsToCheck = [
-                'display_name', 'bio', 'min_rate', 'location', 'birth_date', 'engagement_rate', 
-                'avg_likes', 'category', 'languages', 'gender', 'avatar_url',
+                'display_name', 'bio', 'min_rate', 'location', 'birth_date', 'engagement_rate',
+                'category', 'languages', 'gender', 'avatar_url',
                 'audience_male_percent', 'audience_female_percent', 'audience_top_age'
             ];
 
@@ -614,10 +611,6 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                 />
                         </div>
                     </div>
-                    <div>
-                                <label className="block text-sm font-semibold text-slate-900 mb-1">Avg Likes/Views</label>
-                                <input type="text" value={likes} onChange={e => setLikes(replaceCommaWithDot(e.target.value))} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" placeholder="3.2k" />
-                            </div>
                             <div>
                                 <label className="block text-sm font-semibold text-slate-900 mb-1">Γλώσσες</label>
                                 <div className="border-2 border-slate-200 rounded-lg p-3 bg-slate-50">
@@ -668,7 +661,6 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                     <input type="text" placeholder="Username" value={acc.username} onChange={e => handleAccountChange(i, 'username', e.target.value)} className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" />
                                     <input type="text" placeholder="Followers" value={acc.followers} onChange={e => handleAccountChange(i, 'followers', e.target.value)} className="w-32 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" />
                                     <input type="text" placeholder="Engagement %" value={acc.engagement_rate || ""} onChange={e => handleAccountChange(i, 'engagement_rate', e.target.value)} className="w-32 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" />
-                                    <input type="text" placeholder="Avg Likes" value={acc.avg_likes || ""} onChange={e => handleAccountChange(i, 'avg_likes', e.target.value)} className="w-32 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" />
                                     {accounts.length > 1 && (
                                         <button type="button" onClick={() => removeAccount(i)} className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg">✕</button>
                                     )}
