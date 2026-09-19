@@ -6,6 +6,7 @@ import Image from "next/image";
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 import { detectProvider, getIframelyEmbedUrl, isDefinitelyImage } from "@/lib/videoThumbnail";
 import { prepareImageForStorage } from "@/lib/prepareImageForStorage";
+import { normalizeGender } from "@/lib/gender";
 import SocialEmbedCard from "./SocialEmbedCard";
 
 type Account = { platform: string; username: string; followers: string; engagement_rate?: string; avg_likes?: string };
@@ -77,6 +78,7 @@ const t = {
     catGeneral: "Γενικά (όλες οι κατηγορίες)",
     male: "Άνδρας",
     female: "Γυναίκα",
+    ai: "AI (Artificial Intelligence)",
     locationLabel: "Τοποθεσία",
     locationPlace: "π.χ. Αθήνα, Ελλάδα",
     birthDateLabel: "Ημερομηνία Γέννησης *",
@@ -147,6 +149,7 @@ const t = {
     catGeneral: "General (all categories)",
     male: "Male",
     female: "Female",
+    ai: "AI (Artificial Intelligence)",
     locationLabel: "Location",
     locationPlace: "e.g. Athens, Greece",
     birthDateLabel: "Date of Birth *",
@@ -618,8 +621,7 @@ export default function InfluencerSignupForm() {
       }
 
       // 3. Database Insert (Σύνδεση με το UUID)
-      // Ensure gender is valid (Female, Male, or Other)
-      const validGender = (gender === 'Female' || gender === 'Male' || gender === 'Other') ? gender : 'Female';
+      const validGender = normalizeGender(gender);
       
       const socialAccounts = accounts
         .filter(acc => acc.platform !== 'Facebook')
@@ -768,7 +770,7 @@ export default function InfluencerSignupForm() {
                         <select className={inputClass} value={gender} onChange={(e) => setGender(e.target.value)}>
                             <option value="Female">{txt.female}</option>
                             <option value="Male">{txt.male}</option>
-                            <option value="Other">{lang === "el" ? "Άλλο" : "Other"}</option>
+                            <option value="AI">{txt.ai}</option>
                         </select>
                     </div>
                 </div>

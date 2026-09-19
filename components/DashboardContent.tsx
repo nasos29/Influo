@@ -551,7 +551,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                 <select value={gender} onChange={e => setGender(normalizeGender(e.target.value))} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900">
                                     <option value="Female">Γυναίκα</option>
                                     <option value="Male">Άνδρας</option>
-                                    <option value="AI">AI</option>
+                                    <option value="AI">AI (Artificial Intelligence)</option>
                                 </select>
                             </div>
                             <div>

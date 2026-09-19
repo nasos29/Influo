@@ -14,6 +14,6 @@ export function normalizeGender(
 export function genderLabel(raw: string | null | undefined, lang: "el" | "en"): string {
   const g = normalizeGender(raw);
   if (g === "Male") return lang === "el" ? "Άνδρας" : "Male";
-  if (g === "AI") return "AI";
+  if (g === "AI") return "AI (Artificial Intelligence)";
   return lang === "el" ? "Γυναίκα" : "Female";
 }
