@@ -60,7 +60,8 @@ export default function DashboardMediaKitPage() {
   }, [router]);
 
   return (
-    <div className="min-h-screen bg-slate-100 p-4 sm:p-8 print:bg-white print:p-0">
+    <div className="min-h-screen bg-slate-100 px-4 py-6 sm:px-8 sm:py-10 print:bg-white print:p-0">
+      <style>{`@page { size: A4; margin: 10mm; }`}</style>
       {loading ? (
         <p className="text-center text-slate-600">Φόρτωση media kit…</p>
       ) : error ? (
