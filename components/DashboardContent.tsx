@@ -12,7 +12,9 @@ import Messaging from './Messaging';
 import Analytics from './Analytics';
 import PushNotificationPrompt from './PushNotificationPrompt';
 import { prepareImageForStorage } from '@/lib/prepareImageForStorage';
+import { normalizeGender } from '@/lib/gender';
 import InfluencerCampaignsPanel from './InfluencerCampaignsPanel';
+import InfluencerToolsPanel from './InfluencerToolsPanel';
 
 // --- FULL CATEGORY LIST ---
 const CATEGORIES = [
@@ -138,8 +140,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
     };
     const initialLanguages = parseLanguages(user.languages);
     const [selectedLanguages, setSelectedLanguages] = useState<string[]>(initialLanguages);
-    // Ensure gender is valid (Female, Male, or Other)
-    const initialGender = (user.gender === 'Female' || user.gender === 'Male' || user.gender === 'Other') ? user.gender : 'Female';
+    const initialGender = normalizeGender(user.gender);
     const [gender, setGender] = useState(initialGender);
     const [accounts, setAccounts] = useState<Account[]>(
         user.accounts && Array.isArray(user.accounts) && user.accounts.length > 0
@@ -248,8 +249,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                 return lang ? lang.el : code;
             }).join(", ");
             
-            // Ensure gender is valid (Female, Male, or Other)
-            const validGender = (gender === 'Female' || gender === 'Male' || gender === 'Other') ? gender : 'Female';
+            const validGender = normalizeGender(gender);
             
             const newValues: any = {
                 display_name: name, 
@@ -275,9 +275,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
 
             // Compare old and new values to find changes
             // Ensure old gender is valid for comparison
-            const oldGender = currentData.gender && (currentData.gender === 'Female' || currentData.gender === 'Male' || currentData.gender === 'Other') 
-                ? currentData.gender 
-                : 'Female';
+            const oldGender = normalizeGender(currentData.gender);
             
             const oldValues: any = {
                 display_name: currentData.display_name || '',
@@ -556,7 +554,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                 <select value={gender} onChange={e => setGender(e.target.value)} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900">
                                     <option value="Female">Γυναίκα</option>
                                     <option value="Male">Άνδρας</option>
-                                    <option value="Other">Άλλο</option>
+                                    <option value="AI">AI</option>
                                 </select>
                             </div>
                             <div>
@@ -803,13 +801,14 @@ interface Proposal {
 export default function DashboardContent({ profile: initialProfile }: { profile: InfluencerData }) {
     const [profile, setProfile] = useState(initialProfile);
     const [showEditModal, setShowEditModal] = useState(false);
-    const [activeTab, setActiveTab] = useState<'profile' | 'messages' | 'proposals' | 'campaigns' | 'analytics' | 'announcements'>('profile');
+    const [activeTab, setActiveTab] = useState<'profile' | 'tools' | 'messages' | 'proposals' | 'campaigns' | 'analytics' | 'announcements'>('profile');
     const searchParams = useSearchParams();
 
     useEffect(() => {
         const tab = searchParams?.get('tab');
         if (
             tab === 'profile' ||
+            tab === 'tools' ||
             tab === 'messages' ||
             tab === 'proposals' ||
             tab === 'campaigns' ||
@@ -1129,6 +1128,16 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 Προφίλ
                             </button>
                             <button
+                                onClick={() => setActiveTab('tools')}
+                                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors whitespace-nowrap ${
+                                    activeTab === 'tools'
+                                        ? 'border-slate-900 text-slate-900'
+                                        : 'border-transparent text-slate-500 hover:text-slate-700'
+                                }`}
+                            >
+                                <span className="hidden md:inline">🧰 </span>Εργαλεία
+                            </button>
+                            <button
                                 onClick={() => setActiveTab('campaigns')}
                                 className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors whitespace-nowrap relative ${
                                     activeTab === 'campaigns'
@@ -1263,7 +1272,12 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                     </div>
 
                     <div className="p-6">
-                        {activeTab === 'campaigns' ? (
+                        {activeTab === 'tools' ? (
+                            <InfluencerToolsPanel
+                                approved={!!profile.approved}
+                                displayName={profile.display_name}
+                            />
+                        ) : activeTab === 'campaigns' ? (
                             <div className="space-y-4">
                                 <h2 className="text-xl font-semibold text-slate-900">Καμπάνιες · αιτήσεις ενδιαφέροντος</h2>
                                 <InfluencerCampaignsPanel
