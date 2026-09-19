@@ -13,6 +13,7 @@ import { checkAuditprHealth, fetchAuditprOverridesForAccounts, type AccountFetch
 import { downloadSocialRefreshReportExcel } from "@/lib/socialRefreshReport";
 import { getCachedImageUrl } from "@/lib/imageProxy";
 import { prepareImageForStorage } from "@/lib/prepareImageForStorage";
+import { normalizeGender } from "@/lib/gender";
 import PushNotificationPrompt from "./PushNotificationPrompt";
 import AdminInfluencerStatsTab from "./AdminInfluencerStatsTab";
 
@@ -580,8 +581,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
     const [minRate, setMinRate] = useState(user.min_rate || "");
     const [location, setLocation] = useState(user.location || "");
     const [birthDate, setBirthDate] = useState(user.birth_date || "");
-    // Ensure gender is valid (Female, Male, or Other)
-    const initialGender = (user.gender === 'Female' || user.gender === 'Male' || user.gender === 'Other') ? user.gender : 'Female';
+    const initialGender = normalizeGender(user.gender);
     const [gender, setGender] = useState(initialGender);
     const [profileChanges, setProfileChanges] = useState<any[]>([]);
     const [loadingChanges, setLoadingChanges] = useState(false);
@@ -922,7 +922,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                 min_rate: minRate,
                 location: location,
                 birth_date: birthDate || null,
-                gender: gender,
+                gender: normalizeGender(gender),
                 category: categoryString,
                 languages: selectedLanguages.map(code => {
                     const lang = LANGUAGES.find(l => l.code === code);
@@ -1142,7 +1142,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                     <select value={gender} onChange={e => setGender(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900">
                                         <option value="Female">Female</option>
                                         <option value="Male">Male</option>
-                                        <option value="Other">Other</option>
+                                        <option value="AI">AI</option>
                                     </select>
                                 </div>
                                 <div>
@@ -2222,6 +2222,29 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     }
   };
 
+  const isLocalAuditprUrl = (url: string): boolean => {
+    try {
+      const host = new URL(url).hostname;
+      return host === 'localhost' || host === '127.0.0.1';
+    } catch {
+      return false;
+    }
+  };
+
+  /** HTTPS pages cannot fetch remote HTTP (mixed content). Localhost is allowed. */
+  const canBrowserFetchAuditpr = (url: string): boolean => {
+    if (typeof window === 'undefined') return false;
+    try {
+      const parsed = new URL(url);
+      if (window.location.protocol === 'https:' && parsed.protocol === 'http:' && !isLocalAuditprUrl(url)) {
+        return false;
+      }
+    } catch {
+      return false;
+    }
+    return true;
+  };
+
   const promptAuditprUrl = (): string | null => {
     if (typeof window === 'undefined') return null;
     const stored = localStorage.getItem('influo_auditpr_url') || 'http://localhost:8000';
@@ -2282,33 +2305,43 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       });
 
       if (needsAuditpr) {
-        const auditprUrl = promptAuditprUrl();
-        if (!auditprUrl) return;
+        const stored = (typeof window !== 'undefined' && localStorage.getItem('influo_auditpr_url')) || '';
+        const useCloudServer = !isLocalAuditprUrl(stored || 'http://localhost:8000');
 
-        const health = await checkAuditprHealth(auditprUrl);
-        if (!health.ok) {
-          alert(lang === 'el'
-            ? `Δεν συνδέεται το Auditpr στο ${auditprUrl}.\n${health.error || ''}\n\nΤρέξτε EGGRISH.bat και δοκιμάστε ξανά.`
-            : `Cannot reach Auditpr at ${auditprUrl}.\n${health.error || ''}\n\nStart EGGRISH.bat and try again.`);
-          return;
-        }
+        if (useCloudServer) {
+          // HTTPS site cannot talk to http://Oracle (mixed content). Vercel calls Auditpr instead.
+        } else {
+          const auditprUrl = promptAuditprUrl();
+          if (!auditprUrl) return;
+          if (!canBrowserFetchAuditpr(auditprUrl)) {
+            localStorage.setItem('influo_auditpr_url', auditprUrl);
+          } else {
+            const health = await checkAuditprHealth(auditprUrl);
+            if (!health.ok) {
+              alert(lang === 'el'
+                ? `Δεν συνδέεται το Auditpr στο ${auditprUrl}.\n${health.error || ''}\n\nΤρέξτε EGGRISH.bat και δοκιμάστε ξανά.`
+                : `Cannot reach Auditpr at ${auditprUrl}.\n${health.error || ''}\n\nStart EGGRISH.bat and try again.`);
+              return;
+            }
 
-        const bundle = await fetchAuditprOverridesForAccounts(auditprUrl, accountsToFetch, { delayMs: 1500 });
-        fetchErrors = bundle.errors;
-        accountFetchResults = bundle.accountResults;
-        if (Object.keys(bundle.instagramOverrides).length > 0) instagramOverrides = bundle.instagramOverrides;
-        if (Object.keys(bundle.tiktokOverrides).length > 0) tiktokOverrides = bundle.tiktokOverrides;
-        if (Object.keys(bundle.youtubeOverrides).length > 0) youtubeOverrides = bundle.youtubeOverrides;
+            const bundle = await fetchAuditprOverridesForAccounts(auditprUrl, accountsToFetch, { delayMs: 1500 });
+            fetchErrors = bundle.errors;
+            accountFetchResults = bundle.accountResults;
+            if (Object.keys(bundle.instagramOverrides).length > 0) instagramOverrides = bundle.instagramOverrides;
+            if (Object.keys(bundle.tiktokOverrides).length > 0) tiktokOverrides = bundle.tiktokOverrides;
+            if (Object.keys(bundle.youtubeOverrides).length > 0) youtubeOverrides = bundle.youtubeOverrides;
 
-        const fetchedCount =
-          Object.keys(bundle.instagramOverrides).length +
-          Object.keys(bundle.tiktokOverrides).length +
-          Object.keys(bundle.youtubeOverrides).length;
-        if (fetchedCount === 0) {
-          alert(lang === 'el'
-            ? `Δεν ανανεώθηκε κανένα account από το Auditpr.\n\n${fetchErrors.join('\n') || 'Άγνωστο σφάλμα.'}`
-            : `No accounts were refreshed from Auditpr.\n\n${fetchErrors.join('\n') || 'Unknown error.'}`);
-          return;
+            const fetchedCount =
+              Object.keys(bundle.instagramOverrides).length +
+              Object.keys(bundle.tiktokOverrides).length +
+              Object.keys(bundle.youtubeOverrides).length;
+            if (fetchedCount === 0) {
+              alert(lang === 'el'
+                ? `Δεν ανανεώθηκε κανένα account από το Auditpr.\n\n${fetchErrors.join('\n') || 'Άγνωστο σφάλμα.'}`
+                : `No accounts were refreshed from Auditpr.\n\n${fetchErrors.join('\n') || 'Unknown error.'}`);
+              return;
+            }
+          }
         }
       }
 
@@ -2329,13 +2362,30 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed');
       const summary = data.results?.length
-        ? data.results.map((r: { name: string; errors?: string[] }) =>
-            r.name + (r.errors?.length ? ': ' + r.errors.join('; ') : ' OK')
-          ).join('\n')
+        ? data.results.map((r: { name: string; errors?: string[] }) => {
+            const errs = [...(r.errors || [])];
+            if (idStr) {
+              for (const fe of fetchErrors) {
+                if (!errs.includes(fe)) errs.push(fe);
+              }
+            }
+            if (errs.length) {
+              return lang === 'el'
+                ? `${r.name}: ΛΑΘΟΣ — ${errs.join('; ')}`
+                : `${r.name}: ERROR — ${errs.join('; ')}`;
+            }
+            return `${r.name}: OK`;
+          }).join('\n')
         : '';
-      const fetchNote = fetchErrors.length
+      const fetchNote = !idStr && fetchErrors.length
         ? (lang === 'el' ? '\n\nAuditpr (μερικά απέτυχαν):\n' : '\n\nAuditpr (some failed):\n') + fetchErrors.join('\n')
         : '';
+      const hasAnyError =
+        fetchErrors.length > 0 ||
+        (Array.isArray(data.results) && data.results.some((r: { errors?: string[] }) => !!r.errors?.length));
+      const doneLabel = hasAnyError
+        ? (lang === 'el' ? 'Η ανανέωση βρήκε σφάλματα' : 'Refresh finished with errors')
+        : (data.message || 'Done');
 
       if (!idStr && dueListForReport.length > 0) {
         try {
@@ -2356,7 +2406,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       const excelNote = !idStr && dueListForReport.length > 0
         ? (lang === 'el' ? '\n\n📊 Κατέβηκε αρχείο Excel με αναλυτικά αποτελέσματα.' : '\n\n📊 Excel report downloaded with detailed results.')
         : '';
-      alert((data.message || 'Done') + ': ' + data.refreshed + (summary ? '\n\n' + summary : '') + fetchNote + excelNote);
+      alert(doneLabel + ': ' + data.refreshed + (summary ? '\n\n' + summary : '') + fetchNote + excelNote);
       fetchData();
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : 'Error');

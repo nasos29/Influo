@@ -18,6 +18,8 @@ const supabaseAdmin = createClient(
   { auth: { persistSession: false, autoRefreshToken: false } }
 );
 
+export const maxDuration = 300;
+
 export async function GET(request: NextRequest) {
   try {
     const cronSecret = process.env.CRON_SECRET;
