@@ -131,13 +131,3 @@ export function buildMediaKitHtml(profile: MediaKitProfile): string {
 </html>`;
 }
 
-export function openMediaKitPrint(profile: MediaKitProfile) {
-  const html = buildMediaKitHtml(profile);
-  const win = window.open('', '_blank', 'noopener,noreferrer,width=820,height=1100');
-  if (!win) {
-    throw new Error('Το παράθυρο μπλοκαρίστηκε. Επίτρεψε τα pop-ups και ξαναπροσπάθησε.');
-  }
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
-}
