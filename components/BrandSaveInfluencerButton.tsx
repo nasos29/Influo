@@ -26,7 +26,7 @@ export default function BrandSaveInfluencerButton({
         type="button"
         disabled={busy}
         onClick={onToggle}
-        className={`font-bold py-3 px-6 rounded-xl shadow-lg transition-transform hover:-translate-y-1 flex items-center justify-center gap-2 text-sm disabled:opacity-60 ${
+        className={`font-semibold py-2.5 px-3 rounded-lg text-sm flex items-center justify-center gap-1.5 disabled:opacity-60 ${
           saved
             ? "bg-amber-500 hover:bg-amber-600 text-white"
             : "bg-white hover:bg-slate-50 text-slate-800 border border-slate-300"

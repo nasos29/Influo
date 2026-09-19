@@ -1519,8 +1519,13 @@ export default function InfluencerProfile(props: { params: Params }) {
         
         {/* Back button */}
         <div className="absolute top-6 left-6 z-20">
-          <a href="/" className="text-white bg-white/20 backdrop-blur-md px-4 py-2 rounded-lg font-medium hover:bg-white/30 transition shadow-lg">
-            {txt.back}
+          <a
+            href={isBrand ? "/brand/dashboard" : "/"}
+            className="text-white bg-white/20 backdrop-blur-md px-4 py-2 rounded-lg font-medium hover:bg-white/30 transition shadow-lg"
+          >
+            {isBrand
+              ? (lang === "el" ? "← Dashboard" : "← Dashboard")
+              : txt.back}
           </a>
         </div>
       </div>
@@ -1528,7 +1533,7 @@ export default function InfluencerProfile(props: { params: Params }) {
       <div className="max-w-6xl mx-auto px-6 relative -mt-24 z-10">
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
           {/* Top Section: Avatar, Name, Info */}
-          <div className="p-6 md:p-8 flex flex-col md:flex-row items-center md:items-end gap-6 border-b border-slate-100">
+          <div className="p-6 md:p-8 flex flex-col md:flex-row items-center md:items-start gap-6 border-b border-slate-100">
             <div className="relative w-40 h-40 rounded-full border-4 border-white shadow-lg overflow-hidden bg-slate-100 -mt-6 md:mb-0 flex-shrink-0">
                 <Avatar src={profile.avatar} alt={displayNameForLang(profile.name, lang)} size={160} className="w-full h-full" />
             </div>
@@ -1578,7 +1583,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                   </div>
                 )}
             </div>
-            <div className="relative flex w-full flex-col items-center gap-3 md:w-auto md:items-end">
+            <div className="relative flex w-full flex-col items-center gap-2 md:w-[260px] md:shrink-0 md:items-end">
               {/* Badges - centered on mobile, right-aligned on desktop */}
               {(() => {
                 // Calculate account age in days
@@ -1640,16 +1645,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                 ) : null;
               })()}
               {/* Action Buttons */}
-              <div className="flex w-full flex-col justify-center gap-3 md:w-auto md:flex-row md:justify-end">
-                {/* Back to Proposals button for brands only */}
-                {isBrand && (
-                  <a 
-                    href="/brand/dashboard"
-                    className="bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-transform hover:-translate-y-1 flex items-center justify-center gap-2 text-sm"
-                  >
-                    <span>←</span> {lang === 'el' ? 'Πίσω στις Προτάσεις' : 'Back to Proposals'}
-                  </a>
-                )}
+              <div className={`grid w-full gap-2 ${isBrand ? "grid-cols-2" : "grid-cols-1 sm:grid-cols-2"}`}>
                 {isBrand && (
                   <BrandSaveInfluencerButton
                     variant="profile"
@@ -1674,7 +1670,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                     }}
                   />
                 )}
-                <button onClick={() => setShowProposalModal(true)} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-transform hover:-translate-y-1 flex items-center gap-2">
+                <button onClick={() => setShowProposalModal(true)} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-3 rounded-lg text-sm flex items-center justify-center gap-1.5">
                     <span>⚡</span> {txt.contact}
                 </button>
                 <button 
@@ -1712,7 +1708,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                         setShowRegistrationRequiredModal(true);
                       }
                     }}
-                    className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-transform hover:-translate-y-1 flex items-center gap-2"
+                    className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 px-3 rounded-lg text-sm flex items-center justify-center gap-1.5"
                 >
                     <span>💬</span> {txt.message_btn}
                 </button>
