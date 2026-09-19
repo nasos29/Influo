@@ -56,28 +56,33 @@ async function listNewUnapprovedWithSocials() {
   }[] = [];
 
   for (let from = 0; ; from += pageSize) {
-    let { data, error } = await supabaseAdmin
+    let rows: Record<string, unknown>[] = [];
+    const first = await supabaseAdmin
       .from('influencers')
       .select('id, display_name, approved, approved_at, accounts')
       .eq('approved', false)
       .is('approved_at', null)
       .range(from, from + pageSize - 1);
-    if (error && /column|approved_at/i.test(error.message)) {
-      ({ data, error } = await supabaseAdmin
+    if (first.error && /column|approved_at/i.test(first.error.message)) {
+      const fallback = await supabaseAdmin
         .from('influencers')
         .select('id, display_name, approved, accounts')
         .eq('approved', false)
-        .range(from, from + pageSize - 1));
+        .range(from, from + pageSize - 1);
+      if (fallback.error) throw new Error(fallback.error.message);
+      rows = (fallback.data ?? []) as Record<string, unknown>[];
+    } else if (first.error) {
+      throw new Error(first.error.message);
+    } else {
+      rows = (first.data ?? []) as Record<string, unknown>[];
     }
-    if (error) throw new Error(error.message);
-    const rows = data ?? [];
     for (const row of rows) {
-      if ((row as { approved_at?: string | null }).approved_at) continue;
+      if (row.approved_at) continue;
       const accounts = socialAccountsFromRow(row.accounts);
       if (!accounts.length) continue;
       influencers.push({
         id: String(row.id),
-        display_name: row.display_name || String(row.id),
+        display_name: String(row.display_name || row.id),
         accounts,
       });
     }
