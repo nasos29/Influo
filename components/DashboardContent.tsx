@@ -611,7 +611,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                 />
                         </div>
                     </div>
-                            <div>
+                            <div className="mt-6">
                                 <label className="block text-sm font-semibold text-slate-900 mb-1">Γλώσσες</label>
                                 <div className="border-2 border-slate-200 rounded-lg p-3 bg-slate-50">
                                     <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
