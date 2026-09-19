@@ -4,8 +4,9 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "../lib/supabaseClient";
 import InfluencerCard from "./InfluencerCard";
-import { getBadges } from "../lib/badges";
+import { getBadges, BADGE_FILTER_TYPES, getBadgeFilterLabel, type BadgeType } from "../lib/badges";
 import { getVisitorId } from "../lib/visitorId";
+import { normalizeGender, type GenderValue } from "../lib/gender";
 
 export interface Influencer {
   id: string | number;
@@ -18,7 +19,7 @@ export interface Influencer {
   followers: { [key: string]: number | undefined };
   categories: string[];
   platform: string;
-  gender: "Male" | "Female";
+  gender: GenderValue;
   videos?: string[];
   location?: string;
   languages?: string[];
@@ -97,6 +98,7 @@ const t = {
     genAll: "Φύλο: Όλα",
     genFem: "Γυναίκα",
     genMal: "Άνδρας",
+    genAi: "AI",
     follAll: "Ακόλουθοι: Όλοι",
     follNano: "Nano (1k-10k)",
     follMicro: "Micro (10k-100k)",
@@ -111,6 +113,7 @@ const t = {
     langAll: "Γλώσσα: Όλες",
     ratingAll: "Αξιολόγηση: Όλες",
     ratingMin: "Ελάχ.",
+    badgeAll: "Badge: Όλα",
     ageAll: "Ηλικία: Όλες",
     ageRange: "Ηλικία",
     ageFrom: "Από",
@@ -131,6 +134,7 @@ const t = {
     genAll: "Gender: Any",
     genFem: "Female",
     genMal: "Male",
+    genAi: "AI",
     follAll: "Followers: Any",
     follNano: "Nano (1k-10k)",
     follMicro: "Micro (10k-100k)",
@@ -145,6 +149,7 @@ const t = {
     langAll: "Language: All",
     ratingAll: "Rating: Any",
     ratingMin: "Min",
+    badgeAll: "Badge: Any",
     ageAll: "Age: All",
     ageRange: "Age",
     ageFrom: "From",
@@ -196,6 +201,22 @@ const parseFollowerString = (str: string) => {
     if (clean.includes('m')) return parseFloat(clean) * 1000000;
     return parseFloat(clean) || 0;
 };
+const badgesForInfluencer = (inf: Influencer, lang: "el" | "en") => {
+    const accountAgeDays = inf.created_at
+      ? Math.floor((new Date().getTime() - new Date(inf.created_at).getTime()) / (1000 * 60 * 60 * 24))
+      : 999;
+    return getBadges({
+      verified: inf.verified,
+      followers: inf.followers,
+      engagement_rate: inf.engagement_rate,
+      total_reviews: inf.total_reviews || 0,
+      avg_rating: inf.avg_rating || 0,
+      past_brands: inf.past_brands || 0,
+      account_created_days: accountAgeDays,
+      min_rate: inf.min_rate,
+    }, lang);
+};
+
 const getAgeFromBirthDate = (birthDate?: string | null): number | null => {
     if (!birthDate) return null;
     const birth = new Date(birthDate);
@@ -238,6 +259,7 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
   const [minRating, setMinRating] = useState("All");
   const [ageMin, setAgeMin] = useState("");
   const [ageMax, setAgeMax] = useState("");
+  const [badgeFilter, setBadgeFilter] = useState<BadgeType | "All">("All");
   const [loading, setLoading] = useState(true);
   const [visibleCount, setVisibleCount] = useState(20);
   const PAGE_SIZE = 20;
@@ -328,7 +350,7 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
                 : ["New"],
               languages: languagesArray,
               platform: "Instagram",
-              gender: inf.gender || "Female",
+              gender: normalizeGender(inf.gender),
               location: inf.location,
               min_rate: inf.min_rate,
               avg_likes: inf.avg_likes,
@@ -451,21 +473,25 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
         else if (age < min || age > max) ageMatch = false;
     }
 
-    return searchMatch && locationMatch && platformMatch && categoryMatch && genderMatch && followerMatch && budgetMatch && engageMatch && languageMatch && ratingMatch && ageMatch;
+    const badgeMatch =
+      badgeFilter === "All" ||
+      badgesForInfluencer(inf, lang).some((b) => b.type === badgeFilter);
+
+    return searchMatch && locationMatch && platformMatch && categoryMatch && genderMatch && followerMatch && budgetMatch && engageMatch && languageMatch && ratingMatch && ageMatch && badgeMatch;
   });
 
   const clearFilters = () => {
     setSearchQuery(""); setLocationQuery(""); setPlatformFilter("All");
     setCategoryFilter("All"); setGenderFilter("All"); setFollowerRange("All");
     setBudgetMax("All"); setMinEngagement("All"); setLanguageFilter("All"); setMinRating("All");
-    setAgeMin(""); setAgeMax("");
+    setAgeMin(""); setAgeMax(""); setBadgeFilter("All");
     setVisibleCount(PAGE_SIZE);
   };
 
   // Reset pagination when filters change
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [searchQuery, locationQuery, platformFilter, categoryFilter, genderFilter, followerRange, budgetMax, minEngagement, languageFilter, minRating, ageMin, ageMax]);
+  }, [searchQuery, locationQuery, platformFilter, categoryFilter, genderFilter, followerRange, budgetMax, minEngagement, languageFilter, minRating, ageMin, ageMax, badgeFilter]);
 
   const displayedInfluencers = filtered.slice(0, visibleCount);
   const hasMore = filtered.length > visibleCount;
@@ -504,13 +530,14 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
         </div>
 
         {/* Filters Panel */}
-        <div className={`overflow-hidden transition-all duration-300 ${showAdvanced ? 'max-h-[500px] opacity-100 mt-4 pt-4 border-t border-slate-100' : 'max-h-0 opacity-0'}`}>
+        <div className={`overflow-hidden transition-all duration-300 ${showAdvanced ? 'max-h-[640px] opacity-100 mt-4 pt-4 border-t border-slate-100' : 'max-h-0 opacity-0'}`}>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 
                 <select value={genderFilter} onChange={(e) => setGenderFilter(e.target.value)} className={selectClass}>
                     <option value="All">{txt.genAll}</option>
                     <option value="Female">{txt.genFem}</option>
                     <option value="Male">{txt.genMal}</option>
+                    <option value="AI">{txt.genAi}</option>
                 </select>
 
                 <select value={followerRange} onChange={(e) => setFollowerRange(e.target.value)} className={`${selectClass} !bg-blue-50 !border-blue-100 !text-blue-800`}>
@@ -558,6 +585,19 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
                     <option value="3">{txt.ratingMin} 3★</option>
                     <option value="4">{txt.ratingMin} 4★</option>
                     <option value="4.5">{txt.ratingMin} 4.5★</option>
+                </select>
+
+                <select
+                  value={badgeFilter}
+                  onChange={(e) => setBadgeFilter(e.target.value as BadgeType | "All")}
+                  className={`${selectClass} !bg-yellow-50 !border-yellow-100 !text-yellow-900`}
+                >
+                    <option value="All">{txt.badgeAll}</option>
+                    {BADGE_FILTER_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {getBadgeFilterLabel(type, lang)}
+                      </option>
+                    ))}
                 </select>
 
                 {/* Age filter (from birth_date) */}
@@ -622,18 +662,7 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
         <>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
             {displayedInfluencers.map((inf) => {
-              // Calculate badges
-              const accountAgeDays = inf.created_at ? Math.floor((new Date().getTime() - new Date(inf.created_at).getTime()) / (1000 * 60 * 60 * 24)) : 999;
-              const badges = getBadges({
-                verified: inf.verified,
-                followers: inf.followers,
-                engagement_rate: inf.engagement_rate,
-                total_reviews: inf.total_reviews || 0,
-                avg_rating: (inf as any).avg_rating || 0,
-                past_brands: inf.past_brands || 0,
-                account_created_days: accountAgeDays,
-                min_rate: inf.min_rate,
-              }, lang);
+              const badges = badgesForInfluencer(inf, lang);
               
               return (
                 <Link 

@@ -223,6 +223,22 @@ export function getBadges(metrics: InfluencerMetrics, lang: 'el' | 'en' = 'el'):
 }
 
 // Export badge styling function
+export const BADGE_FILTER_TYPES: BadgeType[] = [
+  'new',
+  'rising',
+  'verified',
+  'top_performer',
+  'pro',
+  'elite',
+  'vip',
+];
+
+export function getBadgeFilterLabel(type: BadgeType, lang: 'el' | 'en' = 'el'): string {
+  const icon = BADGE_DEFINITIONS[type].icon;
+  const label = lang === 'el' ? BADGE_LABELS_EL[type] : BADGE_DEFINITIONS[type].label;
+  return `${icon} ${label}`;
+}
+
 export function getBadgeStyles(badge: Badge) {
   return `${badge.bgColor} ${badge.color} border px-2 py-1 rounded-full text-[10px] font-bold inline-flex items-center gap-1`;
 }
