@@ -9,6 +9,7 @@ import {
   fetchInstagramFromAuditpr,
   fetchTiktokFromAuditpr,
   fetchYouTubeFromAuditpr,
+  isUsableSocialMetrics,
   type SocialMetrics,
 } from '@/lib/socialRefresh';
 import { runAuditGemini } from '@/lib/auditGemini';
@@ -23,7 +24,7 @@ type AccountRow = {
 };
 
 function isSocialMetrics(x: SocialMetrics | { error: string }): x is SocialMetrics {
-  return 'followers' in x && !('error' in x);
+  return isUsableSocialMetrics(x);
 }
 
 export type RefreshResult = {
@@ -50,9 +51,11 @@ export async function doRefreshSocialStats(
     tiktokOverrides?: TikTokOverrides;
     /** When set, use these for YouTube instead of calling Auditpr from server (browser fetched from local). */
     youtubeOverrides?: YouTubeOverrides;
+    /** Only apply provided overrides; do not call Auditpr for missing platforms. */
+    overridesOnly?: boolean;
   }
 ): Promise<RefreshResult> {
-  const { influencerId, auditprBaseUrl, instagramOverrides, tiktokOverrides, youtubeOverrides } = options;
+  const { influencerId, auditprBaseUrl, instagramOverrides, tiktokOverrides, youtubeOverrides, overridesOnly } = options;
 
   let query = supabaseAdmin
     .from('influencers')
@@ -102,6 +105,7 @@ export async function doRefreshSocialStats(
     const accounts = (inf.accounts as AccountRow[] | null) || [];
     const errors: string[] = [];
     let updatedAccounts = [...accounts];
+    let anySuccess = false;
     /** First IG/TT account we successfully refreshed via Auditpr (server-side). Used to call /audit once per influencer. */
     let firstRefreshedForAudit: { platform: string; username: string } | null = null;
 
@@ -121,7 +125,9 @@ export async function doRefreshSocialStats(
         if (instagramOverrides?.[uKey]) {
           metrics = instagramOverrides[uKey];
           fetchedViaAuditpr = true;
-        } else         if (!auditprBaseUrl) {
+        } else if (overridesOnly) {
+          continue;
+        } else if (!auditprBaseUrl) {
           errors.push(`Instagram @${uKey}: AUDITPR_BASE_URL not set (ή εισάγετε Auditpr URL στο dashboard)`);
           continue;
         } else {
@@ -133,6 +139,8 @@ export async function doRefreshSocialStats(
         if (tiktokOverrides?.[uKey]) {
           metrics = tiktokOverrides[uKey];
           fetchedViaAuditpr = true;
+        } else if (overridesOnly) {
+          continue;
         } else if (!auditprBaseUrl) {
           errors.push(`TikTok @${uKey}: AUDITPR_BASE_URL not set (ή εισάγετε Auditpr URL στο dashboard)`);
           continue;
@@ -146,6 +154,8 @@ export async function doRefreshSocialStats(
         if (youtubeOverrides?.[uKey]) {
           metrics = youtubeOverrides[uKey];
           fetchedViaAuditpr = true;
+        } else if (overridesOnly) {
+          continue;
         } else if (!auditprBaseUrl) {
           errors.push(`YouTube @${uKey}: AUDITPR_BASE_URL required (ή εισάγετε Auditpr URL στο dashboard)`);
           continue;
@@ -159,6 +169,7 @@ export async function doRefreshSocialStats(
       }
 
       if (isSocialMetrics(metrics)) {
+        anySuccess = true;
         updatedAccounts[i] = {
           ...acc,
           followers: metrics.followers,
@@ -170,8 +181,19 @@ export async function doRefreshSocialStats(
         }
       } else {
         const uDisplay = username.replace(/^@+/, '').trim();
-        errors.push(`${platform} @${uDisplay}: ${metrics.error}`);
+        const errText = 'error' in metrics ? metrics.error : `Λάθος username: το προφίλ @${uDisplay} δεν υπάρχει.`;
+        errors.push(`${platform} @${uDisplay}: ${errText}`);
       }
+    }
+
+    if (!anySuccess) {
+      results.push({
+        id: String(inf.id),
+        name: inf.display_name || String(inf.id),
+        accounts: updatedAccounts.filter((a) => a?.username && a?.platform).length,
+        errors: errors.length ? errors : ['Λάθος username: δεν βρέθηκαν metrics.'],
+      });
+      continue;
     }
 
     let updatePayload: {

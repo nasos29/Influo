@@ -16,6 +16,7 @@ import { prepareImageForStorage } from "@/lib/prepareImageForStorage";
 import { normalizeGender } from "@/lib/gender";
 import PushNotificationPrompt from "./PushNotificationPrompt";
 import AdminInfluencerStatsTab from "./AdminInfluencerStatsTab";
+import SocialRefreshLogsPanel from "./SocialRefreshLogsPanel";
 
 // --- FULL CATEGORY LIST ---
 const CATEGORIES = [
@@ -230,6 +231,7 @@ const t = {
     blog_date: "Ημερομηνία",
     blog_actions: "Ενέργειες",
     tab_announcements: "Ανακοινώσεις",
+    tab_social_cron: "Social cron",
     ann_title: "Τίτλος",
     ann_body: "Κείμενο",
     ann_to_all: "Όλοι οι influencers",
@@ -313,6 +315,7 @@ const t = {
     blog_date: "Date",
     blog_actions: "Actions",
     tab_announcements: "Announcements",
+    tab_social_cron: "Social cron",
     ann_title: "Title",
     ann_body: "Content",
     ann_to_all: "All influencers",
@@ -3105,6 +3108,16 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
               >
                 {txt.tab_announcements}
               </button>
+              <button
+                onClick={() => setActiveTab("social_cron")}
+                className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === "social_cron"
+                    ? "border-slate-900 text-slate-900"
+                    : "border-transparent text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                {txt.tab_social_cron}
+              </button>
             </div>
           </div>
 
@@ -4018,6 +4031,8 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
               </div>
             </>
           )}
+
+          {activeTab === "social_cron" && <SocialRefreshLogsPanel lang={lang} />}
 
           {activeTab === "conversations" && (
             <div className="bg-white rounded-lg border border-slate-200">

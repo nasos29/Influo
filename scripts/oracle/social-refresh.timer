@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Influo social stats refresh on the 1st and 16th at 03:00 UTC
+
+[Timer]
+OnCalendar=*-*-1,16 03:00:00
+Persistent=true
+RandomizedDelaySec=5m
+Unit=social-refresh.service
+
+[Install]
+WantedBy=timers.target

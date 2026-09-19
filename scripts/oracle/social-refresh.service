@@ -1,0 +1,13 @@
+[Unit]
+Description=Influo 15-day social stats refresh via Oracle AuditPro
+After=network-online.target auditpro.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/home/ubuntu/auditpro
+EnvironmentFile=/home/ubuntu/auditpro/social-refresh.env
+ExecStart=/home/ubuntu/auditpro/venv/bin/python /home/ubuntu/auditpro/scripts/social_refresh_batch.py
+Nice=10
+TimeoutStartSec=0

@@ -31,6 +31,48 @@ function parseFollowersFromApi(value: unknown): number {
   return Math.round(n);
 }
 
+function metricsFromAuditprData(
+  data: Record<string, unknown>,
+  username: string
+): SocialMetrics | { error: string } {
+  if (data.status === 'Failed' || data.error) {
+    const raw = String(data.error || data.error_detail || 'Auditpr metrics failed');
+    if (/not found|banned|does not exist|user banned|private/i.test(raw)) {
+      return { error: `Λάθος username: το προφίλ @${username} δεν υπάρχει.` };
+    }
+    return { error: raw };
+  }
+  if (data.followers == null) {
+    return { error: `Λάθος username: το προφίλ @${username} δεν υπάρχει.` };
+  }
+  const followers = parseFollowersFromApi(data.followers);
+  const avg_likes = Number(data.avg_likes) || 0;
+  const engagement_rate = typeof data.engagement_rate === 'string' ? data.engagement_rate : 'N/A';
+  const posts = parseFollowersFromApi(data.posts_count);
+  if (followers === 0 && avg_likes === 0 && posts === 0) {
+    return { error: `Λάθος username: το προφίλ @${username} δεν υπάρχει.` };
+  }
+  return {
+    followers: formatFollowers(followers),
+    engagement_rate,
+    avg_likes: String(avg_likes),
+  };
+}
+
+export function isUsableSocialMetrics(x: SocialMetrics | { error: string }): x is SocialMetrics {
+  if (!x || typeof x !== 'object') return false;
+  if ('error' in x && (x as { error?: string }).error) return false;
+  if (!('followers' in x)) return false;
+  const m = x as SocialMetrics;
+  const followers = parseFollowersFromApi(m.followers);
+  const likes = Number(m.avg_likes) || 0;
+  const er = String(m.engagement_rate || '').trim();
+  if (followers === 0 && likes === 0 && (er === '' || er.toUpperCase() === 'N/A')) {
+    return false;
+  }
+  return true;
+}
+
 /**
  * Fetch Instagram metrics from Auditpr (no Apify cost). Requires Auditpr running with valid IG session.
  */
@@ -40,8 +82,8 @@ export async function fetchInstagramFromAuditpr(
 ): Promise<SocialMetrics | { error: string }> {
   const u = username.replace(/^@/, '').trim();
   if (!u) return { error: 'Username required' };
-  const url = `${baseUrl.replace(/\/$/, '')}/metrics/instagram/${encodeURIComponent(u)}?for_import=true`;
-  try {
+    const url = `${baseUrl.replace(/\/$/, '')}/metrics/instagram/${encodeURIComponent(u)}?for_import=true`;
+    try {
     // Playwright IG fallback on Auditpr can take up to ~90s per profile.
     const res = await fetch(url, { method: 'GET', signal: AbortSignal.timeout(95_000) });
     if (!res.ok) {
@@ -49,17 +91,7 @@ export async function fetchInstagramFromAuditpr(
       return { error: `Auditpr ${res.status}: ${text.slice(0, 200)}` };
     }
     const data = (await res.json()) as Record<string, unknown>;
-    if (data.status === 'Failed' || data.error) {
-      return { error: String(data.error || data.error_detail || 'Auditpr metrics failed') };
-    }
-    const followers = parseFollowersFromApi(data.followers);
-    const engagement_rate = typeof data.engagement_rate === 'string' ? data.engagement_rate : 'N/A';
-    const avg_likes = Number(data.avg_likes) ?? 0;
-    return {
-      followers: formatFollowers(followers),
-      engagement_rate,
-      avg_likes: String(avg_likes),
-    };
+    return metricsFromAuditprData(data, u);
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     return { error: `Auditpr request failed: ${msg}` };
@@ -76,25 +108,15 @@ export async function fetchYouTubeFromAuditpr(
 ): Promise<SocialMetrics | { error: string }> {
   const u = username.replace(/^@+/, '').trim();
   if (!u) return { error: 'Username required' };
-  const url = `${baseUrl.replace(/\/$/, '')}/metrics/youtube/${encodeURIComponent(u)}?for_import=true`;
-  try {
+    const url = `${baseUrl.replace(/\/$/, '')}/metrics/youtube/${encodeURIComponent(u)}?for_import=true`;
+    try {
     const res = await fetch(url, { method: 'GET', signal: AbortSignal.timeout(45_000) });
     if (!res.ok) {
       const text = await res.text();
       return { error: `Auditpr ${res.status}: ${text.slice(0, 200)}` };
     }
     const data = (await res.json()) as Record<string, unknown>;
-    if (data.status === 'Failed' || data.error) {
-      return { error: String(data.error || data.error_detail || 'Auditpr metrics failed') };
-    }
-    const followers = parseFollowersFromApi(data.followers);
-    const engagement_rate = typeof data.engagement_rate === 'string' ? data.engagement_rate : 'N/A';
-    const avg_likes = Number(data.avg_likes) ?? 0;
-    return {
-      followers: formatFollowers(followers),
-      engagement_rate,
-      avg_likes: String(avg_likes),
-    };
+    return metricsFromAuditprData(data, u);
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     return { error: `Auditpr request failed: ${msg}` };
@@ -102,7 +124,7 @@ export async function fetchYouTubeFromAuditpr(
 }
 
 /**
- * Fetch TikTok metrics from Auditpr (session cookies + Playwright; TIKTOK_USE_APIFY_ONLY=0 on Auditpr).
+ * Fetch TikTok metrics from Auditpr (session cookies + local browser, no Apify).
  */
 export async function fetchTiktokFromAuditpr(
   baseUrl: string,
@@ -110,25 +132,15 @@ export async function fetchTiktokFromAuditpr(
 ): Promise<SocialMetrics | { error: string }> {
   const u = username.replace(/^@+/, '').trim();
   if (!u) return { error: 'Username required' };
-  const url = `${baseUrl.replace(/\/$/, '')}/metrics/tiktok/${encodeURIComponent(u)}?for_import=true`;
-  try {
+    const url = `${baseUrl.replace(/\/$/, '')}/metrics/tiktok/${encodeURIComponent(u)}?for_import=true`;
+    try {
     const res = await fetch(url, { method: 'GET', signal: AbortSignal.timeout(120_000) });
     if (!res.ok) {
       const text = await res.text();
       return { error: `Auditpr ${res.status}: ${text.slice(0, 200)}` };
     }
     const data = (await res.json()) as Record<string, unknown>;
-    if (data.status === 'Failed' || data.error) {
-      return { error: String(data.error || data.error_detail || 'Auditpr metrics failed') };
-    }
-    const followers = parseFollowersFromApi(data.followers);
-    const engagement_rate = typeof data.engagement_rate === 'string' ? data.engagement_rate : 'N/A';
-    const avg_likes = Number(data.avg_likes) ?? 0;
-    return {
-      followers: formatFollowers(followers),
-      engagement_rate,
-      avg_likes: String(avg_likes),
-    };
+    return metricsFromAuditprData(data, u);
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     return { error: `Auditpr request failed: ${msg}` };
@@ -207,7 +219,7 @@ export async function fetchAuditprOverridesForAccounts(
       result = await fetchYouTubeFromAuditpr(baseUrl, username);
     }
 
-    if ('followers' in result) {
+    if (isUsableSocialMetrics(result)) {
       if (platform === 'instagram') instagramOverrides[username] = result;
       else if (platform === 'tiktok') tiktokOverrides[username] = result;
       else youtubeOverrides[username] = result;
@@ -220,11 +232,14 @@ export async function fetchAuditprOverridesForAccounts(
         avg_likes: result.avg_likes,
       });
     } else {
-      const errMsg = result.error;
-      errors.push(`${platform} @${username}: ${errMsg}`);
+      const u = username.replace(/^@+/, '').trim();
+      const errMsg = 'error' in result && result.error
+        ? result.error
+        : `Λάθος username: το προφίλ @${u} δεν υπάρχει.`;
+      errors.push(`${platform} @${u}: ${errMsg}`);
       accountResults.push({
         platform,
-        username,
+        username: u,
         status: 'failed',
         error: errMsg,
       });
