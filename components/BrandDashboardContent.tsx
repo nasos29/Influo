@@ -13,6 +13,7 @@ import { displayNameForLang } from '@/lib/greeklish';
 import { getCachedImageUrl } from '@/lib/imageProxy';
 import { prepareImageForStorage } from '@/lib/prepareImageForStorage';
 import BrandCampaignsSection from '@/components/BrandCampaignsSection';
+import BrandActionInbox from '@/components/BrandActionInbox';
 import InfluencerPresenceDot from '@/components/InfluencerPresenceDot';
 
 // Categories (same as Directory and InfluencerSignupForm)
@@ -1195,6 +1196,12 @@ export default function BrandDashboardContent() {
     p => p.counter_proposal_status === 'pending' && p.counter_proposal_budget
   );
 
+  const openBrandTab = (tab: 'recommendations' | 'campaigns' | 'proposals' | 'messages') => {
+    setActiveTab(tab);
+    const url = tab === 'recommendations' ? '/brand/dashboard' : `/brand/dashboard?tab=${tab}`;
+    router.replace(url, { scroll: false });
+  };
+
   const handleAcceptCounterProposal = async (proposalId: string) => {
     setProcessingCounterProposal(proposalId);
     try {
@@ -1323,6 +1330,15 @@ export default function BrandDashboardContent() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
+        <BrandActionInbox
+          lang={lang}
+          pendingApplications={pendingCampaignApplicationsCount}
+          pendingCounters={pendingCounterProposals.length}
+          pendingAgreements={pendingAgreements.length}
+          unreadMessages={unreadMessageCount}
+          onOpenTab={openBrandTab}
+        />
+
         {/* Tabs */}
         <div className="bg-white rounded-xl border border-slate-200 mb-6 overflow-hidden">
           <div className="border-b border-slate-200 overflow-x-auto">
