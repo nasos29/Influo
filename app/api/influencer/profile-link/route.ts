@@ -10,15 +10,31 @@ const supabaseAdmin = createClient(
 
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr').replace(/\/$/, '');
 
-async function loadInfluencerRow(userId: string, email: string, withSlug: boolean) {
-  const columns = withSlug
-    ? 'id, display_name, approved, category, profile_slug, contact_email'
-    : 'id, display_name, approved, category, contact_email';
-  const byId = await supabaseAdmin.from('influencers').select(columns).eq('id', userId).maybeSingle();
-  if (byId.error) return byId;
-  if (byId.data) return byId;
-  if (!email) return byId;
-  return supabaseAdmin.from('influencers').select(columns).eq('contact_email', email).maybeSingle();
+type InfluencerLinkRow = {
+  id: string;
+  display_name?: string;
+  approved?: boolean;
+  category?: string | null;
+  profile_slug?: string | null;
+  contact_email?: string | null;
+};
+
+async function loadInfluencerRow(userId: string, email: string): Promise<{ data: InfluencerLinkRow | null; error: { message: string } | null }> {
+  const byId = await supabaseAdmin
+    .from('influencers')
+    .select('id, display_name, approved, category, profile_slug, contact_email')
+    .eq('id', userId)
+    .maybeSingle();
+  if (byId.error) return { data: null, error: byId.error };
+  if (byId.data) return { data: byId.data as InfluencerLinkRow, error: null };
+  if (!email) return { data: null, error: null };
+  const byEmail = await supabaseAdmin
+    .from('influencers')
+    .select('id, display_name, approved, category, profile_slug, contact_email')
+    .eq('contact_email', email)
+    .maybeSingle();
+  if (byEmail.error) return { data: null, error: byEmail.error };
+  return { data: (byEmail.data as InfluencerLinkRow | null) ?? null, error: null };
 }
 
 async function getInfluencerFromAuth(request: NextRequest) {
@@ -29,11 +45,20 @@ async function getInfluencerFromAuth(request: NextRequest) {
   if (error || !data.user) return { error: 'Unauthorized', status: 401 as const };
 
   const email = (data.user.email || '').toLowerCase();
-  const first = await loadInfluencerRow(data.user.id, email, true);
+  const first = await loadInfluencerRow(data.user.id, email);
   if (first.error && /column|profile_slug/i.test(first.error.message)) {
-    const fallback = await loadInfluencerRow(data.user.id, email, false);
-    if (fallback.error || !fallback.data) return { error: 'Influencer not found', status: 404 as const };
-    return { influencer: fallback.data, slugSupported: false as const };
+    const fallback = await supabaseAdmin
+      .from('influencers')
+      .select('id, display_name, approved, category, contact_email')
+      .eq('id', data.user.id)
+      .maybeSingle();
+    const row = fallback.data
+      ? fallback.data
+      : email
+        ? (await supabaseAdmin.from('influencers').select('id, display_name, approved, category, contact_email').eq('contact_email', email).maybeSingle()).data
+        : null;
+    if (!row) return { error: 'Influencer not found', status: 404 as const };
+    return { influencer: row as InfluencerLinkRow, slugSupported: false as const };
   }
   if (first.error || !first.data) return { error: 'Influencer not found', status: 404 as const };
   return { influencer: first.data, slugSupported: true as const };
@@ -73,13 +98,7 @@ export async function GET(request: NextRequest) {
     if ('error' in auth) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
-    const inf = auth.influencer as {
-      id: string;
-      display_name?: string;
-      approved?: boolean;
-      category?: string | null;
-      profile_slug?: string | null;
-    };
+    const inf = auth.influencer;
     if (!inf) return NextResponse.json({ error: 'Influencer not found' }, { status: 404 });
 
     if (auth.slugSupported && !inf.profile_slug) {
@@ -110,7 +129,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    const inf = auth.influencer as { id: string; display_name?: string; approved?: boolean; category?: string | null; profile_slug?: string | null };
+    const inf = auth.influencer;
     if (!inf) return NextResponse.json({ error: 'Influencer not found' }, { status: 404 });
 
     const body = await request.json().catch(() => ({}));
