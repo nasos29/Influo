@@ -2222,6 +2222,14 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     }
   };
 
+  const CLOUD_AUDITPR_HTTPS = "https://130.162.39.149.sslip.io";
+
+  const toBrowserSafeAuditprUrl = (url: string): string => {
+    const u = (url || "").trim();
+    if (!u || u.includes("130.162.39.149")) return CLOUD_AUDITPR_HTTPS;
+    return u;
+  };
+
   const isLocalAuditprUrl = (url: string): boolean => {
     try {
       const host = new URL(url).hostname;
@@ -2306,41 +2314,41 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
 
       if (needsAuditpr) {
         const stored = (typeof window !== 'undefined' && localStorage.getItem('influo_auditpr_url')) || '';
-        const useCloudServer = !isLocalAuditprUrl(stored || 'http://localhost:8000');
+        let auditprUrl = toBrowserSafeAuditprUrl(stored);
 
-        if (useCloudServer) {
-          // HTTPS site cannot talk to http://Oracle (mixed content). Vercel calls Auditpr instead.
-        } else {
-          const auditprUrl = promptAuditprUrl();
-          if (!auditprUrl) return;
-          if (!canBrowserFetchAuditpr(auditprUrl)) {
-            localStorage.setItem('influo_auditpr_url', auditprUrl);
-          } else {
-            const health = await checkAuditprHealth(auditprUrl);
-            if (!health.ok) {
-              alert(lang === 'el'
-                ? `Δεν συνδέεται το Auditpr στο ${auditprUrl}.\n${health.error || ''}\n\nΤρέξτε EGGRISH.bat και δοκιμάστε ξανά.`
-                : `Cannot reach Auditpr at ${auditprUrl}.\n${health.error || ''}\n\nStart EGGRISH.bat and try again.`);
-              return;
-            }
+        if (isLocalAuditprUrl(stored || 'http://localhost:8000') && !stored.includes('130.162.39.149')) {
+          const prompted = promptAuditprUrl();
+          if (!prompted) return;
+          auditprUrl = toBrowserSafeAuditprUrl(prompted);
+        }
 
-            const bundle = await fetchAuditprOverridesForAccounts(auditprUrl, accountsToFetch, { delayMs: 1500 });
-            fetchErrors = bundle.errors;
-            accountFetchResults = bundle.accountResults;
-            if (Object.keys(bundle.instagramOverrides).length > 0) instagramOverrides = bundle.instagramOverrides;
-            if (Object.keys(bundle.tiktokOverrides).length > 0) tiktokOverrides = bundle.tiktokOverrides;
-            if (Object.keys(bundle.youtubeOverrides).length > 0) youtubeOverrides = bundle.youtubeOverrides;
+        localStorage.setItem('influo_auditpr_url', auditprUrl);
 
-            const fetchedCount =
-              Object.keys(bundle.instagramOverrides).length +
-              Object.keys(bundle.tiktokOverrides).length +
-              Object.keys(bundle.youtubeOverrides).length;
-            if (fetchedCount === 0) {
-              alert(lang === 'el'
-                ? `Δεν ανανεώθηκε κανένα account από το Auditpr.\n\n${fetchErrors.join('\n') || 'Άγνωστο σφάλμα.'}`
-                : `No accounts were refreshed from Auditpr.\n\n${fetchErrors.join('\n') || 'Unknown error.'}`);
-              return;
-            }
+        if (canBrowserFetchAuditpr(auditprUrl)) {
+          const health = await checkAuditprHealth(auditprUrl);
+          if (!health.ok) {
+            alert(lang === 'el'
+              ? `Δεν συνδέεται το Auditpr στο ${auditprUrl}.\n${health.error || ''}`
+              : `Cannot reach Auditpr at ${auditprUrl}.\n${health.error || ''}`);
+            return;
+          }
+
+          const bundle = await fetchAuditprOverridesForAccounts(auditprUrl, accountsToFetch, { delayMs: 1500 });
+          fetchErrors = bundle.errors;
+          accountFetchResults = bundle.accountResults;
+          if (Object.keys(bundle.instagramOverrides).length > 0) instagramOverrides = bundle.instagramOverrides;
+          if (Object.keys(bundle.tiktokOverrides).length > 0) tiktokOverrides = bundle.tiktokOverrides;
+          if (Object.keys(bundle.youtubeOverrides).length > 0) youtubeOverrides = bundle.youtubeOverrides;
+
+          const fetchedCount =
+            Object.keys(bundle.instagramOverrides).length +
+            Object.keys(bundle.tiktokOverrides).length +
+            Object.keys(bundle.youtubeOverrides).length;
+          if (fetchedCount === 0) {
+            alert(lang === 'el'
+              ? `Δεν ανανεώθηκε κανένα account από το Auditpr.\n\n${fetchErrors.join('\n') || 'Άγνωστο σφάλμα.'}`
+              : `No accounts were refreshed from Auditpr.\n\n${fetchErrors.join('\n') || 'Unknown error.'}`);
+            return;
           }
         }
       }
@@ -2359,7 +2367,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      const data = await res.json();
+      const raw = await res.text();
+      let data: { error?: string; message?: string; refreshed?: number; results?: { name: string; errors?: string[] }[] };
+      try {
+        data = raw ? JSON.parse(raw) : {};
+      } catch {
+        throw new Error(raw.slice(0, 280) || `HTTP ${res.status}`);
+      }
       if (!res.ok) throw new Error(data.error || 'Failed');
       const summary = data.results?.length
         ? data.results.map((r: { name: string; errors?: string[] }) => {
