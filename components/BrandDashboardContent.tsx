@@ -14,7 +14,16 @@ import { getCachedImageUrl } from '@/lib/imageProxy';
 import { prepareImageForStorage } from '@/lib/prepareImageForStorage';
 import BrandCampaignsSection from '@/components/BrandCampaignsSection';
 import BrandActionInbox from '@/components/BrandActionInbox';
+import BrandSaveInfluencerButton from '@/components/BrandSaveInfluencerButton';
+import BrandShortlistPanel from '@/components/BrandShortlistPanel';
 import InfluencerPresenceDot from '@/components/InfluencerPresenceDot';
+import {
+  addBrandShortlist,
+  fetchBrandShortlist,
+  removeBrandShortlist,
+  updateBrandShortlistNote,
+  type BrandShortlistItem,
+} from '@/lib/brandShortlist';
 
 // Categories (same as Directory and InfluencerSignupForm)
 const CATEGORIES = [
@@ -656,7 +665,10 @@ export default function BrandDashboardContent() {
       localStorage.setItem('brandDashboardStats', JSON.stringify(recommendationStats));
     }
   }, [recommendationStats]);
-  const [activeTab, setActiveTab] = useState<'recommendations' | 'campaigns' | 'proposals' | 'messages'>('recommendations');
+  const [activeTab, setActiveTab] = useState<'recommendations' | 'campaigns' | 'proposals' | 'messages' | 'shortlist'>('recommendations');
+  const [shortlist, setShortlist] = useState<BrandShortlistItem[]>([]);
+  const [shortlistMissingTable, setShortlistMissingTable] = useState(false);
+  const [shortlistBusyId, setShortlistBusyId] = useState<string | null>(null);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [pendingCampaignApplicationsCount, setPendingCampaignApplicationsCount] = useState(0);
   /** Ανοίγει το tab Μηνύματα με συγκεκριμένο influencer (από αίτηση καμπάνιας ή πρόταση). */
@@ -674,7 +686,8 @@ export default function BrandDashboardContent() {
       tab === 'campaigns' ||
       tab === 'messages' ||
       tab === 'proposals' ||
-      tab === 'recommendations'
+      tab === 'recommendations' ||
+      tab === 'shortlist'
     ) {
       setActiveTab(tab);
     }
@@ -692,6 +705,41 @@ export default function BrandDashboardContent() {
       return () => clearInterval(interval);
     }
   }, [brandData?.contact_email]);
+
+  const loadShortlist = async () => {
+    try {
+      const items = await fetchBrandShortlist();
+      setShortlist(items);
+      setShortlistMissingTable(false);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "";
+      if (msg === "missing_table") setShortlistMissingTable(true);
+    }
+  };
+
+  useEffect(() => {
+    if (brandData?.id) loadShortlist();
+  }, [brandData?.id]);
+
+  const toggleShortlist = async (influencerId: string) => {
+    const id = String(influencerId);
+    setShortlistBusyId(id);
+    try {
+      if (shortlist.some((s) => s.influencerId === id)) {
+        await removeBrandShortlist(id);
+        setShortlist((rows) => rows.filter((s) => s.influencerId !== id));
+      } else {
+        await addBrandShortlist(id);
+        await loadShortlist();
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "";
+      if (msg === "missing_table") setShortlistMissingTable(true);
+      else alert(lang === "el" ? "Δεν αποθηκεύτηκε. Δοκιμάστε ξανά." : "Could not save. Try again.");
+    } finally {
+      setShortlistBusyId(null);
+    }
+  };
 
   /** Εκκρεμείς αιτήσεις (pending) σε όλες τις καμπάνιες του brand — badges «Καμπάνιες» / «Αιτήσεις». */
   useEffect(() => {
@@ -1196,7 +1244,7 @@ export default function BrandDashboardContent() {
     p => p.counter_proposal_status === 'pending' && p.counter_proposal_budget
   );
 
-  const openBrandTab = (tab: 'recommendations' | 'campaigns' | 'proposals' | 'messages') => {
+  const openBrandTab = (tab: 'recommendations' | 'campaigns' | 'proposals' | 'messages' | 'shortlist') => {
     setActiveTab(tab);
     const url = tab === 'recommendations' ? '/brand/dashboard' : `/brand/dashboard?tab=${tab}`;
     router.replace(url, { scroll: false });
@@ -1354,6 +1402,21 @@ export default function BrandDashboardContent() {
                 {lang === 'el' ? '🤖 Προτάσεις' : '🤖 Recommendations'}
               </button>
               <button
+                onClick={() => openBrandTab('shortlist')}
+                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors whitespace-nowrap relative ${
+                  activeTab === 'shortlist'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {lang === 'el' ? '★ Οι influencers μου' : '★ My influencers'}
+                {shortlist.length > 0 && (
+                  <span className="ml-2 bg-amber-500 text-white text-xs font-bold rounded-full min-w-[16px] sm:min-w-[18px] h-[16px] sm:h-[18px] inline-flex items-center justify-center px-1">
+                    {shortlist.length > 99 ? '99+' : shortlist.length}
+                  </span>
+                )}
+              </button>
+              <button
                 onClick={() => setActiveTab('campaigns')}
                 className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors whitespace-nowrap relative ${
                   activeTab === 'campaigns'
@@ -1428,6 +1491,30 @@ export default function BrandDashboardContent() {
             </div>
           </div>
         </div>
+
+        {activeTab === 'shortlist' && (
+          <div className="mb-12">
+            <BrandShortlistPanel
+              lang={lang}
+              items={shortlist}
+              missingTable={shortlistMissingTable}
+              onNoteSave={async (influencerId, note) => {
+                await updateBrandShortlistNote(influencerId, note);
+                setShortlist((rows) =>
+                  rows.map((s) => (s.influencerId === influencerId ? { ...s, note } : s))
+                );
+              }}
+              onRemove={async (influencerId) => {
+                await removeBrandShortlist(influencerId);
+                setShortlist((rows) => rows.filter((s) => s.influencerId !== influencerId));
+              }}
+              onMessage={(influencerId, displayName) => {
+                setMessageTargetInfluencer({ id: influencerId, name: displayName });
+                openBrandTab('messages');
+              }}
+            />
+          </div>
+        )}
 
         {activeTab === 'campaigns' && brandData && (
           <div className="mb-12">
@@ -1815,6 +1902,12 @@ export default function BrandDashboardContent() {
                         >
                           {lang === "el" ? "💬 Μήνυμα" : "💬 Message"}
                         </button>
+                        <BrandSaveInfluencerButton
+                          lang={lang}
+                          saved={shortlist.some((s) => s.influencerId === String(inf.id))}
+                          busy={shortlistBusyId === String(inf.id)}
+                          onToggle={() => toggleShortlist(String(inf.id))}
+                        />
                       </div>
                     </div>
                   </div>

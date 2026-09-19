@@ -16,6 +16,9 @@ import { displayNameForLang } from "@/lib/greeklish";
 import { getVisitorId } from "@/lib/visitorId";
 import { trackOutboundSocialClick } from "@/lib/trackOutboundSocial";
 import { categoryTranslations } from "@/components/categoryTranslations";
+import { genderLabel, normalizeGender } from "@/lib/gender";
+import BrandSaveInfluencerButton from "@/components/BrandSaveInfluencerButton";
+import { addBrandShortlist, fetchBrandShortlist, removeBrandShortlist } from "@/lib/brandShortlist";
 
 type Params = Promise<{ id: string }>;
 
@@ -83,6 +86,7 @@ const t = {
     verified: "Επαληθευμένος",
     male: "Άνδρας",
     female: "Γυναίκα",
+    ai: "AI",
     lang: "Γλώσσες",
     foll: "Followers",
     about: "Σχετικά",
@@ -156,6 +160,7 @@ const t = {
     why_work_with_them: "Γιατί να συνεργαστώ μαζί του: ",
     why_work_with_them_male: "Γιατί να συνεργαστώ μαζί του: ",
     why_work_with_them_female: "Γιατί να συνεργαστώ μαζί της: ",
+    why_work_with_them_ai: "Γιατί να συνεργαστείτε: ",
     positives: "Θετικά",
     negatives: "Σημεία προσοχής",
     negatives_none: "Δεν υπάρχουν σημεία προσοχής.",
@@ -168,6 +173,7 @@ const t = {
     verified: "Verified",
     male: "Male",
     female: "Female",
+    ai: "AI",
     lang: "Languages",
     foll: "Followers",
     about: "About",
@@ -241,6 +247,7 @@ const t = {
     why_work_with_them: "Why work with them: ",
     why_work_with_them_male: "Why work with them: ",
     why_work_with_them_female: "Why work with them: ",
+    why_work_with_them_ai: "Why work with them: ",
     positives: "Positives",
     negatives: "Points to consider",
     negatives_none: "No points to note.",
@@ -297,6 +304,8 @@ export default function InfluencerProfile(props: { params: Params }) {
   const [reviewBrandName, setReviewBrandName] = useState("");
   const [reviewBrandEmail, setReviewBrandEmail] = useState("");
   const [isBrand, setIsBrand] = useState(false);
+  const [shortlistSaved, setShortlistSaved] = useState(false);
+  const [shortlistBusy, setShortlistBusy] = useState(false);
   const [growth30d, setGrowth30d] = useState<{ growth: number; growthPct: number } | null>(null);
 
   // Check if current user is a brand
@@ -366,6 +375,22 @@ export default function InfluencerProfile(props: { params: Params }) {
 
     checkUserType();
   }, []);
+
+  useEffect(() => {
+    if (!isBrand || !id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const items = await fetchBrandShortlist();
+        if (!cancelled) setShortlistSaved(items.some((s) => s.influencerId === String(id)));
+      } catch {
+        /* shortlist table may be missing */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isBrand, id]);
 
   // Check online status - only show online if influencer is actually logged in and active
   useEffect(() => {
@@ -1512,7 +1537,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                     {displayNameForLang(profile.name, lang)}
                 </h1>
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-1">
-                    <p className="text-slate-500">{profile.location} • {profile.gender === "Male" ? txt.male : txt.female}</p>
+                    <p className="text-slate-500">{profile.location} • {genderLabel(profile.gender, lang)}</p>
                     {isOnline && (
                         <span className="inline-flex items-center gap-1.5 bg-green-50 border border-green-200 text-green-700 px-3 py-1 rounded-full text-xs font-semibold animate-pulse">
                             <span className="w-2 h-2 bg-green-500 rounded-full"></span>
@@ -1624,6 +1649,30 @@ export default function InfluencerProfile(props: { params: Params }) {
                   >
                     <span>←</span> {lang === 'el' ? 'Πίσω στις Προτάσεις' : 'Back to Proposals'}
                   </a>
+                )}
+                {isBrand && (
+                  <BrandSaveInfluencerButton
+                    variant="profile"
+                    lang={lang}
+                    saved={shortlistSaved}
+                    busy={shortlistBusy}
+                    onToggle={async () => {
+                      setShortlistBusy(true);
+                      try {
+                        if (shortlistSaved) {
+                          await removeBrandShortlist(String(id));
+                          setShortlistSaved(false);
+                        } else {
+                          await addBrandShortlist(String(id));
+                          setShortlistSaved(true);
+                        }
+                      } catch {
+                        alert(lang === "el" ? "Δεν αποθηκεύτηκε. Δοκιμάστε ξανά." : "Could not save. Try again.");
+                      } finally {
+                        setShortlistBusy(false);
+                      }
+                    }}
+                  />
                 )}
                 <button onClick={() => setShowProposalModal(true)} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-transform hover:-translate-y-1 flex items-center gap-2">
                     <span>⚡</span> {txt.contact}
@@ -1972,7 +2021,13 @@ export default function InfluencerProfile(props: { params: Params }) {
                                         <li className="flex gap-2">
                                             <span className="text-indigo-500 mt-0.5 shrink-0">•</span>
                                             <span>
-                                                <strong>{lang === 'el' ? (profile.gender === 'Female' ? txt.why_work_with_them_female : txt.why_work_with_them_male) : txt.why_work_with_them}</strong>
+                                                <strong>{lang === 'el'
+                                                  ? (normalizeGender(profile.gender) === 'Female'
+                                                    ? txt.why_work_with_them_female
+                                                    : normalizeGender(profile.gender) === 'Male'
+                                                      ? txt.why_work_with_them_male
+                                                      : txt.why_work_with_them_ai)
+                                                  : txt.why_work_with_them}</strong>
                                                 {lang === 'en' ? (profile.auditpr_audit.whyWorkWithThem_en ?? profile.auditpr_audit.whyWorkWithThem) : profile.auditpr_audit.whyWorkWithThem}
                                             </span>
                                         </li>
