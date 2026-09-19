@@ -25,6 +25,7 @@ export default function BrandShortlistPanel({
   const el = lang === "el";
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(null);
 
   if (missingTable) {
     return (
@@ -112,14 +113,27 @@ export default function BrandShortlistPanel({
                             delete next[item.influencerId];
                             return next;
                           });
+                          setSavedId(item.influencerId);
+                          window.setTimeout(() => {
+                            setSavedId((cur) => (cur === item.influencerId ? null : cur));
+                          }, 2500);
+                        } catch {
+                          alert(el ? "Η σημείωση δεν αποθηκεύτηκε." : "The note was not saved.");
                         } finally {
                           setBusyId(null);
                         }
                       }}
                       className="text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-900 text-white disabled:opacity-40"
                     >
-                      {el ? "Αποθήκευση σημείωσης" : "Save note"}
+                      {busyId === item.influencerId
+                        ? (el ? "Αποθήκευση…" : "Saving…")
+                        : el ? "Αποθήκευση σημείωσης" : "Save note"}
                     </button>
+                    {savedId === item.influencerId ? (
+                      <span className="text-xs font-medium text-emerald-700 self-center">
+                        {el ? "Αποθηκεύτηκε" : "Saved"}
+                      </span>
+                    ) : null}
                     <Link
                       href={`/influencer/${item.influencerId}`}
                       className="text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-100 text-slate-800"
