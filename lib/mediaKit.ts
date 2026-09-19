@@ -14,6 +14,9 @@ export type MediaKitProfile = {
   avatarUrl?: string | null;
   accounts?: MediaKitAccount[] | null;
   profileUrl: string;
+  audienceMale?: number | null;
+  audienceFemale?: number | null;
+  audienceTopAge?: string | null;
 };
 
 function esc(value: string): string {

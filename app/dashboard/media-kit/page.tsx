@@ -24,7 +24,7 @@ export default function DashboardMediaKitPage() {
         }
         const { data: row, error: rowErr } = await supabase
           .from("influencers")
-          .select("display_name, bio, location, category, min_rate, avatar_url, accounts, approved")
+          .select("display_name, bio, location, category, min_rate, avatar_url, accounts, approved, audience_male_percent, audience_female_percent, audience_top_age")
           .eq("contact_email", session.user.email)
           .maybeSingle();
         if (rowErr) throw new Error(rowErr.message);
@@ -47,6 +47,9 @@ export default function DashboardMediaKitPage() {
           avatarUrl: row.avatar_url,
           accounts: row.accounts,
           profileUrl: link.url,
+          audienceMale: row.audience_male_percent,
+          audienceFemale: row.audience_female_percent,
+          audienceTopAge: row.audience_top_age,
         });
       } catch (e: unknown) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Σφάλμα");

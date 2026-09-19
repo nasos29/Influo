@@ -18,6 +18,13 @@ function handle(username?: string): string {
   return `@${String(username || "").replace(/^@+/, "")}`;
 }
 
+function parsePct(value: number | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0 || n > 100) return null;
+  return Math.round(n);
+}
+
 export default function MediaKitView({ profile }: { profile: MediaKitProfile }) {
   const rawAvatar = (profile.avatarUrl || "").trim();
   const avatarSrc = getCachedImageUrl(rawAvatar) || rawAvatar;
@@ -28,6 +35,12 @@ export default function MediaKitView({ profile }: { profile: MediaKitProfile }) 
   const location = (profile.location || "").trim();
   const bio = (profile.bio || "").trim().slice(0, 420);
   const qr = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=8&data=${encodeURIComponent(profile.profileUrl)}`;
+  const female = parsePct(profile.audienceFemale);
+  const male = parsePct(profile.audienceMale);
+  const topAge = (profile.audienceTopAge || "").trim();
+  const hasAudience = female !== null || male !== null || !!topAge;
+  const femaleW = female ?? (male !== null ? Math.max(0, 100 - male) : 0);
+  const maleW = male ?? (female !== null ? Math.max(0, 100 - female) : 0);
 
   return (
     <div className="mk">
@@ -220,6 +233,34 @@ export default function MediaKitView({ profile }: { profile: MediaKitProfile }) 
           font-size: 16px;
           font-weight: 600;
         }
+        .mk-audience {
+          margin-bottom: 24px;
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
+          padding: 14px 16px;
+        }
+        .mk-bar-wrap {
+          height: 10px;
+          background: #f1f5f9;
+          border-radius: 999px;
+          overflow: hidden;
+          display: flex;
+          margin: 8px 0 10px;
+        }
+        .mk-bar-f { background: #f472b6; height: 100%; }
+        .mk-bar-m { background: #60a5fa; height: 100%; }
+        .mk-aud-row {
+          display: flex;
+          justify-content: space-between;
+          gap: 12px;
+          font-size: 13px;
+          color: #334155;
+        }
+        .mk-age {
+          margin-top: 10px;
+          font-size: 14px;
+        }
+        .mk-age b { font-weight: 600; }
         .mk-foot {
           display: flex;
           justify-content: space-between;
@@ -341,10 +382,33 @@ export default function MediaKitView({ profile }: { profile: MediaKitProfile }) 
               <b>{rate ? `${rate}€` : "Κατόπιν συνεννόησης"}</b>
             </div>
             <div className="mk-card">
-              <span>Συνεργασίες</span>
-              <b>Μέσω Influo · πρόταση από το προφίλ</b>
+              <span>Συνεργασία</span>
+              <b>Πρόταση μέσω Influo.gr</b>
             </div>
           </section>
+
+          {hasAudience ? (
+            <section className="mk-audience">
+              <div className="mk-section-title">Κοινό</div>
+              {female !== null || male !== null ? (
+                <>
+                  <div className="mk-bar-wrap">
+                    <div className="mk-bar-f" style={{ width: `${femaleW}%` }} />
+                    <div className="mk-bar-m" style={{ width: `${maleW}%` }} />
+                  </div>
+                  <div className="mk-aud-row">
+                    <span>Γυναίκες {femaleW}%</span>
+                    <span>Άνδρες {maleW}%</span>
+                  </div>
+                </>
+              ) : null}
+              {topAge ? (
+                <div className="mk-age">
+                  Κύρια ηλικία: <b>{topAge}</b>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
 
           <footer className="mk-foot">
             <div>
