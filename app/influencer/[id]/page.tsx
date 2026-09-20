@@ -306,7 +306,7 @@ export default function InfluencerProfile(props: { params: Params }) {
   const [isBrand, setIsBrand] = useState(false);
   const [shortlistSaved, setShortlistSaved] = useState(false);
   const [shortlistBusy, setShortlistBusy] = useState(false);
-  const [growth30d, setGrowth30d] = useState<{ growth: number; growthPct: number } | null>(null);
+  const [growth30d, setGrowth30d] = useState<{ growth: number; growthPct: number | null } | null>(null);
 
   // Check if current user is a brand
   useEffect(() => {
@@ -796,8 +796,8 @@ export default function InfluencerProfile(props: { params: Params }) {
     fetch(`/api/influencer/${id}/growth`)
       .then((r) => r.json())
       .then((data: { growth?: number; growthPct?: number }) => {
-        if (data.growth != null && data.growthPct != null) {
-          setGrowth30d({ growth: data.growth, growthPct: data.growthPct });
+        if (data.growth != null) {
+          setGrowth30d({ growth: data.growth, growthPct: data.growthPct ?? null });
         } else {
           setGrowth30d(null);
         }
@@ -1812,7 +1812,10 @@ export default function InfluencerProfile(props: { params: Params }) {
                   {growth30d != null ? (
                     <>
                       <span className={`text-sm font-bold ${growth30d.growth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {growth30d.growth >= 0 ? '+' : ''}{formatNum(growth30d.growth)} ({growth30d.growthPct >= 0 ? '+' : ''}{growth30d.growthPct}%)
+                        {growth30d.growth >= 0 ? '+' : ''}{formatNum(growth30d.growth)}
+                        {growth30d.growthPct != null
+                          ? ` (${growth30d.growthPct >= 0 ? '+' : ''}${growth30d.growthPct}%)`
+                          : ''}
                       </span>
                     </>
                   ) : (

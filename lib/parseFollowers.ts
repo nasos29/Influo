@@ -22,6 +22,25 @@ export function totalFollowersFromAccounts(accounts: { followers?: string | numb
   return accounts.reduce((sum, acc) => sum + parseFollowerString(acc?.followers), 0);
 }
 
+/** True when two totals look like a missing-k / extra-k snapshot bug (e.g. 18 vs 18.3k). */
+export function looksLikeFollowerScaleTypo(a: number, b: number): boolean {
+  const hi = Math.max(a, b);
+  const lo = Math.min(a, b);
+  if (!(lo > 0) || !(hi > 0)) return false;
+  return [10, 100, 1000].some((factor) => Math.abs(lo * factor - hi) / hi < 0.25);
+}
+
+/** Baseline usable for a 30-day growth card vs current total. */
+export function isPlausibleFollowerBaseline(oldTotal: number, currentTotal: number): boolean {
+  if (!Number.isFinite(oldTotal) || !Number.isFinite(currentTotal) || oldTotal <= 0 || currentTotal <= 0) {
+    return false;
+  }
+  if (looksLikeFollowerScaleTypo(oldTotal, currentTotal)) return false;
+  const ratio = currentTotal / oldTotal;
+  if (ratio > 8 || ratio < 1 / 8) return false;
+  return true;
+}
+
 /**
  * Insert a follower snapshot for an influencer into the database.
  * @param supabaseAdmin - Supabase admin client
@@ -39,6 +58,23 @@ export async function insertFollowerSnapshot(
   }
   
   try {
+    const { data: last } = await supabaseAdmin
+      .from('influencer_follower_snapshots')
+      .select('total_followers')
+      .eq('influencer_id', influencerId)
+      .order('snapshot_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const lastTotal = last?.total_followers != null ? Number(last.total_followers) : null;
+    if (
+      lastTotal != null &&
+      Number.isFinite(lastTotal) &&
+      looksLikeFollowerScaleTypo(lastTotal, totalFollowers) &&
+      totalFollowers < lastTotal
+    ) {
+      return;
+    }
+
     await supabaseAdmin
       .from('influencer_follower_snapshots')
       .insert({

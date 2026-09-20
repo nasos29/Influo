@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { totalFollowersFromAccounts } from '@/lib/parseFollowers';
+import { isPlausibleFollowerBaseline, totalFollowersFromAccounts } from '@/lib/parseFollowers';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -36,18 +36,12 @@ export async function GET(
     const accounts = (influencer.accounts as Array<{ followers?: string | number | null }>) ?? [];
     const currentTotal = totalFollowersFromAccounts(accounts);
 
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const thirtyIso = thirtyDaysAgo.toISOString();
-
-    const { data: snapshot30, error: snapErr } = await supabaseAdmin
+    const { data: snapshots, error: snapErr } = await supabaseAdmin
       .from('influencer_follower_snapshots')
       .select('total_followers, snapshot_at')
       .eq('influencer_id', id)
-      .lte('snapshot_at', thirtyIso)
       .order('snapshot_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(90);
 
     if (snapErr && /relation|table|does not exist/i.test(snapErr.message)) {
       return NextResponse.json({
@@ -63,49 +57,39 @@ export async function GET(
       console.warn('[influencer growth] snapshot query:', snapErr.message);
     }
 
-    // If every snapshot is newer than T−30d (common right after snapshots ship, or rare
-    // refreshes), fall back to the earliest snapshot so the card is not blank — still a
-    // meaningful delta vs first recorded total, as long as it is not same-moment noise.
-    let snapshot = snapshot30;
-    if (!snapshot30) {
-      const { data: oldest, error: oldErr } = await supabaseAdmin
-        .from('influencer_follower_snapshots')
-        .select('total_followers, snapshot_at')
-        .eq('influencer_id', id)
-        .order('snapshot_at', { ascending: true })
-        .limit(1)
-        .maybeSingle();
-      if (!oldErr && oldest?.snapshot_at) {
-        const at = new Date(oldest.snapshot_at as string).getTime();
-        const ageMs = Date.now() - at;
-        const MIN_FALLBACK_BASELINE_MS = 24 * 60 * 60 * 1000;
-        if (Number.isFinite(at) && ageMs >= MIN_FALLBACK_BASELINE_MS) {
-          snapshot = oldest;
-        }
-      }
-    }
+    const rows = (snapshots || [])
+      .map((s) => ({
+        total: Number(s.total_followers),
+        at: new Date(s.snapshot_at as string).getTime(),
+      }))
+      .filter((s) => Number.isFinite(s.total) && Number.isFinite(s.at) && s.total > 0);
 
-    // Postgres BIGINT may arrive as string; normalize.
-    const rawOld = snapshot?.total_followers;
-    const oldTotal =
-      rawOld == null ? null : Number(rawOld);
+    const now = Date.now();
+    const thirtyMs = 30 * 24 * 60 * 60 * 1000;
+    const minFallbackAgeMs = 7 * 24 * 60 * 60 * 1000;
+
+    const plausible = rows.filter((s) => isPlausibleFollowerBaseline(s.total, currentTotal));
+    const baseline30 = plausible.find((s) => now - s.at >= thirtyMs);
+    const fallback = [...plausible].reverse().find((s) => now - s.at >= minFallbackAgeMs);
+    const baseline = baseline30 || fallback;
+
     let growth: number | null = null;
     let growthPct: number | null = null;
+    const oldTotal = baseline?.total ?? null;
 
-    // Compare to the newest snapshot at or before T−30d. Do not cap how old that
-    // baseline may be: a 45d max-age here combined with "lte 30d ago" left only a
-    // ~15d window and hid growth for most sparse snapshot schedules.
-    if (oldTotal != null && Number.isFinite(oldTotal) && oldTotal > 0) {
+    if (oldTotal != null) {
       growth = currentTotal - oldTotal;
-      growthPct = (growth / oldTotal) * 100;
+      const pct = (growth / oldTotal) * 100;
+      if (Math.abs(pct) <= 250) {
+        growthPct = Math.round(pct * 10) / 10;
+      }
     }
 
     return NextResponse.json({
       currentTotal,
-      oldTotal:
-        oldTotal != null && Number.isFinite(oldTotal) ? oldTotal : undefined,
+      oldTotal: oldTotal ?? undefined,
       growth: growth ?? undefined,
-      growthPct: growthPct != null ? Math.round(growthPct * 10) / 10 : undefined,
+      growthPct: growthPct ?? undefined,
     });
   } catch (err) {
     console.error('[influencer growth]', err);
