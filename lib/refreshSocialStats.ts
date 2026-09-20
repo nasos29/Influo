@@ -13,7 +13,7 @@ import {
   type SocialMetrics,
 } from '@/lib/socialRefresh';
 import { runAuditGemini } from '@/lib/auditGemini';
-import { totalFollowersFromAccounts } from '@/lib/parseFollowers';
+import { totalFollowersFromAccounts, totalPostsFromAccounts } from '@/lib/parseFollowers';
 
 type AccountRow = {
   platform: string;
@@ -21,6 +21,8 @@ type AccountRow = {
   followers?: string;
   engagement_rate?: string;
   avg_likes?: string;
+  posts_count?: number;
+  avg_views?: number | null;
 };
 
 function isSocialMetrics(x: SocialMetrics | { error: string }): x is SocialMetrics {
@@ -34,11 +36,11 @@ export type RefreshResult = {
 };
 
 /** Instagram metrics keyed by username (without @). Used when frontend fetches from local Auditpr. */
-export type InstagramOverrides = Record<string, { followers: string; engagement_rate: string; avg_likes: string }>;
+export type InstagramOverrides = Record<string, { followers: string; engagement_rate: string; avg_likes: string; posts_count?: number; avg_views?: number | null }>;
 /** TikTok metrics keyed by username (without @). Used when frontend fetches from local Auditpr. */
-export type TikTokOverrides = Record<string, { followers: string; engagement_rate: string; avg_likes: string }>;
+export type TikTokOverrides = Record<string, { followers: string; engagement_rate: string; avg_likes: string; posts_count?: number; avg_views?: number | null }>;
 /** YouTube metrics keyed by username (without @). Used when frontend fetches from local Auditpr. */
-export type YouTubeOverrides = Record<string, { followers: string; engagement_rate: string; avg_likes: string }>;
+export type YouTubeOverrides = Record<string, { followers: string; engagement_rate: string; avg_likes: string; posts_count?: number; avg_views?: number | null }>;
 
 export async function doRefreshSocialStats(
   supabaseAdmin: SupabaseClient,
@@ -175,6 +177,8 @@ export async function doRefreshSocialStats(
           followers: metrics.followers,
           engagement_rate: metrics.engagement_rate,
           avg_likes: metrics.avg_likes,
+          ...(metrics.posts_count != null ? { posts_count: metrics.posts_count } : {}),
+          ...(metrics.avg_views != null && metrics.avg_views > 0 ? { avg_views: metrics.avg_views } : {}),
         };
         if (fetchedViaAuditpr && !firstRefreshedForAudit) {
           firstRefreshedForAudit = { platform: platformLower, username: username.replace(/^@+/, '').trim() };
@@ -267,13 +271,26 @@ export async function doRefreshSocialStats(
       errors.push(`DB update: ${updateError.message}`);
     } else {
       const total = totalFollowersFromAccounts(updatePayload.accounts);
+      const totalPosts = totalPostsFromAccounts(updatePayload.accounts);
       if (total > 0) {
-        const { error: snapErr } = await supabaseAdmin.from('influencer_follower_snapshots').insert({
+        const snapshotAt = new Date().toISOString();
+        const snapFull = {
           influencer_id: inf.id,
-          snapshot_at: new Date().toISOString(),
+          snapshot_at: snapshotAt,
           total_followers: total,
-        });
-        if (snapErr && !/relation|table|does not exist/i.test(snapErr.message)) {
+          total_posts: totalPosts > 0 ? totalPosts : null,
+        };
+        const { error: snapErr } = await supabaseAdmin.from('influencer_follower_snapshots').insert(snapFull);
+        if (snapErr && /column|total_posts/i.test(snapErr.message)) {
+          const { error: snapRetry } = await supabaseAdmin.from('influencer_follower_snapshots').insert({
+            influencer_id: inf.id,
+            snapshot_at: snapshotAt,
+            total_followers: total,
+          });
+          if (snapRetry && !/relation|table|does not exist/i.test(snapRetry.message)) {
+            errors.push(`Snapshot: ${snapRetry.message}`);
+          }
+        } else if (snapErr && !/relation|table|does not exist/i.test(snapErr.message)) {
           errors.push(`Snapshot: ${snapErr.message}`);
         }
       }

@@ -174,11 +174,14 @@ def scrape(platform: str, username: str) -> dict[str, Any]:
     if followers_n == 0 and avg_likes_n == 0 and posts_n == 0:
         return {"ok": False, "error": f"Λάθος username: το προφίλ @{username} δεν υπάρχει."}
     engagement = data.get("engagement_rate")
+    avg_views_n = parse_count(data.get("avg_views") or data.get("avg_plays") or data.get("average_views"))
     return {
         "ok": True,
         "followers": format_followers(followers_n),
         "engagement_rate": engagement if isinstance(engagement, str) else str(engagement or "N/A"),
         "avg_likes": str(int(round(avg_likes_n))),
+        "posts_count": int(round(posts_n)),
+        "avg_views": int(round(avg_views_n)) if avg_views_n > 0 else None,
     }
 
 
@@ -261,6 +264,8 @@ def main() -> None:
                 "followers": result.get("followers"),
                 "engagement_rate": result.get("engagement_rate"),
                 "avg_likes": result.get("avg_likes"),
+                "posts_count": result.get("posts_count"),
+                "avg_views": result.get("avg_views"),
                 "error": result.get("error"),
             }
             scraped.append(row)

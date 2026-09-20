@@ -22,6 +22,14 @@ export function totalFollowersFromAccounts(accounts: { followers?: string | numb
   return accounts.reduce((sum, acc) => sum + parseFollowerString(acc?.followers), 0);
 }
 
+/** Sum posts_count from accounts array. */
+export function totalPostsFromAccounts(
+  accounts: { posts_count?: string | number | null }[] | null | undefined
+): number {
+  if (!Array.isArray(accounts)) return 0;
+  return accounts.reduce((sum, acc) => sum + parseFollowerString(acc?.posts_count), 0);
+}
+
 /** Factor (10/100/1000) if two totals look like a missing-k snapshot, else null. */
 export function followerScaleFactor(lo: number, hi: number): number | null {
   if (!(lo > 0) || !(hi > 0) || lo >= hi) return null;
@@ -70,7 +78,7 @@ export function isPlausibleFollowerBaseline(oldTotal: number, currentTotal: numb
 export async function insertFollowerSnapshot(
   supabaseAdmin: any,
   influencerId: string,
-  accounts: { followers?: string | number | null }[] | null | undefined
+  accounts: { followers?: string | number | null; posts_count?: string | number | null }[] | null | undefined
 ): Promise<void> {
   const totalFollowers = totalFollowersFromAccounts(accounts);
   if (totalFollowers <= 0) {
@@ -95,13 +103,25 @@ export async function insertFollowerSnapshot(
       return;
     }
 
-    await supabaseAdmin
+    const snapshotAt = new Date().toISOString();
+    const totalPosts = totalPostsFromAccounts(accounts);
+    const { error: snapErr } = await supabaseAdmin
       .from('influencer_follower_snapshots')
       .insert({
         influencer_id: influencerId,
-        snapshot_at: new Date().toISOString(),
+        snapshot_at: snapshotAt,
+        total_followers: totalFollowers,
+        total_posts: totalPosts > 0 ? totalPosts : null,
+      });
+    if (snapErr && /column|total_posts/i.test(snapErr.message)) {
+      await supabaseAdmin.from('influencer_follower_snapshots').insert({
+        influencer_id: influencerId,
+        snapshot_at: snapshotAt,
         total_followers: totalFollowers,
       });
+    } else if (snapErr) {
+      console.error('Error inserting follower snapshot:', snapErr.message);
+    }
   } catch (err) {
     console.error('Error inserting follower snapshot:', err);
   }

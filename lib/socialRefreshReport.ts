@@ -141,6 +141,8 @@ function buildAccountRows(
         Followers: fetched?.followers ?? '—',
         [lang === 'el' ? 'Engagement rate' : 'Engagement rate']: fetched?.engagement_rate ?? '—',
         [lang === 'el' ? 'Μ.Ο. likes' : 'Avg likes']: fetched?.avg_likes ?? '—',
+        [lang === 'el' ? 'Posts' : 'Posts']: fetched?.posts_count != null ? String(fetched.posts_count) : '—',
+        [lang === 'el' ? 'Μ.Ο. views' : 'Avg views']: fetched?.avg_views != null ? String(fetched.avg_views) : '—',
         [lang === 'el' ? 'Λόγος αποτυχίας' : 'Failure reason']: fetched?.error ?? (fetched ? '—' : lang === 'el' ? 'Δεν ελήφθησαν δεδομένα' : 'No data received'),
       });
     }

@@ -7,6 +7,8 @@ export type SocialMetrics = {
   followers: string;
   engagement_rate: string;
   avg_likes: string;
+  posts_count?: number;
+  avg_views?: number | null;
 };
 
 function formatFollowers(num: number): string {
@@ -31,6 +33,15 @@ function parseFollowersFromApi(value: unknown): number {
   return Math.round(n);
 }
 
+function pickPositiveCount(data: Record<string, unknown>, keys: string[]): number | null {
+  for (const key of keys) {
+    if (!(key in data) || data[key] == null || data[key] === '') continue;
+    const n = parseFollowersFromApi(data[key]);
+    if (n > 0) return n;
+  }
+  return null;
+}
+
 function metricsFromAuditprData(
   data: Record<string, unknown>,
   username: string
@@ -49,6 +60,13 @@ function metricsFromAuditprData(
   const avg_likes = Number(data.avg_likes) || 0;
   const engagement_rate = typeof data.engagement_rate === 'string' ? data.engagement_rate : 'N/A';
   const posts = parseFollowersFromApi(data.posts_count);
+  const avg_views = pickPositiveCount(data, [
+    'avg_views',
+    'avg_plays',
+    'average_views',
+    'avg_video_views',
+    'avg_view_count',
+  ]);
   if (followers === 0 && avg_likes === 0 && posts === 0) {
     return { error: `Λάθος username: το προφίλ @${username} δεν υπάρχει.` };
   }
@@ -56,6 +74,8 @@ function metricsFromAuditprData(
     followers: formatFollowers(followers),
     engagement_rate,
     avg_likes: String(avg_likes),
+    posts_count: posts,
+    avg_views,
   };
 }
 
@@ -154,6 +174,8 @@ export type AccountFetchResult = {
   followers?: string;
   engagement_rate?: string;
   avg_likes?: string;
+  posts_count?: number;
+  avg_views?: number | null;
   error?: string;
 };
 
@@ -230,6 +252,8 @@ export async function fetchAuditprOverridesForAccounts(
         followers: result.followers,
         engagement_rate: result.engagement_rate,
         avg_likes: result.avg_likes,
+        posts_count: result.posts_count,
+        avg_views: result.avg_views,
       });
     } else {
       const u = username.replace(/^@+/, '').trim();

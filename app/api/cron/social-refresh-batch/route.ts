@@ -43,6 +43,8 @@ type ScrapedAccount = {
   followers?: string;
   engagement_rate?: string;
   avg_likes?: string;
+  posts_count?: number;
+  avg_views?: number | null;
   error?: string;
 };
 
@@ -267,6 +269,8 @@ export async function POST(request: NextRequest) {
           followers: String(acc.followers || ''),
           engagement_rate: String(acc.engagement_rate || 'N/A'),
           avg_likes: String(acc.avg_likes || '0'),
+          ...(acc.posts_count != null ? { posts_count: Number(acc.posts_count) } : {}),
+          ...(acc.avg_views != null && Number(acc.avg_views) > 0 ? { avg_views: Number(acc.avg_views) } : {}),
         };
         if (platform === 'instagram') instagramOverrides[username] = metrics;
         else if (platform === 'tiktok') tiktokOverrides[username] = metrics;
