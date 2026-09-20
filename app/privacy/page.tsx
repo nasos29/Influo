@@ -42,7 +42,7 @@ export default function PrivacyPage() {
       section4_text: "Χρησιμοποιούμε σύγχρονες τεχνικές ασφαλείας για προστασία των δεδομένων σας. Ωστόσο, κανείς δεν μπορεί να εγγυηθεί 100% ασφάλεια στο διαδίκτυο. Χρησιμοποιείτε την πλατφόρμα με δική σας ευθύνη.",
       
       section5_title: "5. COOKIES",
-      section5_text: "Χρησιμοποιούμε cookies για λειτουργικότητα, analytics και προσωποποίηση εμπειρίας. Μπορείτε να τα απενεργοποιήσετε από τις ρυθμίσεις του browser σας.",
+      section5_text: "Τα απαραίτητα cookies (σύνδεση, ασφάλεια, γλώσσα) λειτουργούν χωρίς συγκατάθεση. Τα Google Analytics και Google Ads ενεργοποιούνται μόνο αν πατήσετε Αποδοχή στο banner. Μπορείτε να αλλάξετε την επιλογή σας ανά πάσα στιγμή από την Πολιτική Cookies.",
       
       section6_title: "6. ΔΙΚΑΙΩΜΑΤΑ ΧΡΗΣΤΩΝ",
       section6_text: "Έχετε το δικαίωμα να:",
@@ -98,7 +98,7 @@ export default function PrivacyPage() {
       section4_text: "We use modern security techniques to protect your data. However, no one can guarantee 100% security on the internet. You use the platform at your own risk.",
       
       section5_title: "5. COOKIES",
-      section5_text: "We use cookies for functionality, analytics, and personalization. You can disable them from your browser settings.",
+      section5_text: "Essential cookies (login, security, language) work without consent. Google Analytics and Google Ads run only if you tap Accept on the banner. You can change your choice at any time from the Cookie Policy page.",
       
       section6_title: "6. USER RIGHTS",
       section6_text: "You have the right to:",

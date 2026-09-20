@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { Roboto } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
+import CookieConsent from "@/components/CookieConsent";
 
 const roboto = Roboto({
   weight: ['300', '400', '500', '700'],
@@ -170,21 +171,8 @@ export default async function RootLayout({
 })();
           `}
         </Script>
-        {/* Google tag (gtag.js): Analytics + Google Ads */}
-        <Script
-          src="https://www.googletagmanager.com/gtag/js?id=G-WPL9D1TX3N"
-          strategy="afterInteractive"
-        />
-        <Script id="google-analytics-ads" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', 'G-WPL9D1TX3N');
-            gtag('config', 'AW-18064167249');
-          `}
-        </Script>
         {children}
+        <CookieConsent />
       </body>
     </html>
   );

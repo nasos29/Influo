@@ -1,8 +1,11 @@
+import { hasAnalyticsConsent } from "@/lib/cookieConsent";
+
 const STORAGE_KEY = 'influo_visitor_id';
 
 /** Get or create a persistent anonymous visitor ID (for unique-per-user analytics). */
 export function getVisitorId(): string {
   if (typeof window === 'undefined') return '';
+  if (!hasAnalyticsConsent()) return '';
   try {
     let id = localStorage.getItem(STORAGE_KEY);
     if (!id) {

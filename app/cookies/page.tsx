@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
+import CookiePreferenceControls from '@/components/CookiePreferenceControls';
 
 export default function CookiesPage() {
   const pathname = usePathname();
@@ -19,7 +20,7 @@ export default function CookiesPage() {
     el: {
       title: "Πολιτική Cookies",
       lastUpdated: "Τελευταία ενημέρωση:",
-      intro: "Αυτή η Πολιτική Cookies εξηγεί τι είναι τα cookies, πώς τα χρησιμοποιούμε στην πλατφόρμα Influo.gr και ποια είναι τα δικαιώματά σας σχετικά με αυτά.",
+      intro: "Αυτή η Πολιτική Cookies εξηγεί τι είναι τα cookies, πώς τα χρησιμοποιούμε στην πλατφόρμα Influo.gr και ποια είναι τα δικαιώματά σας σχετικά με αυτά. Τα μη απαραίτητα cookies (Google Analytics και Google Ads) τοποθετούνται μόνο μετά την αποδοχή σας.",
       
       section1_title: "1. ΤΙ ΕΙΝΑΙ ΤΑ COOKIES",
       section1_text: "Τα cookies είναι μικρά αρχεία κειμένου που τοποθετούνται στον υπολογιστή ή τη συσκευή σας όταν επισκέπτεστε μια ιστοσελίδα. Αποθηκεύουν πληροφορίες σχετικά με την περιήγησή σας και βοηθούν την ιστοσελίδα να λειτουργεί πιο αποτελεσματικά.",
@@ -27,7 +28,7 @@ export default function CookiesPage() {
       section2_title: "2. ΠΩΣ ΧΡΗΣΙΜΟΠΟΙΟΥΜΕ ΤΑ COOKIES",
       section2_text: "Χρησιμοποιούμε cookies για διάφορους σκοπούς:",
       section2_list1: "Απαραίτητα Cookies: Αυτά είναι απαραίτητα για τη λειτουργία της πλατφόρμας, όπως η διατήρηση της σύνδεσής σας και η αποθήκευση των προτιμήσεών σας",
-      section2_list2: "Αναλυτικά Cookies: Χρησιμοποιούμε cookies για να κατανοήσουμε πώς οι χρήστες χρησιμοποιούν την πλατφόρμα, ώστε να τη βελτιώσουμε",
+      section2_list2: "Αναλυτικά / διαφημιστικά Cookies: Google Analytics και Google Ads — μόνο με τη συγκατάθεσή σας",
       section2_list3: "Λειτουργικά Cookies: Αυτά επιτρέπουν στην πλατφόρμα να θυμάται τις επιλογές σας (όπως γλώσσα, θέμα) για να παρέχει βελτιωμένη εμπειρία",
       
       section3_title: "3. ΤΥΠΟΙ COOKIES",
@@ -42,7 +43,7 @@ export default function CookiesPage() {
       
       section5_title: "5. ΔΙΚΑΙΩΜΑΤΑ ΧΡΗΣΤΩΝ",
       section5_text: "Έχετε το δικαίωμα να:",
-      section5_list1: "Αποδεχτείτε ή απορρίψετε cookies μέσω των ρυθμίσεων του browser σας",
+      section5_list1: "Αποδεχτείτε ή απορρίψετε τα μη απαραίτητα cookies από το banner ή από αυτή τη σελίδα",
       section5_list2: "Διαγράψετε cookies που έχουν ήδη τοποθετηθεί",
       section5_list3: "Αλλάξετε τις προτιμήσεις cookies σας ανά πάσα στιγμή",
       section5_text2: "Σημείωση: Η αποκλειστική χρήση ή διαγραφή cookies μπορεί να επηρεάσει τη λειτουργικότητα της πλατφόρμας.",
@@ -72,7 +73,7 @@ export default function CookiesPage() {
     en: {
       title: "Cookie Policy",
       lastUpdated: "Last updated:",
-      intro: "This Cookie Policy explains what cookies are, how we use them on the Influo.gr platform, and what your rights are regarding them.",
+      intro: "This Cookie Policy explains what cookies are, how we use them on the Influo.gr platform, and what your rights are regarding them. Non-essential cookies (Google Analytics and Google Ads) are set only after you accept.",
       
       section1_title: "1. WHAT ARE COOKIES",
       section1_text: "Cookies are small text files that are placed on your computer or device when you visit a website. They store information about your browsing and help the website function more efficiently.",
@@ -80,7 +81,7 @@ export default function CookiesPage() {
       section2_title: "2. HOW WE USE COOKIES",
       section2_text: "We use cookies for various purposes:",
       section2_list1: "Essential Cookies: These are necessary for the platform to function, such as maintaining your connection and storing your preferences",
-      section2_list2: "Analytics Cookies: We use cookies to understand how users use the platform so we can improve it",
+      section2_list2: "Analytics / advertising cookies: Google Analytics and Google Ads — only with your consent",
       section2_list3: "Functional Cookies: These allow the platform to remember your choices (such as language, theme) to provide an enhanced experience",
       
       section3_title: "3. TYPES OF COOKIES",
@@ -95,7 +96,7 @@ export default function CookiesPage() {
       
       section5_title: "5. USER RIGHTS",
       section5_text: "You have the right to:",
-      section5_list1: "Accept or reject cookies through your browser settings",
+      section5_list1: "Accept or reject non-essential cookies from the banner or from this page",
       section5_list2: "Delete cookies that have already been placed",
       section5_list3: "Change your cookie preferences at any time",
       section5_text2: "Note: Completely blocking or deleting cookies may affect the platform's functionality.",
@@ -159,6 +160,7 @@ export default function CookiesPage() {
         <div className="prose prose-slate max-w-none space-y-8">
           <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
             <p className="text-slate-700 leading-relaxed">{txt.intro}</p>
+            <CookiePreferenceControls lang={lang} />
           </div>
 
           <section className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">

@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import InfluoAppPromoSection from "./InfluoAppPromoSection";
 import { supabase } from "@/lib/supabaseClient";
+import { openCookieSettings } from "@/lib/cookieConsent";
 
 interface FooterProps {
   lang?: "el" | "en";
@@ -64,6 +65,7 @@ export default function Footer({ lang = "el" }: FooterProps) {
       privacy: "Απόρρητο",
       terms: "Όροι Χρήσης",
       cookies: "Cookies",
+      cookieSettings: "Ρυθμίσεις cookies",
       rights: "Με επιφύλαξη παντός δικαιώματος.",
       follow: "Ακολουθήστε μας",
       newsletter: "Ενημερωθείτε",
@@ -92,6 +94,7 @@ export default function Footer({ lang = "el" }: FooterProps) {
       privacy: "Privacy",
       terms: "Terms",
       cookies: "Cookies",
+      cookieSettings: "Cookie settings",
       rights: "All rights reserved.",
       follow: "Follow Us",
       newsletter: "Stay Updated",
@@ -306,6 +309,13 @@ export default function Footer({ lang = "el" }: FooterProps) {
               <Link href={lang === "en" ? "/en/cookies" : "/cookies"} className="text-slate-400 hover:text-white transition-colors">
                 {txt.cookies}
               </Link>
+              <button
+                type="button"
+                onClick={() => openCookieSettings()}
+                className="text-slate-400 hover:text-white transition-colors"
+              >
+                {txt.cookieSettings}
+              </button>
             </div>
           </div>
         </div>
