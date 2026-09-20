@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   AXIS_LABELS,
   qualityColor,
@@ -157,42 +158,49 @@ export default function ChannelScorePanel({
           {costPer1k != null && isBrand ? (
             <div className="mt-1 text-2xl font-extrabold text-slate-900 tabular-nums">{costPer1k}€</div>
           ) : costPer1k != null ? (
-            <div className="mt-1 text-2xl font-extrabold text-slate-900 blur-md select-none">{costPer1k}€</div>
+            <>
+              <div className="mt-1 text-2xl font-extrabold text-slate-900 blur-md select-none">{costPer1k}€</div>
+              <p className="text-[11px] text-slate-500 mt-1 leading-snug">
+                <Link href="/login" className="text-blue-600 underline hover:text-blue-800">
+                  {el ? "Σύνδεση" : "Login"}
+                </Link>
+                {el ? " επιχείρησης για να δείτε την τιμή." : " as a brand to see the price."}
+              </p>
+            </>
           ) : (
             <div className="mt-1 text-lg font-bold text-slate-400">—</div>
           )}
-          <p className="text-[11px] text-slate-500 mt-1 leading-snug">
-            {el
-              ? "Από το min rate, όχι CPM προβολών (δεν έχουμε views)."
-              : "From min rate, not view CPM (we do not have views)."}
-          </p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
           <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
             {el ? "Integration" : "Integration"}
           </div>
           {integrationFrom != null && integrationTo != null && isBrand ? (
-            <div className="mt-1 text-lg font-extrabold text-slate-900 tabular-nums">
-              {money(integrationFrom)} – {money(integrationTo)}
-            </div>
+            <>
+              <div className="mt-1 text-lg font-extrabold text-slate-900 tabular-nums">
+                {money(integrationFrom)} – {money(integrationTo)}
+              </div>
+              {integrationIsEstimate && (
+                <p className="text-[11px] text-slate-500 mt-1">{el ? "Εκτίμηση" : "Estimate"}</p>
+              )}
+            </>
           ) : integrationFrom != null && integrationTo != null ? (
-            <div className="mt-1 text-lg font-extrabold text-slate-900 blur-md select-none">
-              {money(integrationFrom)} – {money(integrationTo)}
-            </div>
+            <>
+              <div className="mt-1 text-lg font-extrabold text-slate-900 blur-md select-none">
+                {money(integrationFrom)} – {money(integrationTo)}
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1 leading-snug">
+                <Link href="/login" className="text-blue-600 underline hover:text-blue-800">
+                  {el ? "Σύνδεση" : "Login"}
+                </Link>
+                {el ? " επιχείρησης για να δείτε την τιμή." : " as a brand to see the price."}
+              </p>
+            </>
           ) : (
             <div className="mt-1 text-lg font-bold text-slate-400">
               {el ? "Κατόπιν συνεννόησης" : "On request"}
             </div>
           )}
-          <p className="text-[11px] text-slate-500 mt-1 leading-snug">
-            {integrationIsEstimate
-              ? el
-                ? "Εκτίμηση πακέτου από min rate. Όχι τιμή αγοράς."
-                : "Package estimate from min rate. Not a market quote."
-              : el
-                ? "Από τις δηλωμένες τιμές υπηρεσιών."
-                : "From the listed service rates."}
-          </p>
         </div>
       </div>
     </section>
