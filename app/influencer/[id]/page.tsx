@@ -21,6 +21,7 @@ import BrandSaveInfluencerButton from "@/components/BrandSaveInfluencerButton";
 import { addBrandShortlist, fetchBrandShortlist, removeBrandShortlist } from "@/lib/brandShortlist";
 import ChannelScorePanel from "@/components/ChannelScorePanel";
 import FollowerGrowthChart from "@/components/FollowerGrowthChart";
+import StatsInsightsPanel from "@/components/StatsInsightsPanel";
 import { buildChannelScore } from "@/lib/channelScore";
 import type { FollowerGrowthPoint } from "@/lib/followerGrowth";
 
@@ -2030,6 +2031,13 @@ export default function InfluencerProfile(props: { params: Params }) {
                   {...scoreChannelFromProfile(profile, growth30d?.growthPct ?? null)}
                 />
                 <FollowerGrowthChart lang={lang} points={growthSeries} />
+                <StatsInsightsPanel
+                  lang={lang}
+                  influencerId={String(id)}
+                  followers={profile.followers || {}}
+                  engagementRate={profile.engagement_rate}
+                  avgLikes={profile.avg_likes}
+                />
               </div>
             )}
             <div className="lg:col-span-2 space-y-8">
