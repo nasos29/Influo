@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { isPlausibleFollowerBaseline, totalFollowersFromAccounts } from '@/lib/parseFollowers';
+import { alignFollowerSnapshotToCurrent, totalFollowersFromAccounts } from '@/lib/parseFollowers';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -58,19 +58,20 @@ export async function GET(
     }
 
     const rows = (snapshots || [])
-      .map((s) => ({
-        total: Number(s.total_followers),
-        at: new Date(s.snapshot_at as string).getTime(),
-      }))
-      .filter((s) => Number.isFinite(s.total) && Number.isFinite(s.at) && s.total > 0);
+      .map((s) => {
+        const raw = Number(s.total_followers);
+        const at = new Date(s.snapshot_at as string).getTime();
+        const total = alignFollowerSnapshotToCurrent(raw, currentTotal);
+        return { total, at };
+      })
+      .filter((s): s is { total: number; at: number } => s.total != null && Number.isFinite(s.at) && s.total > 0);
 
     const now = Date.now();
     const thirtyMs = 30 * 24 * 60 * 60 * 1000;
     const minFallbackAgeMs = 7 * 24 * 60 * 60 * 1000;
 
-    const plausible = rows.filter((s) => isPlausibleFollowerBaseline(s.total, currentTotal));
-    const baseline30 = plausible.find((s) => now - s.at >= thirtyMs);
-    const fallback = [...plausible].reverse().find((s) => now - s.at >= minFallbackAgeMs);
+    const baseline30 = rows.find((s) => now - s.at >= thirtyMs);
+    const fallback = [...rows].reverse().find((s) => now - s.at >= minFallbackAgeMs);
     const baseline = baseline30 || fallback;
 
     let growth: number | null = null;
@@ -78,11 +79,8 @@ export async function GET(
     const oldTotal = baseline?.total ?? null;
 
     if (oldTotal != null) {
-      growth = currentTotal - oldTotal;
-      const pct = (growth / oldTotal) * 100;
-      if (Math.abs(pct) <= 250) {
-        growthPct = Math.round(pct * 10) / 10;
-      }
+      growth = Math.round(currentTotal - oldTotal);
+      growthPct = Math.round((growth / oldTotal) * 1000) / 10;
     }
 
     return NextResponse.json({

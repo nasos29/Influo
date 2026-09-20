@@ -22,23 +22,43 @@ export function totalFollowersFromAccounts(accounts: { followers?: string | numb
   return accounts.reduce((sum, acc) => sum + parseFollowerString(acc?.followers), 0);
 }
 
+/** Factor (10/100/1000) if two totals look like a missing-k snapshot, else null. */
+export function followerScaleFactor(lo: number, hi: number): number | null {
+  if (!(lo > 0) || !(hi > 0) || lo >= hi) return null;
+  for (const factor of [1000, 100, 10]) {
+    if (Math.abs(lo * factor - hi) / hi < 0.25) return factor;
+  }
+  return null;
+}
+
 /** True when two totals look like a missing-k / extra-k snapshot bug (e.g. 18 vs 18.3k). */
 export function looksLikeFollowerScaleTypo(a: number, b: number): boolean {
   const hi = Math.max(a, b);
   const lo = Math.min(a, b);
-  if (!(lo > 0) || !(hi > 0)) return false;
-  return [10, 100, 1000].some((factor) => Math.abs(lo * factor - hi) / hi < 0.25);
+  return followerScaleFactor(lo, hi) != null;
+}
+
+/**
+ * Repair a snapshot total vs the current follower count.
+ * 18 vs 18.3k → 18000 so 30-day growth still shows.
+ */
+export function alignFollowerSnapshotToCurrent(oldTotal: number, currentTotal: number): number | null {
+  if (!Number.isFinite(oldTotal) || !Number.isFinite(currentTotal) || oldTotal <= 0 || currentTotal <= 0) {
+    return null;
+  }
+  const ratio = currentTotal / oldTotal;
+  if (ratio <= 8 && ratio >= 1 / 8) return Math.round(oldTotal);
+  const lo = Math.min(oldTotal, currentTotal);
+  const hi = Math.max(oldTotal, currentTotal);
+  const factor = followerScaleFactor(lo, hi);
+  if (!factor) return null;
+  if (oldTotal < currentTotal) return Math.round(oldTotal * factor);
+  return Math.round(oldTotal / factor);
 }
 
 /** Baseline usable for a 30-day growth card vs current total. */
 export function isPlausibleFollowerBaseline(oldTotal: number, currentTotal: number): boolean {
-  if (!Number.isFinite(oldTotal) || !Number.isFinite(currentTotal) || oldTotal <= 0 || currentTotal <= 0) {
-    return false;
-  }
-  if (looksLikeFollowerScaleTypo(oldTotal, currentTotal)) return false;
-  const ratio = currentTotal / oldTotal;
-  if (ratio > 8 || ratio < 1 / 8) return false;
-  return true;
+  return alignFollowerSnapshotToCurrent(oldTotal, currentTotal) != null;
 }
 
 /**
