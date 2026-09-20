@@ -19,6 +19,8 @@ import { categoryTranslations } from "@/components/categoryTranslations";
 import { genderLabel, normalizeGender } from "@/lib/gender";
 import BrandSaveInfluencerButton from "@/components/BrandSaveInfluencerButton";
 import { addBrandShortlist, fetchBrandShortlist, removeBrandShortlist } from "@/lib/brandShortlist";
+import ChannelScorePanel from "@/components/ChannelScorePanel";
+import { buildChannelScore } from "@/lib/channelScore";
 
 type Params = Promise<{ id: string }>;
 
@@ -1971,6 +1973,43 @@ export default function InfluencerProfile(props: { params: Params }) {
             
           </div>
         </div>
+
+        {(() => {
+          const followersTotal = Object.values(profile.followers || {}).reduce(
+            (s, n) => s + (typeof n === "number" ? n : 0),
+            0
+          );
+          const platformCount = Object.values(profile.followers || {}).filter((n) => typeof n === "number" && n > 0).length;
+          const contentCount = Array.isArray(profile.videos) ? profile.videos.filter(Boolean).length : 0;
+          const scored = buildChannelScore({
+            followersTotal,
+            engagementRate: profile.engagement_rate,
+            avgLikes: profile.avg_likes,
+            contentCount,
+            platformCount,
+            verified: !!profile.verified,
+            brandSafe: !!profile.auditpr_audit?.brandSafe,
+            hasAudience: !!(profile.audience_data?.top_age && profile.audience_data.top_age !== "?"),
+            reviewCount: profile.total_reviews || 0,
+            completionRate: profile.calculatedCompletionRate,
+            growthPct: growth30d?.growthPct ?? null,
+            minRate: profile.min_rate,
+            rateCard: profile.rate_card,
+          });
+          return (
+            <ChannelScorePanel
+              lang={lang}
+              isBrand={isBrand}
+              axes={scored.axes}
+              influoScore={scored.influoScore}
+              coopPotential={scored.coopPotential}
+              costPer1k={scored.costPer1k}
+              integrationFrom={scored.integrationFrom}
+              integrationTo={scored.integrationTo}
+              integrationIsEstimate={scored.integrationIsEstimate}
+            />
+          );
+        })()}
 
         {/* TABS */}
         <div className="mt-8 border-b border-slate-200">
