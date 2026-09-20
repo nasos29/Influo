@@ -80,6 +80,34 @@ const formatNum = (num?: number) => {
   return num.toString();
 };
 
+function scoreChannelFromProfile(
+  profile: ProInfluencer,
+  growthPct: number | null
+) {
+  const followerVals = Object.values(profile.followers || {});
+  const followersTotal = followerVals.reduce(
+    (sum: number, n) => sum + (typeof n === "number" ? n : 0),
+    0
+  );
+  const platformCount = followerVals.filter((n): n is number => typeof n === "number" && n > 0).length;
+  const contentCount = Array.isArray(profile.videos) ? profile.videos.filter(Boolean).length : 0;
+  return buildChannelScore({
+    followersTotal,
+    engagementRate: profile.engagement_rate,
+    avgLikes: profile.avg_likes,
+    contentCount,
+    platformCount,
+    verified: !!profile.verified,
+    brandSafe: !!profile.auditpr_audit?.brandSafe,
+    hasAudience: !!(profile.audience_data?.top_age && profile.audience_data.top_age !== "?"),
+    reviewCount: profile.total_reviews || 0,
+    completionRate: profile.calculatedCompletionRate,
+    growthPct,
+    minRate: profile.min_rate,
+    rateCard: profile.rate_card,
+  });
+}
+
 const t = {
   el: {
     back: "← Επιστροφή",
@@ -99,7 +127,7 @@ const t = {
     no_bio: "Δεν υπάρχει βιογραφικό.",
     no_vid: "Δεν έχουν ανέβει βίντεο.",
     tab_over: "Επισκοπηση",
-    tab_aud: "Κοινο",
+    tab_aud: "Στατιστικά",
     tab_price: "Τιμές",
     tab_reviews: "Αξιολογήσεις",
     stat_eng: "Αλληλεπίδραση",
@@ -186,7 +214,7 @@ const t = {
     no_bio: "No bio available.",
     no_vid: "No videos uploaded.",
     tab_over: "Overview",
-    tab_aud: "Audience",
+    tab_aud: "Stats",
     tab_price: "Pricing",
     tab_reviews: "Reviews",
     stat_eng: "Engagement",
@@ -1974,44 +2002,6 @@ export default function InfluencerProfile(props: { params: Params }) {
           </div>
         </div>
 
-        {(() => {
-          const followerVals = Object.values(profile.followers || {});
-          const followersTotal = followerVals.reduce(
-            (sum: number, n) => sum + (typeof n === "number" ? n : 0),
-            0
-          );
-          const platformCount = followerVals.filter((n): n is number => typeof n === "number" && n > 0).length;
-          const contentCount = Array.isArray(profile.videos) ? profile.videos.filter(Boolean).length : 0;
-          const scored = buildChannelScore({
-            followersTotal,
-            engagementRate: profile.engagement_rate,
-            avgLikes: profile.avg_likes,
-            contentCount,
-            platformCount,
-            verified: !!profile.verified,
-            brandSafe: !!profile.auditpr_audit?.brandSafe,
-            hasAudience: !!(profile.audience_data?.top_age && profile.audience_data.top_age !== "?"),
-            reviewCount: profile.total_reviews || 0,
-            completionRate: profile.calculatedCompletionRate,
-            growthPct: growth30d?.growthPct ?? null,
-            minRate: profile.min_rate,
-            rateCard: profile.rate_card,
-          });
-          return (
-            <ChannelScorePanel
-              lang={lang}
-              isBrand={isBrand}
-              axes={scored.axes}
-              influoScore={scored.influoScore}
-              coopPotential={scored.coopPotential}
-              costPer1k={scored.costPer1k}
-              integrationFrom={scored.integrationFrom}
-              integrationTo={scored.integrationTo}
-              integrationIsEstimate={scored.integrationIsEstimate}
-            />
-          );
-        })()}
-
         {/* TABS */}
         <div className="mt-8 border-b border-slate-200">
             <nav className="flex gap-8 overflow-x-auto">
@@ -2024,6 +2014,15 @@ export default function InfluencerProfile(props: { params: Params }) {
 
         {/* CONTENT */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
+            {activeTab === "audience" && (
+              <div className="lg:col-span-3">
+                <ChannelScorePanel
+                  lang={lang}
+                  isBrand={isBrand}
+                  {...scoreChannelFromProfile(profile, growth30d?.growthPct ?? null)}
+                />
+              </div>
+            )}
             <div className="lg:col-span-2 space-y-8">
                 {activeTab === "overview" && (
                     <>

@@ -73,7 +73,7 @@ export default function ChannelScorePanel({
   const money = (n: number) => `${Math.round(n).toLocaleString(el ? "el-GR" : "en-US")}€`;
 
   return (
-    <section className="mt-8 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+    <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
       <div className="px-5 sm:px-8 py-5 border-b border-slate-100">
         <h2 className="text-lg font-bold text-slate-900">
           {el ? "Ανάλυση καναλιού" : "Channel analysis"}
