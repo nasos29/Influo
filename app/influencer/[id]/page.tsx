@@ -20,7 +20,9 @@ import { genderLabel, normalizeGender } from "@/lib/gender";
 import BrandSaveInfluencerButton from "@/components/BrandSaveInfluencerButton";
 import { addBrandShortlist, fetchBrandShortlist, removeBrandShortlist } from "@/lib/brandShortlist";
 import ChannelScorePanel from "@/components/ChannelScorePanel";
+import FollowerGrowthChart from "@/components/FollowerGrowthChart";
 import { buildChannelScore } from "@/lib/channelScore";
+import type { FollowerGrowthPoint } from "@/lib/followerGrowth";
 
 type Params = Promise<{ id: string }>;
 
@@ -337,6 +339,7 @@ export default function InfluencerProfile(props: { params: Params }) {
   const [shortlistSaved, setShortlistSaved] = useState(false);
   const [shortlistBusy, setShortlistBusy] = useState(false);
   const [growth30d, setGrowth30d] = useState<{ growth: number; growthPct: number | null } | null>(null);
+  const [growthSeries, setGrowthSeries] = useState<FollowerGrowthPoint[]>([]);
 
   // Check if current user is a brand
   useEffect(() => {
@@ -821,18 +824,23 @@ export default function InfluencerProfile(props: { params: Params }) {
   useEffect(() => {
     if (!id || !profile) {
       setGrowth30d(null);
+      setGrowthSeries([]);
       return;
     }
     fetch(`/api/influencer/${id}/growth`)
       .then((r) => r.json())
-      .then((data: { growth?: number; growthPct?: number }) => {
+      .then((data: { growth?: number; growthPct?: number; series?: FollowerGrowthPoint[] }) => {
+        setGrowthSeries(Array.isArray(data.series) ? data.series : []);
         if (data.growth != null) {
           setGrowth30d({ growth: data.growth, growthPct: data.growthPct ?? null });
         } else {
           setGrowth30d(null);
         }
       })
-      .catch(() => setGrowth30d(null));
+      .catch(() => {
+        setGrowth30d(null);
+        setGrowthSeries([]);
+      });
   }, [id, profile?.id]);
 
   // Refresh when window gets focus (user might have edited in another tab)
@@ -2015,12 +2023,13 @@ export default function InfluencerProfile(props: { params: Params }) {
         {/* CONTENT */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
             {activeTab === "audience" && (
-              <div className="lg:col-span-3">
+              <div className="lg:col-span-3 space-y-8">
                 <ChannelScorePanel
                   lang={lang}
                   isBrand={isBrand}
                   {...scoreChannelFromProfile(profile, growth30d?.growthPct ?? null)}
                 />
+                <FollowerGrowthChart lang={lang} points={growthSeries} />
               </div>
             )}
             <div className="lg:col-span-2 space-y-8">

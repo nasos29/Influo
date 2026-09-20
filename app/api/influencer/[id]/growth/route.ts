@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { alignFollowerSnapshotToCurrent, totalFollowersFromAccounts } from '@/lib/parseFollowers';
+import { buildFollowerGrowthSeries } from '@/lib/followerGrowth';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -49,6 +50,7 @@ export async function GET(
         oldTotal: null,
         growth: null,
         growthPct: null,
+        series: [],
         message: 'Snapshots table not set up',
       });
     }
@@ -83,11 +85,14 @@ export async function GET(
       growthPct = Math.round((growth / oldTotal) * 1000) / 10;
     }
 
+    const series = buildFollowerGrowthSeries(rows, currentTotal);
+
     return NextResponse.json({
       currentTotal,
       oldTotal: oldTotal ?? undefined,
       growth: growth ?? undefined,
       growthPct: growthPct ?? undefined,
+      series,
     });
   } catch (err) {
     console.error('[influencer growth]', err);
