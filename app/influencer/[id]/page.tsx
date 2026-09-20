@@ -1975,11 +1975,12 @@ export default function InfluencerProfile(props: { params: Params }) {
         </div>
 
         {(() => {
-          const followersTotal = Object.values(profile.followers || {}).reduce(
-            (s, n) => s + (typeof n === "number" ? n : 0),
+          const followerVals = Object.values(profile.followers || {});
+          const followersTotal = followerVals.reduce(
+            (sum: number, n) => sum + (typeof n === "number" ? n : 0),
             0
           );
-          const platformCount = Object.values(profile.followers || {}).filter((n) => typeof n === "number" && n > 0).length;
+          const platformCount = followerVals.filter((n): n is number => typeof n === "number" && n > 0).length;
           const contentCount = Array.isArray(profile.videos) ? profile.videos.filter(Boolean).length : 0;
           const scored = buildChannelScore({
             followersTotal,
