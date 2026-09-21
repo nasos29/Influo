@@ -1,9 +1,10 @@
 /**
  * Top 10 influencers by composite score:
- *   52% brand activity (unique users × event weights, last N days)
- *   24% channel analysis (influoScore — same as profile "Ανάλυση καναλιού")
- *   14% reach (followers + avg views)
+ *   45% brand activity (unique users × event weights, last N days)
+ *   27% channel analysis (influoScore — same as profile "Ανάλυση καναλιού")
+ *   13% reach (followers + avg views)
  *   10% reviews (avg_rating × review volume)
+ *   5% badges (same badge rules as profiles)
  * Catalog comparison is not used.
  */
 
@@ -15,6 +16,7 @@ import {
 } from '@/lib/parseFollowers';
 import {
   blendTopScore,
+  computeBadgeScore,
   computeChannelScore100,
   computeReachScore,
   computeReviewScore,
@@ -190,7 +192,7 @@ export async function GET() {
     }
 
     const selectFull =
-      'id, display_name, avatar_url, videos, video_thumbnails, accounts, category, analytics_verified, verified, auditpr_audit, min_rate, rate_card, total_reviews, avg_rating, audience_top_age, audience_male_percent, audience_female_percent';
+      'id, display_name, avatar_url, videos, video_thumbnails, accounts, category, analytics_verified, verified, auditpr_audit, min_rate, rate_card, total_reviews, avg_rating, past_brands, created_at, audience_top_age, audience_male_percent, audience_female_percent';
     let influencers: TopScoreInfluencer[] | null = null;
     let infErr: { message: string } | null = null;
     {
@@ -242,7 +244,14 @@ export async function GET() {
         const channelScore = computeChannelScore100(inf, growthPct);
         const reachScore = computeReachScore(inf);
         const reviewScore = computeReviewScore(inf);
-        const composite = blendTopScore(activity, channelScore, reachScore, reviewScore);
+        const badgeScore = computeBadgeScore(inf);
+        const composite = blendTopScore(
+          activity,
+          channelScore,
+          reachScore,
+          reviewScore,
+          badgeScore
+        );
         return {
           inf,
           id,
@@ -250,6 +259,7 @@ export async function GET() {
           channelScore,
           reachScore,
           reviewScore,
+          badgeScore,
           composite,
         };
       })
@@ -264,6 +274,7 @@ export async function GET() {
       channel_score: r.channelScore,
       reach_score: r.reachScore,
       review_score: r.reviewScore,
+      badge_score: r.badgeScore,
     }));
 
     return NextResponse.json({ influencers: ordered });

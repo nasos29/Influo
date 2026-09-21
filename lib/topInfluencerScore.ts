@@ -1,15 +1,17 @@
 /**
  * Top-10 composite score:
- *   52% brand activity
- *   24% channel analysis (influoScore from buildChannelScore)
- *   14% reach (followers + avg views)
+ *   45% brand activity
+ *   27% channel analysis (influoScore from buildChannelScore)
+ *   13% reach (followers + avg views)
  *   10% reviews (avg_rating × review volume)
+ *   5% badges (same badge system as profiles)
  * Catalog comparison is intentionally excluded.
  */
 
 import { buildChannelScore } from '@/lib/channelScore';
 import { detectErFlag, parseErPercent } from '@/lib/engagementFlags';
 import { parseFollowerString, totalFollowersFromAccounts } from '@/lib/parseFollowers';
+import { getBadges, type BadgeType } from '@/lib/badges';
 
 export type TopScoreAccount = {
   platform?: string | null;
@@ -42,16 +44,30 @@ export type TopScoreInfluencer = {
   } | null;
   total_reviews?: number | null;
   avg_rating?: number | string | null;
+  past_brands?: unknown[] | number | null;
+  created_at?: string | null;
   audience_top_age?: string | null;
   audience_male_percent?: number | null;
   audience_female_percent?: number | null;
 };
 
 /** Relative weights for the final blend (sum = 1). */
-export const TOP_ACTIVITY_WEIGHT = 0.52;
-export const TOP_CHANNEL_WEIGHT = 0.24;
-export const TOP_REACH_WEIGHT = 0.14;
+export const TOP_ACTIVITY_WEIGHT = 0.45;
+export const TOP_CHANNEL_WEIGHT = 0.27;
+export const TOP_REACH_WEIGHT = 0.13;
 export const TOP_REVIEW_WEIGHT = 0.1;
+export const TOP_BADGE_WEIGHT = 0.05;
+
+/** Points per badge type (aligned with badge priority). */
+const BADGE_POINTS: Record<BadgeType, number> = {
+  new: 22,
+  rising: 38,
+  verified: 48,
+  top_performer: 62,
+  pro: 74,
+  elite: 88,
+  vip: 100,
+};
 
 function clamp01(n: number): number {
   if (!Number.isFinite(n)) return 0;
@@ -204,12 +220,59 @@ export function computeReviewScore(inf: TopScoreInfluencer): number {
   return Math.round(Math.max(28, raw) * 10) / 10;
 }
 
+/**
+ * Badges 0–100 using the same getBadges() rules as the profile UI.
+ * Small ranking signal — verified / pro / elite / vip help a bit.
+ */
+export function computeBadgeScore(inf: TopScoreInfluencer): number {
+  const accounts = socialAccounts(inf.accounts);
+  const followers: Record<string, number> = {};
+  const engagementRate: Record<string, string> = {};
+  for (const acc of accounts) {
+    const key = platformKey(acc.platform);
+    const f = parseFollowerString(acc.followers);
+    if (f > 0) followers[key] = f;
+    const er = trustedErPercent(acc);
+    if (er != null) engagementRate[key] = `${er}%`;
+  }
+
+  let accountCreatedDays = 999;
+  if (inf.created_at) {
+    const created = new Date(inf.created_at).getTime();
+    if (Number.isFinite(created)) {
+      accountCreatedDays = Math.max(
+        0,
+        Math.floor((Date.now() - created) / (1000 * 60 * 60 * 24))
+      );
+    }
+  }
+
+  const badges = getBadges({
+    verified: !!(inf.analytics_verified || inf.verified),
+    followers,
+    engagement_rate: Object.keys(engagementRate).length ? engagementRate : undefined,
+    total_reviews: Number(inf.total_reviews) || 0,
+    avg_rating: Number(inf.avg_rating) || 0,
+    past_brands: inf.past_brands ?? [],
+    account_created_days: accountCreatedDays,
+    min_rate: inf.min_rate ?? undefined,
+  });
+
+  if (!badges.length) return 14;
+
+  const points = badges.reduce((sum, b) => sum + (BADGE_POINTS[b.type] || 0), 0);
+  // verified + elite/vip can stack; soft-cap so badges stay a nudge not a takeover
+  const scaled = badges.length > 1 ? points * 0.82 : points;
+  return Math.round(Math.min(100, Math.max(18, scaled)) * 10) / 10;
+}
+
 /** @deprecated kept for tests / callers — prefer computeChannelScore100 + computeReachScore */
 export function computeStatsScore(inf: TopScoreInfluencer, growthPct: number | null = null): number {
   const channel = computeChannelScore100(inf, growthPct);
   const reach = computeReachScore(inf);
   const reviews = computeReviewScore(inf);
-  return Math.round((channel * 0.55 + reach * 0.3 + reviews * 0.15) * 10) / 10;
+  const badges = computeBadgeScore(inf);
+  return Math.round((channel * 0.5 + reach * 0.28 + reviews * 0.14 + badges * 0.08) * 10) / 10;
 }
 
 export function normalizeScores(raw: Record<string, number>): Record<string, number> {
@@ -230,14 +293,16 @@ export function blendTopScore(
   activityNorm: number,
   channelScore: number,
   reachScore: number,
-  reviewScore: number = 12
+  reviewScore: number = 12,
+  badgeScore: number = 14
 ): number {
   return (
     Math.round(
       (clamp01(activityNorm / 100) * TOP_ACTIVITY_WEIGHT +
         clamp01(channelScore / 100) * TOP_CHANNEL_WEIGHT +
         clamp01(reachScore / 100) * TOP_REACH_WEIGHT +
-        clamp01(reviewScore / 100) * TOP_REVIEW_WEIGHT) *
+        clamp01(reviewScore / 100) * TOP_REVIEW_WEIGHT +
+        clamp01(badgeScore / 100) * TOP_BADGE_WEIGHT) *
         1000
     ) / 10
   );
