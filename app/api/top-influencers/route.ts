@@ -191,11 +191,17 @@ export async function GET() {
 
     const selectFull =
       'id, display_name, avatar_url, videos, video_thumbnails, accounts, category, analytics_verified, verified, auditpr_audit, min_rate, rate_card, total_reviews, avg_rating, audience_top_age, audience_male_percent, audience_female_percent';
-    let { data: influencers, error: infErr } = await supabaseAdmin
-      .from('influencers')
-      .select(selectFull)
-      .eq('approved', true)
-      .in('id', candidateIds);
+    let influencers: TopScoreInfluencer[] | null = null;
+    let infErr: { message: string } | null = null;
+    {
+      const full = await supabaseAdmin
+        .from('influencers')
+        .select(selectFull)
+        .eq('approved', true)
+        .in('id', candidateIds);
+      infErr = full.error;
+      influencers = (full.data as TopScoreInfluencer[] | null) ?? null;
+    }
 
     if (infErr && /column/i.test(infErr.message)) {
       const fallback = await supabaseAdmin
@@ -205,7 +211,7 @@ export async function GET() {
         )
         .eq('approved', true)
         .in('id', candidateIds);
-      influencers = fallback.data;
+      influencers = (fallback.data as TopScoreInfluencer[] | null) ?? null;
       infErr = fallback.error;
     }
 
@@ -214,7 +220,7 @@ export async function GET() {
       return NextResponse.json({ error: infErr.message }, { status: 500 });
     }
 
-    const rows = (influencers || []) as TopScoreInfluencer[];
+    const rows = influencers || [];
     const realIds = rows.map((r) => String(r.id));
     const snapshotsById = await loadSnapshotsByInfluencer(realIds);
     const activityNorm = normalizeScores(activityRaw);
