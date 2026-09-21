@@ -46,6 +46,8 @@ type ScrapedAccount = {
   avg_likes?: string;
   posts_count?: number;
   avg_views?: number | null;
+  suspected_fake_penalty?: boolean;
+  engagement_hidden?: boolean;
   error?: string;
 };
 
@@ -272,6 +274,8 @@ export async function POST(request: NextRequest) {
           avg_likes: String(acc.avg_likes || '0'),
           ...(acc.posts_count != null ? { posts_count: Number(acc.posts_count) } : {}),
           ...(acc.avg_views != null && Number(acc.avg_views) > 0 ? { avg_views: Number(acc.avg_views) } : {}),
+          ...(acc.suspected_fake_penalty ? { suspected_fake_penalty: true } : {}),
+          ...(acc.engagement_hidden ? { engagement_hidden: true } : {}),
         };
         if (platform === 'instagram') instagramOverrides[username] = metrics;
         else if (platform === 'tiktok') tiktokOverrides[username] = metrics;

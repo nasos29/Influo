@@ -1,12 +1,27 @@
 /**
- * Top 10 influencers by a composite score (fairer: not just clicks).
- * Uses last N days of analytics. Score = weighted sum of UNIQUE users per event type (at most one per user per event per influencer).
- *   proposal_sent (10) > conversation_started (5) > message_sent (4) > profile_click (3) > profile_view (1)
- * Env TOP_INFLUENCERS_DAYS (default 30): window in days.
+ * Top 10 influencers by composite score:
+ *   52% brand activity (unique users × event weights, last N days)
+ *   24% channel analysis (influoScore — same as profile "Ανάλυση καναλιού")
+ *   14% reach (followers + avg views)
+ *   10% reviews (avg_rating × review volume)
+ * Catalog comparison is not used.
  */
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import {
+  alignFollowerSnapshotToCurrent,
+  totalFollowersFromAccounts,
+} from '@/lib/parseFollowers';
+import {
+  blendTopScore,
+  computeChannelScore100,
+  computeReachScore,
+  computeReviewScore,
+  growthPctFromSnapshots,
+  normalizeScores,
+  type TopScoreInfluencer,
+} from '@/lib/topInfluencerScore';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,15 +29,15 @@ const supabaseAdmin = createClient(
   {
     auth: {
       autoRefreshToken: false,
-      persistSession: false
-    }
+      persistSession: false,
+    },
   }
 );
 
 const DEFAULT_DAYS = 30;
 const TOP_N = 10;
+const ACTIVITY_POOL = 40;
 
-/** Weight per event type – higher = stronger signal of “top” performer. */
 const EVENT_WEIGHTS: Record<string, number> = {
   profile_view: 1,
   profile_click: 3,
@@ -40,27 +55,67 @@ type AnalyticsRow = {
   metadata?: unknown;
 };
 
-function isSocialOutboundProfileClick(e: { event_type?: string | null; metadata?: unknown }): boolean {
+function isSocialOutboundProfileClick(e: {
+  event_type?: string | null;
+  metadata?: unknown;
+}): boolean {
   if (e.event_type !== 'profile_click') return false;
   const m = e.metadata as Record<string, unknown> | null | undefined;
   return !!m && typeof m === 'object' && m.source === 'social_outbound';
 }
 
+function idKey(id: string): string {
+  return String(id).trim().toLowerCase();
+}
+
+async function loadSnapshotsByInfluencer(
+  ids: string[]
+): Promise<Record<string, Array<{ total: number; at: number }>>> {
+  const byId: Record<string, Array<{ total: number; at: number }>> = {};
+  if (!ids.length) return byId;
+
+  const { data, error } = await supabaseAdmin
+    .from('influencer_follower_snapshots')
+    .select('influencer_id, total_followers, snapshot_at')
+    .in('influencer_id', ids)
+    .order('snapshot_at', { ascending: false })
+    .limit(Math.max(90, ids.length * 20));
+
+  if (error) {
+    if (!/relation|table|does not exist/i.test(error.message)) {
+      console.warn('[top-influencers] snapshots:', error.message);
+    }
+    return byId;
+  }
+
+  for (const row of data || []) {
+    const id = idKey(String(row.influencer_id));
+    const at = new Date(row.snapshot_at as string).getTime();
+    const raw = Number(row.total_followers);
+    if (!Number.isFinite(at) || !(raw > 0)) continue;
+    if (!byId[id]) byId[id] = [];
+    byId[id].push({ total: raw, at });
+  }
+  return byId;
+}
+
 export async function GET() {
   try {
-    const days = Math.max(1, parseInt(process.env.TOP_INFLUENCERS_DAYS || String(DEFAULT_DAYS), 10) || DEFAULT_DAYS);
+    const days = Math.max(
+      1,
+      parseInt(process.env.TOP_INFLUENCERS_DAYS || String(DEFAULT_DAYS), 10) || DEFAULT_DAYS
+    );
     const since = new Date();
     since.setDate(since.getDate() - days);
     const sinceIso = since.toISOString();
 
     let events: AnalyticsRow[] | null = null;
     let eventsErr: { message: string } | null = null;
-    let sel = supabaseAdmin
+    const res = await supabaseAdmin
       .from('influencer_analytics')
       .select('id, influencer_id, event_type, brand_email, visitor_id, metadata')
       .gte('created_at', sinceIso)
       .in('event_type', Object.keys(EVENT_WEIGHTS));
-    const res = await sel;
     eventsErr = res.error;
     events = res.data as AnalyticsRow[] | null;
 
@@ -87,54 +142,122 @@ export async function GET() {
       return NextResponse.json({ influencers: [] });
     }
 
-    const eventsList: AnalyticsRow[] = events ?? [];
-    const scores: Record<string, number> = {};
+    const activityRaw: Record<string, number> = {};
     const uniq: Record<string, Set<string>> = {};
-    eventsList.forEach((e: AnalyticsRow) => {
-      if (isSocialOutboundProfileClick(e)) return;
-      const id = e.influencer_id != null ? String(e.influencer_id).trim().toLowerCase() : null;
-      if (!id) return;
-      const userKey = (e.brand_email || '').trim() || (e.visitor_id || '').trim() || (e.id != null ? String(e.id) : '');
+    for (const e of events ?? []) {
+      if (isSocialOutboundProfileClick(e)) continue;
+      const id = e.influencer_id != null ? idKey(String(e.influencer_id)) : null;
+      if (!id) continue;
+      const userKey =
+        (e.brand_email || '').trim() ||
+        (e.visitor_id || '').trim() ||
+        (e.id != null ? String(e.id) : '');
       const key = `${id}\t${e.event_type || ''}`;
       if (!uniq[key]) uniq[key] = new Set();
-      if (userKey && uniq[key].has(userKey)) return;
+      if (userKey && uniq[key].has(userKey)) continue;
       uniq[key].add(userKey);
       const w = EVENT_WEIGHTS[e.event_type || ''] ?? 0;
-      scores[id] = (scores[id] ?? 0) + w;
-    });
+      activityRaw[id] = (activityRaw[id] ?? 0) + w;
+    }
 
-    const sortedIds = Object.entries(scores)
+    const activityPoolIds = Object.entries(activityRaw)
       .filter(([, score]) => score > 0)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, TOP_N)
+      .slice(0, ACTIVITY_POOL)
       .map(([id]) => id);
 
-    if (sortedIds.length === 0) {
+    let candidateIds = activityPoolIds;
+    if (candidateIds.length < TOP_N) {
+      const { data: fill } = await supabaseAdmin
+        .from('influencers')
+        .select('id')
+        .eq('approved', true)
+        .not('accounts', 'is', null)
+        .order('approved_at', { ascending: false })
+        .limit(ACTIVITY_POOL);
+      const seen = new Set(candidateIds);
+      for (const row of fill || []) {
+        const id = idKey(String(row.id));
+        if (seen.has(id)) continue;
+        seen.add(id);
+        candidateIds.push(id);
+        if (candidateIds.length >= ACTIVITY_POOL) break;
+      }
+    }
+
+    if (candidateIds.length === 0) {
       return NextResponse.json({ influencers: [] });
     }
 
-    const { data: influencers, error: infErr } = await supabaseAdmin
+    const selectFull =
+      'id, display_name, avatar_url, videos, video_thumbnails, accounts, category, analytics_verified, verified, auditpr_audit, min_rate, rate_card, total_reviews, avg_rating, audience_top_age, audience_male_percent, audience_female_percent';
+    let { data: influencers, error: infErr } = await supabaseAdmin
       .from('influencers')
-      .select('id, display_name, avatar_url, videos, video_thumbnails, accounts, category')
+      .select(selectFull)
       .eq('approved', true)
-      .in('id', sortedIds);
+      .in('id', candidateIds);
+
+    if (infErr && /column/i.test(infErr.message)) {
+      const fallback = await supabaseAdmin
+        .from('influencers')
+        .select(
+          'id, display_name, avatar_url, videos, video_thumbnails, accounts, category, analytics_verified, verified, auditpr_audit'
+        )
+        .eq('approved', true)
+        .in('id', candidateIds);
+      influencers = fallback.data;
+      infErr = fallback.error;
+    }
 
     if (infErr) {
       console.error('[top-influencers] Influencers fetch error:', infErr);
-      return NextResponse.json(
-        { error: infErr.message },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: infErr.message }, { status: 500 });
     }
 
-    const orderMap = Object.fromEntries(sortedIds.map((id, i) => [id, i]));
-    const idKey = (id: string) => String(id).trim().toLowerCase();
-    const ordered = (influencers || []).sort(
-      (a, b) => (orderMap[idKey(a.id)] ?? 999) - (orderMap[idKey(b.id)] ?? 999)
-    ).map((inf) => ({
-      ...inf,
-      clicks: Math.round(scores[idKey(inf.id)] ?? 0),
-      views: 0
+    const rows = (influencers || []) as TopScoreInfluencer[];
+    const realIds = rows.map((r) => String(r.id));
+    const snapshotsById = await loadSnapshotsByInfluencer(realIds);
+    const activityNorm = normalizeScores(activityRaw);
+    const now = Date.now();
+
+    const ranked = rows
+      .map((inf) => {
+        const id = idKey(String(inf.id));
+        const currentTotal = totalFollowersFromAccounts(inf.accounts || []);
+        const rawSnaps = snapshotsById[id] || [];
+        const aligned = rawSnaps
+          .map((s) => {
+            const total = alignFollowerSnapshotToCurrent(s.total, currentTotal);
+            return total != null ? { total, at: s.at } : null;
+          })
+          .filter((s): s is { total: number; at: number } => s != null);
+        const growthPct = growthPctFromSnapshots(currentTotal, aligned, now);
+        const activity = activityNorm[id] ?? 0;
+        const channelScore = computeChannelScore100(inf, growthPct);
+        const reachScore = computeReachScore(inf);
+        const reviewScore = computeReviewScore(inf);
+        const composite = blendTopScore(activity, channelScore, reachScore, reviewScore);
+        return {
+          inf,
+          id,
+          activityRaw: activityRaw[id] ?? 0,
+          channelScore,
+          reachScore,
+          reviewScore,
+          composite,
+        };
+      })
+      .sort((a, b) => b.composite - a.composite || b.activityRaw - a.activityRaw)
+      .slice(0, TOP_N);
+
+    const ordered = ranked.map((r) => ({
+      ...r.inf,
+      clicks: Math.round(r.activityRaw),
+      views: 0,
+      score: r.composite,
+      channel_score: r.channelScore,
+      reach_score: r.reachScore,
+      review_score: r.reviewScore,
     }));
 
     return NextResponse.json({ influencers: ordered });

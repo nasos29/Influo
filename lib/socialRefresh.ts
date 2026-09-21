@@ -3,12 +3,19 @@
  * Used by admin "Ανανέωση Social" and cron refresh routes.
  */
 
+import { detectErFlag, type ErFlagReason } from '@/lib/engagementFlags';
+
 export type SocialMetrics = {
   followers: string;
   engagement_rate: string;
   avg_likes: string;
   posts_count?: number;
   avg_views?: number | null;
+  /** Suspicious / unreliable ER — shown on profile */
+  er_suspicious?: boolean;
+  er_flag_reason?: ErFlagReason;
+  suspected_fake_penalty?: boolean;
+  engagement_hidden?: boolean;
 };
 
 function formatFollowers(num: number): string {
@@ -70,12 +77,25 @@ function metricsFromAuditprData(
   if (followers === 0 && avg_likes === 0 && posts === 0) {
     return { error: `Λάθος username: το προφίλ @${username} δεν υπάρχει.` };
   }
+  const erFlag = detectErFlag({
+    engagement_rate,
+    posts_count: posts,
+    avg_likes,
+    suspected_fake_penalty: data.suspected_fake_penalty === true,
+    engagement_hidden: data.engagement_hidden === true,
+    engagement_rate_raw: typeof data.engagement_rate_raw === 'string' ? data.engagement_rate_raw : null,
+  });
   return {
     followers: formatFollowers(followers),
     engagement_rate,
     avg_likes: String(avg_likes),
     posts_count: posts,
     avg_views,
+    suspected_fake_penalty: data.suspected_fake_penalty === true,
+    engagement_hidden: data.engagement_hidden === true,
+    ...(erFlag
+      ? { er_suspicious: true, er_flag_reason: erFlag.reason }
+      : { er_suspicious: false, er_flag_reason: undefined }),
   };
 }
 

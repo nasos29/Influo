@@ -23,15 +23,28 @@ import ChannelScorePanel from "@/components/ChannelScorePanel";
 import FollowerGrowthChart from "@/components/FollowerGrowthChart";
 import StatsInsightsPanel from "@/components/StatsInsightsPanel";
 import { buildChannelScore } from "@/lib/channelScore";
+import { detectErFlag, erFlagFromReason, erFlagHint, erFlagLabel, type ErFlagReason } from "@/lib/engagementFlags";
 import type { FollowerGrowthPoint } from "@/lib/followerGrowth";
 
 type Params = Promise<{ id: string }>;
+
+type ProfileAccount = {
+  platform?: string;
+  username?: string;
+  followers?: string;
+  engagement_rate?: string;
+  avg_likes?: string;
+  posts_count?: number | string;
+  er_suspicious?: boolean;
+  er_flag_reason?: string;
+};
 
 interface ProInfluencer extends Influencer {
   video_thumbnails?: Record<string, string> | null;
   contact_email?: string;
   engagement_rate?: string | { [key: string]: string }; // Can be per-platform object or legacy string
   avg_likes?: string | { [key: string]: string }; // Can be per-platform object or legacy string
+  accounts?: ProfileAccount[];
   audience_data?: { male: number; female: number; top_age: string };
   rate_card?: { story?: string; post?: string; reel?: string; facebook?: string; youtube?: string };
   past_brands?: string[];
@@ -189,6 +202,8 @@ const t = {
     message_desc: "Ξεκινήστε μια συνομιλία με αυτόν/αυτήν τον influencer",
     audit_title: "Στρατηγική Αξιολόγηση",
     audit_brand_safe: "Brand Safe",
+    audit_er_caution: "Έλεγχος ER",
+    audit_er_caution_hint: "Το engagement φαίνεται ύποπτο ή μη αξιόπιστο — μην βασίζεστε μόνο στο Brand Safe.",
     audit_niche: "Niche",
     why_work_with_them: "Γιατί να συνεργαστώ μαζί του: ",
     why_work_with_them_male: "Γιατί να συνεργαστώ μαζί του: ",
@@ -276,6 +291,8 @@ const t = {
     message_desc: "Start a conversation with this influencer",
     audit_title: "Strategic Audit",
     audit_brand_safe: "Brand Safe",
+    audit_er_caution: "ER caution",
+    audit_er_caution_hint: "Engagement looks suspicious or unreliable — do not rely on Brand Safe alone.",
     audit_niche: "Niche",
     why_work_with_them: "Why work with them: ",
     why_work_with_them_male: "Why work with them: ",
@@ -739,6 +756,7 @@ export default function InfluencerProfile(props: { params: Params }) {
         video_thumbnails: data.video_thumbnails || null,
         engagement_rate: Object.keys(engagementRatesObj).length > 0 ? engagementRatesObj : (data.engagement_rate || undefined), // Store as object per platform, fallback to legacy string
         avg_likes: Object.keys(avgLikesObj).length > 0 ? avgLikesObj : (data.avg_likes || undefined), // Store as object per platform, fallback to legacy string
+        accounts: Array.isArray(data.accounts) ? data.accounts : [],
         audience_data: {
           male: data.audience_male_percent || 50,
           female: data.audience_female_percent || 50,
@@ -1790,12 +1808,40 @@ export default function InfluencerProfile(props: { params: Params }) {
                       if (engagementRate !== '-' && !engagementRate.includes('%')) {
                         engagementRate = engagementRate + '%';
                       }
+                      const acc = (profile.accounts || []).find(
+                        (a) => String(a.platform || '').toLowerCase() === platform.key
+                      );
+                      const erFlag =
+                        engagementRate === '-'
+                          ? null
+                          : detectErFlag({
+                              engagement_rate: engagementRate,
+                              posts_count: acc?.posts_count,
+                              avg_likes: acc?.avg_likes,
+                              suspected_fake_penalty: acc?.er_flag_reason === 'quality_adjusted',
+                              engagement_hidden:
+                                acc?.er_flag_reason === 'estimated' ||
+                                String(engagementRate).startsWith('~'),
+                            }) ||
+                            (acc?.er_suspicious && acc.er_flag_reason
+                              ? erFlagFromReason(acc.er_flag_reason as ErFlagReason)
+                              : null);
                       return (
-                        <div key={platform.key} className="flex items-center gap-1.5">
+                        <div key={platform.key} className="flex items-center gap-1.5 flex-wrap">
                           <span className={platform.color}>
                             <Icon />
                           </span>
-                          <span className="text-sm font-bold text-blue-600">{engagementRate}</span>
+                          <span className={`text-sm font-bold ${erFlag ? 'text-amber-700' : 'text-blue-600'}`}>
+                            {engagementRate}
+                          </span>
+                          {erFlag && (
+                            <span
+                              title={erFlagHint(erFlag, lang === 'el' ? 'el' : 'en')}
+                              className="inline-flex items-center rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 border border-amber-200"
+                            >
+                              {erFlagLabel(erFlag, lang === 'el' ? 'el' : 'en')}
+                            </span>
+                          )}
                         </div>
                       );
                     });
@@ -2053,12 +2099,40 @@ export default function InfluencerProfile(props: { params: Params }) {
                             <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
                                 <div className="flex flex-wrap items-center gap-3 mb-4">
                                     <h2 className="text-xl font-bold text-slate-900">{txt.audit_title}</h2>
-                                    {profile.auditpr_audit.brandSafe && (
-                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    {(() => {
+                                      const hasSuspiciousEr = (profile.accounts || []).some((acc) =>
+                                        !!detectErFlag({
+                                          engagement_rate: acc.engagement_rate,
+                                          posts_count: acc.posts_count,
+                                          avg_likes: acc.avg_likes,
+                                          suspected_fake_penalty: acc.er_flag_reason === 'quality_adjusted',
+                                          engagement_hidden:
+                                            acc.er_flag_reason === 'estimated' ||
+                                            String(acc.engagement_rate || '').startsWith('~'),
+                                        }) ||
+                                        (acc.er_suspicious === true)
+                                      );
+                                      if (hasSuspiciousEr) {
+                                        return (
+                                          <span
+                                            title={txt.audit_er_caution_hint}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200"
+                                          >
+                                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" aria-hidden />
+                                            {txt.audit_er_caution}
+                                          </span>
+                                        );
+                                      }
+                                      if (profile.auditpr_audit.brandSafe) {
+                                        return (
+                                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" aria-hidden />
                                             {txt.audit_brand_safe}
-                                        </span>
-                                    )}
+                                          </span>
+                                        );
+                                      }
+                                      return null;
+                                    })()}
                                     {(lang === 'en' ? profile.auditpr_audit.niche_en : profile.auditpr_audit.niche) && (
                                         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
                                             {lang === 'en' ? (profile.auditpr_audit.niche_en ?? profile.auditpr_audit.niche) : profile.auditpr_audit.niche}

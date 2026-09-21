@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { MediaKitAccount, MediaKitProfile } from "@/lib/mediaKit";
 import { getCachedImageUrl } from "@/lib/imageProxy";
+import { detectErFlag, erFlagLabel } from "@/lib/engagementFlags";
 
 function firstLetter(name: string): string {
   const ch = (name || "C").trim().charAt(0);
@@ -365,7 +366,22 @@ export default function MediaKitView({ profile }: { profile: MediaKitProfile }) 
                   </div>
                   <div>
                     <span>Engagement</span>
-                    <b>{a.engagement_rate || "—"}</b>
+                    <b>
+                      {a.engagement_rate || "—"}
+                      {(() => {
+                        const flag = detectErFlag({
+                          engagement_rate: a.engagement_rate,
+                          posts_count: a.posts_count,
+                          suspected_fake_penalty: a.er_flag_reason === "quality_adjusted",
+                          engagement_hidden: a.er_flag_reason === "estimated",
+                        });
+                        return flag ? (
+                          <span style={{ marginLeft: 6, fontSize: 11, color: "#92400e", fontWeight: 600 }}>
+                            ({erFlagLabel(flag, "el")})
+                          </span>
+                        ) : null;
+                      })()}
+                    </b>
                   </div>
                 </div>
               ))

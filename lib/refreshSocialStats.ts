@@ -12,6 +12,7 @@ import {
   isUsableSocialMetrics,
   type SocialMetrics,
 } from '@/lib/socialRefresh';
+import { detectErFlag } from '@/lib/engagementFlags';
 import { runAuditGemini } from '@/lib/auditGemini';
 import { totalFollowersFromAccounts, totalPostsFromAccounts } from '@/lib/parseFollowers';
 
@@ -23,10 +24,27 @@ type AccountRow = {
   avg_likes?: string;
   posts_count?: number;
   avg_views?: number | null;
+  er_suspicious?: boolean;
+  er_flag_reason?: string;
 };
 
 function isSocialMetrics(x: SocialMetrics | { error: string }): x is SocialMetrics {
   return isUsableSocialMetrics(x);
+}
+
+function withErFlags(metrics: SocialMetrics): SocialMetrics {
+  const flag = detectErFlag({
+    engagement_rate: metrics.engagement_rate,
+    posts_count: metrics.posts_count,
+    avg_likes: metrics.avg_likes,
+    suspected_fake_penalty: metrics.suspected_fake_penalty === true,
+    engagement_hidden: metrics.engagement_hidden === true,
+  });
+  return {
+    ...metrics,
+    er_suspicious: flag != null,
+    er_flag_reason: flag?.reason,
+  };
 }
 
 export type RefreshResult = {
@@ -36,11 +54,11 @@ export type RefreshResult = {
 };
 
 /** Instagram metrics keyed by username (without @). Used when frontend fetches from local Auditpr. */
-export type InstagramOverrides = Record<string, { followers: string; engagement_rate: string; avg_likes: string; posts_count?: number; avg_views?: number | null }>;
+export type InstagramOverrides = Record<string, { followers: string; engagement_rate: string; avg_likes: string; posts_count?: number; avg_views?: number | null; suspected_fake_penalty?: boolean; engagement_hidden?: boolean }>;
 /** TikTok metrics keyed by username (without @). Used when frontend fetches from local Auditpr. */
-export type TikTokOverrides = Record<string, { followers: string; engagement_rate: string; avg_likes: string; posts_count?: number; avg_views?: number | null }>;
+export type TikTokOverrides = Record<string, { followers: string; engagement_rate: string; avg_likes: string; posts_count?: number; avg_views?: number | null; suspected_fake_penalty?: boolean; engagement_hidden?: boolean }>;
 /** YouTube metrics keyed by username (without @). Used when frontend fetches from local Auditpr. */
-export type YouTubeOverrides = Record<string, { followers: string; engagement_rate: string; avg_likes: string; posts_count?: number; avg_views?: number | null }>;
+export type YouTubeOverrides = Record<string, { followers: string; engagement_rate: string; avg_likes: string; posts_count?: number; avg_views?: number | null; suspected_fake_penalty?: boolean; engagement_hidden?: boolean }>;
 
 export async function doRefreshSocialStats(
   supabaseAdmin: SupabaseClient,
@@ -172,13 +190,18 @@ export async function doRefreshSocialStats(
 
       if (isSocialMetrics(metrics)) {
         anySuccess = true;
+        const flagged = withErFlags(metrics);
         updatedAccounts[i] = {
           ...acc,
-          followers: metrics.followers,
-          engagement_rate: metrics.engagement_rate,
-          avg_likes: metrics.avg_likes,
-          ...(metrics.posts_count != null ? { posts_count: metrics.posts_count } : {}),
-          ...(metrics.avg_views != null && metrics.avg_views > 0 ? { avg_views: metrics.avg_views } : {}),
+          followers: flagged.followers,
+          engagement_rate: flagged.engagement_rate,
+          avg_likes: flagged.avg_likes,
+          ...(flagged.posts_count != null ? { posts_count: flagged.posts_count } : {}),
+          ...(flagged.avg_views != null && flagged.avg_views > 0
+            ? { avg_views: flagged.avg_views }
+            : { avg_views: null }),
+          er_suspicious: flagged.er_suspicious === true,
+          er_flag_reason: flagged.er_flag_reason,
         };
         if (fetchedViaAuditpr && !firstRefreshedForAudit) {
           firstRefreshedForAudit = { platform: platformLower, username: username.replace(/^@+/, '').trim() };
@@ -225,6 +248,9 @@ export async function doRefreshSocialStats(
             followers: a.followers ?? undefined,
             engagement_rate: a.engagement_rate ?? undefined,
             avg_likes: a.avg_likes ?? undefined,
+            posts_count: a.posts_count ?? undefined,
+            er_suspicious: a.er_suspicious === true,
+            er_flag_reason: a.er_flag_reason ?? undefined,
           }));
         if (igTtAccounts.length > 0) {
           const shared = {

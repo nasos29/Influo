@@ -6,6 +6,13 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { cleanNegativesLists } from '@/lib/auditNegativesDefaults';
+import {
+  detectErFlag,
+  erFlagFromReason,
+  erFlagHint,
+  type ErFlag,
+  type ErFlagReason,
+} from '@/lib/engagementFlags';
 
 /** One social account (Instagram, TikTok, or YouTube) with metrics. YouTube: subscribers = followers. */
 export type AuditAccount = {
@@ -14,6 +21,9 @@ export type AuditAccount = {
   followers?: string;
   engagement_rate?: string;
   avg_likes?: string;
+  posts_count?: number | string | null;
+  er_suspicious?: boolean;
+  er_flag_reason?: ErFlagReason | string | null;
 };
 
 /** Shared profile data (bio, category, display name, gender, location, audience split for smarter copy). */
@@ -71,6 +81,7 @@ export type AuditMetrics = {
 function auditGenderBucket(raw: string | null | undefined): 'male' | 'female' | 'neutral' {
   const g = (raw || '').trim().toLowerCase();
   if (!g) return 'neutral';
+  if (g === 'ai' || g === 'other') return 'neutral';
   if (
     g === 'male' ||
     g === 'm' ||
@@ -93,13 +104,132 @@ function auditGenderBucket(raw: string | null | undefined): 'male' | 'female' | 
   return 'neutral';
 }
 
+function resolveAccountErFlag(a: AuditAccount): ErFlag | null {
+  const detected = detectErFlag({
+    engagement_rate: a.engagement_rate,
+    posts_count: a.posts_count,
+    avg_likes: a.avg_likes,
+    suspected_fake_penalty: a.er_flag_reason === 'quality_adjusted',
+    engagement_hidden:
+      a.er_flag_reason === 'estimated' || String(a.engagement_rate || '').trim().startsWith('~'),
+  });
+  if (detected) return detected;
+  if (a.er_suspicious && a.er_flag_reason) {
+    const reason = a.er_flag_reason as ErFlagReason;
+    if (['quality_adjusted', 'estimated', 'low_sample', 'inflated'].includes(reason)) {
+      return erFlagFromReason(reason);
+    }
+  }
+  return null;
+}
+
+function suspiciousErAccounts(accounts: AuditAccount[]): { platform: string; flag: ErFlag }[] {
+  const out: { platform: string; flag: ErFlag }[] = [];
+  for (const a of accounts) {
+    const platform = (a.platform || '').trim().toLowerCase();
+    if (!platform) continue;
+    const flag = resolveAccountErFlag(a);
+    if (!flag) continue;
+    // Skip mild "estimated" only if ER is clearly marked ~ and we already say estimate in metrics —
+    // still include it as a soft attention point for brands.
+    out.push({ platform, flag });
+  }
+  return out;
+}
+
+function erAttentionCopy(
+  items: { platform: string; flag: ErFlag }[]
+): { el: string; en: string } | null {
+  if (!items.length) return null;
+  const platformsEl = items
+    .map((i) => {
+      const p =
+        i.platform === 'instagram'
+          ? 'Instagram'
+          : i.platform === 'tiktok'
+            ? 'TikTok'
+            : i.platform === 'youtube'
+              ? 'YouTube'
+              : i.platform;
+      return `${p} (${i.flag.labelEl.toLowerCase()})`;
+    })
+    .join(', ');
+  const platformsEn = items
+    .map((i) => {
+      const p =
+        i.platform === 'instagram'
+          ? 'Instagram'
+          : i.platform === 'tiktok'
+            ? 'TikTok'
+            : i.platform === 'youtube'
+              ? 'YouTube'
+              : i.platform;
+      return `${p} (${i.flag.labelEn.toLowerCase()})`;
+    })
+    .join(', ');
+  const primary = items[0].flag;
+  return {
+    el: `Σημείο προσοχής στο engagement: σε ${platformsEl} το ποσοστό αλληλεπίδρασης φαίνεται μη αξιόπιστο ή ύποπτο. ${primary.hintEl} Οι επιχειρήσεις καλό είναι να το συνυπολογίζουν όταν αξιολογούν reach και απόδοση καμπάνιας.`,
+    en: `Engagement attention point: on ${platformsEn} the engagement rate looks unreliable or suspicious. ${primary.hintEn} Brands should factor this in when assessing reach and campaign performance.`,
+  };
+}
+
+function mentionsSuspiciousEr(text: string): boolean {
+  const t = (text || '').toLowerCase();
+  return (
+    /ύποπτ|αναξιόπιστ|εκτίμηση|κρυφά likes|fake|engagement|αλληλεπίδρασ|er\b|suspicious|unreliable|estimate|hidden likes|low sample|δείγμα/i.test(
+      t
+    )
+  );
+}
+
+/** Ensure suspicious ER always appears in negatives (σημεία προσοχής). */
+export function ensureSuspiciousErInNegatives(
+  accounts: AuditAccount[],
+  audit: AuditResult
+): AuditResult {
+  const items = suspiciousErAccounts(accounts);
+  const copy = erAttentionCopy(items);
+  if (!copy) return audit;
+
+  const negatives = [...(audit.negatives || [])];
+  const negatives_en = [...(audit.negatives_en || [])];
+  const already =
+    negatives.some(mentionsSuspiciousEr) || negatives_en.some(mentionsSuspiciousEr);
+  if (!already) {
+    negatives.unshift(copy.el);
+    negatives_en.unshift(copy.en);
+  }
+  // Cap at 4; do not present as Brand Safe when engagement is flagged
+  return {
+    ...audit,
+    brandSafe: false,
+    negatives: negatives.slice(0, 4),
+    negatives_en: negatives_en.slice(0, 4),
+  };
+}
+
 function buildMultiPlatformPrompt(accounts: AuditAccount[], shared: AuditShared, exampleAudits?: AuditResult[]): string {
   const platformsBlock = accounts
-    .map(
-      (a) =>
-        `- ${(a.platform || '').trim()}: @${(a.username || '').trim().replace(/^@+/, '')} — Followers: ${a.followers ?? 'N/A'}, Engagement rate: ${a.engagement_rate ?? 'N/A'}, Avg likes: ${a.avg_likes ?? 'N/A'}`
-    )
+    .map((a) => {
+      const flag = resolveAccountErFlag(a);
+      const flagNote = flag
+        ? ` | ER_FLAG: ${flag.reason} (${flag.labelEn}) — ${erFlagHint(flag, 'en')}`
+        : '';
+      return `- ${(a.platform || '').trim()}: @${(a.username || '').trim().replace(/^@+/, '')} — Followers: ${a.followers ?? 'N/A'}, Engagement rate: ${a.engagement_rate ?? 'N/A'}, Avg likes: ${a.avg_likes ?? 'N/A'}, Posts: ${a.posts_count ?? 'N/A'}${flagNote}`;
+    })
     .join('\n');
+
+  const erFlags = suspiciousErAccounts(accounts);
+  const erAttentionBlock =
+    erFlags.length > 0
+      ? `\nSUSPICIOUS / UNRELIABLE ENGAGEMENT (REQUIRED IN negatives):\n${erFlags
+          .map(
+            (i) =>
+              `- ${i.platform}: reason=${i.flag.reason}. ${erFlagHint(i.flag, 'en')}`
+          )
+          .join('\n')}\nYou MUST include at least one bullet in negatives AND negatives_en about this engagement issue (mild “σημεία προσοχής” tone). Do not invent fake-follower accusations beyond what the flag says; describe the measurement reliability risk for brands.`
+      : '';
 
   const bio = (shared.biography || '').trim().slice(0, 400);
   const cat = (shared.category_name || '').trim();
@@ -130,12 +260,15 @@ function buildMultiPlatformPrompt(accounts: AuditAccount[], shared: AuditShared,
       ? '\nCREATOR GENDER: Female. In Greek text use feminine agreement throughout (e.g. "της", "αυτή", "η δημιουργός", "την δημιουργό").'
       : genderBucket === 'male'
         ? '\nCREATOR GENDER: Male. In Greek text use masculine agreement throughout (e.g. "του", "αυτός", "ο δημιουργός", "τον δημιουργό").'
-        : '\nCREATOR GENDER: Not specified. In Greek, avoid wrong gender: use "ο/η δημιουργός" / "τον/την δημιουργό" or rephrase in neuter/plural where clearer; never default to only feminine forms.';
+        : (shared.gender || '').trim().toLowerCase() === 'ai' || (shared.gender || '').trim().toLowerCase() === 'other'
+          ? '\nCREATOR TYPE: AI influencer (virtual/digital creator). In Greek refer as "ο AI δημιουργός" / "αυτόν τον δημιουργό"; in English "the AI creator". Do not use human gendered forms like μαζί του/της.'
+          : '\nCREATOR GENDER: Not specified. In Greek, avoid wrong gender: use "ο/η δημιουργός" / "τον/την δημιουργό" or rephrase in neuter/plural where clearer; never default to only feminine forms.';
 
   const base = `You are a senior influencer marketing analyst. Your output is read by BRANDS who are evaluating this creator for potential partnerships. The goal is a complete, balanced profile FOR BRANDS – not advice to the creator. Be thorough and nuanced: consider reach, engagement quality, content fit, audience overlap, and brand safety.
 
 CREATOR DATA – SOCIAL ACCOUNTS (metrics per platform). Platforms can be Instagram, TikTok, or YouTube (for YouTube, subscribers = followers).
 ${platformsBlock}
+${erAttentionBlock}
 ${bioBlock}
 ${categoryBlock}${locationBlock}${audienceGenderBlock}${nameBlock}${genderNote}
 
@@ -155,7 +288,7 @@ OUTPUT – Return ONLY valid JSON with these exact keys (no markdown, no extra t
 - positives_en: array of 2–4 points in ENGLISH, same content as positives.
 - negatives: array of 0–4 points in GREEK. ONLY when there is a real limitation, trade-off or concrete risk for businesses — ήπια διατύπωση (“σημεία προσοχής για τις επιχειρήσεις”). Αν δεν υπάρχει κάτι αξιοσημείωτο, επέστρεψε κενό array []. FORBIDDEN: σύγκριση με άλλους δημιουργούς, επίκληση λιγότερων followers vs άλλους, ουδέτερα demographics ως “αρνητικό”.
 - negatives_en: array of 0–4 points in ENGLISH, same rules; empty [] when nothing noteworthy.
-- brandSafe: boolean (true if content and metrics suggest brand-safe; false if risks).
+- brandSafe: boolean (true if content and metrics suggest brand-safe; false if risks). If any account has ER_FLAG / SUSPICIOUS ENGAGEMENT above, you MUST set brandSafe to false.
 - niche: ONE niche label in GREEK (e.g. "Μόδα", "Fitness").
 - niche_en: ONE niche label in ENGLISH (Fashion, Fitness, Beauty & Makeup, etc.). Do NOT use: Creator, Content Creator, Influencer, Lifestyle as default.
 
@@ -333,7 +466,7 @@ export async function runAuditGeminiStrict(
       if (isAuditFallbackResult(parsed)) {
         throw new Error(`Gemini returned fallback placeholder (model: ${modelId}).`);
       }
-      return parsed;
+      return ensureSuspiciousErInNegatives(filtered, parsed);
     } catch (parseErr) {
       if (parseErr instanceof Error) {
         throw new Error(`Gemini response parse failed: ${parseErr.message}`);
@@ -385,7 +518,7 @@ export async function runAuditGemini(
     const response = result.response;
     const text = response.text?.()?.trim() ?? '';
     if (!text) return FALLBACK;
-    return parseResponse(text);
+    return ensureSuspiciousErInNegatives(filtered, parseResponse(text));
   } catch (e) {
     console.error('[auditGemini]', e);
     return FALLBACK;

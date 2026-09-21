@@ -22,6 +22,8 @@ type Acc = {
   avg_likes?: string;
   posts_count?: number;
   avg_views?: number;
+  er_suspicious?: boolean;
+  er_flag_reason?: string;
 };
 
 function formatFollowers(num: number): string {
@@ -121,6 +123,9 @@ async function refreshAudit(inf: {
       followers: a.followers ?? undefined,
       engagement_rate: a.engagement_rate ?? undefined,
       avg_likes: a.avg_likes ?? undefined,
+      posts_count: a.posts_count ?? undefined,
+      er_suspicious: a.er_suspicious === true,
+      er_flag_reason: a.er_flag_reason ?? undefined,
     }));
   if (!igTtAccounts.length) throw new Error('No social accounts for AI');
 

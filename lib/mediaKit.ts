@@ -3,6 +3,9 @@ export type MediaKitAccount = {
   username?: string;
   followers?: string;
   engagement_rate?: string;
+  posts_count?: number;
+  er_suspicious?: boolean;
+  er_flag_reason?: string;
 };
 
 export type MediaKitProfile = {

@@ -183,6 +183,8 @@ def scrape(platform: str, username: str) -> dict[str, Any]:
         "avg_likes": str(int(round(avg_likes_n))),
         "posts_count": int(round(posts_n)),
         "avg_views": int(round(avg_views_n)) if avg_views_n > 0 else None,
+        "suspected_fake_penalty": bool(data.get("suspected_fake_penalty")),
+        "engagement_hidden": bool(data.get("engagement_hidden")),
     }
 
 

@@ -62,16 +62,25 @@ export default function ChannelScorePanel({
 }: Props) {
   const el = lang === "el";
   const byId = Object.fromEntries(axes.map((a) => [a.id, a.score])) as Record<ChannelAxisId, number>;
-  const cx = 110;
-  const cy = 112;
+  // Extra horizontal room so side labels (Δημιουργία / Αξιοπιστία) are not clipped.
+  const vbW = 300;
+  const vbH = 260;
+  const cx = vbW / 2;
+  const cy = 128;
   const maxR = 72;
+  const labelR = maxR + 30;
   const n = ORDER.length;
   const rings = [0.25, 0.5, 0.75, 1];
   const valuePts = ORDER.map((id, i) => polar(cx, cy, (Math.max(0, byId[id] || 0) / 5) * maxR, i, n));
   const valuePath = valuePts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ") + " Z";
-  const labelPts = ORDER.map((id, i) => ({ id, ...polar(cx, cy, maxR + 22, i, n) }));
+  const labelPts = ORDER.map((id, i) => ({ id, ...polar(cx, cy, labelR, i, n) }));
 
   const money = (n: number) => `${Math.round(n).toLocaleString(el ? "el-GR" : "en-US")}€`;
+  const labelAnchor = (x: number): "start" | "middle" | "end" => {
+    if (x < cx - 12) return "end";
+    if (x > cx + 12) return "start";
+    return "middle";
+  };
 
   return (
     <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -87,7 +96,7 @@ export default function ChannelScorePanel({
       </div>
 
       <div className="grid lg:grid-cols-[1.15fr_0.85fr] gap-6 px-5 sm:px-8 py-6">
-        <div className="flex flex-col sm:flex-row gap-6 items-center">
+        <div className="flex flex-col sm:flex-row gap-6 items-center min-w-0">
           <div className="text-center shrink-0">
             <div className="text-4xl font-extrabold text-slate-900 tabular-nums">{influoScore.toFixed(1)}</div>
             <div className="text-xs text-slate-500 mt-0.5">/ 5</div>
@@ -95,34 +104,36 @@ export default function ChannelScorePanel({
               {qualityLabel(influoScore, lang)}
             </div>
           </div>
-          <svg viewBox="0 0 220 224" className="w-full max-w-[280px] h-auto">
-            {rings.map((t) => {
-              const pts = ORDER.map((_, i) => polar(cx, cy, maxR * t, i, n));
-              const d = pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ") + " Z";
-              return <path key={t} d={d} fill="none" stroke="#e2e8f0" strokeWidth="1" />;
-            })}
-            {ORDER.map((_, i) => {
-              const p = polar(cx, cy, maxR, i, n);
-              return <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="#e2e8f0" strokeWidth="1" />;
-            })}
-            <path d={valuePath} fill="rgba(37,99,235,0.18)" stroke="#2563eb" strokeWidth="2" strokeLinejoin="round" />
-            {valuePts.map((p, i) => (
-              <circle key={i} cx={p.x} cy={p.y} r="3.2" fill="#2563eb" />
-            ))}
-            {labelPts.map((p) => (
-              <text
-                key={p.id}
-                x={p.x}
-                y={p.y}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                className="fill-slate-600"
-                style={{ fontSize: 9, fontWeight: 600 }}
-              >
-                {AXIS_LABELS[p.id][lang].split(" ")[0]}
-              </text>
-            ))}
-          </svg>
+          <div className="w-full max-w-[320px] min-w-0 overflow-visible px-1">
+            <svg viewBox={`0 0 ${vbW} ${vbH}`} className="w-full h-auto overflow-visible" role="img" aria-label={el ? "Ραντάρ βαθμολογίας" : "Score radar"}>
+              {rings.map((t) => {
+                const pts = ORDER.map((_, i) => polar(cx, cy, maxR * t, i, n));
+                const d = pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ") + " Z";
+                return <path key={t} d={d} fill="none" stroke="#e2e8f0" strokeWidth="1" />;
+              })}
+              {ORDER.map((_, i) => {
+                const p = polar(cx, cy, maxR, i, n);
+                return <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="#e2e8f0" strokeWidth="1" />;
+              })}
+              <path d={valuePath} fill="rgba(37,99,235,0.18)" stroke="#2563eb" strokeWidth="2" strokeLinejoin="round" />
+              {valuePts.map((p, i) => (
+                <circle key={i} cx={p.x} cy={p.y} r="3.2" fill="#2563eb" />
+              ))}
+              {labelPts.map((p) => (
+                <text
+                  key={p.id}
+                  x={p.x}
+                  y={p.y}
+                  textAnchor={labelAnchor(p.x)}
+                  dominantBaseline="middle"
+                  className="fill-slate-600"
+                  style={{ fontSize: 10, fontWeight: 600 }}
+                >
+                  {AXIS_LABELS[p.id][lang].split(" ")[0]}
+                </text>
+              ))}
+            </svg>
+          </div>
         </div>
 
         <div className="space-y-2.5 w-full">

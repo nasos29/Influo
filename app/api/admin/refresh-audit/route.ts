@@ -29,6 +29,9 @@ type AccountRow = {
   followers?: string;
   engagement_rate?: string;
   avg_likes?: string;
+  posts_count?: number;
+  er_suspicious?: boolean;
+  er_flag_reason?: string;
 };
 
 type AuditprAudit = {
@@ -98,6 +101,9 @@ export async function POST(request: NextRequest) {
         followers: a.followers ?? undefined,
         engagement_rate: a.engagement_rate ?? undefined,
         avg_likes: a.avg_likes ?? undefined,
+        posts_count: a.posts_count ?? undefined,
+        er_suspicious: a.er_suspicious === true,
+        er_flag_reason: a.er_flag_reason ?? undefined,
       }));
 
     if (igTtAccounts.length === 0) {
