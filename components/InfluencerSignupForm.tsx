@@ -7,6 +7,7 @@ import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 import { detectProvider, getIframelyEmbedUrl, isDefinitelyImage } from "@/lib/videoThumbnail";
 import { prepareImageForStorage } from "@/lib/prepareImageForStorage";
 import { normalizeGender } from "@/lib/gender";
+import { languagesCodesToStored } from "@/lib/languages";
 import SocialEmbedCard from "./SocialEmbedCard";
 
 type Account = { platform: string; username: string; followers: string; engagement_rate?: string; avg_likes?: string };
@@ -637,7 +638,7 @@ export default function InfluencerSignupForm() {
           // Otherwise, categories are stored as comma-separated string in category field or first category
           location,
           birth_date: birthDate,
-          languages: selectedLanguages.join(", "), // Store as comma-separated string
+          languages: languagesCodesToStored(selectedLanguages),
           min_rate: minRate,
           contact_email: email,
           bio, 

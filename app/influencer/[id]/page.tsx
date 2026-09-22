@@ -25,6 +25,7 @@ import StatsInsightsPanel from "@/components/StatsInsightsPanel";
 import { buildChannelScore } from "@/lib/channelScore";
 import { detectErFlag, erFlagFromReason, erFlagHint, erFlagLabel, type ErFlagReason } from "@/lib/engagementFlags";
 import type { FollowerGrowthPoint } from "@/lib/followerGrowth";
+import { displayLanguageLabel } from "@/lib/languages";
 
 type Params = Promise<{ id: string }>;
 
@@ -1623,7 +1624,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                 <div className="flex flex-wrap justify-center md:justify-start gap-2 mt-3">
                     {profile.languages && Array.isArray(profile.languages) && profile.languages.map((l, i) => (
                       <span key={i} className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-600">
-                        {typeof l === 'string' ? l.trim() : l}
+                        {displayLanguageLabel(typeof l === 'string' ? l : String(l), lang)}
                       </span>
                     ))}
                     {profile.skills && profile.skills.length > 0 && profile.skills.map((skill, i) => (

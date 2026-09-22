@@ -57,6 +57,21 @@ const languageTranslations: { [key: string]: { el: string; en: string } } = {
   "Ιαπωνικά": { el: "Ιαπωνικά", en: "Japanese" },
   "Αλβανικά": { el: "Αλβανικά", en: "Albanian" },
   "Βουλγαρικά": { el: "Βουλγαρικά", en: "Bulgarian" },
+  "Τουρκικά": { el: "Τουρκικά", en: "Turkish" },
+  // ISO codes (legacy signup stored these before Greek labels)
+  el: { el: "Ελληνικά", en: "Greek" },
+  en: { el: "Αγγλικά", en: "English" },
+  de: { el: "Γερμανικά", en: "German" },
+  fr: { el: "Γαλλικά", en: "French" },
+  es: { el: "Ισπανικά", en: "Spanish" },
+  it: { el: "Ιταλικά", en: "Italian" },
+  pt: { el: "Πορτογαλικά", en: "Portuguese" },
+  ru: { el: "Ρωσικά", en: "Russian" },
+  zh: { el: "Κινεζικά", en: "Chinese" },
+  ja: { el: "Ιαπωνικά", en: "Japanese" },
+  sq: { el: "Αλβανικά", en: "Albanian" },
+  bg: { el: "Βουλγαρικά", en: "Bulgarian" },
+  tr: { el: "Τουρκικά", en: "Turkish" },
   // Support both Greek and English names
   "Greek": { el: "Ελληνικά", en: "Greek" },
   "English": { el: "Αγγλικά", en: "English" },
@@ -70,6 +85,7 @@ const languageTranslations: { [key: string]: { el: string; en: string } } = {
   "Japanese": { el: "Ιαπωνικά", en: "Japanese" },
   "Albanian": { el: "Αλβανικά", en: "Albanian" },
   "Bulgarian": { el: "Βουλγαρικά", en: "Bulgarian" },
+  "Turkish": { el: "Τουρκικά", en: "Turkish" },
 };
 
 export default function InfluencerCard({
