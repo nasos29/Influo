@@ -192,8 +192,6 @@ const t = {
     approved: "Εγκεκριμένος",
     analytics_verified: "Επαληθευμένα Analytics",
     btn_delete: "Διαγραφή",
-    cleanup_test: "Cleanup Test Users",
-    migrate_languages: "Μετατροπή Γλωσσών",
     sql_helper: "SQL Helper",
     export: "Export",
     search: "Αναζήτηση...",
@@ -276,8 +274,6 @@ const t = {
     approved: "Approved",
     analytics_verified: "Analytics Verified",
     btn_delete: "Delete",
-    cleanup_test: "Cleanup Test Users",
-    migrate_languages: "Migrate Languages",
     sql_helper: "SQL Helper",
     export: "Export",
     search: "Search...",
@@ -2732,83 +2728,6 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     }
   };
 
-  const handleMigrateLanguages = async () => {
-    if (!confirm(
-      lang === "el" 
-        ? "Αυτή η ενέργεια θα μετατρέψει όλες τις υπάρχουσες γλώσσες στη βάση στο νέο format. Συνεχίσω;"
-        : "This will convert all existing languages in the database to the new format. Continue?"
-    )) {
-      return;
-    }
-
-    try {
-      const response = await fetch('/api/admin/migrate-languages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      const result = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(result.error || 'Migration failed');
-      }
-
-      alert(
-        lang === "el" 
-          ? `Migration ολοκληρώθηκε!\n\nΣυνολικά: ${result.total}\nΕνημερωμένα: ${result.updated}`
-          : `Migration completed!\n\nTotal: ${result.total}\nUpdated: ${result.updated}`
-      );
-      
-      // Refresh data
-      fetchData();
-    } catch (error: any) {
-      alert(`Error: ${error.message}`);
-    }
-  };
-
-  const handleCleanupTestUsers = async () => {
-    const emailsInput = prompt(
-      lang === "el" 
-        ? "Εισάγετε τα emails (χωρισμένα με κόμμα):\n\nπ.χ. test1@example.com, test2@example.com"
-        : "Enter emails (comma-separated):\n\ne.g. test1@example.com, test2@example.com"
-    );
-
-    if (!emailsInput || !emailsInput.trim()) return;
-
-    const emails = emailsInput.split(',').map(e => e.trim()).filter(e => e.length > 0);
-    if (emails.length === 0) {
-      alert(lang === "el" ? "Δεν δόθηκαν έγκυρα emails." : "No valid emails provided.");
-      return;
-    }
-
-    if (!confirm(
-      lang === "el"
-        ? `Θέλετε να διαγράψετε ${emails.length} user(s)?\n\n${emails.join('\n')}`
-        : `Delete ${emails.length} user(s)?\n\n${emails.join('\n')}`
-    )) return;
-
-    try {
-      const response = await fetch('/api/admin/cleanup-test-users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          emails,
-          adminEmail: adminEmail // Pass admin email for audit log
-        }),
-      });
-
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Failed');
-
-      const successful = result.results.filter((r: any) => r.success).length;
-      const failed = result.results.filter((r: any) => !r.success).length;
-      alert(`${lang === "el" ? "Επιτυχία" : "Success"}: ${successful}, ${lang === "el" ? "Αποτυχία" : "Failed"}: ${failed}`);
-      fetchData();
-    } catch (error: any) {
-      alert(`Error: ${error.message}`);
-    }
-  };
-
   const handleBulkAction = async (action: 'approve' | 'delete') => {
     if (selectedUsers.length === 0) {
       alert(lang === "el" ? "Επιλέξτε τουλάχιστον έναν χρήστη" : "Select at least one user");
@@ -2934,12 +2853,6 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
               <p className="text-xs sm:text-sm text-slate-500">{txt.sub}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <button onClick={handleMigrateLanguages} className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded-lg transition-colors border border-blue-200">
-                {txt.migrate_languages}
-              </button>
-              <button onClick={handleCleanupTestUsers} className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors">
-                {txt.cleanup_test}
-              </button>
               <a href="/admin/support" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
                 📧 Help Desk
               </a>
