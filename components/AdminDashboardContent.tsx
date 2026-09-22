@@ -3294,6 +3294,19 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               )}
                               <div>
                                 <div className="font-medium text-slate-900">{displayNameForLang(u.display_name, lang)}</div>
+                                {u.created_at && (
+                                  <div
+                                    className="text-[10px] text-slate-400 mt-0.5 tabular-nums"
+                                    title={new Date(u.created_at).toLocaleString(lang === "el" ? "el-GR" : "en-GB")}
+                                  >
+                                    {lang === "el" ? "Εγγραφή" : "Joined"}{" "}
+                                    {new Date(u.created_at).toLocaleDateString(lang === "el" ? "el-GR" : "en-GB", {
+                                      day: "numeric",
+                                      month: "short",
+                                      year: "numeric",
+                                    })}
+                                  </div>
+                                )}
                                 {u.category && (
                                   <div className="flex flex-wrap gap-1 mt-1">
                                     {(u.category.includes(',') ? u.category.split(',').map((c: string) => c.trim()) : [u.category]).map((cat: string, idx: number) => (
