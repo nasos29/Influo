@@ -64,6 +64,37 @@ export async function sendPushInfluencerAccountApproved(
   });
 }
 
+/** Must be called before push_subscriptions for this influencer are deleted. */
+export async function sendPushInfluencerAccountDeleted(
+  influencerId: string,
+  displayName: string
+): Promise<{ sent: number; failed: number }> {
+  const name = clipPushText(displayName || 'Influencer', 40);
+  return sendPushToInfluencer(String(influencerId), {
+    title: 'Ο λογαριασμός διαγράφηκε',
+    body: `Ο λογαριασμός σας στο influo.gr (${name}) έχει διαγραφεί οριστικά.`,
+    url: 'https://www.influo.gr',
+    tag: 'influencer-account-deleted',
+  });
+}
+
+export async function sendPushAdminInfluencerAccountDeleted(opts: {
+  displayName: string;
+  email: string;
+  initiator?: 'admin' | 'self';
+}): Promise<{ sent: number; failed: number }> {
+  const admin = getAdminPushRecipient();
+  if (!admin) return { sent: 0, failed: 0 };
+  const who = clipPushText(opts.displayName || 'Influencer', 36);
+  const how = opts.initiator === 'self' ? 'από τον ίδιο' : 'από admin';
+  return sendPushToBrand(admin, {
+    title: '🗑️ Διαγραφή influencer',
+    body: `${who} διαγράφηκε οριστικά (${how}) · ${clipPushText(opts.email || '—', 40)}`,
+    url: '/admin',
+    tag: 'admin-influencer-deleted',
+  });
+}
+
 export async function sendPushInfluencerAnnouncement(
   influencerId: string,
   title: string
