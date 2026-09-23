@@ -11,18 +11,25 @@ interface SocialEmbedCardProps {
   originalUrl?: string;
 }
 
-/** Ensure embed starts on the same click that reveals the iframe (no 2nd player Play). */
-function withAutoplay(url: string, provider: string): string {
+/**
+ * Build a one-click autoplay embed URL.
+ * Browsers block unmuted autoplay unless the iframe is created in the same user-gesture
+ * turn — and even then YouTube often still needs mute=1. We mute-autoplay so the first
+ * click actually starts playback; user can unmute in the player.
+ */
+function buildPlayableEmbedUrl(url: string, provider: string): string {
   try {
     const u = new URL(url);
-    if (provider === "tiktok" && /tiktok\.com\/embed/i.test(u.hostname + u.pathname)) {
+    if (provider === "tiktok" && /tiktok\.com\/embed/i.test(`${u.hostname}${u.pathname}`)) {
       u.searchParams.set("autoplay", "1");
       return u.toString();
     }
     if (provider === "youtube" && /youtube\.com\/embed\//i.test(url)) {
       u.searchParams.set("autoplay", "1");
+      u.searchParams.set("mute", "1");
       u.searchParams.set("rel", "0");
       u.searchParams.set("playsinline", "1");
+      u.searchParams.set("enablejsapi", "1");
       return u.toString();
     }
   } catch {
@@ -52,12 +59,14 @@ export default function SocialEmbedCard({
   const [posterFailed, setPosterFailed] = useState(false);
   const [posterLoading, setPosterLoading] = useState(!thumbnailUrl);
   const [playing, setPlaying] = useState(false);
-  const [resolving, setResolving] = useState(false);
-  const [error, setError] = useState(false);
-  const [readyEmbedUrl, setReadyEmbedUrl] = useState<string | null>(
-    embedUrl.startsWith("/api/video-embed") ? null : withAutoplay(embedUrl, provider)
+  const [embedReady, setEmbedReady] = useState(
+    !embedUrl.startsWith("/api/video-embed")
   );
-  const iframeKey = useRef(0);
+  const [error, setError] = useState(false);
+  const readyUrlRef = useRef<string | null>(
+    embedUrl.startsWith("/api/video-embed") ? null : buildPlayableEmbedUrl(embedUrl, provider)
+  );
+  const mountRef = useRef<HTMLDivElement>(null);
 
   const providerConfig = {
     instagram: {
@@ -137,59 +146,60 @@ export default function SocialEmbedCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [thumbnailUrl, originalUrl, embedUrl, provider]);
 
-  // Preload embed URL while poster is visible — first click only mounts iframe (user gesture + autoplay)
+  // Resolve embed URL BEFORE click — click must only mount iframe (sync, user gesture).
   useEffect(() => {
-    if (readyEmbedUrl) return;
+    let cancelled = false;
+    const finish = (raw: string) => {
+      if (cancelled) return;
+      readyUrlRef.current = buildPlayableEmbedUrl(raw, provider);
+      setEmbedReady(true);
+    };
+
     if (!embedUrl.startsWith("/api/video-embed")) {
-      setReadyEmbedUrl(withAutoplay(embedUrl, provider));
+      finish(embedUrl);
       return;
     }
-    let cancelled = false;
+
+    setEmbedReady(false);
     fetch(embedUrl)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
       })
       .then((data) => {
-        if (cancelled) return;
-        if (data.embed_url) setReadyEmbedUrl(withAutoplay(String(data.embed_url), provider));
+        if (!data.embed_url) throw new Error("No embed");
+        finish(String(data.embed_url));
       })
       .catch(() => {
-        /* resolve on click instead */
+        if (!cancelled) setError(true);
       });
+
     return () => {
       cancelled = true;
     };
-  }, [embedUrl, provider, readyEmbedUrl]);
+  }, [embedUrl, provider]);
 
-  const startPlayback = async () => {
-    if (playing) return;
-    setError(false);
+  /**
+   * Critical: create the iframe inside the click handler so autoplay counts as user gesture.
+   * React setState → later render breaks the gesture chain and forces a 2nd Play.
+   */
+  const startPlayback = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (playing || !embedReady || !readyUrlRef.current || !mountRef.current) return;
 
-    let url = readyEmbedUrl;
-    if (!url) {
-      setResolving(true);
-      try {
-        if (embedUrl.startsWith("/api/video-embed")) {
-          const res = await fetch(embedUrl);
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const data = await res.json();
-          if (!data.embed_url) throw new Error("No embed");
-          url = withAutoplay(String(data.embed_url), provider);
-        } else {
-          url = withAutoplay(embedUrl, provider);
-        }
-        setReadyEmbedUrl(url);
-      } catch {
-        setError(true);
-        setResolving(false);
-        return;
-      }
-      setResolving(false);
-    }
+    const iframe = document.createElement("iframe");
+    iframe.src = readyUrlRef.current;
+    iframe.title = `${config.name} video`;
+    iframe.allow =
+      "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
+    iframe.allowFullscreen = true;
+    iframe.setAttribute("allowfullscreen", "true");
+    iframe.style.cssText = "position:absolute;inset:0;width:100%;height:100%;border:0;";
+    // Hint for browsers that check these attributes
+    iframe.setAttribute("autoplay", "");
 
-    // Remount iframe so autoplay binds to this click
-    iframeKey.current += 1;
+    mountRef.current.replaceChildren(iframe);
     setPlaying(true);
   };
 
@@ -216,24 +226,18 @@ export default function SocialEmbedCard({
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-md overflow-hidden w-full max-w-full">
-      <div className="relative w-full" style={{ aspectRatio: `${finalWidth} / ${finalHeight}`, minHeight: 300 }}>
-        {playing && readyEmbedUrl && (
-          <iframe
-            key={iframeKey.current}
-            src={readyEmbedUrl}
-            className="absolute top-0 left-0 w-full h-full border-0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-            onError={() => setError(true)}
-          />
-        )}
+      <div
+        className="relative w-full"
+        style={{ aspectRatio: `${finalWidth} / ${finalHeight}`, minHeight: 300 }}
+      >
+        <div ref={mountRef} className="absolute inset-0" />
 
         {!playing && (
           <button
             type="button"
-            onClick={() => void startPlayback()}
-            disabled={resolving}
-            className="absolute inset-0 w-full h-full block text-left group"
+            onClick={startPlayback}
+            disabled={!embedReady}
+            className="absolute inset-0 z-10 w-full h-full block text-left group disabled:cursor-wait"
             aria-label={`Play ${config.name} video`}
           >
             {poster && !posterFailed ? (
@@ -262,7 +266,7 @@ export default function SocialEmbedCard({
             )}
             <div className="absolute inset-0 bg-black/25 group-hover:bg-black/35 transition-colors" />
             <div className="absolute inset-0 flex items-center justify-center">
-              {resolving ? (
+              {!embedReady ? (
                 <div className="w-10 h-10 border-4 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
                 <span className="w-14 h-14 rounded-full bg-white/95 shadow-lg flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -271,7 +275,9 @@ export default function SocialEmbedCard({
               )}
             </div>
             <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/70 to-transparent flex items-center justify-between gap-2">
-              <span className="text-white text-xs font-medium">{resolving ? "Loading…" : "Play"}</span>
+              <span className="text-white text-xs font-medium">
+                {!embedReady ? "Loading…" : provider === "youtube" ? "Play (muted)" : "Play"}
+              </span>
               <a
                 href={getOriginalUrl()}
                 target="_blank"

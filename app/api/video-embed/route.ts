@@ -119,7 +119,7 @@ export async function GET(req: NextRequest) {
     if (provider === 'youtube' && !frameMode) {
       const videoId = resolveYouTubeVideoId(originalUrl);
       if (videoId) {
-        const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&playsinline=1`;
+        const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1`;
         try {
           const expiresAt = new Date();
           expiresAt.setDate(expiresAt.getDate() + 30);
