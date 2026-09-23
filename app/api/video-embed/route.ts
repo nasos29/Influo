@@ -90,7 +90,7 @@ export async function GET(req: NextRequest) {
     if (provider === 'tiktok' && !frameMode) {
       const videoId = await resolveTikTokVideoId(originalUrl);
       if (videoId) {
-        const embedUrl = `https://www.tiktok.com/embed/v2/${videoId}?autoplay=1`;
+        const embedUrl = `https://www.tiktok.com/embed/v2/${videoId}`;
         try {
           const expiresAt = new Date();
           expiresAt.setDate(expiresAt.getDate() + 30);
@@ -115,11 +115,11 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // YouTube: official embed with autoplay (same one-click UX as TikTok).
+    // YouTube: official embed (native poster + one Play).
     if (provider === 'youtube' && !frameMode) {
       const videoId = resolveYouTubeVideoId(originalUrl);
       if (videoId) {
-        const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1`;
+        const embedUrl = `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&playsinline=1`;
         try {
           const expiresAt = new Date();
           expiresAt.setDate(expiresAt.getDate() + 30);
@@ -139,6 +139,35 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({
           embed_url: embedUrl,
           provider: 'youtube',
+          cached: false,
+        });
+      }
+    }
+
+    // Instagram: official embed (skip Iframely double-play / black frames).
+    if (provider === 'instagram' && !frameMode) {
+      const ig = originalUrl.match(/instagram\.com\/(reel|p|tv)\/([A-Za-z0-9_-]+)/i);
+      if (ig) {
+        const embedUrl = `https://www.instagram.com/${ig[1].toLowerCase()}/${ig[2]}/embed`;
+        try {
+          const expiresAt = new Date();
+          expiresAt.setDate(expiresAt.getDate() + 30);
+          await supabaseAdmin.from('video_embed_cache').upsert(
+            {
+              original_url: originalUrl,
+              embed_url: embedUrl,
+              provider: 'instagram',
+              cached_at: new Date().toISOString(),
+              expires_at: expiresAt.toISOString(),
+            },
+            { onConflict: 'original_url' }
+          );
+        } catch {
+          /* cache optional */
+        }
+        return NextResponse.json({
+          embed_url: embedUrl,
+          provider: 'instagram',
           cached: false,
         });
       }
@@ -190,7 +219,9 @@ export async function GET(req: NextRequest) {
       if (!cacheError && cached) {
         const expiresAt = new Date(cached.expires_at);
         const staleIframely =
-          (cached.provider === 'tiktok' || cached.provider === 'youtube') &&
+          (cached.provider === 'tiktok' ||
+            cached.provider === 'youtube' ||
+            cached.provider === 'instagram') &&
           isStaleIframelyCache(String(cached.embed_url || ''));
         if (expiresAt > new Date() && !staleIframely) {
           const res = NextResponse.json({
