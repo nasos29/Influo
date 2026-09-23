@@ -105,7 +105,7 @@ export async function sendPushInfluencerAnnouncement(
     title: '📢 Νέα ανακοίνωση Influo',
     body: `Υπάρχει νέα ανακοίνωση: ${short}`,
     url: '/dashboard',
-    tag: 'announcement',
+    tag: `announcement-${Date.now()}-${String(influencerId).slice(0, 8)}`,
   });
 }
 

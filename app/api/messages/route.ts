@@ -217,6 +217,7 @@ export async function POST(req: Request) {
             title: '💬 Νέο μήνυμα',
             body: `${infForPush?.display_name || 'Influencer'}: ${content.slice(0, 60)}${content.length > 60 ? '…' : ''}`,
             url: '/brand/dashboard',
+            tag: `message-brand-${convId}-${Date.now()}`,
           }).catch(() => {});
         } catch (e) { console.error('[Messages API]', e); }
       }
@@ -277,6 +278,7 @@ export async function POST(req: Request) {
             title: '💬 Νέο μήνυμα',
             body: `${brandName || 'Επιχείρηση'}: ${content.slice(0, 60)}${content.length > 60 ? '…' : ''}`,
             url: '/dashboard',
+            tag: `message-inf-${convId}-${Date.now()}`,
           }).catch(() => {});
         } catch (e) { console.error('[Messages API]', e); }
       }
@@ -499,6 +501,7 @@ export async function POST(req: Request) {
               title: '💬 Νέο μήνυμα',
               body: `${convData.influencer_name}: ${content.slice(0, 60)}${content.length > 60 ? '…' : ''}`,
               url: '/brand/dashboard',
+              tag: `message-brand-${conversationId}-${Date.now()}`,
             }).catch(() => {});
           }
         } catch (emailError: any) {
@@ -568,6 +571,7 @@ export async function POST(req: Request) {
               title: '💬 Νέο μήνυμα',
               body: `${convData.brand_name || 'Επιχείρηση'}: ${content.slice(0, 60)}${content.length > 60 ? '…' : ''}`,
               url: '/dashboard',
+              tag: `message-inf-${conversationId}-${Date.now()}`,
             }).catch(() => {});
           }
         } catch (emailError: any) {
