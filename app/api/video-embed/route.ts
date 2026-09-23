@@ -17,6 +17,44 @@ const supabaseAdmin = createClient(
 const IFRAMELY_API_URL = 'https://iframe.ly/api/iframe';
 const EMBED_CACHE_SECONDS = 60 * 60 * 24 * 365; // 1 year
 
+function detectProvider(originalUrl: string): string {
+  const lowerUrl = originalUrl.toLowerCase();
+  if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) return 'youtube';
+  if (lowerUrl.includes('instagram.com')) return 'instagram';
+  if (
+    lowerUrl.includes('tiktok.com') ||
+    lowerUrl.includes('vm.tiktok.com') ||
+    lowerUrl.includes('vt.tiktok.com')
+  ) {
+    return 'tiktok';
+  }
+  return 'unknown';
+}
+
+/** Resolve TikTok short/full URL → numeric video id for official embed. */
+async function resolveTikTokVideoId(url: string): Promise<string | null> {
+  const clean = url.split('?')[0].split('#')[0].trim();
+  const direct = clean.match(/\/video\/(\d+)/);
+  if (direct) return direct[1];
+  if (!/(vm|vt)\.tiktok\.com/i.test(clean)) return null;
+  try {
+    const res = await fetch(clean, {
+      method: 'GET',
+      redirect: 'manual',
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+    });
+    const loc = res.headers.get('location') || '';
+    return loc.match(/\/video\/(\d+)/)?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function isStaleTikTokCache(embedUrl: string): boolean {
+  // Old caches pointed at Iframely proxy frames which often render black.
+  return /iframe\.ly|frame=1/i.test(embedUrl);
+}
+
 /**
  * GET /api/video-embed?url={originalUrl}
  * - default mode: returns JSON with local embed URL (cached in DB)
@@ -30,6 +68,37 @@ export async function GET(req: NextRequest) {
 
     if (!originalUrl) {
       return NextResponse.json({ error: 'URL parameter is required' }, { status: 400 });
+    }
+
+    const provider = detectProvider(originalUrl);
+
+    // TikTok: prefer official player (plays on-site). Do this before IFRAMELY_API_KEY check.
+    if (provider === 'tiktok' && !frameMode) {
+      const videoId = await resolveTikTokVideoId(originalUrl);
+      if (videoId) {
+        const embedUrl = `https://www.tiktok.com/embed/v2/${videoId}`;
+        try {
+          const expiresAt = new Date();
+          expiresAt.setDate(expiresAt.getDate() + 30);
+          await supabaseAdmin.from('video_embed_cache').upsert(
+            {
+              original_url: originalUrl,
+              embed_url: embedUrl,
+              provider: 'tiktok',
+              cached_at: new Date().toISOString(),
+              expires_at: expiresAt.toISOString(),
+            },
+            { onConflict: 'original_url' }
+          );
+        } catch {
+          /* cache optional */
+        }
+        return NextResponse.json({
+          embed_url: embedUrl,
+          provider: 'tiktok',
+          cached: false,
+        });
+      }
     }
 
     if (!IFRAMELY_API_KEY) {
@@ -77,7 +146,9 @@ export async function GET(req: NextRequest) {
 
       if (!cacheError && cached) {
         const expiresAt = new Date(cached.expires_at);
-        if (expiresAt > new Date()) {
+        const staleTikTok =
+          cached.provider === 'tiktok' && isStaleTikTokCache(String(cached.embed_url || ''));
+        if (expiresAt > new Date() && !staleTikTok) {
           const res = NextResponse.json({
             embed_url: cached.embed_url,
             provider: cached.provider,
@@ -117,18 +188,6 @@ export async function GET(req: NextRequest) {
 
     // Never expose API key to client.
     const embedUrl = `/api/video-embed?url=${encodeURIComponent(originalUrl)}&frame=1`;
-
-    let provider = 'unknown';
-    const lowerUrl = originalUrl.toLowerCase();
-    if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) provider = 'youtube';
-    else if (lowerUrl.includes('instagram.com')) provider = 'instagram';
-    else if (
-      lowerUrl.includes('tiktok.com') ||
-      lowerUrl.includes('vm.tiktok.com') ||
-      lowerUrl.includes('vt.tiktok.com')
-    ) {
-      provider = 'tiktok';
-    }
 
     try {
       const expiresAt = new Date();

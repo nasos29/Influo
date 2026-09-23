@@ -217,8 +217,17 @@ export default function SocialEmbedCard({
               <span className="text-slate-900 text-lg ml-0.5">▶</span>
             </span>
           </div>
-          <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/70 to-transparent">
-            <span className="text-white text-xs font-medium">Play on {config.name}</span>
+          <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/70 to-transparent flex items-center justify-between gap-2">
+            <span className="text-white text-xs font-medium">Play</span>
+            <a
+              href={getOriginalUrl()}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="text-white/90 text-[11px] underline underline-offset-2 hover:text-white"
+            >
+              Open on {config.name}
+            </a>
           </div>
         </button>
       </div>
