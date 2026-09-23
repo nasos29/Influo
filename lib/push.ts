@@ -48,7 +48,8 @@ export async function sendPushAdminNewInfluencerPending(
     title: '🔔 Νέος influencer για έλεγχο',
     body: `${displayName} (${contactEmail}) — εγγραφή προς έγκριση`,
     url: '/admin',
-    tag: 'admin-pending-influencer',
+    // Unique tag so each signup creates a new notification (same tag replaces previous on Android).
+    tag: `admin-pending-influencer-${contactEmail.toLowerCase()}`,
   });
 }
 

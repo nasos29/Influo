@@ -10,8 +10,8 @@ export async function POST(req: Request) {
     if (!name || !email) {
       return NextResponse.json({ error: 'name and email required' }, { status: 400 });
     }
-    await sendPushAdminNewInfluencerPending(name, email);
-    return NextResponse.json({ success: true });
+    const result = await sendPushAdminNewInfluencerPending(name, email);
+    return NextResponse.json({ success: true, ...result });
   } catch (e: unknown) {
     console.error('[push/trigger-admin-new-signup]', e);
     return NextResponse.json(
