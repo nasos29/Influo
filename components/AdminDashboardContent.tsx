@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient"; 
 import Image from "next/image";
 import { isDefinitelyVideo, isDefinitelyImage, detectProvider, getIframelyEmbedUrl } from "@/lib/videoThumbnail";
@@ -1943,8 +1943,9 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     };
   };
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (opts?: { silent?: boolean }) => {
+    const silent = !!opts?.silent;
+    if (!silent) setLoading(true);
     try {
       // Only fetch from influencers table - brands should not appear here
       const { data: usersData, error: influencersError } = await supabase
@@ -2013,20 +2014,26 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     } catch (error) {
       console.error('Error in fetchData:', error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
   
-  // Load unread messages count for admin
+  // Load unread messages count for admin (background only — never remounts the page)
+  const editModalOpenRef = useRef(false);
   useEffect(() => {
+    editModalOpenRef.current = showEditModal || showBlogEditModal || showBrandEditModal;
+  }, [showEditModal, showBlogEditModal, showBrandEditModal]);
+
+  useEffect(() => {
+    let cancelled = false;
     const loadUnreadMessages = async () => {
       try {
-        // Count all unread messages from both brands and influencers
         const { count, error } = await supabase
           .from('messages')
           .select('*', { count: 'exact', head: true })
           .eq('read', false);
         
+        if (cancelled) return;
         if (!error && count !== null) {
           setUnreadMessagesCount(count);
         } else if (error) {
@@ -2039,36 +2046,30 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     };
     
     loadUnreadMessages();
-    
-    // Refresh every minute - but NOT when edit modal is open
-    const interval = setInterval(() => {
-      if (!showEditModal && !showBlogEditModal && !showBrandEditModal) {
-        loadUnreadMessages();
-      }
-    }, 60000); // 1 minute instead of 30 seconds
-    
-    return () => clearInterval(interval);
-  }, [showEditModal, showBlogEditModal, showBrandEditModal]);
+    const interval = setInterval(loadUnreadMessages, 60000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
 
+  // Initial load once; background refresh without flipping `loading` (avoids full-page remount)
   useEffect(() => {
     fetchData();
     fetchConversations();
     fetchBrands();
     fetchBlogPosts();
     fetchAnnouncements();
-    
-    // Refresh counts periodically - but NOT when edit modal is open
-    // Increased interval to 2 minutes to avoid interrupting edits
+
     const interval = setInterval(() => {
-      // Don't auto-refresh if edit modal or blog edit modal is open
-      if (!showEditModal && !showBlogEditModal && !showBrandEditModal) {
-        fetchData();
-        fetchConversations();
-      }
-    }, 120000); // 2 minutes instead of 30 seconds
-    
+      if (editModalOpenRef.current) return;
+      void fetchData({ silent: true });
+      void fetchConversations();
+    }, 120000);
+
     return () => clearInterval(interval);
-  }, [showEditModal, showBlogEditModal, showBrandEditModal]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (selectedConversation) {
