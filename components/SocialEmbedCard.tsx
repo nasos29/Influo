@@ -4,11 +4,30 @@ import { useState, useEffect, useRef } from "react";
 
 interface SocialEmbedCardProps {
   provider: "instagram" | "tiktok" | "youtube";
-  embedUrl: string; // Can be API endpoint URL or direct Iframely URL
+  embedUrl: string;
   thumbnailUrl?: string;
   width?: number;
   height?: number;
   originalUrl?: string;
+}
+
+/** Ensure embed starts on the same click that reveals the iframe (no 2nd TikTok play). */
+function withAutoplay(url: string, provider: string): string {
+  try {
+    const u = new URL(url);
+    if (provider === "tiktok" && /tiktok\.com\/embed/i.test(u.hostname + u.pathname)) {
+      u.searchParams.set("autoplay", "1");
+      return u.toString();
+    }
+    if (provider === "youtube" && /(youtube\.com|youtu\.be)/i.test(url)) {
+      u.searchParams.set("autoplay", "1");
+      u.searchParams.set("mute", "0");
+      return u.toString();
+    }
+  } catch {
+    /* ignore */
+  }
+  return url;
 }
 
 export default function SocialEmbedCard({
@@ -32,12 +51,12 @@ export default function SocialEmbedCard({
   const [posterFailed, setPosterFailed] = useState(false);
   const [posterLoading, setPosterLoading] = useState(!thumbnailUrl);
   const [playing, setPlaying] = useState(false);
-  const [embedLoading, setEmbedLoading] = useState(false);
+  const [resolving, setResolving] = useState(false);
   const [error, setError] = useState(false);
-  const [finalEmbedUrl, setFinalEmbedUrl] = useState<string | null>(
-    embedUrl.startsWith("/api/video-embed") ? null : embedUrl
+  const [readyEmbedUrl, setReadyEmbedUrl] = useState<string | null>(
+    embedUrl.startsWith("/api/video-embed") ? null : withAutoplay(embedUrl, provider)
   );
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const iframeKey = useRef(0);
 
   const providerConfig = {
     instagram: {
@@ -84,7 +103,7 @@ export default function SocialEmbedCard({
     return originalUrl || "#";
   };
 
-  // Fetch poster when missing
+  // Poster
   useEffect(() => {
     if (thumbnailUrl) {
       setPoster(thumbnailUrl);
@@ -117,43 +136,61 @@ export default function SocialEmbedCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [thumbnailUrl, originalUrl, embedUrl, provider]);
 
-  // Resolve embed URL only when user clicks play
+  // Preload embed URL while poster is visible — first click only mounts iframe (user gesture + autoplay)
   useEffect(() => {
-    if (!playing) return;
-    if (finalEmbedUrl) {
-      setEmbedLoading(false);
-      return;
-    }
+    if (readyEmbedUrl) return;
     if (!embedUrl.startsWith("/api/video-embed")) {
-      setFinalEmbedUrl(embedUrl);
-      setEmbedLoading(false);
+      setReadyEmbedUrl(withAutoplay(embedUrl, provider));
       return;
     }
-    setEmbedLoading(true);
+    let cancelled = false;
     fetch(embedUrl)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
       })
       .then((data) => {
-        if (data.embed_url) setFinalEmbedUrl(data.embed_url);
-        else {
-          setError(true);
-        }
+        if (cancelled) return;
+        if (data.embed_url) setReadyEmbedUrl(withAutoplay(String(data.embed_url), provider));
       })
-      .catch(() => setError(true))
-      .finally(() => setEmbedLoading(false));
-  }, [playing, embedUrl, finalEmbedUrl]);
-
-  useEffect(() => {
-    if (!playing || !finalEmbedUrl) return;
-    timeoutRef.current = setTimeout(() => {
-      // TikTok/IG iframes often never fire useful errors — if still "loading" feel, leave iframe.
-    }, 12000);
+      .catch(() => {
+        /* resolve on click instead */
+      });
     return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      cancelled = true;
     };
-  }, [playing, finalEmbedUrl]);
+  }, [embedUrl, provider, readyEmbedUrl]);
+
+  const startPlayback = async () => {
+    if (playing) return;
+    setError(false);
+
+    let url = readyEmbedUrl;
+    if (!url) {
+      setResolving(true);
+      try {
+        if (embedUrl.startsWith("/api/video-embed")) {
+          const res = await fetch(embedUrl);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          if (!data.embed_url) throw new Error("No embed");
+          url = withAutoplay(String(data.embed_url), provider);
+        } else {
+          url = withAutoplay(embedUrl, provider);
+        }
+        setReadyEmbedUrl(url);
+      } catch {
+        setError(true);
+        setResolving(false);
+        return;
+      }
+      setResolving(false);
+    }
+
+    // Remount iframe so autoplay binds to this click
+    iframeKey.current += 1;
+    setPlaying(true);
+  };
 
   if (error) {
     return (
@@ -176,87 +213,77 @@ export default function SocialEmbedCard({
     );
   }
 
-  // Click-to-play poster (avoids black empty TikTok/IG iframes on load)
-  if (!playing) {
-    return (
-      <div className="bg-white rounded-xl border border-slate-200 shadow-md overflow-hidden w-full max-w-full">
-        <button
-          type="button"
-          onClick={() => setPlaying(true)}
-          className="relative w-full block text-left group"
-          style={{ aspectRatio: `${finalWidth} / ${finalHeight}`, minHeight: 300 }}
-          aria-label={`Play ${config.name} video`}
-        >
-          {poster && !posterFailed ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={poster}
-              alt={`${config.name} thumbnail`}
-              className="absolute inset-0 w-full h-full object-cover"
-              loading="lazy"
-              referrerPolicy="no-referrer"
-              onError={() => setPosterFailed(true)}
-            />
-          ) : (
-            <div
-              className={`absolute inset-0 bg-gradient-to-br ${config.color} flex flex-col items-center justify-center`}
-            >
-              {posterLoading ? (
-                <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <>
-                  <div className="mb-3">{config.icon}</div>
-                  <span className="text-white text-sm font-semibold">{config.name}</span>
-                </>
-              )}
-            </div>
-          )}
-          <div className="absolute inset-0 bg-black/25 group-hover:bg-black/35 transition-colors" />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="w-14 h-14 rounded-full bg-white/95 shadow-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-              <span className="text-slate-900 text-lg ml-0.5">▶</span>
-            </span>
-          </div>
-          <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/70 to-transparent flex items-center justify-between gap-2">
-            <span className="text-white text-xs font-medium">Play</span>
-            <a
-              href={getOriginalUrl()}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="text-white/90 text-[11px] underline underline-offset-2 hover:text-white"
-            >
-              Open on {config.name}
-            </a>
-          </div>
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-md overflow-hidden w-full max-w-full">
-      {(embedLoading || !finalEmbedUrl) && (
-        <div
-          className={`bg-gradient-to-br ${config.color} flex flex-col items-center justify-center p-8 relative w-full`}
-          style={{ aspectRatio: `${finalWidth} / ${finalHeight}`, minHeight: 300 }}
-        >
-          <div className="mb-4">{config.icon}</div>
-          <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin mb-2" />
-          <span className="text-white text-xs font-medium">Loading {config.name}…</span>
-        </div>
-      )}
-      {finalEmbedUrl && !embedLoading && (
-        <div className="relative w-full" style={{ aspectRatio: `${finalWidth} / ${finalHeight}` }}>
+      <div className="relative w-full" style={{ aspectRatio: `${finalWidth} / ${finalHeight}`, minHeight: 300 }}>
+        {playing && readyEmbedUrl && (
           <iframe
-            src={finalEmbedUrl}
+            key={iframeKey.current}
+            src={readyEmbedUrl}
             className="absolute top-0 left-0 w-full h-full border-0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
             onError={() => setError(true)}
           />
-        </div>
-      )}
+        )}
+
+        {!playing && (
+          <button
+            type="button"
+            onClick={() => void startPlayback()}
+            disabled={resolving}
+            className="absolute inset-0 w-full h-full block text-left group"
+            aria-label={`Play ${config.name} video`}
+          >
+            {poster && !posterFailed ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={poster}
+                alt={`${config.name} thumbnail`}
+                className="absolute inset-0 w-full h-full object-cover"
+                loading="lazy"
+                referrerPolicy="no-referrer"
+                onError={() => setPosterFailed(true)}
+              />
+            ) : (
+              <div
+                className={`absolute inset-0 bg-gradient-to-br ${config.color} flex flex-col items-center justify-center`}
+              >
+                {posterLoading ? (
+                  <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <div className="mb-3">{config.icon}</div>
+                    <span className="text-white text-sm font-semibold">{config.name}</span>
+                  </>
+                )}
+              </div>
+            )}
+            <div className="absolute inset-0 bg-black/25 group-hover:bg-black/35 transition-colors" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              {resolving ? (
+                <div className="w-10 h-10 border-4 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <span className="w-14 h-14 rounded-full bg-white/95 shadow-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <span className="text-slate-900 text-lg ml-0.5">▶</span>
+                </span>
+              )}
+            </div>
+            <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/70 to-transparent flex items-center justify-between gap-2">
+              <span className="text-white text-xs font-medium">{resolving ? "Loading…" : "Play"}</span>
+              <a
+                href={getOriginalUrl()}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="text-white/90 text-[11px] underline underline-offset-2 hover:text-white"
+              >
+                Open on {config.name}
+              </a>
+            </div>
+          </button>
+        )}
+      </div>
     </div>
   );
 }

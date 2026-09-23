@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
     if (provider === 'tiktok' && !frameMode) {
       const videoId = await resolveTikTokVideoId(originalUrl);
       if (videoId) {
-        const embedUrl = `https://www.tiktok.com/embed/v2/${videoId}`;
+        const embedUrl = `https://www.tiktok.com/embed/v2/${videoId}?autoplay=1`;
         try {
           const expiresAt = new Date();
           expiresAt.setDate(expiresAt.getDate() + 30);
