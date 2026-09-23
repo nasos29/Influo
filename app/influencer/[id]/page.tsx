@@ -2278,12 +2278,20 @@ export default function InfluencerProfile(props: { params: Params }) {
                                         
                                         // Use SocialEmbedCard for social media videos
                                         if (provider && embedUrl && !isImage) {
+                                            const thumbRaw = profile.video_thumbnails?.[vid];
+                                            const thumbUrl =
+                                              typeof thumbRaw === "string"
+                                                ? thumbRaw
+                                                : thumbRaw && typeof thumbRaw === "object" && "url" in (thumbRaw as object)
+                                                  ? String((thumbRaw as { url?: string }).url || "")
+                                                  : undefined;
                                             return (
                                                 <div key={i} className="w-full">
                                                     <SocialEmbedCard
                                                         provider={provider}
                                                         embedUrl={embedUrl}
                                                         originalUrl={vid}
+                                                        thumbnailUrl={thumbUrl || undefined}
                                                     />
                                                 </div>
                                             );

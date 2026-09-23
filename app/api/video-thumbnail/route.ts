@@ -14,7 +14,9 @@ async function saveThumbnailCache(originalUrl: string, thumbnailUrl: string | nu
   if (!thumbnailUrl) return;
   try {
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + CACHE_DAYS);
+    // TikTok CDN signed URLs expire; keep short TTL so we re-fetch via oEmbed.
+    const days = platform === 'tiktok' ? 7 : CACHE_DAYS;
+    expiresAt.setDate(expiresAt.getDate() + days);
     await supabaseAdmin.from('video_thumbnail_cache').upsert(
       {
         original_url: originalUrl,
@@ -28,6 +30,71 @@ async function saveThumbnailCache(originalUrl: string, thumbnailUrl: string | nu
   } catch {
     // Table might not exist
   }
+}
+
+async function isThumbnailReachable(thumbnailUrl: string): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch(thumbnailUrl, {
+      method: 'GET',
+      signal: controller.signal,
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; InfluoBot/1.0)' },
+      redirect: 'follow',
+    });
+    clearTimeout(t);
+    if (!res.ok) return false;
+    const ct = (res.headers.get('content-type') || '').toLowerCase();
+    return ct.startsWith('image/');
+  } catch {
+    return false;
+  }
+}
+
+/** Resolve vm/vt.tiktok.com → canonical video URL. */
+async function resolveTikTokUrl(url: string): Promise<string> {
+  const clean = url.split('?')[0].split('#')[0].trim();
+  if (!/(vm|vt)\.tiktok\.com/i.test(clean)) return clean;
+  try {
+    const res = await fetch(clean, {
+      method: 'GET',
+      redirect: 'manual',
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+    });
+    const loc = res.headers.get('location');
+    if (!loc) return clean;
+    const abs = loc.startsWith('http')
+      ? loc
+      : `https://www.tiktok.com${loc.startsWith('/') ? loc : `/${loc}`}`;
+    const withUser = abs.match(/tiktok\.com\/@([\w.-]+)\/video\/(\d+)/i);
+    if (withUser) return `https://www.tiktok.com/@${withUser[1]}/video/${withUser[2]}`;
+    const idOnly = abs.match(/\/video\/(\d+)/);
+    if (idOnly) return `https://www.tiktok.com/video/${idOnly[1]}`;
+    return abs.split('?')[0];
+  } catch {
+    return clean;
+  }
+}
+
+/** Official TikTok oEmbed — reliable thumbnail for short + full URLs. */
+async function tikTokThumbnailViaOEmbed(url: string): Promise<string | null> {
+  const resolved = await resolveTikTokUrl(url);
+  const candidates = Array.from(new Set([resolved, url.split('?')[0].split('#')[0].trim()]));
+  for (const candidate of candidates) {
+    try {
+      const res = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(candidate)}`, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+      });
+      if (!res.ok) continue;
+      const data = (await res.json()) as { thumbnail_url?: string };
+      if (!data.thumbnail_url) continue;
+      if (await isThumbnailReachable(data.thumbnail_url)) return data.thumbnail_url;
+      return data.thumbnail_url;
+    } catch {
+      // try next
+    }
+  }
+  return null;
 }
 
 // Get video thumbnail for various platforms
@@ -52,14 +119,22 @@ export async function GET(req: NextRequest) {
       if (!cacheError && cached && cached.thumbnail_url) {
         const expiresAt = new Date(cached.expires_at);
         if (expiresAt > new Date()) {
-          const res = NextResponse.json({
-            thumbnail: cached.thumbnail_url,
-            platform: cached.platform || 'unknown',
-          });
-          res.headers.set('Cache-Control', 'public, max-age=31536000, s-maxage=31536000');
-          return res;
+          const thumb = cached.thumbnail_url as string;
+          const isTikTokCdn = /tiktokcdn/i.test(thumb);
+          // Signed TikTok CDN URLs die; don't serve a dead cache forever.
+          if (isTikTokCdn && !(await isThumbnailReachable(thumb))) {
+            await supabaseAdmin.from('video_thumbnail_cache').delete().eq('original_url', cleanUrl);
+          } else {
+            const res = NextResponse.json({
+              thumbnail: thumb,
+              platform: cached.platform || 'unknown',
+            });
+            res.headers.set('Cache-Control', 'public, max-age=86400, s-maxage=86400');
+            return res;
+          }
+        } else {
+          await supabaseAdmin.from('video_thumbnail_cache').delete().eq('original_url', cleanUrl);
         }
-        await supabaseAdmin.from('video_thumbnail_cache').delete().eq('original_url', cleanUrl);
       }
     } catch {
       // Table might not exist
@@ -278,7 +353,16 @@ export async function GET(req: NextRequest) {
       const cleanUrl = url.split('?')[0].split('#')[0]; // Remove query parameters and hash
       
       try {
-        // Use Iframely API for TikTok thumbnails (best option)
+        // 1) Official oEmbed (works for short links after resolve) — preferred over Iframely
+        const oembedThumb = await tikTokThumbnailViaOEmbed(cleanUrl);
+        if (oembedThumb) {
+          await saveThumbnailCache(cleanUrl, oembedThumb, 'tiktok');
+          const res = NextResponse.json({ thumbnail: oembedThumb, platform: 'tiktok' });
+          res.headers.set('Cache-Control', 'public, max-age=86400, s-maxage=86400');
+          return res;
+        }
+
+        // 2) Iframely fallback
         const iframelyApiKey = process.env.IFRAMELY_API_KEY || process.env.NEXT_PUBLIC_IFRAMELY_API_KEY;
         if (iframelyApiKey) {
           try {
@@ -326,7 +410,7 @@ export async function GET(req: NextRequest) {
                 console.log('TikTok thumbnail found via Iframely:', thumbnailUrl);
                 await saveThumbnailCache(cleanUrl, thumbnailUrl, 'tiktok');
                 const res = NextResponse.json({ thumbnail: thumbnailUrl, platform: 'tiktok' });
-                res.headers.set('Cache-Control', 'public, max-age=31536000, s-maxage=31536000');
+                res.headers.set('Cache-Control', 'public, max-age=86400, s-maxage=86400');
                 return res;
               } else {
                 // Log full response for debugging
@@ -372,7 +456,7 @@ export async function GET(req: NextRequest) {
                   const fullImageUrl = imageUrl.startsWith('//') ? `https:${imageUrl}` : imageUrl;
                   await saveThumbnailCache(cleanUrl, fullImageUrl, 'tiktok');
                   const res = NextResponse.json({ thumbnail: fullImageUrl, platform: 'tiktok' });
-                  res.headers.set('Cache-Control', 'public, max-age=31536000, s-maxage=31536000');
+                  res.headers.set('Cache-Control', 'public, max-age=86400, s-maxage=86400');
                   return res;
                 }
               }
