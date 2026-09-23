@@ -138,16 +138,6 @@ export default function SocialEmbedCard({
           />
         )}
       </div>
-      <div className="px-3 py-2 border-t border-slate-100 flex justify-end">
-        <a
-          href={getOriginalUrl()}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs text-slate-500 hover:text-slate-800 underline underline-offset-2"
-        >
-          Open on {names[provider]}
-        </a>
-      </div>
     </div>
   );
 }
