@@ -50,8 +50,22 @@ async function resolveTikTokVideoId(url: string): Promise<string | null> {
   }
 }
 
-function isStaleTikTokCache(embedUrl: string): boolean {
-  // Old caches pointed at Iframely proxy frames which often render black.
+/** Resolve YouTube watch/shorts/youtu.be → 11-char video id. */
+function resolveYouTubeVideoId(url: string): string | null {
+  const clean = url.trim();
+  const patterns = [
+    /(?:youtube\.com\/(?:watch\?(?:[^#]*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/i,
+    /[?&]v=([A-Za-z0-9_-]{11})/i,
+  ];
+  for (const re of patterns) {
+    const m = clean.match(re);
+    if (m?.[1]) return m[1];
+  }
+  return null;
+}
+
+function isStaleIframelyCache(embedUrl: string): boolean {
+  // Old caches pointed at Iframely proxy frames which often need a 2nd play click.
   return /iframe\.ly|frame=1/i.test(embedUrl);
 }
 
@@ -96,6 +110,35 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({
           embed_url: embedUrl,
           provider: 'tiktok',
+          cached: false,
+        });
+      }
+    }
+
+    // YouTube: official embed with autoplay (same one-click UX as TikTok).
+    if (provider === 'youtube' && !frameMode) {
+      const videoId = resolveYouTubeVideoId(originalUrl);
+      if (videoId) {
+        const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&playsinline=1`;
+        try {
+          const expiresAt = new Date();
+          expiresAt.setDate(expiresAt.getDate() + 30);
+          await supabaseAdmin.from('video_embed_cache').upsert(
+            {
+              original_url: originalUrl,
+              embed_url: embedUrl,
+              provider: 'youtube',
+              cached_at: new Date().toISOString(),
+              expires_at: expiresAt.toISOString(),
+            },
+            { onConflict: 'original_url' }
+          );
+        } catch {
+          /* cache optional */
+        }
+        return NextResponse.json({
+          embed_url: embedUrl,
+          provider: 'youtube',
           cached: false,
         });
       }
@@ -146,9 +189,10 @@ export async function GET(req: NextRequest) {
 
       if (!cacheError && cached) {
         const expiresAt = new Date(cached.expires_at);
-        const staleTikTok =
-          cached.provider === 'tiktok' && isStaleTikTokCache(String(cached.embed_url || ''));
-        if (expiresAt > new Date() && !staleTikTok) {
+        const staleIframely =
+          (cached.provider === 'tiktok' || cached.provider === 'youtube') &&
+          isStaleIframelyCache(String(cached.embed_url || ''));
+        if (expiresAt > new Date() && !staleIframely) {
           const res = NextResponse.json({
             embed_url: cached.embed_url,
             provider: cached.provider,

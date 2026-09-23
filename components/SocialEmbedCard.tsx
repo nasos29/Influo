@@ -11,7 +11,7 @@ interface SocialEmbedCardProps {
   originalUrl?: string;
 }
 
-/** Ensure embed starts on the same click that reveals the iframe (no 2nd TikTok play). */
+/** Ensure embed starts on the same click that reveals the iframe (no 2nd player Play). */
 function withAutoplay(url: string, provider: string): string {
   try {
     const u = new URL(url);
@@ -19,9 +19,10 @@ function withAutoplay(url: string, provider: string): string {
       u.searchParams.set("autoplay", "1");
       return u.toString();
     }
-    if (provider === "youtube" && /(youtube\.com|youtu\.be)/i.test(url)) {
+    if (provider === "youtube" && /youtube\.com\/embed\//i.test(url)) {
       u.searchParams.set("autoplay", "1");
-      u.searchParams.set("mute", "0");
+      u.searchParams.set("rel", "0");
+      u.searchParams.set("playsinline", "1");
       return u.toString();
     }
   } catch {
