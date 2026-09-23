@@ -2324,32 +2324,37 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
 
         localStorage.setItem('influo_auditpr_url', auditprUrl);
 
-        if (canBrowserFetchAuditpr(auditprUrl)) {
-          const health = await checkAuditprHealth(auditprUrl);
-          if (!health.ok) {
-            alert(lang === 'el'
-              ? `Δεν συνδέεται το Auditpr στο ${auditprUrl}.\n${health.error || ''}`
-              : `Cannot reach Auditpr at ${auditprUrl}.\n${health.error || ''}`);
-            return;
-          }
+        if (!canBrowserFetchAuditpr(auditprUrl)) {
+          alert(lang === 'el'
+            ? `Το Auditpr URL δεν είναι προσβάσιμο από τον browser (mixed content / λάθος URL):\n${auditprUrl}\n\nΧρησιμοποίησε https://130.162.39.149.sslip.io`
+            : `Auditpr URL is not reachable from the browser (mixed content / bad URL):\n${auditprUrl}\n\nUse https://130.162.39.149.sslip.io`);
+          return;
+        }
 
-          const bundle = await fetchAuditprOverridesForAccounts(auditprUrl, accountsToFetch, { delayMs: 1500 });
-          fetchErrors = bundle.errors;
-          accountFetchResults = bundle.accountResults;
-          if (Object.keys(bundle.instagramOverrides).length > 0) instagramOverrides = bundle.instagramOverrides;
-          if (Object.keys(bundle.tiktokOverrides).length > 0) tiktokOverrides = bundle.tiktokOverrides;
-          if (Object.keys(bundle.youtubeOverrides).length > 0) youtubeOverrides = bundle.youtubeOverrides;
+        const health = await checkAuditprHealth(auditprUrl);
+        if (!health.ok) {
+          alert(lang === 'el'
+            ? `Δεν συνδέεται το Auditpr στο ${auditprUrl}.\n${health.error || ''}`
+            : `Cannot reach Auditpr at ${auditprUrl}.\n${health.error || ''}`);
+          return;
+        }
 
-          const fetchedCount =
-            Object.keys(bundle.instagramOverrides).length +
-            Object.keys(bundle.tiktokOverrides).length +
-            Object.keys(bundle.youtubeOverrides).length;
-          if (fetchedCount === 0) {
-            alert(lang === 'el'
-              ? `Δεν ανανεώθηκε κανένα account από το Auditpr.\n\n${fetchErrors.join('\n') || 'Άγνωστο σφάλμα.'}`
-              : `No accounts were refreshed from Auditpr.\n\n${fetchErrors.join('\n') || 'Unknown error.'}`);
-            return;
-          }
+        const bundle = await fetchAuditprOverridesForAccounts(auditprUrl, accountsToFetch, { delayMs: 1500 });
+        fetchErrors = bundle.errors;
+        accountFetchResults = bundle.accountResults;
+        if (Object.keys(bundle.instagramOverrides).length > 0) instagramOverrides = bundle.instagramOverrides;
+        if (Object.keys(bundle.tiktokOverrides).length > 0) tiktokOverrides = bundle.tiktokOverrides;
+        if (Object.keys(bundle.youtubeOverrides).length > 0) youtubeOverrides = bundle.youtubeOverrides;
+
+        const fetchedCount =
+          Object.keys(bundle.instagramOverrides).length +
+          Object.keys(bundle.tiktokOverrides).length +
+          Object.keys(bundle.youtubeOverrides).length;
+        if (fetchedCount === 0) {
+          alert(lang === 'el'
+            ? `Δεν ανανεώθηκε κανένα account από το Auditpr.\n\n${fetchErrors.join('\n') || 'Άγνωστο σφάλμα.'}`
+            : `No accounts were refreshed from Auditpr.\n\n${fetchErrors.join('\n') || 'Unknown error.'}`);
+          return;
         }
       }
 
@@ -3214,10 +3219,12 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                     title={new Date(u.created_at).toLocaleString(lang === "el" ? "el-GR" : "en-GB")}
                                   >
                                     {lang === "el" ? "Εγγραφή" : "Joined"}{" "}
-                                    {new Date(u.created_at).toLocaleDateString(lang === "el" ? "el-GR" : "en-GB", {
+                                    {new Date(u.created_at).toLocaleString(lang === "el" ? "el-GR" : "en-GB", {
                                       day: "numeric",
                                       month: "short",
                                       year: "numeric",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
                                     })}
                                   </div>
                                 )}

@@ -4,7 +4,8 @@
  *
  * GET: returns list of influencers due for refresh (id, display_name, accounts) so the browser can fetch from local Auditpr and then POST.
  * POST body: { influencerId?: string } – if omitted, refreshes all due (last_social_refresh_at > 30 days ago).
- * When instagramOverrides / tiktokOverrides are set (browser fetched from local Auditpr), those are used. Otherwise server uses AUDITPR_BASE_URL (session-only).
+ * POST requires instagramOverrides / tiktokOverrides / youtubeOverrides (browser-fetched from Auditpr).
+ * Server-side Auditpr scrape is disabled here — it exceeds Vercel maxDuration (60s) and causes FUNCTION_INVOCATION_TIMEOUT.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -62,14 +63,30 @@ export async function POST(request: NextRequest) {
       // no body
     }
 
-    const auditprBaseUrl = (process.env.AUDITPR_BASE_URL || '').trim();
+    const hasOverrides =
+      (instagramOverrides && Object.keys(instagramOverrides).length > 0) ||
+      (tiktokOverrides && Object.keys(tiktokOverrides).length > 0) ||
+      (youtubeOverrides && Object.keys(youtubeOverrides).length > 0);
+
+    // Admin UI scrapes Auditpr in the browser. Never scrape from Vercel — IG/TT
+    // alone often exceed maxDuration (60s) and cause FUNCTION_INVOCATION_TIMEOUT.
+    if (!hasOverrides) {
+      return NextResponse.json(
+        {
+          error:
+            'No Auditpr metrics in request. Refresh from the admin dashboard so the browser can fetch Auditpr first (server-side scrape is disabled to avoid Vercel timeouts).',
+        },
+        { status: 400 }
+      );
+    }
 
     const result = await doRefreshSocialStats(supabaseAdmin, {
       influencerId,
-      auditprBaseUrl,
+      auditprBaseUrl: '',
       instagramOverrides,
       tiktokOverrides,
       youtubeOverrides,
+      overridesOnly: true,
     });
     return NextResponse.json(result);
   } catch (err: unknown) {
