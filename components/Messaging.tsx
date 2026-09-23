@@ -3,6 +3,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { displayNameForLang } from '@/lib/greeklish';
+import {
+  formatChatRelativeTime,
+  formatChatDayLabel,
+  sameChatDay,
+  clipChatPreview,
+  chatInitial,
+} from '@/lib/chatTime';
 
 interface Message {
   id: string;
@@ -25,6 +32,8 @@ interface Conversation {
   last_activity_influencer?: string | null;
   last_activity_brand?: string | null;
   closed_at?: string | null;
+  last_message_preview?: string;
+  unread_count?: number;
 }
 
 interface ProposalInfo {
@@ -58,9 +67,9 @@ const t = {
     online: "Online",
     offline: "Offline",
     offlineNotice:
-      "💬 Ο influencer δεν είναι συνδεδεμένος τώρα. Το μήνυμα αποθηκεύεται εδώ· θα το δει όταν μπει στο Influo.",
+      "Ο influencer δεν είναι συνδεδεμένος τώρα. Το μήνυμα αποθηκεύεται εδώ· θα το δει όταν μπει στο Influo.",
     brandOfflineNotice:
-      "💬 Η επιχείρηση δεν είναι συνδεδεμένη τώρα. Το μήνυμα αποθηκεύεται εδώ· θα το δει όταν μπει στο Influo.",
+      "Η επιχείρηση δεν είναι συνδεδεμένη τώρα. Το μήνυμα αποθηκεύεται εδώ· θα το δει όταν μπει στο Influo.",
     sending: "Αποστολή...",
     send: "Αποστολή",
     messages: "Μηνύματα",
@@ -68,44 +77,74 @@ const t = {
     selectConversation: "Επέλεξε μια συνομιλία για να δεις τα μηνύματα",
     endConversation: "Τέλος συνομιλίας",
     endingConversation: "Τερματισμός...",
-    inactivityWarning: "⚠️ Η συνομιλία είναι αδρανής και από τις δύο πλευρές. Η συνομιλία θα κλείσει αυτόματα σε 5 λεπτά.",
+    endConfirmTitle: "Τερματισμός συνομιλίας;",
+    endConfirmBody: "Οι συμμετέχοντες θα ενημερωθούν μέσω της πλατφόρμας.",
+    endConfirmYes: "Ναι, τερματισμός",
+    endConfirmNo: "Ακύρωση",
+    inactivityWarning: "Η συνομιλία είναι αδρανής και από τις δύο πλευρές. Θα κλείσει αυτόματα σε 5 λεπτά.",
     conversationClosed: "Η συνομιλία έκλεισε.",
     conversationClosedInactivity: "Η συνομιλία έκλεισε λόγω αδράνειας.",
-    acceptAgreement: "✅ Αποδοχή Συμφωνίας",
+    reopenHint: "Η συνομιλία είναι κλειστή. Στείλε μήνυμα για να την ανοίξεις ξανά.",
+    reopenPlaceholder: "Γράψε μήνυμα για να ανοίξεις τη συνομιλία...",
+    acceptAgreement: "Αποδοχή συμφωνίας",
     agreementTitle: "Συμφωνία Συνεργασίας",
     agreementCancel: "Ακύρωση",
     agreementAccept: "Αποδοχή Συμφωνίας",
     agreementSaving: "Αποθήκευση...",
-    agreementAccepted: "✅ Συμφωνία Αποδεκτή",
-    agreementPending: "⏳ Αναμονή Αποδοχής",
-    agreementSummary: "Σύνοψη Συμφωνίας"
+    agreementAccepted: "Συμφωνία αποδεκτή",
+    agreementPending: "Αναμονή αποδοχής",
+    agreementSummary: "Σύνοψη",
+    proposalCardTitle: "Προσφορά συνεργασίας",
+    proposalOffered: "Προσφερόμενη",
+    proposalCounter: "Αντιπρόταση",
+    readReceipt: "Διαβάστηκε",
+    closedBadge: "Κλειστή",
+    back: "Πίσω",
+    loading: "Φόρτωση...",
+    moreActions: "Ενέργειες",
+    brandFallback: "Επιχείρηση",
   },
   en: {
     placeholder: "Type your message...",
     online: "Online",
     offline: "Offline",
     offlineNotice:
-      "💬 The influencer is not connected right now. Your message is saved here; they will see it when they open Influo.",
+      "The influencer is not connected right now. Your message is saved here; they will see it when they open Influo.",
     brandOfflineNotice:
-      "💬 The brand is not connected right now. Your message is saved here; they will see it when they open Influo.",
+      "The brand is not connected right now. Your message is saved here; they will see it when they open Influo.",
     sending: "Sending...",
     send: "Send",
     messages: "Messages",
     noConversations: "No conversations yet",
     selectConversation: "Select a conversation to view messages",
-    endConversation: "End Conversation",
+    endConversation: "End conversation",
     endingConversation: "Ending...",
-    inactivityWarning: "⚠️ The conversation is inactive on both sides. The conversation will close automatically in 5 minutes.",
+    endConfirmTitle: "End this conversation?",
+    endConfirmBody: "Participants will be notified through the platform.",
+    endConfirmYes: "Yes, end it",
+    endConfirmNo: "Cancel",
+    inactivityWarning: "The conversation is inactive on both sides. It will close automatically in 5 minutes.",
     conversationClosed: "The conversation has been closed.",
     conversationClosedInactivity: "The conversation has been closed due to inactivity.",
-    acceptAgreement: "✅ Accept Agreement",
+    reopenHint: "Conversation is closed. Send a message to reopen it.",
+    reopenPlaceholder: "Type a message to reopen the conversation...",
+    acceptAgreement: "Accept agreement",
     agreementTitle: "Collaboration Agreement",
     agreementCancel: "Cancel",
     agreementAccept: "Accept Agreement",
     agreementSaving: "Saving...",
-    agreementAccepted: "✅ Agreement Accepted",
-    agreementPending: "⏳ Pending Acceptance",
-    agreementSummary: "Agreement Summary"
+    agreementAccepted: "Agreement accepted",
+    agreementPending: "Pending acceptance",
+    agreementSummary: "Summary",
+    proposalCardTitle: "Collaboration offer",
+    proposalOffered: "Offered",
+    proposalCounter: "Counter",
+    readReceipt: "Read",
+    closedBadge: "Closed",
+    back: "Back",
+    loading: "Loading...",
+    moreActions: "Actions",
+    brandFallback: "Brand",
   }
 };
 
@@ -131,6 +170,7 @@ export default function Messaging({
   const [isBrandOnline, setIsBrandOnline] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastSentMessageRef = useRef<string>('');
+  const applyInboxMessageRef = useRef<(msg: Message) => void>(() => {});
   const [proposalInfo, setProposalInfo] = useState<ProposalInfo | null>(null);
   const [lastActivityInfluencer, setLastActivityInfluencer] = useState<Date | null>(null);
   const [lastActivityBrand, setLastActivityBrand] = useState<Date | null>(null);
@@ -141,7 +181,8 @@ export default function Messaging({
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
   const [savingAgreement, setSavingAgreement] = useState(false);
-  const [showConversationsList, setShowConversationsList] = useState(false); // Mobile: toggle conversations list
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const [showEndConfirm, setShowEndConfirm] = useState(false);
   const activityCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastActivityUpdateRef = useRef<number>(0);
   const warningStartTimeRef = useRef<number | null>(null);
@@ -224,8 +265,8 @@ export default function Messaging({
       };
       
       updateBrandStatus();
-      // Update status every 3 seconds to keep brand online (more frequent for reliability)
-      const interval = setInterval(updateBrandStatus, 3000);
+      // Update status every 10 seconds to keep brand online
+      const interval = setInterval(updateBrandStatus, 10000);
       
       // Handle browser close/tab close
       const handleBeforeUnload = () => {
@@ -308,21 +349,17 @@ export default function Messaging({
   // Define endConversation BEFORE it's used in useEffect
   const endConversation = useCallback(async (autoClose = false) => {
     if (!selectedConversation || endingConversation) {
-      console.log('[End Conversation] Skipping - no selected conversation or already ending');
       return;
     }
 
-    console.log('[End Conversation] Called with autoClose:', autoClose, 'conversationId:', selectedConversation);
-
-    if (!autoClose && !confirm(lang === 'el' 
-      ? 'Είστε σίγουροι ότι θέλετε να τερματίσετε τη συνομιλία; Οι συμμετέχοντες ενημερώνονται μέσω της πλατφόρμας.'
-      : 'Are you sure you want to end the conversation? Participants are notified through the platform.')) {
+    if (!autoClose) {
+      setShowEndConfirm(true);
+      setShowActionsMenu(false);
       return;
     }
 
     setEndingConversation(true);
     try {
-      console.log('[End Conversation] Calling API...');
       const response = await fetch('/api/conversations/end', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -334,11 +371,8 @@ export default function Messaging({
 
       const result = await response.json();
       
-      console.log('[End Conversation] API response:', { ok: response.ok, success: result.success, error: result.error });
-      
       if (!response.ok || !result.success) {
         const errorMsg = result.error || `HTTP ${response.status}: ${response.statusText}`;
-        console.error('[End Conversation] Error response:', result);
         throw new Error(errorMsg);
       }
 
@@ -346,19 +380,55 @@ export default function Messaging({
       setConversationClosedByInactivity(autoClose);
       setShowInactivityWarning(false);
       warningStartTimeRef.current = null;
-      
-      if (!autoClose) {
-        alert(lang === 'el' 
-          ? 'Η συνομιλία έκλεισε. Οι συμμετέχοντες ενημερώθηκαν μέσω της πλατφόρμας.'
-          : 'Conversation closed. Participants were notified through the platform.');
-      } else {
-        alert(lang === 'el' 
-          ? 'Η συνομιλία έκλεισε λόγω αδράνειας. Οι συμμετέχοντες ενημερώθηκαν μέσω της πλατφόρμας.'
-          : 'Conversation closed due to inactivity. Participants were notified through the platform.');
-      }
+      setShowEndConfirm(false);
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === selectedConversation
+            ? { ...c, closed_at: new Date().toISOString() }
+            : c
+        )
+      );
     } catch (error) {
       console.error('[End Conversation] Error:', error);
       alert(lang === 'el' 
+        ? 'Αποτυχία τερματισμού συνομιλίας. Παρακαλώ δοκιμάστε ξανά.'
+        : 'Failed to end conversation. Please try again.');
+    } finally {
+      setEndingConversation(false);
+    }
+  }, [selectedConversation, endingConversation, lang]);
+
+  const confirmEndConversation = useCallback(async () => {
+    if (!selectedConversation || endingConversation) return;
+    setEndingConversation(true);
+    setShowEndConfirm(false);
+    try {
+      const response = await fetch('/api/conversations/end', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationId: selectedConversation,
+          autoClose: false,
+        })
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || `HTTP ${response.status}`);
+      }
+      setConversationClosed(true);
+      setConversationClosedByInactivity(false);
+      setShowInactivityWarning(false);
+      warningStartTimeRef.current = null;
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === selectedConversation
+            ? { ...c, closed_at: new Date().toISOString() }
+            : c
+        )
+      );
+    } catch (error) {
+      console.error('[End Conversation] Error:', error);
+      alert(lang === 'el'
         ? 'Αποτυχία τερματισμού συνομιλίας. Παρακαλώ δοκιμάστε ξανά.'
         : 'Failed to end conversation. Please try again.');
     } finally {
@@ -405,6 +475,7 @@ export default function Messaging({
           
           setMessages((prev) => [...prev, newMsg]);
           scrollToBottom();
+          applyInboxMessageRef.current(newMsg);
           
           // Update brand status when brand sends a message (for influencer mode)
           // This is the same as when influencer sends message to brand (brand checks influencer status)
@@ -453,6 +524,17 @@ export default function Messaging({
             }, 500);
           }
         })
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${selectedConversation}`
+        }, (payload) => {
+          const updated = payload.new as Message;
+          setMessages((prev) =>
+            prev.map((m) => (m.id === updated.id ? { ...m, read: updated.read } : m))
+          );
+        })
         .subscribe();
 
       // Update activity timestamp periodically while conversation is open
@@ -465,9 +547,38 @@ export default function Messaging({
         subscription.unsubscribe();
         clearInterval(activityInterval);
       };
+    } else {
+      setShowActionsMenu(false);
+      setShowEndConfirm(false);
     }
   }, [selectedConversation]);
 
+  // Inbox-wide realtime: keep conversation list previews/unread fresh
+  useEffect(() => {
+    const channel = supabase
+      .channel(`inbox:${mode}:${influencerId || brandEmail || 'all'}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload) => {
+          const newMsg = payload.new as Message;
+          applyInboxMessageRef.current(newMsg);
+        }
+      )
+      .subscribe();
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [mode, influencerId, brandEmail]);
+
+  // Keep parent unread badge in sync with list enrichment
+  useEffect(() => {
+    if (!onUnreadCountChange) return;
+    if (mode === 'brand') {
+      const total = conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
+      onUnreadCountChange(total);
+    }
+  }, [conversations, mode, onUnreadCountChange]);
 
   // Check for inactivity every 1 minute (more frequent checks for better UX)
   useEffect(() => {
@@ -621,49 +732,34 @@ export default function Messaging({
         console.error('[Load Conversations] ❌ ERROR:', error);
         throw error;
       }
-      
-      setConversations(data || []);
+
+      const rows = (data || []) as Conversation[];
+      const enriched = await enrichConversationRows(rows);
+      setConversations(enriched);
 
       // Calculate unread message count for brand mode
-      if (mode === 'brand' && brandEmail && data && data.length > 0 && onUnreadCountChange) {
-        (async () => {
-          try {
-            const conversationIds = data.map(c => c.id);
-            const { data: unreadMessages } = await supabase
-              .from('messages')
-              .select('id')
-              .in('conversation_id', conversationIds)
-              .eq('sender_type', 'influencer')
-              .eq('read', false);
-            onUnreadCountChange(unreadMessages?.length || 0);
-          } catch (error) {
-            // Ignore errors
-          }
-        })();
+      if (mode === 'brand' && brandEmail && enriched.length > 0 && onUnreadCountChange) {
+        const totalUnread = enriched.reduce((sum, c) => sum + (c.unread_count || 0), 0);
+        onUnreadCountChange(totalUnread);
       } else if (onUnreadCountChange) {
         onUnreadCountChange(0);
       }
 
-      // Auto-select: αν έχει οριστεί influencerId (π.χ. από «Μήνυμα» σε αίτηση), διάλεξε τη σχετική συνομιλία· αλλιώς την πρώτη.
-      if (mode === 'brand' && brandEmail && data && data.length === 0 && influencerId) {
+      // Auto-select: deep-link / desktop first; mobile keeps list until user picks.
+      if (mode === 'brand' && brandEmail && enriched.length === 0 && influencerId) {
         // Νέα συνομιλία — το πρώτο μήνυμα δημιουργεί conversation
-      } else if (data && data.length > 0 && !selectedConversation) {
+      } else if (enriched.length > 0 && !selectedConversation) {
         if (mode === 'brand' && influencerId) {
-          const match = data.find((c) => c.influencer_id === influencerId);
+          const match = enriched.find((c) => c.influencer_id === influencerId);
           if (match) setSelectedConversation(match.id);
-        } else {
-          setSelectedConversation(data[0].id);
+        } else if (typeof window !== 'undefined' && window.matchMedia('(min-width: 640px)').matches) {
+          setSelectedConversation(enriched[0].id);
+          if (mode === 'influencer' && enriched[0]?.brand_email) {
+            setTimeout(() => checkBrandStatus(enriched[0].brand_email), 200);
+          }
         }
-        // Check brand status immediately when first conversation is auto-selected (for influencer mode)
-        if (mode === 'influencer' && data[0]?.brand_email) {
-          // Use setTimeout to ensure conversations state is updated first
-          setTimeout(() => {
-            checkBrandStatus(data[0].brand_email);
-          }, 200);
-        }
-      } else if (mode === 'influencer' && data && data.length > 0 && selectedConversation) {
-        // If conversation is already selected, check brand status for that conversation
-        const currentConv = data.find(c => c.id === selectedConversation);
+      } else if (mode === 'influencer' && enriched.length > 0 && selectedConversation) {
+        const currentConv = enriched.find(c => c.id === selectedConversation);
         if (currentConv?.brand_email) {
           setTimeout(() => {
             checkBrandStatus(currentConv.brand_email);
@@ -676,6 +772,75 @@ export default function Messaging({
       setLoading(false);
     }
   };
+
+  const enrichConversationRows = async (rows: Conversation[]): Promise<Conversation[]> => {
+    if (!rows.length) return [];
+    const ids = rows.map((c) => c.id);
+
+    const { data: unreadRows } = await supabase
+      .from('messages')
+      .select('conversation_id')
+      .in('conversation_id', ids)
+      .eq('read', false)
+      .neq('sender_type', mode);
+
+    const unreadMap = new Map<string, number>();
+    for (const row of unreadRows || []) {
+      const id = String((row as { conversation_id: string }).conversation_id);
+      unreadMap.set(id, (unreadMap.get(id) || 0) + 1);
+    }
+
+    const withPreviews = await Promise.all(
+      rows.map(async (c) => {
+        const { data: last } = await supabase
+          .from('messages')
+          .select('content')
+          .eq('conversation_id', c.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        return {
+          ...c,
+          last_message_preview: last?.content || '',
+          unread_count: unreadMap.get(c.id) || 0,
+        };
+      })
+    );
+
+    return withPreviews;
+  };
+
+  const applyInboxMessage = useCallback((newMsg: Message) => {
+    setConversations((prev) => {
+      const idx = prev.findIndex((c) => c.id === newMsg.conversation_id);
+      if (idx < 0) {
+        return prev;
+      }
+      const isFromOther = newMsg.sender_type !== mode;
+      const isOpen = selectedConversation === newMsg.conversation_id;
+      const updated = [...prev];
+      const current = updated[idx];
+      updated[idx] = {
+        ...current,
+        last_message_at: newMsg.created_at,
+        last_message_preview: newMsg.content,
+        closed_at: null,
+        unread_count: isFromOther && !isOpen
+          ? (current.unread_count || 0) + 1
+          : isOpen
+            ? 0
+            : current.unread_count || 0,
+      };
+      updated.sort((a, b) => {
+        const ac = a.closed_at ? 1 : 0;
+        const bc = b.closed_at ? 1 : 0;
+        if (ac !== bc) return ac - bc;
+        return new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime();
+      });
+      return updated;
+    });
+  }, [mode, selectedConversation]);
+  applyInboxMessageRef.current = applyInboxMessage;
 
   const loadProposalInfo = async () => {
     if (!proposalId) return;
@@ -786,6 +951,10 @@ export default function Messaging({
             .from('messages')
             .update({ read: true })
             .in('id', messageIds);
+
+          setConversations((prev) =>
+            prev.map((c) => (c.id === convId ? { ...c, unread_count: 0 } : c))
+          );
           
           // Trigger a custom event to update unread count in parent component
           if (typeof window !== 'undefined') {
@@ -1112,22 +1281,19 @@ export default function Messaging({
       // RLS might block brands table query, but presence data is sufficient proof that brand has account
       console.log(`[Brand Status Check] Found presence data for ${emailLower}, checking online status...`);
       
-      // Check if brand is online: must be online AND last_seen/updated_at within 10 seconds
+      // Check if brand is online: must be online AND last_seen/updated_at within ~60s
       const data = presenceData;
 
       if (data) {
         console.log(`[Brand Status Check] Found presence data:`, data);
-        // Check if brand is online: must be online AND last_seen/updated_at within 10 seconds
-        // More tolerant window to account for network delays and polling intervals
         const lastSeen = new Date(data.last_seen);
         const updatedAt = new Date(data.updated_at || data.last_seen);
         const now = new Date();
         const secondsSinceLastSeen = (now.getTime() - lastSeen.getTime()) / 1000;
         const secondsSinceUpdated = (now.getTime() - updatedAt.getTime()) / 1000;
         
-        // Brand is online if is_online is true AND updated within last 10 seconds
-        // This gives enough time for the 3-second update interval plus network delays
-        const ONLINE_WINDOW = 10; // 10 seconds window (allows for 3s updates + network delay)
+        // Steady ~60s window so presence doesn't flicker vs heartbeat cadence
+        const ONLINE_WINDOW = 60;
         const isOnline = data.is_online && 
                         secondsSinceLastSeen < ONLINE_WINDOW && 
                         secondsSinceUpdated < ONLINE_WINDOW;
@@ -1354,197 +1520,75 @@ export default function Messaging({
 
   const currentConversation = conversations.find(c => c.id === selectedConversation);
   const otherPartyName = mode === 'influencer' 
-    ? currentConversation?.brand_name || (lang === 'el' ? 'Επιχείρηση' : 'Brand')
+    ? currentConversation?.brand_name || txt.brandFallback
     : displayNameForLang(currentConversation?.influencer_name, lang || 'el');
 
-
-  // Check influencer status when conversation changes (for brand mode) - only check, don't update
-  useEffect(() => {
-    if (mode === 'brand') {
-      if (selectedConversation) {
-        const conv = conversations.find(c => c.id === selectedConversation);
-        const idToCheck = conv?.influencer_id || influencerId;
-        if (idToCheck) {
-          checkInfluencerStatus(idToCheck);
-          // Poll every 10 seconds to check influencer online status
-          const interval = setInterval(() => {
-            const currentConv = conversations.find(c => c.id === selectedConversation);
-            const id = currentConv?.influencer_id || influencerId;
-            if (id) {
-              checkInfluencerStatus(id);
-            }
-          }, 10000);
-          return () => clearInterval(interval);
-        } else {
-          setIsInfluencerOnline(false);
-        }
-      } else if (influencerId) {
-        // If no conversation selected but influencerId prop exists, check it
-        checkInfluencerStatus(influencerId);
-        const interval = setInterval(() => {
-          checkInfluencerStatus(influencerId);
-        }, 10000);
-        return () => clearInterval(interval);
-      } else {
-        setIsInfluencerOnline(false);
-      }
-    }
-  }, [selectedConversation, conversations, mode, influencerId]);
-
-  // Check brand status when conversation changes (for influencer mode) - only check, don't update
-  // Use the same logic as checkInfluencerStatus for brand mode
-  useEffect(() => {
-    if (mode === 'influencer') {
-      if (selectedConversation) {
-        const conv = conversations.find(c => c.id === selectedConversation);
-        const emailToCheck = conv?.brand_email || brandEmail;
-        if (emailToCheck) {
-          // Check immediately and again after a short delay to ensure we catch any updates
-          console.log(`[Brand Status Check] Initial check for: ${emailToCheck}`);
-          checkBrandStatus(emailToCheck);
-          // Check again after 500ms to catch any recent updates
-          setTimeout(() => {
-            console.log(`[Brand Status Check] Delayed check for: ${emailToCheck}`);
-            checkBrandStatus(emailToCheck);
-          }, 500);
-          
-          // Set up real-time subscription for brand_presence changes
-          const presenceChannel = supabase
-            .channel(`brand_presence:${emailToCheck.toLowerCase().trim()}`)
-            .on('postgres_changes', {
-              event: '*', // Listen to INSERT, UPDATE, DELETE
-              schema: 'public',
-              table: 'brand_presence',
-              filter: `brand_email=eq.${emailToCheck.toLowerCase().trim()}`
-            }, (payload) => {
-              // When presence changes, check status immediately
-              console.log('[Brand Presence] Real-time update received:', payload);
-              checkBrandStatus(emailToCheck);
-            })
-            .subscribe((status) => {
-              console.log('[Brand Presence] Subscription status:', status);
-            });
-          
-          // Poll every 3 seconds to check brand online status (more frequent for better responsiveness)
-          const interval = setInterval(() => {
-            // Re-read conversations in case it changed
-            setConversations((currentConvs) => {
-              const currentConv = currentConvs.find(c => c.id === selectedConversation);
-              const email = currentConv?.brand_email || brandEmail;
-              if (email) {
-                checkBrandStatus(email);
-              } else {
-                setIsBrandOnline(false);
-              }
-              return currentConvs; // Return unchanged
-            });
-          }, 3000); // Check every 3 seconds to match update frequency
-          
-          return () => {
-            clearInterval(interval);
-            presenceChannel.unsubscribe();
-          };
-        } else {
-          setIsBrandOnline(false);
-        }
-      } else if (brandEmail) {
-        // If no conversation selected but brandEmail prop exists, check it
-        checkBrandStatus(brandEmail);
-        
-        // Set up real-time subscription for brand_presence changes
-        const presenceChannel = supabase
-          .channel(`brand_presence:${brandEmail.toLowerCase().trim()}`)
-          .on('postgres_changes', {
-            event: '*', // Listen to INSERT, UPDATE, DELETE
-            schema: 'public',
-            table: 'brand_presence',
-            filter: `brand_email=eq.${brandEmail.toLowerCase().trim()}`
-          }, (payload) => {
-            // When presence changes, check status immediately
-            console.log('[Brand Presence] Real-time update received:', payload);
-            checkBrandStatus(brandEmail);
-          })
-          .subscribe((status) => {
-            console.log('[Brand Presence] Subscription status:', status);
-          });
-        
-        // Poll every 3 seconds to check brand online status
-        const interval = setInterval(() => {
-          checkBrandStatus(brandEmail);
-        }, 3000); // Check every 3 seconds to match update frequency
-        
-        return () => {
-          clearInterval(interval);
-          presenceChannel.unsubscribe();
-        };
-      } else {
-        setIsBrandOnline(false);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedConversation, conversations, mode, brandEmail]);
+  const isComposingNew =
+    mode === 'brand' && !!influencerId && !!brandEmail && !selectedConversation;
+  const showMobileList = !selectedConversation && !isComposingNew;
+  const showThreadPane = !!selectedConversation || isComposingNew;
 
   return (
-    <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-slate-200 h-[calc(100vh-200px)] sm:h-[600px] min-h-[500px] flex flex-col">
-              {/* Header */}
-      <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-slate-100">
-        <h2 className="text-lg sm:text-xl font-bold text-slate-900">{txt.messages}</h2>
+    <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-slate-200 h-[min(720px,calc(100vh-12rem))] min-h-[480px] flex flex-col overflow-hidden">
+      <div className="px-4 sm:px-5 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between gap-2">
+        <h2 className="text-base sm:text-lg font-semibold text-slate-900">{txt.messages}</h2>
       </div>
 
-      <div className="flex flex-col sm:flex-row flex-1 overflow-hidden relative">
-        {/* Mobile: Backdrop overlay when conversations list is open */}
-        {showConversationsList && (
-          <div
-            onClick={() => setShowConversationsList(false)}
-            className="sm:hidden fixed inset-0 bg-black/50 z-30"
-          />
-        )}
-
-        {/* Mobile: Toggle button for conversations list */}
-        <button
-          onClick={() => setShowConversationsList(!showConversationsList)}
-          className="sm:hidden absolute top-2 right-2 z-50 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium shadow-lg hover:bg-blue-700 transition-colors"
+      <div className="flex flex-1 overflow-hidden min-h-0">
+        <div
+          className={`w-full sm:w-72 border-r border-slate-200 overflow-y-auto bg-slate-50 flex-shrink-0 ${
+            showMobileList ? 'flex flex-col' : 'hidden'
+          } sm:flex sm:flex-col`}
         >
-          {showConversationsList ? (lang === 'el' ? 'Κλείσιμο' : 'Close') : (lang === 'el' ? 'Συνομιλίες' : 'Conversations')}
-        </button>
-
-        {/* Conversations List */}
-        <div className={`w-full sm:w-64 border-b sm:border-b-0 sm:border-r border-slate-200 overflow-y-auto bg-slate-50 flex-shrink-0 ${
-          showConversationsList ? 'block' : 'hidden sm:block'
-        } absolute sm:relative top-0 left-0 right-0 bottom-0 sm:bottom-auto z-40 sm:z-auto max-h-[calc(100vh-250px)] sm:max-h-none shadow-xl sm:shadow-none`}>
           {loading ? (
-            <div className="p-4 text-center text-slate-500">Loading...</div>
+            <div className="p-4 text-center text-sm text-slate-500">{txt.loading}</div>
           ) : conversations.length === 0 ? (
-            <div className="p-4 text-center text-sm text-slate-500">{txt.noConversations}</div>
+            <div className="p-6 text-center text-sm text-slate-500">{txt.noConversations}</div>
           ) : (
             conversations.map((conv) => {
               const isClosed = !!conv.closed_at;
+              const isActive = selectedConversation === conv.id;
+              const name =
+                mode === 'influencer'
+                  ? conv.brand_name || txt.brandFallback
+                  : displayNameForLang(conv.influencer_name, lang || 'el');
+              const unread = conv.unread_count || 0;
               return (
                 <button
                   key={conv.id}
-                  onClick={() => {
-                    setSelectedConversation(conv.id);
-                    // Close conversations list on mobile after selection
-                    setShowConversationsList(false);
-                  }}
-                  className={`w-full text-left p-3 sm:p-4 border-b border-slate-200 hover:bg-white transition-colors ${
-                    selectedConversation === conv.id ? 'bg-white border-l-4 border-l-blue-600' : ''
-                  } ${isClosed ? 'opacity-60' : ''}`}
+                  type="button"
+                  onClick={() => setSelectedConversation(conv.id)}
+                  className={`w-full text-left px-3 py-3 border-b border-slate-100 transition-colors flex gap-3 items-start ${
+                    isActive ? 'bg-white border-l-2 border-l-blue-600' : 'hover:bg-white/80'
+                  } ${isClosed ? 'opacity-70' : ''}`}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="font-semibold text-slate-900">
-                      {mode === 'influencer' 
-                        ? (conv.brand_name || (lang === 'el' ? 'Επιχείρηση' : 'Brand'))
-                        : displayNameForLang(conv.influencer_name, lang || 'el')}
-                    </div>
-                    {isClosed && (
-                      <span className="text-xs text-red-600 font-medium">
-                        {lang === 'el' ? 'Κλειστή' : 'Closed'}
-                      </span>
-                    )}
+                  <div className="w-10 h-10 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-sm font-semibold shrink-0">
+                    {chatInitial(name)}
                   </div>
-                  <div className="text-xs text-slate-500 mt-1">
-                    {new Date(conv.last_message_at).toLocaleDateString()}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={`truncate text-sm ${unread > 0 ? 'font-semibold text-slate-900' : 'font-medium text-slate-800'}`}>
+                        {name}
+                      </span>
+                      <span className="text-[10px] text-slate-400 tabular-nums shrink-0">
+                        {formatChatRelativeTime(conv.last_message_at, lang)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 mt-0.5">
+                      <p className="text-xs text-slate-500 truncate">
+                        {clipChatPreview(conv.last_message_preview || '') || '—'}
+                      </p>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {isClosed && (
+                          <span className="text-[10px] text-red-600 font-medium">{txt.closedBadge}</span>
+                        )}
+                        {unread > 0 && (
+                          <span className="min-w-[1.15rem] h-5 px-1.5 rounded-full bg-blue-600 text-white text-[10px] font-semibold flex items-center justify-center">
+                            {unread > 99 ? '99+' : unread}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </button>
               );
@@ -1552,159 +1596,205 @@ export default function Messaging({
           )}
         </div>
 
-        {/* Messages Area */}
-        <div className="flex-1 flex flex-col relative z-10">
+        <div
+          className={`flex-1 flex flex-col min-w-0 min-h-0 ${
+            showThreadPane ? 'flex' : 'hidden sm:flex'
+          }`}
+        >
           {selectedConversation ? (
             <>
-              {/* Mobile: Back button to show conversations list */}
-              <button
-                onClick={() => {
-                  setSelectedConversation(null);
-                  setShowConversationsList(true);
-                }}
-                className="sm:hidden px-4 py-2 mx-4 mt-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200 transition-colors flex items-center gap-2"
-              >
-                ← {lang === 'el' ? 'Πίσω' : 'Back'}
-              </button>
-
-              {/* Chat Header */}
-              <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200 bg-gradient-to-r from-white to-slate-50">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
-                  <h3 className="text-base sm:text-lg font-semibold text-slate-900">{otherPartyName}</h3>
-                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                    {mode === 'brand' && (
-                      <div className="flex items-center gap-1.5 sm:gap-2">
-                        <div className={`w-2 h-2 rounded-full ${isInfluencerOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
-                        <span className="text-xs font-medium text-slate-600">
-                          {isInfluencerOnline ? txt.online : txt.offline}
-                        </span>
+              <div className="px-3 sm:px-4 py-2.5 border-b border-slate-200 bg-white relative">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedConversation(null);
+                      setShowActionsMenu(false);
+                      setShowEndConfirm(false);
+                    }}
+                    className="sm:hidden shrink-0 px-2 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded-lg"
+                  >
+                    ← {txt.back}
+                  </button>
+                  <div className="w-9 h-9 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-sm font-semibold shrink-0">
+                    {chatInitial(otherPartyName || '?')}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-sm sm:text-base font-semibold text-slate-900 truncate">{otherPartyName}</h3>
+                    <div className="flex items-center gap-1.5">
+                      <div
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          (mode === 'brand' ? isInfluencerOnline : isBrandOnline)
+                            ? 'bg-green-500'
+                            : 'bg-slate-300'
+                        }`}
+                      />
+                      <span className="text-[11px] text-slate-500">
+                        {(mode === 'brand' ? isInfluencerOnline : isBrandOnline) ? txt.online : txt.offline}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="relative shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setShowActionsMenu((v) => !v)}
+                      className="w-9 h-9 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center justify-center text-lg font-bold"
+                      aria-label={txt.moreActions}
+                    >
+                      ···
+                    </button>
+                    {showActionsMenu && (
+                      <div className="absolute right-0 top-10 z-20 w-48 bg-white border border-slate-200 rounded-xl shadow-lg py-1">
+                        {proposalInfo && needsAgreement && (
+                          <button
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-sm text-amber-800 hover:bg-amber-50"
+                            onClick={() => {
+                              setShowAgreementModal(true);
+                              setShowActionsMenu(false);
+                            }}
+                          >
+                            {txt.acceptAgreement}
+                          </button>
+                        )}
+                        {canShowAgreementSummary && proposalInfo && (
+                          <button
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                            onClick={() => {
+                              setShowAgreementModal(true);
+                              setShowActionsMenu(false);
+                            }}
+                          >
+                            {txt.agreementSummary}
+                          </button>
+                        )}
+                        {proposalInfo && hasAgreement && !bothAccepted && (
+                          <div className="px-3 py-2 text-xs text-blue-700">{txt.agreementPending}</div>
+                        )}
+                        {proposalInfo && bothAccepted && (
+                          <div className="px-3 py-2 text-xs text-green-700">{txt.agreementAccepted}</div>
+                        )}
+                        {!conversationClosed && (
+                          <button
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                            onClick={() => endConversation(false)}
+                            disabled={endingConversation}
+                          >
+                            {endingConversation ? txt.endingConversation : txt.endConversation}
+                          </button>
+                        )}
                       </div>
-                    )}
-                    {mode === 'influencer' && selectedConversation && (
-                      <div className="flex items-center gap-1.5 sm:gap-2">
-                        <div className={`w-2 h-2 rounded-full ${isBrandOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
-                        <span className="text-xs font-medium text-slate-600">
-                          {isBrandOnline ? txt.online : txt.offline}
-                        </span>
-                      </div>
-                    )}
-                    {/* Agreement Button - Shows when agreement needs to be accepted */}
-                    {proposalInfo && needsAgreement && (
-                      <button
-                        onClick={() => setShowAgreementModal(true)}
-                        className="px-3 sm:px-4 py-1.5 text-xs sm:text-sm bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white rounded-lg font-semibold shadow-md hover:shadow-lg transition-all"
-                      >
-                        {txt.acceptAgreement}
-                      </button>
-                    )}
-                    {proposalInfo && hasAgreement && !bothAccepted && (
-                      <div className="px-3 sm:px-4 py-1.5 text-xs sm:text-sm bg-blue-100 text-blue-700 rounded-lg font-medium">
-                        {txt.agreementPending}
-                      </div>
-                    )}
-                    {proposalInfo && bothAccepted && (
-                      <div className="px-3 sm:px-4 py-1.5 text-xs sm:text-sm bg-green-100 text-green-700 rounded-lg font-medium">
-                        {txt.agreementAccepted}
-                      </div>
-                    )}
-                    {/* Agreement Summary Button - Always visible when there's a proposal, opens agreement modal */}
-                    {canShowAgreementSummary && proposalInfo && (
-                      <button
-                        onClick={() => setShowAgreementModal(true)}
-                        className="px-3 sm:px-4 py-1.5 text-xs sm:text-sm bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-lg font-semibold shadow-md hover:shadow-lg transition-all flex items-center gap-1.5 sm:gap-2"
-                      >
-                        <span className="text-sm sm:text-base">🤝</span>
-                        <span className="hidden sm:inline">{txt.agreementSummary}</span>
-                        <span className="sm:hidden">Σύνοψη</span>
-                      </button>
-                    )}
-                    {!conversationClosed && (
-                      <button
-                        onClick={() => endConversation(false)}
-                        disabled={endingConversation}
-                        className="px-3 sm:px-4 py-1.5 text-xs sm:text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
-                      >
-                        {endingConversation ? txt.endingConversation : txt.endConversation}
-                      </button>
                     )}
                   </div>
                 </div>
+
+                {showEndConfirm && (
+                  <div className="mt-2 p-3 rounded-lg border border-red-200 bg-red-50">
+                    <p className="text-sm font-medium text-red-900">{txt.endConfirmTitle}</p>
+                    <p className="text-xs text-red-700 mt-0.5">{txt.endConfirmBody}</p>
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        type="button"
+                        onClick={() => void confirmEndConversation()}
+                        disabled={endingConversation}
+                        className="px-3 py-1.5 text-xs font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                      >
+                        {endingConversation ? txt.endingConversation : txt.endConfirmYes}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowEndConfirm(false)}
+                        className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-white rounded-lg"
+                      >
+                        {txt.endConfirmNo}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {mode === 'brand' && selectedConversation && (influencerId || currentConversation?.influencer_id) && !isInfluencerOnline && !conversationClosed && (
-                  <p className="text-xs text-amber-600 mt-1">
-                    {txt.offlineNotice}
-                  </p>
+                  <p className="text-xs text-amber-700 mt-2">{txt.offlineNotice}</p>
                 )}
                 {mode === 'influencer' && selectedConversation && !isBrandOnline && !conversationClosed && (
-                  <p className="text-xs text-amber-600 mt-1">
-                    {txt.brandOfflineNotice}
-                  </p>
+                  <p className="text-xs text-amber-700 mt-2">{txt.brandOfflineNotice}</p>
                 )}
                 {showInactivityWarning && !conversationClosed && (
-                  <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <p className="text-sm text-amber-800">{txt.inactivityWarning}</p>
+                  <div className="mt-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-xs text-amber-800">{txt.inactivityWarning}</p>
                   </div>
                 )}
                 {conversationClosed && (
-                  <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="text-sm text-red-800">
+                  <div className="mt-2 p-2.5 bg-slate-100 border border-slate-200 rounded-lg">
+                    <p className="text-xs text-slate-700">
                       {conversationClosedByInactivity ? txt.conversationClosedInactivity : txt.conversationClosed}
                     </p>
                   </div>
                 )}
-                
-                {/* Proposal Info Card */}
+
                 {proposalInfo && (
-                  <div className="mt-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <p className="text-xs font-semibold text-blue-900 mb-1">📋 Προσφορά Συνεργασίας</p>
-                        <p className="text-sm text-blue-800">
-                          <strong>{proposalInfo.service_type}</strong> • 
-                          <span className="ml-1">Προσφερόμενη: <strong>{proposalInfo.budget}€</strong></span>
-                          {proposalInfo.counter_proposal_budget && proposalInfo.counter_proposal_status === 'pending' && (
-                            <span className="ml-2 text-amber-700">
-                              • Αντιπρόταση: <strong>{proposalInfo.counter_proposal_budget}€</strong> ⏳
-                            </span>
-                          )}
-                        </p>
-                        <p className="text-xs text-blue-600 mt-1">
-                          Status: <span className="capitalize">{proposalInfo.status}</span>
-                        </p>
-                      </div>
-                    </div>
+                  <div className="mt-2 p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+                    <p className="text-[11px] font-semibold text-slate-700 mb-0.5">{txt.proposalCardTitle}</p>
+                    <p className="text-xs text-slate-600">
+                      <strong>{proposalInfo.service_type}</strong>
+                      {' · '}
+                      {txt.proposalOffered}: <strong>{proposalInfo.budget}€</strong>
+                      {proposalInfo.counter_proposal_budget && proposalInfo.counter_proposal_status === 'pending' && (
+                        <span className="text-amber-700">
+                          {' · '}
+                          {txt.proposalCounter}: <strong>{proposalInfo.counter_proposal_budget}€</strong>
+                        </span>
+                      )}
+                    </p>
                   </div>
                 )}
               </div>
 
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 sm:space-y-4 bg-gradient-to-b from-slate-50 to-white">
-                {messages.map((msg) => {
-                  const isOwn = (mode === 'influencer' && msg.sender_type === 'influencer') ||
-                               (mode === 'brand' && msg.sender_type === 'brand');
-                  
+              <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 space-y-1 bg-slate-50/80 pb-4">
+                {messages.map((msg, index) => {
+                  const isOwn =
+                    (mode === 'influencer' && msg.sender_type === 'influencer') ||
+                    (mode === 'brand' && msg.sender_type === 'brand');
+                  const prev = messages[index - 1];
+                  const showDay = !prev || !sameChatDay(prev.created_at, msg.created_at);
+
                   return (
-                    <div
-                      key={msg.id}
-                      className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-[85%] sm:max-w-xs lg:max-w-md px-4 py-2.5 sm:py-3 rounded-2xl shadow-sm ${
-                          isOwn
-                            ? 'bg-gradient-to-br from-blue-600 to-blue-700 text-white'
-                            : 'bg-white text-slate-900 border border-slate-200'
-                        }`}
-                      >
-                        <p className="text-sm sm:text-base whitespace-pre-wrap leading-relaxed">{msg.content}</p>
-                        <p
-                          className={`text-xs mt-1.5 opacity-75 ${
-                            isOwn ? 'text-blue-100' : 'text-slate-500'
+                    <div key={msg.id}>
+                      {showDay && (
+                        <div className="flex justify-center my-3">
+                          <span className="text-[10px] font-medium text-slate-500 bg-white/90 border border-slate-200 px-2.5 py-0.5 rounded-full">
+                            {formatChatDayLabel(msg.created_at, lang)}
+                          </span>
+                        </div>
+                      )}
+                      <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-1.5`}>
+                        <div
+                          className={`max-w-[85%] sm:max-w-xs lg:max-w-md px-3.5 py-2 rounded-2xl ${
+                            isOwn
+                              ? 'bg-blue-600 text-white rounded-br-md'
+                              : 'bg-white text-slate-900 border border-slate-200 rounded-bl-md shadow-sm'
                           }`}
                         >
-                          {new Date(msg.created_at).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </p>
+                          <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                          <div
+                            className={`flex items-center gap-1.5 mt-1 ${
+                              isOwn ? 'justify-end text-blue-100' : 'justify-start text-slate-400'
+                            }`}
+                          >
+                            <span className="text-[10px] tabular-nums">
+                              {new Date(msg.created_at).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                            {isOwn && (
+                              <span className="text-[10px]">
+                                {msg.read ? `✓✓ ${txt.readReceipt}` : '✓'}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   );
@@ -1712,54 +1802,24 @@ export default function Messaging({
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Message Input - ALWAYS VISIBLE when conversation is selected */}
-              {/* CRITICAL: This form MUST always be visible when selectedConversation is set */}
-              {/* conversationClosed only affects the message shown, NOT the visibility of the form */}
-              <form 
-                onSubmit={sendMessage} 
-                className="px-4 sm:px-6 py-3 sm:py-4 border-t border-slate-200 bg-white shadow-lg"
-                style={{ 
-                  display: 'block', 
-                  visibility: 'visible',
-                  opacity: 1,
-                  pointerEvents: 'auto'
-                } as React.CSSProperties}
-              >
+              <form onSubmit={sendMessage} className="px-3 sm:px-4 py-3 border-t border-slate-200 bg-white">
                 {conversationClosed && (
-                  <div className="mb-2 sm:mb-3 p-2 sm:p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-xs sm:text-sm text-blue-700">
-                      {lang === 'el' 
-                        ? '💬 Η συνομιλία είναι κλειστή. Στείλε μήνυμα για να την ανοίξεις ξανά.'
-                        : '💬 Conversation is closed. Send a message to reopen it.'}
-                    </p>
+                  <div className="mb-2 p-2 bg-blue-50 border border-blue-100 rounded-lg">
+                    <p className="text-xs text-blue-700">{txt.reopenHint}</p>
                   </div>
                 )}
-                <div className="flex gap-2 sm:gap-3">
+                <div className="flex gap-2 items-end">
                   <textarea
                     value={newMessage}
-                    onChange={(e) => {
-                      setNewMessage(e.target.value);
-                      // DO NOT update activity timestamp on typing
-                      // Activity should only be updated when sending messages
-                      // This prevents false activity detection
-                    }}
-                    placeholder={conversationClosed 
-                      ? (lang === 'el' ? 'Γράψε μήνυμα για να ανοίξεις την συνομιλία...' : 'Type a message to reopen the conversation...')
-                      : txt.placeholder}
-                    className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900 bg-white text-sm sm:text-base"
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder={conversationClosed ? txt.reopenPlaceholder : txt.placeholder}
+                    className="flex-1 px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900 bg-white text-sm"
                     rows={2}
-                    disabled={false} // Always enabled, even for closed conversations
-                    style={{ 
-                      opacity: 1, 
-                      pointerEvents: 'auto',
-                      visibility: 'visible',
-                      display: 'block'
-                    } as React.CSSProperties}
                   />
                   <button
                     type="submit"
                     disabled={sending || !newMessage.trim()}
-                    className="px-4 sm:px-6 py-2 sm:py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-md hover:shadow-lg transition-all text-sm sm:text-base"
+                    className="px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm shrink-0"
                   >
                     {sending ? txt.sending : txt.send}
                   </button>
@@ -1768,66 +1828,52 @@ export default function Messaging({
             </>
           ) : (
             <div className="flex-1 flex flex-col min-h-0">
-              {mode === 'brand' && influencerId && influencerName && (
-                <div className="px-4 sm:px-6 py-3 border-b border-slate-200 bg-gradient-to-r from-white to-slate-50 shrink-0">
+              {isComposingNew && influencerName && (
+                <div className="px-4 py-3 border-b border-slate-200 bg-white shrink-0">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <h3 className="text-base font-semibold text-slate-900">
+                    <h3 className="text-sm font-semibold text-slate-900">
                       {displayNameForLang(influencerName || 'Influencer', lang || 'el')}
                     </h3>
                     <div className="flex items-center gap-1.5">
                       <div
-                        className={`w-2 h-2 rounded-full shrink-0 ${
-                          isInfluencerOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
+                        className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                          isInfluencerOnline ? 'bg-green-500' : 'bg-slate-300'
                         }`}
                       />
-                      <span className="text-xs text-slate-600">
+                      <span className="text-[11px] text-slate-500">
                         {isInfluencerOnline ? txt.online : txt.offline}
                       </span>
                     </div>
                   </div>
                   {!isInfluencerOnline && (
-                    <p className="text-xs text-amber-600 mt-1">{txt.offlineNotice}</p>
+                    <p className="text-xs text-amber-700 mt-1">{txt.offlineNotice}</p>
                   )}
                 </div>
               )}
               <div className="flex-1 flex flex-col items-center justify-center text-slate-500 p-4 min-h-0">
-                <p className="text-center mb-4">
-                  {mode === 'brand' && influencerId
+                <p className="text-center text-sm">
+                  {isComposingNew
                     ? lang === 'el'
-                      ? 'Γράψε παρακάτω για να ανοίξει η συνομιλία. Οι υπόλοιπες συνομιλίες σου είναι στο αριστερό μενού.'
-                      : 'Type below to open the conversation. Your other chats are in the left list.'
+                      ? 'Γράψε παρακάτω για να ανοίξει η συνομιλία.'
+                      : 'Type below to open the conversation.'
                     : txt.selectConversation}
                 </p>
-                <button
-                  onClick={() => setShowConversationsList(true)}
-                  className="sm:hidden px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-                >
-                  {lang === 'el' ? '📋 Προβολή Συνομιλιών' : '📋 View Conversations'}
-                </button>
               </div>
 
-              {/* Show message input even without selected conversation if we have influencerId and brandEmail */}
               {influencerId && brandEmail && (
-                <form onSubmit={sendMessage} className="px-4 sm:px-6 py-3 sm:py-4 border-t border-slate-200 bg-white shadow-lg shrink-0">
-                  <div className="mb-2 sm:mb-3 p-2 sm:p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-xs sm:text-sm text-blue-700">
-                      {lang === 'el'
-                        ? '💬 Ξεκίνα νέα συνομιλία — η ειδοποίηση λειτουργεί όπως στα υπόλοιπα μηνύματα.'
-                        : '💬 Start a new conversation — notifications work like your other messages.'}
-                    </p>
-                  </div>
-                  <div className="flex gap-2 sm:gap-3">
+                <form onSubmit={sendMessage} className="px-3 sm:px-4 py-3 border-t border-slate-200 bg-white shrink-0">
+                  <div className="flex gap-2 items-end">
                     <textarea
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
                       placeholder={txt.placeholder}
-                      className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900 text-sm sm:text-base"
+                      className="flex-1 px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900 text-sm"
                       rows={2}
                     />
                     <button
                       type="submit"
                       disabled={sending || !newMessage.trim()}
-                      className="px-4 sm:px-6 py-2 sm:py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-md hover:shadow-lg transition-all text-sm sm:text-base"
+                      className="px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm shrink-0"
                     >
                       {sending ? txt.sending : txt.send}
                     </button>
