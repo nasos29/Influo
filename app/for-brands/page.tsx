@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import Footer from "../../components/Footer";
-import { usePathname, useRouter } from 'next/navigation';
-import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
+import { usePathname, useRouter } from "next/navigation";
+import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
 import InfluencerSignupForm from "../../components/InfluencerSignupForm";
 import BrandSignupForm from "../../components/BrandSignupForm";
 import { supabase } from "@/lib/supabaseClient";
@@ -14,133 +14,180 @@ type Lang = "el" | "en";
 
 const t = {
   el: {
-    title: "Βρείτε τους Καλύτερους Influencers για την Εταιρεία σας",
-    subtitle: "Συνεργαστείτε με Verified Creators",
-    hero_desc: "Η πιο σύγχρονη πλατφόρμα Influencer Marketing στην Ελλάδα. Αναζητήστε, επικοινωνήστε και συνεργαστείτε με επαγγελματίες influencers. 🤖 Χρησιμοποιήστε την έξυπνη υπηρεσία AI προτάσεων για να βρείτε τους καλύτερους influencers - ΔΩΡΕΑΝ!",
-    cta_primary: "Εγγραφείτε ως Brand",
-    cta_secondary: "Δείτε το Κατάλογο",
-    back: "← Επιστροφή",
-    
-    feat_1_title: "🔍 Εξαιρετική Αναζήτηση",
-    feat_1_desc: "Χρησιμοποιήστε προηγμένα φίλτρα: κατηγορία, engagement rate, followers, budget, location. Βρείτε τον τέλειο influencer για το brand σας.",
-    
-    feat_2_title: "✅ Verified Creators",
-    feat_2_desc: "Όλοι οι influencers είναι verified με πραγματικά stats. Δείτε reviews, completion rate και response time.",
-    
-    feat_3_title: "💼 Εύκολη Διαχείριση",
-    feat_3_desc: "Διαχειριστείτε όλες τις συνεργασίες σας από ένα μέρος. Προσφορές, συνομιλίες, agreements - όλα εκεί.",
-    
-    feat_4_title: "💬 Άμεση Επικοινωνία",
-    feat_4_desc: "Συνομιλήστε απευθείας με influencers, διαπραγματευτείτε τιμές και κλείστε deals γρήγορα.",
-    
-    feat_5_title: "📊 Αναλυτικά Stats",
-    feat_5_desc: "Δείτε engagement rates, audience demographics, past collaborations και reviews από άλλα brands.",
-    
-    feat_6_title: "⚡ Γρήγορη Εύρεση",
-    feat_6_desc: "Από την αναζήτηση στην συνεργασία σε λίγες ώρες. Streamlined process για αποτελεσματικά campaigns.",
-    
-    feat_7_title: "🤖 Έξυπνη Υπηρεσία Προτάσεων",
-    feat_7_desc: "Το AI μας αναλύει το brand σας και προτείνει αυτόματα τους καλύτερους influencers. Match score, προσωποποιημένες αιτιολογίες και advanced filters. ΔΩΡΕΑΝ για όλες τις εγγεγραμμένες επιχειρήσεις!",
-    
-    campaign_card_title: "📣 Καμπάνιες με αιτήσεις",
-    campaign_card_desc: "Ανεβάστε την καμπάνια σας (τίτλος, περιγραφή, budget) από το brand dashboard. Οι verified influencers βλέπουν τις ανοιχτές καμπάνιες και κάνουν αίτηση ενδιαφέροντος — εσείς διαχειρίζεστε τις αιτήσεις.",
-    campaign_hero_badge: "Νέο · Brand Dashboard",
-    campaign_hero_cta: "Δημιούργησε την Πρώτη σου Καμπάνια",
-    
-    how_title: "Πώς Λειτουργεί",
-    step_1_title: "1. Εγγραφείτε ως Brand",
-    step_1_desc: "Δημιουργήστε λογαριασμό brand, συμπληρώστε τα στοιχεία της εταιρείας σας και λάβετε πρόσβαση στο κατάλογο.",
-    
-    step_2_title: "2. Αναζητήστε Influencers",
-    step_2_desc: "Χρησιμοποιήστε τα φίλτρα για να βρείτε influencers που ταιριάζουν στο niche σας και το budget σας. Ή αφήστε το AI να σας προτείνει τους καλύτερους matches με match scores!",
-    
-    step_3_title: "3. Στείλτε Προσφορά",
-    step_3_desc: "Κάντε κλικ στο influencer, συμπληρώστε τη φόρμα προσφοράς και στείλτε. Ο influencer θα λάβει ειδοποίηση.",
-    
-    step_4_title: "4. Κλείστε Deal",
-    step_4_desc: "Αποδέχεστε τους όρους, συνομιλήστε και ολοκληρώστε την συνεργασία.",
-    
-    testimonials_title: "Τι Λένε τα Brands",
+    title: "Influo",
+    headline: "Βρείτε τους σωστούς influencers για το brand σας.",
+    hero_desc:
+      "Αναζήτηση, AI προτάσεις, καμπάνιες με αιτήσεις και έγκριση deliverables — όλα σε μία πλατφόρμα.",
+    cta_primary: "Εγγραφή ως Brand",
+    cta_secondary: "Κατάλογος",
+    back: "Επιστροφή",
+    features_title: "Ό,τι χρειάζεται το brand σας",
+    features_desc: "Από την εύρεση μέχρι την παράδοση, χωρίς να αλλάζετε εργαλεία.",
+    feat_1_title: "Αναζήτηση & φίλτρα",
+    feat_1_desc: "Κατηγορία, engagement, budget και διαθεσιμότητα — βρείτε creators που ταιριάζουν.",
+    feat_2_title: "Verified & trust",
+    feat_2_desc: "Πραγματικά stats, reviews, χρόνος απάντησης και completion rate στα προφίλ.",
+    feat_3_title: "Διαχείριση συνεργασιών",
+    feat_3_desc: "Προσφορές, συνομιλίες και καμπάνιες από ένα dashboard.",
+    feat_4_title: "Μηνύματα & αρχεία",
+    feat_4_desc: "Άμεση συνομιλία με creators και αποστολή attachments.",
+    feat_5_title: "Rate cards",
+    feat_5_desc: "Δείτε τιμές ανά format πριν στείλετε πρόταση.",
+    feat_6_title: "Deliverables",
+    feat_6_desc: "Οι creators υποβάλλουν URL· εσείς εγκρίνετε ή ζητάτε αλλαγές.",
+    campaign_title: "Καμπάνιες με αιτήσεις",
+    campaign_desc:
+      "Ανεβάστε τίτλο, περιγραφή και budget. Οι verified influencers κάνουν αίτηση ενδιαφέροντος· εσείς διαχειρίζεστε τις αιτήσεις.",
+    campaign_cta: "Δημιουργία καμπάνιας",
+    campaign_cta_guest: "Εγγραφή για καμπάνιες",
+    ai_badge: "Περιλαμβάνεται",
+    ai_title: "AI προτάσεις",
+    ai_desc:
+      "Το σύστημα προτείνει influencers με match scores βάσει κατηγορίας, engagement και προφίλ brand — χωρίς επιπλέον κόστος.",
+    ai_cta: "Ξεκινήστε",
+    how_title: "Πώς λειτουργεί",
+    how_desc: "Από την εγγραφή στην παράδοση σε τέσσερα βήματα.",
+    step_1_title: "Εγγραφή brand",
+    step_1_desc: "Λογαριασμός εταιρείας και πρόσβαση στον κατάλογο.",
+    step_2_title: "Αναζήτηση ή AI",
+    step_2_desc: "Φίλτρα καταλόγου ή αυτόματες προτάσεις με match score.",
+    step_3_title: "Πρόταση ή καμπάνια",
+    step_3_desc: "Στείλτε προσφορά ή δημοσιεύστε καμπάνια για αιτήσεις.",
+    step_4_title: "Έγκριση & κλείσιμο",
+    step_4_desc: "Μηνύματα, deliverables και ολοκλήρωση συνεργασίας.",
+    testimonials_title: "Τι λένε τα brands",
     testimonial_1_name: "Σοφία Α.",
-    testimonial_1_role: "Marketing Manager, Tech Startup",
-    testimonial_1_text: "Βρήκαμε 3 τέλειους influencers σε μία βδομάδα! Η πλατφόρμα είναι πολύ user-friendly και οι influencers είναι επαγγελματίες.",
-    
+    testimonial_1_role: "Marketing Manager",
+    testimonial_1_text:
+      "Βρήκαμε creators που ταιριάζουν στο κοινό μας μέσα σε λίγες μέρες. Η διαδικασία είναι καθαρή.",
     testimonial_2_name: "Δημήτρης Κ.",
-    testimonial_2_role: "Brand Manager, Fashion Brand",
-    testimonial_2_text: "Το badge system και τα reviews μας βοηθούν να επιλέξουμε τους καλύτερους creators. ROI πολύ καλός!",
-    
+    testimonial_2_role: "Brand Manager",
+    testimonial_2_text:
+      "Reviews, response time και badges μας βοηθούν να επιλέξουμε με περισσότερη σιγουριά.",
     testimonial_3_name: "Μαρία Λ.",
     testimonial_3_role: "Digital Marketing Director",
-    testimonial_3_text: "Η διαχείριση όλων των campaigns από ένα μέρος είναι game-changer. Highly recommended!",
-    
+    testimonial_3_text:
+      "Καμπάνιες, αιτήσεις και παραδόσεις από ένα σημείο — λιγότερο χάος στο team.",
     cta_section_title: "Ξεκινήστε σήμερα",
-    cta_section_desc: "Δημιουργήστε λογαριασμό brand και ανακαλύψτε τους καλύτερους influencers για το marketing σας.",
-    cta_button: "Εγγραφείτε ως Brand",
+    cta_section_desc: "Δημιουργήστε λογαριασμό brand και ανοίξτε τον κατάλογο.",
+    cta_button: "Εγγραφή ως Brand",
+    signup_influencer: "Είμαι Influencer",
+    signup_brand: "Έχω Επιχείρηση",
+    close: "Κλείσιμο",
   },
   en: {
-    title: "Find the Best Influencers for Your Company",
-    subtitle: "Collaborate with Verified Creators",
-    hero_desc: "The most modern Influencer Marketing platform in Greece. Search, connect and collaborate with professional influencers. 🤖 Use our smart AI recommendation service to find the best influencers - FREE!",
-    cta_primary: "Sign Up as Brand",
-    cta_secondary: "View Directory",
-    back: "← Back",
-    
-    feat_1_title: "🔍 Excellent Search",
-    feat_1_desc: "Use advanced filters: category, engagement rate, followers, budget, location. Find the perfect influencer for your brand.",
-    
-    feat_2_title: "✅ Verified Creators",
-    feat_2_desc: "All influencers are verified with real stats. See reviews, completion rate and response time.",
-    
-    feat_3_title: "💼 Easy Management",
-    feat_3_desc: "Manage all your collaborations from one place. Proposals, conversations, agreements - all there.",
-    
-    feat_4_title: "💬 Direct Communication",
-    feat_4_desc: "Chat directly with influencers, negotiate prices and close deals quickly.",
-    
-    feat_5_title: "📊 Detailed Stats",
-    feat_5_desc: "See engagement rates, audience demographics, past collaborations and reviews from other brands.",
-    
-    feat_6_title: "⚡ Quick Discovery",
-    feat_6_desc: "From search to collaboration in a few hours. Streamlined process for effective campaigns.",
-    
-    feat_7_title: "🤖 Smart Recommendation Service",
-    feat_7_desc: "Our AI analyzes your brand and automatically suggests the best influencers. Match scores, personalized reasons, and advanced filters. FREE for all registered businesses!",
-    
-    campaign_card_title: "📣 Campaign briefs & applications",
-    campaign_card_desc: "Publish your campaign (title, description, budget) from the brand dashboard. Verified influencers see open campaigns and apply — you manage applications in one place.",
-    campaign_hero_badge: "New · Brand dashboard",
-    campaign_hero_cta: "Create your first campaign",
-    
-    how_title: "How It Works",
-    step_1_title: "1. Sign Up as Brand",
-    step_1_desc: "Create a brand account, fill in your company details and get access to the directory.",
-    
-    step_2_title: "2. Search Influencers",
-    step_2_desc: "Use filters to find influencers that match your niche and budget. Or let AI suggest the best matches with match scores!",
-    
-    step_3_title: "3. Send Proposal",
-    step_3_desc: "Click on influencer, fill the proposal form and send. Influencer will receive notification.",
-    
-    step_4_title: "4. Close Deal",
-    step_4_desc: "Accept terms, communicate and complete the collaboration.",
-    
-    testimonials_title: "What Brands Say",
-    testimonial_1_name: "Sophia A.",
-    testimonial_1_role: "Marketing Manager, Tech Startup",
-    testimonial_1_text: "We found 3 perfect influencers in one week! The platform is very user-friendly and influencers are professionals.",
-    
+    title: "Influo",
+    headline: "Find the right influencers for your brand.",
+    hero_desc:
+      "Search, AI recommendations, campaign applications, and deliverable approval — in one platform.",
+    cta_primary: "Sign up as Brand",
+    cta_secondary: "Directory",
+    back: "Back",
+    features_title: "Everything your brand needs",
+    features_desc: "From discovery to delivery without switching tools.",
+    feat_1_title: "Search & filters",
+    feat_1_desc: "Category, engagement, budget, and availability — find matching creators.",
+    feat_2_title: "Verified & trust",
+    feat_2_desc: "Real stats, reviews, response time, and completion rate on profiles.",
+    feat_3_title: "Collaboration hub",
+    feat_3_desc: "Offers, conversations, and campaigns from one dashboard.",
+    feat_4_title: "Messages & files",
+    feat_4_desc: "Chat with creators and send attachments.",
+    feat_5_title: "Rate cards",
+    feat_5_desc: "See pricing by format before you send a proposal.",
+    feat_6_title: "Deliverables",
+    feat_6_desc: "Creators submit a URL; you approve or request changes.",
+    campaign_title: "Campaigns with applications",
+    campaign_desc:
+      "Publish title, description, and budget. Verified influencers apply; you manage applications.",
+    campaign_cta: "Create a campaign",
+    campaign_cta_guest: "Sign up for campaigns",
+    ai_badge: "Included",
+    ai_title: "AI recommendations",
+    ai_desc:
+      "Get influencer suggestions with match scores based on category, engagement, and your brand profile — at no extra cost.",
+    ai_cta: "Get started",
+    how_title: "How it works",
+    how_desc: "From signup to delivery in four steps.",
+    step_1_title: "Brand signup",
+    step_1_desc: "Company account and directory access.",
+    step_2_title: "Search or AI",
+    step_2_desc: "Directory filters or automatic suggestions with match scores.",
+    step_3_title: "Proposal or campaign",
+    step_3_desc: "Send an offer or publish a campaign for applications.",
+    step_4_title: "Approve & close",
+    step_4_desc: "Messages, deliverables, and completed collaboration.",
+    testimonials_title: "What brands say",
+    testimonial_1_name: "Sofia A.",
+    testimonial_1_role: "Marketing Manager",
+    testimonial_1_text:
+      "We found creators who fit our audience within days. The process is clear.",
     testimonial_2_name: "Dimitris K.",
-    testimonial_2_role: "Brand Manager, Fashion Brand",
-    testimonial_2_text: "The badge system and reviews help us choose the best creators. Very good ROI!",
-    
+    testimonial_2_role: "Brand Manager",
+    testimonial_2_text:
+      "Reviews, response time, and badges help us choose with more confidence.",
     testimonial_3_name: "Maria L.",
     testimonial_3_role: "Digital Marketing Director",
-    testimonial_3_text: "Managing all campaigns from one place is a game-changer. Highly recommended!",
-    
-    cta_section_title: "Start Today",
-    cta_section_desc: "Create a brand account and discover the best influencers for your marketing.",
-    cta_button: "Sign Up as Brand",
-  }
+    testimonial_3_text:
+      "Campaigns, applications, and deliveries in one place — less chaos for the team.",
+    cta_section_title: "Start today",
+    cta_section_desc: "Create a brand account and open the directory.",
+    cta_button: "Sign up as Brand",
+    signup_influencer: "I'm an Influencer",
+    signup_brand: "I have a Business",
+    close: "Close",
+  },
+};
+
+function IconBox({ children }: { children: ReactNode }) {
+  return (
+    <div className="w-10 h-10 rounded-md bg-slate-100 text-slate-700 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors duration-200">
+      {children}
+    </div>
+  );
+}
+
+const icons = {
+  search: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z" />
+    </svg>
+  ),
+  verified: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+    </svg>
+  ),
+  manage: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+    </svg>
+  ),
+  message: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+    </svg>
+  ),
+  rate: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
+  deliverable: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+  ),
+  campaign: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.993 3.993 0 01-1.564-.317z" />
+    </svg>
+  ),
+  ai: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+    </svg>
+  ),
 };
 
 export default function ForBrandsPage() {
@@ -159,10 +206,14 @@ export default function ForBrandsPage() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (!cancelled) setIsLoggedIn(!!session);
     })();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_e, session) => {
       setIsLoggedIn(!!session);
     });
     return () => {
@@ -176,23 +227,64 @@ export default function ForBrandsPage() {
     setShowModal(true);
   };
 
+  const directoryHref = lang === "en" ? "/en/directory" : "/directory";
+  const homeHref = lang === "en" ? "/en" : "/";
+
+  const features = [
+    { title: txt.feat_1_title, desc: txt.feat_1_desc, icon: icons.search },
+    { title: txt.feat_2_title, desc: txt.feat_2_desc, icon: icons.verified },
+    { title: txt.feat_3_title, desc: txt.feat_3_desc, icon: icons.manage },
+    { title: txt.feat_4_title, desc: txt.feat_4_desc, icon: icons.message },
+    { title: txt.feat_5_title, desc: txt.feat_5_desc, icon: icons.rate },
+    { title: txt.feat_6_title, desc: txt.feat_6_desc, icon: icons.deliverable },
+  ];
+
+  const steps = [
+    { n: "1", title: txt.step_1_title, desc: txt.step_1_desc },
+    { n: "2", title: txt.step_2_title, desc: txt.step_2_desc },
+    { n: "3", title: txt.step_3_title, desc: txt.step_3_desc },
+    { n: "4", title: txt.step_4_title, desc: txt.step_4_desc },
+  ];
+
+  const testimonials = [
+    {
+      name: txt.testimonial_1_name,
+      role: txt.testimonial_1_role,
+      text: txt.testimonial_1_text,
+      img: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200&q=80",
+    },
+    {
+      name: txt.testimonial_2_name,
+      role: txt.testimonial_2_role,
+      text: txt.testimonial_2_text,
+      img: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&q=80",
+    },
+    {
+      name: txt.testimonial_3_name,
+      role: txt.testimonial_3_role,
+      text: txt.testimonial_3_text,
+      img: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=200&q=80",
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-xl border-b border-slate-200/50 shadow-sm">
-        <div className="max-w-7xl mx-auto flex justify-between items-center px-4 sm:px-6 py-4">
-          <Link href={lang === "en" ? "/en" : "/"} className="flex items-center gap-2">
-            <Image src="/logo.svg" alt="Influo.gr Logo" width={160} height={64} className="h-10 w-auto" priority />
+    <div className="min-h-screen bg-white">
+      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-slate-200">
+        <div className="max-w-6xl mx-auto flex justify-between items-center px-4 sm:px-6 py-4">
+          <Link href={homeHref} className="flex items-center">
+            <Image src="/logo.svg" alt="Influo" width={160} height={64} className="h-9 w-auto" priority />
           </Link>
-          <div className="flex items-center gap-6">
-            <Link href={lang === "en" ? "/en" : "/"} className="text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors">{txt.back}</Link>
-            <button 
+          <div className="flex items-center gap-4">
+            <Link href={homeHref} className="text-sm text-slate-600 hover:text-slate-900 transition-colors">
+              {txt.back}
+            </Link>
+            <button
+              type="button"
               onClick={() => {
                 const newLang = lang === "el" ? "en" : "el";
                 setLang(newLang);
                 setStoredLanguage(newLang);
-                if (newLang === "en") router.push("/en/for-brands");
-                else router.push("/for-brands");
+                router.push(newLang === "en" ? "/en/for-brands" : "/for-brands");
               }}
               className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
             >
@@ -202,626 +294,232 @@ export default function ForBrandsPage() {
         </div>
       </header>
 
-      {/* Hero Section with Image */}
-      <section className="relative pt-20 pb-32 px-6 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 text-white overflow-hidden">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-          }}></div>
+      {/* Hero */}
+      <section className="relative border-b border-slate-100">
+        <div className="absolute inset-0 bg-slate-950">
+          <Image
+            src="https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1600&q=80"
+            alt=""
+            fill
+            className="object-cover opacity-40"
+            priority
+            sizes="100vw"
+          />
         </div>
-        
-        <div className="max-w-7xl mx-auto relative z-10">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Left Content */}
-            <div>
-              <div className="inline-block px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full text-sm font-medium mb-6">
-                🏆 Trusted by 200+ Brands
-              </div>
-              <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
-                {txt.title}
-              </h1>
-              <p className="text-xl md:text-2xl text-blue-100 mb-4 font-medium">
-                {txt.subtitle}
-              </p>
-              <p className="text-lg text-blue-50 mb-10 leading-relaxed">
-                {txt.hero_desc}
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <button
-                  type="button"
-                  onClick={openBrandModal}
-                  className="px-8 py-4 bg-white text-blue-600 font-bold rounded-xl hover:bg-blue-50 transition-all transform hover:scale-105 shadow-xl text-center"
-                >
-                  {txt.cta_primary}
-                </button>
-                <Link 
-                  href="/directory" 
-                  className="px-8 py-4 bg-blue-500/20 backdrop-blur-sm text-white font-bold border-2 border-white/30 rounded-xl hover:bg-blue-500/30 transition-all text-center"
-                >
-                  {txt.cta_secondary}
-                </Link>
-              </div>
-              
-              {/* Stats */}
-              <div className="mt-12 grid grid-cols-3 gap-6">
-                <div>
-                  <div className="text-3xl font-bold">500+</div>
-                  <div className="text-sm text-blue-200">Verified Influencers</div>
-                </div>
-                <div>
-                  <div className="text-3xl font-bold">98%</div>
-                  <div className="text-sm text-blue-200">Success Rate</div>
-                </div>
-                <div>
-                  <div className="text-3xl font-bold">24h</div>
-                  <div className="text-sm text-blue-200">Avg Response Time</div>
-                </div>
-              </div>
-            </div>
-            
-            {/* Right Image */}
-            <div className="relative h-[500px] lg:h-[600px] rounded-3xl overflow-hidden shadow-2xl border-4 border-white/20">
-              <Image 
-                src="https://images.unsplash.com/photo-1556761175-4b46a572b786?w=1200&q=80"
-                alt="Brand collaboration success"
-                fill
-                className="object-cover"
-                priority
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-blue-900/50 to-transparent"></div>
-              {/* Floating Stats Card */}
-              <div className="absolute bottom-6 left-6 right-6 bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-xl">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-xs text-slate-600 font-medium mb-1">Average Campaign ROI</div>
-                    <div className="text-3xl font-bold text-green-600">340%</div>
-                  </div>
-                  <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-emerald-600 rounded-2xl flex items-center justify-center">
-                    <span className="text-3xl">📈</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-20 md:py-28">
+          <p className="text-sm font-semibold tracking-wide text-blue-300 mb-3">{txt.title}</p>
+          <h1 className="text-4xl md:text-5xl font-bold text-white tracking-tight max-w-2xl mb-4">
+            {txt.headline}
+          </h1>
+          <p className="text-lg text-slate-200 max-w-xl mb-8 leading-relaxed">{txt.hero_desc}</p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              type="button"
+              onClick={openBrandModal}
+              className="inline-flex justify-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+            >
+              {txt.cta_primary}
+            </button>
+            <Link
+              href={directoryHref}
+              className="inline-flex justify-center px-6 py-3 bg-white/10 hover:bg-white/15 text-white font-semibold rounded-lg border border-white/20 transition-colors text-center"
+            >
+              {txt.cta_secondary}
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* Campaign applications spotlight */}
-      <section className="relative py-16 md:py-24 px-4 sm:px-6 bg-gradient-to-br from-teal-50 via-cyan-50/90 to-indigo-50 border-y border-teal-100/80 overflow-hidden">
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.45]"
-          style={{
-            backgroundImage:
-              "radial-gradient(ellipse 80% 60% at 100% 0%, rgba(45, 212, 191, 0.25), transparent 55%), radial-gradient(ellipse 60% 50% at 0% 100%, rgba(99, 102, 241, 0.12), transparent 50%)",
-          }}
-        />
-        <div className="max-w-7xl mx-auto relative z-10">
-          <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-            <div className="order-2 lg:order-1">
-              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-teal-600/15 text-teal-900 text-sm font-semibold mb-5 ring-1 ring-teal-600/20">
-                {txt.campaign_hero_badge}
-              </span>
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 tracking-tight mb-5 leading-[1.15]">
-                {txt.campaign_card_title.replace(/^📣\s*/, "")}
-              </h2>
-              <p className="text-lg text-slate-600 leading-relaxed mb-8 max-w-xl">
-                {txt.campaign_card_desc}
-              </p>
-              <div>
-                {isLoggedIn ? (
-                  <Link
-                    href="/brand/dashboard?tab=campaigns"
-                    className="inline-flex justify-center items-center px-8 py-4 rounded-2xl bg-gradient-to-r from-teal-600 to-cyan-600 text-white font-bold text-lg shadow-lg shadow-teal-600/25 hover:from-teal-700 hover:to-cyan-700 transition-all hover:scale-[1.02] text-center"
-                  >
-                    {txt.campaign_hero_cta}
-                  </Link>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={openBrandModal}
-                    className="inline-flex justify-center items-center px-8 py-4 rounded-2xl bg-gradient-to-r from-teal-600 to-cyan-600 text-white font-bold text-lg shadow-lg shadow-teal-600/25 hover:from-teal-700 hover:to-cyan-700 transition-all hover:scale-[1.02]"
-                  >
-                    {txt.campaign_hero_cta}
-                  </button>
-                )}
-              </div>
+      {/* Campaigns */}
+      <section className="py-16 md:py-20 px-4 sm:px-6 bg-slate-50 border-b border-slate-100">
+        <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-10 items-center">
+          <div>
+            <div className="mb-4 group">
+              <IconBox>{icons.campaign}</IconBox>
             </div>
-            <div className="order-1 lg:order-2 relative w-full min-h-[300px] sm:min-h-[400px] lg:min-h-[min(32rem,70vh)] rounded-[2rem] overflow-hidden shadow-2xl ring-1 ring-teal-200/70">
-              <Image
-                src="https://images.unsplash.com/photo-1533750349088-cd871a92f312?w=1600&q=85"
-                alt={lang === "el" ? "Καμπάνιες influencer marketing" : "Influencer marketing campaigns"}
-                fill
-                className="object-cover object-center"
-                sizes="(max-width: 1024px) 100vw, 50vw"
-                priority
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-900/50 via-slate-900/10 to-transparent" />
-              <div className="absolute bottom-6 left-6 right-6 flex items-center gap-3 rounded-2xl bg-white/95 backdrop-blur-md px-5 py-4 shadow-xl border border-white/60">
-                <span className="text-3xl" aria-hidden>
-                  📣
-                </span>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-teal-700">
-                    {lang === "el" ? "Μία ροή για όλες τις αιτήσεις" : "One place for every application"}
-                  </p>
-                  <p className="text-sm text-slate-700 font-medium">
-                    {lang === "el"
-                      ? "Αιτήσεις, μηνύματα και ειδοποιήσεις μέσα στο Influo."
-                      : "Applications, messages, and alerts — all in Influo."}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Grid with Images */}
-      <section className="py-24 px-6 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">
-              Όλα όσα χρειάζεται το Brand σας
+            <h2 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight mb-3">
+              {txt.campaign_title}
             </h2>
-            <p className="text-xl text-slate-600 max-w-2xl mx-auto">
-              Εργαλεία και features για αποτελεσματική διαχείριση influencer campaigns
-            </p>
+            <p className="text-slate-600 leading-relaxed mb-6 max-w-lg">{txt.campaign_desc}</p>
+            {isLoggedIn ? (
+              <Link
+                href="/dashboard?tab=campaigns"
+                className="inline-flex px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg transition-colors"
+              >
+                {txt.campaign_cta}
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={openBrandModal}
+                className="inline-flex px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg transition-colors"
+              >
+                {txt.campaign_cta_guest}
+              </button>
+            )}
           </div>
-          
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {/* Feature 1 */}
-            <div className="group bg-gradient-to-br from-white to-blue-50/50 p-8 rounded-2xl shadow-lg border border-slate-200 hover:shadow-2xl transition-all hover:-translate-y-2">
-              <div className="relative w-20 h-20 bg-gradient-to-br from-blue-400 to-indigo-600 rounded-2xl flex items-center justify-center mb-6 transform group-hover:scale-110 transition-transform">
-                <span className="text-4xl">🔍</span>
-              </div>
-              <h3 className="text-2xl font-bold text-slate-900 mb-3">{txt.feat_1_title.replace('🔍 ', '')}</h3>
-              <p className="text-slate-600 leading-relaxed">{txt.feat_1_desc}</p>
-              <div className="mt-6 relative h-48 rounded-xl overflow-hidden bg-gradient-to-br from-blue-100 to-indigo-100">
-                <Image 
-                  src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&q=80"
-                  alt="Advanced search"
-                  fill
-                  className="object-cover opacity-80"
-                />
-              </div>
-            </div>
-
-            {/* Feature 2 */}
-            <div className="group bg-gradient-to-br from-white to-green-50/50 p-8 rounded-2xl shadow-lg border border-slate-200 hover:shadow-2xl transition-all hover:-translate-y-2">
-              <div className="relative w-20 h-20 bg-gradient-to-br from-green-400 to-emerald-600 rounded-2xl flex items-center justify-center mb-6 transform group-hover:scale-110 transition-transform">
-                <span className="text-4xl">✅</span>
-              </div>
-              <h3 className="text-2xl font-bold text-slate-900 mb-3">{txt.feat_2_title.replace('✅ ', '')}</h3>
-              <p className="text-slate-600 leading-relaxed">{txt.feat_2_desc}</p>
-              <div className="mt-6 relative h-48 rounded-xl overflow-hidden bg-gradient-to-br from-green-100 to-emerald-100">
-                <Image 
-                  src="https://images.unsplash.com/photo-1560253023-3ec5d502959f?w=600&q=80"
-                  alt="Verified creators"
-                  fill
-                  className="object-cover opacity-80"
-                />
-              </div>
-            </div>
-
-            {/* Feature 3 */}
-            <div className="group bg-gradient-to-br from-white to-purple-50/50 p-8 rounded-2xl shadow-lg border border-slate-200 hover:shadow-2xl transition-all hover:-translate-y-2">
-              <div className="relative w-20 h-20 bg-gradient-to-br from-purple-400 to-pink-600 rounded-2xl flex items-center justify-center mb-6 transform group-hover:scale-110 transition-transform">
-                <span className="text-4xl">💼</span>
-              </div>
-              <h3 className="text-2xl font-bold text-slate-900 mb-3">{txt.feat_3_title.replace('💼 ', '')}</h3>
-              <p className="text-slate-600 leading-relaxed">{txt.feat_3_desc}</p>
-              <div className="mt-6 relative h-48 rounded-xl overflow-hidden bg-gradient-to-br from-purple-100 to-pink-100">
-                <Image 
-                  src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=600&q=80"
-                  alt="Easy management"
-                  fill
-                  className="object-cover opacity-80"
-                />
-              </div>
-            </div>
-
-            {/* Feature 4 */}
-            <div className="group bg-gradient-to-br from-white to-cyan-50/50 p-8 rounded-2xl shadow-lg border border-slate-200 hover:shadow-2xl transition-all hover:-translate-y-2">
-              <div className="relative w-20 h-20 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-2xl flex items-center justify-center mb-6 transform group-hover:scale-110 transition-transform">
-                <span className="text-4xl">💬</span>
-              </div>
-              <h3 className="text-2xl font-bold text-slate-900 mb-3">{txt.feat_4_title.replace('💬 ', '')}</h3>
-              <p className="text-slate-600 leading-relaxed">{txt.feat_4_desc}</p>
-              <div className="mt-6 relative h-48 rounded-xl overflow-hidden bg-gradient-to-br from-cyan-100 to-blue-100">
-                <Image 
-                  src="https://images.unsplash.com/photo-1577563908411-5077b6dc7624?w=600&q=80"
-                  alt="Direct messaging"
-                  fill
-                  className="object-cover opacity-80"
-                />
-              </div>
-            </div>
-
-            {/* Feature 5 */}
-            <div className="group bg-gradient-to-br from-white to-amber-50/50 p-8 rounded-2xl shadow-lg border border-slate-200 hover:shadow-2xl transition-all hover:-translate-y-2">
-              <div className="relative w-20 h-20 bg-gradient-to-br from-amber-400 to-orange-600 rounded-2xl flex items-center justify-center mb-6 transform group-hover:scale-110 transition-transform">
-                <span className="text-4xl">📊</span>
-              </div>
-              <h3 className="text-2xl font-bold text-slate-900 mb-3">{txt.feat_5_title.replace('📊 ', '')}</h3>
-              <p className="text-slate-600 leading-relaxed">{txt.feat_5_desc}</p>
-              <div className="mt-6 relative h-48 rounded-xl overflow-hidden bg-gradient-to-br from-amber-100 to-orange-100">
-                <Image 
-                  src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=600&q=80"
-                  alt="Detailed analytics"
-                  fill
-                  className="object-cover opacity-80"
-                />
-              </div>
-            </div>
-
-            {/* Feature 6 */}
-            <div className="group bg-gradient-to-br from-white to-indigo-50/50 p-8 rounded-2xl shadow-lg border border-slate-200 hover:shadow-2xl transition-all hover:-translate-y-2">
-              <div className="relative w-20 h-20 bg-gradient-to-br from-indigo-400 to-purple-600 rounded-2xl flex items-center justify-center mb-6 transform group-hover:scale-110 transition-transform">
-                <span className="text-4xl">⚡</span>
-              </div>
-              <h3 className="text-2xl font-bold text-slate-900 mb-3">{txt.feat_6_title.replace('⚡ ', '')}</h3>
-              <p className="text-slate-600 leading-relaxed">{txt.feat_6_desc}</p>
-              <div className="mt-6 relative h-48 rounded-xl overflow-hidden bg-gradient-to-br from-indigo-100 to-purple-100">
-                <Image 
-                  src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=600&q=80"
-                  alt="Quick discovery"
-                  fill
-                  className="object-cover opacity-80"
-                />
-              </div>
-            </div>
-
+          <div className="relative aspect-[4/3] rounded-lg overflow-hidden bg-slate-200">
+            <Image
+              src="https://images.unsplash.com/photo-1542744173-8e2bd1f95384?w=1200&q=80"
+              alt=""
+              fill
+              className="object-cover"
+              sizes="(max-width: 1024px) 100vw, 50vw"
+            />
           </div>
         </div>
       </section>
 
-      {/* Smart Recommendation System - Dedicated Section */}
-      <section className="py-24 px-6 bg-gradient-to-br from-blue-600 via-indigo-700 to-purple-800 text-white relative overflow-hidden">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M20 20.5V18H0v-2h20v-2H0v-2h20v-2H0V8h20V6H0V4h20V2H0V0h22v20h2V0h2v20h2V0h2v20h2V0h2v20h2V0h2v22H20v-1.5zM0 20h2v20H0V20zm4 0h2v20H4V20zm4 0h2v20H8V20zm4 0h2v20h-2V20zm4 0h2v20h-2V20zm4 4h20v2H20v-2zm0 4h20v2H20v-2zm0 4h20v2H20v-2zm0 4h20v2H20v-2z'/%3E%3C/g%3E%3C/svg%3E")`,
-          }}></div>
-        </div>
-
-        <div className="max-w-7xl mx-auto relative z-10">
+      {/* Features */}
+      <section className="py-16 md:py-20 px-4 sm:px-6 bg-white">
+        <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
-            <div className="inline-block px-4 py-2 bg-green-500 rounded-full text-sm font-bold mb-4">
-              🎁 100% ΔΩΡΕΑΝ - FREE FOREVER
-            </div>
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">🤖 Έξυπνη Υπηρεσία Προτάσεων AI</h2>
-            <p className="text-xl text-blue-100 max-w-3xl mx-auto">
-              Το AI μας αναλύει το brand σας και προτείνει αυτόματα τους καλύτερους influencers. Δεν χρειάζεται να ψάχνετε - το σύστημα σας βρίσκει τους τέλειους matches!
-            </p>
+            <h2 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight mb-2">
+              {txt.features_title}
+            </h2>
+            <p className="text-slate-600 max-w-xl mx-auto">{txt.features_desc}</p>
           </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-              <div className="text-4xl mb-4">🎯</div>
-              <h3 className="text-xl font-bold mb-2">Match Score</h3>
-              <p className="text-blue-100 text-sm">Κάθε πρόταση έχει score 0-100% που δείχνει πόσο καλά ταιριάζει με το brand σας.</p>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-              <div className="text-4xl mb-4">🧠</div>
-              <h3 className="text-xl font-bold mb-2">AI-Powered</h3>
-              <p className="text-blue-100 text-sm">Το σύστημα αναλύει category, engagement, ratings, και value για προσωποποιημένες προτάσεις.</p>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-              <div className="text-4xl mb-4">🔍</div>
-              <h3 className="text-xl font-bold mb-2">Advanced Filters</h3>
-              <p className="text-blue-100 text-sm">Φιλτράρετε με budget, engagement rate, rating, κατηγορία, και πολλά άλλα.</p>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-              <div className="text-4xl mb-4">📊</div>
-              <h3 className="text-xl font-bold mb-2">Analytics</h3>
-              <p className="text-blue-100 text-sm">Βλέπετε stats: πόσες προτάσεις είδατε, προφίλ που επισκεφτήκατε, προσφορές που στείλατε.</p>
-            </div>
-          </div>
-
-          <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-8 md:p-12 border border-white/20">
-            <div className="grid md:grid-cols-2 gap-8 items-center">
-              <div>
-                <h3 className="text-3xl font-bold mb-4">Πώς λειτουργεί;</h3>
-                <ul className="space-y-3 text-blue-100">
-                  <li className="flex items-start gap-3">
-                    <span className="text-green-400 text-xl flex-shrink-0">✓</span>
-                    <span>Το AI αναλύει το industry και τα προφίλ σας</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-green-400 text-xl flex-shrink-0">✓</span>
-                    <span>Υπολογίζει match score για κάθε influencer</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-green-400 text-xl flex-shrink-0">✓</span>
-                    <span>Προτείνει τους top matches με προσωποποιημένες αιτιολογίες</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-green-400 text-xl flex-shrink-0">✓</span>
-                    <span>Μπορείτε να φιλτράρετε και να ανανεώνετε ανά πάσα στιγμή</span>
-                  </li>
-                </ul>
-                <div className="mt-6">
-                  <button
-                    type="button"
-                    onClick={openBrandModal}
-                    className="inline-block px-8 py-4 bg-white text-blue-600 font-bold rounded-xl hover:bg-blue-50 transition-all transform hover:scale-105 shadow-xl"
-                  >
-                    Ξεκινήστε Δωρεάν →
-                  </button>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
+            {features.map((f) => (
+              <article
+                key={f.title}
+                className="group flex flex-col h-full bg-white border border-slate-200/90 p-5 md:p-6 rounded-lg hover:border-slate-300 transition-colors"
+              >
+                <div className="mb-4">
+                  <IconBox>{f.icon}</IconBox>
                 </div>
-              </div>
-              <div className="relative h-64 md:h-80 rounded-2xl overflow-hidden bg-gradient-to-br from-white/20 to-white/5 border border-white/30">
-                <Image
-                  src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&q=80"
-                  alt="AI Recommendations"
-                  fill
-                  className="object-cover opacity-80"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-blue-900/50 to-transparent"></div>
-                <div className="absolute bottom-4 left-4 right-4">
-                  <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-bold text-slate-900">Match Score: 92%</span>
-                      <span className="px-2 py-1 bg-green-500 text-white text-xs font-bold rounded">Excellent</span>
-                    </div>
-                    <p className="text-xs text-slate-600">Perfect match for your brand!</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+                <h3 className="text-base font-semibold text-slate-900 mb-2 tracking-tight">{f.title}</h3>
+                <p className="text-sm text-slate-600 leading-relaxed flex-1">{f.desc}</p>
+              </article>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* How It Works with Visual Steps */}
-      <section className="py-24 px-6 bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/30">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">{txt.how_title}</h2>
-            <p className="text-xl text-slate-600 max-w-2xl mx-auto">
-              Από την εγγραφή στην πρώτη συνεργασία σε 4 απλά βήματα
-            </p>
+      {/* AI */}
+      <section className="py-16 md:py-20 px-4 sm:px-6 bg-slate-50 border-y border-slate-100">
+        <div className="max-w-6xl mx-auto">
+          <article className="group border border-slate-200 bg-white rounded-lg p-6 md:p-10 max-w-3xl mx-auto">
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <IconBox>{icons.ai}</IconBox>
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 border border-slate-200 px-2 py-0.5 rounded">
+                {txt.ai_badge}
+              </span>
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900 tracking-tight mb-3">{txt.ai_title}</h2>
+            <p className="text-slate-600 leading-relaxed mb-6">{txt.ai_desc}</p>
+            <button
+              type="button"
+              onClick={openBrandModal}
+              className="inline-flex px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+            >
+              {txt.ai_cta}
+            </button>
+          </article>
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section className="py-16 md:py-20 px-4 sm:px-6 bg-white">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight mb-2">{txt.how_title}</h2>
+            <p className="text-slate-600">{txt.how_desc}</p>
           </div>
-          
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div className="relative">
-              <div className="relative bg-white p-8 rounded-3xl shadow-xl border border-slate-200 text-center hover:shadow-2xl transition-all">
-                <div className="relative w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-                  <span className="text-3xl">1️⃣</span>
-                  <div className="absolute -top-2 -right-2 w-7 h-7 bg-blue-400 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-lg">
-                    1
-                  </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+            {steps.map((s) => (
+              <div key={s.n}>
+                <div className="inline-flex w-10 h-10 items-center justify-center rounded-full bg-slate-900 text-white text-sm font-semibold mb-4">
+                  {s.n}
                 </div>
-                <div className="relative h-48 rounded-2xl overflow-hidden mb-6 bg-gradient-to-br from-blue-100 to-blue-200">
-                  <Image 
-                    src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=600&q=80"
-                    alt="Sign up"
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-3">{txt.step_1_title}</h3>
-                <p className="text-slate-600 text-sm leading-relaxed">{txt.step_1_desc}</p>
+                <h3 className="text-lg font-semibold text-slate-900 mb-2">{s.title}</h3>
+                <p className="text-sm text-slate-600 leading-relaxed">{s.desc}</p>
               </div>
-            </div>
-            
-            <div className="relative">
-              <div className="relative bg-white p-8 rounded-3xl shadow-xl border border-slate-200 text-center hover:shadow-2xl transition-all">
-                <div className="relative w-20 h-20 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-                  <span className="text-3xl">2️⃣</span>
-                  <div className="absolute -top-2 -right-2 w-7 h-7 bg-purple-400 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-lg">
-                    2
-                  </div>
-                </div>
-                <div className="relative h-48 rounded-2xl overflow-hidden mb-6 bg-gradient-to-br from-purple-100 to-pink-200">
-                  <Image 
-                    src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&q=80"
-                    alt="Search influencers"
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-3">{txt.step_2_title}</h3>
-                <p className="text-slate-600 text-sm leading-relaxed">{txt.step_2_desc}</p>
-              </div>
-            </div>
-            
-            <div className="relative">
-              <div className="relative bg-white p-8 rounded-3xl shadow-xl border border-slate-200 text-center hover:shadow-2xl transition-all">
-                <div className="relative w-20 h-20 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-                  <span className="text-3xl">3️⃣</span>
-                  <div className="absolute -top-2 -right-2 w-7 h-7 bg-indigo-400 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-lg">
-                    3
-                  </div>
-                </div>
-                <div className="relative h-48 rounded-2xl overflow-hidden mb-6 bg-gradient-to-br from-indigo-100 to-blue-200">
-                  <Image 
-                    src="https://images.unsplash.com/photo-1577563908411-5077b6dc7624?w=600&q=80"
-                    alt="Send proposal"
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-3">{txt.step_3_title}</h3>
-                <p className="text-slate-600 text-sm leading-relaxed">{txt.step_3_desc}</p>
-              </div>
-            </div>
-            
-            <div className="relative">
-              <div className="relative bg-white p-8 rounded-3xl shadow-xl border border-slate-200 text-center hover:shadow-2xl transition-all">
-                <div className="relative w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-                  <span className="text-3xl">4️⃣</span>
-                  <div className="absolute -top-2 -right-2 w-7 h-7 bg-green-400 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-lg">
-                    4
-                  </div>
-                </div>
-                <div className="relative h-48 rounded-2xl overflow-hidden mb-6 bg-gradient-to-br from-green-100 to-emerald-200">
-                  <Image 
-                    src="https://images.unsplash.com/photo-1556761175-4b46a572b786?w=600&q=80"
-                    alt="Close deal"
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-3">{txt.step_4_title}</h3>
-                <p className="text-slate-600 text-sm leading-relaxed">{txt.step_4_desc}</p>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Testimonials with Photos */}
-      <section className="py-24 px-6 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">{txt.testimonials_title}</h2>
-            <p className="text-xl text-slate-600">Ακούστε τι λένε τα brands που μας εμπιστεύονται</p>
-          </div>
-          
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-gradient-to-br from-white to-blue-50/50 p-8 rounded-3xl shadow-xl border border-slate-200 hover:shadow-2xl transition-all">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="relative w-20 h-20 rounded-2xl overflow-hidden ring-4 ring-blue-200">
-                  <Image 
-                    src="https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=200&q=80"
-                    alt={txt.testimonial_1_name}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-900 text-lg">{txt.testimonial_1_name}</h4>
-                  <p className="text-sm text-slate-600">{txt.testimonial_1_role}</p>
-                  <div className="flex gap-1 mt-1">
-                    {[...Array(5)].map((_, i) => (
-                      <span key={i} className="text-amber-400">⭐</span>
-                    ))}
+      {/* Testimonials */}
+      <section className="py-16 md:py-20 px-4 sm:px-6 bg-slate-50 border-y border-slate-100">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight text-center mb-12">
+            {txt.testimonials_title}
+          </h2>
+          <div className="grid md:grid-cols-3 gap-5">
+            {testimonials.map((item) => (
+              <blockquote key={item.name} className="border border-slate-200 rounded-lg p-6 bg-white">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="relative w-12 h-12 rounded-full overflow-hidden bg-slate-100 shrink-0">
+                    <Image src={item.img} alt="" fill className="object-cover" sizes="48px" />
+                  </div>
+                  <div>
+                    <div className="font-semibold text-slate-900 text-sm">{item.name}</div>
+                    <div className="text-xs text-slate-500">{item.role}</div>
                   </div>
                 </div>
-              </div>
-              <p className="text-slate-700 italic text-lg leading-relaxed">"{txt.testimonial_1_text}"</p>
-            </div>
-            
-            <div className="bg-gradient-to-br from-white to-purple-50/50 p-8 rounded-3xl shadow-xl border border-slate-200 hover:shadow-2xl transition-all">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="relative w-20 h-20 rounded-2xl overflow-hidden ring-4 ring-purple-200">
-                  <Image 
-                    src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80"
-                    alt={txt.testimonial_2_name}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-900 text-lg">{txt.testimonial_2_name}</h4>
-                  <p className="text-sm text-slate-600">{txt.testimonial_2_role}</p>
-                  <div className="flex gap-1 mt-1">
-                    {[...Array(5)].map((_, i) => (
-                      <span key={i} className="text-amber-400">⭐</span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <p className="text-slate-700 italic text-lg leading-relaxed">"{txt.testimonial_2_text}"</p>
-            </div>
-            
-            <div className="bg-gradient-to-br from-white to-green-50/50 p-8 rounded-3xl shadow-xl border border-slate-200 hover:shadow-2xl transition-all">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="relative w-20 h-20 rounded-2xl overflow-hidden ring-4 ring-green-200">
-                  <Image 
-                    src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&q=80"
-                    alt={txt.testimonial_3_name}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-900 text-lg">{txt.testimonial_3_name}</h4>
-                  <p className="text-sm text-slate-600">{txt.testimonial_3_role}</p>
-                  <div className="flex gap-1 mt-1">
-                    {[...Array(5)].map((_, i) => (
-                      <span key={i} className="text-amber-400">⭐</span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <p className="text-slate-700 italic text-lg leading-relaxed">"{txt.testimonial_3_text}"</p>
-            </div>
+                <p className="text-sm text-slate-600 leading-relaxed">&ldquo;{item.text}&rdquo;</p>
+              </blockquote>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="relative py-24 px-6 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 text-white overflow-hidden">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-          }}></div>
-        </div>
-        
-        <div className="max-w-4xl mx-auto text-center relative z-10">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6">{txt.cta_section_title}</h2>
-          <p className="text-xl md:text-2xl text-blue-100 mb-10">{txt.cta_section_desc}</p>
+      {/* CTA */}
+      <section className="py-16 md:py-20 px-4 sm:px-6 bg-slate-900 text-white">
+        <div className="max-w-2xl mx-auto text-center">
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight mb-3">{txt.cta_section_title}</h2>
+          <p className="text-slate-300 mb-8">{txt.cta_section_desc}</p>
           <button
             type="button"
             onClick={openBrandModal}
-            className="inline-block px-12 py-5 bg-white text-blue-600 font-bold rounded-2xl hover:bg-blue-50 transition-all transform hover:scale-105 shadow-2xl text-xl"
+            className="inline-flex px-8 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
           >
-            {txt.cta_button} →
+            {txt.cta_button}
           </button>
         </div>
       </section>
 
       <Footer lang={lang} />
 
-      {/* Signup Modal */}
       {showModal && (
         <div
-          className="fixed inset-0 bg-slate-900/70 backdrop-blur-md flex justify-center items-center z-50 p-4 animate-in fade-in duration-200"
+          className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex justify-center items-center z-50 p-4"
           onClick={() => setShowModal(false)}
         >
-          <div
-            className="relative w-full max-w-5xl animate-in zoom-in duration-300"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-6">
-              <div className="flex gap-3 bg-white/10 backdrop-blur-sm p-2 rounded-xl border border-white/10">
-                <button
-                  type="button"
-                  onClick={() => setSignupType("influencer")}
-                  className={`flex-1 px-4 py-2 rounded-lg text-sm sm:text-base font-bold transition-all ${
-                    signupType === "influencer"
-                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-indigo-500/20"
-                      : "text-white/80 border border-white/10 hover:text-white hover:bg-white/10"
-                  }`}
-                >
-                  {lang === "el" ? "Είμαι Influencer" : "I'm an Influencer"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSignupType("brand")}
-                  className={`flex-1 px-4 py-2 rounded-lg text-sm sm:text-base font-bold transition-all ${
-                    signupType === "brand"
-                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-indigo-500/20"
-                      : "text-white/80 border border-white/10 hover:text-white hover:bg-white/10"
-                  }`}
-                >
-                  {lang === "el" ? "Έχω Επιχείρηση" : "I have a Business"}
-                </button>
-              </div>
+          <div className="relative w-full max-w-5xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-4 flex gap-2 bg-slate-800 p-1.5 rounded-lg">
+              <button
+                type="button"
+                onClick={() => setSignupType("influencer")}
+                className={`flex-1 px-4 py-2 rounded-md text-sm font-semibold transition-colors ${
+                  signupType === "influencer"
+                    ? "bg-blue-600 text-white"
+                    : "text-slate-300 hover:text-white hover:bg-slate-700"
+                }`}
+              >
+                {txt.signup_influencer}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSignupType("brand")}
+                className={`flex-1 px-4 py-2 rounded-md text-sm font-semibold transition-colors ${
+                  signupType === "brand"
+                    ? "bg-blue-600 text-white"
+                    : "text-slate-300 hover:text-white hover:bg-slate-700"
+                }`}
+              >
+                {txt.signup_brand}
+              </button>
             </div>
-
             <div className="relative">
               <button
                 type="button"
                 onClick={() => setShowModal(false)}
-                aria-label={lang === "el" ? "Κλείσιμο" : "Close"}
-                className="absolute top-3 right-3 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 transition-colors border border-red-200 shadow-sm"
+                aria-label={txt.close}
+                className="absolute top-3 right-3 z-20 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
               >
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M18 6L6 18" />
                 </svg>
               </button>
