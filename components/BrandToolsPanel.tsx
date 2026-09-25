@@ -9,11 +9,8 @@ import {
   saveChecklist,
   loadRoi,
   saveRoi,
-  loadSnippets,
-  saveSnippets,
   type BrandChecklistState,
   type BrandRoiEntry,
-  type BrandSnippetsState,
 } from "@/lib/brandToolsStorage";
 
 type Props = {
@@ -125,7 +122,6 @@ export default function BrandToolsPanel({
   const [roiSpend, setRoiSpend] = useState("");
   const [roiResults, setRoiResults] = useState("");
   const [roiNotes, setRoiNotes] = useState("");
-  const [snippets, setSnippets] = useState<BrandSnippetsState>(() => loadSnippets(brandId, el));
   const [kitDos, setKitDos] = useState(
     el ? "Χρησιμοποιήστε το λογότυπο σε καθαρό φόντο\nTag @brand στο caption" : "Use logo on a clean background\nTag @brand in the caption"
   );
@@ -137,8 +133,7 @@ export default function BrandToolsPanel({
     if (!brandId) return;
     setChecklist(loadChecklist(brandId));
     setRoi(loadRoi(brandId));
-    setSnippets(loadSnippets(brandId, el));
-  }, [brandId, el]);
+  }, [brandId]);
 
   useEffect(() => {
     if (website) {
@@ -272,12 +267,6 @@ export default function BrandToolsPanel({
     if (brandId) saveRoi(brandId, next);
   };
 
-  const updateSnippet = (field: keyof BrandSnippetsState, value: string) => {
-    const next = { ...snippets, [field]: value };
-    setSnippets(next);
-    if (brandId) saveSnippets(brandId, next);
-  };
-
   const downloadCsv = () => {
     const header = el
       ? ["Όνομα", "Κατηγορία", "Followers", "ER %", "Ελάχ. τιμή", "Response h", "Completion %", "Σημείωση", "Προφίλ"]
@@ -365,8 +354,8 @@ export default function BrandToolsPanel({
         <h2 className="text-xl font-semibold text-slate-900">{el ? "Εργαλεία brand" : "Brand tools"}</h2>
         <p className="text-sm text-slate-600 mt-1">
           {el
-            ? "Budget, brief, σύγκριση, checklist, UTM, ROI, brand kit και έτοιμα μηνύματα."
-            : "Budget, brief, compare, checklist, UTM, ROI, brand kit, and message snippets."}
+            ? "Budget, brief, σύγκριση, checklist, UTM, ROI και brand kit."
+            : "Budget, brief, compare, checklist, UTM, ROI, and brand kit."}
         </p>
       </div>
 
@@ -747,41 +736,6 @@ export default function BrandToolsPanel({
         >
           {el ? "Εκτύπωση / PDF kit" : "Print / PDF kit"}
         </button>
-      </section>
-
-      {/* Snippets */}
-      <section className={card}>
-        <h3 className={h3}>{el ? "Έτοιμα μηνύματα" : "Message snippets"}</h3>
-        <p className="text-sm text-slate-600">
-          {el ? "Αντιγράψτε και επεξεργαστείτε πριν την αποστολή." : "Copy and edit before sending."}
-        </p>
-        {(
-          [
-            ["outreach", el ? "Πρώτη επαφή" : "Outreach"],
-            ["negotiate", el ? "Διαπραγμάτευση" : "Negotiate"],
-            ["reminder", el ? "Υπενθύμιση deliverable" : "Deliverable reminder"],
-            ["approve", el ? "Έγκριση" : "Approval"],
-          ] as const
-        ).map(([key, label]) => (
-          <div key={key} className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-medium text-slate-800">{label}</span>
-              <button
-                type="button"
-                onClick={() => copyText(snippets[key], `snip-${key}`)}
-                className="text-xs font-medium text-blue-600 hover:underline"
-              >
-                {copied === `snip-${key}` ? (el ? "Αντιγράφηκε" : "Copied") : el ? "Αντιγραφή" : "Copy"}
-              </button>
-            </div>
-            <textarea
-              value={snippets[key]}
-              onChange={(e) => updateSnippet(key, e.target.value)}
-              rows={3}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-            />
-          </div>
-        ))}
       </section>
     </div>
   );
