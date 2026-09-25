@@ -27,7 +27,7 @@ const t = {
 
 type FaqEntry = { q: Record<Lang, string>; a: Record<Lang, string> };
 
-/** 3 αρχικές + 13 νέες — συνολικά 16 ερωτήσεις */
+/** FAQ — ενημερώνεται μαζί με νέες λειτουργίες πλατφόρμας */
 const FAQ_ITEMS: FaqEntry[] = [
   {
     q: {
@@ -45,8 +45,8 @@ const FAQ_ITEMS: FaqEntry[] = [
       en: "How do I know if an influencer is trustworthy?",
     },
     a: {
-      el: "Ελέγξτε το επαληθευμένο προφίλ (verified), ιστορικό reviews και μέσο rating, συνέπεια στο περιεχόμενο, ρεαλιστικό engagement σε σχέση με τους followers και χρόνο απόκρισης σε μηνύματα.",
-      en: "Look for verification, reviews and average rating, content consistency, engagement that fits the audience size, and how quickly they respond in messages.",
+      el: "Ελέγξτε το επαληθευμένο προφίλ (verified), reviews και rating, συνέπεια περιεχομένου, ρεαλιστικό engagement, σήματα όπως «Ιδιωτικό» / «Ύποπτο ER» στον κατάλογο, και πραγματικό χρόνο απόκρισης στο προφίλ (όχι πάντα 24h).",
+      en: "Check verification, reviews and rating, content consistency, realistic engagement, directory signals like Private / ER flag, and real response time on the profile (not always 24h).",
     },
   },
   {
@@ -75,8 +75,8 @@ const FAQ_ITEMS: FaqEntry[] = [
       en: "What are campaigns and how do I apply as an influencer?",
     },
     a: {
-      el: "Οι καμπάνιες είναι briefs που δημοσιεύουν verified brands. Στο dashboard βλέπετε τις ανοιχτές καμπάνιες· μπορείτε να υποβάλετε αίτηση ενδιαφέροντος με προαιρετικό μήνυμα. Το brand βλέπει την αίτηση και ενημερώνει την κατάσταση (π.χ. εκκρεμεί, shortlist, απόρριψη).",
-      en: "Campaigns are briefs published by verified brands. In your dashboard you’ll see open campaigns; you can submit an interest application with an optional message. The brand reviews it and updates status (e.g. pending, shortlisted, rejected).",
+      el: "Οι καμπάνιες είναι briefs που δημοσιεύουν verified brands. Στο dashboard βλέπετε τις ανοιχτές καμπάνιες· μπορείτε να υποβάλετε αίτηση ενδιαφέροντος με προαιρετικό μήνυμα. Το brand ενημερώνει την κατάσταση (εκκρεμεί, shortlist, απόρριψη). Αν μπείτε σε shortlist, μπορείτε να υποβάλετε link παράδοσης (deliverable) και το brand να το εγκρίνει ή να ζητήσει αλλαγές.",
+      en: "Campaigns are briefs published by verified brands. In your dashboard you’ll see open campaigns; you can submit an interest application with an optional message. The brand updates status (pending, shortlisted, rejected). If shortlisted, you can submit a deliverable URL and the brand can approve it or request changes.",
     },
   },
   {
@@ -85,8 +85,8 @@ const FAQ_ITEMS: FaqEntry[] = [
       en: "How do I publish campaigns as a brand?",
     },
     a: {
-      el: "Από το Brand Dashboard, στο tab Καμπάνιες, δημιουργείτε καμπάνια με τίτλο, περιγραφή, budget και προαιρετικά προθεσμία και deliverables. Το brand σας πρέπει να είναι επαληθευμένο. Όταν η κατάσταση είναι «Ανοιχτή», οι εγκεκριμένοι influencers τη βλέπουν και μπορούν να κάνουν αίτηση.",
-      en: "From Brand Dashboard → Campaigns, create a campaign with title, description, budget, and optional deadline and deliverables. Your brand must be verified. When status is Open, approved influencers can see it and apply.",
+      el: "Από το Brand Dashboard, στο tab Καμπάνιες, δημιουργείτε καμπάνια με τίτλο, περιγραφή, budget και προαιρετικά προθεσμία και deliverables. Το brand σας πρέπει να είναι επαληθευμένο. Όταν η κατάσταση είναι «Ανοιχτή», οι εγκεκριμένοι influencers τη βλέπουν και μπορούν να κάνουν αίτηση. Στις αιτήσεις σε shortlist μπορείτε να ελέγξετε και να εγκρίνετε την παράδοση περιεχομένου.",
+      en: "From Brand Dashboard → Campaigns, create a campaign with title, description, budget, and optional deadline and deliverables. Your brand must be verified. When status is Open, approved influencers can see it and apply. For shortlisted applications you can review and approve content deliverables.",
     },
   },
   {
@@ -105,8 +105,28 @@ const FAQ_ITEMS: FaqEntry[] = [
       en: "How do messages and notifications work?",
     },
     a: {
-      el: "Στέλνετε μηνύματα από προφίλ ή από το κέντρο συνομιλιών· οι συνομιλίες συνδέονται με προσφορές όπου ισχύει. Λαμβάνετε ειδοποιήσεις email για νέα μηνύματα και μπορείτε να ενεργοποιήσετε ειδοποιήσεις push στον browser για γρηγορότερη ενημέρωση.",
-      en: "Message from profiles or your inbox; conversations can link to proposals where relevant. You get email notifications for new messages and can enable browser push for faster updates.",
+      el: "Τα brands ξεκινούν συνομιλία από προφίλ ή προσφορά· οι influencers απαντούν στην υπάρχουσα συνομιλία. Μπορείτε να επισυνάψετε εικόνες ή PDF (έως 10MB). Λαμβάνετε email και, αν ενεργοποιηθεί, push για νέα μηνύματα.",
+      en: "Brands start chats from a profile or proposal; influencers reply in that thread. You can attach images or PDFs (up to 10MB). You get email and, if enabled, push for new messages.",
+    },
+  },
+  {
+    q: {
+      el: "Πώς ορίζω αν είμαι διαθέσιμος για συνεργασίες;",
+      en: "How do I set whether I’m available for collaborations?",
+    },
+    a: {
+      el: "Στο Influencer Dashboard → Προφίλ επιλέγετε «Διαθέσιμος» ή «Μη διαθέσιμος προσωρινά». Η κατάσταση φαίνεται στο δημόσιο προφίλ και τα brands μπορούν να φιλτράρουν τον κατάλογο ώστε να βλέπουν κυρίως διαθέσιμους creators.",
+      en: "In Influencer Dashboard → Profile choose Available or Temporarily unavailable. Status shows on your public profile and brands can filter the directory to focus on available creators.",
+    },
+  },
+  {
+    q: {
+      el: "Τι σημαίνει ο χρόνος απάντησης στο προφίλ;",
+      en: "What does response time on the profile mean?",
+    },
+    a: {
+      el: "Υπολογίζεται από πραγματικές συνομιλίες (μήνυμα brand → απάντηση influencer). Αν δεν υπάρχουν αρκετά δεδομένα, εμφανίζεται παύλα (—) αντί για ψεύτικο «24h». Το ποσοστό ολοκλήρωσης βασίζεται στις προσφορές σας.",
+      en: "It’s computed from real chats (brand message → influencer reply). If there isn’t enough data, you’ll see a dash (—) instead of a fake “24h”. Completion rate is based on your proposals.",
     },
   },
   {
@@ -380,6 +400,109 @@ export default function DocsPage() {
             </div>
           </section>
 
+          {/* Availability, trust, rate card, metrics */}
+          <section className="mb-12 border-t border-slate-200 pt-12">
+            <h2 className="text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3">
+              <span className="text-4xl">📋</span>
+              {lang === 'el' ? 'Προφίλ, κατάλογος & εμπιστοσύνη' : 'Profile, directory & trust'}
+            </h2>
+            <p className="text-slate-600 mb-6">
+              {lang === 'el'
+                ? 'Νέες λειτουργίες που βοηθούν brands να βρίσκουν διαθέσιμους creators και να αξιολογούν προφίλ με διαφάνεια.'
+                : 'New features that help brands find available creators and evaluate profiles with more transparency.'}
+            </p>
+
+            <div className="grid md:grid-cols-2 gap-4 my-6">
+              <div className="border border-emerald-200 rounded-xl p-5 bg-emerald-50/80">
+                <h3 className="font-bold text-emerald-900 mt-0 mb-2">
+                  {lang === 'el' ? 'Διαθεσιμότητα' : 'Availability'}
+                </h3>
+                <ul className="text-sm text-slate-700 space-y-2 list-disc list-inside mb-0">
+                  <li>
+                    {lang === 'el'
+                      ? 'Influencer: Dashboard → Προφίλ → «Διαθέσιμος» ή «Μη διαθέσιμος προσωρινά».'
+                      : 'Influencer: Dashboard → Profile → Available or Temporarily unavailable.'}
+                  </li>
+                  <li>
+                    {lang === 'el'
+                      ? 'Η κατάσταση εμφανίζεται στο δημόσιο προφίλ και στις κάρτες καταλόγου.'
+                      : 'Status appears on the public profile and directory cards.'}
+                  </li>
+                  <li>
+                    {lang === 'el'
+                      ? 'Brand: φίλτρο διαθεσιμότητας στον Κατάλογο (προεπιλογή: διαθέσιμοι).'
+                      : 'Brand: availability filter in the Directory (default: available).'}
+                  </li>
+                </ul>
+              </div>
+
+              <div className="border border-amber-200 rounded-xl p-5 bg-amber-50/80">
+                <h3 className="font-bold text-amber-900 mt-0 mb-2">
+                  {lang === 'el' ? 'Σήματα εμπιστοσύνης' : 'Trust signals'}
+                </h3>
+                <ul className="text-sm text-slate-700 space-y-2 list-disc list-inside mb-0">
+                  <li>
+                    {lang === 'el'
+                      ? 'Στις κάρτες καταλόγου μπορεί να εμφανιστεί «Ιδιωτικό» (ιδιωτικός λογαριασμός) ή «Ύποπτο ER».'
+                      : 'Directory cards may show Private (private account) or ER flag (suspicious engagement).'}
+                  </li>
+                  <li>
+                    {lang === 'el'
+                      ? 'Σκοπός: καλύτερη αξιολόγηση πριν την επαφή — όχι τιμωρία του creator.'
+                      : 'Goal: better evaluation before outreach — not to punish the creator.'}
+                  </li>
+                </ul>
+              </div>
+
+              <div className="border border-blue-200 rounded-xl p-5 bg-blue-50/80">
+                <h3 className="font-bold text-blue-900 mt-0 mb-2">
+                  {lang === 'el' ? 'Rate card (τιμές πακέτων)' : 'Rate card (package prices)'}
+                </h3>
+                <ul className="text-sm text-slate-700 space-y-2 list-disc list-inside mb-0">
+                  <li>
+                    {lang === 'el'
+                      ? 'Κατά την εγγραφή ή από το Dashboard μπορείτε να ορίσετε τιμές (π.χ. Story, Post, Reel).'
+                      : 'At signup or from the Dashboard you can set prices (e.g. Story, Post, Reel).'}
+                  </li>
+                  <li>
+                    {lang === 'el'
+                      ? 'Αποθηκεύονται στο προφίλ ώστε τα brands να συγκρίνουν πακέτα πέρα από το ελάχιστο rate.'
+                      : 'Saved on the profile so brands can compare packages beyond a minimum rate.'}
+                  </li>
+                </ul>
+              </div>
+
+              <div className="border border-slate-200 rounded-xl p-5 bg-slate-50">
+                <h3 className="font-bold text-slate-900 mt-0 mb-2">
+                  {lang === 'el' ? 'Χρόνος απάντησης & ολοκλήρωση' : 'Response time & completion'}
+                </h3>
+                <ul className="text-sm text-slate-700 space-y-2 list-disc list-inside mb-0">
+                  <li>
+                    {lang === 'el'
+                      ? 'Υπολογίζονται από πραγματική δραστηριότητα (μηνύματα / προσφορές), όχι από σταθερό «24h».'
+                      : 'Computed from real activity (messages / proposals), not a fixed “24h”.'}
+                  </li>
+                  <li>
+                    {lang === 'el'
+                      ? 'Αν δεν υπάρχουν αρκετά δεδομένα, εμφανίζεται «—».'
+                      : 'If there isn’t enough data, you’ll see “—”.'}
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
+              <h4 className="font-bold text-slate-900 mb-2 mt-0">
+                {lang === 'el' ? 'Shortlist brands («Οι influencers μου»)' : 'Brand shortlist (“My influencers”)'}
+              </h4>
+              <p className="text-sm text-slate-700 mb-0">
+                {lang === 'el'
+                  ? 'Από προτάσεις ή προφίλ, τα brands μπορούν να αποθηκεύσουν creators με σημείωση και να τους ανοίξουν αργότερα από το Brand Dashboard → tab shortlist / «Οι influencers μου».'
+                  : 'From recommendations or a profile, brands can save creators with a note and open them later from Brand Dashboard → shortlist / “My influencers”.'}
+              </p>
+            </div>
+          </section>
+
           {/* Proposals Section */}
           <section className="mb-12 border-t border-slate-200 pt-12">
             <h2 className="text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3">
@@ -479,6 +602,38 @@ export default function DocsPage() {
                   : 'Push notification (if enabled) and email when there is a new application, so you do not miss leads.'}
               </li>
             </ul>
+
+            <h3 className="text-xl font-bold text-slate-900 mt-8 mb-3">
+              {lang === 'el' ? 'Παράδοση περιεχομένου (deliverables)' : 'Content deliverables'}
+            </h3>
+            <p className="text-slate-700 mb-4">
+              {lang === 'el'
+                ? 'Μετά το shortlist, η συνεργασία μπορεί να προχωρήσει μέσα στην πλατφόρμα:'
+                : 'After shortlist, the collaboration can continue on-platform:'}
+            </p>
+            <ol className="list-decimal list-inside space-y-3 text-slate-700 mb-6">
+              <li>
+                {lang === 'el'
+                  ? 'Brand: θέτει την αίτηση σε «Σε λίστα».'
+                  : 'Brand: sets the application to Shortlisted.'}
+              </li>
+              <li>
+                {lang === 'el'
+                  ? 'Influencer (Dashboard → Καμπάνιες → Οι αιτήσεις μου): υποβάλλει URL παράδοσης + προαιρετική σημείωση.'
+                  : 'Influencer (Dashboard → Campaigns → My applications): submits a deliverable URL + optional note.'}
+              </li>
+              <li>
+                {lang === 'el'
+                  ? 'Brand: βλέπει το link στις αιτήσεις και κάνει «Έγκριση» ή «Ζήτα αλλαγές» (με σχόλιο).'
+                  : 'Brand: sees the link on applications and chooses Approve or Request changes (with a note).'}
+              </li>
+              <li>
+                {lang === 'el'
+                  ? 'Αν ζητηθούν αλλαγές, ο influencer μπορεί να επανυποβάλει νέο link.'
+                  : 'If changes are requested, the influencer can resubmit a new link.'}
+              </li>
+            </ol>
+
             <div className="bg-teal-50 border border-teal-200 rounded-xl p-6">
               <h4 className="font-bold text-teal-900 mb-2">
                 {lang === 'el' ? 'Σύνδεση με τον οδηγό' : 'Link to this guide'}
@@ -582,18 +737,20 @@ export default function DocsPage() {
             </h3>
 
             <ul className="list-disc list-inside space-y-3 text-slate-700 mb-6">
-              <li>{lang === 'el' ? 'Από Profile Page: Κάντε κλικ στο "Μήνυμα" ή "Ρώτησε", γράψτε και στείλτε' : 'From Profile Page: Click "Message" or "Ask", write and send'}</li>
-              <li>{lang === 'el' ? 'Από Dashboard: Influencers → Messages, Brands → Conversations' : 'From Dashboard: Influencers → Messages, Brands → Conversations'}</li>
+              <li>{lang === 'el' ? 'Από Profile Page (brand): Κάντε κλικ στο "Μήνυμα" ή "Ρώτησε", γράψτε και στείλτε' : 'From Profile Page (brand): Click "Message" or "Ask", write and send'}</li>
+              <li>{lang === 'el' ? 'Από Dashboard: Influencers → Messages, Brands → Conversations / Messages' : 'From Dashboard: Influencers → Messages, Brands → Conversations / Messages'}</li>
+              <li>{lang === 'el' ? 'Οι influencers απαντούν σε υπάρχουσα συνομιλία (δεν ξεκινούν cold message σε τυχαίο brand).' : 'Influencers reply in an existing thread (they do not cold-message arbitrary brands).'}</li>
             </ul>
 
             <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-6">
               <h4 className="font-bold text-indigo-900 mb-3">
                 {lang === 'el' ? 'Χαρακτηριστικά' : 'Features'}
               </h4>
-              <ul className="space-y-2 text-slate-700 list-disc list-inside">
+              <ul className="space-y-2 text-slate-700 list-disc list-inside mb-0">
                 <li>{lang === 'el' ? 'Real-time messaging: Άμεση επικοινωνία' : 'Real-time messaging: Instant communication'}</li>
-                <li>{lang === 'el' ? 'Notification system: Email notifications για νέα μηνύματα' : 'Notification system: Email notifications for new messages'}</li>
-                <li>{lang === 'el' ? 'Proposal linking: Μηνύματα συνδέονται με προσφορές' : 'Proposal linking: Messages linked to proposals'}</li>
+                <li>{lang === 'el' ? 'Attachments: εικόνες ή PDF (έως 10MB) με το κουμπί 📎 στο chat — briefs και drafts' : 'Attachments: images or PDFs (up to 10MB) via the 📎 button — briefs and drafts'}</li>
+                <li>{lang === 'el' ? 'Notifications: Email και προαιρετικά push για νέα μηνύματα' : 'Notifications: Email and optional push for new messages'}</li>
+                <li>{lang === 'el' ? 'Proposal linking: Μηνύματα συνδέονται με προσφορές όπου ισχύει' : 'Proposal linking: Messages linked to proposals where relevant'}</li>
               </ul>
             </div>
           </section>
@@ -643,9 +800,10 @@ export default function DocsPage() {
                   {lang === 'el' ? 'Για Influencers' : 'For Influencers'}
                 </h3>
                 <ul className="space-y-3 text-slate-700 text-sm list-disc list-inside">
-                  <li>{lang === 'el' ? 'Συμπληρώστε το Profile: Καλό bio, avatar, realistic pricing' : 'Complete Profile: Good bio, avatar, realistic pricing'}</li>
+                  <li>{lang === 'el' ? 'Συμπληρώστε το Profile: bio, avatar, rate card, ρεαλιστικές τιμές' : 'Complete Profile: bio, avatar, rate card, realistic pricing'}</li>
+                  <li>{lang === 'el' ? 'Ορίστε διαθεσιμότητα όταν είστε ανοιχτοί σε deals' : 'Set availability when you are open to deals'}</li>
                   <li>{lang === 'el' ? 'Καλή Απόδοση: Υψηλό engagement, consistent posting' : 'Good Performance: High engagement, consistent posting'}</li>
-                  <li>{lang === 'el' ? 'Επαγγελματική Συμπεριφορά: Γρήγορα responses, ολοκλήρωση projects' : 'Professional Behavior: Fast responses, complete projects'}</li>
+                  <li>{lang === 'el' ? 'Επαγγελματική Συμπεριφορά: γρήγορες απαντήσεις, παράδοση σε καμπάνιες όταν είστε shortlisted' : 'Professional Behavior: fast replies, deliver on campaigns when shortlisted'}</li>
                   <li>{lang === 'el' ? 'Αξιολόγηση: Ζητήστε reviews, καλά reviews = περισσότερες προσφορές' : 'Evaluation: Request reviews, good reviews = more proposals'}</li>
                 </ul>
               </div>
@@ -655,10 +813,11 @@ export default function DocsPage() {
                   {lang === 'el' ? 'Για Brands' : 'For Brands'}
                 </h3>
                 <ul className="space-y-3 text-slate-700 text-sm list-disc list-inside">
-                  <li>{lang === 'el' ? 'Καλή Αναζήτηση: Χρησιμοποιήστε filters, ελέγξτε engagement & reviews' : 'Good Search: Use filters, check engagement & reviews'}</li>
-                  <li>{lang === 'el' ? 'Σαφείς Προσφορές: Περιγράψτε καθαρά, realistic budget, deadline' : 'Clear Proposals: Describe clearly, realistic budget, deadline'}</li>
-                  <li>{lang === 'el' ? 'Επικοινωνία: Απαντήστε εγκαίρως, συζητήστε λεπτομέρειες' : 'Communication: Respond timely, discuss details'}</li>
-                  <li>{lang === 'el' ? 'Αξιολόγηση: Αφήστε reviews, βοηθήστε άλλα brands' : 'Evaluation: Leave reviews, help other brands'}</li>
+                  <li>{lang === 'el' ? 'Καλή Αναζήτηση: φίλτρα (διαθεσιμότητα, engagement, reviews), trust signals' : 'Good Search: filters (availability, engagement, reviews), trust signals'}</li>
+                  <li>{lang === 'el' ? 'Αποθηκεύστε υποψηφίους στη shortlist με σημειώσεις' : 'Save candidates to your shortlist with notes'}</li>
+                  <li>{lang === 'el' ? 'Σαφείς Προσφορές / καμπάνιες: brief, budget, deadline, deliverables' : 'Clear Proposals / campaigns: brief, budget, deadline, deliverables'}</li>
+                  <li>{lang === 'el' ? 'Επικοινωνία: απαντήστε εγκαίρως, χρησιμοποιήστε attachments για briefs' : 'Communication: reply promptly, use attachments for briefs'}</li>
+                  <li>{lang === 'el' ? 'Αξιολόγηση: αφήστε reviews μετά την ολοκλήρωση' : 'Evaluation: leave reviews after completion'}</li>
                 </ul>
               </div>
             </div>
