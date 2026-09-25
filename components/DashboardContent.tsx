@@ -862,6 +862,69 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
             setActiveTab(tab);
         }
     }, [searchParams]);
+
+    // Keep influencer online while logged into any dashboard tab (mirrors brand_presence)
+    useEffect(() => {
+        if (!profile?.id) return;
+
+        const updatePresence = async () => {
+            const now = new Date().toISOString();
+            try {
+                const { error } = await supabase.from('influencer_presence').upsert(
+                    {
+                        influencer_id: profile.id,
+                        is_online: true,
+                        last_seen: now,
+                        updated_at: now,
+                    },
+                    { onConflict: 'influencer_id' }
+                );
+                if (error) console.error('[Influencer Dashboard] presence update:', error);
+            } catch (err) {
+                console.error('[Influencer Dashboard] presence exception:', err);
+            }
+        };
+
+        const markOffline = async () => {
+            try {
+                await supabase
+                    .from('influencer_presence')
+                    .update({
+                        is_online: false,
+                        last_seen: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                    })
+                    .eq('influencer_id', profile.id);
+            } catch {
+                /* ignore */
+            }
+        };
+
+        updatePresence();
+        const interval = setInterval(updatePresence, 5000);
+
+        const onVisibility = () => {
+            if (document.hidden) {
+                setTimeout(() => {
+                    if (document.hidden) void markOffline();
+                }, 60000);
+            } else {
+                void updatePresence();
+            }
+        };
+
+        document.addEventListener('visibilitychange', onVisibility);
+        window.addEventListener('beforeunload', () => {
+            void markOffline();
+        });
+
+        return () => {
+            clearInterval(interval);
+            document.removeEventListener('visibilitychange', onVisibility);
+            void markOffline();
+        };
+    }, [profile.id]);
+
     const [loading, setLoading] = useState(false);
     const [proposals, setProposals] = useState<Proposal[]>([]);
     const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);

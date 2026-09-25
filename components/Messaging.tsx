@@ -229,6 +229,7 @@ export default function Messaging({
   }, [proposalId, brandEmail, conversations]);
 
   // Track online status for influencer mode - update presence
+  // (DashboardContent also heartbeats; this reinforces while Messages tab is open.)
   useEffect(() => {
     if (mode === 'influencer' && influencerId) {
       // Update immediately when component mounts
@@ -258,12 +259,12 @@ export default function Messaging({
       window.addEventListener('beforeunload', handleBeforeUnload);
       document.addEventListener('visibilitychange', handleVisibilityChange);
       
-      // Mark as offline when component unmounts
+      // Do NOT mark offline on Messages unmount — influencer may still be on another dashboard tab.
+      // DashboardContent / logout / beforeunload handle offline.
       return () => {
         clearInterval(interval);
         window.removeEventListener('beforeunload', handleBeforeUnload);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
-        markOffline();
       };
     } else if (mode === 'brand' && brandEmail) {
       // Track brand online status - only if brand has account
@@ -307,15 +308,57 @@ export default function Messaging({
       window.addEventListener('beforeunload', handleBeforeUnload);
       document.addEventListener('visibilitychange', handleVisibilityChange);
       
-      // Mark as offline when component unmounts
+      // Brand dashboard also heartbeats; avoid flipping offline when leaving Messages tab only
       return () => {
         clearInterval(interval);
         window.removeEventListener('beforeunload', handleBeforeUnload);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
-        markBrandOffline(brandEmail);
       };
     }
   }, [mode, influencerId, brandEmail]);
+
+  // Brand: poll + subscribe to influencer online status (was defined but never called)
+  const watchedInfluencerId =
+    mode === 'brand'
+      ? influencerId ||
+        (selectedConversation
+          ? conversations.find((c) => c.id === selectedConversation)?.influencer_id
+          : undefined) ||
+        undefined
+      : undefined;
+
+  useEffect(() => {
+    if (mode !== 'brand') return;
+
+    if (!watchedInfluencerId) {
+      setIsInfluencerOnline(false);
+      return;
+    }
+
+    checkInfluencerStatus(watchedInfluencerId);
+    const interval = setInterval(() => checkInfluencerStatus(watchedInfluencerId), 5000);
+
+    const channel = supabase
+      .channel(`influencer_presence_watch:${watchedInfluencerId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'influencer_presence',
+          filter: `influencer_id=eq.${watchedInfluencerId}`,
+        },
+        () => {
+          checkInfluencerStatus(watchedInfluencerId);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      clearInterval(interval);
+      channel.unsubscribe();
+    };
+  }, [mode, watchedInfluencerId]);
 
   // Define checkInactivity BEFORE it's used in useEffect
   // SIMPLIFIED APPROACH: Use last_message_at instead of activity timestamps
@@ -512,6 +555,14 @@ export default function Messaging({
                   checkBrandStatus(emailToCheck);
                 }, 500);
               }, 100);
+            }
+          }
+
+          if (mode === 'brand' && newMsg.sender_type === 'influencer') {
+            const currentConv = conversations.find((c) => c.id === selectedConversation);
+            const idToCheck = currentConv?.influencer_id || influencerId;
+            if (idToCheck) {
+              setTimeout(() => checkInfluencerStatus(idToCheck), 100);
             }
           }
           
