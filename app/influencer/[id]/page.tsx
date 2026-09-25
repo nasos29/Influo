@@ -120,12 +120,15 @@ function ProfileStatCard({
   children,
   accent = false,
   className = "",
+  valueCentered = false,
 }: {
   label: string;
   icon: ReactNode;
   children: ReactNode;
   accent?: boolean;
   className?: string;
+  /** Center single metrics so sparse cards don't look empty */
+  valueCentered?: boolean;
 }) {
   return (
     <div
@@ -143,7 +146,14 @@ function ProfileStatCard({
           {label}
         </span>
       </div>
-      <div className="mt-auto flex min-h-[2.25rem] flex-1 flex-col justify-end">{children}</div>
+      <div
+        className={[
+          "mt-auto flex min-h-[2.25rem] flex-1 flex-col",
+          valueCentered ? "items-center justify-center text-center" : "justify-end",
+        ].join(" ")}
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -2009,6 +2019,7 @@ export default function InfluencerProfile(props: { params: Params }) {
 
                   <ProfileStatCard
                     label={txt.stat_growth_30d}
+                    valueCentered
                     icon={
                       <MetricIcon
                         className={
@@ -2080,6 +2091,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                   {(profile.past_brands?.length || 0) > 0 ? (
                     <ProfileStatCard
                       label={txt.collabs}
+                      valueCentered
                       icon={
                         <MetricIcon className="bg-indigo-50 text-indigo-600 ring-indigo-100">
                           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -2096,6 +2108,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                   ) : (
                     <ProfileStatCard
                       label={txt.platforms}
+                      valueCentered
                       icon={
                         <MetricIcon className="bg-slate-100 text-slate-600 ring-slate-200/80">
                           <rect x="5" y="2" width="14" height="20" rx="2" />
