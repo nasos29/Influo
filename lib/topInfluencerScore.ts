@@ -25,6 +25,8 @@ export type TopScoreAccount = {
   er_flag_reason?: string | null;
   suspected_fake_penalty?: boolean | null;
   engagement_hidden?: boolean | null;
+  /** Locked / private social profile (from scrape). */
+  is_private?: boolean | null;
 };
 
 export type TopScoreInfluencer = {
@@ -306,6 +308,39 @@ export function blendTopScore(
         1000
     ) / 10
   );
+}
+
+/** Heavy demotion multiplier for Top 10 when trust signals fail (not a hard exclude). */
+export const TOP_TRUST_PENALTY_MULT = 0.35;
+
+/**
+ * True when any IG/TikTok/YouTube account has suspicious/estimated ER or a private profile.
+ * Used to demote (not exclude) from Top 10.
+ */
+export function hasTopTrustIssue(inf: TopScoreInfluencer): boolean {
+  const accounts = socialAccounts(inf.accounts);
+  for (const acc of accounts) {
+    if (acc.is_private === true) return true;
+    if (acc.er_suspicious === true) return true;
+    if (
+      detectErFlag({
+        engagement_rate: acc.engagement_rate,
+        posts_count: acc.posts_count,
+        avg_likes: acc.avg_likes,
+        suspected_fake_penalty: acc.suspected_fake_penalty,
+        engagement_hidden: acc.engagement_hidden,
+      })
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Apply Top 10 trust demotion to a composite score (0–100 scale). */
+export function applyTopTrustPenalty(composite: number, inf: TopScoreInfluencer): number {
+  if (!hasTopTrustIssue(inf)) return composite;
+  return Math.round(Math.max(0, composite * TOP_TRUST_PENALTY_MULT) * 10) / 10;
 }
 
 /**

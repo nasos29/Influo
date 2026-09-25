@@ -15,6 +15,7 @@ import {
   totalFollowersFromAccounts,
 } from '@/lib/parseFollowers';
 import {
+  applyTopTrustPenalty,
   blendTopScore,
   computeBadgeScore,
   computeChannelScore100,
@@ -245,12 +246,15 @@ export async function GET() {
         const reachScore = computeReachScore(inf);
         const reviewScore = computeReviewScore(inf);
         const badgeScore = computeBadgeScore(inf);
-        const composite = blendTopScore(
-          activity,
-          channelScore,
-          reachScore,
-          reviewScore,
-          badgeScore
+        const composite = applyTopTrustPenalty(
+          blendTopScore(
+            activity,
+            channelScore,
+            reachScore,
+            reviewScore,
+            badgeScore
+          ),
+          inf
         );
         return {
           inf,

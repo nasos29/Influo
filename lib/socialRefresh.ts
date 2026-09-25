@@ -16,7 +16,15 @@ export type SocialMetrics = {
   er_flag_reason?: ErFlagReason;
   suspected_fake_penalty?: boolean;
   engagement_hidden?: boolean;
+  /** Cleared to false on successful scrape; set on private profile errors in refreshSocialStats */
+  is_private?: boolean;
 };
+
+/** True when Auditpr / scrape error indicates a private/locked profile. */
+export function isPrivateProfileError(error: string | null | undefined): boolean {
+  if (!error) return false;
+  return /\bprivate\b|ιδιωτικ/i.test(error);
+}
 
 function formatFollowers(num: number): string {
   if (num >= 1_000_000) return (num / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
@@ -55,7 +63,10 @@ function metricsFromAuditprData(
 ): SocialMetrics | { error: string } {
   if (data.status === 'Failed' || data.error) {
     const raw = String(data.error || data.error_detail || 'Auditpr metrics failed');
-    if (/not found|banned|does not exist|user banned|private/i.test(raw)) {
+    if (/private/i.test(raw)) {
+      return { error: `Private profile: το προφίλ @${username} είναι ιδιωτικό.` };
+    }
+    if (/not found|banned|does not exist|user banned/i.test(raw)) {
       return { error: `Λάθος username: το προφίλ @${username} δεν υπάρχει.` };
     }
     return { error: raw };
@@ -93,6 +104,7 @@ function metricsFromAuditprData(
     avg_views,
     suspected_fake_penalty: data.suspected_fake_penalty === true,
     engagement_hidden: data.engagement_hidden === true,
+    is_private: false,
     ...(erFlag
       ? { er_suspicious: true, er_flag_reason: erFlag.reason }
       : { er_suspicious: false, er_flag_reason: undefined }),

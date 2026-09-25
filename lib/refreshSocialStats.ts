@@ -9,6 +9,7 @@ import {
   fetchInstagramFromAuditpr,
   fetchTiktokFromAuditpr,
   fetchYouTubeFromAuditpr,
+  isPrivateProfileError,
   isUsableSocialMetrics,
   type SocialMetrics,
 } from '@/lib/socialRefresh';
@@ -26,6 +27,7 @@ type AccountRow = {
   avg_views?: number | null;
   er_suspicious?: boolean;
   er_flag_reason?: string;
+  is_private?: boolean;
 };
 
 function isSocialMetrics(x: SocialMetrics | { error: string }): x is SocialMetrics {
@@ -202,6 +204,7 @@ export async function doRefreshSocialStats(
             : { avg_views: null }),
           er_suspicious: flagged.er_suspicious === true,
           er_flag_reason: flagged.er_flag_reason,
+          is_private: false,
         };
         if (fetchedViaAuditpr && !firstRefreshedForAudit) {
           firstRefreshedForAudit = { platform: platformLower, username: username.replace(/^@+/, '').trim() };
@@ -210,10 +213,20 @@ export async function doRefreshSocialStats(
         const uDisplay = username.replace(/^@+/, '').trim();
         const errText = 'error' in metrics ? metrics.error : `Λάθος username: το προφίλ @${uDisplay} δεν υπάρχει.`;
         errors.push(`${platform} @${uDisplay}: ${errText}`);
+        if (isPrivateProfileError(errText)) {
+          updatedAccounts[i] = {
+            ...acc,
+            is_private: true,
+          };
+        }
       }
     }
 
     if (!anySuccess) {
+      const markedPrivate = updatedAccounts.some((a) => a?.is_private === true);
+      if (markedPrivate) {
+        await supabaseAdmin.from('influencers').update({ accounts: updatedAccounts }).eq('id', inf.id);
+      }
       results.push({
         id: String(inf.id),
         name: inf.display_name || String(inf.id),
