@@ -743,7 +743,7 @@ export default function Home() {
                         width={260}
                         height={80}
                         className="h-full w-auto max-w-[180px] md:max-w-[220px] lg:max-w-[260px] object-contain filter grayscale hover:grayscale-0 transition-all duration-300"
-                        quality={70}
+                        quality={75}
                         onError={(e) => {
                           const target = e.currentTarget as HTMLImageElement;
                           target.style.display = "none";
@@ -832,7 +832,7 @@ export default function Home() {
                         width={260}
                         height={80}
                         className="h-full w-auto max-w-[180px] md:max-w-[220px] lg:max-w-[260px] object-contain filter grayscale hover:grayscale-0 transition-all duration-300"
-                        quality={70}
+                        quality={75}
                         onError={(e) => {
                           const target = e.currentTarget as HTMLImageElement;
                           target.style.display = "none";

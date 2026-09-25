@@ -83,7 +83,7 @@ export default function BrandShortlistPanel({
                       alt=""
                       fill
                       sizes="56px"
-                      quality={60}
+                      quality={75}
                       className="object-cover"
                     />
                   </div>

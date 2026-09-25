@@ -193,7 +193,7 @@ export async function GET() {
     }
 
     const selectFull =
-      'id, display_name, avatar_url, videos, video_thumbnails, accounts, category, analytics_verified, verified, auditpr_audit, min_rate, rate_card, total_reviews, avg_rating, past_brands, created_at, audience_top_age, audience_male_percent, audience_female_percent, profile_slug';
+      'id, display_name, display_name_en, avatar_url, videos, video_thumbnails, accounts, category, analytics_verified, verified, auditpr_audit, min_rate, rate_card, total_reviews, avg_rating, past_brands, created_at, audience_top_age, audience_male_percent, audience_female_percent, profile_slug';
     let influencers: TopScoreInfluencer[] | null = null;
     let infErr: { message: string } | null = null;
     {
@@ -270,18 +270,36 @@ export async function GET() {
       .sort((a, b) => b.composite - a.composite || b.activityRaw - a.activityRaw)
       .slice(0, TOP_N);
 
-    const ordered = ranked.map((r) => ({
-      ...r.inf,
-      clicks: Math.round(r.activityRaw),
-      views: 0,
-      score: r.composite,
-      channel_score: r.channelScore,
-      reach_score: r.reachScore,
-      review_score: r.reviewScore,
-      badge_score: r.badgeScore,
-    }));
+    const ordered = ranked.map((r) => {
+      const inf = r.inf as TopScoreInfluencer & {
+        display_name?: string | null;
+        display_name_en?: string | null;
+        avatar_url?: string | null;
+        category?: string | null;
+        profile_slug?: string | null;
+      };
+      return {
+        id: inf.id,
+        display_name: inf.display_name ?? "",
+        display_name_en: inf.display_name_en ?? null,
+        avatar_url: inf.avatar_url ?? null,
+        accounts: inf.accounts ?? null,
+        category: inf.category ?? null,
+        profile_slug: inf.profile_slug ?? null,
+        clicks: Math.round(r.activityRaw),
+        views: 0,
+      };
+    });
 
-    return NextResponse.json({ influencers: ordered });
+    return NextResponse.json(
+      { influencers: ordered },
+      {
+        headers: {
+          // Homepage polls this on every visit — cache at the edge for a few minutes.
+          "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+        },
+      }
+    );
   } catch (err: unknown) {
     console.error('[top-influencers]', err);
     return NextResponse.json(

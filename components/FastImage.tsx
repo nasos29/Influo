@@ -34,7 +34,7 @@ export default function FastImage({
   fill,
   sizes,
   priority,
-  quality = 65,
+  quality = 75,
   onError,
   ...rest
 }: FastImageProps) {

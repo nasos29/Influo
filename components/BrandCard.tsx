@@ -51,7 +51,7 @@ export default function BrandCard({
                 alt={brand_name}
                 fill
                 sizes="200px"
-                quality={70}
+                quality={75}
                 className="object-contain p-1"
                 onError={(e) => {
                   console.error('[BrandCard] Failed to load logo:', logo_url);

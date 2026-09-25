@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type TouchEvent } from "react";
 import Link from "next/link";
-import { getCachedImageUrl } from "@/lib/imageProxy";
+import { getCachedImageUrl, getStorageCardUrl } from "@/lib/imageProxy";
 import { isDefinitelyImage } from "@/lib/videoThumbnail";
 import { categoryTranslations } from "@/components/categoryTranslations";
 import { displayNameForLang } from "@/lib/greeklish";
@@ -27,26 +27,7 @@ export type TopInfluencer = {
   views: number;
 };
 
-/** Pick largest/ best image: gallery image > video thumbnail > avatar */
-function getBestImageUrl(inf: TopInfluencer): string | null {
-  const videos = inf.videos && Array.isArray(inf.videos) ? inf.videos : [];
-  for (const v of videos) {
-    if (v && isDefinitelyImage(v)) return v;
-  }
-  const firstVideo = videos[0];
-  if (firstVideo) {
-    const thumb = inf.video_thumbnails?.[firstVideo];
-    if (thumb) return thumb;
-    // YouTube has direct thumbnail URL
-    if (/youtube\.com|youtu\.be/i.test(firstVideo)) {
-      const m = firstVideo.match(/(?:v=|\/)([^"&?\/\s]{11})/);
-      if (m) return `https://img.youtube.com/vi/${m[1]}/maxresdefault.jpg`;
-    }
-  }
-  return inf.avatar_url || null;
-}
-
-/** Ordered URLs to try as img src (primary may be expired CDN or bad thumbnail). */
+/** Card portraits: prefer avatar (Supabase) over gallery/TikTok — fewer failed CDN hops. */
 function getPortraitImageCandidates(inf: TopInfluencer): string[] {
   const out: string[] = [];
   const add = (u: string | null | undefined) => {
@@ -56,18 +37,23 @@ function getPortraitImageCandidates(inf: TopInfluencer): string[] {
     out.push(t);
   };
 
-  add(getBestImageUrl(inf));
-  add(inf.avatar_url);
+  // CDN-resized avatar first (small source for next/image)
+  if (inf.avatar_url) {
+    add(getStorageCardUrl(inf.avatar_url, 400, 500));
+    add(inf.avatar_url);
+  }
 
   const videos = inf.videos && Array.isArray(inf.videos) ? inf.videos : [];
   for (const v of videos) {
     if (!v) continue;
-    if (isDefinitelyImage(v)) add(v);
+    if (isDefinitelyImage(v)) {
+      add(getStorageCardUrl(v, 400, 500));
+      add(v);
+    }
     const thumb = inf.video_thumbnails?.[v];
-    if (thumb) add(thumb);
-    if (/youtube\.com|youtu\.be/i.test(v)) {
-      const m = v.match(/(?:v=|\/)([^"&?/\s]{11})/);
-      if (m) add(`https://img.youtube.com/vi/${m[1]}/maxresdefault.jpg`);
+    if (thumb) {
+      add(getStorageCardUrl(thumb, 400, 500));
+      add(thumb);
     }
   }
 
@@ -105,8 +91,8 @@ function TopInfluencerPortrait({
           src={src}
           alt={name}
           fill
-          sizes="(max-width: 768px) 92vw, (max-width: 1024px) 33vw, 20vw"
-          quality={60}
+          sizes="(max-width: 768px) 70vw, (max-width: 1024px) 30vw, 220px"
+          quality={75}
           priority={priority}
           className="absolute inset-0 z-10 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           onError={() => {

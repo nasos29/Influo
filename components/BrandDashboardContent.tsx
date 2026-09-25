@@ -1754,7 +1754,7 @@ export default function BrandDashboardContent() {
                           alt={displayNameForLang(inf.display_name, lang)}
                           fill
                           sizes="(max-width: 768px) 50vw, 25vw"
-                          quality={60}
+                          quality={75}
                           className="object-cover"
                           unoptimized={avatarUrl.startsWith("/api/image-proxy")}
                         />

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getCachedImageUrl } from "@/lib/imageProxy";
+import { getCachedImageUrl, getStorageCardUrl } from "@/lib/imageProxy";
 import { isDefinitelyImage } from "@/lib/videoThumbnail";
 import { categoryTranslations } from "@/components/categoryTranslations";
 import { displayNameForLang } from "@/lib/greeklish";
@@ -36,20 +36,26 @@ export type NewlyApprovedInfluencer = {
 };
 
 function getBestImageUrl(inf: NewlyApprovedInfluencer): string | null {
+  // Prefer avatar (usually on Supabase) — gallery/TikTok thumbs are slower / flaky.
+  if (inf.avatar_url) {
+    return getStorageCardUrl(inf.avatar_url, 400, 500) ?? inf.avatar_url;
+  }
   const videos = inf.videos && Array.isArray(inf.videos) ? inf.videos : [];
   for (const v of videos) {
-    if (v && isDefinitelyImage(v)) return v;
+    if (v && isDefinitelyImage(v)) {
+      return getStorageCardUrl(v, 400, 500) ?? v;
+    }
   }
   const firstVideo = videos[0];
   if (firstVideo) {
     const thumb = inf.video_thumbnails?.[firstVideo];
-    if (thumb) return thumb;
+    if (thumb) return getStorageCardUrl(thumb, 400, 500) ?? thumb;
     if (/youtube\.com|youtu\.be/i.test(firstVideo)) {
       const m = firstVideo.match(/(?:v=|\/)([^"&?\/\s]{11})/);
-      if (m) return `https://img.youtube.com/vi/${m[1]}/maxresdefault.jpg`;
+      if (m) return `https://img.youtube.com/vi/${m[1]}/hqdefault.jpg`;
     }
   }
-  return inf.avatar_url || null;
+  return null;
 }
 
 function formatNum(num?: number): string {
@@ -261,7 +267,7 @@ export default function NewlyApprovedInfluencersSection({ lang }: { lang: Lang }
                         alt={name}
                         fill
                         sizes="(max-width: 768px) 50vw, 25vw"
-                        quality={60}
+                        quality={75}
                         priority={cardIdx < 4}
                         className="object-cover transition-transform duration-500 group-hover:scale-105"
                         onError={(e) => {

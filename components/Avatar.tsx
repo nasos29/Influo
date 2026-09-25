@@ -58,7 +58,7 @@ export default function Avatar({
         fill
         sizes={`${size}px`}
         className="object-cover"
-        quality={60}
+        quality={75}
         unoptimized={unoptimized}
         priority={priority}
         loading={priority ? undefined : "lazy"}
