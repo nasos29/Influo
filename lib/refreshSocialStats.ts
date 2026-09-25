@@ -204,7 +204,8 @@ export async function doRefreshSocialStats(
             : { avg_views: null }),
           er_suspicious: flagged.er_suspicious === true,
           er_flag_reason: flagged.er_flag_reason,
-          is_private: false,
+          // Keep true when Auditpr reports private even if session can still read posts.
+          is_private: flagged.is_private === true,
         };
         if (fetchedViaAuditpr && !firstRefreshedForAudit) {
           firstRefreshedForAudit = { platform: platformLower, username: username.replace(/^@+/, '').trim() };

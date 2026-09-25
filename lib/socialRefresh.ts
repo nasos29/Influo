@@ -16,7 +16,10 @@ export type SocialMetrics = {
   er_flag_reason?: ErFlagReason;
   suspected_fake_penalty?: boolean;
   engagement_hidden?: boolean;
-  /** Cleared to false on successful scrape; set on private profile errors in refreshSocialStats */
+  /**
+   * From Auditpr `is_private` (IG may still return metrics if our session follows them),
+   * or set true on private scrape errors in refreshSocialStats.
+   */
   is_private?: boolean;
 };
 
@@ -104,7 +107,7 @@ function metricsFromAuditprData(
     avg_views,
     suspected_fake_penalty: data.suspected_fake_penalty === true,
     engagement_hidden: data.engagement_hidden === true,
-    is_private: false,
+    is_private: data.is_private === true || data.private === true,
     ...(erFlag
       ? { er_suspicious: true, er_flag_reason: erFlag.reason }
       : { er_suspicious: false, er_flag_reason: undefined }),
