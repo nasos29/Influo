@@ -715,18 +715,23 @@ export default function InfluencerProfile(props: { params: Params }) {
     // Try to fetch by id (works for both UUIDs and numeric IDs)
     const { data, error } = await supabase.from("influencers").select("*").eq("id", id).single();
     
-    // Calculate completion rate from proposals
+    // Calculate completion + response metrics from real activity
     let calculatedCompletionRate: number | undefined;
+    let computedResponseHours: number | null = null;
     if (data && !error) {
-      const { data: proposals } = await supabase
-        .from("proposals")
-        .select("status")
-        .eq("influencer_id", id);
-      
-      if (proposals && proposals.length > 0) {
-        const total = proposals.length;
-        const completed = proposals.filter((p: any) => p.status === 'completed' || p.status === 'accepted').length;
-        calculatedCompletionRate = Math.round((completed / total) * 100);
+      const { computeAvgResponseHours, computeCompletionRate } = await import('@/lib/influencerMetrics');
+      const [completion, responseH] = await Promise.all([
+        computeCompletionRate(supabase, String(id)),
+        computeAvgResponseHours(supabase, String(id)),
+      ]);
+      if (completion != null) calculatedCompletionRate = completion;
+      computedResponseHours = responseH;
+      // Persist when we have real samples (best-effort)
+      if (completion != null || responseH != null) {
+        const patch: Record<string, number> = {};
+        if (completion != null) patch.completion_rate = completion;
+        if (responseH != null) patch.avg_response_time = responseH;
+        void supabase.from('influencers').update(patch).eq('id', id);
       }
     }
     
@@ -828,8 +833,8 @@ export default function InfluencerProfile(props: { params: Params }) {
         past_brands: data.past_brands || [],
         avg_rating: data.avg_rating || 0,
         total_reviews: data.total_reviews || 0,
-        avg_response_time: data.avg_response_time || 24,
-        completion_rate: data.completion_rate || 100,
+        avg_response_time: computedResponseHours ?? data.avg_response_time ?? undefined,
+        completion_rate: calculatedCompletionRate ?? data.completion_rate ?? undefined,
         availability_status: data.availability_status || 'available',
         skills: data.skills || [],
         certifications: data.certifications || [],
@@ -2133,10 +2138,14 @@ export default function InfluencerProfile(props: { params: Params }) {
                       </MetricIcon>
                     }
                   >
-                    <p className="text-2xl font-semibold tracking-tight text-slate-900 tabular-nums">
-                      {profile.avg_response_time || 24}
-                      <span className="ml-0.5 text-base font-medium text-slate-500">h</span>
-                    </p>
+                    {profile.avg_response_time != null && profile.avg_response_time > 0 ? (
+                      <p className="text-2xl font-semibold tracking-tight text-slate-900 tabular-nums">
+                        {profile.avg_response_time}
+                        <span className="ml-0.5 text-base font-medium text-slate-500">h</span>
+                      </p>
+                    ) : (
+                      <p className="text-2xl font-semibold tracking-tight text-slate-300">—</p>
+                    )}
                   </ProfileStatCard>
 
                   <ProfileStatCard

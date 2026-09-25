@@ -7,6 +7,8 @@ import InfluencerCard from "./InfluencerCard";
 import { getBadges, BADGE_FILTER_TYPES, getBadgeFilterLabel, type BadgeType } from "../lib/badges";
 import { getVisitorId } from "../lib/visitorId";
 import { normalizeGender, type GenderValue } from "../lib/gender";
+import { isAvailableStatus, trustChipsFromAccounts } from "@/lib/trustSignals";
+import { publicProfilePath } from "@/lib/profileSlug";
 
 export interface Influencer {
   id: string | number;
@@ -32,6 +34,19 @@ export interface Influencer {
   avg_rating?: number;
   created_at?: string;
   birth_date?: string | null;
+  availability_status?: string | null;
+  profile_slug?: string | null;
+  accounts?: Array<{
+    platform?: string;
+    engagement_rate?: string;
+    posts_count?: number | string;
+    avg_likes?: string;
+    is_private?: boolean;
+    er_suspicious?: boolean;
+    er_flag_reason?: string;
+  }>;
+  avg_response_time?: number | null;
+  completion_rate?: number | null;
 }
 
 // --- FULL CATEGORY LIST ---
@@ -118,6 +133,9 @@ const t = {
     ageRange: "Ηλικία",
     ageFrom: "Από",
     ageTo: "Έως",
+    availAll: "Διαθεσιμότητα: Όλες",
+    availYes: "Διαθέσιμοι",
+    availNo: "Μη διαθέσιμοι",
     noResults: "Δεν βρέθηκαν influencers",
     adjust: "Δοκίμασε διαφορετικά φίλτρα.",
     reset: "Επαναφορά",
@@ -154,6 +172,9 @@ const t = {
     ageRange: "Age",
     ageFrom: "From",
     ageTo: "To",
+    availAll: "Availability: Any",
+    availYes: "Available",
+    availNo: "Unavailable",
     noResults: "No influencers found",
     adjust: "Try adjusting your filters.",
     reset: "Reset Filters",
@@ -260,6 +281,7 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
   const [ageMin, setAgeMin] = useState("");
   const [ageMax, setAgeMax] = useState("");
   const [badgeFilter, setBadgeFilter] = useState<BadgeType | "All">("All");
+  const [availabilityFilter, setAvailabilityFilter] = useState<"All" | "available" | "unavailable">("available");
   const [loading, setLoading] = useState(true);
   const [visibleCount, setVisibleCount] = useState(20);
   const PAGE_SIZE = 20;
@@ -358,11 +380,14 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
               videos: Array.isArray(inf.videos) ? inf.videos : [],
               avg_rating: inf.avg_rating || 0,
               total_reviews: inf.total_reviews || 0,
-              avg_response_time: inf.avg_response_time || 24,
-              completion_rate: inf.completion_rate || 100,
+              avg_response_time: inf.avg_response_time ?? null,
+              completion_rate: inf.completion_rate ?? null,
               past_brands: inf.past_brands || 0,
               created_at: inf.created_at,
               birth_date: inf.birth_date || null,
+              availability_status: inf.availability_status || 'available',
+              profile_slug: inf.profile_slug || null,
+              accounts: Array.isArray(inf.accounts) ? inf.accounts : [],
             };
           });
 
@@ -477,7 +502,14 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
       badgeFilter === "All" ||
       badgesForInfluencer(inf, lang).some((b) => b.type === badgeFilter);
 
-    return searchMatch && locationMatch && platformMatch && categoryMatch && genderMatch && followerMatch && budgetMatch && engageMatch && languageMatch && ratingMatch && ageMatch && badgeMatch;
+    let availabilityMatch = true;
+    if (availabilityFilter === "available") {
+      availabilityMatch = isAvailableStatus(inf.availability_status);
+    } else if (availabilityFilter === "unavailable") {
+      availabilityMatch = !isAvailableStatus(inf.availability_status);
+    }
+
+    return searchMatch && locationMatch && platformMatch && categoryMatch && genderMatch && followerMatch && budgetMatch && engageMatch && languageMatch && ratingMatch && ageMatch && badgeMatch && availabilityMatch;
   });
 
   const clearFilters = () => {
@@ -485,13 +517,14 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
     setCategoryFilter("All"); setGenderFilter("All"); setFollowerRange("All");
     setBudgetMax("All"); setMinEngagement("All"); setLanguageFilter("All"); setMinRating("All");
     setAgeMin(""); setAgeMax(""); setBadgeFilter("All");
+    setAvailabilityFilter("available");
     setVisibleCount(PAGE_SIZE);
   };
 
   // Reset pagination when filters change
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [searchQuery, locationQuery, platformFilter, categoryFilter, genderFilter, followerRange, budgetMax, minEngagement, languageFilter, minRating, ageMin, ageMax, badgeFilter]);
+  }, [searchQuery, locationQuery, platformFilter, categoryFilter, genderFilter, followerRange, budgetMax, minEngagement, languageFilter, minRating, ageMin, ageMax, badgeFilter, availabilityFilter]);
 
   const displayedInfluencers = filtered.slice(0, visibleCount);
   const hasMore = filtered.length > visibleCount;
@@ -530,7 +563,7 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
         </div>
 
         {/* Filters Panel */}
-        <div className={`overflow-hidden transition-all duration-300 ${showAdvanced ? 'max-h-[640px] opacity-100 mt-4 pt-4 border-t border-slate-100' : 'max-h-0 opacity-0'}`}>
+        <div className={`overflow-hidden transition-all duration-300 ${showAdvanced ? 'max-h-[720px] opacity-100 mt-4 pt-4 border-t border-slate-100' : 'max-h-0 opacity-0'}`}>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 
                 <select value={genderFilter} onChange={(e) => setGenderFilter(e.target.value)} className={selectClass}>
@@ -538,6 +571,18 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
                     <option value="Female">{txt.genFem}</option>
                     <option value="Male">{txt.genMal}</option>
                     <option value="AI">{txt.genAi}</option>
+                </select>
+
+                <select
+                  value={availabilityFilter}
+                  onChange={(e) =>
+                    setAvailabilityFilter(e.target.value as "All" | "available" | "unavailable")
+                  }
+                  className={`${selectClass} !bg-emerald-50 !border-emerald-100 !text-emerald-800`}
+                >
+                    <option value="All">{txt.availAll}</option>
+                    <option value="available">{txt.availYes}</option>
+                    <option value="unavailable">{txt.availNo}</option>
                 </select>
 
                 <select value={followerRange} onChange={(e) => setFollowerRange(e.target.value)} className={`${selectClass} !bg-blue-50 !border-blue-100 !text-blue-800`}>
@@ -666,7 +711,7 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
               
               return (
                 <Link 
-                  href={`/influencer/${inf.id}`} 
+                  href={publicProfilePath(inf.profile_slug, inf.id)} 
                   key={inf.id} 
                   className="block h-full group"
                   onClick={() => {
@@ -684,7 +729,13 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
                     }).catch(() => {});
                   }}
                 >
-                  <InfluencerCard {...inf} badges={badges} lang={lang} />
+                  <InfluencerCard
+                    {...inf}
+                    badges={badges}
+                    lang={lang}
+                    trustChips={trustChipsFromAccounts(inf.accounts)}
+                    availabilityStatus={inf.availability_status}
+                  />
                 </Link>
               );
             })}

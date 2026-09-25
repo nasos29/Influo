@@ -9,6 +9,7 @@ export type BrandShortlistItem = {
   category: string | null;
   minRate: string | null;
   approved: boolean;
+  profileSlug?: string | null;
 };
 
 async function authHeader(): Promise<HeadersInit> {

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { getCachedImageUrl } from "@/lib/imageProxy";
 import { SHORTLIST_NOTE_MAX, type BrandShortlistItem } from "@/lib/brandShortlist";
+import { publicProfilePath } from "@/lib/profileSlug";
 
 type Props = {
   lang: "el" | "en";
@@ -135,7 +136,7 @@ export default function BrandShortlistPanel({
                       </span>
                     ) : null}
                     <Link
-                      href={`/influencer/${item.influencerId}`}
+                      href={publicProfilePath(item.profileSlug, item.influencerId)}
                       className="text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-100 text-slate-800"
                     >
                       {el ? "Προφίλ" : "Profile"}

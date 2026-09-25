@@ -59,11 +59,12 @@ export async function GET(request: NextRequest) {
     category: string | null;
     min_rate: string | null;
     approved: boolean | null;
+    profile_slug?: string | null;
   }>();
   if (ids.length) {
     const { data: infs } = await supabaseAdmin
       .from("influencers")
-      .select("id, display_name, avatar_url, category, min_rate, approved")
+      .select("id, display_name, avatar_url, category, min_rate, approved, profile_slug")
       .in("id", ids);
     for (const inf of infs || []) {
       infById.set(String(inf.id), inf);
@@ -81,6 +82,7 @@ export async function GET(request: NextRequest) {
       category: inf?.category || null,
       minRate: inf?.min_rate || null,
       approved: !!inf?.approved,
+      profileSlug: inf?.profile_slug || null,
     };
   });
 

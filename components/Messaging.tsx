@@ -11,12 +11,20 @@ import {
   chatInitial,
 } from '@/lib/chatTime';
 
+interface MessageAttachment {
+  url: string;
+  filename?: string;
+  size?: number;
+  content_type?: string;
+}
+
 interface Message {
   id: string;
   conversation_id: string;
   sender_id: string;
   sender_type: 'influencer' | 'brand';
   content: string;
+  attachments?: MessageAttachment[] | null;
   read: boolean;
   created_at: string;
 }
@@ -103,6 +111,9 @@ const t = {
     loading: "Φόρτωση...",
     moreActions: "Ενέργειες",
     brandFallback: "Επιχείρηση",
+    attach: "Επισύναψη",
+    attachHint: "Εικόνα ή PDF (έως 10MB)",
+    removeFile: "Αφαίρεση",
   },
   en: {
     placeholder: "Type your message...",
@@ -145,6 +156,9 @@ const t = {
     loading: "Loading...",
     moreActions: "Actions",
     brandFallback: "Brand",
+    attach: "Attach",
+    attachHint: "Image or PDF (up to 10MB)",
+    removeFile: "Remove",
   }
 };
 
@@ -164,6 +178,8 @@ export default function Messaging({
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [isInfluencerOnline, setIsInfluencerOnline] = useState(false);
@@ -971,18 +987,37 @@ export default function Messaging({
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim()) return;
+    const text = newMessage.trim();
+    if (!text && pendingFiles.length === 0) return;
     if (mode === "influencer" && !influencerId) return;
 
     setSending(true);
     try {
       let convId = selectedConversation;
+      const filesToUpload = [...pendingFiles];
 
-      // If we have a conversationId (even if closed), send with conversationId so backend can reopen it
-      // Only send without conversationId if we don't have one at all
+      const uploadFiles = async (targetConvId: string) => {
+        const out: MessageAttachment[] = [];
+        for (const file of filesToUpload) {
+          const fd = new FormData();
+          fd.append('file', file);
+          fd.append('conversation_id', targetConvId);
+          const up = await fetch('/api/messages/upload', { method: 'POST', body: fd });
+          const upJson = await up.json();
+          if (!up.ok || !upJson.success || !upJson.attachment?.url) {
+            throw new Error(upJson.error || 'Upload failed');
+          }
+          out.push(upJson.attachment as MessageAttachment);
+        }
+        return out;
+      };
+
+      let uploaded: MessageAttachment[] = [];
+      if (filesToUpload.length) {
+        uploaded = await uploadFiles(convId || 'temp');
+      }
+
       if (convId) {
-        // Send message to existing conversation (backend will reopen if closed)
-        // Send message to existing conversation
         const senderId = mode === 'influencer' ? influencerId : brandEmail!;
         
         const response = await fetch('/api/messages', {
@@ -992,7 +1027,8 @@ export default function Messaging({
             conversationId: convId,
             senderId,
             senderType: mode,
-            content: newMessage,
+            content: text,
+            attachments: uploaded,
             sendViaEmail: false,
           })
         });
@@ -1000,7 +1036,6 @@ export default function Messaging({
         const result = await response.json();
         if (!result.success) throw new Error(result.error);
         
-        // Update online status when sending message
         if (mode === 'influencer' && influencerId) {
           updateOnlineStatus();
         } else if (mode === 'brand') {
@@ -1012,23 +1047,18 @@ export default function Messaging({
           }
         }
         
-        // Play sound when message is sent (single beep)
-        lastSentMessageRef.current = newMessage.trim();
+        lastSentMessageRef.current = text || uploaded[0]?.filename || 'file';
         playSendSound();
         
-        // Reset conversation closed state immediately - backend has reopened it
         setConversationClosed(false);
         setConversationClosedByInactivity(false);
         setShowInactivityWarning(false);
         
-        // Refresh conversation state to reflect reopened status
-        // Small delay to ensure backend has processed the update
         await new Promise(resolve => setTimeout(resolve, 100));
         await loadConversations();
-        await loadActivityTimestamps(convId); // This will check if conversation is still closed and update state accordingly
-        await loadMessages(convId); // Refresh messages
+        await loadActivityTimestamps(convId);
+        await loadMessages(convId);
       } else if (influencerId && brandEmail) {
-        // No conversation exists - create new one
         const response = await fetch('/api/messages', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1037,7 +1067,8 @@ export default function Messaging({
             brandEmail,
             brandName: brandName || brandEmail,
             senderType: mode,
-            content: newMessage,
+            content: text,
+            attachments: uploaded,
           })
         });
 
@@ -1046,7 +1077,6 @@ export default function Messaging({
         
         convId = result.conversationId;
         
-        // Update online status when sending message
         if (mode === 'influencer' && influencerId) {
           updateOnlineStatus();
         } else if (mode === 'brand') {
@@ -1058,10 +1088,8 @@ export default function Messaging({
           }
         }
         
-        // Refresh conversations list to show new conversation
         await loadConversations();
         
-        // Select the new conversation
         if (convId) {
           setSelectedConversation(convId);
           setConversationClosed(false);
@@ -1070,12 +1098,12 @@ export default function Messaging({
       }
 
       setNewMessage('');
+      setPendingFiles([]);
+      if (fileInputRef.current) fileInputRef.current.value = '';
       if (convId) {
-        // Select the conversation if it was reopened
         if (convId !== selectedConversation) {
           setSelectedConversation(convId);
         }
-        // Refresh conversations list to show reopened conversation
         await loadConversations();
         await loadMessages(convId);
       }
@@ -1776,7 +1804,39 @@ export default function Messaging({
                               : 'bg-white text-slate-900 border border-slate-200 rounded-bl-md shadow-sm'
                           }`}
                         >
-                          <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                          {msg.content ? (
+                            <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                          ) : null}
+                          {Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
+                            <div className={`mt-1.5 space-y-1.5 ${msg.content ? '' : ''}`}>
+                              {msg.attachments.map((att, ai) => {
+                                const isImg = String(att.content_type || '').startsWith('image/') ||
+                                  /\.(webp|png|jpe?g|gif)$/i.test(att.url || '');
+                                return (
+                                  <a
+                                    key={`${att.url}-${ai}`}
+                                    href={att.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={`block text-xs underline-offset-2 hover:underline ${
+                                      isOwn ? 'text-blue-100' : 'text-blue-700'
+                                    }`}
+                                  >
+                                    {isImg ? (
+                                      // eslint-disable-next-line @next/next/no-img-element
+                                      <img
+                                        src={att.url}
+                                        alt={att.filename || 'attachment'}
+                                        className="max-h-40 rounded-lg border border-white/20 object-cover"
+                                      />
+                                    ) : (
+                                      <span>📎 {att.filename || 'File'}</span>
+                                    )}
+                                  </a>
+                                );
+                              })}
+                            </div>
+                          )}
                           <div
                             className={`flex items-center gap-1.5 mt-1 ${
                               isOwn ? 'justify-end text-blue-100' : 'justify-start text-slate-400'
@@ -1808,7 +1868,46 @@ export default function Messaging({
                     <p className="text-xs text-blue-700">{txt.reopenHint}</p>
                   </div>
                 )}
+                {pendingFiles.length > 0 && (
+                  <div className="mb-2 flex flex-wrap gap-2">
+                    {pendingFiles.map((f, i) => (
+                      <span
+                        key={`${f.name}-${i}`}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2 py-1 text-xs text-slate-700"
+                      >
+                        📎 {f.name}
+                        <button
+                          type="button"
+                          className="text-slate-500 hover:text-red-600"
+                          onClick={() => setPendingFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                          aria-label={txt.removeFile}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <div className="flex gap-2 items-end">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,application/pdf,text/plain"
+                    className="hidden"
+                    multiple
+                    onChange={(e) => {
+                      const list = Array.from(e.target.files || []).slice(0, 5);
+                      if (list.length) setPendingFiles((prev) => [...prev, ...list].slice(0, 5));
+                    }}
+                  />
+                  <button
+                    type="button"
+                    title={txt.attachHint}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-3 py-2.5 rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-50 text-sm shrink-0"
+                  >
+                    📎
+                  </button>
                   <textarea
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
@@ -1818,7 +1917,7 @@ export default function Messaging({
                   />
                   <button
                     type="submit"
-                    disabled={sending || !newMessage.trim()}
+                    disabled={sending || (!newMessage.trim() && pendingFiles.length === 0)}
                     className="px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm shrink-0"
                   >
                     {sending ? txt.sending : txt.send}
@@ -1862,7 +1961,35 @@ export default function Messaging({
 
               {influencerId && brandEmail && (
                 <form onSubmit={sendMessage} className="px-3 sm:px-4 py-3 border-t border-slate-200 bg-white shrink-0">
+                  {pendingFiles.length > 0 && (
+                    <div className="mb-2 flex flex-wrap gap-2">
+                      {pendingFiles.map((f, i) => (
+                        <span
+                          key={`${f.name}-${i}`}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2 py-1 text-xs text-slate-700"
+                        >
+                          📎 {f.name}
+                          <button
+                            type="button"
+                            className="text-slate-500 hover:text-red-600"
+                            onClick={() => setPendingFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                            aria-label={txt.removeFile}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   <div className="flex gap-2 items-end">
+                    <button
+                      type="button"
+                      title={txt.attachHint}
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-3 py-2.5 rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-50 text-sm shrink-0"
+                    >
+                      📎
+                    </button>
                     <textarea
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
@@ -1872,7 +1999,7 @@ export default function Messaging({
                     />
                     <button
                       type="submit"
-                      disabled={sending || !newMessage.trim()}
+                      disabled={sending || (!newMessage.trim() && pendingFiles.length === 0)}
                       className="px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm shrink-0"
                     >
                       {sending ? txt.sending : txt.send}

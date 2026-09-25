@@ -47,6 +47,7 @@ export interface InfluencerProfile {
     reel?: string;
     facebook?: string;
   } | null;
+  profile_slug?: string | null;
   /** Strategic audit – niche, brandSafe, whyWorkWithThem (for brands). */
   auditpr_audit?: AuditprAuditProfile | null;
   /** Brand dashboard: email for messaging (not shown publicly). */

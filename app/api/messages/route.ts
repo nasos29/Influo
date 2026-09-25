@@ -17,14 +17,26 @@ const SEND_MESSAGE_THREAD_EMAILS = true;
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { conversationId, senderId, senderType, content, influencerId, brandEmail, brandName, proposalId, sendViaEmail } = body;
+    const { conversationId, senderId, senderType, content, influencerId, brandEmail, brandName, proposalId, sendViaEmail, attachments } = body;
+    const messageContent = typeof content === 'string' ? content : '';
+    const messageAttachments = Array.isArray(attachments)
+      ? attachments.filter((a: unknown) => a && typeof a === 'object' && typeof (a as { url?: string }).url === 'string')
+      : [];
+    const contentForNotify =
+      messageContent.trim() ||
+      (messageAttachments[0]?.filename
+        ? `📎 ${messageAttachments[0].filename}`
+        : messageAttachments.length
+          ? '📎 Attachment'
+          : '');
     
     console.log('[Messages API] POST request received:', {
       hasConversationId: !!conversationId,
       hasSenderId: !!senderId,
       senderType,
-      hasContent: !!content,
-      contentLength: content?.length || 0
+      hasContent: !!messageContent,
+      contentLength: messageContent?.length || 0,
+      attachmentsCount: messageAttachments.length,
     });
 
     // If creating a new conversation
@@ -80,22 +92,51 @@ export async function POST(req: Request) {
         convId = newConv.id;
       }
 
-      // Create message
-      const { data: message, error: msgError } = await supabaseAdmin
-        .from('messages')
-        .insert([{
-          conversation_id: convId,
-          sender_id: senderType === 'brand' ? brandEmail : influencerId,
-          sender_type: senderType,
-          content: content,
-          sent_via_email: sendViaEmail || false,
-          email_sent: false, // Will be set to true when digest email is sent
-        }])
-        .select()
-        .single();
+      if (!messageContent.trim() && messageAttachments.length === 0) {
+        return NextResponse.json({ error: 'Message content or attachments required' }, { status: 400 });
+      }
 
-      if (msgError) {
-        return NextResponse.json({ error: msgError.message }, { status: 500 });
+      // Create message
+      let message: Record<string, unknown> | null = null;
+      {
+        const { data, error: msgError } = await supabaseAdmin
+          .from('messages')
+          .insert([{
+            conversation_id: convId,
+            sender_id: senderType === 'brand' ? brandEmail : influencerId,
+            sender_type: senderType,
+            content: messageContent,
+            attachments: messageAttachments,
+            sent_via_email: sendViaEmail || false,
+            email_sent: false,
+          }])
+          .select()
+          .single();
+
+        if (msgError) {
+          if (/attachments/i.test(msgError.message)) {
+            const retry = await supabaseAdmin
+              .from('messages')
+              .insert([{
+                conversation_id: convId,
+                sender_id: senderType === 'brand' ? brandEmail : influencerId,
+                sender_type: senderType,
+                content: messageContent || contentForNotify,
+                sent_via_email: sendViaEmail || false,
+                email_sent: false,
+              }])
+              .select()
+              .single();
+            if (retry.error) {
+              return NextResponse.json({ error: retry.error.message }, { status: 500 });
+            }
+            message = retry.data;
+          } else {
+            return NextResponse.json({ error: msgError.message }, { status: 500 });
+          }
+        } else {
+          message = data;
+        }
       }
 
       // Update conversation last_message_at and activity timestamp
@@ -106,7 +147,7 @@ export async function POST(req: Request) {
         updateField,
         timestamp: now,
         senderType,
-        contentPreview: content?.substring(0, 50) || 'no content'
+        contentPreview: contentForNotify.substring(0, 50) || 'no content'
       });
       await supabaseAdmin
         .from('conversations')
@@ -190,7 +231,7 @@ export async function POST(req: Request) {
                   toEmail: brandEmail,
                   brandName: brandName || brandEmail,
                   influencerName: influencerData.display_name,
-                  message: content,
+                  message: contentForNotify,
                   brandHasAccount: !!brandData
                 })
               });
@@ -208,14 +249,14 @@ export async function POST(req: Request) {
               senderType: 'influencer',
               recipientName: brandName || brandEmail,
               conversationId: convId,
-              messageContent: content
+              messageContent: contentForNotify
             })
           }).catch(() => {});
           // Push to brand
           const { data: infForPush } = await supabaseAdmin.from('influencers').select('display_name').eq('id', influencerId).single();
           sendPushToBrand(brandEmail, {
             title: '💬 Νέο μήνυμα',
-            body: `${infForPush?.display_name || 'Influencer'}: ${content.slice(0, 60)}${content.length > 60 ? '…' : ''}`,
+            body: `${infForPush?.display_name || 'Influencer'}: ${contentForNotify.slice(0, 60)}${contentForNotify.length > 60 ? '…' : ''}`,
             url: '/brand/dashboard',
             tag: `message-brand-${convId}-${Date.now()}`,
           }).catch(() => {});
@@ -252,7 +293,7 @@ export async function POST(req: Request) {
                   toEmail: influencerRow.contact_email,
                   influencerName: influencerRow.display_name,
                   brandName: brandName || brandEmail,
-                  message: content
+                  message: contentForNotify
                 })
               });
               if (!emailRes.ok) console.error('[Messages API] Failed to send email to influencer (new conv):', await emailRes.text());
@@ -270,13 +311,13 @@ export async function POST(req: Request) {
               senderType: 'brand',
               recipientName: influencerRow?.display_name || 'Influencer',
               conversationId: convId,
-              messageContent: content
+              messageContent: contentForNotify
             })
           }).catch(() => {});
           // Push notification to influencer (block only runs when !proposalId)
           sendPushToInfluencer(influencerId, {
             title: '💬 Νέο μήνυμα',
-            body: `${brandName || 'Επιχείρηση'}: ${content.slice(0, 60)}${content.length > 60 ? '…' : ''}`,
+            body: `${brandName || 'Επιχείρηση'}: ${contentForNotify.slice(0, 60)}${contentForNotify.length > 60 ? '…' : ''}`,
             url: '/dashboard',
             tag: `message-inf-${convId}-${Date.now()}`,
           }).catch(() => {});
@@ -323,22 +364,47 @@ export async function POST(req: Request) {
     }
 
     // If adding to existing conversation
-    if (conversationId && senderId && senderType && content) {
-      const { data: message, error: msgError } = await supabaseAdmin
-        .from('messages')
-        .insert([{
-          conversation_id: conversationId,
-          sender_id: senderId,
-          sender_type: senderType,
-          content: content,
-          sent_via_email: sendViaEmail || false,
-          email_sent: false, // Will be set to true when digest email is sent
-        }])
-        .select()
-        .single();
+    if (conversationId && senderId && senderType && (messageContent.trim() || messageAttachments.length > 0)) {
+      let message: Record<string, unknown> | null = null;
+      {
+        const { data, error: msgError } = await supabaseAdmin
+          .from('messages')
+          .insert([{
+            conversation_id: conversationId,
+            sender_id: senderId,
+            sender_type: senderType,
+            content: messageContent,
+            attachments: messageAttachments,
+            sent_via_email: sendViaEmail || false,
+            email_sent: false,
+          }])
+          .select()
+          .single();
 
-      if (msgError) {
-        return NextResponse.json({ error: msgError.message }, { status: 500 });
+        if (msgError) {
+          if (/attachments/i.test(msgError.message)) {
+            const retry = await supabaseAdmin
+              .from('messages')
+              .insert([{
+                conversation_id: conversationId,
+                sender_id: senderId,
+                sender_type: senderType,
+                content: messageContent || contentForNotify,
+                sent_via_email: sendViaEmail || false,
+                email_sent: false,
+              }])
+              .select()
+              .single();
+            if (retry.error) {
+              return NextResponse.json({ error: retry.error.message }, { status: 500 });
+            }
+            message = retry.data;
+          } else {
+            return NextResponse.json({ error: msgError.message }, { status: 500 });
+          }
+        } else {
+          message = data;
+        }
       }
 
       // Check if conversation is closed and reopen it if needed
@@ -362,7 +428,7 @@ export async function POST(req: Request) {
         updateField,
         timestamp: now,
         senderType,
-        contentPreview: content?.substring(0, 50) || 'no content'
+        contentPreview: contentForNotify.substring(0, 50) || 'no content'
       });
       await supabaseAdmin
         .from('conversations')
@@ -468,7 +534,7 @@ export async function POST(req: Request) {
                   toEmail: convData.brand_email,
                   brandName: convData.brand_name || convData.brand_email,
                   influencerName: convData.influencer_name,
-                  message: content,
+                  message: contentForNotify,
                   brandHasAccount: brandHasAccount
                 })
               });
@@ -490,7 +556,7 @@ export async function POST(req: Request) {
                 senderType: 'influencer',
                 recipientName: convData.brand_name || convData.brand_email,
                 conversationId,
-                messageContent: content
+                messageContent: contentForNotify
               })
             });
             if (!adminResponse.ok) {
@@ -499,7 +565,7 @@ export async function POST(req: Request) {
             // Push notification to brand
             sendPushToBrand(convData.brand_email, {
               title: '💬 Νέο μήνυμα',
-              body: `${convData.influencer_name}: ${content.slice(0, 60)}${content.length > 60 ? '…' : ''}`,
+              body: `${convData.influencer_name}: ${contentForNotify.slice(0, 60)}${contentForNotify.length > 60 ? '…' : ''}`,
               url: '/brand/dashboard',
               tag: `message-brand-${conversationId}-${Date.now()}`,
             }).catch(() => {});
@@ -540,7 +606,7 @@ export async function POST(req: Request) {
                   toEmail: convData.influencer_email,
                   influencerName: convData.influencer_name,
                   brandName: convData.brand_name || convData.brand_email,
-                  message: content
+                  message: contentForNotify
                 })
               });
               if (!emailResponse.ok) {
@@ -560,7 +626,7 @@ export async function POST(req: Request) {
                 senderType: 'brand',
                 recipientName: convData.influencer_name,
                 conversationId,
-                messageContent: content
+                messageContent: contentForNotify
               })
             });
             if (!adminResponse.ok) {
@@ -569,7 +635,7 @@ export async function POST(req: Request) {
             // Push notification to influencer
             sendPushToInfluencer(convData.influencer_id, {
               title: '💬 Νέο μήνυμα',
-              body: `${convData.brand_name || 'Επιχείρηση'}: ${content.slice(0, 60)}${content.length > 60 ? '…' : ''}`,
+              body: `${convData.brand_name || 'Επιχείρηση'}: ${contentForNotify.slice(0, 60)}${contentForNotify.length > 60 ? '…' : ''}`,
               url: '/dashboard',
               tag: `message-inf-${conversationId}-${Date.now()}`,
             }).catch(() => {});

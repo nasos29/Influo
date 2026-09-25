@@ -187,21 +187,40 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ]
 
-  // Fetch verified influencers from database
+  // Fetch approved influencers for SEO (prefer public slug URLs)
   let influencerPages: MetadataRoute.Sitemap = []
   try {
     const { data: influencers, error } = await supabase
       .from('influencers')
-      .select('id, created_at')
-      .eq('verified', true)
+      .select('id, profile_slug, created_at')
+      .eq('approved', true)
       .order('created_at', { ascending: false })
-      .limit(10000) // Limit to avoid too large sitemap
+      .limit(10000)
 
     if (error) {
       console.error('Sitemap: Error fetching influencers:', error.message)
+      // Fallback without profile_slug column
+      const fallback = await supabase
+        .from('influencers')
+        .select('id, created_at')
+        .eq('approved', true)
+        .order('created_at', { ascending: false })
+        .limit(10000)
+      if (fallback.data?.length) {
+        influencerPages = fallback.data.map((influencer) => ({
+          url: `${baseUrl}/influencer/${influencer.id}`,
+          lastModified: influencer.created_at
+            ? new Date(influencer.created_at)
+            : currentDate,
+          changeFrequency: 'weekly' as const,
+          priority: 0.7,
+        }))
+      }
     } else if (influencers && influencers.length > 0) {
       influencerPages = influencers.map((influencer) => ({
-        url: `${baseUrl}/influencer/${influencer.id}`,
+        url: influencer.profile_slug
+          ? `${baseUrl}/in/${influencer.profile_slug}`
+          : `${baseUrl}/influencer/${influencer.id}`,
         lastModified: influencer.created_at
           ? new Date(influencer.created_at)
           : currentDate,

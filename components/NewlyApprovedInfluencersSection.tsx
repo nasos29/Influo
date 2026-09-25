@@ -8,6 +8,7 @@ import { categoryTranslations } from "@/components/categoryTranslations";
 import { displayNameForLang } from "@/lib/greeklish";
 import { getBadges, getBadgeStyles, type Badge } from "@/lib/badges";
 import { getVisitorId } from "@/lib/visitorId";
+import { publicProfilePath } from "@/lib/profileSlug";
 
 type Lang = "el" | "en";
 
@@ -30,6 +31,7 @@ export type NewlyApprovedInfluencer = {
   total_reviews?: number | null;
   avg_rating?: number | null;
   min_rate?: string | null;
+  profile_slug?: string | null;
 };
 
 function getBestImageUrl(inf: NewlyApprovedInfluencer): string | null {
@@ -234,7 +236,7 @@ export default function NewlyApprovedInfluencersSection({ lang }: { lang: Lang }
             return (
               <Link
                 key={String(inf.id)}
-                href={`/influencer/${inf.id}`}
+                href={publicProfilePath(inf.profile_slug, inf.id)}
                 className="group block"
                 onClick={() => {
                   fetch("/api/analytics/track", {

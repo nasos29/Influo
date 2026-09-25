@@ -24,6 +24,10 @@ type MyApplication = {
   status: string;
   message: string | null;
   created_at: string;
+  deliverable_url?: string | null;
+  deliverable_note?: string | null;
+  deliverable_status?: string | null;
+  deliverable_review_note?: string | null;
   brand_campaigns: {
     title: string;
     status: string;
@@ -65,6 +69,21 @@ const applicationStatusUi = {
   },
 };
 
+const deliverableStatusUi = {
+  el: {
+    none: "Χωρίς παράδοση",
+    submitted: "Υποβλήθηκε — αναμονή έγκρισης",
+    approved: "Εγκρίθηκε",
+    changes_requested: "Ζητήθηκαν αλλαγές",
+  },
+  en: {
+    none: "No deliverable",
+    submitted: "Submitted — awaiting review",
+    approved: "Approved",
+    changes_requested: "Changes requested",
+  },
+};
+
 export default function InfluencerCampaignsPanel({
   influencerId,
   approved,
@@ -87,6 +106,8 @@ export default function InfluencerCampaignsPanel({
   const [applyCampaign, setApplyCampaign] = useState<CampaignWithBrand | null>(null);
   const [applyMessage, setApplyMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [deliverDraft, setDeliverDraft] = useState<Record<string, { url: string; note: string }>>({});
+  const [deliverSaving, setDeliverSaving] = useState<string | null>(null);
 
   useEffect(() => {
     setUiLang(getStoredLanguage() === "en" ? "en" : "el");
@@ -142,6 +163,10 @@ export default function InfluencerCampaignsPanel({
         status,
         message,
         created_at,
+        deliverable_url,
+        deliverable_note,
+        deliverable_status,
+        deliverable_review_note,
         brand_campaigns (
           title,
           status,
@@ -239,6 +264,45 @@ export default function InfluencerCampaignsPanel({
     if (error) alert(error.message);
     else await load();
   };
+
+  const submitDeliverable = async (appId: string) => {
+    const draft = deliverDraft[appId] || { url: "", note: "" };
+    const url = draft.url.trim();
+    if (!url) {
+      alert(uiLang === "el" ? "Βάλε link παράδοσης (URL)." : "Add a deliverable URL.");
+      return;
+    }
+    setDeliverSaving(appId);
+    try {
+      const { error } = await supabase
+        .from("campaign_applications")
+        .update({
+          deliverable_url: url,
+          deliverable_note: draft.note.trim() || null,
+          deliverable_status: "submitted",
+          delivered_at: new Date().toISOString(),
+        })
+        .eq("id", appId)
+        .eq("influencer_id", influencerId);
+      if (error) {
+        alert(
+          /column|deliverable/i.test(error.message)
+            ? uiLang === "el"
+              ? "Τρέξε το docs/CAMPAIGN_DELIVERABLES_SCHEMA.sql στο Supabase."
+              : "Run docs/CAMPAIGN_DELIVERABLES_SCHEMA.sql in Supabase."
+            : error.message
+        );
+        return;
+      }
+      await load();
+    } finally {
+      setDeliverSaving(null);
+    }
+  };
+
+  const canShowDeliverable = (m: MyApplication) =>
+    m.status === "shortlisted" ||
+    (!!m.deliverable_status && m.deliverable_status !== "none");
 
   if (schemaError) {
     return (
@@ -435,36 +499,114 @@ export default function InfluencerCampaignsPanel({
           </p>
         ) : (
           <ul className="space-y-2">
-            {mine.map((m) => (
+            {mine.map((m) => {
+              const dStatus = m.deliverable_status || "none";
+              const draft = deliverDraft[m.id] || {
+                url: m.deliverable_url || "",
+                note: m.deliverable_note || "",
+              };
+              const showDeliver = canShowDeliverable(m);
+              return (
               <li
                 key={m.id}
-                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border border-slate-100 rounded-lg p-3 bg-slate-50"
+                className="flex flex-col gap-3 border border-slate-100 rounded-lg p-3 bg-slate-50"
               >
-                <div>
-                  <p className="font-medium text-slate-900">
-                    {m.brand_campaigns?.title ?? (uiLang === "el" ? "Καμπάνια" : "Campaign")}{" "}
-                    <span className="text-slate-500 font-normal">
-                      · {m.brand_campaigns?.brands?.brand_name ?? ""}
-                    </span>
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {new Date(m.created_at).toLocaleString(uiLang === "el" ? "el-GR" : "en-GB")} ·{" "}
-                    <span className="font-medium">
-                      {(applicationStatusUi[uiLang] as Record<string, string>)[m.status] || m.status}
-                    </span>
-                  </p>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div>
+                    <p className="font-medium text-slate-900">
+                      {m.brand_campaigns?.title ?? (uiLang === "el" ? "Καμπάνια" : "Campaign")}{" "}
+                      <span className="text-slate-500 font-normal">
+                        · {m.brand_campaigns?.brands?.brand_name ?? ""}
+                      </span>
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {new Date(m.created_at).toLocaleString(uiLang === "el" ? "el-GR" : "en-GB")} ·{" "}
+                      <span className="font-medium">
+                        {(applicationStatusUi[uiLang] as Record<string, string>)[m.status] || m.status}
+                      </span>
+                      {showDeliver && (
+                        <>
+                          {" · "}
+                          <span className="font-medium text-slate-700">
+                            {(deliverableStatusUi[uiLang] as Record<string, string>)[dStatus] || dStatus}
+                          </span>
+                        </>
+                      )}
+                    </p>
+                    {m.deliverable_review_note && dStatus === "changes_requested" && (
+                      <p className="text-xs text-amber-700 mt-1">{m.deliverable_review_note}</p>
+                    )}
+                  </div>
+                  {m.status === "pending" && (
+                    <button
+                      type="button"
+                      onClick={() => withdraw(m.id)}
+                      className="text-sm text-red-600 hover:underline self-start sm:self-center"
+                    >
+                      {uiLang === "el" ? "Απόσυρση" : "Withdraw"}
+                    </button>
+                  )}
                 </div>
-                {m.status === "pending" && (
-                  <button
-                    type="button"
-                    onClick={() => withdraw(m.id)}
-                    className="text-sm text-red-600 hover:underline self-start sm:self-center"
+                {showDeliver && dStatus !== "approved" && (
+                  <div className="rounded-lg border border-slate-200 bg-white p-3 space-y-2">
+                    <p className="text-xs font-semibold text-slate-700">
+                      {uiLang === "el" ? "Παράδοση περιεχομένου" : "Submit deliverable"}
+                    </p>
+                    <input
+                      type="url"
+                      value={draft.url}
+                      onChange={(e) =>
+                        setDeliverDraft((prev) => ({
+                          ...prev,
+                          [m.id]: { ...draft, url: e.target.value },
+                        }))
+                      }
+                      placeholder="https://…"
+                      className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2"
+                    />
+                    <textarea
+                      value={draft.note}
+                      onChange={(e) =>
+                        setDeliverDraft((prev) => ({
+                          ...prev,
+                          [m.id]: { ...draft, note: e.target.value },
+                        }))
+                      }
+                      placeholder={uiLang === "el" ? "Σημείωση (προαιρετικό)" : "Note (optional)"}
+                      rows={2}
+                      className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 resize-none"
+                    />
+                    <button
+                      type="button"
+                      disabled={deliverSaving === m.id}
+                      onClick={() => submitDeliverable(m.id)}
+                      className="text-sm px-3 py-1.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {deliverSaving === m.id
+                        ? "…"
+                        : dStatus === "changes_requested"
+                          ? uiLang === "el"
+                            ? "Επανυποβολή"
+                            : "Resubmit"
+                          : uiLang === "el"
+                            ? "Υποβολή παράδοσης"
+                            : "Submit deliverable"}
+                    </button>
+                  </div>
+                )}
+                {dStatus === "approved" && m.deliverable_url && (
+                  <a
+                    href={m.deliverable_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-emerald-700 underline"
                   >
-                    {uiLang === "el" ? "Απόσυρση" : "Withdraw"}
-                  </button>
+                    {m.deliverable_url}
+                  </a>
                 )}
               </li>
-            ))}
+            );
+            })}
           </ul>
         )}
       </section>

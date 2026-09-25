@@ -29,6 +29,7 @@ type InfluencerRow = {
   category: string | string[] | null;
   accounts: Array<{ platform?: string; followers?: string | number }> | null;
   approved_at: string | null;
+  profile_slug?: string | null;
 };
 
 export function getWeeklyDigestWindow(now = new Date()): WeeklyDigestWindow {
@@ -93,7 +94,9 @@ function buildDigestHtml(
       const name = influencer.display_name || 'Influencer';
       const category = formatCategory(influencer.category);
       const followers = formatFollowers(influencer.accounts);
-      const profileLink = `${SITE_URL}/influencer/${influencer.id}`;
+      const profileLink = influencer.profile_slug
+        ? `${SITE_URL}/in/${influencer.profile_slug}`
+        : `${SITE_URL}/influencer/${influencer.id}`;
       return `
   <li style="margin: 0 0 16px 0; padding: 0 0 16px 0; border-bottom: 1px solid #e5e7eb; list-style: none;">
     <p style="margin: 0 0 4px 0; font-size: 15px;"><strong>${name}</strong></p>
@@ -120,7 +123,7 @@ export async function sendWeeklyBrandInfluencerDigest(
 ): Promise<WeeklyDigestResult> {
   const { data: influencers, error: infError } = await supabaseAdmin
     .from('influencers')
-    .select('id, display_name, category, accounts, approved_at')
+    .select('id, display_name, category, accounts, approved_at, profile_slug')
     .eq('approved', true)
     .is('brands_notified_at', null)
     .not('approved_at', 'is', null)

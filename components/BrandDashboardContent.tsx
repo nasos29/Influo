@@ -17,6 +17,7 @@ import BrandActionInbox from '@/components/BrandActionInbox';
 import BrandSaveInfluencerButton from '@/components/BrandSaveInfluencerButton';
 import BrandShortlistPanel from '@/components/BrandShortlistPanel';
 import InfluencerPresenceDot from '@/components/InfluencerPresenceDot';
+import { publicProfilePath } from '@/lib/profileSlug';
 import {
   addBrandShortlist,
   fetchBrandShortlist,
@@ -950,7 +951,7 @@ export default function BrandDashboardContent() {
       // Fetch only approved influencers from database (same as Directory)
       const { data: influencersData, error } = await supabase
         .from('influencers')
-        .select('id, display_name, category, engagement_rate, avg_likes, min_rate, location, gender, avg_rating, total_reviews, verified, approved, analytics_verified, accounts, avatar_url, audience_male_percent, audience_female_percent, audience_top_age, bio, auditpr_audit')
+        .select('id, display_name, category, engagement_rate, avg_likes, min_rate, location, gender, avg_rating, total_reviews, verified, approved, analytics_verified, accounts, avatar_url, audience_male_percent, audience_female_percent, audience_top_age, bio, auditpr_audit, profile_slug')
         .eq('approved', true) // Only approved influencers (same as Directory)
         .order('created_at', { ascending: false }) // Sort by creation date
         .limit(200);
@@ -1042,6 +1043,7 @@ export default function BrandDashboardContent() {
           bio: inf.bio,
           rate_card: undefined,
           auditpr_audit: inf.auditpr_audit ?? undefined,
+          profile_slug: inf.profile_slug ?? null,
         };
       }).filter(inf => {
         // Filter out influencers that don't have the selected platform
@@ -1824,7 +1826,7 @@ export default function BrandDashboardContent() {
                       {/* Actions */}
                       <div className="flex gap-2">
                         <Link
-                          href={`/influencer/${inf.id}`}
+                          href={publicProfilePath(inf.profile_slug, inf.id)}
                           onClick={async () => {
                             // Set session flag to indicate user is brand
                             if (typeof window !== 'undefined') {
@@ -1874,7 +1876,7 @@ export default function BrandDashboardContent() {
                           {txt.view_profile}
                         </Link>
                         <Link
-                          href={`/influencer/${inf.id}#proposal`}
+                          href={`${publicProfilePath(inf.profile_slug, inf.id)}#proposal`}
                           onClick={() => {
                             // Set session flag to indicate user is brand
                             if (typeof window !== 'undefined') {

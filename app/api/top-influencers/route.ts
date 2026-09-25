@@ -193,7 +193,7 @@ export async function GET() {
     }
 
     const selectFull =
-      'id, display_name, avatar_url, videos, video_thumbnails, accounts, category, analytics_verified, verified, auditpr_audit, min_rate, rate_card, total_reviews, avg_rating, past_brands, created_at, audience_top_age, audience_male_percent, audience_female_percent';
+      'id, display_name, avatar_url, videos, video_thumbnails, accounts, category, analytics_verified, verified, auditpr_audit, min_rate, rate_card, total_reviews, avg_rating, past_brands, created_at, audience_top_age, audience_male_percent, audience_female_percent, profile_slug';
     let influencers: TopScoreInfluencer[] | null = null;
     let infErr: { message: string } | null = null;
     {

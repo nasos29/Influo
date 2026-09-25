@@ -7,6 +7,7 @@ import { isDefinitelyImage } from "@/lib/videoThumbnail";
 import { categoryTranslations } from "@/components/categoryTranslations";
 import { displayNameForLang } from "@/lib/greeklish";
 import { getVisitorId } from "@/lib/visitorId";
+import { publicProfilePath } from "@/lib/profileSlug";
 
 type Lang = "el" | "en";
 
@@ -19,6 +20,7 @@ export type TopInfluencer = {
   video_thumbnails?: Record<string, string> | null;
   accounts?: Array<{ platform?: string; username?: string; followers?: string }> | null;
   category?: string | null;
+  profile_slug?: string | null;
   clicks: number;
   views: number;
 };
@@ -300,7 +302,7 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
               return (
                 <div key={String(inf.id)} className="w-full">
                   <Link
-                    href={`/influencer/${inf.id}`}
+                    href={publicProfilePath(inf.profile_slug, inf.id)}
                     className="group block"
                     onClick={() => {
                       fetch("/api/analytics/track", {

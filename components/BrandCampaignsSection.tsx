@@ -77,7 +77,11 @@ type ApplicationRow = {
   message: string | null;
   status: string;
   created_at: string;
-  influencers: { display_name: string; avatar_url: string | null } | null;
+  deliverable_url?: string | null;
+  deliverable_note?: string | null;
+  deliverable_status?: string | null;
+  deliverable_review_note?: string | null;
+  influencers: { display_name: string; avatar_url: string | null; profile_slug?: string | null } | null;
 };
 
 const txt = {
@@ -116,6 +120,14 @@ const txt = {
     influencer: "Influencer",
     message: "Μήνυμα",
     btn_chat: "Μήνυμα",
+    deliverable: "Παράδοση",
+    deliverable_none: "—",
+    deliverable_submitted: "Υποβλήθηκε",
+    deliverable_approved: "Εγκρίθηκε",
+    deliverable_changes: "Αλλαγές",
+    approve_deliverable: "Έγκριση",
+    request_changes: "Ζήτα αλλαγές",
+    review_note_ph: "Σχόλιο για αλλαγές…",
     open_public:
       "Μόνο επαληθευμένα brands μπορούν να δημοσιεύουν καμπάνιες. Οι «Ανοιχτές» καμπάνιες εμφανίζονται σε εγκεκριμένους influencers και στη δημόσια σελίδα (για verified brands).",
     verified_banner:
@@ -163,6 +175,14 @@ const txt = {
     influencer: "Influencer",
     message: "Message",
     btn_chat: "Message",
+    deliverable: "Deliverable",
+    deliverable_none: "—",
+    deliverable_submitted: "Submitted",
+    deliverable_approved: "Approved",
+    deliverable_changes: "Changes requested",
+    approve_deliverable: "Approve",
+    request_changes: "Request changes",
+    review_note_ph: "Note for changes…",
     open_public:
       "Only verified brands can publish campaigns. Open campaigns appear to approved influencers and on the public page (verified brands only).",
     verified_banner:
@@ -254,7 +274,11 @@ export default function BrandCampaignsSection({
         message,
         status,
         created_at,
-        influencers ( display_name, avatar_url )
+        deliverable_url,
+        deliverable_note,
+        deliverable_status,
+        deliverable_review_note,
+        influencers ( display_name, avatar_url, profile_slug )
       `
       )
       .eq("campaign_id", campaignId)
@@ -424,6 +448,39 @@ export default function BrandCampaignsSection({
     }
     if (expandedId) await loadApplications(expandedId);
     onApplicationsUpdated?.();
+  };
+
+  const reviewDeliverable = async (
+    appId: string,
+    next: "approved" | "changes_requested",
+    note?: string
+  ) => {
+    const { error } = await supabase
+      .from("campaign_applications")
+      .update({
+        deliverable_status: next,
+        deliverable_review_note: note?.trim() || null,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq("id", appId);
+    if (error) {
+      alert(
+        /column|deliverable/i.test(error.message)
+          ? lang === "el"
+            ? "Τρέξε το docs/CAMPAIGN_DELIVERABLES_SCHEMA.sql στο Supabase."
+            : "Run docs/CAMPAIGN_DELIVERABLES_SCHEMA.sql in Supabase."
+          : error.message
+      );
+      return;
+    }
+    if (expandedId) await loadApplications(expandedId);
+  };
+
+  const deliverableLabel = (status?: string | null) => {
+    if (status === "submitted") return t.deliverable_submitted;
+    if (status === "approved") return t.deliverable_approved;
+    if (status === "changes_requested") return t.deliverable_changes;
+    return t.deliverable_none;
   };
 
   const minDeadlineYmd =
@@ -685,12 +742,13 @@ export default function BrandCampaignsSection({
                               <th className="pb-2 pr-4">{t.influencer}</th>
                               <th className="pb-2 pr-4">{t.message}</th>
                               <th className="pb-2 pr-4">{t.app_status}</th>
+                              <th className="pb-2 pr-4">{t.deliverable}</th>
                               <th className="pb-2 w-[1%] whitespace-nowrap">{lang === "el" ? "Επικοινωνία" : "Chat"}</th>
                             </tr>
                           </thead>
                           <tbody>
                             {(appsByCampaign[row.id] || []).map((app) => (
-                              <tr key={app.id} className="border-b border-slate-100 last:border-0">
+                              <tr key={app.id} className="border-b border-slate-100 last:border-0 align-top">
                                 <td className="py-2 pr-4">
                                   <div className="flex flex-wrap items-center gap-2">
                                     <InfluencerPresenceDot influencerId={app.influencer_id} lang={lang} />
@@ -716,6 +774,51 @@ export default function BrandCampaignsSection({
                                       <option value="rejected">{t.app_rejected}</option>
                                     </select>
                                   )}
+                                </td>
+                                <td className="py-2 pr-4 min-w-[12rem]">
+                                  <p className="text-xs font-medium text-slate-700 mb-1">
+                                    {deliverableLabel(app.deliverable_status)}
+                                  </p>
+                                  {app.deliverable_url ? (
+                                    <a
+                                      href={app.deliverable_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-xs text-blue-600 underline break-all"
+                                    >
+                                      {app.deliverable_url}
+                                    </a>
+                                  ) : null}
+                                  {app.deliverable_note ? (
+                                    <p className="text-xs text-slate-500 mt-1">{app.deliverable_note}</p>
+                                  ) : null}
+                                  {app.deliverable_status === "submitted" && (
+                                    <div className="mt-2 flex flex-wrap gap-1.5">
+                                      <button
+                                        type="button"
+                                        onClick={() => reviewDeliverable(app.id, "approved")}
+                                        className="text-[11px] px-2 py-1 rounded bg-emerald-600 text-white"
+                                      >
+                                        {t.approve_deliverable}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const note =
+                                            typeof window !== "undefined"
+                                              ? window.prompt(t.review_note_ph) || ""
+                                              : "";
+                                          void reviewDeliverable(app.id, "changes_requested", note);
+                                        }}
+                                        className="text-[11px] px-2 py-1 rounded border border-amber-300 text-amber-800 bg-amber-50"
+                                      >
+                                        {t.request_changes}
+                                      </button>
+                                    </div>
+                                  )}
+                                  {app.deliverable_review_note ? (
+                                    <p className="text-[11px] text-amber-700 mt-1">{app.deliverable_review_note}</p>
+                                  ) : null}
                                 </td>
                                 <td className="py-2 align-top">
                                   <button

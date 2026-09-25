@@ -5,6 +5,8 @@ import { Badge, getBadgeStyles } from "../lib/badges";
 import Avatar from "./Avatar";
 import { categoryTranslations } from "./categoryTranslations";
 import { displayNameForLang } from "@/lib/greeklish";
+import type { TrustChip } from "@/lib/trustSignals";
+import { isAvailableStatus } from "@/lib/trustSignals";
 
 interface InfluencerCardProps {
   name: string;
@@ -18,6 +20,8 @@ interface InfluencerCardProps {
   languages?: string[];
   badges?: Badge[];
   lang?: 'el' | 'en';
+  trustChips?: TrustChip[];
+  availabilityStatus?: string | null;
 }
 
 // --- FULL ICONS ---
@@ -100,7 +104,10 @@ export default function InfluencerCard({
   languages = [],
   badges = [],
   lang = 'el',
+  trustChips = [],
+  availabilityStatus,
 }: InfluencerCardProps) {
+  const available = isAvailableStatus(availabilityStatus);
   return (
     <div className="group bg-white rounded-lg border border-slate-200 overflow-hidden hover:shadow-md transition-shadow h-full flex flex-col cursor-pointer relative">
       
@@ -117,6 +124,31 @@ export default function InfluencerCard({
               >
                 <span className="text-[10px]">{badge.icon}</span>
                 <span className="text-[9px] leading-none">{badge.label}</span>
+              </span>
+            ))}
+          </div>
+        )}
+        {(trustChips.length > 0 || !available) && (
+          <div className="absolute top-2 left-2 flex flex-col gap-1 z-10 max-w-[55%]">
+            {!available && (
+              <span
+                className="inline-flex items-center rounded-md bg-amber-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-800 ring-1 ring-amber-200/80"
+                title={lang === 'el' ? 'Μη διαθέσιμος προσωρινά' : 'Temporarily unavailable'}
+              >
+                {lang === 'el' ? 'Μη διαθέσιμος' : 'Unavailable'}
+              </span>
+            )}
+            {trustChips.map((chip) => (
+              <span
+                key={chip.kind}
+                title={lang === 'el' ? chip.titleEl : chip.titleEn}
+                className={
+                  chip.kind === 'private'
+                    ? 'inline-flex items-center rounded-md bg-slate-800/90 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white'
+                    : 'inline-flex items-center rounded-md bg-amber-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-800 ring-1 ring-amber-200/80'
+                }
+              >
+                {lang === 'el' ? chip.labelEl : chip.labelEn}
               </span>
             ))}
           </div>

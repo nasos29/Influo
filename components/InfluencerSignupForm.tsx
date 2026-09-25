@@ -640,6 +640,12 @@ export default function InfluencerSignupForm() {
           birth_date: birthDate,
           languages: languagesCodesToStored(selectedLanguages),
           min_rate: minRate,
+          rate_card: {
+            ...(priceStory.trim() ? { story: priceStory.trim() } : {}),
+            ...(pricePost.trim() ? { post: pricePost.trim() } : {}),
+            ...(priceReel.trim() ? { reel: priceReel.trim() } : {}),
+            ...(priceYouTube.trim() ? { youtube: priceYouTube.trim() } : {}),
+          },
           contact_email: email,
           bio, 
           accounts: socialAccounts, 

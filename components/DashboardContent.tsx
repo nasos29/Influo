@@ -98,6 +98,7 @@ interface InfluencerData {
     videos: string[] | null;
     insights_urls: string[] | null;
     availability_status?: string | null;
+    rate_card?: { story?: string; post?: string; reel?: string; youtube?: string; facebook?: string } | null;
 }
 
 // --- COMPREHENSIVE EDIT MODAL WITH SOCIAL ACCOUNTS ---
@@ -155,11 +156,19 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatar_url || null);
     
-    // Rate card prices - removed since rate_card column doesn't exist in database
-  const [priceStory, setPriceStory] = useState('');
-  const [pricePost, setPricePost] = useState('');
-  const [priceReel, setPriceReel] = useState('');
-  const [priceYouTube, setPriceYouTube] = useState('');
+    // Rate card prices (persisted as JSON on influencers.rate_card)
+  const [priceStory, setPriceStory] = useState(
+    (user as InfluencerData & { rate_card?: { story?: string } }).rate_card?.story || ''
+  );
+  const [pricePost, setPricePost] = useState(
+    (user as InfluencerData & { rate_card?: { post?: string } }).rate_card?.post || ''
+  );
+  const [priceReel, setPriceReel] = useState(
+    (user as InfluencerData & { rate_card?: { reel?: string } }).rate_card?.reel || ''
+  );
+  const [priceYouTube, setPriceYouTube] = useState(
+    (user as InfluencerData & { rate_card?: { youtube?: string } }).rate_card?.youtube || ''
+  );
 
     // Helper function to replace commas with dots in numeric inputs
     const replaceCommaWithDot = (value: string): string => {
@@ -265,6 +274,12 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                 audience_male_percent: malePercent ? parseInt(malePercent) : null,
                 audience_female_percent: femalePercent ? parseInt(femalePercent) : null,
                 audience_top_age: topAge || null,
+                rate_card: {
+                    ...(priceStory.trim() ? { story: priceStory.trim() } : {}),
+                    ...(pricePost.trim() ? { post: pricePost.trim() } : {}),
+                    ...(priceReel.trim() ? { reel: priceReel.trim() } : {}),
+                    ...(priceYouTube.trim() ? { youtube: priceYouTube.trim() } : {}),
+                },
             };
 
             // Only update avatar_url if we have a new URL
