@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { FaPaperclip } from 'react-icons/fa';
 import { supabase } from '@/lib/supabaseClient';
 import { displayNameForLang } from '@/lib/greeklish';
 import {
@@ -1905,10 +1906,11 @@ export default function Messaging({
                   <button
                     type="button"
                     title={txt.attachHint}
+                    aria-label={txt.attach}
                     onClick={() => fileInputRef.current?.click()}
-                    className="px-3 py-2.5 rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-50 text-sm shrink-0"
+                    className="inline-flex items-center justify-center w-11 h-11 rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-50 hover:text-slate-900 shrink-0 transition-colors"
                   >
-                    📎
+                    <FaPaperclip className="w-4 h-4" aria-hidden />
                   </button>
                   <textarea
                     value={newMessage}
@@ -1987,10 +1989,11 @@ export default function Messaging({
                     <button
                       type="button"
                       title={txt.attachHint}
+                      aria-label={txt.attach}
                       onClick={() => fileInputRef.current?.click()}
-                      className="px-3 py-2.5 rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-50 text-sm shrink-0"
+                      className="inline-flex items-center justify-center w-11 h-11 rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-50 hover:text-slate-900 shrink-0 transition-colors"
                     >
-                      📎
+                      <FaPaperclip className="w-4 h-4" aria-hidden />
                     </button>
                     <textarea
                       value={newMessage}
