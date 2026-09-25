@@ -40,8 +40,19 @@ const t = {
     signup_choice_influencer: "Είμαι Influencer",
     signup_choice_brand: "Έχω Επιχείρηση",
     brand_section_title: "Έχετε Επιχείρηση;",
-    brand_section_desc: "Βρείτε τους καλύτερους influencers για την εταιρεία σας. Αναζητήστε, επικοινωνήστε και συνεργαστείτε με verified creators. 🤖 Λάβετε AI-powered προτάσεις δωρεάν!",
+    brand_section_desc: "Βρείτε τους κατάλληλους influencers για το brand σας. Αναζητήστε, επικοινωνήστε και συνεργαστείτε με verified creators — με AI προτάσεις χωρίς επιπλέον κόστος.",
     brand_section_btn: "Δημιούργησε Λογαριασμό Επιχείρησης",
+    brand_feat_search_title: "Αναζήτηση",
+    brand_feat_search_desc: "Βρείτε influencers ανά κατηγορία, engagement rate και budget.",
+    brand_feat_campaigns_title: "Καμπάνιες",
+    brand_feat_campaigns_desc: "Δημοσιεύστε καμπάνιες με budget — οι creators κάνουν αίτηση ενδιαφέροντος.",
+    brand_feat_manage_title: "Διαχείριση",
+    brand_feat_manage_desc: "Διαχειριστείτε όλες τις συνεργασίες σας από ένα μέρος.",
+    brand_feat_verified_title: "Verified",
+    brand_feat_verified_desc: "Όλοι οι influencers είναι verified με πραγματικά στοιχεία.",
+    brand_feat_ai_title: "AI Προτάσεις",
+    brand_feat_ai_desc: "Αυτόματες προτάσεις influencers για το brand σας, με match scores.",
+    brand_feat_ai_badge: "Περιλαμβάνεται",
     trusted_by: "ΤΗΝ ΕΜΠΙΣΤΕΥΟΝΤΑΙ CREATORS",
     top_influencers: "Top Influencers",
     dir_title: "Κατάλογος Influencers",
@@ -79,8 +90,19 @@ const t = {
     signup_choice_influencer: "I am an Influencer",
     signup_choice_brand: "I have a Company",
     brand_section_title: "Are you a Company?",
-    brand_section_desc: "Find the best influencers for your company. Search, connect and collaborate with verified creators. 🤖 Get AI-powered recommendations for free!",
+    brand_section_desc: "Find the right influencers for your brand. Search, connect and collaborate with verified creators — with AI recommendations included at no extra cost.",
     brand_section_btn: "Create Company Account",
+    brand_feat_search_title: "Search",
+    brand_feat_search_desc: "Find influencers by category, engagement rate and budget.",
+    brand_feat_campaigns_title: "Campaigns",
+    brand_feat_campaigns_desc: "Publish campaigns with a budget — creators apply if interested.",
+    brand_feat_manage_title: "Management",
+    brand_feat_manage_desc: "Manage all your collaborations from one place.",
+    brand_feat_verified_title: "Verified",
+    brand_feat_verified_desc: "All influencers are verified with real stats.",
+    brand_feat_ai_title: "AI Recommendations",
+    brand_feat_ai_desc: "Automatic influencer suggestions for your brand, with match scores.",
+    brand_feat_ai_badge: "Included",
     trusted_by: "TRUSTED BY CREATORS",
     top_influencers: "Top Influencers",
     dir_title: "Influencer Directory",
@@ -653,49 +675,94 @@ export default function Home() {
       <NewlyApprovedInfluencersSection lang={lang} />
 
       {/* Brand Section */}
-        <section className="relative py-20 px-6 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50" id="brands">
+        <section className="relative py-20 px-6 bg-slate-50 border-y border-slate-100" id="brands">
           <div className="max-w-6xl mx-auto relative">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">{txt.brand_section_title}</h2>
-              <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-8">{txt.brand_section_desc}</p>
+            <div className="text-center mb-14">
+              <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4 tracking-tight">{txt.brand_section_title}</h2>
+              <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-8 leading-relaxed">{txt.brand_section_desc}</p>
               <button
                 type="button"
                 onClick={() => {
                   setSignupType("brand");
                   setShowModal(true);
                 }}
-                className="inline-block px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-all transform hover:scale-105 shadow-lg hover:shadow-xl text-lg"
+                className="inline-block px-8 py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg transition-colors text-base"
               >
                 {txt.brand_section_btn}
               </button>
             </div>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm transition-all duration-300 hover:shadow-lg hover:border-blue-300 hover:-translate-y-1">
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-2xl mb-4 transition-transform duration-300 hover:scale-110">🔍</div>
-                <h4 className="text-lg font-semibold text-slate-900 mb-2">{lang === "el" ? "Αναζήτηση" : "Search"}</h4>
-                <p className="text-slate-600 text-sm leading-relaxed">{lang === "el" ? "Βρείτε influencers ανά κατηγορία, engagement rate και budget." : "Find influencers by category, engagement rate and budget."}</p>
-              </div>
-              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm transition-all duration-300 hover:shadow-lg hover:border-teal-300 hover:-translate-y-1">
-                <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center text-2xl mb-4 transition-transform duration-300 hover:scale-110">📣</div>
-                <h4 className="text-lg font-semibold text-slate-900 mb-2">{txt.feat_4_title}</h4>
-                <p className="text-slate-600 text-sm leading-relaxed">{txt.feat_4_desc}</p>
-              </div>
-              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm transition-all duration-300 hover:shadow-lg hover:border-indigo-300 hover:-translate-y-1">
-                <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center text-2xl mb-4 transition-transform duration-300 hover:scale-110">💼</div>
-                <h4 className="text-lg font-semibold text-slate-900 mb-2">{lang === "el" ? "Διαχείριση" : "Management"}</h4>
-                <p className="text-slate-600 text-sm leading-relaxed">{lang === "el" ? "Διαχειριστείτε όλες τις συνεργασίες σας από ένα μέρος." : "Manage all your collaborations from one place."}</p>
-              </div>
-              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm transition-all duration-300 hover:shadow-lg hover:border-purple-300 hover:-translate-y-1">
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center text-2xl mb-4 transition-transform duration-300 hover:scale-110">✅</div>
-                <h4 className="text-lg font-semibold text-slate-900 mb-2">{lang === "el" ? "Verified" : "Verified"}</h4>
-                <p className="text-slate-600 text-sm leading-relaxed">{lang === "el" ? "Όλοι οι influencers είναι verified με πραγματικά στοιχεία." : "All influencers are verified with real stats."}</p>
-              </div>
-              <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-6 rounded-xl border-2 border-blue-400 shadow-lg transition-all duration-300 hover:shadow-xl hover:-translate-y-1 text-white md:col-span-2 lg:col-span-3 xl:col-span-1">
-                <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center text-2xl mb-4 transition-transform duration-300 hover:scale-110">🤖</div>
-                <div className="inline-block px-2 py-1 bg-green-500 rounded-full text-xs font-bold mb-2">🎁 {lang === "el" ? "ΔΩΡΕΑΝ" : "FREE"}</div>
-                <h4 className="text-lg font-semibold mb-2">{lang === "el" ? "AI Προτάσεις" : "AI Recommendations"}</h4>
-                <p className="text-blue-100 text-sm leading-relaxed">{lang === "el" ? "Το AI μας προτείνει αυτόματα τους καλύτερους influencers για το brand σας με match scores." : "Our AI automatically suggests the best influencers for your brand with match scores."}</p>
-              </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-5">
+              {([
+                {
+                  key: "search",
+                  title: txt.brand_feat_search_title,
+                  desc: txt.brand_feat_search_desc,
+                  icon: (
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z" />
+                    </svg>
+                  ),
+                },
+                {
+                  key: "campaigns",
+                  title: txt.brand_feat_campaigns_title,
+                  desc: txt.brand_feat_campaigns_desc,
+                  icon: (
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.993 3.993 0 01-1.564-.317z" />
+                    </svg>
+                  ),
+                },
+                {
+                  key: "manage",
+                  title: txt.brand_feat_manage_title,
+                  desc: txt.brand_feat_manage_desc,
+                  icon: (
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                    </svg>
+                  ),
+                },
+                {
+                  key: "verified",
+                  title: txt.brand_feat_verified_title,
+                  desc: txt.brand_feat_verified_desc,
+                  icon: (
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                  ),
+                },
+                {
+                  key: "ai",
+                  title: txt.brand_feat_ai_title,
+                  desc: txt.brand_feat_ai_desc,
+                  badge: txt.brand_feat_ai_badge,
+                  icon: (
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                  ),
+                },
+              ] as const).map((feat) => (
+                <article
+                  key={feat.key}
+                  className="group flex flex-col h-full bg-white border border-slate-200/90 p-5 md:p-6 rounded-lg hover:border-slate-300 hover:bg-white transition-colors duration-200"
+                >
+                  <div className="flex items-start justify-between gap-2 mb-4">
+                    <div className="w-10 h-10 rounded-md bg-slate-100 text-slate-700 flex items-center justify-center group-hover:bg-slate-900 group-hover:text-white transition-colors duration-200">
+                      {feat.icon}
+                    </div>
+                    {"badge" in feat && feat.badge ? (
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 border border-slate-200 px-2 py-0.5 rounded">
+                        {feat.badge}
+                      </span>
+                    ) : null}
+                  </div>
+                  <h4 className="text-base font-semibold text-slate-900 mb-2 tracking-tight">{feat.title}</h4>
+                  <p className="text-slate-600 text-sm leading-relaxed flex-1">{feat.desc}</p>
+                </article>
+              ))}
             </div>
           </div>
         </section>
