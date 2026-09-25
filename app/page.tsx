@@ -750,7 +750,7 @@ export default function Home() {
                   className="group flex flex-col h-full bg-white border border-slate-200/90 p-5 md:p-6 rounded-lg hover:border-slate-300 hover:bg-white transition-colors duration-200"
                 >
                   <div className="flex items-start justify-between gap-2 mb-4">
-                    <div className="w-10 h-10 rounded-md bg-slate-100 text-slate-700 flex items-center justify-center group-hover:bg-slate-900 group-hover:text-white transition-colors duration-200">
+                    <div className="w-10 h-10 rounded-md bg-slate-100 text-slate-700 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors duration-200">
                       {feat.icon}
                     </div>
                     {"badge" in feat && feat.badge ? (
