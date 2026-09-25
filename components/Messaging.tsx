@@ -1558,6 +1558,19 @@ export default function Messaging({
 
   return (
     <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-slate-200 h-[min(720px,calc(100vh-12rem))] min-h-[480px] flex flex-col overflow-hidden">
+      {/* Shared file picker — used by both existing-thread and compose-new composers */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,application/pdf,text/plain"
+        className="hidden"
+        multiple
+        onChange={(e) => {
+          const list = Array.from(e.target.files || []).slice(0, 5);
+          if (list.length) setPendingFiles((prev) => [...prev, ...list].slice(0, 5));
+          e.target.value = '';
+        }}
+      />
       <div className="px-4 sm:px-5 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between gap-2">
         <h2 className="text-base sm:text-lg font-semibold text-slate-900">{txt.messages}</h2>
       </div>
@@ -1889,17 +1902,6 @@ export default function Messaging({
                   </div>
                 )}
                 <div className="flex gap-2 items-end">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*,application/pdf,text/plain"
-                    className="hidden"
-                    multiple
-                    onChange={(e) => {
-                      const list = Array.from(e.target.files || []).slice(0, 5);
-                      if (list.length) setPendingFiles((prev) => [...prev, ...list].slice(0, 5));
-                    }}
-                  />
                   <button
                     type="button"
                     title={txt.attachHint}
