@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use, Suspense, useRef } from "react";
+import { useEffect, useState, use, Suspense, useRef, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -88,6 +88,65 @@ const YoutubeIcon = () => (
 const TwitterIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c1 1 2.45 1.53 4 1.53a10.66 10.66 0 0 0 10-5.83v-.57a4.48 4.48 0 0 0 2-1.39z"></path></svg>
 );
+
+const MetricIcon = ({
+  children,
+  className = "text-slate-600",
+}: {
+  children: ReactNode;
+  className?: string;
+}) => (
+  <span
+    className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100/90 ring-1 ring-slate-200/70 ${className}`}
+  >
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-[18px] w-[18px]"
+      aria-hidden
+    >
+      {children}
+    </svg>
+  </span>
+);
+
+function ProfileStatCard({
+  label,
+  icon,
+  children,
+  accent = false,
+  className = "",
+}: {
+  label: string;
+  icon: ReactNode;
+  children: ReactNode;
+  accent?: boolean;
+  className?: string;
+}) {
+  return (
+    <div
+      className={[
+        "group relative flex min-h-[116px] flex-col rounded-2xl border p-4 transition-all duration-200",
+        accent
+          ? "border-blue-200/80 bg-gradient-to-br from-blue-50/90 via-white to-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:border-blue-300 hover:shadow-[0_8px_24px_rgba(37,99,235,0.08)]"
+          : "border-slate-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:border-slate-300 hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]",
+        className,
+      ].join(" ")}
+    >
+      <div className="mb-3 flex items-center gap-2.5">
+        {icon}
+        <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+          {label}
+        </span>
+      </div>
+      <div className="mt-auto flex min-h-[2.25rem] flex-1 flex-col justify-end">{children}</div>
+    </div>
+  );
+}
 
 // Helper για μορφοποίηση αριθμών (15000 -> 15k)
 const formatNum = (num?: number) => {
@@ -1775,286 +1834,400 @@ export default function InfluencerProfile(props: { params: Params }) {
           </div>
           
           {/* Statistics Section */}
-          <div className="px-6 md:px-8 py-6 bg-gradient-to-br from-slate-50 to-blue-50/30">
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {/* Engagement Rate */}
-              <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-lg">📈</span>
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{lang === 'el' ? 'Αλληλεπίδραση' : 'Engagement'}</span>
-                </div>
-                <div className="flex flex-wrap gap-2 items-center">
-                  {(() => {
-                    const followers = profile.followers || {};
-                    const engagementRates = (typeof profile.engagement_rate === 'object' && profile.engagement_rate !== null && !Array.isArray(profile.engagement_rate)) 
-                      ? profile.engagement_rate as { [key: string]: string }
-                      : {};
-                    const platforms = [
-                      { key: 'instagram', icon: InstagramIcon, color: 'text-pink-600' },
-                      { key: 'tiktok', icon: TiktokIcon, color: 'text-black' },
-                      { key: 'youtube', icon: YoutubeIcon, color: 'text-red-600' },
-                      { key: 'twitter', icon: TwitterIcon, color: 'text-slate-800' },
-                    ];
-                    
-                    const availablePlatforms = platforms.filter(platform => followers[platform.key as keyof typeof followers]);
-                    
-                    if (availablePlatforms.length === 0) {
-                      return <span className="text-sm text-slate-400">-</span>;
-                    }
-                    
-                    return availablePlatforms.map((platform) => {
-                      const Icon = platform.icon;
-                      let engagementRate = engagementRates[platform.key] || '-';
-                      // Add % if not already present
-                      if (engagementRate !== '-' && !engagementRate.includes('%')) {
-                        engagementRate = engagementRate + '%';
-                      }
-                      const acc = (profile.accounts || []).find(
-                        (a) => String(a.platform || '').toLowerCase() === platform.key
-                      );
-                      const erFlag =
-                        engagementRate === '-'
-                          ? null
-                          : detectErFlag({
-                              engagement_rate: engagementRate,
-                              posts_count: acc?.posts_count,
-                              avg_likes: acc?.avg_likes,
-                              suspected_fake_penalty: acc?.er_flag_reason === 'quality_adjusted',
-                              engagement_hidden:
-                                acc?.er_flag_reason === 'estimated' ||
-                                String(engagementRate).startsWith('~'),
-                            }) ||
-                            (acc?.er_suspicious && acc.er_flag_reason
-                              ? erFlagFromReason(acc.er_flag_reason as ErFlagReason)
-                              : null);
-                      return (
-                        <div key={platform.key} className="flex items-center gap-1.5 flex-wrap">
-                          <span className={platform.color}>
-                            <Icon />
-                          </span>
-                          <span className={`text-sm font-bold ${erFlag ? 'text-amber-700' : 'text-blue-600'}`}>
-                            {engagementRate}
-                          </span>
-                          {erFlag && (
-                            <span
-                              title={erFlagHint(erFlag, lang === 'el' ? 'el' : 'en')}
-                              className="inline-flex items-center rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 border border-amber-200"
-                            >
-                              {erFlagLabel(erFlag, lang === 'el' ? 'el' : 'en')}
-                            </span>
-                          )}
-                        </div>
-                      );
-                    });
-                  })()}
-                </div>
-              </div>
-              
-              {/* Followers */}
-              <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-lg">👥</span>
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{lang === 'el' ? 'Ακόλουθοι' : 'Followers'}</span>
-                </div>
-                <div className="flex flex-wrap gap-2 items-center">
-                  {(() => {
-                    const followers = profile.followers || {};
-                    const platforms = [
-                      { key: 'instagram', icon: InstagramIcon, color: 'text-pink-600' },
-                      { key: 'tiktok', icon: TiktokIcon, color: 'text-black' },
-                      { key: 'youtube', icon: YoutubeIcon, color: 'text-red-600' },
-                      { key: 'twitter', icon: TwitterIcon, color: 'text-slate-800' },
-                    ];
-                    
-                    const availablePlatforms = platforms.filter(platform => followers[platform.key as keyof typeof followers]);
-                    
-                    if (availablePlatforms.length === 0) {
-                      return <span className="text-sm text-slate-400">-</span>;
-                    }
-                    
-                    return availablePlatforms.map((platform) => {
-                      const Icon = platform.icon;
-                      const count = followers[platform.key as keyof typeof followers] || 0;
-                      return (
-                        <div key={platform.key} className="flex items-center gap-1.5">
-                          <span className={platform.color}>
-                            <Icon />
-                          </span>
-                          <span className="text-sm font-bold text-slate-900">{formatNum(count)}</span>
-                        </div>
-                      );
-                    });
-                  })()}
-                </div>
-              </div>
+          <div className="border-t border-slate-100 bg-[#f7f8fa] px-5 py-6 md:px-8">
+            {(() => {
+              const followers = profile.followers || {};
+              const engagementRates =
+                typeof profile.engagement_rate === "object" &&
+                profile.engagement_rate !== null &&
+                !Array.isArray(profile.engagement_rate)
+                  ? (profile.engagement_rate as { [key: string]: string })
+                  : {};
+              const avgLikesMap =
+                typeof profile.avg_likes === "object" &&
+                profile.avg_likes !== null &&
+                !Array.isArray(profile.avg_likes)
+                  ? (profile.avg_likes as { [key: string]: string })
+                  : {};
+              const platforms = [
+                { key: "instagram", icon: InstagramIcon, color: "text-pink-600" },
+                { key: "tiktok", icon: TiktokIcon, color: "text-slate-900" },
+                { key: "youtube", icon: YoutubeIcon, color: "text-red-600" },
+                { key: "twitter", icon: TwitterIcon, color: "text-slate-700" },
+              ];
+              const availablePlatforms = platforms.filter(
+                (platform) => followers[platform.key as keyof typeof followers]
+              );
+              const hasReviews =
+                !!profile.total_reviews &&
+                profile.total_reviews > 0 &&
+                !!profile.avg_rating &&
+                profile.avg_rating > 0;
+              const availability =
+                profile.availability_status === "available"
+                  ? "available"
+                  : profile.availability_status === "busy"
+                    ? "busy"
+                    : "away";
+              const availabilityLabel =
+                availability === "available"
+                  ? txt.availability_available
+                  : availability === "busy"
+                    ? txt.availability_busy
+                    : txt.availability_away;
+              const availabilityTone =
+                availability === "available"
+                  ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+                  : availability === "busy"
+                    ? "bg-amber-50 text-amber-700 ring-amber-200"
+                    : "bg-slate-100 text-slate-500 ring-slate-200";
+              const availabilityDot =
+                availability === "available"
+                  ? "bg-emerald-500"
+                  : availability === "busy"
+                    ? "bg-amber-500"
+                    : "bg-slate-400";
 
-              {/* Growth 30 days */}
-              <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-lg">📈</span>
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{txt.stat_growth_30d}</span>
+              const platformRow = (
+                key: string,
+                left: ReactNode,
+                right: ReactNode
+              ) => (
+                <div
+                  key={key}
+                  className="flex items-center justify-between gap-2 border-b border-slate-100 py-1.5 last:border-0 last:pb-0 first:pt-0"
+                >
+                  <span className="flex min-w-0 items-center gap-1.5">{left}</span>
+                  <span className="shrink-0">{right}</span>
                 </div>
-                <div className="flex flex-wrap gap-2 items-center">
-                  {growth30d != null ? (
-                    <>
-                      <span className={`text-sm font-bold ${growth30d.growth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {growth30d.growth >= 0 ? '+' : ''}{formatNum(growth30d.growth)}
-                        {growth30d.growthPct != null
-                          ? ` (${growth30d.growthPct >= 0 ? '+' : ''}${growth30d.growthPct}%)`
-                          : ''}
-                      </span>
-                    </>
-                  ) : (
-                    <span className="text-sm text-slate-400">-</span>
-                  )}
-                </div>
-              </div>
-              
-              {/* Avg Likes */}
-              <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-lg">❤️</span>
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{lang === 'el' ? 'Μ.Ο. Likes' : 'Avg Likes'}</span>
-                </div>
-                <div className="flex flex-wrap gap-2 items-center">
-                  {(() => {
-                    const followers = profile.followers || {};
-                    const avgLikes = (typeof profile.avg_likes === 'object' && profile.avg_likes !== null && !Array.isArray(profile.avg_likes)) 
-                      ? profile.avg_likes as { [key: string]: string }
-                      : {};
-                    const platforms = [
-                      { key: 'instagram', icon: InstagramIcon, color: 'text-pink-600' },
-                      { key: 'tiktok', icon: TiktokIcon, color: 'text-black' },
-                      { key: 'youtube', icon: YoutubeIcon, color: 'text-red-600' },
-                      { key: 'twitter', icon: TwitterIcon, color: 'text-slate-800' },
-                    ];
-                    
-                    const availablePlatforms = platforms.filter(platform => followers[platform.key as keyof typeof followers]);
-                    
-                    if (availablePlatforms.length === 0) {
-                      return <span className="text-sm text-slate-400">-</span>;
+              );
+
+              return (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                  <ProfileStatCard
+                    label={lang === "el" ? "Αλληλεπίδραση" : "Engagement"}
+                    icon={
+                      <MetricIcon className="bg-blue-50 text-blue-600 ring-blue-100">
+                        <path d="M3 3v18h18" />
+                        <path d="M7 14l4-4 3 3 5-6" />
+                      </MetricIcon>
                     }
-                    
-                    return availablePlatforms.map((platform) => {
-                      const Icon = platform.icon;
-                      const avgLikesValue = avgLikes[platform.key] || '-';
-                      return (
-                        <div key={platform.key} className="flex items-center gap-1.5">
-                          <span className={platform.color}>
-                            <Icon />
-                          </span>
-                          <span className="text-sm font-bold text-slate-900">{avgLikesValue}</span>
-                        </div>
-                      );
-                    });
-                  })()}
-                </div>
-              </div>
-              
-              {/* Collaborations ή Πλατφόρμες - συνεργασίες μόνο αν υπάρχει τουλάχιστον μία */}
-              {(profile.past_brands?.length || 0) > 0 ? (
-                <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-shadow">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-lg">🤝</span>
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{txt.collabs}</span>
-                  </div>
-                  <p className="text-2xl font-extrabold text-purple-600">{profile.past_brands?.length || 0}</p>
-                </div>
-              ) : (
-                <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-shadow">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-lg">📱</span>
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{txt.platforms}</span>
-                  </div>
-                  <p className="text-2xl font-extrabold text-slate-700">
-                    {Object.keys(profile.socials || {}).length || 0}
-                  </p>
-                </div>
-              )}
-            </div>
-            
-            {/* Additional Stats Row */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-              {/* Rating - Only show if there are reviews */}
-              {profile.total_reviews && profile.total_reviews > 0 && profile.avg_rating && profile.avg_rating > 0 ? (
-                <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-lg">⭐</span>
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{txt.stat_rating}</span>
-                  </div>
-                  <p className="text-2xl font-extrabold text-amber-600">{profile.avg_rating.toFixed(1)}</p>
-                  <p className="text-xs text-slate-500">{profile.total_reviews} {txt.stat_reviews}</p>
-                </div>
-              ) : (
-                <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-lg">⭐</span>
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{txt.stat_rating}</span>
-                  </div>
-                  <p className="text-2xl font-extrabold text-slate-400">{lang === 'el' ? '-' : '-'}</p>
-                  <p className="text-xs text-slate-400">{lang === 'el' ? 'Δεν υπάρχουν αξιολογήσεις' : 'No reviews yet'}</p>
-                </div>
-              )}
-              
-              {/* Response Time */}
-              <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-lg">⚡</span>
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{txt.stat_response}</span>
-                </div>
-                <p className="text-2xl font-extrabold text-green-600">{profile.avg_response_time || 24}h</p>
-              </div>
-              
-              {/* Completion Rate - Calculate from proposals */}
-              <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-lg">✅</span>
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{txt.stat_completion}</span>
-                </div>
-                <p className="text-2xl font-extrabold text-emerald-600">
-                  {profile.calculatedCompletionRate !== undefined ? `${profile.calculatedCompletionRate}%` : '-'}
-                </p>
-              </div>
-              
-              {/* Availability */}
-              <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 shadow-sm">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-lg">📅</span>
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{lang === 'el' ? 'Κατάσταση' : 'Status'}</span>
-                </div>
-                <p className={`text-lg font-bold ${profile.availability_status === 'available' ? 'text-green-600' : profile.availability_status === 'busy' ? 'text-amber-600' : 'text-slate-400'}`}>
-                  {profile.availability_status === 'available' ? txt.availability_available : 
-                   profile.availability_status === 'busy' ? txt.availability_busy : txt.availability_away}
-                </p>
-              </div>
-              
-              {/* Minimum Rate - θολή τιμή αν δεν είναι συνδεδεμένη επιχείρηση */}
-              {profile.min_rate && (
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 p-4 rounded-xl border-2 border-blue-200 shadow-sm hover:shadow-md transition-shadow">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-lg">💰</span>
-                    <span className="text-xs font-bold text-blue-700 uppercase tracking-wider">{txt.min_rate}</span>
-                  </div>
-                  {isBrand ? (
-                    <>
-                      <p className="text-2xl font-extrabold text-blue-700">{profile.min_rate}€</p>
-                      <p className="text-xs text-blue-600 mt-1">{txt.min_rate_desc}</p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-2xl font-extrabold text-blue-700 select-none blur-md">{profile.min_rate}€</p>
-                      <p className="text-xs text-slate-600 mt-1">
-                        <Link href="/login" className="text-blue-600 underline hover:text-blue-800">{txt.min_rate_cta_login}</Link>
-                        {lang === 'el' ? ' ή ' : ' or '}
-                        <Link href="/brand/signup" className="text-blue-600 underline hover:text-blue-800">{txt.min_rate_cta_signup}</Link>
-                        {' '}{txt.min_rate_cta_suffix}
+                  >
+                    {availablePlatforms.length === 0 ? (
+                      <p className="text-xl font-semibold tracking-tight text-slate-300">—</p>
+                    ) : (
+                      <div className="w-full">
+                        {availablePlatforms.map((platform) => {
+                          const Icon = platform.icon;
+                          let engagementRate = engagementRates[platform.key] || "-";
+                          if (engagementRate !== "-" && !engagementRate.includes("%")) {
+                            engagementRate = engagementRate + "%";
+                          }
+                          const acc = (profile.accounts || []).find(
+                            (a) => String(a.platform || "").toLowerCase() === platform.key
+                          );
+                          const erFlag =
+                            engagementRate === "-"
+                              ? null
+                              : detectErFlag({
+                                  engagement_rate: engagementRate,
+                                  posts_count: acc?.posts_count,
+                                  avg_likes: acc?.avg_likes,
+                                  suspected_fake_penalty:
+                                    acc?.er_flag_reason === "quality_adjusted",
+                                  engagement_hidden:
+                                    acc?.er_flag_reason === "estimated" ||
+                                    String(engagementRate).startsWith("~"),
+                                }) ||
+                                (acc?.er_suspicious && acc.er_flag_reason
+                                  ? erFlagFromReason(acc.er_flag_reason as ErFlagReason)
+                                  : null);
+                          return platformRow(
+                            platform.key,
+                            <>
+                              <span className={platform.color}>
+                                <Icon />
+                              </span>
+                              {erFlag && (
+                                <span
+                                  title={erFlagHint(erFlag, lang === "el" ? "el" : "en")}
+                                  className="truncate rounded-md bg-amber-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-700 ring-1 ring-amber-200/80"
+                                >
+                                  {erFlagLabel(erFlag, lang === "el" ? "el" : "en")}
+                                </span>
+                              )}
+                            </>,
+                            <span
+                              className={`text-[15px] font-semibold tabular-nums tracking-tight ${
+                                erFlag ? "text-amber-700" : "text-slate-900"
+                              }`}
+                            >
+                              {engagementRate}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </ProfileStatCard>
+
+                  <ProfileStatCard
+                    label={lang === "el" ? "Ακόλουθοι" : "Followers"}
+                    icon={
+                      <MetricIcon className="bg-sky-50 text-sky-700 ring-sky-100">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                      </MetricIcon>
+                    }
+                  >
+                    {availablePlatforms.length === 0 ? (
+                      <p className="text-xl font-semibold tracking-tight text-slate-300">—</p>
+                    ) : (
+                      <div className="w-full">
+                        {availablePlatforms.map((platform) => {
+                          const Icon = platform.icon;
+                          const count =
+                            followers[platform.key as keyof typeof followers] || 0;
+                          return platformRow(
+                            platform.key,
+                            <span className={platform.color}>
+                              <Icon />
+                            </span>,
+                            <span className="text-[15px] font-semibold tabular-nums tracking-tight text-slate-900">
+                              {formatNum(count)}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </ProfileStatCard>
+
+                  <ProfileStatCard
+                    label={txt.stat_growth_30d}
+                    icon={
+                      <MetricIcon
+                        className={
+                          growth30d != null && growth30d.growth < 0
+                            ? "bg-rose-50 text-rose-600 ring-rose-100"
+                            : "bg-emerald-50 text-emerald-600 ring-emerald-100"
+                        }
+                      >
+                        <path d="M16 7h5v5" />
+                        <path d="M21 7l-8.5 8.5-4-4L3 17" />
+                      </MetricIcon>
+                    }
+                  >
+                    {growth30d != null ? (
+                      <div>
+                        <p
+                          className={`text-xl font-semibold tracking-tight tabular-nums ${
+                            growth30d.growth >= 0 ? "text-emerald-600" : "text-rose-600"
+                          }`}
+                        >
+                          {growth30d.growth >= 0 ? "+" : ""}
+                          {formatNum(growth30d.growth)}
+                        </p>
+                        {growth30d.growthPct != null && (
+                          <p
+                            className={`mt-0.5 text-xs font-medium tabular-nums ${
+                              growth30d.growthPct >= 0 ? "text-emerald-600/80" : "text-rose-600/80"
+                            }`}
+                          >
+                            {growth30d.growthPct >= 0 ? "+" : ""}
+                            {growth30d.growthPct}%
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xl font-semibold tracking-tight text-slate-300">—</p>
+                    )}
+                  </ProfileStatCard>
+
+                  <ProfileStatCard
+                    label={lang === "el" ? "Μ.Ο. Likes" : "Avg Likes"}
+                    icon={
+                      <MetricIcon className="bg-rose-50 text-rose-500 ring-rose-100">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                      </MetricIcon>
+                    }
+                  >
+                    {availablePlatforms.length === 0 ? (
+                      <p className="text-xl font-semibold tracking-tight text-slate-300">—</p>
+                    ) : (
+                      <div className="w-full">
+                        {availablePlatforms.map((platform) => {
+                          const Icon = platform.icon;
+                          const avgLikesValue = avgLikesMap[platform.key] || "-";
+                          return platformRow(
+                            platform.key,
+                            <span className={platform.color}>
+                              <Icon />
+                            </span>,
+                            <span className="text-[15px] font-semibold tabular-nums tracking-tight text-slate-900">
+                              {avgLikesValue}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </ProfileStatCard>
+
+                  {(profile.past_brands?.length || 0) > 0 ? (
+                    <ProfileStatCard
+                      label={txt.collabs}
+                      icon={
+                        <MetricIcon className="bg-indigo-50 text-indigo-600 ring-indigo-100">
+                          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                          <circle cx="9" cy="7" r="4" />
+                          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                        </MetricIcon>
+                      }
+                    >
+                      <p className="text-2xl font-semibold tracking-tight text-slate-900 tabular-nums">
+                        {profile.past_brands?.length || 0}
                       </p>
-                    </>
+                    </ProfileStatCard>
+                  ) : (
+                    <ProfileStatCard
+                      label={txt.platforms}
+                      icon={
+                        <MetricIcon className="bg-slate-100 text-slate-600 ring-slate-200/80">
+                          <rect x="5" y="2" width="14" height="20" rx="2" />
+                          <path d="M12 18h.01" />
+                        </MetricIcon>
+                      }
+                    >
+                      <p className="text-2xl font-semibold tracking-tight text-slate-900 tabular-nums">
+                        {Object.keys(profile.socials || {}).length || 0}
+                      </p>
+                    </ProfileStatCard>
+                  )}
+
+                  <ProfileStatCard
+                    label={txt.stat_rating}
+                    icon={
+                      <MetricIcon className="bg-amber-50 text-amber-600 ring-amber-100">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                      </MetricIcon>
+                    }
+                  >
+                    {hasReviews ? (
+                      <div>
+                        <p className="text-2xl font-semibold tracking-tight text-slate-900 tabular-nums">
+                          {profile.avg_rating!.toFixed(1)}
+                        </p>
+                        <p className="mt-0.5 text-xs text-slate-500">
+                          {profile.total_reviews} {txt.stat_reviews}
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-2xl font-semibold tracking-tight text-slate-300">—</p>
+                        <p className="mt-0.5 text-xs text-slate-400">
+                          {lang === "el" ? "Δεν υπάρχουν αξιολογήσεις" : "No reviews yet"}
+                        </p>
+                      </div>
+                    )}
+                  </ProfileStatCard>
+
+                  <ProfileStatCard
+                    label={txt.stat_response}
+                    icon={
+                      <MetricIcon className="bg-teal-50 text-teal-600 ring-teal-100">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M12 6v6l4 2" />
+                      </MetricIcon>
+                    }
+                  >
+                    <p className="text-2xl font-semibold tracking-tight text-slate-900 tabular-nums">
+                      {profile.avg_response_time || 24}
+                      <span className="ml-0.5 text-base font-medium text-slate-500">h</span>
+                    </p>
+                  </ProfileStatCard>
+
+                  <ProfileStatCard
+                    label={txt.stat_completion}
+                    icon={
+                      <MetricIcon className="bg-emerald-50 text-emerald-600 ring-emerald-100">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                        <path d="M22 4L12 14.01l-3-3" />
+                      </MetricIcon>
+                    }
+                  >
+                    <p className="text-2xl font-semibold tracking-tight tabular-nums text-slate-900">
+                      {profile.calculatedCompletionRate !== undefined
+                        ? `${profile.calculatedCompletionRate}%`
+                        : "—"}
+                    </p>
+                  </ProfileStatCard>
+
+                  <ProfileStatCard
+                    label={lang === "el" ? "Κατάσταση" : "Status"}
+                    icon={
+                      <MetricIcon className="bg-slate-100 text-slate-600 ring-slate-200/80">
+                        <rect x="3" y="4" width="18" height="18" rx="2" />
+                        <path d="M16 2v4" />
+                        <path d="M8 2v4" />
+                        <path d="M3 10h18" />
+                      </MetricIcon>
+                    }
+                  >
+                    <span
+                      className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${availabilityTone}`}
+                    >
+                      <span className={`h-1.5 w-1.5 rounded-full ${availabilityDot}`} />
+                      {availabilityLabel}
+                    </span>
+                  </ProfileStatCard>
+
+                  {profile.min_rate && (
+                    <ProfileStatCard
+                      label={txt.min_rate}
+                      accent
+                      icon={
+                        <MetricIcon className="bg-blue-100 text-blue-700 ring-blue-200/70">
+                          <path d="M12 1v22" />
+                          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                        </MetricIcon>
+                      }
+                    >
+                      {isBrand ? (
+                        <div>
+                          <p className="text-2xl font-semibold tracking-tight text-blue-700 tabular-nums">
+                            {profile.min_rate}€
+                          </p>
+                          <p className="mt-0.5 text-xs text-blue-600/80">{txt.min_rate_desc}</p>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="select-none text-2xl font-semibold tracking-tight text-blue-700 blur-md tabular-nums">
+                            {profile.min_rate}€
+                          </p>
+                          <p className="mt-1 text-xs leading-snug text-slate-600">
+                            <Link
+                              href="/login"
+                              className="font-medium text-blue-600 underline-offset-2 hover:underline"
+                            >
+                              {txt.min_rate_cta_login}
+                            </Link>
+                            {lang === "el" ? " ή " : " or "}
+                            <Link
+                              href="/brand/signup"
+                              className="font-medium text-blue-600 underline-offset-2 hover:underline"
+                            >
+                              {txt.min_rate_cta_signup}
+                            </Link>{" "}
+                            {txt.min_rate_cta_suffix}
+                          </p>
+                        </div>
+                      )}
+                    </ProfileStatCard>
                   )}
                 </div>
-              )}
-            </div>
-            
+              );
+            })()}
           </div>
         </div>
 
