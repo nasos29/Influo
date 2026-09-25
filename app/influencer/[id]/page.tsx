@@ -230,8 +230,9 @@ const t = {
     badges_multi: "Multi-Platform",
     badges_expert: "Niche Expert",
     availability_available: "Διαθέσιμος",
-    availability_busy: "Απασχολημένος",
-    availability_away: "Ανενεργός",
+    availability_busy: "Μη διαθέσιμος προσωρινά",
+    availability_away: "Μη διαθέσιμος προσωρινά",
+    availability_unavailable: "Μη διαθέσιμος προσωρινά",
     price_story: "Instagram Story (24h)",
     price_post: "Instagram Post",
     price_reel: "Reel / TikTok",
@@ -319,8 +320,9 @@ const t = {
     badges_multi: "Multi-Platform",
     badges_expert: "Niche Expert",
     availability_available: "Available",
-    availability_busy: "Busy",
-    availability_away: "Away",
+    availability_busy: "Temporarily unavailable",
+    availability_away: "Temporarily unavailable",
+    availability_unavailable: "Temporarily unavailable",
     price_story: "Instagram Story (24h)",
     price_post: "Instagram Post",
     price_reel: "Reel / TikTok",
@@ -1864,29 +1866,19 @@ export default function InfluencerProfile(props: { params: Params }) {
                 !!profile.avg_rating &&
                 profile.avg_rating > 0;
               const availability =
-                profile.availability_status === "available"
+                !profile.availability_status || profile.availability_status === "available"
                   ? "available"
-                  : profile.availability_status === "busy"
-                    ? "busy"
-                    : "away";
+                  : "unavailable";
               const availabilityLabel =
                 availability === "available"
                   ? txt.availability_available
-                  : availability === "busy"
-                    ? txt.availability_busy
-                    : txt.availability_away;
+                  : txt.availability_unavailable;
               const availabilityTone =
                 availability === "available"
                   ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-                  : availability === "busy"
-                    ? "bg-amber-50 text-amber-700 ring-amber-200"
-                    : "bg-slate-100 text-slate-500 ring-slate-200";
+                  : "bg-amber-50 text-amber-700 ring-amber-200";
               const availabilityDot =
-                availability === "available"
-                  ? "bg-emerald-500"
-                  : availability === "busy"
-                    ? "bg-amber-500"
-                    : "bg-slate-400";
+                availability === "available" ? "bg-emerald-500" : "bg-amber-500";
 
               const platformRow = (
                 key: string,

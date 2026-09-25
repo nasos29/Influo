@@ -97,6 +97,7 @@ interface InfluencerData {
     audience_top_age: string | null;
     videos: string[] | null;
     insights_urls: string[] | null;
+    availability_status?: string | null;
 }
 
 // --- COMPREHENSIVE EDIT MODAL WITH SOCIAL ACCOUNTS ---
@@ -793,8 +794,40 @@ interface Proposal {
 export default function DashboardContent({ profile: initialProfile }: { profile: InfluencerData }) {
     const [profile, setProfile] = useState(initialProfile);
     const [showEditModal, setShowEditModal] = useState(false);
+    const [availabilitySaving, setAvailabilitySaving] = useState(false);
+    const [availabilityError, setAvailabilityError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'profile' | 'tools' | 'messages' | 'proposals' | 'campaigns' | 'analytics' | 'announcements'>('profile');
     const searchParams = useSearchParams();
+
+    const isAvailable =
+        !profile.availability_status ||
+        profile.availability_status === 'available';
+
+    const setAvailabilityStatus = async (next: 'available' | 'unavailable') => {
+        if (availabilitySaving) return;
+        const current = isAvailable ? 'available' : 'unavailable';
+        if (current === next) return;
+
+        setAvailabilitySaving(true);
+        setAvailabilityError(null);
+        const previous = profile.availability_status;
+        setProfile((p) => ({ ...p, availability_status: next }));
+
+        try {
+            const { error } = await supabase
+                .from('influencers')
+                .update({ availability_status: next })
+                .eq('id', profile.id);
+
+            if (error) throw error;
+        } catch (err: unknown) {
+            setProfile((p) => ({ ...p, availability_status: previous ?? 'available' }));
+            const msg = err instanceof Error ? err.message : 'Σφάλμα ενημέρωσης';
+            setAvailabilityError(msg);
+        } finally {
+            setAvailabilitySaving(false);
+        }
+    };
 
     useEffect(() => {
         const tab = searchParams?.get('tab');
@@ -1543,6 +1576,72 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                     <button onClick={() => setShowEditModal(true)} className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium transition-colors">
                                         ✏️ Επεξεργασία Προφίλ
                                     </button>
+                                </div>
+
+                                <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                        <div>
+                                            <h3 className="text-sm font-semibold text-slate-900">Κατάσταση διαθεσιμότητας</h3>
+                                            <p className="mt-1 text-sm text-slate-500">
+                                                Εμφανίζεται στην κάρτα «Κατάσταση» του δημόσιου προφίλ σου.
+                                            </p>
+                                        </div>
+                                        <span
+                                            className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${
+                                                isAvailable
+                                                    ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+                                                    : 'bg-amber-50 text-amber-700 ring-amber-200'
+                                            }`}
+                                        >
+                                            <span
+                                                className={`h-1.5 w-1.5 rounded-full ${
+                                                    isAvailable ? 'bg-emerald-500' : 'bg-amber-500'
+                                                }`}
+                                            />
+                                            {isAvailable ? 'Διαθέσιμος' : 'Μη διαθέσιμος προσωρινά'}
+                                        </span>
+                                    </div>
+
+                                    <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                        <button
+                                            type="button"
+                                            disabled={availabilitySaving}
+                                            onClick={() => setAvailabilityStatus('available')}
+                                            className={`rounded-xl border px-4 py-3 text-left transition-all ${
+                                                isAvailable
+                                                    ? 'border-emerald-300 bg-emerald-50/80 ring-2 ring-emerald-200'
+                                                    : 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-white'
+                                            } ${availabilitySaving ? 'opacity-60 cursor-wait' : ''}`}
+                                        >
+                                            <div className="text-sm font-semibold text-slate-900">Διαθέσιμος</div>
+                                            <div className="mt-0.5 text-xs text-slate-500">
+                                                Ανοιχτός σε νέες συνεργασίες
+                                            </div>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            disabled={availabilitySaving}
+                                            onClick={() => setAvailabilityStatus('unavailable')}
+                                            className={`rounded-xl border px-4 py-3 text-left transition-all ${
+                                                !isAvailable
+                                                    ? 'border-amber-300 bg-amber-50/80 ring-2 ring-amber-200'
+                                                    : 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-white'
+                                            } ${availabilitySaving ? 'opacity-60 cursor-wait' : ''}`}
+                                        >
+                                            <div className="text-sm font-semibold text-slate-900">
+                                                Μη διαθέσιμος προσωρινά
+                                            </div>
+                                            <div className="mt-0.5 text-xs text-slate-500">
+                                                Παύση νέων συνεργασιών προς το παρόν
+                                            </div>
+                                        </button>
+                                    </div>
+                                    {availabilitySaving && (
+                                        <p className="mt-2 text-xs text-slate-500">Αποθήκευση…</p>
+                                    )}
+                                    {availabilityError && (
+                                        <p className="mt-2 text-xs text-red-600">{availabilityError}</p>
+                                    )}
                                 </div>
                                 
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
