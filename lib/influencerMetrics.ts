@@ -40,7 +40,7 @@ export async function computeAvgResponseHours(
     }
   }
 
-  if (deltas.length < 2) return null;
+  if (deltas.length < 1) return null;
   const avg = deltas.reduce((a, b) => a + b, 0) / deltas.length;
   return Math.max(1, Math.round(avg));
 }

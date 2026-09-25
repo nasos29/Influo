@@ -726,11 +726,15 @@ export default function InfluencerProfile(props: { params: Params }) {
       ]);
       if (completion != null) calculatedCompletionRate = completion;
       computedResponseHours = responseH;
-      // Persist when we have real samples (best-effort)
-      if (completion != null || responseH != null) {
-        const patch: Record<string, number> = {};
-        if (completion != null) patch.completion_rate = completion;
-        if (responseH != null) patch.avg_response_time = responseH;
+      // Persist real metrics; clear legacy placeholder 24h when we have no samples
+      const patch: Record<string, number | null> = {};
+      if (completion != null) patch.completion_rate = completion;
+      if (responseH != null) {
+        patch.avg_response_time = responseH;
+      } else if (data.avg_response_time === 24 || data.avg_response_time === '24') {
+        patch.avg_response_time = null;
+      }
+      if (Object.keys(patch).length > 0) {
         void supabase.from('influencers').update(patch).eq('id', id);
       }
     }
@@ -833,7 +837,10 @@ export default function InfluencerProfile(props: { params: Params }) {
         past_brands: data.past_brands || [],
         avg_rating: data.avg_rating || 0,
         total_reviews: data.total_reviews || 0,
-        avg_response_time: computedResponseHours ?? data.avg_response_time ?? undefined,
+        avg_response_time:
+          computedResponseHours != null
+            ? computedResponseHours
+            : undefined,
         completion_rate: calculatedCompletionRate ?? data.completion_rate ?? undefined,
         availability_status: data.availability_status || 'available',
         skills: data.skills || [],
