@@ -142,6 +142,12 @@ export default async function RootLayout({
         <link rel="icon" href="/logo-icon.svg" type="image/svg+xml" sizes="16x16" />
         <link rel="apple-touch-icon" href="/logo-icon.svg" />
         <link rel="manifest" href="/manifest.webmanifest" />
+        {process.env.NEXT_PUBLIC_SUPABASE_URL ? (
+          <>
+            <link rel="preconnect" href={new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).origin} crossOrigin="" />
+            <link rel="dns-prefetch" href={new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).origin} />
+          </>
+        ) : null}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

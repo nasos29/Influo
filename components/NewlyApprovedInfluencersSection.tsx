@@ -9,6 +9,7 @@ import { displayNameForLang } from "@/lib/greeklish";
 import { getBadges, getBadgeStyles, type Badge } from "@/lib/badges";
 import { getVisitorId } from "@/lib/visitorId";
 import { publicProfilePath } from "@/lib/profileSlug";
+import FastImage from "@/components/FastImage";
 
 type Lang = "el" | "en";
 
@@ -220,7 +221,7 @@ export default function NewlyApprovedInfluencersSection({ lang }: { lang: Lang }
         ) : (
         <>
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-5 md:gap-6">
-          {influencers.map((inf) => {
+          {influencers.map((inf, cardIdx) => {
             if (!inf?.id) return null;
             const imgUrl = getBestImageUrl(inf);
             const name = displayNameForLang(
@@ -255,21 +256,27 @@ export default function NewlyApprovedInfluencersSection({ lang }: { lang: Lang }
                 <article className="h-full bg-white rounded-2xl overflow-hidden border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-indigo-200 transition-all duration-300 group-hover:-translate-y-1">
                   <div className="relative aspect-[4/5] bg-slate-100 overflow-hidden">
                     {imgUrl ? (
-                      <img
+                      <FastImage
                         src={getCachedImageUrl(imgUrl) ?? imgUrl}
                         alt={name}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        loading="lazy"
+                        fill
+                        sizes="(max-width: 768px) 50vw, 25vw"
+                        quality={60}
+                        priority={cardIdx < 4}
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
                         onError={(e) => {
-                          const el = e.currentTarget;
+                          const el = e.currentTarget as HTMLImageElement;
                           el.style.display = "none";
-                          const fallback = el.nextElementSibling as HTMLElement | null;
+                          const fallback = el.parentElement?.querySelector(
+                            "[data-fallback-initial]"
+                          ) as HTMLElement | null;
                           if (fallback) fallback.style.display = "flex";
                         }}
                       />
                     ) : null}
                     <div
-                      className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-200 to-slate-300 text-slate-500 text-4xl"
+                      data-fallback-initial
+                      className="absolute inset-0 w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-200 to-slate-300 text-slate-500 text-4xl"
                       style={{ display: imgUrl ? "none" : "flex" }}
                     >
                       {name?.charAt(0) || "?"}

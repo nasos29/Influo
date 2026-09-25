@@ -8,6 +8,8 @@ import { categoryTranslations } from "@/components/categoryTranslations";
 import { displayNameForLang } from "@/lib/greeklish";
 import { getVisitorId } from "@/lib/visitorId";
 import { publicProfilePath } from "@/lib/profileSlug";
+import FastImage from "@/components/FastImage";
+
 
 type Lang = "el" | "en";
 
@@ -72,7 +74,15 @@ function getPortraitImageCandidates(inf: TopInfluencer): string[] {
   return out;
 }
 
-function TopInfluencerPortrait({ inf, name }: { inf: TopInfluencer; name: string }) {
+function TopInfluencerPortrait({
+  inf,
+  name,
+  priority = false,
+}: {
+  inf: TopInfluencer;
+  name: string;
+  priority?: boolean;
+}) {
   const candidates = useMemo(() => getPortraitImageCandidates(inf), [inf]);
   const [attempt, setAttempt] = useState(0);
 
@@ -90,12 +100,15 @@ function TopInfluencerPortrait({ inf, name }: { inf: TopInfluencer; name: string
         {name?.charAt(0) || "?"}
       </div>
       {canShowImg && src ? (
-        <img
+        <FastImage
           key={`${inf.id}-${attempt}-${src}`}
           src={src}
           alt={name}
+          fill
+          sizes="(max-width: 768px) 92vw, (max-width: 1024px) 33vw, 20vw"
+          quality={60}
+          priority={priority}
           className="absolute inset-0 z-10 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-          loading="lazy"
           onError={() => {
             setAttempt((a) => (a + 1 < candidates.length ? a + 1 : candidates.length));
           }}
@@ -320,7 +333,11 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
                   >
                     <article className="h-full bg-white rounded-2xl overflow-hidden border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-slate-300 transition-all duration-300 group-hover:-translate-y-1">
                       <div className="relative">
-                        <TopInfluencerPortrait inf={inf} name={name} />
+                        <TopInfluencerPortrait
+                          inf={inf}
+                          name={name}
+                          priority={pageIdx === 0 && idx < 3}
+                        />
                         <div
                           className="pointer-events-none absolute top-3 left-3 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-slate-900/80 text-sm font-bold text-white backdrop-blur-sm"
                           aria-hidden

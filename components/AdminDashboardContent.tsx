@@ -866,7 +866,11 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
 
             // Upload avatar if new file selected
             if (avatarFile) {
-                const preparedAvatar = await prepareImageForStorage(avatarFile, { maxSide: 1024 });
+                const preparedAvatar = await prepareImageForStorage(avatarFile, {
+                  maxSide: 640,
+                  webpQuality: 0.72,
+                  jpegQuality: 0.78,
+                });
                 const fileName = `avatar-${Date.now()}-${preparedAvatar.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
                 const { error: uploadError } = await supabase.storage.from("avatars").upload(fileName, preparedAvatar);
                 

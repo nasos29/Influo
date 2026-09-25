@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { getCachedImageUrl } from "@/lib/imageProxy";
+import FastImage from "@/components/FastImage";
 
 interface BrandCardProps {
   id: string;
@@ -46,13 +46,16 @@ export default function BrandCard({
         <div className="relative -mt-12 mb-4">
           <div className="relative w-full h-24 rounded-lg border-2 border-white shadow-md overflow-hidden bg-white flex items-center justify-center">
             {logo_url && logo_url.trim() !== '' ? (
-              <img
+              <FastImage
                 src={getCachedImageUrl(logo_url) ?? logo_url}
                 alt={brand_name}
-                className="w-full h-full object-contain p-1"
+                fill
+                sizes="200px"
+                quality={70}
+                className="object-contain p-1"
                 onError={(e) => {
                   console.error('[BrandCard] Failed to load logo:', logo_url);
-                  const target = e.target as HTMLImageElement;
+                  const target = e.currentTarget as HTMLImageElement;
                   target.style.display = 'none';
                   const parent = target.parentElement;
                   if (parent && !parent.querySelector('.fallback-logo')) {

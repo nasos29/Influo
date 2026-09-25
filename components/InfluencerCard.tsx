@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { Badge, getBadgeStyles } from "../lib/badges";
 import Avatar from "./Avatar";
 import { categoryTranslations } from "./categoryTranslations";

@@ -1754,12 +1754,9 @@ export default function BrandDashboardContent() {
                           alt={displayNameForLang(inf.display_name, lang)}
                           fill
                           sizes="(max-width: 768px) 50vw, 25vw"
+                          quality={60}
                           className="object-cover"
-                          unoptimized={
-                            avatarUrl.startsWith("/api/image-proxy") ||
-                            avatarUrl.includes("unavatar.io") ||
-                            avatarUrl.includes("ui-avatars.com")
-                          }
+                          unoptimized={avatarUrl.startsWith("/api/image-proxy")}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                         <div className="absolute bottom-3 left-3 right-3">

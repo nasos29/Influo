@@ -5,6 +5,7 @@ import Link from "next/link";
 import { getCachedImageUrl } from "@/lib/imageProxy";
 import { SHORTLIST_NOTE_MAX, type BrandShortlistItem } from "@/lib/brandShortlist";
 import { publicProfilePath } from "@/lib/profileSlug";
+import FastImage from "@/components/FastImage";
 
 type Props = {
   lang: "el" | "en";
@@ -76,11 +77,16 @@ export default function BrandShortlistPanel({
             >
               <div className="flex gap-3 min-w-0 flex-1">
                 {avatar ? (
-                  <img
-                    src={avatar}
-                    alt=""
-                    className="w-14 h-14 rounded-xl object-cover bg-slate-200 shrink-0"
-                  />
+                  <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-slate-200 shrink-0">
+                    <FastImage
+                      src={avatar}
+                      alt=""
+                      fill
+                      sizes="56px"
+                      quality={60}
+                      className="object-cover"
+                    />
+                  </div>
                 ) : (
                   <div className="w-14 h-14 rounded-xl bg-slate-200 shrink-0 flex items-center justify-center font-bold text-slate-600">
                     {(item.displayName || "C").charAt(0).toUpperCase()}

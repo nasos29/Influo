@@ -12,6 +12,7 @@ import NewlyApprovedInfluencersSection from "../components/NewlyApprovedInfluenc
 import { supabase } from "@/lib/supabaseClient";
 import { getStoredLanguage, setStoredLanguage, type Language } from "@/lib/language";
 import { getCachedImageUrl } from "@/lib/imageProxy";
+import FastImage from "@/components/FastImage";
 
 type Lang = "el" | "en";
 
@@ -736,23 +737,21 @@ export default function Home() {
                     className="flex-shrink-0 flex items-center justify-center h-12 md:h-16 lg:h-20 opacity-60 hover:opacity-100 transition-opacity duration-300"
                   >
                     {brand.logo_url ? (
-                      <img 
+                      <FastImage
                         src={getCachedImageUrl(brand.logo_url) ?? brand.logo_url}
                         alt={brand.brand_name}
+                        width={260}
+                        height={80}
                         className="h-full w-auto max-w-[180px] md:max-w-[220px] lg:max-w-[260px] object-contain filter grayscale hover:grayscale-0 transition-all duration-300"
-                        loading="lazy"
-                        onLoad={() => {
-                          console.log('[Homepage] Logo loaded successfully:', brand.brand_name, brand.logo_url);
-                        }}
+                        quality={70}
                         onError={(e) => {
-                          console.error('[Homepage] Logo failed to load:', brand.brand_name, brand.logo_url, e);
-                          // Fallback to text if logo fails to load
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
+                          const target = e.currentTarget as HTMLImageElement;
+                          target.style.display = "none";
                           const parent = target.parentElement;
-                          if (parent && !parent.querySelector('.text-fallback')) {
-                            const textFallback = document.createElement('div');
-                            textFallback.className = 'text-fallback font-semibold text-sm md:text-base lg:text-lg text-slate-400 whitespace-nowrap';
+                          if (parent && !parent.querySelector(".text-fallback")) {
+                            const textFallback = document.createElement("div");
+                            textFallback.className =
+                              "text-fallback font-semibold text-sm md:text-base lg:text-lg text-slate-400 whitespace-nowrap";
                             textFallback.textContent = brand.brand_name;
                             parent.appendChild(textFallback);
                           }
@@ -827,18 +826,21 @@ export default function Home() {
                     className="flex-shrink-0 flex items-center justify-center h-12 md:h-16 lg:h-20 opacity-60 hover:opacity-100 transition-opacity duration-300"
                   >
                     {brand.logo_url ? (
-                      <img 
+                      <FastImage
                         src={getCachedImageUrl(brand.logo_url) ?? brand.logo_url}
                         alt={brand.brand_name}
+                        width={260}
+                        height={80}
                         className="h-full w-auto max-w-[180px] md:max-w-[220px] lg:max-w-[260px] object-contain filter grayscale hover:grayscale-0 transition-all duration-300"
-                        loading="lazy"
+                        quality={70}
                         onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
+                          const target = e.currentTarget as HTMLImageElement;
+                          target.style.display = "none";
                           const parent = target.parentElement;
-                          if (parent && !parent.querySelector('.text-fallback')) {
-                            const textFallback = document.createElement('div');
-                            textFallback.className = 'text-fallback font-semibold text-sm md:text-base lg:text-lg text-slate-400 whitespace-nowrap';
+                          if (parent && !parent.querySelector(".text-fallback")) {
+                            const textFallback = document.createElement("div");
+                            textFallback.className =
+                              "text-fallback font-semibold text-sm md:text-base lg:text-lg text-slate-400 whitespace-nowrap";
                             textFallback.textContent = brand.brand_name;
                             parent.appendChild(textFallback);
                           }
