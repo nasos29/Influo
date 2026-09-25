@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { getCachedImageUrl } from "@/lib/imageProxy";
+import { getCachedImageUrl, getStorageCardUrl } from "@/lib/imageProxy";
 
 interface AvatarProps {
   src: string | null | undefined;
@@ -19,7 +19,8 @@ export default function Avatar({
   className = "",
   priority = false,
 }: AvatarProps) {
-  const displaySrc = getCachedImageUrl(src) ?? src;
+  const thumb = getStorageCardUrl(src, Math.max(size * 2, 160), Math.max(size * 2, 160));
+  const displaySrc = getCachedImageUrl(thumb ?? src) ?? src;
   const hasImage =
     displaySrc &&
     displaySrc.trim() !== "" &&
