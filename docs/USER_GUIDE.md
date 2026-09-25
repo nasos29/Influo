@@ -220,28 +220,63 @@
    - Upload avatar, bio, categories
    - Ορισμός pricing (Story, Post, Reel, Facebook)
    - Skills & Certifications
+   - Διαθεσιμότητα (Διαθέσιμος / Μη διαθέσιμος προσωρινά)
 
-2. **Messages Tab:**
+2. **Εργαλεία Tab** (`/dashboard?tab=tools`):
+   - **Προσωπικό link:** δημόσιο URL προφίλ + σύντομο slug (`influo.gr/in/...`)
+   - **Κείμενο για bio:** έτοιμο κείμενο για Instagram / TikTok
+   - **QR code:** λήψη PNG για stories / εκδηλώσεις
+   - **Media kit PDF:** μία σελίδα → Εκτύπωση → Αποθήκευση ως PDF
+   - *(Ενεργό μετά την έγκριση προφίλ)*
+
+3. **Messages Tab:**
    - Όλες οι συνομιλίες σας
    - Unread messages counter
    - Quick reply
+   - Attachments (εικόνες / PDF έως 10MB)
 
-3. **Proposals Tab:**
+4. **Proposals Tab:**
    - Όλες οι προσφορές από brands
    - Pending proposals counter
    - Actions: Accept, Counter-propose, Message
 
+5. **Campaigns Tab:**
+   - Ανοιχτές καμπάνιες brands + αιτήσεις
+   - Υποβολή deliverable όταν είστε σε shortlist
+
 ### Brand Dashboard
 
-1. **Proposals:**
+1. **Recommendations / Κατάλογος:**
+   - Προτάσεις influencers και φίλτρα
+
+2. **Campaigns:**
+   - Δημοσίευση καμπανιών, αιτήσεις, έγκριση deliverables
+
+3. **Proposals:**
    - Όλες οι προσφορές που έχετε στείλει
    - Κατάσταση (pending, accepted, completed)
    - Counter-proposals από influencers
    - Pending agreements
 
-2. **Conversations:**
+4. **Shortlist («Οι influencers μου»):**
+   - Αποθηκευμένοι creators με σημειώσεις
+
+5. **Εργαλεία Tab** (`/brand/dashboard?tab=tools`):
+   - **Budget estimator** — εκτίμηση «από» από τιμές shortlist
+   - **Export shortlist** — CSV ή Εκτύπωση / PDF
+   - **Σύγκριση creators** — έως 4 δίπλα-δίπλα
+   - **Campaign checklist** — brief, budget, deliverables, UTM, όροι
+   - **UTM builder** — tracking links
+   - **Campaign brief** — στόχος, κοινό, deliverables → αντιγραφή
+   - **ROI / αποτελέσματα** — τοπικό log spend & αποτελεσμάτων
+   - **Brand kit** — Εκτύπωση / PDF kit για έγκριση
+   - **Έτοιμα μηνύματα** — outreach, negotiate, reminder, approve
+   - Σειρά καρτών με ↑ ↓ (αποθήκευση στον browser)· checklist / ROI / snippets τοπικά ανά brand
+
+6. **Conversations / Messages:**
    - Όλες οι συνομιλίες με influencers
    - Unread messages
+   - Attachments
 
 ---
 
@@ -307,10 +342,16 @@ A: Ναι, μπορείτε να απορρίψετε ή να κάνετε αν�
 **Q: Πώς γίνομαι Verified;**
 A: Το verification γίνεται από το admin team. Επικοινωνήστε με support.
 
+**Q: Πού βρίσκω τα εργαλεία (link, QR, media kit);**
+A: Dashboard → Εργαλεία. Μετά την έγκριση: προσωπικό link, bio text, QR και media kit PDF.
+
 ### Για Brands
 
 **Q: Πώς ξέρω αν ένας influencer είναι αξιόπιστος;**
 A: Ελέγξτε: Verified badge, reviews, completion rate, response time.
+
+**Q: Τι κάνουν τα εργαλεία brand;**
+A: Brand Dashboard → Εργαλεία: budget, export/σύγκριση shortlist, checklist, UTM, brief, ROI, brand kit PDF, έτοιμα μηνύματα.
 
 **Q: Τι γίνεται αν ο influencer δεν ολοκληρώσει το project;**
 A: Επικοινωνήστε με support. Το completion rate του influencer θα επηρεαστεί.

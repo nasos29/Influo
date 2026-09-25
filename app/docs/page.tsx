@@ -131,6 +131,26 @@ const FAQ_ITEMS: FaqEntry[] = [
   },
   {
     q: {
+      el: "Πού βρίσκω τα εργαλεία ως influencer;",
+      en: "Where do I find tools as an influencer?",
+    },
+    a: {
+      el: "Dashboard → tab «Εργαλεία». Μετά την έγκριση: προσωπικό link (και σύντομο slug), κείμενο για bio, QR code και media kit PDF (Εκτύπωση → Αποθήκευση ως PDF).",
+      en: "Dashboard → Tools tab. After approval: personal profile link (and short slug), bio text, QR code, and media kit PDF (Print → Save as PDF).",
+    },
+  },
+  {
+    q: {
+      el: "Τι κάνουν τα εργαλεία brand στο dashboard;",
+      en: "What do brand tools in the dashboard do?",
+    },
+    a: {
+      el: "Brand Dashboard → «Εργαλεία»: budget estimator, export/σύγκριση shortlist, checklist, UTM, brief, ROI log, brand kit PDF και έτοιμα μηνύματα. Πολλά βασίζονται στη shortlist· checklist/ROI/snippets μένουν στον browser σας.",
+      en: "Brand Dashboard → Tools: budget estimator, shortlist export/compare, checklist, UTM, brief, ROI log, brand kit PDF, and message snippets. Many use the shortlist; checklist/ROI/snippets stay in your browser.",
+    },
+  },
+  {
+    q: {
       el: "Μπορώ να «εγκαταστήσω» το Influo ως εφαρμογή στο κινητό;",
       en: "Can I install Influo as an app on my phone?",
     },
@@ -646,6 +666,181 @@ export default function DocsPage() {
             </div>
           </section>
 
+          {/* Influencer tools */}
+          <section className="mb-12 border-t border-slate-200 pt-12">
+            <h2 className="text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3">
+              <span className="text-4xl">🧰</span>
+              {lang === 'el' ? 'Εργαλεία Influencer' : 'Influencer tools'}
+            </h2>
+            <p className="text-slate-600 mb-6">
+              {lang === 'el'
+                ? 'Μετά την έγκριση του προφίλ σας, ανοίξτε Dashboard → tab «Εργαλεία» (ή /dashboard?tab=tools). Εκεί έχετε ό,τι χρειάζεστε για να μοιραστείτε το Influo προφίλ σας με brands.'
+                : 'After your profile is approved, open Dashboard → “Tools” tab (or /dashboard?tab=tools). Everything you need to share your Influo profile with brands is there.'}
+            </p>
+
+            <div className="grid md:grid-cols-2 gap-4 my-6">
+              <div className="border border-slate-200 rounded-xl p-5 bg-slate-50">
+                <h3 className="font-bold text-slate-900 mt-0 mb-2">
+                  {lang === 'el' ? 'Προσωπικό link' : 'Personal profile link'}
+                </h3>
+                <ul className="text-sm text-slate-700 space-y-2 list-disc list-inside mb-0">
+                  <li>
+                    {lang === 'el'
+                      ? 'Αντιγράψτε το δημόσιο URL του προφίλ σας και βάλτε το στο bio Instagram / TikTok.'
+                      : 'Copy your public profile URL and put it in your Instagram / TikTok bio.'}
+                  </li>
+                  <li>
+                    {lang === 'el'
+                      ? 'Μπορείτε να ορίσετε σύντομο όνομα (slug): influo.gr/in/το-ονόμα-σας (λατινικοί χαρακτήρες).'
+                      : 'You can set a short slug: influo.gr/in/your-name (Latin characters).'}
+                  </li>
+                  <li>
+                    {lang === 'el'
+                      ? 'Έτοιμο κείμενο για bio: αντιγραφή με ένα κλικ μαζί με το link.'
+                      : 'Ready-made bio text: one-click copy together with the link.'}
+                  </li>
+                </ul>
+              </div>
+
+              <div className="border border-indigo-200 rounded-xl p-5 bg-indigo-50/80">
+                <h3 className="font-bold text-indigo-900 mt-0 mb-2">QR code</h3>
+                <ul className="text-sm text-slate-700 space-y-2 list-disc list-inside mb-0">
+                  <li>
+                    {lang === 'el'
+                      ? 'Σαρώσιμο QR που οδηγεί στο Influo προφίλ σας.'
+                      : 'Scannable QR that opens your Influo profile.'}
+                  </li>
+                  <li>
+                    {lang === 'el'
+                      ? 'Κατεβάστε PNG για stories, media kit ή εκδηλώσεις.'
+                      : 'Download a PNG for stories, media kits, or events.'}
+                  </li>
+                </ul>
+              </div>
+
+              <div className="border border-blue-200 rounded-xl p-5 bg-blue-50/80 md:col-span-2">
+                <h3 className="font-bold text-blue-900 mt-0 mb-2">Media kit PDF</h3>
+                <ul className="text-sm text-slate-700 space-y-2 list-disc list-inside mb-0">
+                  <li>
+                    {lang === 'el'
+                      ? 'Από «Άνοιγμα media kit» ανοίγει μία σελίδα με φωτο, bio, socials, τιμές και το Influo link.'
+                      : '“Open media kit” opens a one-pager with photo, bio, socials, rates, and your Influo link.'}
+                  </li>
+                  <li>
+                    {lang === 'el'
+                      ? 'Στον browser: Εκτύπωση → «Αποθήκευση ως PDF» για να το στείλετε σε brands.'
+                      : 'In the browser: Print → “Save as PDF” to send to brands.'}
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
+              <p className="text-sm text-slate-700 mb-0">
+                {lang === 'el'
+                  ? 'Σημείωση: πριν την έγκριση του προφίλ, το tab Εργαλεία εμφανίζει μήνυμα ότι το link θα ενεργοποιηθεί μόλις είστε live.'
+                  : 'Note: before profile approval, the Tools tab explains that your link activates once you are live.'}
+              </p>
+            </div>
+          </section>
+
+          {/* Brand tools */}
+          <section className="mb-12 border-t border-slate-200 pt-12">
+            <h2 className="text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3">
+              <span className="text-4xl">🛠️</span>
+              {lang === 'el' ? 'Εργαλεία Brand' : 'Brand tools'}
+            </h2>
+            <p className="text-slate-600 mb-6">
+              {lang === 'el'
+                ? 'Στο Brand Dashboard → tab «Εργαλεία» (/brand/dashboard?tab=tools) έχετε βοηθήματα καμπάνιας. Πολλά δουλεύουν με τη shortlist («Οι influencers μου»). Με τα βέλη ↑ ↓ αλλάζετε τη σειρά των καρτών· «Επαναφορά σειράς» επαναφέρει την προεπιλογή. Checklist, ROI και snippets αποθηκεύονται στον browser σας για το συγκεκριμένο brand.'
+                : 'In Brand Dashboard → “Tools” (/brand/dashboard?tab=tools) you get campaign helpers. Many use your shortlist (“My influencers”). Use ↑ ↓ to reorder cards; “Reset order” restores the default. Checklist, ROI, and snippets are saved in your browser for that brand.'}
+            </p>
+
+            <div className="space-y-4 my-6">
+              {[
+                {
+                  title: { el: 'Budget estimator', en: 'Budget estimator' },
+                  body: {
+                    el: 'Ορίζει μονάδες ανά creator και υπολογίζει εκτίμηση «από» βάσει των ελάχιστων τιμών στη shortlist. Αντιγραφή σύνοψης με ένα κλικ.',
+                    en: 'Set units per creator and get a “from” estimate using minimum rates on your shortlist. One-click copy of the summary.',
+                  },
+                },
+                {
+                  title: { el: 'Export shortlist', en: 'Export shortlist' },
+                  body: {
+                    el: 'Εξαγωγή CSV ή εκτύπωση / PDF της λίστας creators (όνομα, κατηγορία, followers, ER, τιμές, σημειώσεις).',
+                    en: 'Export CSV or print / PDF your creator list (name, category, followers, ER, rates, notes).',
+                  },
+                },
+                {
+                  title: { el: 'Σύγκριση creators', en: 'Compare creators' },
+                  body: {
+                    el: 'Επιλέξτε έως 4 από τη shortlist και συγκρίνετε δίπλα-δίπλα κατηγορία, followers, ER, τιμή, χρόνο απάντησης και completion.',
+                    en: 'Pick up to 4 from the shortlist and compare category, followers, ER, rate, response time, and completion side by side.',
+                  },
+                },
+                {
+                  title: { el: 'Campaign checklist', en: 'Campaign checklist' },
+                  body: {
+                    el: 'Τσεκάρετε βήματα (brief, budget, creators, deliverables, UTM, όροι) πριν το launch.',
+                    en: 'Tick steps (brief, budget, creators, deliverables, UTM, terms) before launch.',
+                  },
+                },
+                {
+                  title: { el: 'UTM builder', en: 'UTM builder' },
+                  body: {
+                    el: 'Φτιάξτε tracking links με source / medium / campaign και αντιγράψτε τα για stories ή bio.',
+                    en: 'Build tracking links with source / medium / campaign and copy them for stories or bio.',
+                  },
+                },
+                {
+                  title: { el: 'Campaign brief', en: 'Campaign brief' },
+                  body: {
+                    el: 'Συμπληρώστε στόχο, κοινό, deliverables και χρονοδιάγραμμα· αντιγράψτε έτοιμο κείμενο brief για μηνύματα ή καμπάνιες.',
+                    en: 'Fill goal, audience, deliverables, and timeline; copy a ready brief for messages or campaigns.',
+                  },
+                },
+                {
+                  title: { el: 'ROI / αποτελέσματα', en: 'ROI / results log' },
+                  body: {
+                    el: 'Καταγράψτε spend και αποτελέσματα ανά καμπάνια τοπικά στον browser για γρήγορη υπενθύμιση απόδοσης.',
+                    en: 'Log spend and results per campaign locally in the browser for a quick performance reminder.',
+                  },
+                },
+                {
+                  title: { el: 'Brand kit', en: 'Brand kit' },
+                  body: {
+                    el: 'Εκτύπωση / PDF με στοιχεία brand και shortlist — χρήσιμο για εσωτερική έγκριση ή παρουσίαση. Στο παράθυρο πατήστε Εκτύπωση / Αποθήκευση ως PDF.',
+                    en: 'Print / PDF with brand details and shortlist — useful for internal approval or decks. In the window use Print / Save as PDF.',
+                  },
+                },
+                {
+                  title: { el: 'Έτοιμα μηνύματα', en: 'Message snippets' },
+                  body: {
+                    el: 'Πρότυπα για πρώτη επαφή, διαπραγμάτευση, υπενθύμιση deliverable και έγκριση. Αντιγράψτε και επεξεργαστείτε πριν την αποστολή.',
+                    en: 'Templates for outreach, negotiation, deliverable reminder, and approval. Copy and edit before sending.',
+                  },
+                },
+              ].map((item) => (
+                <div key={item.title.en} className="border border-slate-200 rounded-xl p-5 bg-white">
+                  <h3 className="font-bold text-slate-900 mt-0 mb-2">{item.title[lang]}</h3>
+                  <p className="text-sm text-slate-700 mb-0">{item.body[lang]}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="bg-green-50 border border-green-200 rounded-xl p-5">
+              <h4 className="font-bold text-green-900 mb-2 mt-0">
+                {lang === 'el' ? 'Συμβουλή ροής εργασίας' : 'Workflow tip'}
+              </h4>
+              <p className="text-sm text-slate-700 mb-0">
+                {lang === 'el'
+                  ? 'Προσθέστε creators στη shortlist → συγκρίνετε / budget → brief & checklist → UTM → επικοινωνία με snippets → brand kit για έγκριση → καταγραφή ROI.'
+                  : 'Add creators to the shortlist → compare / budget → brief & checklist → UTM → outreach with snippets → brand kit for approval → log ROI.'}
+              </p>
+            </div>
+          </section>
+
           {/* Counter-Proposal Section */}
           <section className="mb-12 border-t border-slate-200 pt-12">
             <h2 className="text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3">
@@ -802,6 +997,7 @@ export default function DocsPage() {
                 <ul className="space-y-3 text-slate-700 text-sm list-disc list-inside">
                   <li>{lang === 'el' ? 'Συμπληρώστε το Profile: bio, avatar, rate card, ρεαλιστικές τιμές' : 'Complete Profile: bio, avatar, rate card, realistic pricing'}</li>
                   <li>{lang === 'el' ? 'Ορίστε διαθεσιμότητα όταν είστε ανοιχτοί σε deals' : 'Set availability when you are open to deals'}</li>
+                  <li>{lang === 'el' ? 'Βάλτε το Influo link στο bio (Dashboard → Εργαλεία) και μοιραστείτε QR / media kit' : 'Put your Influo link in your bio (Dashboard → Tools) and share QR / media kit'}</li>
                   <li>{lang === 'el' ? 'Καλή Απόδοση: Υψηλό engagement, consistent posting' : 'Good Performance: High engagement, consistent posting'}</li>
                   <li>{lang === 'el' ? 'Επαγγελματική Συμπεριφορά: γρήγορες απαντήσεις, παράδοση σε καμπάνιες όταν είστε shortlisted' : 'Professional Behavior: fast replies, deliver on campaigns when shortlisted'}</li>
                   <li>{lang === 'el' ? 'Αξιολόγηση: Ζητήστε reviews, καλά reviews = περισσότερες προσφορές' : 'Evaluation: Request reviews, good reviews = more proposals'}</li>
@@ -815,6 +1011,7 @@ export default function DocsPage() {
                 <ul className="space-y-3 text-slate-700 text-sm list-disc list-inside">
                   <li>{lang === 'el' ? 'Καλή Αναζήτηση: φίλτρα (διαθεσιμότητα, engagement, reviews), trust signals' : 'Good Search: filters (availability, engagement, reviews), trust signals'}</li>
                   <li>{lang === 'el' ? 'Αποθηκεύστε υποψηφίους στη shortlist με σημειώσεις' : 'Save candidates to your shortlist with notes'}</li>
+                  <li>{lang === 'el' ? 'Χρησιμοποιήστε Εργαλεία: σύγκριση, budget, brief, checklist, UTM, brand kit' : 'Use Tools: compare, budget, brief, checklist, UTM, brand kit'}</li>
                   <li>{lang === 'el' ? 'Σαφείς Προσφορές / καμπάνιες: brief, budget, deadline, deliverables' : 'Clear Proposals / campaigns: brief, budget, deadline, deliverables'}</li>
                   <li>{lang === 'el' ? 'Επικοινωνία: απαντήστε εγκαίρως, χρησιμοποιήστε attachments για briefs' : 'Communication: reply promptly, use attachments for briefs'}</li>
                   <li>{lang === 'el' ? 'Αξιολόγηση: αφήστε reviews μετά την ολοκλήρωση' : 'Evaluation: leave reviews after completion'}</li>
