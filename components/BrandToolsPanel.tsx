@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { BrandShortlistItem } from "@/lib/brandShortlist";
 import { publicProfilePath } from "@/lib/profileSlug";
 import {
@@ -9,8 +9,15 @@ import {
   saveChecklist,
   loadRoi,
   saveRoi,
+  loadSnippets,
+  saveSnippets,
+  loadToolOrder,
+  saveToolOrder,
+  defaultToolOrder,
   type BrandChecklistState,
   type BrandRoiEntry,
+  type BrandSnippetsState,
+  type ToolSectionId,
 } from "@/lib/brandToolsStorage";
 
 type Props = {
@@ -56,14 +63,16 @@ function fmtFollowers(n: number | null | undefined): string {
 }
 
 function slugify(s: string): string {
-  return s
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_|_$/g, "")
-    .slice(0, 40) || "campaign";
+  return (
+    s
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_|_$/g, "")
+      .slice(0, 40) || "campaign"
+  );
 }
 
 const CHECKLIST_LABELS = {
@@ -85,6 +94,61 @@ const CHECKLIST_LABELS = {
   },
 } as const;
 
+const SECTION_TITLES: Record<ToolSectionId, { el: string; en: string }> = {
+  budget: { el: "Budget estimator", en: "Budget estimator" },
+  export: { el: "Export shortlist", en: "Export shortlist" },
+  compare: { el: "Σύγκριση creators", en: "Compare creators" },
+  checklist: { el: "Campaign checklist", en: "Campaign checklist" },
+  utm: { el: "UTM builder", en: "UTM builder" },
+  brief: { el: "Campaign brief", en: "Campaign brief" },
+  roi: { el: "ROI / αποτελέσματα", en: "ROI / results log" },
+  kit: { el: "Brand kit", en: "Brand kit" },
+  snippets: { el: "Έτοιμα μηνύματα", en: "Message snippets" },
+};
+
+function ToolCard({
+  title,
+  index,
+  total,
+  onMove,
+  children,
+}: {
+  title: string;
+  index: number;
+  total: number;
+  onMove: (dir: -1 | 1) => void;
+  children: ReactNode;
+}) {
+  return (
+    <section className="bg-white border border-slate-200 rounded-xl p-5 md:p-6 space-y-4">
+      <div className="flex items-start justify-between gap-3">
+        <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">{title}</h3>
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            aria-label="Move up"
+            disabled={index === 0}
+            onClick={() => onMove(-1)}
+            className="w-8 h-8 rounded-md border border-slate-300 text-slate-800 hover:bg-slate-50 disabled:opacity-30 disabled:hover:bg-white text-sm font-bold"
+          >
+            ↑
+          </button>
+          <button
+            type="button"
+            aria-label="Move down"
+            disabled={index >= total - 1}
+            onClick={() => onMove(1)}
+            className="w-8 h-8 rounded-md border border-slate-300 text-slate-800 hover:bg-slate-50 disabled:opacity-30 disabled:hover:bg-white text-sm font-bold"
+          >
+            ↓
+          </button>
+        </div>
+      </div>
+      {children}
+    </section>
+  );
+}
+
 export default function BrandToolsPanel({
   lang,
   brandId,
@@ -100,6 +164,7 @@ export default function BrandToolsPanel({
   const el = lang === "el";
   const [units, setUnits] = useState(1);
   const [copied, setCopied] = useState("");
+  const [order, setOrder] = useState<ToolSectionId[]>(defaultToolOrder);
   const [goal, setGoal] = useState(
     el ? "Αύξηση awareness / πωλήσεων για το νέο launch" : "Raise awareness / sales for the new launch"
   );
@@ -114,7 +179,9 @@ export default function BrandToolsPanel({
 
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [checklist, setChecklist] = useState<BrandChecklistState>(defaultChecklist);
-  const [utmBase, setUtmBase] = useState(website?.startsWith("http") ? website : website ? `https://${website}` : "https://");
+  const [utmBase, setUtmBase] = useState(
+    website?.startsWith("http") ? website : website ? `https://${website}` : "https://"
+  );
   const [utmCampaign, setUtmCampaign] = useState("");
   const [utmCreator, setUtmCreator] = useState("");
   const [roi, setRoi] = useState<BrandRoiEntry[]>([]);
@@ -122,18 +189,25 @@ export default function BrandToolsPanel({
   const [roiSpend, setRoiSpend] = useState("");
   const [roiResults, setRoiResults] = useState("");
   const [roiNotes, setRoiNotes] = useState("");
+  const [snippets, setSnippets] = useState<BrandSnippetsState>(() => loadSnippets(brandId, el));
   const [kitDos, setKitDos] = useState(
-    el ? "Χρησιμοποιήστε το λογότυπο σε καθαρό φόντο\nTag @brand στο caption" : "Use logo on a clean background\nTag @brand in the caption"
+    el
+      ? "Χρησιμοποιήστε το λογότυπο σε καθαρό φόντο\nTag @brand στο caption"
+      : "Use logo on a clean background\nTag @brand in the caption"
   );
   const [kitDonts, setKitDonts] = useState(
-    el ? "Μην αλλάζετε τα χρώματα του λογοτύπου\nΜην κάνετε πολιτική τοποθέτηση" : "Do not alter logo colors\nNo political placement"
+    el
+      ? "Μην αλλάζετε τα χρώματα του λογοτύπου\nΜην κάνετε πολιτική τοποθέτηση"
+      : "Do not alter logo colors\nNo political placement"
   );
 
   useEffect(() => {
     if (!brandId) return;
     setChecklist(loadChecklist(brandId));
     setRoi(loadRoi(brandId));
-  }, [brandId]);
+    setSnippets(loadSnippets(brandId, el));
+    setOrder(loadToolOrder(brandId));
+  }, [brandId, el]);
 
   useEffect(() => {
     if (website) {
@@ -227,6 +301,24 @@ export default function BrandToolsPanel({
     }
   };
 
+  const moveSection = (id: ToolSectionId, dir: -1 | 1) => {
+    setOrder((prev) => {
+      const i = prev.indexOf(id);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= prev.length) return prev;
+      const next = [...prev];
+      [next[i], next[j]] = [next[j], next[i]];
+      if (brandId) saveToolOrder(brandId, next);
+      return next;
+    });
+  };
+
+  const resetOrder = () => {
+    const next = defaultToolOrder();
+    setOrder(next);
+    if (brandId) saveToolOrder(brandId, next);
+  };
+
   const toggleCompare = (id: string) => {
     setCompareIds((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id);
@@ -265,6 +357,12 @@ export default function BrandToolsPanel({
     const next = roi.filter((r) => r.id !== id);
     setRoi(next);
     if (brandId) saveRoi(brandId, next);
+  };
+
+  const updateSnippet = (field: keyof BrandSnippetsState, value: string) => {
+    const next = { ...snippets, [field]: value };
+    setSnippets(next);
+    if (brandId) saveSnippets(brandId, next);
   };
 
   const downloadCsv = () => {
@@ -323,20 +421,16 @@ export default function BrandToolsPanel({
       <style>
         body{font-family:system-ui,sans-serif;padding:40px;color:#0f172a;max-width:720px;margin:0 auto}
         h1{font-size:28px;margin:0 0 8px}
-        .meta{color:#64748b;font-size:14px;margin-bottom:24px}
+        .meta{color:#334155;font-size:14px;margin-bottom:24px}
         .logo{max-height:64px;margin-bottom:16px}
-        h2{font-size:14px;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin:24px 0 8px}
-        ul{padding-left:18px;line-height:1.6}
-        pre{white-space:pre-wrap;background:#f8fafc;border:1px solid #e2e8f0;padding:12px;border-radius:8px;font-size:13px}
+        h2{font-size:14px;text-transform:uppercase;letter-spacing:.06em;color:#334155;margin:24px 0 8px}
+        pre{white-space:pre-wrap;background:#f8fafc;border:1px solid #e2e8f0;padding:12px;border-radius:8px;font-size:13px;color:#0f172a}
       </style></head><body>
       ${logoUrl ? `<img class="logo" src="${escapeHtml(logoUrl)}" alt="" />` : ""}
       <h1>${escapeHtml(brandName || "Brand")}</h1>
       <div class="meta">${escapeHtml([industry, website, contactPerson].filter(Boolean).join(" · "))}</div>
-      <h2>${el ? "Do" : "Do"}</h2>
-      <pre>${escapeHtml(kitDos)}</pre>
-      <h2>${el ? "Don't" : "Don't"}</h2>
-      <pre>${escapeHtml(kitDonts)}</pre>
-      <p style="margin-top:32px;font-size:12px;color:#94a3b8">Influo brand kit · ${new Date().toLocaleDateString()}</p>
+      <h2>Do</h2><pre>${escapeHtml(kitDos)}</pre>
+      <h2>Don't</h2><pre>${escapeHtml(kitDonts)}</pre>
       <script>window.onload=()=>window.print()</script></body></html>`);
     w.document.close();
   };
@@ -344,35 +438,32 @@ export default function BrandToolsPanel({
   const labels = CHECKLIST_LABELS[el ? "el" : "en"];
   const checklistDone = Object.values(checklist).filter(Boolean).length;
   const checklistTotal = Object.keys(labels).length;
+  const inputCls =
+    "mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-500";
+  const hintCls = "text-sm text-slate-700";
+  const mutedCls = "text-xs text-slate-600";
 
-  const card = "bg-white border border-slate-200 rounded-xl p-5 md:p-6 space-y-4";
-  const h3 = "text-sm font-semibold text-slate-800 uppercase tracking-wide";
+  const renderSection = (id: ToolSectionId, index: number) => {
+    const title = SECTION_TITLES[id][el ? "el" : "en"];
+    const wrap = (children: ReactNode) => (
+      <ToolCard key={id} title={title} index={index} total={order.length} onMove={(dir) => moveSection(id, dir)}>
+        {children}
+      </ToolCard>
+    );
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold text-slate-900">{el ? "Εργαλεία brand" : "Brand tools"}</h2>
-        <p className="text-sm text-slate-600 mt-1">
-          {el
-            ? "Budget, brief, σύγκριση, checklist, UTM, ROI και brand kit."
-            : "Budget, brief, compare, checklist, UTM, ROI, and brand kit."}
-        </p>
-      </div>
-
-      {/* Row: budget + export */}
-      <div className="grid lg:grid-cols-2 gap-5">
-        <section className={card}>
-          <h3 className={h3}>{el ? "Budget estimator" : "Budget estimator"}</h3>
-          {shortlist.length === 0 ? (
-            <p className="text-sm text-slate-600">
+    switch (id) {
+      case "budget":
+        return wrap(
+          shortlist.length === 0 ? (
+            <p className={hintCls}>
               {el ? "Κενή shortlist." : "Empty shortlist."}{" "}
-              <button type="button" onClick={onOpenShortlist} className="text-blue-600 font-medium hover:underline">
+              <button type="button" onClick={onOpenShortlist} className="text-blue-700 font-semibold hover:underline">
                 {el ? "Προσθήκη" : "Add"}
               </button>
             </p>
           ) : (
             <>
-              <label className="block text-sm text-slate-700">
+              <label className="block text-sm font-medium text-slate-800">
                 {el ? "Μονάδες ανά creator" : "Units per creator"}
                 <input
                   type="number"
@@ -380,17 +471,17 @@ export default function BrandToolsPanel({
                   max={20}
                   value={units}
                   onChange={(e) => setUnits(Number(e.target.value) || 1)}
-                  className="mt-1 w-28 px-3 py-2 border border-slate-300 rounded-lg"
+                  className="mt-1 w-28 px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
                 />
               </label>
               <div className="rounded-lg bg-slate-50 border border-slate-200 px-4 py-3">
-                <div className="text-xs uppercase tracking-wide text-slate-500 font-semibold">
+                <div className="text-xs uppercase tracking-wide text-slate-700 font-semibold">
                   {el ? "Εκτίμηση (από)" : "Estimate (from)"}
                 </div>
                 <div className="text-3xl font-bold text-slate-900 mt-1 tabular-nums">
                   {withRate.length ? `${Math.round(minTotal).toLocaleString(el ? "el-GR" : "en-US")}€` : "—"}
                 </div>
-                <p className="text-xs text-slate-500 mt-2">
+                <p className={`${mutedCls} mt-2`}>
                   {withRate.length} {el ? "με τιμή" : "with rate"} · {withoutRate.length}{" "}
                   {el ? "χωρίς" : "missing"}
                 </p>
@@ -399,9 +490,7 @@ export default function BrandToolsPanel({
                 type="button"
                 onClick={() =>
                   copyText(
-                    el
-                      ? `Εκτίμηση Influo: από ${Math.round(minTotal)}€`
-                      : `Influo estimate: from ${Math.round(minTotal)}€`,
+                    el ? `Εκτίμηση Influo: από ${Math.round(minTotal)}€` : `Influo estimate: from ${Math.round(minTotal)}€`,
                     "budget"
                   )
                 }
@@ -410,333 +499,413 @@ export default function BrandToolsPanel({
                 {copied === "budget" ? (el ? "Αντιγράφηκε" : "Copied") : el ? "Αντιγραφή" : "Copy"}
               </button>
             </>
-          )}
-        </section>
+          )
+        );
 
-        <section className={card}>
-          <h3 className={h3}>{el ? "Export shortlist" : "Export shortlist"}</h3>
-          <p className="text-sm text-slate-600">
-            {el ? "CSV ή εκτύπωση / PDF." : "CSV or print / PDF."} {shortlist.length} creators.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={!shortlist.length}
-              onClick={downloadCsv}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-40"
-            >
-              CSV
-            </button>
-            <button
-              type="button"
-              disabled={!shortlist.length}
-              onClick={printSummary}
-              className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium hover:bg-slate-50 disabled:opacity-40"
-            >
-              {el ? "Εκτύπωση / PDF" : "Print / PDF"}
-            </button>
-            <button
-              type="button"
-              onClick={onOpenShortlist}
-              className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium hover:bg-slate-50"
-            >
-              {el ? "Λίστα" : "List"}
-            </button>
-          </div>
-        </section>
-      </div>
-
-      {/* Compare */}
-      <section className={card}>
-        <h3 className={h3}>{el ? "Σύγκριση creators" : "Compare creators"}</h3>
-        <p className="text-sm text-slate-600">
-          {el ? "Επιλέξτε έως 4 από τη shortlist." : "Select up to 4 from your shortlist."}
-        </p>
-        {shortlist.length === 0 ? (
-          <p className="text-sm text-slate-500">{el ? "Δεν υπάρχουν creators στη λίστα." : "No creators on the list."}</p>
-        ) : (
+      case "export":
+        return wrap(
           <>
+            <p className={hintCls}>
+              {el ? "CSV ή εκτύπωση / PDF." : "CSV or print / PDF."} {shortlist.length} creators.
+            </p>
             <div className="flex flex-wrap gap-2">
-              {shortlist.map((s) => {
-                const on = compareIds.includes(s.influencerId);
-                return (
-                  <button
-                    key={s.influencerId}
-                    type="button"
-                    onClick={() => toggleCompare(s.influencerId)}
-                    className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${
-                      on
-                        ? "bg-blue-600 text-white border-blue-600"
-                        : "bg-white text-slate-700 border-slate-200 hover:border-slate-300"
-                    }`}
-                  >
-                    {s.displayName}
-                  </button>
-                );
-              })}
+              <button
+                type="button"
+                disabled={!shortlist.length}
+                onClick={downloadCsv}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-40"
+              >
+                CSV
+              </button>
+              <button
+                type="button"
+                disabled={!shortlist.length}
+                onClick={printSummary}
+                className="px-4 py-2 border border-slate-300 text-slate-900 rounded-lg text-sm font-medium hover:bg-slate-50 disabled:opacity-40"
+              >
+                {el ? "Εκτύπωση / PDF" : "Print / PDF"}
+              </button>
+              <button
+                type="button"
+                onClick={onOpenShortlist}
+                className="px-4 py-2 border border-slate-300 text-slate-900 rounded-lg text-sm font-medium hover:bg-slate-50"
+              >
+                {el ? "Λίστα" : "List"}
+              </button>
             </div>
-            {compareItems.length > 0 && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm border-collapse min-w-[480px]">
-                  <thead>
-                    <tr className="text-left text-slate-500 border-b border-slate-200">
-                      <th className="py-2 pr-3 font-medium">{el ? "Μετρική" : "Metric"}</th>
-                      {compareItems.map((s) => (
-                        <th key={s.influencerId} className="py-2 px-2 font-semibold text-slate-900">
-                          {s.displayName}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="text-slate-700">
-                    {(
-                      [
-                        [el ? "Κατηγορία" : "Category", (s: BrandShortlistItem) => s.category || "—"],
-                        [el ? "Followers" : "Followers", (s: BrandShortlistItem) => fmtFollowers(s.followers)],
-                        ["ER", (s: BrandShortlistItem) => (s.engagementRate != null ? `${s.engagementRate}%` : "—")],
-                        [
-                          el ? "Από (€)" : "From (€)",
-                          (s: BrandShortlistItem) => {
-                            const r = parseEuro(s.minRate);
-                            return r != null ? `${r}` : "—";
-                          },
-                        ],
-                        [
-                          el ? "Απάντηση (h)" : "Response (h)",
-                          (s: BrandShortlistItem) =>
-                            s.avgResponseTime != null ? String(s.avgResponseTime) : "—",
-                        ],
-                        [
-                          "Completion",
-                          (s: BrandShortlistItem) =>
-                            s.completionRate != null ? `${s.completionRate}%` : "—",
-                        ],
-                      ] as const
-                    ).map(([label, fn]) => (
-                      <tr key={String(label)} className="border-b border-slate-100">
-                        <td className="py-2 pr-3 text-slate-500">{label}</td>
-                        {compareItems.map((s) => (
-                          <td key={s.influencerId} className="py-2 px-2 tabular-nums">
-                            {fn(s)}
-                          </td>
+          </>
+        );
+
+      case "compare":
+        return wrap(
+          <>
+            <p className={hintCls}>{el ? "Επιλέξτε έως 4 από τη shortlist." : "Select up to 4 from your shortlist."}</p>
+            {shortlist.length === 0 ? (
+              <p className="text-sm text-slate-700">{el ? "Δεν υπάρχουν creators στη λίστα." : "No creators on the list."}</p>
+            ) : (
+              <>
+                <div className="flex flex-wrap gap-2">
+                  {shortlist.map((s) => {
+                    const on = compareIds.includes(s.influencerId);
+                    return (
+                      <button
+                        key={s.influencerId}
+                        type="button"
+                        onClick={() => toggleCompare(s.influencerId)}
+                        className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${
+                          on
+                            ? "bg-blue-600 text-white border-blue-600"
+                            : "bg-white text-slate-800 border-slate-300 hover:border-slate-400"
+                        }`}
+                      >
+                        {s.displayName}
+                      </button>
+                    );
+                  })}
+                </div>
+                {compareItems.length > 0 && (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm border-collapse min-w-[480px]">
+                      <thead>
+                        <tr className="text-left text-slate-700 border-b border-slate-200">
+                          <th className="py-2 pr-3 font-semibold">{el ? "Μετρική" : "Metric"}</th>
+                          {compareItems.map((s) => (
+                            <th key={s.influencerId} className="py-2 px-2 font-semibold text-slate-900">
+                              {s.displayName}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="text-slate-800">
+                        {(
+                          [
+                            [el ? "Κατηγορία" : "Category", (s: BrandShortlistItem) => s.category || "—"],
+                            [el ? "Followers" : "Followers", (s: BrandShortlistItem) => fmtFollowers(s.followers)],
+                            ["ER", (s: BrandShortlistItem) => (s.engagementRate != null ? `${s.engagementRate}%` : "—")],
+                            [
+                              el ? "Από (€)" : "From (€)",
+                              (s: BrandShortlistItem) => {
+                                const r = parseEuro(s.minRate);
+                                return r != null ? `${r}` : "—";
+                              },
+                            ],
+                            [
+                              el ? "Απάντηση (h)" : "Response (h)",
+                              (s: BrandShortlistItem) =>
+                                s.avgResponseTime != null ? String(s.avgResponseTime) : "—",
+                            ],
+                            [
+                              "Completion",
+                              (s: BrandShortlistItem) =>
+                                s.completionRate != null ? `${s.completionRate}%` : "—",
+                            ],
+                          ] as const
+                        ).map(([label, fn]) => (
+                          <tr key={String(label)} className="border-b border-slate-100">
+                            <td className="py-2 pr-3 text-slate-700 font-medium">{label}</td>
+                            {compareItems.map((s) => (
+                              <td key={s.influencerId} className="py-2 px-2 tabular-nums text-slate-900">
+                                {fn(s)}
+                              </td>
+                            ))}
+                          </tr>
                         ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
             )}
           </>
-        )}
-      </section>
+        );
 
-      {/* Checklist + UTM */}
-      <div className="grid lg:grid-cols-2 gap-5">
-        <section className={card}>
-          <div className="flex items-center justify-between gap-2">
-            <h3 className={h3}>{el ? "Campaign checklist" : "Campaign checklist"}</h3>
-            <span className="text-xs text-slate-500 tabular-nums">
-              {checklistDone}/{checklistTotal}
-            </span>
-          </div>
-          <ul className="space-y-2">
-            {(Object.keys(labels) as Array<keyof typeof labels>).map((k) => (
-              <li key={k}>
-                <label className="flex items-center gap-3 text-sm text-slate-800 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={!!checklist[k]}
-                    onChange={(e) => setCheck(k, e.target.checked)}
-                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  {labels[k]}
-                </label>
-              </li>
-            ))}
-          </ul>
-          <p className="text-xs text-slate-500">
-            {el ? "Αποθηκεύεται σε αυτόν τον browser για το brand σας." : "Saved in this browser for your brand."}
-          </p>
-        </section>
+      case "checklist":
+        return wrap(
+          <>
+            <div className="flex items-center justify-between gap-2 -mt-1">
+              <span className={`${mutedCls} tabular-nums`}>
+                {checklistDone}/{checklistTotal}
+              </span>
+            </div>
+            <ul className="space-y-2">
+              {(Object.keys(labels) as Array<keyof typeof labels>).map((k) => (
+                <li key={k}>
+                  <label className="flex items-center gap-3 text-sm font-medium text-slate-900 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!checklist[k]}
+                      onChange={(e) => setCheck(k, e.target.checked)}
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    {labels[k]}
+                  </label>
+                </li>
+              ))}
+            </ul>
+            <p className={mutedCls}>
+              {el ? "Αποθηκεύεται σε αυτόν τον browser για το brand σας." : "Saved in this browser for your brand."}
+            </p>
+          </>
+        );
 
-        <section className={card}>
-          <h3 className={h3}>{el ? "UTM builder" : "UTM builder"}</h3>
-          <label className="block text-sm text-slate-700">
-            URL
+      case "utm":
+        return wrap(
+          <>
+            <label className="block text-sm font-medium text-slate-800">
+              URL
+              <input value={utmBase} onChange={(e) => setUtmBase(e.target.value)} className={inputCls} />
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="block text-sm font-medium text-slate-800">
+                Campaign
+                <input
+                  value={utmCampaign}
+                  onChange={(e) => setUtmCampaign(e.target.value)}
+                  placeholder="spring_sale"
+                  className={inputCls}
+                />
+              </label>
+              <label className="block text-sm font-medium text-slate-800">
+                Creator
+                <input
+                  value={utmCreator}
+                  onChange={(e) => setUtmCreator(e.target.value)}
+                  placeholder="@username"
+                  className={inputCls}
+                />
+              </label>
+            </div>
             <input
-              value={utmBase}
-              onChange={(e) => setUtmBase(e.target.value)}
-              className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+              readOnly
+              value={utmUrl}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-50 text-xs font-mono text-slate-900"
             />
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            <label className="block text-sm text-slate-700">
-              Campaign
+            <button
+              type="button"
+              disabled={!utmUrl}
+              onClick={() => copyText(utmUrl, "utm")}
+              className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 disabled:opacity-40"
+            >
+              {copied === "utm" ? (el ? "Αντιγράφηκε" : "Copied") : el ? "Αντιγραφή link" : "Copy link"}
+            </button>
+          </>
+        );
+
+      case "brief":
+        return wrap(
+          <>
+            <div className="flex justify-end -mt-1">
+              <button
+                type="button"
+                onClick={onOpenCampaigns}
+                className="px-4 py-2 border border-slate-300 text-slate-900 rounded-lg text-sm font-medium hover:bg-slate-50"
+              >
+                {el ? "Νέα καμπάνια" : "New campaign"}
+              </button>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <label className="block text-sm font-medium text-slate-800">
+                {el ? "Στόχος" : "Goal"}
+                <textarea value={goal} onChange={(e) => setGoal(e.target.value)} rows={2} className={inputCls} />
+              </label>
+              <label className="block text-sm font-medium text-slate-800">
+                {el ? "Κοινό" : "Audience"}
+                <textarea value={audience} onChange={(e) => setAudience(e.target.value)} rows={2} className={inputCls} />
+              </label>
+              <label className="block text-sm font-medium text-slate-800">
+                Deliverables
+                <textarea
+                  value={deliverables}
+                  onChange={(e) => setDeliverables(e.target.value)}
+                  rows={2}
+                  className={inputCls}
+                />
+              </label>
+              <label className="block text-sm font-medium text-slate-800">
+                {el ? "Χρονοδιάγραμμα" : "Timeline"}
+                <input value={timeline} onChange={(e) => setTimeline(e.target.value)} className={inputCls} />
+              </label>
+              <label className="block text-sm font-medium text-slate-800 sm:col-span-2">
+                Budget
+                <input value={budgetNote} onChange={(e) => setBudgetNote(e.target.value)} className={inputCls} />
+              </label>
+            </div>
+            <textarea
+              readOnly
+              value={briefText}
+              rows={8}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-50 text-sm font-mono text-slate-900"
+            />
+            <button
+              type="button"
+              onClick={() => copyText(briefText, "brief")}
+              className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800"
+            >
+              {copied === "brief" ? (el ? "Αντιγράφηκε" : "Copied") : el ? "Αντιγραφή brief" : "Copy brief"}
+            </button>
+          </>
+        );
+
+      case "roi":
+        return wrap(
+          <>
+            <p className={hintCls}>
+              {el
+                ? "Καταγράψτε spend και αποτελέσματα ανά καμπάνια (τοπικά σε αυτόν τον browser)."
+                : "Log spend and results per campaign (stored in this browser)."}
+            </p>
+            <div className="grid sm:grid-cols-2 gap-2">
               <input
-                value={utmCampaign}
-                onChange={(e) => setUtmCampaign(e.target.value)}
-                placeholder={el ? "spring_sale" : "spring_sale"}
-                className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                value={roiName}
+                onChange={(e) => setRoiName(e.target.value)}
+                placeholder={el ? "Όνομα καμπάνιας" : "Campaign name"}
+                className={inputCls.replace("mt-1 ", "")}
               />
-            </label>
-            <label className="block text-sm text-slate-700">
-              Creator
               <input
-                value={utmCreator}
-                onChange={(e) => setUtmCreator(e.target.value)}
-                placeholder="@username"
-                className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                value={roiSpend}
+                onChange={(e) => setRoiSpend(e.target.value)}
+                placeholder="Spend €"
+                className={inputCls.replace("mt-1 ", "")}
               />
-            </label>
-          </div>
-          <input
-            readOnly
-            value={utmUrl}
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 text-xs font-mono text-slate-800"
-          />
-          <button
-            type="button"
-            disabled={!utmUrl}
-            onClick={() => copyText(utmUrl, "utm")}
-            className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 disabled:opacity-40"
-          >
-            {copied === "utm" ? (el ? "Αντιγράφηκε" : "Copied") : el ? "Αντιγραφή link" : "Copy link"}
-          </button>
-        </section>
+              <input
+                value={roiResults}
+                onChange={(e) => setRoiResults(e.target.value)}
+                placeholder={el ? "Αποτελέσματα (clicks, sales…)" : "Results (clicks, sales…)"}
+                className={`${inputCls.replace("mt-1 ", "")} sm:col-span-2`}
+              />
+              <input
+                value={roiNotes}
+                onChange={(e) => setRoiNotes(e.target.value)}
+                placeholder={el ? "Σημειώσεις" : "Notes"}
+                className={`${inputCls.replace("mt-1 ", "")} sm:col-span-2`}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={addRoi}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+            >
+              {el ? "Προσθήκη" : "Add entry"}
+            </button>
+            {roi.length > 0 && (
+              <ul className="divide-y divide-slate-200 border border-slate-200 rounded-lg overflow-hidden">
+                {roi.map((r) => (
+                  <li
+                    key={r.id}
+                    className="px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm"
+                  >
+                    <div>
+                      <div className="font-semibold text-slate-900">{r.campaignName}</div>
+                      <div className="text-slate-700">
+                        {r.spend.toLocaleString(el ? "el-GR" : "en-US")}€
+                        {r.results ? ` · ${r.results}` : ""}
+                        {r.notes ? ` · ${r.notes}` : ""}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeRoi(r.id)}
+                      className="text-slate-700 hover:text-red-700 text-xs font-medium"
+                    >
+                      {el ? "Διαγραφή" : "Delete"}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        );
+
+      case "kit":
+        return wrap(
+          <>
+            <p className={hintCls}>
+              {el
+                ? "Οδηγίες για influencers — εκτύπωση ή αποθήκευση ως PDF."
+                : "Guidelines for influencers — print or save as PDF."}
+            </p>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <label className="block text-sm font-medium text-slate-800">
+                Do
+                <textarea value={kitDos} onChange={(e) => setKitDos(e.target.value)} rows={4} className={inputCls} />
+              </label>
+              <label className="block text-sm font-medium text-slate-800">
+                Don&apos;t
+                <textarea value={kitDonts} onChange={(e) => setKitDonts(e.target.value)} rows={4} className={inputCls} />
+              </label>
+            </div>
+            <button
+              type="button"
+              onClick={printBrandKit}
+              className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800"
+            >
+              {el ? "Εκτύπωση / PDF kit" : "Print / PDF kit"}
+            </button>
+          </>
+        );
+
+      case "snippets":
+        return wrap(
+          <>
+            <p className={hintCls}>
+              {el ? "Αντιγράψτε και επεξεργαστείτε πριν την αποστολή." : "Copy and edit before sending."}
+            </p>
+            {(
+              [
+                ["outreach", el ? "Πρώτη επαφή" : "Outreach"],
+                ["negotiate", el ? "Διαπραγμάτευση" : "Negotiate"],
+                ["reminder", el ? "Υπενθύμιση deliverable" : "Deliverable reminder"],
+                ["approve", el ? "Έγκριση" : "Approval"],
+              ] as const
+            ).map(([key, label]) => (
+              <div key={key} className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-semibold text-slate-900">{label}</span>
+                  <button
+                    type="button"
+                    onClick={() => copyText(snippets[key], `snip-${key}`)}
+                    className="text-xs font-semibold text-blue-700 hover:underline"
+                  >
+                    {copied === `snip-${key}` ? (el ? "Αντιγράφηκε" : "Copied") : el ? "Αντιγραφή" : "Copy"}
+                  </button>
+                </div>
+                <textarea
+                  value={snippets[key]}
+                  onChange={(e) => updateSnippet(key, e.target.value)}
+                  rows={3}
+                  className={inputCls.replace("mt-1 ", "")}
+                />
+              </div>
+            ))}
+          </>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-semibold text-slate-900">{el ? "Εργαλεία brand" : "Brand tools"}</h2>
+          <p className="text-sm text-slate-700 mt-1">
+            {el
+              ? "Μετακινήστε τα εργαλεία με ↑ ↓ για να ορίσετε τη σειρά που σας βολεύει."
+              : "Use ↑ ↓ to rearrange tools in the order you prefer."}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={resetOrder}
+          className="text-sm font-medium text-slate-800 border border-slate-300 px-3 py-1.5 rounded-lg hover:bg-slate-50 self-start"
+        >
+          {el ? "Επαναφορά σειράς" : "Reset order"}
+        </button>
       </div>
 
-      {/* Brief */}
-      <section className={card}>
-        <div className="flex flex-col sm:flex-row sm:justify-between gap-3">
-          <h3 className={h3}>{el ? "Campaign brief" : "Campaign brief"}</h3>
-          <button
-            type="button"
-            onClick={onOpenCampaigns}
-            className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium hover:bg-slate-50"
-          >
-            {el ? "Νέα καμπάνια" : "New campaign"}
-          </button>
-        </div>
-        <div className="grid sm:grid-cols-2 gap-3">
-          <label className="block text-sm text-slate-700">
-            {el ? "Στόχος" : "Goal"}
-            <textarea value={goal} onChange={(e) => setGoal(e.target.value)} rows={2} className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
-          </label>
-          <label className="block text-sm text-slate-700">
-            {el ? "Κοινό" : "Audience"}
-            <textarea value={audience} onChange={(e) => setAudience(e.target.value)} rows={2} className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
-          </label>
-          <label className="block text-sm text-slate-700">
-            Deliverables
-            <textarea value={deliverables} onChange={(e) => setDeliverables(e.target.value)} rows={2} className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
-          </label>
-          <label className="block text-sm text-slate-700">
-            {el ? "Χρονοδιάγραμμα" : "Timeline"}
-            <input value={timeline} onChange={(e) => setTimeline(e.target.value)} className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
-          </label>
-          <label className="block text-sm text-slate-700 sm:col-span-2">
-            Budget
-            <input value={budgetNote} onChange={(e) => setBudgetNote(e.target.value)} className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
-          </label>
-        </div>
-        <textarea readOnly value={briefText} rows={8} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 text-sm font-mono" />
-        <button
-          type="button"
-          onClick={() => copyText(briefText, "brief")}
-          className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800"
-        >
-          {copied === "brief" ? (el ? "Αντιγράφηκε" : "Copied") : el ? "Αντιγραφή brief" : "Copy brief"}
-        </button>
-      </section>
-
-      {/* ROI */}
-      <section className={card}>
-        <h3 className={h3}>{el ? "ROI / αποτελέσματα" : "ROI / results log"}</h3>
-        <p className="text-sm text-slate-600">
-          {el
-            ? "Καταγράψτε spend και αποτελέσματα ανά καμπάνια (τοπικά σε αυτόν τον browser)."
-            : "Log spend and results per campaign (stored in this browser)."}
-        </p>
-        <div className="grid sm:grid-cols-2 gap-2">
-          <input
-            value={roiName}
-            onChange={(e) => setRoiName(e.target.value)}
-            placeholder={el ? "Όνομα καμπάνιας" : "Campaign name"}
-            className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
-          />
-          <input
-            value={roiSpend}
-            onChange={(e) => setRoiSpend(e.target.value)}
-            placeholder={el ? "Spend €" : "Spend €"}
-            className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
-          />
-          <input
-            value={roiResults}
-            onChange={(e) => setRoiResults(e.target.value)}
-            placeholder={el ? "Αποτελέσματα (clicks, sales…)" : "Results (clicks, sales…)"}
-            className="px-3 py-2 border border-slate-300 rounded-lg text-sm sm:col-span-2"
-          />
-          <input
-            value={roiNotes}
-            onChange={(e) => setRoiNotes(e.target.value)}
-            placeholder={el ? "Σημειώσεις" : "Notes"}
-            className="px-3 py-2 border border-slate-300 rounded-lg text-sm sm:col-span-2"
-          />
-        </div>
-        <button
-          type="button"
-          onClick={addRoi}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
-        >
-          {el ? "Προσθήκη" : "Add entry"}
-        </button>
-        {roi.length > 0 && (
-          <ul className="divide-y divide-slate-100 border border-slate-200 rounded-lg overflow-hidden">
-            {roi.map((r) => (
-              <li key={r.id} className="px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm">
-                <div>
-                  <div className="font-semibold text-slate-900">{r.campaignName}</div>
-                  <div className="text-slate-500">
-                    {r.spend.toLocaleString(el ? "el-GR" : "en-US")}€
-                    {r.results ? ` · ${r.results}` : ""}
-                    {r.notes ? ` · ${r.notes}` : ""}
-                  </div>
-                </div>
-                <button type="button" onClick={() => removeRoi(r.id)} className="text-slate-500 hover:text-red-600 text-xs">
-                  {el ? "Διαγραφή" : "Delete"}
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {/* Brand kit */}
-      <section className={card}>
-        <h3 className={h3}>{el ? "Brand kit" : "Brand kit"}</h3>
-        <p className="text-sm text-slate-600">
-          {el
-            ? "Οδηγίες για influencers — εκτύπωση ή αποθήκευση ως PDF."
-            : "Guidelines for influencers — print or save as PDF."}
-        </p>
-        <div className="grid sm:grid-cols-2 gap-3">
-          <label className="block text-sm text-slate-700">
-            Do
-            <textarea value={kitDos} onChange={(e) => setKitDos(e.target.value)} rows={4} className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
-          </label>
-          <label className="block text-sm text-slate-700">
-            Don&apos;t
-            <textarea value={kitDonts} onChange={(e) => setKitDonts(e.target.value)} rows={4} className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
-          </label>
-        </div>
-        <button
-          type="button"
-          onClick={printBrandKit}
-          className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800"
-        >
-          {el ? "Εκτύπωση / PDF kit" : "Print / PDF kit"}
-        </button>
-      </section>
+      <div className="space-y-5">{order.map((id, index) => renderSection(id, index))}</div>
     </div>
   );
 }
