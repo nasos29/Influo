@@ -2124,6 +2124,7 @@ export default function InfluencerProfile(props: { params: Params }) {
 
                   <ProfileStatCard
                     label={txt.stat_rating}
+                    valueCentered
                     icon={
                       <MetricIcon className="bg-amber-50 text-amber-600 ring-amber-100">
                         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
@@ -2151,6 +2152,7 @@ export default function InfluencerProfile(props: { params: Params }) {
 
                   <ProfileStatCard
                     label={txt.stat_response}
+                    valueCentered
                     icon={
                       <MetricIcon className="bg-teal-50 text-teal-600 ring-teal-100">
                         <circle cx="12" cy="12" r="10" />
@@ -2170,6 +2172,7 @@ export default function InfluencerProfile(props: { params: Params }) {
 
                   <ProfileStatCard
                     label={txt.stat_completion}
+                    valueCentered
                     icon={
                       <MetricIcon className="bg-emerald-50 text-emerald-600 ring-emerald-100">
                         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
@@ -2177,7 +2180,13 @@ export default function InfluencerProfile(props: { params: Params }) {
                       </MetricIcon>
                     }
                   >
-                    <p className="text-2xl font-semibold tracking-tight tabular-nums text-slate-900">
+                    <p
+                      className={`text-2xl font-semibold tracking-tight tabular-nums ${
+                        profile.calculatedCompletionRate !== undefined
+                          ? "text-slate-900"
+                          : "text-slate-300"
+                      }`}
+                    >
                       {profile.calculatedCompletionRate !== undefined
                         ? `${profile.calculatedCompletionRate}%`
                         : "—"}
@@ -2186,6 +2195,7 @@ export default function InfluencerProfile(props: { params: Params }) {
 
                   <ProfileStatCard
                     label={lang === "el" ? "Κατάσταση" : "Status"}
+                    valueCentered
                     icon={
                       <MetricIcon className="bg-slate-100 text-slate-600 ring-slate-200/80">
                         <rect x="3" y="4" width="18" height="18" rx="2" />
