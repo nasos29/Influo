@@ -360,7 +360,7 @@ export default function ForBrandsPage() {
           </div>
           <div className="relative aspect-[4/3] rounded-lg overflow-hidden bg-slate-200">
             <Image
-              src="https://images.unsplash.com/photo-1542744173-8e2bd1f95384?w=1200&q=80"
+              src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1200&q=80"
               alt=""
               fill
               className="object-cover"
