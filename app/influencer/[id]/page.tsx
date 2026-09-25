@@ -2018,6 +2018,35 @@ export default function InfluencerProfile(props: { params: Params }) {
                   </ProfileStatCard>
 
                   <ProfileStatCard
+                    label={lang === "el" ? "Μ.Ο. Likes" : "Avg Likes"}
+                    icon={
+                      <MetricIcon className="bg-rose-50 text-rose-500 ring-rose-100">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                      </MetricIcon>
+                    }
+                  >
+                    {availablePlatforms.length === 0 ? (
+                      <p className="text-xl font-semibold tracking-tight text-slate-300">—</p>
+                    ) : (
+                      <div className="w-full">
+                        {availablePlatforms.map((platform) => {
+                          const Icon = platform.icon;
+                          const avgLikesValue = avgLikesMap[platform.key] || "-";
+                          return platformRow(
+                            platform.key,
+                            <span className={platform.color}>
+                              <Icon />
+                            </span>,
+                            <span className="text-[15px] font-semibold tabular-nums tracking-tight text-slate-900">
+                              {avgLikesValue}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </ProfileStatCard>
+
+                  <ProfileStatCard
                     label={txt.stat_growth_30d}
                     valueCentered
                     icon={
@@ -2056,35 +2085,6 @@ export default function InfluencerProfile(props: { params: Params }) {
                       </div>
                     ) : (
                       <p className="text-xl font-semibold tracking-tight text-slate-300">—</p>
-                    )}
-                  </ProfileStatCard>
-
-                  <ProfileStatCard
-                    label={lang === "el" ? "Μ.Ο. Likes" : "Avg Likes"}
-                    icon={
-                      <MetricIcon className="bg-rose-50 text-rose-500 ring-rose-100">
-                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                      </MetricIcon>
-                    }
-                  >
-                    {availablePlatforms.length === 0 ? (
-                      <p className="text-xl font-semibold tracking-tight text-slate-300">—</p>
-                    ) : (
-                      <div className="w-full">
-                        {availablePlatforms.map((platform) => {
-                          const Icon = platform.icon;
-                          const avgLikesValue = avgLikesMap[platform.key] || "-";
-                          return platformRow(
-                            platform.key,
-                            <span className={platform.color}>
-                              <Icon />
-                            </span>,
-                            <span className="text-[15px] font-semibold tabular-nums tracking-tight text-slate-900">
-                              {avgLikesValue}
-                            </span>
-                          );
-                        })}
-                      </div>
                     )}
                   </ProfileStatCard>
 
