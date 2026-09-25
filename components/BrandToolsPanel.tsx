@@ -394,9 +394,36 @@ export default function BrandToolsPanel({
     URL.revokeObjectURL(href);
   };
 
+  const openPrintableHtml = (html: string) => {
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const w = window.open(url, "_blank");
+    if (!w) {
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "influo-print.html";
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+      return;
+    }
+    const tryPrint = () => {
+      try {
+        w.focus();
+        w.print();
+      } catch {
+        /* user can print manually */
+      }
+    };
+    // Blob windows may already be loaded when we get the handle.
+    if (w.document?.readyState === "complete") {
+      setTimeout(tryPrint, 250);
+    } else {
+      w.addEventListener("load", () => setTimeout(tryPrint, 250));
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 120_000);
+  };
+
   const printSummary = () => {
-    const w = window.open("", "_blank", "noopener,noreferrer,width=800,height=900");
-    if (!w) return;
     const rows = shortlist
       .map((s) => {
         const rate = parseEuro(s.minRate);
@@ -405,34 +432,38 @@ export default function BrandToolsPanel({
         }</td><td>${escapeHtml(s.note || "")}</td></tr>`;
       })
       .join("");
-    w.document.write(`<!DOCTYPE html><html><head><title>Influo shortlist</title>
-      <style>body{font-family:system-ui,sans-serif;padding:32px;color:#0f172a}table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13px}th,td{border:1px solid #e2e8f0;padding:8px;text-align:left}th{background:#f8fafc}</style></head><body>
+    openPrintableHtml(`<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Influo shortlist</title>
+      <style>body{font-family:system-ui,sans-serif;padding:32px;color:#0f172a}table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13px}th,td{border:1px solid #e2e8f0;padding:8px;text-align:left}th{background:#f8fafc}
+      @media print{button{display:none}}</style></head><body>
       <h1>${escapeHtml(brandName || "Brand")}</h1>
       <p>${el ? "Εκτίμηση (από)" : "Estimate (from)"}: ${Math.round(minTotal)}€</p>
-      <table><thead><tr><th>${el ? "Όνομα" : "Name"}</th><th>${el ? "Κατηγορία" : "Category"}</th><th>${el ? "Από" : "From"}</th><th>${el ? "Σημείωση" : "Note"}</th></tr></thead><tbody>${rows}</tbody></table>
-      <script>window.onload=()=>window.print()</script></body></html>`);
-    w.document.close();
+      <table><thead><tr><th>${el ? "Όνομα" : "Name"}</th><th>${el ? "Κατηγορία" : "Category"}</th><th>${el ? "Από" : "From"}</th><th>${el ? "Σημείωση" : "Note"}</th></tr></thead><tbody>${rows || `<tr><td colspan="4">${el ? "Κενή λίστα" : "Empty list"}</td></tr>`}</tbody></table>
+      <p style="margin-top:24px"><button type="button" onclick="window.print()" style="padding:10px 16px;font-size:14px;cursor:pointer">${el ? "Εκτύπωση / PDF" : "Print / PDF"}</button></p>
+      </body></html>`);
   };
 
   const printBrandKit = () => {
-    const w = window.open("", "_blank", "noopener,noreferrer,width=800,height=900");
-    if (!w) return;
-    w.document.write(`<!DOCTYPE html><html><head><title>${escapeHtml(brandName)} kit</title>
+    const logoBlock =
+      logoUrl && /^https?:\/\//i.test(logoUrl)
+        ? `<img class="logo" src="${escapeHtml(logoUrl)}" alt="" crossorigin="anonymous" onerror="this.style.display='none'" />`
+        : "";
+    openPrintableHtml(`<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${escapeHtml(brandName || "Brand")} kit</title>
       <style>
-        body{font-family:system-ui,sans-serif;padding:40px;color:#0f172a;max-width:720px;margin:0 auto}
+        body{font-family:system-ui,sans-serif;padding:40px;color:#0f172a;max-width:720px;margin:0 auto;background:#fff}
         h1{font-size:28px;margin:0 0 8px}
         .meta{color:#334155;font-size:14px;margin-bottom:24px}
-        .logo{max-height:64px;margin-bottom:16px}
+        .logo{max-height:64px;margin-bottom:16px;display:block}
         h2{font-size:14px;text-transform:uppercase;letter-spacing:.06em;color:#334155;margin:24px 0 8px}
         pre{white-space:pre-wrap;background:#f8fafc;border:1px solid #e2e8f0;padding:12px;border-radius:8px;font-size:13px;color:#0f172a}
+        @media print{button{display:none}}
       </style></head><body>
-      ${logoUrl ? `<img class="logo" src="${escapeHtml(logoUrl)}" alt="" />` : ""}
+      ${logoBlock}
       <h1>${escapeHtml(brandName || "Brand")}</h1>
-      <div class="meta">${escapeHtml([industry, website, contactPerson].filter(Boolean).join(" · "))}</div>
+      <div class="meta">${escapeHtml([industry, website, contactPerson].filter(Boolean).join(" · ") || "—")}</div>
       <h2>Do</h2><pre>${escapeHtml(kitDos)}</pre>
-      <h2>Don't</h2><pre>${escapeHtml(kitDonts)}</pre>
-      <script>window.onload=()=>window.print()</script></body></html>`);
-    w.document.close();
+      <h2>Don&apos;t</h2><pre>${escapeHtml(kitDonts)}</pre>
+      <p style="margin-top:24px"><button type="button" onclick="window.print()" style="padding:10px 16px;font-size:14px;cursor:pointer">${el ? "Εκτύπωση / PDF" : "Print / PDF"}</button></p>
+      </body></html>`);
   };
 
   const labels = CHECKLIST_LABELS[el ? "el" : "en"];
