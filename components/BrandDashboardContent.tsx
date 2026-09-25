@@ -1534,12 +1534,15 @@ export default function BrandDashboardContent() {
           <div className="mb-12">
             <BrandToolsPanel
               lang={lang}
-              brandName={brandData?.brand_name || ''}
+              brandId={brandData?.id ? String(brandData.id) : ""}
+              brandName={brandData?.brand_name || ""}
               industry={brandData?.industry || null}
               website={brandData?.website || null}
+              logoUrl={brandData?.logo_url || null}
+              contactPerson={brandData?.contact_person || null}
               shortlist={shortlist}
-              onOpenCampaigns={() => openBrandTab('campaigns')}
-              onOpenShortlist={() => openBrandTab('shortlist')}
+              onOpenCampaigns={() => openBrandTab("campaigns")}
+              onOpenShortlist={() => openBrandTab("shortlist")}
             />
           </div>
         )}

@@ -10,6 +10,12 @@ export type BrandShortlistItem = {
   minRate: string | null;
   approved: boolean;
   profileSlug?: string | null;
+  /** Total followers across accounts (enriched). */
+  followers?: number | null;
+  /** Best-effort engagement % from accounts. */
+  engagementRate?: number | null;
+  avgResponseTime?: number | null;
+  completionRate?: number | null;
 };
 
 async function authHeader(): Promise<HeadersInit> {

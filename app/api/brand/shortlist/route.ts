@@ -53,26 +53,56 @@ export async function GET(request: NextRequest) {
   }
 
   const ids = (rows || []).map((r) => r.influencer_id);
-  const infById = new Map<string, {
-    display_name: string | null;
-    avatar_url: string | null;
-    category: string | null;
-    min_rate: string | null;
-    approved: boolean | null;
-    profile_slug?: string | null;
-  }>();
+  const infById = new Map<
+    string,
+    {
+      display_name: string | null;
+      avatar_url: string | null;
+      category: string | null;
+      min_rate: string | null;
+      approved: boolean | null;
+      profile_slug?: string | null;
+      accounts?: Array<{ followers?: string; engagement_rate?: string }> | null;
+      avg_response_time?: number | null;
+      completion_rate?: number | null;
+    }
+  >();
   if (ids.length) {
-    const { data: infs } = await supabaseAdmin
+    let infs: Array<Record<string, unknown>> | null = null;
+    const full = await supabaseAdmin
       .from("influencers")
-      .select("id, display_name, avatar_url, category, min_rate, approved, profile_slug")
+      .select(
+        "id, display_name, avatar_url, category, min_rate, approved, profile_slug, accounts, avg_response_time, completion_rate"
+      )
       .in("id", ids);
+    if (full.error && /column/i.test(full.error.message)) {
+      const fallback = await supabaseAdmin
+        .from("influencers")
+        .select("id, display_name, avatar_url, category, min_rate, approved, profile_slug, accounts")
+        .in("id", ids);
+      infs = (fallback.data as Array<Record<string, unknown>> | null) ?? null;
+    } else {
+      infs = (full.data as Array<Record<string, unknown>> | null) ?? null;
+    }
     for (const inf of infs || []) {
-      infById.set(String(inf.id), inf);
+      infById.set(String(inf.id), inf as (typeof infById extends Map<string, infer V> ? V : never));
     }
   }
 
+  const { totalFollowersFromAccounts } = await import("@/lib/parseFollowers");
+  const { parseErPercent } = await import("@/lib/engagementFlags");
+
   const items = (rows || []).map((r) => {
     const inf = infById.get(String(r.influencer_id));
+    const accounts = Array.isArray(inf?.accounts) ? inf.accounts : [];
+    const followers = totalFollowersFromAccounts(accounts);
+    let engagementRate: number | null = null;
+    for (const acc of accounts) {
+      const er = parseErPercent(acc?.engagement_rate);
+      if (er != null && er > 0) {
+        engagementRate = engagementRate == null ? er : Math.max(engagementRate, er);
+      }
+    }
     return {
       influencerId: String(r.influencer_id),
       note: (r.note || "").toString(),
@@ -83,6 +113,16 @@ export async function GET(request: NextRequest) {
       minRate: inf?.min_rate || null,
       approved: !!inf?.approved,
       profileSlug: inf?.profile_slug || null,
+      followers: followers > 0 ? followers : null,
+      engagementRate,
+      avgResponseTime:
+        typeof inf?.avg_response_time === "number" && inf.avg_response_time > 0
+          ? inf.avg_response_time
+          : null,
+      completionRate:
+        typeof inf?.completion_rate === "number" && inf.completion_rate > 0
+          ? inf.completion_rate
+          : null,
     };
   });
 
