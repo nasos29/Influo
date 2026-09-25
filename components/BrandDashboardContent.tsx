@@ -16,6 +16,7 @@ import BrandCampaignsSection from '@/components/BrandCampaignsSection';
 import BrandActionInbox from '@/components/BrandActionInbox';
 import BrandSaveInfluencerButton from '@/components/BrandSaveInfluencerButton';
 import BrandShortlistPanel from '@/components/BrandShortlistPanel';
+import BrandToolsPanel from '@/components/BrandToolsPanel';
 import InfluencerPresenceDot from '@/components/InfluencerPresenceDot';
 import { publicProfilePath } from '@/lib/profileSlug';
 import {
@@ -666,7 +667,7 @@ export default function BrandDashboardContent() {
       localStorage.setItem('brandDashboardStats', JSON.stringify(recommendationStats));
     }
   }, [recommendationStats]);
-  const [activeTab, setActiveTab] = useState<'recommendations' | 'campaigns' | 'proposals' | 'messages' | 'shortlist'>('recommendations');
+  const [activeTab, setActiveTab] = useState<'recommendations' | 'campaigns' | 'proposals' | 'messages' | 'shortlist' | 'tools'>('recommendations');
   const [shortlist, setShortlist] = useState<BrandShortlistItem[]>([]);
   const [shortlistMissingTable, setShortlistMissingTable] = useState(false);
   const [shortlistBusyId, setShortlistBusyId] = useState<string | null>(null);
@@ -688,7 +689,8 @@ export default function BrandDashboardContent() {
       tab === 'messages' ||
       tab === 'proposals' ||
       tab === 'recommendations' ||
-      tab === 'shortlist'
+      tab === 'shortlist' ||
+      tab === 'tools'
     ) {
       setActiveTab(tab);
     }
@@ -1246,7 +1248,7 @@ export default function BrandDashboardContent() {
     p => p.counter_proposal_status === 'pending' && p.counter_proposal_budget
   );
 
-  const openBrandTab = (tab: 'recommendations' | 'campaigns' | 'proposals' | 'messages' | 'shortlist') => {
+  const openBrandTab = (tab: 'recommendations' | 'campaigns' | 'proposals' | 'messages' | 'shortlist' | 'tools') => {
     setActiveTab(tab);
     const url = tab === 'recommendations' ? '/brand/dashboard' : `/brand/dashboard?tab=${tab}`;
     router.replace(url, { scroll: false });
@@ -1449,6 +1451,16 @@ export default function BrandDashboardContent() {
                 )}
               </button>
               <button
+                onClick={() => openBrandTab('tools')}
+                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === 'tools'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {lang === 'el' ? 'Εργαλεία' : 'Tools'}
+              </button>
+              <button
                 onClick={async () => {
                   setActiveTab('messages');
                   // Mark all unread messages as read when clicking Messages tab
@@ -1514,6 +1526,20 @@ export default function BrandDashboardContent() {
                 setMessageTargetInfluencer({ id: influencerId, name: displayName });
                 openBrandTab('messages');
               }}
+            />
+          </div>
+        )}
+
+        {activeTab === 'tools' && (
+          <div className="mb-12">
+            <BrandToolsPanel
+              lang={lang}
+              brandName={brandData?.brand_name || ''}
+              industry={brandData?.industry || null}
+              website={brandData?.website || null}
+              shortlist={shortlist}
+              onOpenCampaigns={() => openBrandTab('campaigns')}
+              onOpenShortlist={() => openBrandTab('shortlist')}
             />
           </div>
         )}
