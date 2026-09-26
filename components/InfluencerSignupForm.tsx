@@ -632,24 +632,22 @@ export default function InfluencerSignupForm() {
         .filter(acc => acc.platform !== 'Facebook')
         .map(acc => ({ ...acc, username: normalizeUsername(acc.username) }));
 
-      const { error: insertError } = await supabase.from("influencers").insert([
-        { 
+      const rateCardPayload = {
+        ...(priceStory.trim() ? { story: priceStory.trim() } : {}),
+        ...(pricePost.trim() ? { post: pricePost.trim() } : {}),
+        ...(priceReel.trim() ? { reel: priceReel.trim() } : {}),
+        ...(priceYouTube.trim() ? { youtube: priceYouTube.trim() } : {}),
+      };
+
+      const baseRow: Record<string, unknown> = {
           id: authUser.id,
           display_name: displayName, 
           gender: validGender, 
-          category: categories.length > 0 ? categories[0] : null, // Store primary category for compatibility (if single category column exists)
-          // Note: If categories column exists as array, store all categories
-          // Otherwise, categories are stored as comma-separated string in category field or first category
+          category: categories.length > 0 ? categories[0] : null,
           location,
           birth_date: birthDate,
           languages: languagesCodesToStored(selectedLanguages),
           min_rate: minRate,
-          rate_card: {
-            ...(priceStory.trim() ? { story: priceStory.trim() } : {}),
-            ...(pricePost.trim() ? { post: pricePost.trim() } : {}),
-            ...(priceReel.trim() ? { reel: priceReel.trim() } : {}),
-            ...(priceYouTube.trim() ? { youtube: priceYouTube.trim() } : {}),
-          },
           contact_email: email,
           bio, 
           accounts: socialAccounts, 
@@ -659,10 +657,32 @@ export default function InfluencerSignupForm() {
           audience_male_percent: parseInt(malePercent) || 0,
           audience_female_percent: parseInt(femalePercent) || 0,
           audience_top_age: topAge,
-        }
-      ]);
+      };
+
+      let insertError = (
+        await supabase.from("influencers").insert([{ ...baseRow, rate_card: rateCardPayload }])
+      ).error;
+
+      // DB may not have rate_card yet — retry without it so auth user is not left orphaned
+      if (
+        insertError &&
+        (/rate_card/i.test(insertError.message || '') || insertError.code === '42703' || insertError.code === 'PGRST204')
+      ) {
+        console.warn('[Signup] rate_card column missing; inserting without it:', insertError.message);
+        insertError = (await supabase.from("influencers").insert([baseRow])).error;
+      }
 
       if (insertError) {
+          // Auth user exists but profile insert failed — remove orphan so they can retry
+          try {
+            await fetch('/api/admin/cleanup-orphaned-auth', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email }),
+            });
+          } catch (cleanupErr) {
+            console.error('[Signup] orphan cleanup after insert failure:', cleanupErr);
+          }
           if (insertError.code === '23505') {
              const errorMsg = lang === "el" ? "Αυτό το Email είναι ήδη καταχωρημένο. Παρακαλώ χρησιμοποιήστε άλλο." : "This email is already registered. Please use a different one.";
              throw new Error(errorMsg);

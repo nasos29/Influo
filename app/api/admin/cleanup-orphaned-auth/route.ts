@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const authUser = users.find(u => u.email === email);
+    const authUser = users.find(u => (u.email || '').toLowerCase() === email.toLowerCase().trim());
 
     if (!authUser) {
       // Δεν υπάρχει auth user - όλα καλά

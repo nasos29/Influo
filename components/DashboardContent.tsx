@@ -360,12 +360,29 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                 analytics_verified: false, // Reset analytics verification
             };
 
-            const { data, error } = await supabase
+            let { data, error } = await supabase
                 .from('influencers')
                 .update(updateData)
                 .eq('id', user.id)
                 .select()
                 .single();
+
+            if (
+                error &&
+                (/rate_card/i.test(error.message || '') || error.code === '42703' || error.code === 'PGRST204')
+            ) {
+                const { rate_card: _omit, ...withoutRateCard } = updateData as typeof updateData & {
+                    rate_card?: unknown;
+                };
+                const retry = await supabase
+                    .from('influencers')
+                    .update(withoutRateCard)
+                    .eq('id', user.id)
+                    .select()
+                    .single();
+                data = retry.data;
+                error = retry.error;
+            }
 
             if (error) {
                 setLoading(false);
