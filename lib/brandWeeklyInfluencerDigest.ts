@@ -30,6 +30,7 @@ type InfluencerRow = {
   accounts: Array<{ platform?: string; followers?: string | number }> | null;
   approved_at: string | null;
   profile_slug?: string | null;
+  avatar_url?: string | null;
 };
 
 export function getWeeklyDigestWindow(now = new Date()): WeeklyDigestWindow {
@@ -42,6 +43,14 @@ export function getWeeklyDigestWindow(now = new Date()): WeeklyDigestWindow {
     startDate,
     endDate,
   };
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 function parseFollowerString(str: string | number | null | undefined): number {
@@ -89,30 +98,45 @@ function buildDigestHtml(
   window: WeeklyDigestWindow
 ): string {
   const weekRange = formatWeekRange(window);
+  const campaignsUrl = `${SITE_URL}/brand/dashboard?tab=campaigns`;
   const listItems = influencers
     .map((influencer) => {
-      const name = influencer.display_name || 'Influencer';
-      const category = formatCategory(influencer.category);
-      const followers = formatFollowers(influencer.accounts);
+      const name = escapeHtml(influencer.display_name || 'Influencer');
+      const category = escapeHtml(formatCategory(influencer.category));
+      const followers = escapeHtml(formatFollowers(influencer.accounts));
       const profileLink = influencer.profile_slug
         ? `${SITE_URL}/in/${influencer.profile_slug}`
         : `${SITE_URL}/influencer/${influencer.id}`;
+      const avatar = (influencer.avatar_url || '').trim();
+      const avatarHtml = avatar
+        ? `<img src="${escapeHtml(avatar)}" alt="" width="56" height="56" style="width:56px;height:56px;border-radius:9999px;object-fit:cover;display:block;border:1px solid #e5e7eb;" />`
+        : `<div style="width:56px;height:56px;border-radius:9999px;background:#e5e7eb;color:#6b7280;font-size:18px;font-weight:700;line-height:56px;text-align:center;">${name.charAt(0).toUpperCase()}</div>`;
       return `
   <li style="margin: 0 0 16px 0; padding: 0 0 16px 0; border-bottom: 1px solid #e5e7eb; list-style: none;">
-    <p style="margin: 0 0 4px 0; font-size: 15px;"><strong>${name}</strong></p>
-    <p style="margin: 0 0 4px 0; color: #4b5563;">Κατηγορία: ${category}</p>
-    <p style="margin: 0 0 8px 0; color: #4b5563;">Ακόλουθοι: ${followers}</p>
-    <a href="${profileLink}" style="color: #2563eb; font-weight: 600; text-decoration: none;">Δείτε το προφίλ →</a>
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;width:100%;">
+      <tr>
+        <td style="width:56px;vertical-align:top;padding-right:12px;">${avatarHtml}</td>
+        <td style="vertical-align:top;">
+          <p style="margin: 0 0 4px 0; font-size: 15px;"><strong>${name}</strong></p>
+          <p style="margin: 0 0 4px 0; color: #4b5563;">Κατηγορία: ${category}</p>
+          <p style="margin: 0 0 8px 0; color: #4b5563;">Ακόλουθοι: ${followers}</p>
+          <a href="${profileLink}" style="color: #2563eb; font-weight: 600; text-decoration: none;">Δείτε το προφίλ →</a>
+        </td>
+      </tr>
+    </table>
   </li>`;
     })
     .join('');
 
   return `
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 560px; margin: 0 auto;">
-  <p style="margin: 0 0 16px 0;">Γεια σας ${brandName},</p>
+  <p style="margin: 0 0 16px 0;">Γεια σας ${escapeHtml(brandName)},</p>
   <p style="margin: 0 0 16px 0;">Αυτή την εβδομάδα (${weekRange}) εγκρίθηκαν <strong>${influencers.length}</strong> νέα προφίλ influencers στον κατάλογο της Influo:</p>
   <ul style="margin: 0 0 20px 0; padding: 0;">${listItems}</ul>
-  <p style="margin: 0 0 20px 0;">Μπορείτε να δείτε όλους τους influencers στο directory: <a href="${SITE_URL}/directory" style="color: #2563eb; font-weight: 600;">${SITE_URL}/directory</a></p>
+  <p style="margin: 0 0 12px 0;">Μπορείτε να δείτε όλους τους influencers στο directory: <a href="${SITE_URL}/directory" style="color: #2563eb; font-weight: 600;">${SITE_URL}/directory</a></p>
+  <p style="margin: 0 0 20px 0; padding: 14px 16px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; color: #1e3a8a;">
+    <a href="${campaignsUrl}" style="color: #1d4ed8; font-weight: 700; text-decoration: none;">Ανέβασε τώρα την Καμπάνια της επιχείρησής σου εντελώς δωρεάν</a>, πάρε προτάσεις από εγκεκριμένους Influencers και δες τις πωλήσεις σου να αυξάνονται!
+  </p>
   <p style="margin: 0; font-size: 12px; color: #6b7280;">Με εκτίμηση,<br/>Η ομάδα ${PLATFORM_NAME}</p>
 </div>`;
 }
@@ -123,7 +147,7 @@ export async function sendWeeklyBrandInfluencerDigest(
 ): Promise<WeeklyDigestResult> {
   const { data: influencers, error: infError } = await supabaseAdmin
     .from('influencers')
-    .select('id, display_name, category, accounts, approved_at, profile_slug')
+    .select('id, display_name, category, accounts, approved_at, profile_slug, avatar_url')
     .eq('approved', true)
     .is('brands_notified_at', null)
     .not('approved_at', 'is', null)
