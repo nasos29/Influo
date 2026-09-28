@@ -92,7 +92,7 @@ function formatWeekRange(window: WeeklyDigestWindow): string {
   return `${start} – ${end}`;
 }
 
-function buildDigestHtml(
+export function buildDigestHtml(
   brandName: string,
   influencers: InfluencerRow[],
   window: WeeklyDigestWindow
