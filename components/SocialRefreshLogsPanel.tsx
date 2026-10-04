@@ -71,7 +71,7 @@ export default function SocialRefreshLogsPanel({ lang }: { lang: "el" | "en" }) 
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold">
-            {lang === "el" ? "Oracle crons: social refresh + έγκριση νέων" : "Oracle crons: social refresh + new approvals"}
+            {lang === "el" ? "Τοπικά crons: social refresh + έγκριση νέων" : "Local crons: social refresh + new approvals"}
           </h3>
           <p className="text-sm text-slate-600 mt-1 max-w-3xl">
             {lang === "el"

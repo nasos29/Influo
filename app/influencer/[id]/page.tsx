@@ -218,7 +218,7 @@ const t = {
     tab_reviews: "Αξιολογήσεις",
     stat_eng: "Αλληλεπίδραση",
     stat_likes: "Μ.Ο. Likes",
-    stat_growth_30d: "Αλλαγή 30 Ημερών",
+    stat_growth_30d: "Αλλαγή 15 Ημερών",
     stat_rating: "Αξιολόγηση",
     stat_reviews: "Αξιολογήσεις",
     stat_response: "Χρόνος Απάντησης",
@@ -308,7 +308,7 @@ const t = {
     tab_reviews: "Reviews",
     stat_eng: "Engagement",
     stat_likes: "Avg Likes",
-    stat_growth_30d: "30 Days Change",
+    stat_growth_30d: "15 Days Change",
     stat_rating: "Rating",
     stat_reviews: "Reviews",
     stat_response: "Response Time",
@@ -923,7 +923,7 @@ export default function InfluencerProfile(props: { params: Params }) {
     trackProfileView();
   }, [id, profile]);
 
-  // Fetch 30-day growth when profile is loaded (for stats card)
+  // Fetch 15-day growth when profile is loaded (for stats card)
   useEffect(() => {
     if (!id || !profile) {
       setGrowth30d(null);
@@ -1306,7 +1306,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                             
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.modal_bud}</label>
-                                <input required type="number" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white" placeholder={profile?.min_rate ? profile.min_rate : "200"} value={budget} onChange={e => setBudget(e.target.value)} />
+                                <input required type="number" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white" placeholder={isBrand && profile?.min_rate ? profile.min_rate : "200"} value={budget} onChange={e => setBudget(e.target.value)} />
                             </div>
 
                             <div>
@@ -2609,7 +2609,11 @@ export default function InfluencerProfile(props: { params: Params }) {
                                 <div key={i} className="border-2 border-blue-200 rounded-xl p-6 bg-gradient-to-br from-blue-50 to-white">
                                   <h4 className="font-bold text-slate-900 text-lg mb-2">{pkg.name}</h4>
                                   <p className="text-slate-600 text-sm mb-4">{pkg.description}</p>
-                                  <p className="text-2xl font-extrabold text-blue-600 mb-4">{pkg.price}</p>
+                                  {isBrand ? (
+                                    <p className="text-2xl font-extrabold text-blue-600 mb-4">{pkg.price}</p>
+                                  ) : (
+                                    <p className="text-2xl font-extrabold text-blue-600 mb-4 select-none blur-md">{pkg.price}</p>
+                                  )}
                                   {pkg.includes && Array.isArray(pkg.includes) && (
                                     <ul className="space-y-2 mb-4">
                                       {pkg.includes.map((item: string, j: number) => (
@@ -2686,8 +2690,10 @@ export default function InfluencerProfile(props: { params: Params }) {
                                                         >
                                                             {lang === 'el' ? 'Ρώτησε' : 'Ask'}
                                                         </button>
-                                                    ) : (
+                                                    ) : isBrand ? (
                                                         <span className="font-bold text-lg text-slate-900">{price}</span>
+                                                    ) : (
+                                                        <span className="font-bold text-lg text-slate-900 select-none blur-md">{price}</span>
                                                     )}
                                                 </div>
                                             );
@@ -2696,6 +2702,14 @@ export default function InfluencerProfile(props: { params: Params }) {
                                 </div>
                             </div>
                         </div>
+                        {!isBrand && (
+                          <p className="mt-4 text-sm text-slate-600 text-center">
+                            <Link href="/login" className="text-blue-600 underline hover:text-blue-800">{txt.min_rate_cta_login}</Link>
+                            {lang === 'el' ? ' ή ' : ' or '}
+                            <Link href="/brand/signup" className="text-blue-600 underline hover:text-blue-800">{txt.min_rate_cta_signup}</Link>
+                            {' '}{txt.min_rate_cta_suffix}
+                          </p>
+                        )}
                         <p className="mt-6 text-xs text-slate-400 text-center">{txt.price_note}</p>
                         <button onClick={() => setShowProposalModal(true)} className="w-full mt-6 bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-black transition-colors">
                             {txt.contact_btn}

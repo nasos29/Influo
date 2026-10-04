@@ -3,7 +3,7 @@
  * Called from the admin UI button – no CRON_SECRET needed.
  *
  * GET: returns list of influencers due for refresh (id, display_name, accounts) so the browser can fetch from local Auditpr and then POST.
- * POST body: { influencerId?: string } – if omitted, refreshes all due (last_social_refresh_at > 30 days ago).
+ * POST body: { influencerId?: string } – if omitted, refreshes all due (last_social_refresh_at > 15 days ago).
  * POST requires instagramOverrides / tiktokOverrides / youtubeOverrides (browser-fetched from Auditpr).
  * Server-side Auditpr scrape is disabled here — it exceeds Vercel maxDuration (60s) and causes FUNCTION_INVOCATION_TIMEOUT.
  */
@@ -24,12 +24,12 @@ const supabaseAdmin = createClient(
 /** GET: list influencers due for refresh (for "refresh all" via local Auditpr in browser). */
 export async function GET() {
   try {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const dueDaysAgo = new Date();
+    dueDaysAgo.setDate(dueDaysAgo.getDate() - 15);
     const { data: influencers, error } = await supabaseAdmin
       .from('influencers')
       .select('id, display_name, accounts')
-      .or(`last_social_refresh_at.is.null,last_social_refresh_at.lt.${thirtyDaysAgo.toISOString()}`);
+      .or(`last_social_refresh_at.is.null,last_social_refresh_at.lt.${dueDaysAgo.toISOString()}`);
     if (error) throw new Error(error.message);
     return NextResponse.json({ influencers: influencers ?? [] });
   } catch (err: unknown) {

@@ -5,6 +5,9 @@ export type FollowerGrowthPoint = {
   growthPct: number;
 };
 
+/** Window for profile "follower change" card / % — matches social-refresh cadence. */
+export const FOLLOWER_GROWTH_WINDOW_DAYS = 15;
+
 function ymdLocal(ms: number): string {
   const d = new Date(ms);
   const y = d.getUTCFullYear();

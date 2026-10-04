@@ -48,7 +48,7 @@ export function looksLikeFollowerScaleTypo(a: number, b: number): boolean {
 
 /**
  * Repair a snapshot total vs the current follower count.
- * 18 vs 18.3k → 18000 so 30-day growth still shows.
+ * 18 vs 18.3k → 18000 so 15-day growth still shows.
  */
 export function alignFollowerSnapshotToCurrent(oldTotal: number, currentTotal: number): number | null {
   if (!Number.isFinite(oldTotal) || !Number.isFinite(currentTotal) || oldTotal <= 0 || currentTotal <= 0) {
@@ -64,7 +64,7 @@ export function alignFollowerSnapshotToCurrent(oldTotal: number, currentTotal: n
   return Math.round(oldTotal / factor);
 }
 
-/** Baseline usable for a 30-day growth card vs current total. */
+/** Baseline usable for a 15-day growth card vs current total. */
 export function isPlausibleFollowerBaseline(oldTotal: number, currentTotal: number): boolean {
   return alignFollowerSnapshotToCurrent(oldTotal, currentTotal) != null;
 }

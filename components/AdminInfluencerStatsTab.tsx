@@ -78,7 +78,7 @@ const tr = {
     colMeta: "Σημείωση",
     growthTitle: "Ακόλουθοι (εκτίμηση)",
     growthCurrent: "Τρέχον σύνολο",
-    growth30d: "Μεταβολή 30 ημ.",
+    growth30d: "Μεταβολή 15 ημ.",
     growthNA: "Δεν υπάρχει ιστορικό snapshots",
   },
   en: {
@@ -126,7 +126,7 @@ const tr = {
     colMeta: "Note",
     growthTitle: "Followers (estimate)",
     growthCurrent: "Current total",
-    growth30d: "30-day change",
+    growth30d: "15-day change",
     growthNA: "No snapshot history",
   },
 };

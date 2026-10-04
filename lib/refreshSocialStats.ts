@@ -86,10 +86,10 @@ export async function doRefreshSocialStats(
   if (influencerId) {
     query = query.eq('id', influencerId);
   } else {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const dueDaysAgo = new Date();
+    dueDaysAgo.setDate(dueDaysAgo.getDate() - 15);
     query = query.or(
-      `last_social_refresh_at.is.null,last_social_refresh_at.lt.${thirtyDaysAgo.toISOString()}`
+      `last_social_refresh_at.is.null,last_social_refresh_at.lt.${dueDaysAgo.toISOString()}`
     );
   }
 

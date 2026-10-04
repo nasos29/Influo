@@ -10,6 +10,7 @@
 
 import { buildChannelScore } from '@/lib/channelScore';
 import { detectErFlag, parseErPercent } from '@/lib/engagementFlags';
+import { FOLLOWER_GROWTH_WINDOW_DAYS } from '@/lib/followerGrowth';
 import { parseFollowerString, totalFollowersFromAccounts } from '@/lib/parseFollowers';
 import { getBadges, type BadgeType } from '@/lib/badges';
 
@@ -344,7 +345,7 @@ export function applyTopTrustPenalty(composite: number, inf: TopScoreInfluencer)
 }
 
 /**
- * 30-day growth % from snapshot rows (same idea as /api/influencer/[id]/growth).
+ * 15-day growth % from snapshot rows (same idea as /api/influencer/[id]/growth).
  */
 export function growthPctFromSnapshots(
   currentTotal: number,
@@ -352,11 +353,11 @@ export function growthPctFromSnapshots(
   now = Date.now()
 ): number | null {
   if (!(currentTotal > 0) || !snapshots.length) return null;
-  const thirtyMs = 30 * 24 * 60 * 60 * 1000;
+  const windowMs = FOLLOWER_GROWTH_WINDOW_DAYS * 24 * 60 * 60 * 1000;
   const minFallbackAgeMs = 7 * 24 * 60 * 60 * 1000;
-  const baseline30 = snapshots.find((s) => now - s.at >= thirtyMs);
+  const baselineWindow = snapshots.find((s) => now - s.at >= windowMs);
   const fallback = [...snapshots].reverse().find((s) => now - s.at >= minFallbackAgeMs);
-  const baseline = baseline30 || fallback;
+  const baseline = baselineWindow || fallback;
   if (!baseline || !(baseline.total > 0)) return null;
   const growth = currentTotal - baseline.total;
   return Math.round((growth / baseline.total) * 1000) / 10;

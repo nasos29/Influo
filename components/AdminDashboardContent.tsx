@@ -2226,11 +2226,14 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     }
   };
 
-  const CLOUD_AUDITPR_HTTPS = "https://130.162.39.149.sslip.io";
+  const LOCAL_AUDITPR_DEFAULT = 'http://127.0.0.1:8000';
 
-  const toBrowserSafeAuditprUrl = (url: string): string => {
-    const u = (url || "").trim();
-    if (!u || u.includes("130.162.39.149")) return CLOUD_AUDITPR_HTTPS;
+  const isLegacyOracleAuditprUrl = (url: string): boolean =>
+    url.includes('130.162.39.149') || url.includes('sslip.io');
+
+  const normalizeAuditprUrl = (url: string): string => {
+    const u = (url || '').trim().replace(/\/$/, '');
+    if (!u || isLegacyOracleAuditprUrl(u)) return LOCAL_AUDITPR_DEFAULT;
     return u;
   };
 
@@ -2257,19 +2260,29 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     return true;
   };
 
-  const promptAuditprUrl = (): string | null => {
+  const getStoredAuditprUrl = (): string => {
+    if (typeof window === 'undefined') return LOCAL_AUDITPR_DEFAULT;
+    const stored = localStorage.getItem('influo_auditpr_url') || '';
+    const normalized = normalizeAuditprUrl(stored);
+    if (stored !== normalized) {
+      localStorage.setItem('influo_auditpr_url', normalized);
+    }
+    return normalized;
+  };
+
+  const promptAuditprUrl = (current?: string): string | null => {
     if (typeof window === 'undefined') return null;
-    const stored = localStorage.getItem('influo_auditpr_url') || 'http://localhost:8000';
+    const stored = normalizeAuditprUrl(current || getStoredAuditprUrl());
     const promptMsg = lang === 'el'
-      ? `Auditpr URL (session-only, χωρίς Apify).\nΤο EGGRISH/Auditpr πρέπει να τρέχει στο PC σας με συγχρονισμένα cookies Instagram/TikTok.\nΠροεπιλογή: ${stored}`
-      : `Auditpr URL (session-only, no Apify).\nEGGRISH/Auditpr must run on your PC with synced Instagram/TikTok cookies.\nDefault: ${stored}`;
+      ? `Auditpr URL (τοπικά στο PC σας).\nΤρέξτε start-auditpr.bat — προεπιλογή: ${stored}`
+      : `Auditpr URL (local on your PC).\nRun start-auditpr.bat — default: ${stored}`;
     const auditprUrl = prompt(promptMsg, stored);
     if (auditprUrl === null) return null;
-    const url = auditprUrl.trim();
+    const url = normalizeAuditprUrl(auditprUrl);
     if (!url) {
       alert(lang === 'el'
-        ? 'Απαιτείται Auditpr URL (π.χ. http://localhost:8000). Βεβαιωθείτε ότι τρέχει το EGGRISH.bat.'
-        : 'Auditpr URL is required (e.g. http://localhost:8000). Make sure EGGRISH.bat is running.');
+        ? `Απαιτείται Auditpr URL (π.χ. ${LOCAL_AUDITPR_DEFAULT}). Βεβαιωθείτε ότι τρέχει το start-auditpr.bat.`
+        : `Auditpr URL is required (e.g. ${LOCAL_AUDITPR_DEFAULT}). Make sure start-auditpr.bat is running.`);
       return null;
     }
     localStorage.setItem('influo_auditpr_url', url);
@@ -2298,13 +2311,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         const listData = await listRes.json();
         const dueList = (listData.influencers ?? []) as { id: number; display_name: string; accounts: { platform?: string; username?: string }[] }[];
         if (!dueList.length) {
-          alert(lang === 'el' ? 'Δεν υπάρχουν influencers για ανανέωση (τελευταίες 30 ημέρες).' : 'No influencers due for refresh (last 30 days).');
+          alert(lang === 'el' ? 'Δεν υπάρχουν influencers για ανανέωση (τελευταίες 15 ημέρες).' : 'No influencers due for refresh (last 15 days).');
           return;
         }
         const proceedAll = confirm(
           lang === 'el'
-            ? `Θα ανανεωθούν ${dueList.length} influencers (όσοι δεν έχουν ανανεωθεί τις τελευταίες 30 ημέρες).\n\nΤα metrics θα φορτωθούν από Auditpr (session-only). Μπορεί να πάρει αρκετά λεπτά. Στο τέλος θα ληφθεί αρχείο Excel με αναλυτικά αποτελέσματα. Συνέχεια;`
-            : `This will refresh ${dueList.length} influencers (not refreshed in the last 30 days).\n\nMetrics will be fetched from Auditpr (session-only). This may take several minutes. An Excel report will download when finished. Continue?`
+            ? `Θα ανανεωθούν ${dueList.length} influencers (όσοι δεν έχουν ανανεωθεί τις τελευταίες 15 ημέρες).\n\nΤα metrics θα φορτωθούν από Auditpr (session-only). Μπορεί να πάρει αρκετά λεπτά. Στο τέλος θα ληφθεί αρχείο Excel με αναλυτικά αποτελέσματα. Συνέχεια;`
+            : `This will refresh ${dueList.length} influencers (not refreshed in the last 15 days).\n\nMetrics will be fetched from Auditpr (session-only). This may take several minutes. An Excel report will download when finished. Continue?`
         );
         if (!proceedAll) return;
         dueListForReport = dueList;
@@ -2317,31 +2330,31 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       });
 
       if (needsAuditpr) {
-        const stored = (typeof window !== 'undefined' && localStorage.getItem('influo_auditpr_url')) || '';
-        let auditprUrl = toBrowserSafeAuditprUrl(stored);
-
-        if (isLocalAuditprUrl(stored || 'http://localhost:8000') && !stored.includes('130.162.39.149')) {
-          const prompted = promptAuditprUrl();
-          if (!prompted) return;
-          auditprUrl = toBrowserSafeAuditprUrl(prompted);
-        }
-
-        localStorage.setItem('influo_auditpr_url', auditprUrl);
+        let auditprUrl = getStoredAuditprUrl();
 
         if (!canBrowserFetchAuditpr(auditprUrl)) {
           alert(lang === 'el'
-            ? `Το Auditpr URL δεν είναι προσβάσιμο από τον browser (mixed content / λάθος URL):\n${auditprUrl}\n\nΧρησιμοποίησε https://130.162.39.149.sslip.io`
-            : `Auditpr URL is not reachable from the browser (mixed content / bad URL):\n${auditprUrl}\n\nUse https://130.162.39.149.sslip.io`);
+            ? `Το Auditpr πρέπει να τρέχει τοπικά στο PC σας (${LOCAL_AUDITPR_DEFAULT}).\nΤρέξτε start-auditpr.bat και ξαναδοκιμάστε.\n\nΤρέχον URL: ${auditprUrl}`
+            : `Auditpr must run locally on your PC (${LOCAL_AUDITPR_DEFAULT}).\nRun start-auditpr.bat and try again.\n\nCurrent URL: ${auditprUrl}`);
           return;
         }
 
-        const health = await checkAuditprHealth(auditprUrl);
+        let health = await checkAuditprHealth(auditprUrl);
         if (!health.ok) {
-          alert(lang === 'el'
-            ? `Δεν συνδέεται το Auditpr στο ${auditprUrl}.\n${health.error || ''}`
-            : `Cannot reach Auditpr at ${auditprUrl}.\n${health.error || ''}`);
-          return;
+          const prompted = promptAuditprUrl(auditprUrl);
+          if (!prompted) return;
+          auditprUrl = prompted;
+          if (!canBrowserFetchAuditpr(auditprUrl)) return;
+          health = await checkAuditprHealth(auditprUrl);
+          if (!health.ok) {
+            alert(lang === 'el'
+              ? `Δεν συνδέεται το Auditpr στο ${auditprUrl}.\n${health.error || ''}\n\nΒεβαιωθείτε ότι τρέχει το start-auditpr.bat στο PC σας.`
+              : `Cannot reach Auditpr at ${auditprUrl}.\n${health.error || ''}\n\nMake sure start-auditpr.bat is running on your PC.`);
+            return;
+          }
         }
+
+        localStorage.setItem('influo_auditpr_url', auditprUrl);
 
         const bundle = await fetchAuditprOverridesForAccounts(auditprUrl, accountsToFetch, { delayMs: 1500 });
         fetchErrors = bundle.errors;

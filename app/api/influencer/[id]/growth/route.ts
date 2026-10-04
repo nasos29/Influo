@@ -1,12 +1,12 @@
 /**
  * GET /api/influencer/[id]/growth
- * Returns 30-day follower growth for the profile card.
+ * Returns 15-day follower growth for the profile card.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { alignFollowerSnapshotToCurrent, totalFollowersFromAccounts } from '@/lib/parseFollowers';
-import { buildFollowerGrowthSeries } from '@/lib/followerGrowth';
+import { buildFollowerGrowthSeries, FOLLOWER_GROWTH_WINDOW_DAYS } from '@/lib/followerGrowth';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -69,12 +69,12 @@ export async function GET(
       .filter((s): s is { total: number; at: number } => s.total != null && Number.isFinite(s.at) && s.total > 0);
 
     const now = Date.now();
-    const thirtyMs = 30 * 24 * 60 * 60 * 1000;
+    const windowMs = FOLLOWER_GROWTH_WINDOW_DAYS * 24 * 60 * 60 * 1000;
     const minFallbackAgeMs = 7 * 24 * 60 * 60 * 1000;
 
-    const baseline30 = rows.find((s) => now - s.at >= thirtyMs);
+    const baselineWindow = rows.find((s) => now - s.at >= windowMs);
     const fallback = [...rows].reverse().find((s) => now - s.at >= minFallbackAgeMs);
-    const baseline = baseline30 || fallback;
+    const baseline = baselineWindow || fallback;
 
     let growth: number | null = null;
     let growthPct: number | null = null;
