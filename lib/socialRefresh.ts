@@ -62,7 +62,8 @@ function pickPositiveCount(data: Record<string, unknown>, keys: string[]): numbe
 
 function metricsFromAuditprData(
   data: Record<string, unknown>,
-  username: string
+  username: string,
+  platform?: string
 ): SocialMetrics | { error: string } {
   if (data.status === 'Failed' || data.error) {
     const raw = String(data.error || data.error_detail || 'Auditpr metrics failed');
@@ -95,6 +96,8 @@ function metricsFromAuditprData(
     engagement_rate,
     posts_count: posts,
     avg_likes,
+    avg_views: avg_views ?? undefined,
+    platform,
     suspected_fake_penalty: data.suspected_fake_penalty === true,
     engagement_hidden: data.engagement_hidden === true,
     engagement_rate_raw: typeof data.engagement_rate_raw === 'string' ? data.engagement_rate_raw : null,
@@ -139,14 +142,14 @@ export async function fetchInstagramFromAuditpr(
   if (!u) return { error: 'Username required' };
     const url = `${baseUrl.replace(/\/$/, '')}/metrics/instagram/${encodeURIComponent(u)}?for_import=true`;
     try {
-    // Playwright IG fallback on Auditpr can take up to ~90s per profile.
-    const res = await fetch(url, { method: 'GET', signal: AbortSignal.timeout(95_000) });
+    // Playwright IG fallback on Auditpr often takes 90–150s per profile.
+    const res = await fetch(url, { method: 'GET', signal: AbortSignal.timeout(180_000) });
     if (!res.ok) {
       const text = await res.text();
       return { error: `Auditpr ${res.status}: ${text.slice(0, 200)}` };
     }
     const data = (await res.json()) as Record<string, unknown>;
-    return metricsFromAuditprData(data, u);
+    return metricsFromAuditprData(data, u, 'instagram');
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     return { error: `Auditpr request failed: ${msg}` };
@@ -171,7 +174,7 @@ export async function fetchYouTubeFromAuditpr(
       return { error: `Auditpr ${res.status}: ${text.slice(0, 200)}` };
     }
     const data = (await res.json()) as Record<string, unknown>;
-    return metricsFromAuditprData(data, u);
+    return metricsFromAuditprData(data, u, 'youtube');
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     return { error: `Auditpr request failed: ${msg}` };
@@ -195,7 +198,7 @@ export async function fetchTiktokFromAuditpr(
       return { error: `Auditpr ${res.status}: ${text.slice(0, 200)}` };
     }
     const data = (await res.json()) as Record<string, unknown>;
-    return metricsFromAuditprData(data, u);
+    return metricsFromAuditprData(data, u, 'tiktok');
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     return { error: `Auditpr request failed: ${msg}` };
