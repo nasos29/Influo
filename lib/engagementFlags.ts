@@ -1,5 +1,8 @@
 /**
  * Flag unreliable / suspicious engagement rates for display on profiles.
+ *
+ * Thresholds align with industry views-based TikTok ER (Modash/HypeAuditor:
+ * strong ~3–6%) vs follower-based Instagram ER (Modash: likes÷followers).
  */
 
 export type ErFlagReason =
@@ -54,6 +57,12 @@ export function parseErPercent(raw: string | number | null | undefined): number 
   return Number.isFinite(n) ? n : null;
 }
 
+function parseCount(raw: number | string | null | undefined): number {
+  if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+  const n = Number(String(raw ?? '').replace(/[^\d.]/g, ''));
+  return Number.isFinite(n) ? n : 0;
+}
+
 /**
  * Decide if an account's ER should be flagged.
  * Prefer AuditPro flags when present; otherwise use heuristics on stored metrics.
@@ -62,6 +71,8 @@ export function detectErFlag(input: {
   engagement_rate?: string | null;
   posts_count?: number | string | null;
   avg_likes?: string | number | null;
+  avg_views?: string | number | null;
+  platform?: string | null;
   /** From AuditPro */
   suspected_fake_penalty?: boolean | null;
   engagement_hidden?: boolean | null;
@@ -77,10 +88,7 @@ export function detectErFlag(input: {
     return { suspicious: true, reason: 'estimated', ...LABELS.estimated };
   }
 
-  const posts =
-    typeof input.posts_count === 'number'
-      ? input.posts_count
-      : Number(String(input.posts_count ?? '').replace(/[^\d.]/g, '')) || 0;
+  const posts = parseCount(input.posts_count);
   if (posts > 0 && posts < 5) {
     return { suspicious: true, reason: 'low_sample', ...LABELS.low_sample };
   }
@@ -88,7 +96,31 @@ export function detectErFlag(input: {
   const er = parseErPercent(erStr);
   if (er == null) return null;
 
-  // Unrealistically high for organic feeds (e.g. 86% from 2–3 posts)
+  const platform = String(input.platform || '').toLowerCase();
+  const views = parseCount(input.avg_views);
+  const likes = parseCount(input.avg_likes);
+
+  // TikTok / YouTube: Modash+HypeAuditor use views-based ER (strong ~3–6%).
+  // Legacy follower-based rows often sit at 30–200% — treat those as inflated/data issues.
+  if (platform === 'tiktok' || platform === 'youtube') {
+    const looksViewsBased = views > 0 && likes > 0 && likes <= views * 1.25 && er < 40;
+    if (looksViewsBased) {
+      // Views-based: >18% is extreme; >12% with tiny sample is shaky
+      if (er >= 18) return { suspicious: true, reason: 'inflated', ...LABELS.inflated };
+      if (er >= 12 && posts > 0 && posts < 12) {
+        return { suspicious: true, reason: 'inflated', ...LABELS.inflated };
+      }
+      return null;
+    }
+    // Follower-based / broken views (likes >> views): only flag extreme outliers
+    if (er >= 80) return { suspicious: true, reason: 'inflated', ...LABELS.inflated };
+    if (er >= 40 && posts > 0 && posts < 12) {
+      return { suspicious: true, reason: 'inflated', ...LABELS.inflated };
+    }
+    return null;
+  }
+
+  // Instagram (follower-based, Modash-style): organic ER rarely exceeds ~20–25%
   if (er >= 25) {
     return { suspicious: true, reason: 'inflated', ...LABELS.inflated };
   }
