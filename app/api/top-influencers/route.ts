@@ -192,8 +192,9 @@ export async function GET() {
       return NextResponse.json({ influencers: [] });
     }
 
+    // Note: display_name_en is not a DB column — UI falls back to display_name.
     const selectFull =
-      'id, display_name, display_name_en, avatar_url, videos, video_thumbnails, accounts, category, analytics_verified, verified, auditpr_audit, min_rate, rate_card, total_reviews, avg_rating, past_brands, created_at, audience_top_age, audience_male_percent, audience_female_percent, profile_slug';
+      'id, display_name, avatar_url, videos, video_thumbnails, accounts, category, analytics_verified, verified, auditpr_audit, min_rate, rate_card, total_reviews, avg_rating, created_at, audience_top_age, audience_male_percent, audience_female_percent, profile_slug';
     let influencers: TopScoreInfluencer[] | null = null;
     let infErr: { message: string } | null = null;
     {
@@ -273,7 +274,6 @@ export async function GET() {
     const ordered = ranked.map((r) => {
       const inf = r.inf as TopScoreInfluencer & {
         display_name?: string | null;
-        display_name_en?: string | null;
         avatar_url?: string | null;
         category?: string | null;
         profile_slug?: string | null;
@@ -281,7 +281,7 @@ export async function GET() {
       return {
         id: inf.id,
         display_name: inf.display_name ?? "",
-        display_name_en: inf.display_name_en ?? null,
+        display_name_en: null,
         avatar_url: inf.avatar_url ?? null,
         accounts: inf.accounts ?? null,
         category: inf.category ?? null,
