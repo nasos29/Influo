@@ -65,6 +65,20 @@ export async function sendPushInfluencerAccountApproved(
   });
 }
 
+export async function sendPushInfluencerTop10(
+  influencerId: string,
+  displayName: string,
+  profilePath?: string
+): Promise<{ sent: number; failed: number }> {
+  const name = clipPushText(displayName || 'δημιουργέ', 40);
+  return sendPushToInfluencer(String(influencerId), {
+    title: 'Top 10 στο Influo 🏆',
+    body: `${name}, μπήκες στα Top 10 influencers!`,
+    url: profilePath || '/dashboard',
+    tag: `influencer-top10-${String(influencerId).slice(0, 8)}`,
+  });
+}
+
 /** Must be called before push_subscriptions for this influencer are deleted. */
 export async function sendPushInfluencerAccountDeleted(
   influencerId: string,
