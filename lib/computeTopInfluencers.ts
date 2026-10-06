@@ -114,8 +114,8 @@ export async function computeTopInfluencers(
   const days = Math.max(
     1,
     options?.days ??
-      parseInt(process.env.TOP_INFLUENCERS_DAYS || String(DEFAULT_DAYS), 10) ||
-      DEFAULT_DAYS
+      (parseInt(process.env.TOP_INFLUENCERS_DAYS || String(DEFAULT_DAYS), 10) ||
+        DEFAULT_DAYS)
   );
   const since = new Date();
   since.setDate(since.getDate() - days);

@@ -7,5 +7,8 @@ CREATE TABLE IF NOT EXISTS top_influencers_snapshot (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE top_influencers_snapshot ENABLE ROW LEVEL SECURITY;
+-- No anon/authenticated policies: only service_role (cron/API) can access.
+
 COMMENT ON TABLE top_influencers_snapshot IS
   'Last known Top 10 influencer ids; cron compares to detect new entries for email/push.';
