@@ -21,6 +21,7 @@ export type AuditAccount = {
   followers?: string;
   engagement_rate?: string;
   avg_likes?: string;
+  avg_views?: string | number | null;
   posts_count?: number | string | null;
   er_suspicious?: boolean;
   er_flag_reason?: ErFlagReason | string | null;
@@ -109,6 +110,8 @@ function resolveAccountErFlag(a: AuditAccount): ErFlag | null {
     engagement_rate: a.engagement_rate,
     posts_count: a.posts_count,
     avg_likes: a.avg_likes,
+    avg_views: a.avg_views,
+    platform: a.platform,
     suspected_fake_penalty: a.er_flag_reason === 'quality_adjusted',
     engagement_hidden:
       a.er_flag_reason === 'estimated' || String(a.engagement_rate || '').trim().startsWith('~'),
@@ -300,6 +303,7 @@ RULES:
 - Never use comparisons with "other creators" or comments about "limited reach" vs others; focus on describing this creator’s reality for brands.
 - No advisory or warning tone. No "απαιτείται προσεκτική αξιολόγηση" or similar. Descriptive only.
 - In GREEK text when referring to companies/brands: use "επιχειρήσεις" (e.g. "Οι επιχειρήσεις πρέπει..."). Do NOT use "μάρκες". If you use the word "brands", write "τα brands" never "οι brands".
+- TERMINOLOGY (Greek): Engagement rate / ER must ALWAYS be called "ποσοστό αλληλεπίδρασης" (or "αλληλεπίδραση"). NEVER write "ποσοστό δέσμευσης", "δέσμευση", or "ποσοστό δέσμευσης κοινού" — those are wrong translations.
 - If the profile suggests fashion/model/aesthetic content, use Fashion, Model or Beauty & Makeup – not Humor/Comedy unless the bio clearly indicates comedy.`;
   const exampleBlock =
     exampleAudits?.length &&
@@ -343,7 +347,7 @@ function parseResponse(text: string): AuditResult {
   const rawNeg = Array.isArray(data.negatives) ? (data.negatives as string[]) : undefined;
   const rawNegEn = Array.isArray(data.negatives_en) ? (data.negatives_en as string[]) : undefined;
   const cleanedNeg = cleanNegativesLists(rawNeg, rawNegEn);
-  return {
+  return normalizeGreekEngagementTerms({
     scoreBreakdown: (data.scoreBreakdown as string[]) || ['Ανάλυση δεν διαθέσιμη.'],
     scoreBreakdown_en: Array.isArray(data.scoreBreakdown_en) ? (data.scoreBreakdown_en as string[]) : undefined,
     whyWorkWithThem: typeof data.whyWorkWithThem === 'string' ? (data.whyWorkWithThem as string).trim() : undefined,
@@ -355,6 +359,31 @@ function parseResponse(text: string): AuditResult {
     brandSafe: Boolean(data.brandSafe !== false),
     niche: ((data.niche as string) || '').trim() || 'Creator',
     niche_en: ((data.niche_en as string) || '').trim() || undefined,
+  });
+}
+
+/** Fix wrong Greek translation of engagement rate (δέσμευση → αλληλεπίδραση). */
+function fixGreekEngagementWording(s: string): string {
+  return s
+    .replace(/ποσοστ[όο]\s+δέσμευσης(?:\s+κοινού)?/gi, 'ποσοστό αλληλεπίδρασης')
+    .replace(/\bδέσμευσης\b/gi, 'αλληλεπίδρασης')
+    .replace(/\bδέσμευση\b/gi, 'αλληλεπίδραση');
+}
+
+function mapGreekStrings(arr: string[] | undefined): string[] | undefined {
+  if (!arr) return arr;
+  return arr.map(fixGreekEngagementWording);
+}
+
+function normalizeGreekEngagementTerms(audit: AuditResult): AuditResult {
+  return {
+    ...audit,
+    scoreBreakdown: mapGreekStrings(audit.scoreBreakdown) || audit.scoreBreakdown,
+    whyWorkWithThem: audit.whyWorkWithThem
+      ? fixGreekEngagementWording(audit.whyWorkWithThem)
+      : audit.whyWorkWithThem,
+    positives: mapGreekStrings(audit.positives),
+    negatives: mapGreekStrings(audit.negatives),
   };
 }
 
