@@ -176,9 +176,10 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
     };
 
     const handleAccountChange = (i: number, field: keyof Account, value: string) => {
+        // ER / avg likes are scrape-only — never editable from the profile form.
+        if (field === 'engagement_rate' || field === 'avg_likes') return;
         const copy = [...accounts];
-        // Replace comma with dot for followers, engagement_rate and avg_likes fields
-        if (field === 'followers' || field === 'engagement_rate' || field === 'avg_likes') {
+        if (field === 'followers') {
             copy[i][field] = replaceCommaWithDot(value);
         } else {
             copy[i][field] = value;
@@ -187,7 +188,49 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
     };
 
     const addAccount = () => {
-        setAccounts([...accounts, { platform: "Instagram", username: "", followers: "", engagement_rate: "", avg_likes: "" }]);
+        setAccounts([...accounts, { platform: "Instagram", username: "", followers: "" }]);
+    };
+
+    /** Keep scraped ER / avg_likes (and related flags) from DB; ignore any client-sent values. */
+    const mergeAccountsPreservingMetrics = (
+        nextAccounts: Account[],
+        previousAccounts: Account[] | null | undefined
+    ): Account[] => {
+        const prev = Array.isArray(previousAccounts) ? previousAccounts : [];
+        return nextAccounts.map((acc) => {
+            const platform = String(acc.platform || '').trim().toLowerCase();
+            const username = String(acc.username || '').replace(/^@+/, '').trim().toLowerCase();
+            const old = prev.find(
+                (o) =>
+                    String(o.platform || '').trim().toLowerCase() === platform &&
+                    String(o.username || '').replace(/^@+/, '').trim().toLowerCase() === username
+            );
+            const {
+                engagement_rate: _dropEr,
+                avg_likes: _dropLikes,
+                ...rest
+            } = acc as Account & Record<string, unknown>;
+            if (!old) return rest as Account;
+            const preserved: Account & Record<string, unknown> = { ...rest };
+            const metricKeys = [
+                'engagement_rate',
+                'avg_likes',
+                'avg_views',
+                'posts_count',
+                'er_suspicious',
+                'er_flag_reason',
+                'engagement_hidden',
+                'suspected_fake_penalty',
+                'engagement_rate_raw',
+            ] as const;
+            for (const key of metricKeys) {
+                const val = (old as Record<string, unknown>)[key];
+                if (val !== undefined && val !== null && val !== '') {
+                    preserved[key] = val;
+                }
+            }
+            return preserved as Account;
+        });
     };
 
     const removeAccount = (i: number) => {
@@ -264,6 +307,14 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
             
             const validGender = normalizeGender(gender);
             
+            const filteredAccounts = accounts.filter(
+                (acc) => acc.username && acc.platform && acc.platform !== 'Facebook'
+            );
+            const accountsForSave = mergeAccountsPreservingMetrics(
+                filteredAccounts,
+                (currentData.accounts || []) as Account[]
+            );
+
             const newValues: any = {
                 display_name: name, 
                 bio: bio, 
@@ -273,7 +324,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                 category: categoryString,
                 languages: languagesString,
                 gender: validGender,
-                accounts: accounts.filter(acc => acc.username && acc.platform && acc.platform !== 'Facebook'),
+                accounts: accountsForSave,
                 videos: videos.filter(v => v !== ""),
                 audience_male_percent: malePercent ? parseInt(malePercent) : null,
                 audience_female_percent: femalePercent ? parseInt(femalePercent) : null,
@@ -315,7 +366,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
             // Find changed fields
             const changedFields: string[] = [];
             const fieldsToCheck = [
-                'display_name', 'bio', 'min_rate', 'location', 'birth_date', 'engagement_rate',
+                'display_name', 'bio', 'min_rate', 'location', 'birth_date',
                 'category', 'languages', 'gender', 'avatar_url',
                 'audience_male_percent', 'audience_female_percent', 'audience_top_age'
             ];
@@ -697,7 +748,6 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                     </select>
                                     <input type="text" placeholder="Username" value={acc.username} onChange={e => handleAccountChange(i, 'username', e.target.value)} className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" />
                                     <input type="text" placeholder="Followers" value={acc.followers} onChange={e => handleAccountChange(i, 'followers', e.target.value)} className="w-32 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" />
-                                    <input type="text" placeholder="Engagement %" value={acc.engagement_rate || ""} onChange={e => handleAccountChange(i, 'engagement_rate', e.target.value)} className="w-32 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" />
                                     {accounts.length > 1 && (
                                         <button type="button" onClick={() => removeAccount(i)} className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg">✕</button>
                                     )}
