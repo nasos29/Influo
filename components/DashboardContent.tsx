@@ -205,13 +205,15 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                     String(o.platform || '').trim().toLowerCase() === platform &&
                     String(o.username || '').replace(/^@+/, '').trim().toLowerCase() === username
             );
+            const accRec = acc as unknown as Record<string, unknown>;
             const {
                 engagement_rate: _dropEr,
                 avg_likes: _dropLikes,
                 ...rest
-            } = acc as Account & Record<string, unknown>;
+            } = accRec;
             if (!old) return rest as Account;
-            const preserved: Account & Record<string, unknown> = { ...rest };
+            const preserved: Record<string, unknown> = { ...rest };
+            const oldRec = old as unknown as Record<string, unknown>;
             const metricKeys = [
                 'engagement_rate',
                 'avg_likes',
@@ -224,7 +226,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                 'engagement_rate_raw',
             ] as const;
             for (const key of metricKeys) {
-                const val = (old as Record<string, unknown>)[key];
+                const val = oldRec[key];
                 if (val !== undefined && val !== null && val !== '') {
                     preserved[key] = val;
                 }
