@@ -13,7 +13,7 @@ import {
   isUsableSocialMetrics,
   type SocialMetrics,
 } from '@/lib/socialRefresh';
-import { detectErFlag } from '@/lib/engagementFlags';
+import { applyErFlags, type ErFlagReason, type PenaltyPercentField } from '@/lib/engagementFlags';
 import { runAuditGemini } from '@/lib/auditGemini';
 import { totalFollowersFromAccounts, totalPostsFromAccounts } from '@/lib/parseFollowers';
 
@@ -26,28 +26,35 @@ type AccountRow = {
   posts_count?: number;
   avg_views?: number | null;
   er_suspicious?: boolean;
-  er_flag_reason?: string;
+  er_flag_reason?: ErFlagReason | string | null;
   is_private?: boolean;
+  engagement_hidden?: boolean;
+  suspected_fake_penalty?: boolean;
+  engagement_rate_raw?: string | null;
+  fake_follower_percent?: number | null;
+  suspected_fake_percent?: number | null;
+  fake_followers_percent?: number | null;
+  quality_penalty_percent?: number | null;
+  er_penalty_percent?: number | null;
+  penalty_percent?: number | null;
 };
 
 function isSocialMetrics(x: SocialMetrics | { error: string }): x is SocialMetrics {
   return isUsableSocialMetrics(x);
 }
 
-function withErFlags(metrics: SocialMetrics): SocialMetrics {
-  const flag = detectErFlag({
-    engagement_rate: metrics.engagement_rate,
-    posts_count: metrics.posts_count,
-    avg_likes: metrics.avg_likes,
-    suspected_fake_penalty: metrics.suspected_fake_penalty === true,
-    engagement_hidden: metrics.engagement_hidden === true,
-  });
-  return {
-    ...metrics,
-    er_suspicious: flag != null,
-    er_flag_reason: flag?.reason,
-  };
+function withErFlags(metrics: SocialMetrics, platform?: string | null): SocialMetrics {
+  return applyErFlags(metrics, platform ?? undefined);
 }
+
+const PENALTY_FIELDS: PenaltyPercentField[] = [
+  'fake_follower_percent',
+  'suspected_fake_percent',
+  'fake_followers_percent',
+  'quality_penalty_percent',
+  'er_penalty_percent',
+  'penalty_percent',
+];
 
 export type RefreshResult = {
   message: string;
@@ -55,12 +62,29 @@ export type RefreshResult = {
   results: { id: string; name: string; accounts: number; errors: string[] }[];
 };
 
+/** Metrics supplied by Auditpro. Extra ER fields are optional so older payloads still apply. */
+export type SocialMetricOverride = {
+  followers: string;
+  engagement_rate: string;
+  avg_likes: string;
+  posts_count?: number;
+  avg_views?: number | null;
+  suspected_fake_penalty?: boolean;
+  engagement_hidden?: boolean;
+  engagement_rate_raw?: string;
+  fake_follower_percent?: number;
+  suspected_fake_percent?: number;
+  fake_followers_percent?: number;
+  quality_penalty_percent?: number;
+  er_penalty_percent?: number;
+  penalty_percent?: number;
+};
 /** Instagram metrics keyed by username (without @). Used when frontend fetches from local Auditpr. */
-export type InstagramOverrides = Record<string, { followers: string; engagement_rate: string; avg_likes: string; posts_count?: number; avg_views?: number | null; suspected_fake_penalty?: boolean; engagement_hidden?: boolean }>;
+export type InstagramOverrides = Record<string, SocialMetricOverride>;
 /** TikTok metrics keyed by username (without @). Used when frontend fetches from local Auditpr. */
-export type TikTokOverrides = Record<string, { followers: string; engagement_rate: string; avg_likes: string; posts_count?: number; avg_views?: number | null; suspected_fake_penalty?: boolean; engagement_hidden?: boolean }>;
+export type TikTokOverrides = Record<string, SocialMetricOverride>;
 /** YouTube metrics keyed by username (without @). Used when frontend fetches from local Auditpr. */
-export type YouTubeOverrides = Record<string, { followers: string; engagement_rate: string; avg_likes: string; posts_count?: number; avg_views?: number | null; suspected_fake_penalty?: boolean; engagement_hidden?: boolean }>;
+export type YouTubeOverrides = Record<string, SocialMetricOverride>;
 
 export async function doRefreshSocialStats(
   supabaseAdmin: SupabaseClient,
@@ -192,7 +216,11 @@ export async function doRefreshSocialStats(
 
       if (isSocialMetrics(metrics)) {
         anySuccess = true;
-        const flagged = withErFlags(metrics);
+        const flagged = withErFlags(metrics, platformLower);
+        const penaltyStored: Partial<Record<PenaltyPercentField, number | null>> = {};
+        for (const key of PENALTY_FIELDS) {
+          penaltyStored[key] = flagged[key] ?? null;
+        }
         updatedAccounts[i] = {
           ...acc,
           followers: flagged.followers,
@@ -203,7 +231,11 @@ export async function doRefreshSocialStats(
             ? { avg_views: flagged.avg_views }
             : { avg_views: null }),
           er_suspicious: flagged.er_suspicious === true,
-          er_flag_reason: flagged.er_flag_reason,
+          er_flag_reason: flagged.er_flag_reason ?? null,
+          engagement_hidden: flagged.engagement_hidden === true,
+          suspected_fake_penalty: flagged.suspected_fake_penalty === true,
+          engagement_rate_raw: flagged.engagement_rate_raw ?? null,
+          ...penaltyStored,
           // Keep true when Auditpr reports private even if session can still read posts.
           is_private: flagged.is_private === true,
         };
@@ -262,8 +294,17 @@ export async function doRefreshSocialStats(
             followers: a.followers ?? undefined,
             engagement_rate: a.engagement_rate ?? undefined,
             avg_likes: a.avg_likes ?? undefined,
+            avg_views: a.avg_views ?? undefined,
             posts_count: a.posts_count ?? undefined,
-            er_suspicious: a.er_suspicious === true,
+            engagement_rate_raw: a.engagement_rate_raw ?? undefined,
+            engagement_hidden: a.engagement_hidden === true,
+            suspected_fake_penalty: a.suspected_fake_penalty === true,
+            fake_follower_percent: a.fake_follower_percent ?? undefined,
+            suspected_fake_percent: a.suspected_fake_percent ?? undefined,
+            fake_followers_percent: a.fake_followers_percent ?? undefined,
+            quality_penalty_percent: a.quality_penalty_percent ?? undefined,
+            er_penalty_percent: a.er_penalty_percent ?? undefined,
+            penalty_percent: a.penalty_percent ?? undefined,
             er_flag_reason: a.er_flag_reason ?? undefined,
           }));
         if (igTtAccounts.length > 0) {

@@ -255,19 +255,21 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
         throw brandError;
       }
 
-      await supabase
-        .from('proposals')
-        .update({ brand_id: authData.user.id })
-        .eq('brand_email', email.toLowerCase().trim())
-        .is('brand_id', null);
-
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const { data: { session }, error: signInError } = await supabase.auth.signInWithPassword({
         email: email.toLowerCase().trim(),
         password: password,
       });
 
       if (signInError) {
         console.error('Auto-login error:', signInError);
+      }
+
+      const claimToken = session?.access_token || authData.session?.access_token;
+      if (claimToken) {
+        await fetch('/api/proposals/claim', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${claimToken}` },
+        }).catch(() => {});
       }
 
       setSuccess(true);

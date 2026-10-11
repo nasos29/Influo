@@ -234,22 +234,53 @@ export default function Messaging({
   const [agreementAccepted, setAgreementAccepted] = useState(false);
   const [savingAgreement, setSavingAgreement] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const actionsMenuRef = useRef<HTMLDivElement>(null);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
+  useEffect(() => {
+    if (!showActionsMenu) return;
+    const closeIfOutside = (event: Event) => {
+      const target = event.target;
+      if (target instanceof Node && actionsMenuRef.current?.contains(target)) return;
+      setShowActionsMenu(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setShowActionsMenu(false);
+    };
+    document.addEventListener("mousedown", closeIfOutside);
+    document.addEventListener("touchstart", closeIfOutside);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", closeIfOutside);
+      document.removeEventListener("touchstart", closeIfOutside);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [showActionsMenu]);
+
   const activityCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastActivityUpdateRef = useRef<number>(0);
   const warningStartTimeRef = useRef<number | null>(null);
   const autoCloseTimerRef = useRef<NodeJS.Timeout | null>(null);
   const ACTIVITY_UPDATE_THROTTLE = 30000; // Update at most once per 30 seconds
 
+  const activeProposalIdRef = useRef<number | string | null>(null);
+
   // Offer card follows the open thread's proposal, or the one passed in from a dashboard.
   useEffect(() => {
     const fromThread = conversations.find((c) => c.id === selectedConversation)?.proposal_id;
     const id = proposalId || fromThread || null;
+    activeProposalIdRef.current = id;
     if (!id) {
       setProposalInfo(null);
       return;
     }
-    void loadProposalInfo(id);
+    const load = () => { void loadProposalInfo(id); };
+    load();
+    window.addEventListener('focus', load);
+    const timer = window.setInterval(load, 30000);
+    return () => {
+      window.removeEventListener('focus', load);
+      window.clearInterval(timer);
+    };
   }, [proposalId, selectedConversation, conversations]);
 
   // Load conversations
@@ -917,16 +948,13 @@ export default function Messaging({
   const loadProposalInfo = async (id = proposalId) => {
     if (!id) return;
     try {
-      const { data, error } = await supabase
-        .from('proposals')
-        .select('id, brand_name, brand_email, budget, service_type, status, counter_proposal_budget, counter_proposal_status, influencer_agreement_accepted, brand_agreement_accepted')
-        .eq('id', id)
-        .single();
-
-      if (error) throw error;
-      if (data) {
-        setProposalInfo(data as ProposalInfo);
+      const response = await sessionFetch(`/api/proposals?id=${encodeURIComponent(String(id))}`);
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.proposal) {
+        setProposalInfo(null);
+        return;
       }
+      setProposalInfo(result.proposal as ProposalInfo);
     } catch (error) {
       console.error('Error loading proposal info:', error);
     }
@@ -953,7 +981,8 @@ export default function Messaging({
   const canShowAgreementSummary = selectedConversation && !conversationClosed;
 
   const handleAcceptAgreement = async () => {
-    if (!proposalId || !agreementAccepted) {
+    const activeProposalId = activeProposalIdRef.current || proposalId;
+    if (!activeProposalId || !agreementAccepted) {
       alert(lang === 'el' 
         ? 'Παρακαλώ διαβάστε και αποδεχτείτε τους όρους χρήσης'
         : 'Please read and accept the terms of service');
@@ -962,12 +991,12 @@ export default function Messaging({
 
     setSavingAgreement(true);
     try {
-      const response = await fetch('/api/proposals/agreement', {
+      const response = await sessionFetch('/api/proposals/agreement', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          proposalId: proposalId,
-          userType: mode, // 'influencer' or 'brand'
+          proposalId: activeProposalId,
+          userType: mode,
           accepted: true
         })
       });
@@ -1508,7 +1537,7 @@ export default function Messaging({
         >
           {selectedConversation ? (
             <>
-              <div className="px-3 sm:px-4 py-2.5 border-b border-slate-200 bg-white relative">
+              <div className="px-3 sm:px-4 py-2.5 border-b border-slate-200 bg-white relative z-20">
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -1546,21 +1575,28 @@ export default function Messaging({
                       </span>
                     </div>
                   </div>
-                  <div className="relative shrink-0">
+                  <div className="relative shrink-0" ref={actionsMenuRef}>
                     <button
                       type="button"
                       onClick={() => setShowActionsMenu((v) => !v)}
-                      className="w-9 h-9 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center justify-center text-lg font-bold"
+                      className="min-w-11 min-h-11 px-2 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center justify-center gap-1 text-lg font-bold"
                       aria-label={txt.moreActions}
+                      aria-expanded={showActionsMenu}
+                      aria-haspopup="menu"
                     >
-                      ···
+                      <span aria-hidden="true">···</span>
+                      <span className="hidden sm:inline text-xs font-semibold">{txt.moreActions}</span>
                     </button>
                     {showActionsMenu && (
-                      <div className="absolute right-0 top-10 z-20 w-48 bg-white border border-slate-200 rounded-xl shadow-lg py-1">
+                      <div
+                        role="menu"
+                        className="absolute right-0 top-full mt-1 z-30 w-56 max-w-[calc(100vw-1.5rem)] bg-white border border-slate-200 rounded-xl shadow-lg py-1"
+                      >
                         {proposalInfo && needsAgreement && (
                           <button
                             type="button"
-                            className="w-full text-left px-3 py-2 text-sm text-amber-800 hover:bg-amber-50"
+                            role="menuitem"
+                            className="w-full text-left px-3 min-h-11 py-2.5 text-sm text-amber-800 hover:bg-amber-50"
                             onClick={() => {
                               setShowAgreementModal(true);
                               setShowActionsMenu(false);
@@ -1572,7 +1608,8 @@ export default function Messaging({
                         {canShowAgreementSummary && proposalInfo && (
                           <button
                             type="button"
-                            className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                            role="menuitem"
+                            className="w-full text-left px-3 min-h-11 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
                             onClick={() => {
                               setShowAgreementModal(true);
                               setShowActionsMenu(false);
@@ -1582,20 +1619,24 @@ export default function Messaging({
                           </button>
                         )}
                         {proposalInfo && hasAgreement && !bothAccepted && (
-                          <div className="px-3 py-2 text-xs text-blue-700">{txt.agreementPending}</div>
+                          <div className="px-3 py-2.5 text-xs text-blue-700">{txt.agreementPending}</div>
                         )}
                         {proposalInfo && bothAccepted && (
-                          <div className="px-3 py-2 text-xs text-green-700">{txt.agreementAccepted}</div>
+                          <div className="px-3 py-2.5 text-xs text-green-700">{txt.agreementAccepted}</div>
                         )}
                         {!conversationClosed && (
                           <button
                             type="button"
-                            className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                            role="menuitem"
+                            className="w-full text-left px-3 min-h-11 py-2.5 text-sm text-red-600 hover:bg-red-50"
                             onClick={() => endConversation(false)}
                             disabled={endingConversation}
                           >
                             {endingConversation ? txt.endingConversation : txt.endConversation}
                           </button>
+                        )}
+                        {conversationClosed && (
+                          <div className="px-3 py-2.5 text-xs text-slate-500">{txt.conversationClosed}</div>
                         )}
                       </div>
                     )}

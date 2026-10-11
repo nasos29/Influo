@@ -84,7 +84,7 @@ export default function SocialRefreshLogsPanel({ lang }: { lang: "el" | "en" }) 
         <button
           type="button"
           onClick={() => load(selectedRunId)}
-          className="px-3 py-1.5 text-sm font-medium border border-slate-300 rounded-lg hover:bg-slate-50"
+          className="px-3 py-1.5 text-sm font-bold text-slate-900 bg-white border border-slate-300 rounded-lg hover:bg-slate-50"
         >
           {lang === "el" ? "Ανανέωση" : "Refresh"}
         </button>

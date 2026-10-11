@@ -45,6 +45,8 @@ export async function isBrandUser(user: User): Promise<boolean> {
   if (byId.data?.id) return true;
   const email = (user.email || "").trim();
   if (!email) return false;
+  const priv = await admin.from("brand_private").select("brand_id").ilike("contact_email", email).maybeSingle();
+  if (priv.data?.brand_id) return true;
   const byEmail = await admin.from("brands").select("id").ilike("contact_email", email).maybeSingle();
   return !!byEmail.data?.id;
 }

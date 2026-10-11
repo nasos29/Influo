@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Influencer } from "@/components/Directory"; 
 import { supabase } from "@/lib/supabaseClient";
+import { sessionFetch } from "@/lib/sessionFetch";
 import { presenceOnline } from "@/lib/presenceStatus";
 import { counterpartyInfluencerPresence } from "@/lib/presenceIdentity";
 import { getVideoThumbnail, isVideoUrl, isDefinitelyVideo, isDefinitelyImage, detectProvider, getIframelyEmbedUrl } from "@/lib/videoThumbnail";
@@ -27,7 +28,7 @@ import FollowerGrowthChart from "@/components/FollowerGrowthChart";
 import StatsInsightsPanel from "@/components/StatsInsightsPanel";
 import { buildChannelScore } from "@/lib/channelScore";
 import { loadOwnBrand, loadOwnProfiles } from "@/lib/ownProfile";
-import { detectErFlag, erFlagFromReason, erFlagHint, erFlagLabel, type ErFlagReason } from "@/lib/engagementFlags";
+import { creatorHasHardErOnMainAccount, displayErFlag, erFlagHint, erFlagLabel } from "@/lib/engagementFlags";
 import type { FollowerGrowthPoint } from "@/lib/followerGrowth";
 import { displayLanguageLabel } from "@/lib/languages";
 import { badgeMinRateFromTier } from "@/lib/publicInfluencer";
@@ -39,12 +40,22 @@ type Params = Promise<{ id: string }>;
 type ProfileAccount = {
   platform?: string;
   username?: string;
-  followers?: string;
+  followers?: string | number;
   engagement_rate?: string;
-  avg_likes?: string;
+  engagement_rate_raw?: string | number | null;
+  avg_likes?: string | number;
+  avg_views?: string | number | null;
   posts_count?: number | string;
   er_suspicious?: boolean;
   er_flag_reason?: string;
+  engagement_hidden?: boolean;
+  suspected_fake_penalty?: boolean;
+  fake_follower_percent?: number | string | null;
+  suspected_fake_percent?: number | string | null;
+  fake_followers_percent?: number | string | null;
+  quality_penalty_percent?: number | string | null;
+  er_penalty_percent?: number | string | null;
+  penalty_percent?: number | string | null;
 };
 
 interface ProInfluencer extends Influencer {
@@ -272,6 +283,7 @@ const t = {
     modal_srv: "Επιλογή Υπηρεσίας",
     modal_brand: "Όνομα Επιχείρησης",
     modal_email: "Email Επιχείρησης",
+    modal_as: "Η πρόταση στέλνεται ως",
     modal_bud: "Budget (€)",
     modal_desc: "Περιγραφή Project",
     modal_btn: "Αποστολή Πρότασης",
@@ -362,6 +374,7 @@ const t = {
     modal_srv: "Select Service",
     modal_brand: "Company Name",
     modal_email: "Company Email",
+    modal_as: "This offer is sent as",
     modal_bud: "Budget (€)",
     modal_desc: "Project Details",
     modal_btn: "Send Proposal",
@@ -454,72 +467,40 @@ export default function InfluencerProfile(props: {
   const [growth30d, setGrowth30d] = useState<{ growth: number; growthPct: number | null } | null>(null);
   const [growthSeries, setGrowthSeries] = useState<FollowerGrowthPoint[]>([]);
 
-  // Check if current user is a brand
+  // Brand-only requests wait until /api/me/profile confirms a brand row.
   useEffect(() => {
-    const checkUserType = async () => {
-      // First, check sessionStorage for immediate display (fast)
-      if (typeof window !== 'undefined') {
-        const sessionBrand = sessionStorage.getItem('isBrand');
-        if (sessionBrand === 'true') {
-          setIsBrand(true); // Show button immediately
-        }
-      }
-
-      // Then verify with API (background check)
+    let cancelled = false;
+    (async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (cancelled) return;
+        if (!session?.access_token) {
           setIsBrand(false);
-          if (typeof window !== 'undefined') {
-            sessionStorage.removeItem('isBrand');
-          }
+          sessionStorage.removeItem("isBrand");
           return;
         }
-
-        // Check if user is a brand using API route to avoid hanging queries
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.access_token) {
-          const response = await fetch('/api/user/profile', {
-            headers: {
-              'Authorization': `Bearer ${session.access_token}`
-            }
-          });
-          if (response.ok) {
-            const result = await response.json();
-            const isBrandUser = result.profile?.type === 'brand';
-            setIsBrand(isBrandUser); // Update state with actual value
-            
-            // Update sessionStorage to match actual user type
-            if (typeof window !== 'undefined') {
-              if (isBrandUser) {
-                sessionStorage.setItem('isBrand', 'true');
-              } else {
-                sessionStorage.removeItem('isBrand');
-              }
-            }
-          } else {
-            setIsBrand(false);
-            if (typeof window !== 'undefined') {
-              sessionStorage.removeItem('isBrand');
-            }
-          }
-        } else {
-          setIsBrand(false);
-          if (typeof window !== 'undefined') {
-            sessionStorage.removeItem('isBrand');
-          }
+        const profiles = await loadOwnProfiles(supabase);
+        if (cancelled) return;
+        const brand = profiles.ok ? profiles.brand : null;
+        setIsBrand(!!brand);
+        if (!brand) {
+          sessionStorage.removeItem("isBrand");
+          return;
         }
+        sessionStorage.setItem("isBrand", "true");
+        const name = typeof brand.brand_name === "string" ? brand.brand_name.trim() : "";
+        const contact = typeof brand.contact_email === "string" ? brand.contact_email.trim() : "";
+        const email = contact.includes("@") ? contact : (session.user.email || "").trim();
+        if (name) setBrandName(name);
+        if (email) setBrandEmail(email);
       } catch (error) {
-        console.error('Error checking user type:', error);
-        // Don't hide button if sessionStorage says it's a brand (fail gracefully)
-        // Only hide if sessionStorage doesn't say it's a brand
-        if (typeof window === 'undefined' || sessionStorage.getItem('isBrand') !== 'true') {
-          setIsBrand(false);
-        }
+        console.error("Error checking user type:", error);
+        if (!cancelled) setIsBrand(false);
       }
+    })();
+    return () => {
+      cancelled = true;
     };
-
-    checkUserType();
   }, []);
 
   useEffect(() => {
@@ -616,38 +597,32 @@ export default function InfluencerProfile(props: {
 
   const loadCounterProposal = async (proposalId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('proposals')
-        .select('*')
-        .eq('id', proposalId)
-        .single();
-      
-      if (!error && data) {
-        setCounterProposal(data);
-        
-        // Auto-execute action if specified
-        const action = searchParams?.get('action');
-        if (action === 'accept') {
-          handleAcceptCounterProposal(proposalId);
-        } else if (action === 'reject') {
-          handleRejectCounterProposal(proposalId);
-        } else if (action === 'message') {
-          // Open message modal with brand email
-          setMessageBrandEmail(data.brand_email);
-          setMessageBrandName(data.brand_name);
-          setShowMessageModal(true);
-          setShowCounterProposalModal(false);
+      const response = await sessionFetch(`/api/proposals?id=${encodeURIComponent(proposalId)}`);
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.proposal) {
+        setShowCounterProposalModal(false);
+        if (response.status === 401) {
+          alert(lang === 'el' ? 'Συνδεθείτε με τον λογαριασμό της επιχείρησης για να δείτε την αντιπρόταση.' : 'Log in with the brand account to see the counter offer.');
         }
+        return;
+      }
+      setCounterProposal(result.proposal);
+      if (searchParams?.get('action') === 'message') {
+        setMessageBrandEmail(result.proposal.brand_email);
+        setMessageBrandName(result.proposal.brand_name);
+        setShowMessageModal(true);
+        setShowCounterProposalModal(false);
       }
     } catch (error) {
       console.error('Error loading counter proposal:', error);
+      setShowCounterProposalModal(false);
     }
   };
 
   const handleAcceptCounterProposal = async (proposalId: string) => {
     setProcessingAction(true);
     try {
-      const response = await fetch('/api/proposals/counter/accept', {
+      const response = await sessionFetch('/api/proposals/counter/accept', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ proposalId })
@@ -673,7 +648,7 @@ export default function InfluencerProfile(props: {
   const handleRejectCounterProposal = async (proposalId: string) => {
     setProcessingAction(true);
     try {
-      const response = await fetch('/api/proposals/counter/reject', {
+      const response = await sessionFetch('/api/proposals/counter/reject', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ proposalId })
@@ -709,16 +684,13 @@ export default function InfluencerProfile(props: {
     let calculatedCompletionRate: number | undefined;
     let computedResponseHours: number | null = null;
     if (data && !error) {
-      const { computeAvgResponseHours, computeCompletionRate } = await import('@/lib/influencerMetrics');
-      const [completion, responseH] = await Promise.all([
-        computeCompletionRate(supabase, String(id)),
-        computeAvgResponseHours(supabase, String(id)),
-      ]);
-      if (completion != null) calculatedCompletionRate = completion;
+      if (typeof data.completion_rate === "number") calculatedCompletionRate = data.completion_rate;
+      const { computeAvgResponseHours } = await import('@/lib/influencerMetrics');
+      const responseH = await computeAvgResponseHours(supabase, String(id));
       computedResponseHours = responseH;
-      // Persist real metrics; clear legacy placeholder 24h when we have no samples
+      // The public completion percentage is stored on the profile.
+      // A visitor only sees their own proposals, so the browser must not rewrite it.
       const patch: Record<string, number | null> = {};
-      if (completion != null) patch.completion_rate = completion;
       if (responseH != null) {
         patch.avg_response_time = responseH;
       } else if (data.avg_response_time === 24 || data.avg_response_time === '24') {
@@ -998,141 +970,24 @@ export default function InfluencerProfile(props: {
     setSending(true);
 
     try {
-        // 1. Save Proposal in DB
-        // Note: influencer_id should match the type in your proposals table
-        // If it's UUID (string), use id directly; if it's integer, we need to handle differently
-        const proposalData: any = {
-            influencer_id: id, // Use id as-is (works for both UUID and numeric)
-            brand_name: brandName,
-            brand_email: brandEmail,
-            service_type: proposalType,
-            budget: budget,
-            message: message,
-            status: 'pending'
-        };
-        
-        const { data: proposalResult, error } = await supabase.from("proposals").insert([proposalData]).select().single();
-        
-        if (error) {
-            console.error(error);
-            alert(lang === 'el' ? "Κάτι πήγε στραβά. Παρακαλώ δοκιμάστε ξανά." : "Something went wrong. Please try again.");
+        const response = await sessionFetch('/api/proposals', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                influencerId: id,
+                brandName,
+                brandEmail,
+                serviceType: proposalType,
+                budget,
+                message,
+            }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.success) {
+            const fallback = lang === 'el' ? "Κάτι πήγε στραβά. Παρακαλώ δοκιμάστε ξανά." : "Something went wrong. Please try again.";
+            alert(result.error || fallback);
             setSending(false);
             return;
-        }
-        
-        // Send email to influencer about new proposal
-        try {
-            await fetch('/api/emails', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    type: 'proposal_influencer_notification',
-                    influencerId: id,
-                    influencerName: profile?.name || 'Influencer',
-                    brandName: brandName,
-                    brandEmail: brandEmail,
-                    proposalType: proposalType,
-                    budget: budget,
-                    message: message
-                })
-            });
-        } catch (emailError) {
-            console.error("Influencer notification email failed:", emailError);
-        }
-
-        // Push notification to influencer (new proposal)
-        try {
-            await fetch('/api/push/trigger-proposal', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    influencerId: id,
-                    brandName: brandName,
-                    proposalType: proposalType,
-                    budget: budget,
-                }),
-            });
-        } catch (pushErr) {
-            console.error('Push notification failed:', pushErr);
-        }
-
-        // Chat only when the brand is signed in. Guests still save the proposal and get the emails.
-        if (proposalResult && proposalResult.id) {
-            try {
-                const { data: { session } } = await supabase.auth.getSession();
-                if (session?.access_token) {
-                    await fetch('/api/messages', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            Authorization: `Bearer ${session.access_token}`,
-                        },
-                        body: JSON.stringify({
-                            influencerId: id,
-                            brandName: brandName,
-                            senderType: 'brand',
-                            content: `Νέα πρόταση: ${proposalType} | Budget: €${budget}\n\n${message}`,
-                            proposalId: proposalResult.id
-                        })
-                    });
-                }
-            } catch (convError) {
-                console.error("Auto-create conversation failed:", convError);
-            }
-        }
-
-        // 2. Send Brand Confirmation Email
-        try {
-            await fetch('/api/emails', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    type: 'proposal_brand_confirmation', 
-                    email: brandEmail,
-                    brandName: brandName,
-                    influencerName: profile?.name,
-                    proposalType: proposalType
-                })
-            });
-        } catch (mailError) {
-             console.error("Brand Confirmation Email failed:", mailError);
-        }
-
-        // 3. Send Admin Notification Email
-        try {
-            await fetch('/api/emails', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    type: 'proposal_admin_notification', 
-                    email: brandEmail,
-                    brandName: brandName,
-                    influencerName: profile?.name || 'Unknown',
-                    influencerId: id,
-                    proposalType: proposalType,
-                    budget: budget,
-                    message: message
-                })
-            });
-        } catch (mailError) {
-             console.error("Admin Notification Email failed:", mailError);
-        }
-
-        // 4. Track analytics: proposal_sent
-        try {
-            await fetch('/api/analytics/track', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    influencerId: id,
-                    eventType: 'proposal_sent',
-                    brandEmail: brandEmail,
-                    brandName: brandName,
-                    metadata: { proposal_id: proposalResult.id, service_type: proposalType, budget: budget }
-                })
-            }).catch(() => {}); // Fail silently
-        } catch (err) {
-            // Fail silently - analytics tracking should not break the flow
         }
 
         // 5. Update brand dashboard stats (proposalsSent) - only after successful submission
@@ -1330,6 +1185,11 @@ export default function InfluencerProfile(props: {
                                 </div>
                             </div>
 
+                            {isBrand ? (
+                                <p className="text-sm text-slate-600">
+                                    {txt.modal_as}{brandName || brandEmail ? <> <strong>{brandName || brandEmail}</strong></> : null}
+                                </p>
+                            ) : (
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.modal_brand}</label>
@@ -1340,6 +1200,7 @@ export default function InfluencerProfile(props: {
                                     <input required type="email" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white" placeholder="Email" value={brandEmail} onChange={e => setBrandEmail(e.target.value)} />
                                 </div>
                             </div>
+                            )}
                             
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.modal_bud}</label>
@@ -1976,19 +1837,11 @@ export default function InfluencerProfile(props: {
                           const erFlag =
                             engagementRate === "-"
                               ? null
-                              : detectErFlag({
+                              : displayErFlag({
+                                  ...acc,
+                                  platform: acc?.platform || platform.key,
                                   engagement_rate: engagementRate,
-                                  posts_count: acc?.posts_count,
-                                  avg_likes: acc?.avg_likes,
-                                  suspected_fake_penalty:
-                                    acc?.er_flag_reason === "quality_adjusted",
-                                  engagement_hidden:
-                                    acc?.er_flag_reason === "estimated" ||
-                                    String(engagementRate).startsWith("~"),
-                                }) ||
-                                (acc?.er_suspicious && acc.er_flag_reason
-                                  ? erFlagFromReason(acc.er_flag_reason as ErFlagReason)
-                                  : null);
+                                });
                           return platformRow(
                             platform.key,
                             <>
@@ -2344,18 +2197,7 @@ export default function InfluencerProfile(props: {
                                 <div className="flex flex-wrap items-center gap-3 mb-4">
                                     <h2 className="text-xl font-bold text-slate-900">{txt.audit_title}</h2>
                                     {(() => {
-                                      const hasSuspiciousEr = (profile.accounts || []).some((acc) =>
-                                        !!detectErFlag({
-                                          engagement_rate: acc.engagement_rate,
-                                          posts_count: acc.posts_count,
-                                          avg_likes: acc.avg_likes,
-                                          suspected_fake_penalty: acc.er_flag_reason === 'quality_adjusted',
-                                          engagement_hidden:
-                                            acc.er_flag_reason === 'estimated' ||
-                                            String(acc.engagement_rate || '').startsWith('~'),
-                                        }) ||
-                                        (acc.er_suspicious === true)
-                                      );
+                                      const hasSuspiciousEr = creatorHasHardErOnMainAccount(profile.accounts);
                                       if (hasSuspiciousEr) {
                                         return (
                                           <span
@@ -2922,7 +2764,7 @@ export default function InfluencerProfile(props: {
                 setShowCounterProposalModal(false);
                 router.push(publicPath);
               }}
-              className="mt-4 w-full text-slate-500 hover:text-slate-700 py-2"
+              className="mt-4 w-full text-slate-900 font-bold hover:text-slate-700 py-2"
             >
               Κλείσιμο
             </button>

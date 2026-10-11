@@ -3,7 +3,7 @@
  * Used by admin "Ανανέωση Social" and cron refresh routes.
  */
 
-import { detectErFlag, type ErFlagReason } from '@/lib/engagementFlags';
+import { applyErFlags, copyAuditprErExtras, type ErFlagReason } from '@/lib/engagementFlags';
 
 export type SocialMetrics = {
   followers: string;
@@ -11,11 +11,18 @@ export type SocialMetrics = {
   avg_likes: string;
   posts_count?: number;
   avg_views?: number | null;
-  /** Suspicious / unreliable ER — shown on profile */
+  /** True only for a hard Ύποπτο ER flag. Soft notes keep this false. */
   er_suspicious?: boolean;
   er_flag_reason?: ErFlagReason;
   suspected_fake_penalty?: boolean;
   engagement_hidden?: boolean;
+  engagement_rate_raw?: string | null;
+  fake_follower_percent?: number | null;
+  suspected_fake_percent?: number | null;
+  fake_followers_percent?: number | null;
+  quality_penalty_percent?: number | null;
+  er_penalty_percent?: number | null;
+  penalty_percent?: number | null;
   /**
    * From Auditpr `is_private` (IG may still return metrics if our session follows them),
    * or set true on private scrape errors in refreshSocialStats.
@@ -92,29 +99,18 @@ function metricsFromAuditprData(
   if (followers === 0 && avg_likes === 0 && posts === 0) {
     return { error: `Λάθος username: το προφίλ @${username} δεν υπάρχει.` };
   }
-  const erFlag = detectErFlag({
-    engagement_rate,
-    posts_count: posts,
-    avg_likes,
-    avg_views: avg_views ?? undefined,
-    platform,
-    suspected_fake_penalty: data.suspected_fake_penalty === true,
-    engagement_hidden: data.engagement_hidden === true,
-    engagement_rate_raw: typeof data.engagement_rate_raw === 'string' ? data.engagement_rate_raw : null,
-  });
-  return {
-    followers: formatFollowers(followers),
-    engagement_rate,
-    avg_likes: String(avg_likes),
-    posts_count: posts,
-    avg_views,
-    suspected_fake_penalty: data.suspected_fake_penalty === true,
-    engagement_hidden: data.engagement_hidden === true,
-    is_private: data.is_private === true || data.private === true,
-    ...(erFlag
-      ? { er_suspicious: true, er_flag_reason: erFlag.reason }
-      : { er_suspicious: false, er_flag_reason: undefined }),
-  };
+  return applyErFlags(
+    {
+      followers: formatFollowers(followers),
+      engagement_rate,
+      avg_likes: String(avg_likes),
+      posts_count: posts,
+      avg_views,
+      is_private: data.is_private === true || data.private === true,
+      ...copyAuditprErExtras(data),
+    },
+    platform
+  );
 }
 
 export function isUsableSocialMetrics(x: SocialMetrics | { error: string }): x is SocialMetrics {

@@ -439,7 +439,7 @@ export default function BrandToolsPanel({
       <h1>${escapeHtml(brandName || "Brand")}</h1>
       <p>${el ? "Εκτίμηση (από)" : "Estimate (from)"}: ${Math.round(minTotal)}€</p>
       <table><thead><tr><th>${el ? "Όνομα" : "Name"}</th><th>${el ? "Κατηγορία" : "Category"}</th><th>${el ? "Από" : "From"}</th><th>${el ? "Σημείωση" : "Note"}</th></tr></thead><tbody>${rows || `<tr><td colspan="4">${el ? "Κενή λίστα" : "Empty list"}</td></tr>`}</tbody></table>
-      <p style="margin-top:24px"><button type="button" onclick="window.print()" style="padding:10px 16px;font-size:14px;cursor:pointer">${el ? "Εκτύπωση / PDF" : "Print / PDF"}</button></p>
+      <p style="margin-top:24px"><button type="button" onclick="window.print()" style="padding:10px 16px;font-size:14px;font-weight:700;color:#0f172a;background:#ffffff;border:1px solid #cbd5e1;border-radius:8px;cursor:pointer">${el ? "Εκτύπωση / PDF" : "Print / PDF"}</button></p>
       </body></html>`);
   };
 
@@ -463,7 +463,7 @@ export default function BrandToolsPanel({
       <div class="meta">${escapeHtml([industry ? formatCategoryLabels(industry, el ? "el" : "en") : "", website, contactPerson].filter(Boolean).join(" · ") || "—")}</div>
       <h2>Do</h2><pre>${escapeHtml(kitDos)}</pre>
       <h2>Don&apos;t</h2><pre>${escapeHtml(kitDonts)}</pre>
-      <p style="margin-top:24px"><button type="button" onclick="window.print()" style="padding:10px 16px;font-size:14px;cursor:pointer">${el ? "Εκτύπωση / PDF" : "Print / PDF"}</button></p>
+      <p style="margin-top:24px"><button type="button" onclick="window.print()" style="padding:10px 16px;font-size:14px;font-weight:700;color:#0f172a;background:#ffffff;border:1px solid #cbd5e1;border-radius:8px;cursor:pointer">${el ? "Εκτύπωση / PDF" : "Print / PDF"}</button></p>
       </body></html>`);
   };
 

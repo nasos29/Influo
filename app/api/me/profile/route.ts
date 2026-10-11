@@ -36,17 +36,58 @@ async function findOwnInfluencer(user: User) {
   return byEmail.data;
 }
 
+async function privateBrandEmail(brandId: string): Promise<string> {
+  const priv = await supabaseService()
+    .from("brand_private")
+    .select("contact_email")
+    .eq("brand_id", brandId)
+    .maybeSingle();
+  if (priv.error) throw new Error(priv.error.message);
+  return typeof priv.data?.contact_email === "string" ? priv.data.contact_email.trim() : "";
+}
+
+type BrandRow = { id: string; contact_email?: string | null };
+
+function asBrandRow(value: unknown): BrandRow | null {
+  if (!value || typeof value !== "object" || !("id" in value)) return null;
+  const id = (value as { id?: unknown }).id;
+  if (typeof id !== "string" || !id) return null;
+  return value as BrandRow;
+}
+
+function withOwnerEmail<T extends BrandRow>(row: T, email: string): T {
+  if (typeof row.contact_email === "string" && row.contact_email.includes("@")) return row;
+  if (!email.includes("@")) return row;
+  return { ...row, contact_email: email };
+}
+
 async function findOwnBrand(user: User) {
   const admin = supabaseService();
   const byId = await admin.from("brands").select(brandColumns).eq("id", user.id).maybeSingle();
   if (byId.error) throw new Error(byId.error.message);
-  if (byId.data) return byId.data;
+  const ownById = asBrandRow(byId.data);
+  if (ownById) return withOwnerEmail(ownById, await privateBrandEmail(ownById.id));
 
   const email = user.email?.trim();
   if (!email) return null;
+
+  const priv = await admin.from("brand_private").select("brand_id, contact_email").ilike("contact_email", email).maybeSingle();
+  if (priv.error) throw new Error(priv.error.message);
+  if (priv.data?.brand_id) {
+    const row = await admin.from("brands").select(brandColumns).eq("id", priv.data.brand_id).maybeSingle();
+    if (row.error) throw new Error(row.error.message);
+    const matched = asBrandRow(row.data);
+    if (matched) {
+      const privateEmail = typeof priv.data.contact_email === "string" ? priv.data.contact_email : "";
+      return withOwnerEmail(matched, privateEmail);
+    }
+  }
+
   const byEmail = await admin.from("brands").select(brandColumns).ilike("contact_email", email).maybeSingle();
   if (byEmail.error) throw new Error(byEmail.error.message);
-  return byEmail.data;
+  const ownByEmail = asBrandRow(byEmail.data);
+  if (!ownByEmail) return null;
+  return withOwnerEmail(ownByEmail, await privateBrandEmail(ownByEmail.id));
 }
 
 /** The signed-in user's own rows. Lookup by auth id, then auth_user_id, then email. */

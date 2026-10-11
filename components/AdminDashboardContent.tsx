@@ -1386,7 +1386,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                                         <button 
                                                             type="button" 
                                                             onClick={() => removeThumbnail(video)}
-                                                            className="w-full px-3 py-1.5 bg-slate-400 text-white rounded-lg hover:bg-slate-500 transition-colors text-sm"
+                                                            className="w-full px-3 py-1.5 bg-slate-900 text-white font-semibold rounded-lg hover:bg-slate-800 transition-colors text-sm"
                                                         >
                                                             Clear Thumbnail
                                                         </button>
@@ -1929,10 +1929,14 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         setUsers([]);
       }
       
-      const { data: propData, error: proposalsError } = await supabase
-        .from("proposals")
-        .select("*, influencers(display_name)")
-        .order("created_at", { ascending: false });
+      const proposalsResponse = await fetch('/api/admin/proposals', {
+        headers: await adminAuthHeaders(),
+      });
+      const proposalsBody = await proposalsResponse.json().catch(() => ({}));
+      const propData = (
+        proposalsResponse.ok && Array.isArray(proposalsBody.proposals) ? proposalsBody.proposals : null
+      ) as Proposal[] | null;
+      const proposalsError = proposalsResponse.ok ? null : { message: proposalsBody.error || 'Failed to load proposals' };
 
       if (proposalsError) {
         console.error('Error fetching proposals:', proposalsError);
@@ -2696,7 +2700,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     try {
       const response = await fetch('/api/admin/delete-proposal', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await adminAuthHeaders()) },
         body: JSON.stringify({ proposalId }),
       });
 
