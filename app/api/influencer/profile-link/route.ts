@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { normalizeProfileSlug, publicProfilePath, slugifyProfileName } from '@/lib/profileSlug';
+import { changeProfileSlug, ensureProfileSlug } from '@/lib/profileSlugAssign';
+import { publicProfilePath } from '@/lib/profileSlug';
+import { SITE_URL } from '@/lib/site';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
   { auth: { persistSession: false, autoRefreshToken: false } }
 );
-
-const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr').replace(/\/$/, '');
 
 type InfluencerLinkRow = {
   id: string;
@@ -64,20 +64,6 @@ async function getInfluencerFromAuth(request: NextRequest) {
   return { influencer: first.data, slugSupported: true as const };
 }
 
-async function allocateSlug(base: string, influencerId: string): Promise<string> {
-  let candidate = base;
-  for (let i = 0; i < 20; i++) {
-    const { data } = await supabaseAdmin
-      .from('influencers')
-      .select('id')
-      .eq('profile_slug', candidate)
-      .maybeSingle();
-    if (!data || String(data.id) === String(influencerId)) return candidate;
-    candidate = `${base}-${i + 2}`.slice(0, 40);
-  }
-  return `${base}-${String(influencerId).replace(/-/g, '').slice(0, 6)}`.slice(0, 40);
-}
-
 function payload(inf: { id: string; display_name?: string; approved?: boolean; category?: string | null; profile_slug?: string | null }, slugSupported: boolean) {
   const slug = inf.profile_slug || null;
   const path = publicProfilePath(slugSupported ? slug : null, inf.id);
@@ -102,10 +88,8 @@ export async function GET(request: NextRequest) {
     if (!inf) return NextResponse.json({ error: 'Influencer not found' }, { status: 404 });
 
     if (auth.slugSupported && !inf.profile_slug) {
-      const base = slugifyProfileName(inf.display_name || '', inf.id);
-      const slug = await allocateSlug(base, inf.id);
-      const { error } = await supabaseAdmin.from('influencers').update({ profile_slug: slug }).eq('id', inf.id);
-      if (!error) inf.profile_slug = slug;
+      const slug = await ensureProfileSlug(supabaseAdmin, inf.id);
+      if (slug) inf.profile_slug = slug;
     }
 
     return NextResponse.json(payload(inf, auth.slugSupported));
@@ -133,17 +117,11 @@ export async function POST(request: NextRequest) {
     if (!inf) return NextResponse.json({ error: 'Influencer not found' }, { status: 404 });
 
     const body = await request.json().catch(() => ({}));
-    const wanted = normalizeProfileSlug(String(body?.slug || ''));
-    if (!wanted) {
-      return NextResponse.json({ error: 'Μη έγκυρο slug. Χρησιμοποίησε λατινικά γράμματα, αριθμούς και παύλα.' }, { status: 400 });
+    const changed = await changeProfileSlug(supabaseAdmin, inf.id, inf.profile_slug, String(body?.slug || ''));
+    if (!changed.ok) {
+      return NextResponse.json({ error: changed.error }, { status: changed.status });
     }
-    const slug = await allocateSlug(wanted, inf.id);
-    if (slug !== wanted) {
-      return NextResponse.json({ error: 'Αυτό το link χρησιμοποιείται ήδη. Δοκίμασε άλλο.' }, { status: 409 });
-    }
-    const { error } = await supabaseAdmin.from('influencers').update({ profile_slug: slug }).eq('id', inf.id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    inf.profile_slug = slug;
+    inf.profile_slug = changed.slug;
     return NextResponse.json(payload(inf, true));
   } catch (e: unknown) {
     return NextResponse.json(

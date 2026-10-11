@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { insertFollowerSnapshot } from '@/lib/parseFollowers';
 import { requireAdmin } from '@/lib/apiAuth';
+import { ensureProfileSlug } from '@/lib/profileSlugAssign';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -42,6 +43,8 @@ export async function POST(request: NextRequest) {
     }
 
     const patch = { ...updates } as Record<string, unknown>;
+    // Slugs are assigned on approval and changed only via /api/influencer/profile-link.
+    delete patch.profile_slug;
     if (typeof patch.contact_email === 'string') {
       patch.contact_email = patch.contact_email.trim().toLowerCase();
     }
@@ -63,6 +66,12 @@ export async function POST(request: NextRequest) {
       (patch.accounts && JSON.stringify(patch.accounts) !== JSON.stringify(existing.accounts));
     if (accountsChanged && data.accounts) {
       await insertFollowerSnapshot(supabaseAdmin, influencerId, data.accounts);
+    }
+
+    if (patch.approved === true) {
+      await ensureProfileSlug(supabaseAdmin, influencerId).catch((e) => {
+        console.error('[admin/influencers/update] slug', e);
+      });
     }
 
     const newEmail =
