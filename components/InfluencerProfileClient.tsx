@@ -23,7 +23,7 @@ import ChannelScorePanel from "@/components/ChannelScorePanel";
 import FollowerGrowthChart from "@/components/FollowerGrowthChart";
 import StatsInsightsPanel from "@/components/StatsInsightsPanel";
 import { buildChannelScore } from "@/lib/channelScore";
-import { loadOwnBrand } from "@/lib/ownProfile";
+import { loadOwnBrand, loadOwnProfiles } from "@/lib/ownProfile";
 import { detectErFlag, erFlagFromReason, erFlagHint, erFlagLabel, type ErFlagReason } from "@/lib/engagementFlags";
 import type { FollowerGrowthPoint } from "@/lib/followerGrowth";
 import { displayLanguageLabel } from "@/lib/languages";
@@ -1091,26 +1091,28 @@ export default function InfluencerProfile(props: {
             console.error('Push notification failed:', pushErr);
         }
 
-        // 1.5. Auto-create conversation from proposal
-        // NOTE: senderType should be 'brand' because the brand is sending the proposal
+        // Chat only when the brand is signed in. Guests still save the proposal and get the emails.
         if (proposalResult && proposalResult.id) {
             try {
-                await fetch('/api/messages', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        influencerId: id,
-                        brandEmail: brandEmail,
-                        brandName: brandName,
-                        senderType: 'brand',
-                        senderId: brandEmail,
-                        content: `Νέα πρόταση: ${proposalType} | Budget: €${budget}\n\n${message}`,
-                        proposalId: proposalResult.id
-                    })
-                });
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session?.access_token) {
+                    await fetch('/api/messages', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${session.access_token}`,
+                        },
+                        body: JSON.stringify({
+                            influencerId: id,
+                            brandName: brandName,
+                            senderType: 'brand',
+                            content: `Νέα πρόταση: ${proposalType} | Budget: €${budget}\n\n${message}`,
+                            proposalId: proposalResult.id
+                        })
+                    });
+                }
             } catch (convError) {
                 console.error("Auto-create conversation failed:", convError);
-                // Don't fail the proposal if conversation creation fails
             }
         }
 
@@ -1257,23 +1259,49 @@ export default function InfluencerProfile(props: {
 
     setMessageSending(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        alert(lang === 'el' ? 'Συνδεθείτε για να στείλετε μήνυμα.' : 'Sign in to send a message.');
+        return;
+      }
+      const profiles = await loadOwnProfiles(supabase);
+      const asBrand = profiles.ok && profiles.brand;
+      const asOwner = profiles.ok && profiles.influencer && String(profiles.influencer.id) === String(id);
+      if (!asBrand && !asOwner) {
+        alert(lang === 'el' ? 'Μόνο η επιχείρηση ή ο κάτοχος του προφίλ μπορεί να στείλει μήνυμα.' : 'Only the brand or the profile owner can send a message.');
+        return;
+      }
       const response = await fetch('/api/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          influencerId: id,
-          brandEmail: messageBrandEmail,
-          brandName: messageBrandName || messageBrandEmail,
-          senderType: 'influencer',
-          senderId: id,
-          content: messageContent,
-        })
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(
+          asBrand
+            ? {
+                influencerId: id,
+                brandName: typeof profiles.brand?.brand_name === 'string' ? profiles.brand.brand_name : messageBrandName,
+                senderType: 'brand',
+                content: messageContent,
+              }
+            : {
+                influencerId: id,
+                brandEmail: messageBrandEmail,
+                brandName: messageBrandName || messageBrandEmail,
+                senderType: 'influencer',
+                content: messageContent,
+              }
+        )
       });
 
       const result = await response.json();
       if (result.success) {
         alert(lang === 'el' ? 'Το μήνυμα στάλθηκε! Θα μεταφερθείτε στη σελίδα συνομιλιών.' : 'Message sent! Redirecting to conversation...');
-        window.location.href = `/messages?influencer=${id}&brandEmail=${encodeURIComponent(messageBrandEmail)}&brandName=${encodeURIComponent(messageBrandName || messageBrandEmail)}`;
+        const conversation = result.conversationId ? `&conversation=${encodeURIComponent(result.conversationId)}` : '';
+        window.location.href = asBrand
+          ? `/brand/dashboard?tab=messages${conversation}`
+          : `/dashboard?tab=messages${conversation}`;
       } else {
         throw new Error(result.error);
       }
@@ -1881,9 +1909,7 @@ export default function InfluencerProfile(props: {
                           return;
                         }
 
-                        const brandEmail = user.email;
-                        const brandName = typeof brandResult.profile.brand_name === "string" ? brandResult.profile.brand_name : "";
-                        router.push(`/messages?influencer=${id}&brandEmail=${encodeURIComponent(brandEmail)}&brandName=${encodeURIComponent(brandName)}`);
+                        router.push(`/messages?influencer=${encodeURIComponent(String(id))}`);
                       } catch (error) {
                         console.error('Error checking brand status:', error);
                         // On error, show registration modal

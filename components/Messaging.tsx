@@ -12,6 +12,9 @@ import {
   clipChatPreview,
   chatInitial,
 } from '@/lib/chatTime';
+import { formatActiveLabel, presenceOnline, PRESENCE_HEARTBEAT_MS } from '@/lib/presenceStatus';
+import { presenceTabOpened } from '@/lib/presenceTabs';
+import { sessionFetch } from '@/lib/sessionFetch';
 
 interface MessageAttachment {
   url: string;
@@ -29,6 +32,7 @@ interface Message {
   attachments?: MessageAttachment[] | null;
   read: boolean;
   created_at: string;
+  localStatus?: 'sending' | 'failed';
 }
 
 interface Conversation {
@@ -44,6 +48,7 @@ interface Conversation {
   closed_at?: string | null;
   last_message_preview?: string;
   unread_count?: number;
+  proposal_id?: number | null;
 }
 
 interface ProposalInfo {
@@ -69,6 +74,7 @@ interface MessagingProps {
   mode: 'influencer' | 'brand';
   lang?: 'el' | 'en';
   onUnreadCountChange?: (count: number) => void;
+  initialConversationId?: string | null;
 }
 
 const t = {
@@ -108,6 +114,13 @@ const t = {
     proposalOffered: "Προσφερόμενη",
     proposalCounter: "Αντιπρόταση",
     readReceipt: "Διαβάστηκε",
+    seen: "Διαβάστηκε",
+    sent: "Στάλθηκε",
+    typing: "γράφει…",
+    newMessages: "Νέα μηνύματα",
+    sendFailed: "Το μήνυμα δεν στάλθηκε.",
+    retry: "Δοκιμή ξανά",
+    emptyThread: "Δεν υπάρχουν μηνύματα ακόμα. Γράψτε το πρώτο.",
     closedBadge: "Κλειστή",
     back: "Πίσω",
     loading: "Φόρτωση...",
@@ -153,6 +166,13 @@ const t = {
     proposalOffered: "Offered",
     proposalCounter: "Counter",
     readReceipt: "Read",
+    seen: "Seen",
+    sent: "Sent",
+    typing: "is typing…",
+    newMessages: "New messages",
+    sendFailed: "The message was not sent.",
+    retry: "Retry",
+    emptyThread: "No messages yet. Write the first one.",
     closedBadge: "Closed",
     back: "Back",
     loading: "Loading...",
@@ -172,7 +192,8 @@ export default function Messaging({
   proposalId,
   mode,
   lang = 'el',
-  onUnreadCountChange
+  onUnreadCountChange,
+  initialConversationId = null,
 }: MessagingProps) {
   const txt = t[lang];
   
@@ -186,7 +207,17 @@ export default function Messaging({
   const [sending, setSending] = useState(false);
   const [isInfluencerOnline, setIsInfluencerOnline] = useState(false);
   const [isBrandOnline, setIsBrandOnline] = useState(false);
+  const [influencerLastSeen, setInfluencerLastSeen] = useState<string | null>(null);
+  const [brandLastSeen, setBrandLastSeen] = useState<string | null>(null);
+  const [otherTyping, setOtherTyping] = useState(false);
+  const [unseenBelow, setUnseenBelow] = useState(0);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [presenceTick, setPresenceTick] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageListRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
+  const typingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const lastTypingSentRef = useRef(0);
   const lastSentMessageRef = useRef<string>('');
   const applyInboxMessageRef = useRef<(msg: Message) => void>(() => {});
   const [proposalInfo, setProposalInfo] = useState<ProposalInfo | null>(null);
@@ -207,12 +238,16 @@ export default function Messaging({
   const autoCloseTimerRef = useRef<NodeJS.Timeout | null>(null);
   const ACTIVITY_UPDATE_THROTTLE = 30000; // Update at most once per 30 seconds
 
-  // Load proposal info if proposalId is provided
+  // Offer card follows the open thread's proposal, or the one passed in from a dashboard.
   useEffect(() => {
-    if (proposalId) {
-      loadProposalInfo();
+    const fromThread = conversations.find((c) => c.id === selectedConversation)?.proposal_id;
+    const id = proposalId || fromThread || null;
+    if (!id) {
+      setProposalInfo(null);
+      return;
     }
-  }, [proposalId]);
+    void loadProposalInfo(id);
+  }, [proposalId, selectedConversation, conversations]);
 
   // Load conversations
   useEffect(() => {
@@ -222,96 +257,65 @@ export default function Messaging({
   // Auto-select conversation when proposalId and brandEmail are provided
   useEffect(() => {
     if (proposalId && brandEmail && conversations.length > 0) {
-      const matchingConv = conversations.find(c => c.brand_email === brandEmail);
+      const matchingConv = conversations.find(c => c.brand_email.toLowerCase() === brandEmail.toLowerCase());
       if (matchingConv) {
         setSelectedConversation(matchingConv.id);
       }
     }
   }, [proposalId, brandEmail, conversations]);
 
-  // Track online status for influencer mode - update presence
-  // (DashboardContent also heartbeats; this reinforces while Messages tab is open.)
   useEffect(() => {
-    if (mode === 'influencer' && influencerId) {
-      // Update immediately when component mounts
-      updateOnlineStatus();
-      // Update status every 10 seconds (more frequent for better accuracy)
-      const interval = setInterval(updateOnlineStatus, 10000);
-      
-      // Handle browser close/tab close
-      const handleBeforeUnload = () => {
-        markOffline();
-      };
-      
-      const handleVisibilityChange = () => {
-        if (document.hidden) {
-          // Tab is hidden - mark as offline after a delay
-          setTimeout(() => {
-            if (document.hidden) {
-              markOffline();
-            }
-          }, 60000); // 1 minute after tab becomes hidden
-        } else {
-          // Tab is visible again - mark as online
-          updateOnlineStatus();
-        }
-      };
-      
-      window.addEventListener('beforeunload', handleBeforeUnload);
-      document.addEventListener('visibilitychange', handleVisibilityChange);
-      
-      // Do NOT mark offline on Messages unmount — influencer may still be on another dashboard tab.
-      // DashboardContent / logout / beforeunload handle offline.
-      return () => {
-        clearInterval(interval);
-        window.removeEventListener('beforeunload', handleBeforeUnload);
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-      };
-    } else if (mode === 'brand' && brandEmail) {
-      // Track brand online status - only if brand has account
-      const updateBrandStatus = async () => {
-        // Check if brand has account first
-        const hasAccount = await brandHasAccount(supabase, brandEmail);
-        
-        if (hasAccount) {
-          // Brand has account - update presence
-          updateBrandOnlineStatus(brandEmail);
-        }
-      };
-      
-      updateBrandStatus();
-      // Update status every 10 seconds to keep brand online
-      const interval = setInterval(updateBrandStatus, 10000);
-      
-      // Handle browser close/tab close
-      const handleBeforeUnload = () => {
-        markBrandOffline(brandEmail);
-      };
-      
-      const handleVisibilityChange = () => {
-        if (document.hidden) {
-          // Tab is hidden - mark as offline after a delay
-          setTimeout(() => {
-            if (document.hidden) {
-              markBrandOffline(brandEmail);
-            }
-          }, 60000); // 1 minute after tab becomes hidden
-        } else {
-          // Tab is visible again - mark as online
-          updateBrandStatus();
-        }
-      };
-      
-      window.addEventListener('beforeunload', handleBeforeUnload);
-      document.addEventListener('visibilitychange', handleVisibilityChange);
-      
-      // Brand dashboard also heartbeats; avoid flipping offline when leaving Messages tab only
-      return () => {
-        clearInterval(interval);
-        window.removeEventListener('beforeunload', handleBeforeUnload);
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-      };
+    if (!initialConversationId) return;
+    if (conversations.some((c) => c.id === initialConversationId)) {
+      setSelectedConversation(initialConversationId);
     }
+  }, [initialConversationId, conversations]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setPresenceTick((n) => n + 1), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  // Heartbeat while this tab is visible. Other tabs share a counter so closing one does not flip offline.
+  // A closed tab stops heartbeats; the other side treats last_seen older than 90s as offline.
+  useEffect(() => {
+    const releaseTab = presenceTabOpened();
+    let released = false;
+    let interval = 0;
+    const releaseOnce = () => {
+      if (released) return false;
+      released = true;
+      return releaseTab();
+    };
+    const beat = () => {
+      if (document.hidden) return;
+      if (mode === 'influencer' && influencerId) void updateOnlineStatus();
+      else if (mode === 'brand' && brandEmail) void updateBrandOnlineStatus(brandEmail);
+    };
+    const start = () => {
+      beat();
+      window.clearInterval(interval);
+      interval = window.setInterval(beat, PRESENCE_HEARTBEAT_MS);
+    };
+    const stop = () => window.clearInterval(interval);
+    const onVisibility = () => {
+      if (document.hidden) stop();
+      else start();
+    };
+    const markIfLastTab = () => {
+      if (!releaseOnce()) return;
+      if (mode === 'influencer') void markOffline();
+      else if (brandEmail) void markBrandOffline(brandEmail);
+    };
+    if (!document.hidden) start();
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('beforeunload', markIfLastTab);
+    return () => {
+      stop();
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('beforeunload', markIfLastTab);
+      markIfLastTab();
+    };
   }, [mode, influencerId, brandEmail]);
 
   // Brand: poll + subscribe to influencer online status (was defined but never called)
@@ -333,7 +337,7 @@ export default function Messaging({
     }
 
     checkInfluencerStatus(watchedInfluencerId);
-    const interval = setInterval(() => checkInfluencerStatus(watchedInfluencerId), 5000);
+    const interval = setInterval(() => checkInfluencerStatus(watchedInfluencerId), 30_000);
 
     const channel = supabase
       .channel(`influencer_presence_watch:${watchedInfluencerId}`)
@@ -417,7 +421,7 @@ export default function Messaging({
 
     setEndingConversation(true);
     try {
-      const response = await fetch('/api/conversations/end', {
+      const response = await sessionFetch('/api/conversations/end', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -460,7 +464,7 @@ export default function Messaging({
     setEndingConversation(true);
     setShowEndConfirm(false);
     try {
-      const response = await fetch('/api/conversations/end', {
+      const response = await sessionFetch('/api/conversations/end', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -500,6 +504,9 @@ export default function Messaging({
       setConversationClosedByInactivity(false);
       setShowInactivityWarning(false);
       warningStartTimeRef.current = null;
+      stickToBottomRef.current = true;
+      setUnseenBelow(0);
+      setOtherTyping(false);
       
       // Load activity timestamps FIRST to check if conversation is closed, then load messages
       // IMPORTANT: Even if conversation is closed, the textarea will remain visible
@@ -509,7 +516,8 @@ export default function Messaging({
       })();
       // NOTE: We do NOT update activity timestamp when opening conversation
       // Activity should only be updated on actual user actions (typing, sending, etc.)
-      // Set up real-time subscription
+      // Set up real-time subscription. Fallback poll runs only while Realtime is down.
+      let realtimeOk = false;
       const subscription = supabase
         .channel(`messages:${selectedConversation}`)
         .on('postgres_changes', {
@@ -530,63 +538,45 @@ export default function Messaging({
             lastSentMessageRef.current = '';
           }
           
-          setMessages((prev) => [...prev, newMsg]);
-          scrollToBottom();
-          applyInboxMessageRef.current(newMsg);
-          
-          // Update brand status when brand sends a message (for influencer mode)
-          // This is the same as when influencer sends message to brand (brand checks influencer status)
-          if (mode === 'influencer' && newMsg.sender_type === 'brand') {
-            // When brand sends a message, they are definitely online - check their status immediately
-            // The API route already updated brand_presence, but we need to check it here to update UI
-            // Use the current conversation to get brand email (avoid variable shadowing)
-            const currentConv = conversations.find(c => c.id === selectedConversation);
-            const emailToCheck = currentConv?.brand_email || (brandEmail as string | undefined);
-            if (emailToCheck) {
-              // Check brand status immediately with a small delay to ensure API has updated presence
-              // Then check again after a bit longer to catch the update
-              setTimeout(() => {
-                checkBrandStatus(emailToCheck);
-                // Check again after 500ms to ensure we catch the updated presence
-                setTimeout(() => {
-                  checkBrandStatus(emailToCheck);
-                }, 500);
-              }, 100);
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === newMsg.id)) return prev;
+            const tmpIdx = prev.findIndex(
+              (m) => m.id.startsWith('tmp-') && m.sender_type === newMsg.sender_type
+            );
+            if (tmpIdx >= 0) {
+              const copy = [...prev];
+              copy[tmpIdx] = newMsg;
+              return copy;
             }
+            return [...prev, newMsg];
+          });
+          if (stickToBottomRef.current || isOurMessage) {
+            setUnseenBelow(0);
+            scrollToBottom(true);
+          } else {
+            setUnseenBelow((n) => n + 1);
+          }
+          applyInboxMessageRef.current(newMsg);
+
+          if (!isOurMessage && newMsg.sender_type !== mode) {
+            void supabase.from('messages').update({ read: true }).eq('id', newMsg.id).then(() => {
+              setMessages((prev) => prev.map((m) => (m.id === newMsg.id ? { ...m, read: true } : m)));
+              setConversations((prev) =>
+                prev.map((c) => (c.id === newMsg.conversation_id ? { ...c, unread_count: 0 } : c))
+              );
+              window.dispatchEvent(new CustomEvent('messagesRead'));
+            });
           }
 
+          if (mode === 'influencer' && newMsg.sender_type === 'brand') {
+            const currentConv = conversations.find(c => c.id === selectedConversation);
+            const emailToCheck = currentConv?.brand_email || (brandEmail as string | undefined);
+            if (emailToCheck) checkBrandStatus(emailToCheck);
+          }
           if (mode === 'brand' && newMsg.sender_type === 'influencer') {
             const currentConv = conversations.find((c) => c.id === selectedConversation);
             const idToCheck = currentConv?.influencer_id || influencerId;
-            if (idToCheck) {
-              setTimeout(() => checkInfluencerStatus(idToCheck), 100);
-            }
-          }
-          
-          // Update unread count if this is a new message from the other party
-          if (mode === 'brand' && newMsg.sender_type === 'influencer' && onUnreadCountChange) {
-            // Increment count immediately (optimistic update)
-            // The actual count will be recalculated when conversation loads
-            setTimeout(() => {
-              (async () => {
-                try {
-                  // Recalculate unread count
-                  const currentConversations = conversations;
-                  if (currentConversations.length > 0) {
-                    const conversationIds = currentConversations.map(c => c.id);
-                    const { data: unreadMessages } = await supabase
-                      .from('messages')
-                      .select('id')
-                      .in('conversation_id', conversationIds)
-                      .eq('sender_type', 'influencer')
-                      .eq('read', false);
-                    onUnreadCountChange(unreadMessages?.length || 0);
-                  }
-                } catch (error) {
-                  // Ignore errors
-                }
-              })();
-            }, 500);
+            if (idToCheck) checkInfluencerStatus(idToCheck);
           }
         })
         .on('postgres_changes', {
@@ -600,17 +590,35 @@ export default function Messaging({
             prev.map((m) => (m.id === updated.id ? { ...m, read: updated.read } : m))
           );
         })
-        .subscribe();
+        .subscribe((status) => {
+          realtimeOk = status === 'SUBSCRIBED';
+        });
 
-      // Update activity timestamp periodically while conversation is open
-      // This keeps the user's online status current
+      const typingChannel = supabase.channel(`typing:${selectedConversation}`);
+      typingChannelRef.current = typingChannel;
+      typingChannel.on('broadcast', { event: 'typing' }, ({ payload }) => {
+        const role = (payload as { role?: string } | null)?.role;
+        if (role && role !== mode) {
+          setOtherTyping(true);
+          window.setTimeout(() => setOtherTyping(false), 2500);
+        }
+      }).subscribe();
+
+      const fallback = window.setInterval(() => {
+        if (!realtimeOk && selectedConversation) void loadMessages(selectedConversation);
+      }, 25_000);
+
       const activityInterval = setInterval(() => {
         updateActivityTimestamp();
-      }, 30000); // Every 30 seconds
+      }, 30000);
 
       return () => {
         subscription.unsubscribe();
+        typingChannel.unsubscribe();
+        typingChannelRef.current = null;
         clearInterval(activityInterval);
+        window.clearInterval(fallback);
+        setOtherTyping(false);
       };
     } else {
       setShowActionsMenu(false);
@@ -618,32 +626,44 @@ export default function Messaging({
     }
   }, [selectedConversation]);
 
-  // Inbox-wide realtime: keep conversation list previews/unread fresh
+  // Inbox list follows this user's conversations only (not every message in the project).
   useEffect(() => {
+    const filter =
+      mode === 'influencer' && influencerId
+        ? `influencer_id=eq.${influencerId}`
+        : mode === 'brand' && brandEmail
+          ? `brand_email=eq.${brandEmail.toLowerCase().trim()}`
+          : null;
+    if (!filter) return;
     const channel = supabase
-      .channel(`inbox:${mode}:${influencerId || brandEmail || 'all'}`)
+      .channel(`inbox-conv:${mode}:${influencerId || brandEmail}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
-        (payload) => {
-          const newMsg = payload.new as Message;
-          applyInboxMessageRef.current(newMsg);
+        { event: '*', schema: 'public', table: 'conversations', filter },
+        () => {
+          void loadConversations(true);
         }
       )
       .subscribe();
+    const poll = window.setInterval(() => {
+      void loadConversations(true);
+    }, 30_000);
+    const onFocus = () => {
+      void loadConversations(true);
+    };
+    window.addEventListener('focus', onFocus);
     return () => {
       channel.unsubscribe();
+      window.clearInterval(poll);
+      window.removeEventListener('focus', onFocus);
     };
   }, [mode, influencerId, brandEmail]);
 
-  // Keep parent unread badge in sync with list enrichment
   useEffect(() => {
     if (!onUnreadCountChange) return;
-    if (mode === 'brand') {
-      const total = conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
-      onUnreadCountChange(total);
-    }
-  }, [conversations, mode, onUnreadCountChange]);
+    const total = conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
+    onUnreadCountChange(total);
+  }, [conversations, onUnreadCountChange]);
 
   // Check for inactivity every 1 minute (more frequent checks for better UX)
   useEffect(() => {
@@ -722,9 +742,7 @@ export default function Messaging({
     // If conversation is inactive, trigger the cron endpoint to close it
     const pollInterval = setInterval(async () => {
       try {
-        const response = await fetch(`/api/conversations/check-inactive?conversationId=${selectedConversation}`, {
-          method: 'GET'
-        });
+        const response = await sessionFetch(`/api/conversations/check-inactive?conversationId=${selectedConversation}`);
         
         if (response.ok) {
           const result = await response.json();
@@ -732,7 +750,7 @@ export default function Messaging({
           // Αν inactive και ανοιχτή: κλείσιμο μέσω close-if-inactive (χωρίς CRON_SECRET)
           if (result.isInactive && !result.isClosed) {
             try {
-              const closeRes = await fetch(`/api/conversations/close-if-inactive?conversationId=${selectedConversation}`);
+              const closeRes = await sessionFetch(`/api/conversations/close-if-inactive?conversationId=${selectedConversation}`);
               if (closeRes.ok) {
                 const closeData = await closeRes.json();
                 if (closeData.closed) {
@@ -758,9 +776,7 @@ export default function Messaging({
     // Also check immediately
     (async () => {
       try {
-        const response = await fetch(`/api/conversations/check-inactive?conversationId=${selectedConversation}`, {
-          method: 'GET'
-        });
+        const response = await sessionFetch(`/api/conversations/check-inactive?conversationId=${selectedConversation}`);
         if (response.ok) {
           const result = await response.json();
           if (result.isClosed) {
@@ -775,8 +791,8 @@ export default function Messaging({
     return () => clearInterval(pollInterval);
   }, [selectedConversation, conversationClosed]);
 
-  const loadConversations = async () => {
-    setLoading(true);
+  const loadConversations = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       let query = supabase
         .from('conversations')
@@ -785,7 +801,7 @@ export default function Messaging({
       if (mode === 'influencer') {
         query = query.eq('influencer_id', influencerId);
       } else if (mode === 'brand' && brandEmail) {
-        query = query.eq('brand_email', brandEmail);
+        query = query.ilike('brand_email', brandEmail.toLowerCase().trim());
       }
 
       // Order: open conversations first (nulls), then by last_message_at desc
@@ -802,13 +818,7 @@ export default function Messaging({
       const enriched = await enrichConversationRows(rows);
       setConversations(enriched);
 
-      // Calculate unread message count for brand mode
-      if (mode === 'brand' && brandEmail && enriched.length > 0 && onUnreadCountChange) {
-        const totalUnread = enriched.reduce((sum, c) => sum + (c.unread_count || 0), 0);
-        onUnreadCountChange(totalUnread);
-      } else if (onUnreadCountChange) {
-        onUnreadCountChange(0);
-      }
+      if (silent) return;
 
       // Auto-select: deep-link / desktop first; mobile keeps list until user picks.
       if (mode === 'brand' && brandEmail && enriched.length === 0 && influencerId) {
@@ -834,7 +844,7 @@ export default function Messaging({
     } catch (error) {
       console.error('Error loading conversations:', error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -842,12 +852,21 @@ export default function Messaging({
     if (!rows.length) return [];
     const ids = rows.map((c) => c.id);
 
-    const { data: unreadRows } = await supabase
-      .from('messages')
-      .select('conversation_id')
-      .in('conversation_id', ids)
-      .eq('read', false)
-      .neq('sender_type', mode);
+    const [{ data: unreadRows }, { data: recent }] = await Promise.all([
+      supabase
+        .from('messages')
+        .select('conversation_id')
+        .in('conversation_id', ids)
+        .eq('read', false)
+        .neq('sender_type', mode)
+        .limit(1000),
+      supabase
+        .from('messages')
+        .select('conversation_id, content, created_at')
+        .in('conversation_id', ids)
+        .order('created_at', { ascending: false })
+        .limit(Math.min(400, Math.max(ids.length, 1) * 8)),
+    ]);
 
     const unreadMap = new Map<string, number>();
     for (const row of unreadRows || []) {
@@ -855,24 +874,18 @@ export default function Messaging({
       unreadMap.set(id, (unreadMap.get(id) || 0) + 1);
     }
 
-    const withPreviews = await Promise.all(
-      rows.map(async (c) => {
-        const { data: last } = await supabase
-          .from('messages')
-          .select('content')
-          .eq('conversation_id', c.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        return {
-          ...c,
-          last_message_preview: last?.content || '',
-          unread_count: unreadMap.get(c.id) || 0,
-        };
-      })
-    );
+    const previewMap = new Map<string, string>();
+    for (const row of recent || []) {
+      const id = String((row as { conversation_id: string }).conversation_id);
+      if (previewMap.has(id)) continue;
+      previewMap.set(id, String((row as { content?: string }).content || ''));
+    }
 
-    return withPreviews;
+    return rows.map((c) => ({
+      ...c,
+      last_message_preview: previewMap.get(c.id) || '',
+      unread_count: unreadMap.get(c.id) || 0,
+    }));
   };
 
   const applyInboxMessage = useCallback((newMsg: Message) => {
@@ -907,13 +920,13 @@ export default function Messaging({
   }, [mode, selectedConversation]);
   applyInboxMessageRef.current = applyInboxMessage;
 
-  const loadProposalInfo = async () => {
-    if (!proposalId) return;
+  const loadProposalInfo = async (id = proposalId) => {
+    if (!id) return;
     try {
       const { data, error } = await supabase
         .from('proposals')
         .select('id, brand_name, brand_email, budget, service_type, status, counter_proposal_budget, counter_proposal_status, influencer_agreement_accepted, brand_agreement_accepted')
-        .eq('id', proposalId)
+        .eq('id', id)
         .single();
 
       if (error) throw error;
@@ -1001,7 +1014,8 @@ export default function Messaging({
 
       if (error) throw error;
       setMessages(data || []);
-      scrollToBottom();
+      stickToBottomRef.current = true;
+      scrollToBottom(true);
       
       // Mark messages as read when loaded (only for messages sent by the other party)
       if (data && data.length > 0) {
@@ -1037,21 +1051,43 @@ export default function Messaging({
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     const text = newMessage.trim();
-    if (!text && pendingFiles.length === 0) return;
+    const filesToUpload = [...pendingFiles];
+    if ((!text && filesToUpload.length === 0) || sending) return;
     if (mode === "influencer" && !influencerId) return;
 
     setSending(true);
-    try {
-      let convId = selectedConversation;
-      const filesToUpload = [...pendingFiles];
+    setSendError(null);
+    const tmpId = `tmp-${Date.now()}`;
+    const convAtSend = selectedConversation;
+    if (convAtSend) {
+      stickToBottomRef.current = true;
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: tmpId,
+          conversation_id: convAtSend,
+          sender_id: mode === 'influencer' ? influencerId || '' : brandEmail || '',
+          sender_type: mode,
+          content: text,
+          read: false,
+          created_at: new Date().toISOString(),
+          localStatus: 'sending',
+        },
+      ]);
+      setNewMessage('');
+      setPendingFiles([]);
+      scrollToBottom(true);
+    }
 
+    try {
+      let convId = convAtSend;
       const uploadFiles = async (targetConvId: string) => {
         const out: MessageAttachment[] = [];
         for (const file of filesToUpload) {
           const fd = new FormData();
           fd.append('file', file);
           fd.append('conversation_id', targetConvId);
-          const up = await fetch('/api/messages/upload', { method: 'POST', body: fd });
+          const up = await sessionFetch('/api/messages/upload', { method: 'POST', body: fd });
           const upJson = await up.json();
           if (!up.ok || !upJson.success || !upJson.attachment?.url) {
             throw new Error(upJson.error || 'Upload failed');
@@ -1061,111 +1097,92 @@ export default function Messaging({
         return out;
       };
 
-      let uploaded: MessageAttachment[] = [];
-      if (filesToUpload.length) {
-        uploaded = await uploadFiles(convId || 'temp');
-      }
+      const uploaded = filesToUpload.length ? await uploadFiles(convId || 'temp') : [];
+      const response = await sessionFetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(
+          convId
+            ? { conversationId: convId, senderType: mode, content: text, attachments: uploaded }
+            : {
+                influencerId,
+                brandEmail,
+                brandName: brandName || brandEmail,
+                senderType: mode,
+                content: text,
+                attachments: uploaded,
+                proposalId,
+              }
+        ),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.error || 'Send failed');
 
-      if (convId) {
-        const senderId = mode === 'influencer' ? influencerId : brandEmail!;
-        
-        const response = await fetch('/api/messages', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            conversationId: convId,
-            senderId,
-            senderType: mode,
-            content: text,
-            attachments: uploaded,
-            sendViaEmail: false,
-          })
+      const saved = result.message as Message | undefined;
+      convId = result.conversationId || convId;
+      lastSentMessageRef.current = text || uploaded[0]?.filename || 'file';
+      playSendSound();
+      setConversationClosed(false);
+      setConversationClosedByInactivity(false);
+      setShowInactivityWarning(false);
+
+      if (saved && convAtSend) {
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === saved.id)) return prev.filter((m) => m.id !== tmpId);
+          if (!prev.some((m) => m.id === tmpId)) return [...prev, { ...saved, localStatus: undefined }];
+          return prev.map((m) => (m.id === tmpId ? { ...saved, localStatus: undefined } : m));
         });
-
-        const result = await response.json();
-        if (!result.success) throw new Error(result.error);
-        
-        if (mode === 'influencer' && influencerId) {
-          updateOnlineStatus();
-        } else if (mode === 'brand') {
-          const emailToUpdate = brandEmail || (selectedConversation
-            ? conversations.find(c => c.id === selectedConversation)?.brand_email
-            : null);
-          if (emailToUpdate) {
-            updateBrandOnlineStatus(emailToUpdate);
-          }
-        }
-        
-        lastSentMessageRef.current = text || uploaded[0]?.filename || 'file';
-        playSendSound();
-        
-        setConversationClosed(false);
-        setConversationClosedByInactivity(false);
-        setShowInactivityWarning(false);
-        
-        await new Promise(resolve => setTimeout(resolve, 100));
-        await loadConversations();
-        await loadActivityTimestamps(convId);
-        await loadMessages(convId);
-      } else if (influencerId && brandEmail) {
-        const response = await fetch('/api/messages', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            influencerId,
-            brandEmail,
-            brandName: brandName || brandEmail,
-            senderType: mode,
-            content: text,
-            attachments: uploaded,
-          })
-        });
-
-        const result = await response.json();
-        if (!result.success) throw new Error(result.error);
-        
-        convId = result.conversationId;
-        
-        if (mode === 'influencer' && influencerId) {
-          updateOnlineStatus();
-        } else if (mode === 'brand') {
-          const emailToUpdate = brandEmail || (selectedConversation
-            ? conversations.find(c => c.id === selectedConversation)?.brand_email
-            : null);
-          if (emailToUpdate) {
-            updateBrandOnlineStatus(emailToUpdate);
-          }
-        }
-        
-        await loadConversations();
-        
-        if (convId) {
-          setSelectedConversation(convId);
-          setConversationClosed(false);
-          setConversationClosedByInactivity(false);
-        }
       }
-
-      setNewMessage('');
-      setPendingFiles([]);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      if (convId) {
-        if (convId !== selectedConversation) {
-          setSelectedConversation(convId);
-        }
-        await loadConversations();
-        await loadMessages(convId);
+      if (convId && convId !== convAtSend) {
+        setSelectedConversation(convId);
+      }
+      if (mode === 'influencer' && influencerId) void updateOnlineStatus();
+      else if (brandEmail) void updateBrandOnlineStatus(brandEmail);
+      void loadConversations(true);
+      if (!convAtSend) {
+        setNewMessage('');
+        setPendingFiles([]);
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      alert('Failed to send message. Please try again.');
+      setSendError(txt.sendFailed);
+      if (convAtSend) {
+        setMessages((prev) => prev.filter((m) => m.id !== tmpId));
+      }
+      setNewMessage(text);
+      setPendingFiles(filesToUpload);
     } finally {
       setSending(false);
     }
   };
 
-  const scrollToBottom = () => {
+  const scrollToBottom = (force = false) => {
+    if (!force && !stickToBottomRef.current) return;
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const onMessageListScroll = () => {
+    const el = messageListRef.current;
+    if (!el) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    stickToBottomRef.current = nearBottom;
+    if (nearBottom) setUnseenBelow(0);
+  };
+
+  const onComposerKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      e.currentTarget.form?.requestSubmit();
+    }
+  };
+
+  const notifyTyping = () => {
+    const channel = typingChannelRef.current;
+    if (!channel) return;
+    const now = Date.now();
+    if (now - lastTypingSentRef.current < 1500) return;
+    lastTypingSentRef.current = now;
+    void channel.send({ type: 'broadcast', event: 'typing', payload: { role: mode } });
   };
 
   // Sound when receiving a message
@@ -1242,26 +1259,10 @@ export default function Messaging({
       }
 
       if (data) {
-        // Very strict: must be online AND last_seen within 1 minute (not 2)
-        // This ensures only actively connected users show as online
-        const lastSeen = new Date(data.last_seen);
-        const updatedAt = new Date(data.updated_at || data.last_seen);
-        const now = new Date();
-        const secondsSinceLastSeen = (now.getTime() - lastSeen.getTime()) / 1000;
-        const secondsSinceUpdated = (now.getTime() - updatedAt.getTime()) / 1000;
-        
-        // Must be actively online (updated within 1 minute = 60 seconds)
-        const isOnline = data.is_online && 
-                        secondsSinceLastSeen < 60 && 
-                        secondsSinceUpdated < 60;
-        
-        setIsInfluencerOnline(isOnline);
-        
-        // If presence is stale, mark as offline
-        if (data.is_online && (secondsSinceLastSeen >= 60 || secondsSinceUpdated >= 60)) {
-          setIsInfluencerOnline(false);
-        }
+        setInfluencerLastSeen(data.last_seen || null);
+        setIsInfluencerOnline(presenceOnline(data));
       } else {
+        setInfluencerLastSeen(null);
         setIsInfluencerOnline(false);
       }
     } catch (error) {
@@ -1362,26 +1363,10 @@ export default function Messaging({
       const data = presenceData;
 
       if (data) {
-        console.log(`[Brand Status Check] Found presence data:`, data);
-        const lastSeen = new Date(data.last_seen);
-        const updatedAt = new Date(data.updated_at || data.last_seen);
-        const now = new Date();
-        const secondsSinceLastSeen = (now.getTime() - lastSeen.getTime()) / 1000;
-        const secondsSinceUpdated = (now.getTime() - updatedAt.getTime()) / 1000;
-        
-        // Steady ~60s window so presence doesn't flicker vs heartbeat cadence
-        const ONLINE_WINDOW = 60;
-        const isOnline = data.is_online && 
-                        secondsSinceLastSeen < ONLINE_WINDOW && 
-                        secondsSinceUpdated < ONLINE_WINDOW;
-        
-        console.log(`[Brand Status Check] Email: ${email}, is_online: ${data.is_online}, last_seen: ${secondsSinceLastSeen.toFixed(1)}s ago, updated_at: ${secondsSinceUpdated.toFixed(1)}s ago, result: ${isOnline ? 'ONLINE' : 'OFFLINE'}`);
-        
-        // Update state - this will trigger UI update
-        setIsBrandOnline(isOnline);
+        setBrandLastSeen(data.last_seen || null);
+        setIsBrandOnline(presenceOnline(data));
       } else {
-        // No presence data - brand is offline
-        console.log(`[Brand Status Check] Email: ${email}, No presence data - OFFLINE`);
+        setBrandLastSeen(null);
         setIsBrandOnline(false);
       }
     } catch (error) {
@@ -1568,13 +1553,6 @@ export default function Messaging({
         if (emailToUpdate) {
           updateBrandOnlineStatus(emailToUpdate);
         }
-        // Also update influencer presence if we have influencer_id from conversation
-        const influencerIdToUpdate = influencerId || (selectedConversation
-          ? conversations.find(c => c.id === selectedConversation)?.influencer_id
-          : null);
-        if (influencerIdToUpdate) {
-          updateOnlineStatusForId(influencerIdToUpdate);
-        }
       }
 
       if (mode === 'influencer') {
@@ -1712,7 +1690,14 @@ export default function Messaging({
                         }`}
                       />
                       <span className="text-[11px] text-slate-500">
-                        {(mode === 'brand' ? isInfluencerOnline : isBrandOnline) ? txt.online : txt.offline}
+                        {otherTyping
+                          ? txt.typing
+                          : formatActiveLabel(
+                              mode === 'brand' ? influencerLastSeen : brandLastSeen,
+                              mode === 'brand' ? isInfluencerOnline : isBrandOnline,
+                              lang,
+                              Date.now() + presenceTick * 0
+                            )}
                       </span>
                     </div>
                   </div>
@@ -1833,7 +1818,14 @@ export default function Messaging({
                 )}
               </div>
 
-              <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 space-y-1 bg-slate-50/80 pb-4">
+              <div
+                ref={messageListRef}
+                onScroll={onMessageListScroll}
+                className="relative flex-1 overflow-y-auto px-3 sm:px-4 py-3 space-y-1 bg-slate-50/80 pb-4"
+              >
+                {messages.length === 0 && (
+                  <p className="text-center text-sm text-slate-500 py-8">{txt.emptyThread}</p>
+                )}
                 {messages.map((msg, index) => {
                   const isOwn =
                     (mode === 'influencer' && msg.sender_type === 'influencer') ||
@@ -1904,7 +1896,11 @@ export default function Messaging({
                             </span>
                             {isOwn && (
                               <span className="text-[10px]">
-                                {msg.read ? `✓✓ ${txt.readReceipt}` : '✓'}
+                                {msg.localStatus === 'sending'
+                                  ? txt.sending
+                                  : msg.read
+                                    ? `✓✓ ${txt.seen}`
+                                    : `✓ ${txt.sent}`}
                               </span>
                             )}
                           </div>
@@ -1914,6 +1910,19 @@ export default function Messaging({
                   );
                 })}
                 <div ref={messagesEndRef} />
+                {unseenBelow > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      stickToBottomRef.current = true;
+                      setUnseenBelow(0);
+                      scrollToBottom(true);
+                    }}
+                    className="sticky bottom-2 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-blue-600 text-white text-xs font-medium shadow"
+                  >
+                    {unseenBelow} {txt.newMessages}
+                  </button>
+                )}
               </div>
 
               <form onSubmit={sendMessage} className="px-3 sm:px-4 py-3 border-t border-slate-200 bg-white">
@@ -1954,7 +1963,11 @@ export default function Messaging({
                   </button>
                   <textarea
                     value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
+                    onChange={(e) => {
+                      setNewMessage(e.target.value);
+                      notifyTyping();
+                    }}
+                    onKeyDown={onComposerKeyDown}
                     placeholder={conversationClosed ? txt.reopenPlaceholder : txt.placeholder}
                     className="flex-1 px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900 bg-white text-sm"
                     rows={2}
@@ -1967,6 +1980,12 @@ export default function Messaging({
                     {sending ? txt.sending : txt.send}
                   </button>
                 </div>
+                {sendError && (
+                  <p className="mt-2 text-xs text-red-600">
+                    {sendError}{' '}
+                    <button type="submit" className="underline font-medium">{txt.retry}</button>
+                  </p>
+                )}
               </form>
             </>
           ) : (
@@ -1984,7 +2003,7 @@ export default function Messaging({
                         }`}
                       />
                       <span className="text-[11px] text-slate-500">
-                        {isInfluencerOnline ? txt.online : txt.offline}
+                        {formatActiveLabel(influencerLastSeen, isInfluencerOnline, lang, Date.now() + presenceTick * 0)}
                       </span>
                     </div>
                   </div>
@@ -2037,7 +2056,11 @@ export default function Messaging({
                     </button>
                     <textarea
                       value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
+                      onChange={(e) => {
+                        setNewMessage(e.target.value);
+                        notifyTyping();
+                      }}
+                      onKeyDown={onComposerKeyDown}
                       placeholder={txt.placeholder}
                       className="flex-1 px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900 text-sm"
                       rows={2}
@@ -2050,6 +2073,12 @@ export default function Messaging({
                       {sending ? txt.sending : txt.send}
                     </button>
                   </div>
+                  {sendError && (
+                    <p className="mt-2 text-xs text-red-600">
+                      {sendError}{' '}
+                      <button type="submit" className="underline font-medium">{txt.retry}</button>
+                    </p>
+                  )}
                 </form>
               )}
             </div>
