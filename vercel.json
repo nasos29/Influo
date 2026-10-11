@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/top10-congrats",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/prune-dead-video-links",
+      "schedule": "0 1 * * *"
     }
   ]
 }
