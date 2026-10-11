@@ -1445,7 +1445,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                                         <button 
                                                             type="button" 
                                                             onClick={() => removeThumbnail(video)}
-                                                            className="w-full px-3 py-1.5 bg-slate-400 text-white rounded-lg hover:bg-slate-500 transition-colors text-sm"
+                                                            className="w-full px-3 py-1.5 bg-slate-900 text-white font-semibold rounded-lg hover:bg-slate-800 transition-colors text-sm"
                                                         >
                                                             Clear Thumbnail
                                                         </button>

@@ -175,7 +175,7 @@ export default function PushNotificationPrompt({
             <button
               onClick={handleEnable}
               disabled={status === "subscribing"}
-              className="text-xs font-medium px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded disabled:opacity-70 disabled:cursor-not-allowed"
+              className="text-xs font-bold text-white px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded disabled:opacity-70 disabled:cursor-not-allowed"
             >
               {status === "subscribing" ? (lang === "el" ? "Αναμονή…" : "Please wait…") : t.enable}
             </button>

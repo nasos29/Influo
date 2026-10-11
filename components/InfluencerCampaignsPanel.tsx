@@ -406,7 +406,7 @@ export default function InfluencerCampaignsPanel({
                     setApplyCampaign(null);
                     setApplyMessage("");
                   }}
-                  className="px-4 py-2 rounded-lg border border-slate-300 text-sm"
+                  className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm font-bold text-slate-900 hover:bg-slate-50"
                 >
                   {uiLang === "el" ? "Ακύρωση" : "Cancel"}
                 </button>

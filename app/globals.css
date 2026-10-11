@@ -1,6 +1,10 @@
 @import "tailwindcss";
 
 :root {
+  /* Light UI only. OS dark mode must not flip text to a light color:
+     buttons and links that omit an explicit text color inherit this and
+     looked faint (almost disabled) on white surfaces. */
+  color-scheme: light;
   --background: #ffffff;
   --foreground: #0f172a;
   
@@ -39,8 +43,9 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    color-scheme: light;
+    --background: #ffffff;
+    --foreground: #0f172a;
   }
   
   /* Override dark mode for select dropdowns - force white background */
@@ -130,8 +135,11 @@ html {
   background: #94a3b8;
 }
 
-/* Smooth transitions for interactive elements */
+/* Smooth transitions for interactive elements.
+   color-scheme: light stops the browser from painting native buttons
+   with washed-out dark-mode "ButtonText" when appearance is button. */
 button, a, input, textarea {
+  color-scheme: light;
   transition-property: color, background-color, border-color, transform, box-shadow;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;

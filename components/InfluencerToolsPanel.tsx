@@ -198,7 +198,7 @@ export default function InfluencerToolsPanel({
                   type="button"
                   onClick={saveSlug}
                   disabled={savingSlug}
-                  className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
+                  className="px-4 py-2 border border-slate-300 bg-white rounded-lg text-sm font-bold text-slate-900 hover:bg-slate-50 disabled:opacity-50"
                 >
                   {savingSlug ? '…' : 'Αποθήκευση'}
                 </button>
@@ -234,7 +234,7 @@ export default function InfluencerToolsPanel({
           <button
             type="button"
             onClick={() => downloadQr(info.url)}
-            className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium hover:bg-slate-50"
+            className="w-full px-4 py-2 border border-slate-300 bg-white rounded-lg text-sm font-bold text-slate-900 hover:bg-slate-50"
           >
             Λήψη PNG
           </button>
