@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import sharp from 'sharp';
+import { userFromBearer } from '@/lib/apiAuth';
+import { isChatParticipant, loadChatActor } from '@/lib/chatActor';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -27,9 +29,27 @@ async function optimizeImage(file: File): Promise<{ buffer: Buffer; contentType:
 
 export async function POST(req: NextRequest) {
   try {
+    const user = await userFromBearer(req);
+    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    const actor = await loadChatActor(user);
+
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
     const conversationId = String(formData.get('conversation_id') || '').trim() || 'temp';
+
+    const looksLikeId = /^[0-9a-f-]{36}$/i.test(conversationId);
+    if (looksLikeId) {
+      const { data: conv } = await supabaseAdmin
+        .from('conversations')
+        .select('influencer_id, brand_email')
+        .eq('id', conversationId)
+        .maybeSingle();
+      if (!conv || !isChatParticipant(actor, conv)) {
+        return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+      }
+    } else if (!actor.influencerId && !actor.brandEmail) {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+    }
 
     if (!file) {
       return NextResponse.json({ success: false, error: 'Missing file' }, { status: 400 });

@@ -6,17 +6,19 @@ import Messaging from '@/components/Messaging';
 import { supabase } from '@/lib/supabaseClient';
 import { getStoredLanguage } from '@/lib/language';
 import { displayNameForLang } from '@/lib/greeklish';
+import { loadOwnBrand } from '@/lib/ownProfile';
 
 function MessagesContent() {
   const searchParams = useSearchParams();
   const influencerId = searchParams?.get('influencer') || null;
-  const brandEmail = searchParams?.get('brandEmail') || null;
-  const brandName = searchParams?.get('brandName') || null;
-  
+  const conversationId = searchParams?.get('conversation');
+
   const [influencerData, setInfluencerData] = useState<{
     id: string;
     name: string;
   } | null>(null);
+  const [brandEmail, setBrandEmail] = useState<string | null>(null);
+  const [brandName, setBrandName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [lang, setLang] = useState<'el' | 'en'>('el');
 
@@ -25,33 +27,38 @@ function MessagesContent() {
   }, []);
 
   useEffect(() => {
-    if (influencerId) {
-      loadInfluencerData();
-    } else {
-      setLoading(false);
-    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const brand = await loadOwnBrand(supabase);
+        if (!brand.ok) {
+          if (!cancelled) setLoading(false);
+          return;
+        }
+        const email = typeof brand.profile.contact_email === 'string' ? brand.profile.contact_email : '';
+        const name = typeof brand.profile.brand_name === 'string' ? brand.profile.brand_name : '';
+        if (!cancelled) {
+          setBrandEmail(email);
+          setBrandName(name);
+        }
+        if (influencerId) {
+          const { data, error } = await supabase
+            .from('influencers')
+            .select('id, display_name')
+            .eq('id', influencerId)
+            .single();
+          if (!error && data && !cancelled) {
+            setInfluencerData({ id: data.id, name: data.display_name });
+          }
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [influencerId]);
-
-  const loadInfluencerData = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('influencers')
-        .select('id, display_name')
-        .eq('id', influencerId)
-        .single();
-
-      if (error) throw error;
-      
-      setInfluencerData({
-        id: data.id,
-        name: data.display_name,
-      });
-    } catch (error) {
-      console.error('Error loading influencer:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -61,32 +68,35 @@ function MessagesContent() {
     );
   }
 
-  if (!influencerId || !influencerData || !brandEmail) {
+  if (!brandEmail) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
         <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md text-center">
-          <h1 className="text-2xl font-bold text-slate-900 mb-4">Messages</h1>
+          <h1 className="text-2xl font-bold text-slate-900 mb-4">Μηνύματα</h1>
           <p className="text-slate-600 mb-6">
-            Παρακαλώ δώστε influencer ID και brand email για να ξεκινήσετε τη συνομιλία.
+            Συνδεθείτε ως επιχείρηση για να δείτε τις συνομιλίες σας.
           </p>
-          <a href="/" className="text-blue-600 hover:underline">Πίσω στην αρχική</a>
+          <a href="/login?redirect=/brand/dashboard" className="text-blue-600 hover:underline">Σύνδεση</a>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
+    <div className="min-h-screen bg-slate-50 p-4 sm:p-6">
       <div className="max-w-6xl mx-auto">
         <div className="mb-6">
-          <a href="/" className="text-blue-600 hover:underline mb-4 inline-block">← Πίσω στο Site</a>
-          <h1 className="text-3xl font-bold text-slate-900">Μηνύματα με {displayNameForLang(influencerData.name, lang)}</h1>
+          <a href="/brand/dashboard?tab=messages" className="text-blue-600 hover:underline mb-4 inline-block">← Πίνακας ελέγχου</a>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
+            {influencerData ? `Μηνύματα με ${displayNameForLang(influencerData.name, lang)}` : 'Μηνύματα'}
+          </h1>
         </div>
         <Messaging
-          influencerId={influencerData.id}
-          influencerName={displayNameForLang(influencerData.name, lang)}
+          influencerId={influencerData?.id}
+          influencerName={influencerData ? displayNameForLang(influencerData.name, lang) : undefined}
           brandEmail={brandEmail}
           brandName={brandName ?? undefined}
+          initialConversationId={conversationId}
           mode="brand"
           lang={lang}
         />
@@ -106,4 +116,3 @@ export default function MessagesPage() {
     </Suspense>
   );
 }
-

@@ -16,6 +16,7 @@ import { normalizeGender } from '@/lib/gender';
 import InfluencerCampaignsPanel from './InfluencerCampaignsPanel';
 import InfluencerToolsPanel from './InfluencerToolsPanel';
 import { INFLUENCER_BROWSER_COLUMNS, loadOwnInfluencer } from '@/lib/ownProfile';
+import { presenceTabOpened } from '@/lib/presenceTabs';
 
 // --- FULL CATEGORY LIST ---
 const CATEGORIES = [
@@ -973,28 +974,37 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
             }
         };
 
-        updatePresence();
-        const interval = setInterval(updatePresence, 5000);
-
-        const onVisibility = () => {
-            if (document.hidden) {
-                setTimeout(() => {
-                    if (document.hidden) void markOffline();
-                }, 60000);
-            } else {
-                void updatePresence();
-            }
+        const releaseTab = presenceTabOpened();
+        let released = false;
+        let interval = 0;
+        const releaseOnce = () => {
+            if (released) return false;
+            released = true;
+            return releaseTab();
         };
-
+        const start = () => {
+            void updatePresence();
+            window.clearInterval(interval);
+            interval = window.setInterval(() => {
+                if (!document.hidden) void updatePresence();
+            }, 25_000);
+        };
+        const onVisibility = () => {
+            if (document.hidden) window.clearInterval(interval);
+            else start();
+        };
+        const markIfLast = () => {
+            if (releaseOnce()) void markOffline();
+        };
+        if (!document.hidden) start();
         document.addEventListener('visibilitychange', onVisibility);
-        window.addEventListener('beforeunload', () => {
-            void markOffline();
-        });
+        window.addEventListener('beforeunload', markIfLast);
 
         return () => {
-            clearInterval(interval);
+            window.clearInterval(interval);
             document.removeEventListener('visibilitychange', onVisibility);
-            void markOffline();
+            window.removeEventListener('beforeunload', markIfLast);
+            markIfLast();
         };
     }, [profile.id]);
 
@@ -1338,43 +1348,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 )}
                             </button>
                             <button
-                                onClick={async () => {
-                                    setActiveTab('messages');
-                                    // Mark all unread messages as read when clicking Messages tab
-                                    if (unreadMessagesCount > 0) {
-                                        try {
-                                            const { data: { user } } = await supabase.auth.getUser();
-                                            if (user) {
-                                                // Get all conversations for this influencer
-                                                const { data: conversations } = await supabase
-                                                    .from('conversations')
-                                                    .select('id')
-                                                    .eq('influencer_id', user.id);
-                                                
-                                                if (conversations && conversations.length > 0) {
-                                                    const conversationIds = conversations.map(c => c.id);
-                                                    // Mark all unread messages from brands as read
-                                                    await supabase
-                                                        .from('messages')
-                                                        .update({ read: true })
-                                                        .in('conversation_id', conversationIds)
-                                                        .eq('sender_type', 'brand')
-                                                        .eq('read', false);
-                                                    // Reload count to update badge
-                                                    const { count } = await supabase
-                                                        .from('messages')
-                                                        .select('*', { count: 'exact', head: true })
-                                                        .in('conversation_id', conversationIds)
-                                                        .eq('sender_type', 'brand')
-                                                        .eq('read', false);
-                                                    setUnreadMessagesCount(count || 0);
-                                                }
-                                            }
-                                        } catch (error) {
-                                            console.error('Error marking messages as read:', error);
-                                        }
-                                    }
-                                }}
+                                onClick={() => setActiveTab('messages')}
                                 className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors relative whitespace-nowrap ${
                                     activeTab === 'messages'
                                         ? 'border-slate-900 text-slate-900'
@@ -1849,8 +1823,10 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 brandEmail={selectedProposalForMessaging?.brand_email}
                                 brandName={selectedProposalForMessaging?.brand_name}
                                 proposalId={selectedProposalForMessaging?.id}
+                                initialConversationId={searchParams?.get('conversation')}
                                 mode="influencer"
                                 lang="el"
+                                onUnreadCountChange={setUnreadMessagesCount}
                             />
                         )}
                     </div>

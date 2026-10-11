@@ -7,6 +7,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { recommendInfluencers, type InfluencerProfile, type BrandProfile } from '@/lib/recommendations';
 import Messaging from '@/components/Messaging';
+import { presenceTabOpened } from '@/lib/presenceTabs';
 import PushNotificationPrompt from '@/components/PushNotificationPrompt';
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 import { displayNameForLang } from '@/lib/greeklish';
@@ -518,114 +519,60 @@ export default function BrandDashboardContent() {
   const [recommendationsLoading, setRecommendationsLoading] = useState(false);
   const [brandData, setBrandData] = useState<any>(null);
 
-  // Update brand presence when brand is logged in (similar to influencer presence)
+  // Heartbeat while the dashboard tab is visible. last_seen older than 90s reads as offline.
   useEffect(() => {
-    console.log('[Brand Dashboard] Presence useEffect triggered, brandData:', brandData);
-    
-    if (!brandData?.contact_email) {
-      console.log('[Brand Dashboard] No brandData or contact_email, skipping presence updates');
-      return;
-    }
-
-    console.log(`[Brand Dashboard] Starting presence updates for: ${brandData.contact_email}`);
+    if (!brandData?.contact_email) return;
+    const email = brandData.contact_email.toLowerCase().trim();
 
     const updateBrandPresence = async () => {
-      try {
-        const now = new Date().toISOString();
-        const email = brandData.contact_email.toLowerCase().trim();
-        console.log(`[Brand Dashboard] Updating presence for ${email} at ${now}`);
-        
-        const { error } = await supabase
-          .from('brand_presence')
-          .upsert({
-            brand_email: email,
-            is_online: true,
-            last_seen: now,
-            updated_at: now,
-          }, {
-            onConflict: 'brand_email'
-          });
-        
-        if (error) {
-          console.error('[Brand Dashboard] Error updating presence:', error);
-        } else {
-          console.log(`[Brand Dashboard] Successfully updated presence for ${email} at ${now} - is_online: true`);
-        }
-      } catch (error) {
-        console.error('[Brand Dashboard] Exception updating presence:', error);
-      }
+      const now = new Date().toISOString();
+      const { error } = await supabase.from('brand_presence').upsert({
+        brand_email: email,
+        is_online: true,
+        last_seen: now,
+        updated_at: now,
+      }, { onConflict: 'brand_email' });
+      if (error) console.error('[Brand Dashboard] presence update:', error);
     };
 
-    // Update immediately when component mounts or brandData changes
-    console.log('[Brand Dashboard] Calling updateBrandPresence immediately');
-    updateBrandPresence();
-
-    // Update every 3 seconds to keep brand online (more frequent than 5 seconds for reliability)
-    const interval = setInterval(updateBrandPresence, 3000);
-
-    // Handle browser close/tab close
-    const handleBeforeUnload = async () => {
-      try {
-        await supabase
-          .from('brand_presence')
-          .update({
-            is_online: false,
-            last_seen: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .eq('brand_email', brandData.contact_email.toLowerCase().trim());
-      } catch (error) {
-        // Fail silently
-      }
+    const markOffline = async () => {
+      await supabase.from('brand_presence').update({
+        is_online: false,
+        last_seen: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }).eq('brand_email', email);
     };
 
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        // Tab is hidden - mark as offline after a delay
-        setTimeout(async () => {
-          if (document.hidden) {
-            try {
-              await supabase
-                .from('brand_presence')
-                .update({
-                  is_online: false,
-                  last_seen: new Date().toISOString(),
-                  updated_at: new Date().toISOString(),
-                })
-                .eq('brand_email', brandData.contact_email.toLowerCase().trim());
-            } catch (error) {
-              // Fail silently
-            }
-          }
-        }, 60000); // 1 minute after tab becomes hidden
-      } else {
-        // Tab is visible again - mark as online
-        updateBrandPresence();
-      }
+    const releaseTab = presenceTabOpened();
+    let released = false;
+    let interval = 0;
+    const releaseOnce = () => {
+      if (released) return false;
+      released = true;
+      return releaseTab();
     };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
+    const start = () => {
+      void updateBrandPresence();
+      window.clearInterval(interval);
+      interval = window.setInterval(() => {
+        if (!document.hidden) void updateBrandPresence();
+      }, 25_000);
+    };
+    const onVisibility = () => {
+      if (document.hidden) window.clearInterval(interval);
+      else start();
+    };
+    const markIfLast = () => {
+      if (releaseOnce()) void markOffline();
+    };
+    if (!document.hidden) start();
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('beforeunload', markIfLast);
     return () => {
-      clearInterval(interval);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      // Mark as offline when component unmounts
-      (async () => {
-        try {
-          await supabase
-            .from('brand_presence')
-            .update({
-              is_online: false,
-              last_seen: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            })
-            .eq('brand_email', brandData.contact_email.toLowerCase().trim());
-        } catch (error) {
-          // Fail silently
-        }
-      })();
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('beforeunload', markIfLast);
+      markIfLast();
     };
   }, [brandData?.contact_email]);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -706,8 +653,7 @@ export default function BrandDashboardContent() {
   useEffect(() => {
     if (brandData?.contact_email) {
       loadUnreadMessageCount();
-      // Poll for unread messages every 10 seconds
-      const interval = setInterval(loadUnreadMessageCount, 10000);
+      const interval = setInterval(loadUnreadMessageCount, 30000);
       return () => clearInterval(interval);
     }
   }, [brandData?.contact_email]);
@@ -799,7 +745,7 @@ export default function BrandDashboardContent() {
       const { data: conversations, error: convError } = await supabase
         .from('conversations')
         .select('id')
-        .eq('brand_email', brandData.contact_email.toLowerCase().trim());
+        .ilike('brand_email', brandData.contact_email.toLowerCase().trim());
 
       if (convError) {
         console.error('Error loading conversations:', convError);
@@ -814,9 +760,9 @@ export default function BrandDashboardContent() {
 
       // Count unread messages (messages from influencer that are not read)
       const conversationIds = conversations.map(c => c.id);
-      const { data: unreadMessages, error } = await supabase
+      const { count, error } = await supabase
         .from('messages')
-        .select('id')
+        .select('id', { count: 'exact', head: true })
         .in('conversation_id', conversationIds)
         .eq('sender_type', 'influencer')
         .eq('read', false);
@@ -827,7 +773,7 @@ export default function BrandDashboardContent() {
         return;
       }
 
-      setUnreadMessageCount(unreadMessages?.length || 0);
+      setUnreadMessageCount(count || 0);
     } catch (error) {
       console.error('Error loading unread message count:', error);
       setUnreadMessageCount(0);
@@ -1525,34 +1471,7 @@ export default function BrandDashboardContent() {
                 {lang === 'el' ? 'Εργαλεία' : 'Tools'}
               </button>
               <button
-                onClick={async () => {
-                  setActiveTab('messages');
-                  // Mark all unread messages as read when clicking Messages tab
-                  if (unreadMessageCount > 0 && brandData?.contact_email) {
-                    try {
-                      // Get all conversations for this brand
-                      const { data: conversations } = await supabase
-                        .from('conversations')
-                        .select('id')
-                        .eq('brand_email', brandData.contact_email.toLowerCase().trim());
-
-                      if (conversations && conversations.length > 0) {
-                        const conversationIds = conversations.map(c => c.id);
-                        // Mark all unread messages from influencer as read
-                        await supabase
-                          .from('messages')
-                          .update({ read: true })
-                          .in('conversation_id', conversationIds)
-                          .eq('sender_type', 'influencer')
-                          .eq('read', false);
-                        // Reload count to update badge
-                        loadUnreadMessageCount();
-                      }
-                    } catch (error) {
-                      console.error('Error marking messages as read:', error);
-                    }
-                  }
-                }}
+                onClick={() => setActiveTab('messages')}
                 className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors relative whitespace-nowrap ${
                   activeTab === 'messages'
                     ? 'border-blue-600 text-blue-600'
@@ -2028,6 +1947,7 @@ export default function BrandDashboardContent() {
               brandEmail={brandData.contact_email}
               brandName={brandData.brand_name}
               proposalId={undefined}
+              initialConversationId={searchParams?.get('conversation')}
               mode="brand"
               lang={lang}
               onUnreadCountChange={setUnreadMessageCount}

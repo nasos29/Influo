@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { formatActiveLabel, presenceOnline } from "@/lib/presenceStatus";
 
 /** Μικρή ένδειξη online/offline (ίδια λογική με Messaging.checkInfluencerStatus). */
 export default function InfluencerPresenceDot({
@@ -14,6 +15,7 @@ export default function InfluencerPresenceDot({
   className?: string;
 }) {
   const [online, setOnline] = useState(false);
+  const [lastSeen, setLastSeen] = useState<string | null>(null);
 
   useEffect(() => {
     if (!influencerId) return;
@@ -31,20 +33,15 @@ export default function InfluencerPresenceDot({
       }
       if (!data) {
         setOnline(false);
+        setLastSeen(null);
         return;
       }
-      const lastSeen = new Date(data.last_seen);
-      const updatedAt = new Date(data.updated_at || data.last_seen);
-      const now = new Date();
-      const secondsSinceLastSeen = (now.getTime() - lastSeen.getTime()) / 1000;
-      const secondsSinceUpdated = (now.getTime() - updatedAt.getTime()) / 1000;
-      const isOnline =
-        data.is_online && secondsSinceLastSeen < 60 && secondsSinceUpdated < 60;
-      setOnline(!!isOnline);
+      setLastSeen(data.last_seen || null);
+      setOnline(presenceOnline(data));
     };
 
     check();
-    const interval = setInterval(check, 10000);
+    const interval = setInterval(check, 30000);
     const channel = supabase
       .channel(`influencer_presence_dot:${influencerId}`)
       .on(
@@ -67,14 +64,7 @@ export default function InfluencerPresenceDot({
     };
   }, [influencerId]);
 
-  const title =
-    lang === "el"
-      ? online
-        ? "Συνδεδεμένος/η τώρα"
-        : "Offline"
-      : online
-        ? "Online now"
-        : "Offline";
+  const title = formatActiveLabel(lastSeen, online, lang);
 
   return (
     <span

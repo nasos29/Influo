@@ -43,6 +43,20 @@ export async function POST(req: Request) {
       );
     }
     
+    const threadEmailTypes = new Set([
+      'message_admin_notification',
+      'message_offline',
+      'message_influencer_to_brand',
+      'message_brand_to_influencer',
+      'conversation_end',
+    ]);
+    if (threadEmailTypes.has(type)) {
+      const secret = process.env.CRON_SECRET;
+      if (!secret || req.headers.get('authorization') !== `Bearer ${secret}`) {
+        return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+      }
+    }
+
     // Some email types don't require email field (admin notifications)
     if ((type === 'message_admin_notification' || type === 'proposal_admin_notification' || type === 'profile_edit_admin' || type === 'signup_admin' || type === 'signup_brand_admin' || type === 'campaign_published_admin')) {
       // Admin notifications - email is not required from body

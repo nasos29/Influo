@@ -1,737 +1,361 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { sendPushToInfluencer, sendPushToBrand } from '@/lib/push';
+import { NextResponse } from "next/server";
+import { supabaseService, userFromBearer } from "@/lib/apiAuth";
+import { isChatParticipant, loadChatActor, senderIdFor } from "@/lib/chatActor";
+import { sendPushToBrand, sendPushToInfluencer } from "@/lib/push";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+type Attachment = { url: string; filename?: string; size?: number; content_type?: string };
+type SenderType = "influencer" | "brand";
 
-// Service role client for admin operations
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+function cleanAttachments(raw: unknown): Attachment[] {
+  if (!Array.isArray(raw)) return [];
+  const out: Attachment[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const url = String((item as { url?: string }).url || "");
+    if (!/^https:\/\//i.test(url)) continue;
+    const filename = (item as { filename?: unknown }).filename;
+    const size = (item as { size?: unknown }).size;
+    const contentType = (item as { content_type?: unknown }).content_type;
+    out.push({
+      url,
+      filename: typeof filename === "string" ? filename.slice(0, 120) : undefined,
+      size: typeof size === "number" ? size : undefined,
+      content_type: typeof contentType === "string" ? contentType.slice(0, 80) : undefined,
+    });
+    if (out.length >= 5) break;
+  }
+  return out;
+}
 
-/**
- * Όταν ο παραλήπτης είναι offline: Resend ειδοποίηση (νέο μήνυμα) — συμπληρωματικά στο push,
- * για όσους δεν έχουν ενεργές ειδοποιήσεις. Το UI δεν εμφανίζει διευθύνσεις email.
- */
-const SEND_MESSAGE_THREAD_EMAILS = true;
+async function influencerContact(influencerId: string): Promise<{ name: string; email: string | null }> {
+  const admin = supabaseService();
+  const nameRow = await admin.from("influencers").select("display_name").eq("id", influencerId).maybeSingle();
+  const priv = await admin.from("influencer_private").select("contact_email").eq("influencer_id", influencerId).maybeSingle();
+  const fromPrivate = !priv.error && typeof priv.data?.contact_email === "string" ? priv.data.contact_email.trim() : "";
+  if (fromPrivate) {
+    return { name: nameRow.data?.display_name || "Influencer", email: fromPrivate };
+  }
+  const legacy = await admin.from("influencers").select("display_name, contact_email").eq("id", influencerId).maybeSingle();
+  const email = typeof legacy.data?.contact_email === "string" ? legacy.data.contact_email.trim() : "";
+  return {
+    name: legacy.data?.display_name || nameRow.data?.display_name || "Influencer",
+    email: email || null,
+  };
+}
+
+async function insertMessage(row: Record<string, unknown>) {
+  const admin = supabaseService();
+  const payload: Record<string, unknown> = { ...row };
+  let lastError = "Insert failed";
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const result = await admin.from("messages").insert([payload]).select().single();
+    if (!result.error) return { data: result.data, error: null as string | null };
+    lastError = result.error.message || lastError;
+    if (/attachments/i.test(lastError) && "attachments" in payload) {
+      delete payload.attachments;
+      if (!String(payload.content || "").trim()) payload.content = "📎 Συνημμένο";
+      continue;
+    }
+    if (/email_sent/i.test(lastError) && "email_sent" in payload) {
+      delete payload.email_sent;
+      continue;
+    }
+    if (/sent_via_email/i.test(lastError) && "sent_via_email" in payload) {
+      delete payload.sent_via_email;
+      continue;
+    }
+    break;
+  }
+  return { data: null, error: lastError };
+}
+
+function threadUrl(senderType: SenderType, conversationId: string): string {
+  const id = encodeURIComponent(conversationId);
+  if (senderType === "influencer") return `/brand/dashboard?tab=messages&conversation=${id}`;
+  return `/dashboard?tab=messages&conversation=${id}`;
+}
+
+async function notifyPush(args: {
+  senderType: SenderType;
+  conversationId: string;
+  preview: string;
+  influencerId: string;
+  influencerName: string;
+  brandEmail: string;
+  brandName: string;
+  skipBecauseProposal: boolean;
+}) {
+  if (args.skipBecauseProposal) return;
+  const text = args.preview.slice(0, 60) + (args.preview.length > 60 ? "…" : "");
+  if (args.senderType === "influencer") {
+    await sendPushToBrand(args.brandEmail, {
+      title: "💬 Νέο μήνυμα",
+      body: `${args.influencerName}: ${text}`,
+      url: threadUrl("influencer", args.conversationId),
+      tag: `message-brand-${args.conversationId}`,
+    }).catch(() => {});
+  } else {
+    await sendPushToInfluencer(args.influencerId, {
+      title: "💬 Νέο μήνυμα",
+      body: `${args.brandName}: ${text}`,
+      url: threadUrl("brand", args.conversationId),
+      tag: `message-inf-${args.conversationId}`,
+    }).catch(() => {});
+  }
+}
+
+async function track(influencerId: string, eventType: string, brandEmail: string | null, brandName: string | null, metadata: Record<string, unknown>) {
+  try {
+    await supabaseService().from("influencer_analytics").insert([
+      {
+        influencer_id: influencerId,
+        event_type: eventType,
+        brand_email: brandEmail,
+        brand_name: brandName,
+        metadata,
+      },
+    ]);
+  } catch {
+    /* analytics must not block chat */
+  }
+}
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { conversationId, senderId, senderType, content, influencerId, brandEmail, brandName, proposalId, sendViaEmail, attachments } = body;
-    const messageContent = typeof content === 'string' ? content : '';
-    const messageAttachments = Array.isArray(attachments)
-      ? attachments.filter((a: unknown) => a && typeof a === 'object' && typeof (a as { url?: string }).url === 'string')
-      : [];
+    const user = await userFromBearer(req);
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const actor = await loadChatActor(user);
+
+    const body = await req.json().catch(() => ({}));
+    const senderType = body.senderType === "brand" || body.senderType === "influencer" ? (body.senderType as SenderType) : null;
+    if (!senderType) return NextResponse.json({ error: "Invalid sender" }, { status: 400 });
+    if (senderType === "influencer" && !actor.influencerId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (senderType === "brand" && !actor.brandEmail) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const messageContent = typeof body.content === "string" ? body.content.slice(0, 5000) : "";
+    const messageAttachments = cleanAttachments(body.attachments);
     const contentForNotify =
       messageContent.trim() ||
-      (messageAttachments[0]?.filename
-        ? `📎 ${messageAttachments[0].filename}`
-        : messageAttachments.length
-          ? '📎 Attachment'
-          : '');
-    
-    console.log('[Messages API] POST request received:', {
-      hasConversationId: !!conversationId,
-      hasSenderId: !!senderId,
+      (messageAttachments[0]?.filename ? `📎 ${messageAttachments[0].filename}` : messageAttachments.length ? "📎 Συνημμένο" : "");
+    if (!messageContent.trim() && messageAttachments.length === 0) {
+      return NextResponse.json({ error: "Message content or attachments required" }, { status: 400 });
+    }
+
+    const proposalId = body.proposalId || null;
+    const conversationId = typeof body.conversationId === "string" ? body.conversationId : "";
+
+    if (!conversationId) {
+      const influencerId = senderType === "influencer" ? actor.influencerId : String(body.influencerId || "");
+      if (!influencerId) return NextResponse.json({ error: "Influencer not found" }, { status: 404 });
+      if (senderType === "influencer" && influencerId !== actor.influencerId) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      const brandEmail =
+        senderType === "brand" ? actor.brandEmail! : String(body.brandEmail || "").toLowerCase().trim();
+      if (!brandEmail || !brandEmail.includes("@")) {
+        return NextResponse.json({ error: "Invalid brand" }, { status: 400 });
+      }
+      const brandName =
+        senderType === "brand"
+          ? actor.brandName || brandEmail
+          : typeof body.brandName === "string" && body.brandName.trim()
+            ? body.brandName.trim().slice(0, 120)
+            : brandEmail;
+
+      const admin = supabaseService();
+      const { data: existingRows } = await admin
+        .from("conversations")
+        .select("id, closed_at, influencer_id, brand_email")
+        .eq("influencer_id", influencerId)
+        .ilike("brand_email", brandEmail)
+        .limit(1);
+      const existingConv = existingRows?.[0];
+
+      let convId = existingConv?.id as string | undefined;
+      if (convId && existingConv?.closed_at) {
+        await admin.from("conversations").update({ closed_at: null }).eq("id", convId);
+      }
+
+      if (!convId) {
+        const influencer = await influencerContact(influencerId);
+        if (!influencer.name && !influencer.email) {
+          const exists = await admin.from("influencers").select("id").eq("id", influencerId).maybeSingle();
+          if (!exists.data) return NextResponse.json({ error: "Influencer not found" }, { status: 404 });
+        }
+        const profile = await admin.from("influencers").select("id, display_name").eq("id", influencerId).maybeSingle();
+        if (!profile.data) return NextResponse.json({ error: "Influencer not found" }, { status: 404 });
+        const { data: newConv, error: convError } = await admin
+          .from("conversations")
+          .insert([
+            {
+              influencer_id: influencerId,
+              influencer_name: profile.data.display_name,
+              influencer_email: influencer.email || "",
+              brand_email: brandEmail,
+              brand_name: brandName,
+              proposal_id: proposalId || null,
+            },
+          ])
+          .select("id")
+          .single();
+        if (convError || !newConv) return NextResponse.json({ error: convError?.message || "Could not open conversation" }, { status: 500 });
+        convId = newConv.id;
+        await track(influencerId, "conversation_started", brandEmail, brandName, {
+          conversation_id: convId,
+          source: "messages_api",
+        });
+      } else if (!isChatParticipant(actor, { influencer_id: influencerId, brand_email: brandEmail })) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+
+      const senderId = senderIdFor(actor, senderType, { influencer_id: influencerId, brand_email: brandEmail });
+      const inserted = await insertMessage({
+        conversation_id: convId,
+        sender_id: senderId,
+        sender_type: senderType,
+        content: messageContent,
+        attachments: messageAttachments,
+        sent_via_email: false,
+        email_sent: false,
+      });
+      if (inserted.error || !inserted.data) return NextResponse.json({ error: inserted.error || "Insert failed" }, { status: 500 });
+
+      const now = new Date().toISOString();
+      const updateField = senderType === "influencer" ? "last_activity_influencer" : "last_activity_brand";
+      await admin
+        .from("conversations")
+        .update({ last_message_at: now, [updateField]: now, closed_at: null })
+        .eq("id", convId);
+
+      await notifyPush({
+        senderType,
+        conversationId: convId!,
+        preview: contentForNotify,
+        influencerId,
+        influencerName: (await admin.from("influencers").select("display_name").eq("id", influencerId).maybeSingle()).data?.display_name || "Influencer",
+        brandEmail,
+        brandName,
+        skipBecauseProposal: senderType === "brand" && !!proposalId,
+      });
+      await track(influencerId, "message_sent", brandEmail, brandName, {
+        conversation_id: convId,
+        source: "messages_api",
+        sender_type: senderType,
+      });
+      return NextResponse.json({ success: true, message: inserted.data, conversationId: convId });
+    }
+
+    const admin = supabaseService();
+    const { data: conv } = await admin
+      .from("conversations")
+      .select("id, influencer_id, influencer_name, brand_email, brand_name, proposal_id")
+      .eq("id", conversationId)
+      .maybeSingle();
+    if (!conv) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+    if (!isChatParticipant(actor, conv) || (senderType === "influencer" && actor.influencerId !== conv.influencer_id) || (senderType === "brand" && actor.brandEmail !== String(conv.brand_email || "").toLowerCase().trim())) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const senderId = senderIdFor(actor, senderType, conv);
+    const inserted = await insertMessage({
+      conversation_id: conversationId,
+      sender_id: senderId,
+      sender_type: senderType,
+      content: messageContent,
+      attachments: messageAttachments,
+      sent_via_email: false,
+      email_sent: false,
+    });
+    if (inserted.error || !inserted.data) return NextResponse.json({ error: inserted.error || "Insert failed" }, { status: 500 });
+
+    const now = new Date().toISOString();
+    const updateField = senderType === "influencer" ? "last_activity_influencer" : "last_activity_brand";
+    await admin
+      .from("conversations")
+      .update({ last_message_at: now, [updateField]: now, closed_at: null })
+      .eq("id", conversationId);
+
+    await notifyPush({
       senderType,
-      hasContent: !!messageContent,
-      contentLength: messageContent?.length || 0,
-      attachmentsCount: messageAttachments.length,
+      conversationId,
+      preview: contentForNotify,
+      influencerId: conv.influencer_id,
+      influencerName: conv.influencer_name || "Influencer",
+      brandEmail: String(conv.brand_email || ""),
+      brandName: conv.brand_name || String(conv.brand_email || "Επιχείρηση"),
+      skipBecauseProposal: false,
+    });
+    await track(conv.influencer_id, "message_sent", conv.brand_email, conv.brand_name, {
+      conversation_id: conversationId,
+      source: "messages_api",
+      sender_type: senderType,
     });
 
-    // If creating a new conversation
-    if (!conversationId && influencerId && brandEmail) {
-      // Check if conversation already exists (open or closed)
-      const { data: existingConv } = await supabaseAdmin
-        .from('conversations')
-        .select('id, closed_at')
-        .eq('influencer_id', influencerId)
-        .eq('brand_email', brandEmail)
-        .single();
-
-      let convId = existingConv?.id;
-
-      // If conversation exists but is closed, reopen it
-      if (convId && existingConv && existingConv.closed_at) {
-        console.log('[Messages API] Reopening closed conversation:', convId);
-        await supabaseAdmin
-          .from('conversations')
-          .update({ closed_at: null })
-          .eq('id', convId);
-      }
-
-      // Create conversation if it doesn't exist
-      if (!convId) {
-        const { data: influencer } = await supabaseAdmin
-          .from('influencers')
-          .select('id, display_name, contact_email')
-          .eq('id', influencerId)
-          .single();
-
-        if (!influencer) {
-          return NextResponse.json({ error: 'Influencer not found' }, { status: 404 });
-        }
-
-        const { data: newConv, error: convError } = await supabaseAdmin
-          .from('conversations')
-          .insert([{
-            influencer_id: influencerId,
-            influencer_name: influencer.display_name,
-            influencer_email: influencer.contact_email,
-            brand_email: brandEmail,
-            brand_name: brandName || brandEmail,
-            proposal_id: proposalId || null,
-          }])
-          .select()
-          .single();
-
-        if (convError) {
-          return NextResponse.json({ error: convError.message }, { status: 500 });
-        }
-
-        convId = newConv.id;
-      }
-
-      if (!messageContent.trim() && messageAttachments.length === 0) {
-        return NextResponse.json({ error: 'Message content or attachments required' }, { status: 400 });
-      }
-
-      // Create message
-      let message: Record<string, unknown> | null = null;
-      {
-        const { data, error: msgError } = await supabaseAdmin
-          .from('messages')
-          .insert([{
-            conversation_id: convId,
-            sender_id: senderType === 'brand' ? brandEmail : influencerId,
-            sender_type: senderType,
-            content: messageContent,
-            attachments: messageAttachments,
-            sent_via_email: sendViaEmail || false,
-            email_sent: false,
-          }])
-          .select()
-          .single();
-
-        if (msgError) {
-          if (/attachments/i.test(msgError.message)) {
-            const retry = await supabaseAdmin
-              .from('messages')
-              .insert([{
-                conversation_id: convId,
-                sender_id: senderType === 'brand' ? brandEmail : influencerId,
-                sender_type: senderType,
-                content: messageContent || contentForNotify,
-                sent_via_email: sendViaEmail || false,
-                email_sent: false,
-              }])
-              .select()
-              .single();
-            if (retry.error) {
-              return NextResponse.json({ error: retry.error.message }, { status: 500 });
-            }
-            message = retry.data;
-          } else {
-            return NextResponse.json({ error: msgError.message }, { status: 500 });
-          }
-        } else {
-          message = data;
-        }
-      }
-
-      // Update conversation last_message_at and activity timestamp
-      const now = new Date().toISOString();
-      const updateField = senderType === 'influencer' ? 'last_activity_influencer' : 'last_activity_brand';
-      console.log('[Messages API] ⚠️ Updating activity timestamp (new conversation, message sent):', {
-        conversationId: convId,
-        updateField,
-        timestamp: now,
-        senderType,
-        contentPreview: contentForNotify.substring(0, 50) || 'no content'
-      });
-      await supabaseAdmin
-        .from('conversations')
-        .update({ 
-          last_message_at: now,
-          [updateField]: now
-        })
-        .eq('id', convId);
-
-      // Update online status when sending message
-      if (senderType === 'influencer' && influencerId) {
-        await supabaseAdmin
-          .from('influencer_presence')
-          .upsert({
-            influencer_id: influencerId,
-            is_online: true,
-            last_seen: now,
-            updated_at: now,
-          }, {
-            onConflict: 'influencer_id'
-          });
-      } else if (senderType === 'brand' && brandEmail) {
-        // Only update brand presence if brand has an account
-        // Unregistered brands should not appear as online
-        const { data: brandData } = await supabaseAdmin
-          .from('brands')
-          .select('id')
-          .eq('contact_email', brandEmail.toLowerCase().trim())
-          .maybeSingle();
-
-        if (brandData) {
-          // Brand has account - update presence
-          await supabaseAdmin
-            .from('brand_presence')
-            .upsert({
-              brand_email: brandEmail.toLowerCase().trim(),
-              is_online: true,
-              last_seen: now,
-              updated_at: now,
-            }, {
-              onConflict: 'brand_email'
-            });
-        } else {
-          // Brand doesn't have account - don't update presence
-          console.log('[Messages API] Brand does not have account, skipping presence update:', brandEmail);
-        }
-      }
-
-      // Send email when influencer sends to brand (new conversation)
-      if (senderType === 'influencer' && brandEmail && process.env.RESEND_API_KEY) {
-        try {
-          const { data: brandPresence } = await supabaseAdmin
-            .from('brand_presence')
-            .select('is_online, last_seen')
-            .eq('brand_email', brandEmail.toLowerCase().trim())
-            .maybeSingle();
-          const now = new Date();
-          const minutesSinceLastSeen = brandPresence?.last_seen
-            ? (now.getTime() - new Date(brandPresence.last_seen).getTime()) / (60 * 1000)
-            : Infinity;
-          const isBrandOnline = !!brandPresence?.is_online && minutesSinceLastSeen < 5;
-
-          if (!isBrandOnline && SEND_MESSAGE_THREAD_EMAILS) {
-            const { data: influencerData } = await supabaseAdmin
-              .from('influencers')
-              .select('display_name')
-              .eq('id', influencerId)
-              .single();
-            if (influencerData) {
-              const { data: brandData } = await supabaseAdmin
-                .from('brands')
-                .select('id')
-                .eq('contact_email', brandEmail.toLowerCase().trim())
-                .maybeSingle();
-              const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr'}/api/emails`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  type: 'message_influencer_to_brand',
-                  email: brandEmail,
-                  toEmail: brandEmail,
-                  brandName: brandName || brandEmail,
-                  influencerName: influencerData.display_name,
-                  message: contentForNotify,
-                  brandHasAccount: !!brandData
-                })
-              });
-              if (!emailResponse.ok) console.error('[Messages API] Failed to send email to brand:', await emailResponse.text());
-            }
-          }
-          // Admin notification (influencer → brand)
-          const { data: influencerData } = await supabaseAdmin.from('influencers').select('display_name').eq('id', influencerId).single();
-          await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr'}/api/emails`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: 'message_admin_notification',
-              senderName: influencerData?.display_name || 'Influencer',
-              senderType: 'influencer',
-              recipientName: brandName || brandEmail,
-              conversationId: convId,
-              messageContent: contentForNotify
-            })
-          }).catch(() => {});
-          // Push to brand
-          const { data: infForPush } = await supabaseAdmin.from('influencers').select('display_name').eq('id', influencerId).single();
-          sendPushToBrand(brandEmail, {
-            title: '💬 Νέο μήνυμα',
-            body: `${infForPush?.display_name || 'Influencer'}: ${contentForNotify.slice(0, 60)}${contentForNotify.length > 60 ? '…' : ''}`,
-            url: '/brand/dashboard',
-            tag: `message-brand-${convId}-${Date.now()}`,
-          }).catch(() => {});
-        } catch (e) { console.error('[Messages API]', e); }
-      }
-
-      // Send email when brand sends to influencer (new conversation) - ΜΟΝΟ αν offline
-      // ΣΚΙΠ: αν είναι νέα πρόταση (proposalId), το proposal_influencer_notification ήδη στάλθηκε
-      if (senderType === 'brand' && !proposalId && process.env.RESEND_API_KEY) {
-        try {
-          const { data: influencerRow } = await supabaseAdmin
-            .from('influencers')
-            .select('display_name, contact_email')
-            .eq('id', influencerId)
-            .single();
-          if (influencerRow?.contact_email) {
-            const { data: infPresence } = await supabaseAdmin
-              .from('influencer_presence')
-              .select('is_online, last_seen')
-              .eq('influencer_id', influencerId)
-              .maybeSingle();
-            const now = new Date();
-            const minutesSinceLastSeen = infPresence?.last_seen
-              ? (now.getTime() - new Date(infPresence.last_seen).getTime()) / (60 * 1000)
-              : Infinity;
-            const isInfOnline = !!infPresence?.is_online && minutesSinceLastSeen < 5;
-            if (!isInfOnline && SEND_MESSAGE_THREAD_EMAILS && influencerRow.contact_email) {
-              const emailRes = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr'}/api/emails`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  type: 'message_brand_to_influencer',
-                  email: influencerRow.contact_email,
-                  toEmail: influencerRow.contact_email,
-                  influencerName: influencerRow.display_name,
-                  brandName: brandName || brandEmail,
-                  message: contentForNotify
-                })
-              });
-              if (!emailRes.ok) console.error('[Messages API] Failed to send email to influencer (new conv):', await emailRes.text());
-            }
-          } else {
-            console.warn('[Messages API] Influencer has no contact_email:', influencerId);
-          }
-          // Admin notification (brand → influencer)
-          await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr'}/api/emails`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: 'message_admin_notification',
-              senderName: brandName || brandEmail,
-              senderType: 'brand',
-              recipientName: influencerRow?.display_name || 'Influencer',
-              conversationId: convId,
-              messageContent: contentForNotify
-            })
-          }).catch(() => {});
-          // Push notification to influencer (block only runs when !proposalId)
-          sendPushToInfluencer(influencerId, {
-            title: '💬 Νέο μήνυμα',
-            body: `${brandName || 'Επιχείρηση'}: ${contentForNotify.slice(0, 60)}${contentForNotify.length > 60 ? '…' : ''}`,
-            url: '/dashboard',
-            tag: `message-inf-${convId}-${Date.now()}`,
-          }).catch(() => {});
-        } catch (e) { console.error('[Messages API]', e); }
-      }
-
-      // Track analytics: conversation_started (if new conversation) and message_sent
-      // Use direct database insert instead of API call for better reliability
-      if (!existingConv) {
-        // New conversation started
-        try {
-          const { error: analyticsError } = await supabaseAdmin.from('influencer_analytics').insert([{
-            influencer_id: influencerId,
-            event_type: 'conversation_started',
-            brand_email: brandEmail || null,
-            brand_name: brandName || null,
-            metadata: { conversation_id: convId, source: 'messages_api' }
-          }]);
-          if (analyticsError) {
-            console.error('[Messages API] Error tracking conversation_started:', analyticsError);
-          }
-        } catch (err) {
-          // Fail silently - analytics tracking should not break the flow
-        }
-      }
-      
-      // Track message_sent
-      try {
-        const { error: analyticsError } = await supabaseAdmin.from('influencer_analytics').insert([{
-          influencer_id: influencerId,
-          event_type: 'message_sent',
-          brand_email: brandEmail || null,
-          brand_name: brandName || null,
-          metadata: { conversation_id: convId, source: 'messages_api', sender_type: senderType }
-        }]);
-        if (analyticsError) {
-          console.error('[Messages API] Error tracking message_sent:', analyticsError);
-        }
-      } catch (err) {
-        // Fail silently - analytics tracking should not break the flow
-      }
-
-      return NextResponse.json({ success: true, message, conversationId: convId });
-    }
-
-    // If adding to existing conversation
-    if (conversationId && senderId && senderType && (messageContent.trim() || messageAttachments.length > 0)) {
-      let message: Record<string, unknown> | null = null;
-      {
-        const { data, error: msgError } = await supabaseAdmin
-          .from('messages')
-          .insert([{
-            conversation_id: conversationId,
-            sender_id: senderId,
-            sender_type: senderType,
-            content: messageContent,
-            attachments: messageAttachments,
-            sent_via_email: sendViaEmail || false,
-            email_sent: false,
-          }])
-          .select()
-          .single();
-
-        if (msgError) {
-          if (/attachments/i.test(msgError.message)) {
-            const retry = await supabaseAdmin
-              .from('messages')
-              .insert([{
-                conversation_id: conversationId,
-                sender_id: senderId,
-                sender_type: senderType,
-                content: messageContent || contentForNotify,
-                sent_via_email: sendViaEmail || false,
-                email_sent: false,
-              }])
-              .select()
-              .single();
-            if (retry.error) {
-              return NextResponse.json({ error: retry.error.message }, { status: 500 });
-            }
-            message = retry.data;
-          } else {
-            return NextResponse.json({ error: msgError.message }, { status: 500 });
-          }
-        } else {
-          message = data;
-        }
-      }
-
-      // Check if conversation is closed and reopen it if needed
-      const { data: convCheck } = await supabaseAdmin
-        .from('conversations')
-        .select('closed_at')
-        .eq('id', conversationId)
-        .single();
-
-      if (convCheck?.closed_at) {
-        console.log('[Messages API] Reopening closed conversation:', conversationId);
-      }
-
-      // Update conversation last_message_at and activity timestamp
-      // IMPORTANT: This is called ONLY when a message is sent, not automatically
-      // Also reopen conversation if it was closed
-      const now = new Date().toISOString();
-      const updateField = senderType === 'influencer' ? 'last_activity_influencer' : 'last_activity_brand';
-      console.log('[Messages API] ⚠️ Updating activity timestamp (message sent):', {
-        conversationId,
-        updateField,
-        timestamp: now,
-        senderType,
-        contentPreview: contentForNotify.substring(0, 50) || 'no content'
-      });
-      await supabaseAdmin
-        .from('conversations')
-        .update({ 
-          last_message_at: now,
-          [updateField]: now,
-          closed_at: null // Reopen conversation if it was closed
-        })
-        .eq('id', conversationId);
-
-      // Update online status when sending message
-      try {
-        const { data: convData } = await supabaseAdmin
-          .from('conversations')
-          .select('influencer_id, brand_email')
-          .eq('id', conversationId)
-          .single();
-
-        if (convData) {
-          if (senderType === 'influencer' && convData.influencer_id) {
-            await supabaseAdmin
-              .from('influencer_presence')
-              .upsert({
-                influencer_id: convData.influencer_id,
-                is_online: true,
-                last_seen: now,
-                updated_at: now,
-              }, {
-                onConflict: 'influencer_id'
-              });
-          } else if (senderType === 'brand' && convData.brand_email) {
-            // Only update brand presence if brand has an account
-            // Unregistered brands should not appear as online
-            const { data: brandData } = await supabaseAdmin
-              .from('brands')
-              .select('id')
-              .eq('contact_email', convData.brand_email.toLowerCase().trim())
-              .maybeSingle();
-
-            if (brandData) {
-              // Brand has account - update presence
-              await supabaseAdmin
-                .from('brand_presence')
-                .upsert({
-                  brand_email: convData.brand_email.toLowerCase().trim(),
-                  is_online: true,
-                  last_seen: now,
-                  updated_at: now,
-                }, {
-                  onConflict: 'brand_email'
-                });
-            } else {
-              // Brand doesn't have account - don't update presence
-              console.log('[Messages API] Brand does not have account, skipping presence update:', convData.brand_email);
-            }
-          }
-        }
-      } catch (presenceError) {
-        console.error('[Messages API] Error updating presence:', presenceError);
-        // Don't fail the request if presence update fails
-      }
-
-      // Send email notification when influencer sends a message to brand
-      // ONLY if brand is offline (last_seen > 5 min) - 5 min window
-      if (senderType === 'influencer' && process.env.RESEND_API_KEY) {
-        try {
-          // Get conversation data
-          const { data: convData } = await supabaseAdmin
-            .from('conversations')
-            .select('id, influencer_id, influencer_name, brand_email, brand_name')
-            .eq('id', conversationId)
-            .single();
-
-          if (convData && convData.brand_email) {
-            // Check if brand is online (5 min window)
-            const { data: brandPresence } = await supabaseAdmin
-              .from('brand_presence')
-              .select('is_online, last_seen')
-              .eq('brand_email', convData.brand_email.toLowerCase().trim())
-              .maybeSingle();
-
-            const now = new Date();
-            const minutesSinceLastSeen = brandPresence?.last_seen
-              ? (now.getTime() - new Date(brandPresence.last_seen).getTime()) / (60 * 1000)
-              : Infinity;
-            const isBrandOnline = !!brandPresence?.is_online && minutesSinceLastSeen < 5;
-
-            // Optional Resend to brand if offline (disabled: in-app + push only)
-            if (!isBrandOnline && SEND_MESSAGE_THREAD_EMAILS) {
-              const { data: brandData } = await supabaseAdmin
-                .from('brands')
-                .select('id')
-                .eq('contact_email', convData.brand_email.toLowerCase().trim())
-                .maybeSingle();
-              const brandHasAccount = !!brandData;
-
-              const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr'}/api/emails`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  type: 'message_influencer_to_brand',
-                  email: convData.brand_email,
-                  toEmail: convData.brand_email,
-                  brandName: convData.brand_name || convData.brand_email,
-                  influencerName: convData.influencer_name,
-                  message: contentForNotify,
-                  brandHasAccount: brandHasAccount
-                })
-              });
-
-              if (emailResponse.ok) {
-                console.log('[Messages API] Email notification sent to brand (offline):', convData.brand_email);
-              } else {
-                console.error('[Messages API] Failed to send email to brand:', await emailResponse.text());
-              }
-            }
-
-            // Always notify admin (influencer → brand)
-            const adminResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr'}/api/emails`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                type: 'message_admin_notification',
-                senderName: convData.influencer_name,
-                senderType: 'influencer',
-                recipientName: convData.brand_name || convData.brand_email,
-                conversationId,
-                messageContent: contentForNotify
-              })
-            });
-            if (!adminResponse.ok) {
-              console.error('[Messages API] Failed to send admin notification:', await adminResponse.text());
-            }
-            // Push notification to brand
-            sendPushToBrand(convData.brand_email, {
-              title: '💬 Νέο μήνυμα',
-              body: `${convData.influencer_name}: ${contentForNotify.slice(0, 60)}${contentForNotify.length > 60 ? '…' : ''}`,
-              url: '/brand/dashboard',
-              tag: `message-brand-${conversationId}-${Date.now()}`,
-            }).catch(() => {});
-          }
-        } catch (emailError: any) {
-          console.error('[Messages API] Error sending email notification:', emailError);
-        }
-      }
-
-      // Send email when brand sends to influencer - ΜΟΝΟ αν influencer offline
-      if (senderType === 'brand' && process.env.RESEND_API_KEY) {
-        try {
-          const { data: convData } = await supabaseAdmin
-            .from('conversations')
-            .select('id, influencer_id, influencer_name, influencer_email, brand_email, brand_name')
-            .eq('id', conversationId)
-            .single();
-
-          if (convData && convData.influencer_id) {
-            const { data: influencerPresence } = await supabaseAdmin
-              .from('influencer_presence')
-              .select('is_online, last_seen')
-              .eq('influencer_id', convData.influencer_id)
-              .maybeSingle();
-            const now = new Date();
-            const minutesSinceLastSeen = influencerPresence?.last_seen
-              ? (now.getTime() - new Date(influencerPresence.last_seen).getTime()) / (60 * 1000)
-              : Infinity;
-            const isInfluencerOnline = !!influencerPresence?.is_online && minutesSinceLastSeen < 5;
-
-            if (!isInfluencerOnline && convData.influencer_email && SEND_MESSAGE_THREAD_EMAILS) {
-              const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr'}/api/emails`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  type: 'message_brand_to_influencer',
-                  email: convData.influencer_email,
-                  toEmail: convData.influencer_email,
-                  influencerName: convData.influencer_name,
-                  brandName: convData.brand_name || convData.brand_email,
-                  message: contentForNotify
-                })
-              });
-              if (!emailResponse.ok) {
-                console.error('[Messages API] Failed to send email to influencer:', await emailResponse.text());
-              }
-            } else if (!convData.influencer_email) {
-              console.warn('[Messages API] No influencer_email for conversation', conversationId);
-            }
-
-            // Always notify admin of new message (brand → influencer)
-            const adminResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr'}/api/emails`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                type: 'message_admin_notification',
-                senderName: convData.brand_name || convData.brand_email,
-                senderType: 'brand',
-                recipientName: convData.influencer_name,
-                conversationId,
-                messageContent: contentForNotify
-              })
-            });
-            if (!adminResponse.ok) {
-              console.error('[Messages API] Failed to send admin notification:', await adminResponse.text());
-            }
-            // Push notification to influencer
-            sendPushToInfluencer(convData.influencer_id, {
-              title: '💬 Νέο μήνυμα',
-              body: `${convData.brand_name || 'Επιχείρηση'}: ${contentForNotify.slice(0, 60)}${contentForNotify.length > 60 ? '…' : ''}`,
-              url: '/dashboard',
-              tag: `message-inf-${conversationId}-${Date.now()}`,
-            }).catch(() => {});
-          }
-        } catch (emailError: any) {
-          console.error('[Messages API] Error sending email notification to influencer:', emailError);
-        }
-      }
-
-      // Track message_sent for existing conversation
-      // Need to get influencer_id from conversation
-      try {
-        const { data: convData } = await supabaseAdmin
-          .from('conversations')
-          .select('influencer_id, brand_email, brand_name')
-          .eq('id', conversationId)
-          .single();
-
-        if (convData) {
-          const { error: analyticsError } = await supabaseAdmin.from('influencer_analytics').insert([{
-            influencer_id: convData.influencer_id,
-            event_type: 'message_sent',
-            brand_email: convData.brand_email || null,
-            brand_name: convData.brand_name || null,
-            metadata: { conversation_id: conversationId, source: 'messages_api', sender_type: senderType }
-          }]);
-          if (analyticsError) {
-            console.error('[Messages API] Error tracking message_sent (existing conv):', analyticsError);
-          }
-        }
-      } catch (err) {
-        // Fail silently - analytics tracking should not break the flow
-      }
-
-      return NextResponse.json({ success: true, message });
-    }
-
-    return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
-  } catch (error: any) {
-    console.error('Message API error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, message: inserted.data });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Message API error";
+    console.error("Message API error:", message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
 export async function GET(req: Request) {
   try {
+    const user = await userFromBearer(req);
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const actor = await loadChatActor(user);
     const { searchParams } = new URL(req.url);
-    const conversationId = searchParams.get('conversationId');
-    const influencerId = searchParams.get('influencerId');
-    const brandEmail = searchParams.get('brandEmail');
+    const conversationId = searchParams.get("conversationId");
+    const influencerId = searchParams.get("influencerId");
+    const brandEmail = searchParams.get("brandEmail");
+    const admin = supabaseService();
 
     if (conversationId) {
-      // Get messages for a conversation
-      const { data: messages, error } = await supabaseAdmin
-        .from('messages')
-        .select('*')
-        .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true });
-
-      if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+      const { data: conv } = await admin
+        .from("conversations")
+        .select("id, influencer_id, brand_email")
+        .eq("id", conversationId)
+        .maybeSingle();
+      if (!conv || !isChatParticipant(actor, conv)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
-
+      const { data: messages, error } = await admin
+        .from("messages")
+        .select("id, conversation_id, sender_id, sender_type, content, attachments, read, created_at")
+        .eq("conversation_id", conversationId)
+        .order("created_at", { ascending: true });
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ messages });
     }
 
     if (influencerId && brandEmail) {
-      // Get conversation by influencer and brand
-      const { data: conversation } = await supabaseAdmin
-        .from('conversations')
-        .select('id')
-        .eq('influencer_id', influencerId)
-        .eq('brand_email', brandEmail)
-        .single();
-
-      if (conversation) {
-        const { data: messages, error } = await supabaseAdmin
-          .from('messages')
-          .select('*')
-          .eq('conversation_id', conversation.id)
-          .order('created_at', { ascending: true });
-
-        if (error) {
-          return NextResponse.json({ error: error.message }, { status: 500 });
-        }
-
-        return NextResponse.json({ messages, conversationId: conversation.id });
+      if (!isChatParticipant(actor, { influencer_id: influencerId, brand_email: brandEmail })) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
-
-      return NextResponse.json({ messages: [], conversationId: null });
+      const { data: conversation } = await admin
+        .from("conversations")
+        .select("id")
+        .eq("influencer_id", influencerId)
+        .ilike("brand_email", brandEmail)
+        .maybeSingle();
+      if (!conversation) return NextResponse.json({ messages: [], conversationId: null });
+      const { data: messages, error } = await admin
+        .from("messages")
+        .select("id, conversation_id, sender_id, sender_type, content, attachments, read, created_at")
+        .eq("conversation_id", conversation.id)
+        .order("created_at", { ascending: true });
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ messages, conversationId: conversation.id });
     }
 
-    return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
-  } catch (error: any) {
-    console.error('Message GET error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Message GET error";
+    console.error("Message GET error:", message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-
