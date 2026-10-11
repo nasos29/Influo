@@ -7,7 +7,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { recommendInfluencers, type InfluencerProfile, type BrandProfile } from '@/lib/recommendations';
 import Messaging from '@/components/Messaging';
-import { presenceTabOpened } from '@/lib/presenceTabs';
+import { useOwnPresenceHeartbeat } from '@/lib/useOwnPresenceHeartbeat';
+import { beginPresenceLogout } from '@/lib/presenceControl';
 import PushNotificationPrompt from '@/components/PushNotificationPrompt';
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 import { displayNameForLang } from '@/lib/greeklish';
@@ -519,62 +520,9 @@ export default function BrandDashboardContent() {
   const [recommendationsLoading, setRecommendationsLoading] = useState(false);
   const [brandData, setBrandData] = useState<any>(null);
 
-  // Heartbeat while the dashboard tab is visible. last_seen older than 90s reads as offline.
-  useEffect(() => {
-    if (!brandData?.contact_email) return;
-    const email = brandData.contact_email.toLowerCase().trim();
-
-    const updateBrandPresence = async () => {
-      const now = new Date().toISOString();
-      const { error } = await supabase.from('brand_presence').upsert({
-        brand_email: email,
-        is_online: true,
-        last_seen: now,
-        updated_at: now,
-      }, { onConflict: 'brand_email' });
-      if (error) console.error('[Brand Dashboard] presence update:', error);
-    };
-
-    const markOffline = async () => {
-      await supabase.from('brand_presence').update({
-        is_online: false,
-        last_seen: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }).eq('brand_email', email);
-    };
-
-    const releaseTab = presenceTabOpened();
-    let released = false;
-    let interval = 0;
-    const releaseOnce = () => {
-      if (released) return false;
-      released = true;
-      return releaseTab();
-    };
-    const start = () => {
-      void updateBrandPresence();
-      window.clearInterval(interval);
-      interval = window.setInterval(() => {
-        if (!document.hidden) void updateBrandPresence();
-      }, 25_000);
-    };
-    const onVisibility = () => {
-      if (document.hidden) window.clearInterval(interval);
-      else start();
-    };
-    const markIfLast = () => {
-      if (releaseOnce()) void markOffline();
-    };
-    if (!document.hidden) start();
-    document.addEventListener('visibilitychange', onVisibility);
-    window.addEventListener('beforeunload', markIfLast);
-    return () => {
-      window.clearInterval(interval);
-      document.removeEventListener('visibilitychange', onVisibility);
-      window.removeEventListener('beforeunload', markIfLast);
-      markIfLast();
-    };
-  }, [brandData?.contact_email]);
+  useOwnPresenceHeartbeat(
+    brandData?.contact_email ? { kind: 'brand', brandEmail: brandData.contact_email } : null
+  );
   const [showEditModal, setShowEditModal] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [recommendationFilters, setRecommendationFilters] = useState({
@@ -765,7 +713,7 @@ export default function BrandDashboardContent() {
         .select('id', { count: 'exact', head: true })
         .in('conversation_id', conversationIds)
         .eq('sender_type', 'influencer')
-        .eq('read', false);
+        .or('read.eq.false,read.is.null');
 
       if (error) {
         console.error('Error loading unread messages:', error);
@@ -1163,6 +1111,7 @@ export default function BrandDashboardContent() {
   };
 
   const handleLogout = async () => {
+    beginPresenceLogout();
     try {
       // Get current user before signing out
       const { data: { user } } = await supabase.auth.getUser();

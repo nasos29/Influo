@@ -219,6 +219,7 @@ export async function POST(req: Request) {
         sender_type: senderType,
         content: messageContent,
         attachments: messageAttachments,
+        read: false,
         sent_via_email: false,
         email_sent: false,
       });
@@ -267,6 +268,7 @@ export async function POST(req: Request) {
       sender_type: senderType,
       content: messageContent,
       attachments: messageAttachments,
+      read: false,
       sent_via_email: false,
       email_sent: false,
     });

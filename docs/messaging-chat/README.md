@@ -4,6 +4,7 @@
 
 1. `01_rls_and_summary_index.sql` — υποχρεωτικό. Κλείνει τις συνομιλίες ώστε κάθε χρήστης να βλέπει μόνο τις δικές του, και προσθέτει το index για τη σύνοψη email.
 2. `02_schedule_summary_cron.sql` — προαιρετικό αν το υπάρχον pg_cron του `check-inactive-conversations` τρέχει ήδη κάθε λίγα λεπτά (αυτό το cron στέλνει και τις συνόψεις). Αλλιώς τρέξτε το, αφού αντικαταστήσετε το `YOUR_CRON_SECRET`.
+3. `03_freeze_client_read.sql` — υποχρεωτικό μετά το deploy του read-receipt fix. Ο browser ρόλος δεν αλλάζει πλέον το `messages.read`. Το διαβασμένο το γράφει μόνο το `/api/messages/read` (service role), όταν ο παραλήπτης έχει ανοιχτό το νήμα.
 
 Rollback: `99_rollback.sql` (δεν σβήνει μηνύματα ούτε τη στήλη `email_sent`).
 

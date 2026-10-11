@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { FaPaperclip } from 'react-icons/fa';
 import { supabase } from '@/lib/supabaseClient';
-import { brandHasAccount } from '@/lib/ownProfile';
 import { displayNameForLang } from '@/lib/greeklish';
 import {
   formatChatRelativeTime,
@@ -12,8 +11,8 @@ import {
   clipChatPreview,
   chatInitial,
 } from '@/lib/chatTime';
-import { formatActiveLabel, presenceOnline, PRESENCE_HEARTBEAT_MS } from '@/lib/presenceStatus';
-import { presenceTabOpened } from '@/lib/presenceTabs';
+import { formatActiveLabel, presenceOnline } from '@/lib/presenceStatus';
+import { counterpartyBrandPresence, counterpartyInfluencerPresence } from '@/lib/presenceIdentity';
 import { sessionFetch } from '@/lib/sessionFetch';
 
 interface MessageAttachment {
@@ -220,6 +219,10 @@ export default function Messaging({
   const lastTypingSentRef = useRef(0);
   const lastSentMessageRef = useRef<string>('');
   const applyInboxMessageRef = useRef<(msg: Message) => void>(() => {});
+  const markReadRef = useRef<(convId: string) => void>(() => {});
+  const influencerWatchGen = useRef(0);
+  const brandWatchGen = useRef(0);
+  const [viewerUserId, setViewerUserId] = useState<string | null>(null);
   const [proposalInfo, setProposalInfo] = useState<ProposalInfo | null>(null);
   const [lastActivityInfluencer, setLastActivityInfluencer] = useState<Date | null>(null);
   const [lastActivityBrand, setLastActivityBrand] = useState<Date | null>(null);
@@ -276,49 +279,17 @@ export default function Messaging({
     return () => window.clearInterval(timer);
   }, []);
 
-  // Heartbeat while this tab is visible. Other tabs share a counter so closing one does not flip offline.
-  // A closed tab stops heartbeats; the other side treats last_seen older than 90s as offline.
   useEffect(() => {
-    const releaseTab = presenceTabOpened();
-    let released = false;
-    let interval = 0;
-    const releaseOnce = () => {
-      if (released) return false;
-      released = true;
-      return releaseTab();
-    };
-    const beat = () => {
-      if (document.hidden) return;
-      if (mode === 'influencer' && influencerId) void updateOnlineStatus();
-      else if (mode === 'brand' && brandEmail) void updateBrandOnlineStatus(brandEmail);
-    };
-    const start = () => {
-      beat();
-      window.clearInterval(interval);
-      interval = window.setInterval(beat, PRESENCE_HEARTBEAT_MS);
-    };
-    const stop = () => window.clearInterval(interval);
-    const onVisibility = () => {
-      if (document.hidden) stop();
-      else start();
-    };
-    const markIfLastTab = () => {
-      if (!releaseOnce()) return;
-      if (mode === 'influencer') void markOffline();
-      else if (brandEmail) void markBrandOffline(brandEmail);
-    };
-    if (!document.hidden) start();
-    document.addEventListener('visibilitychange', onVisibility);
-    window.addEventListener('beforeunload', markIfLastTab);
+    let cancelled = false;
+    supabase.auth.getUser().then(({ data }) => {
+      if (!cancelled) setViewerUserId(data.user?.id ?? null);
+    });
     return () => {
-      stop();
-      document.removeEventListener('visibilitychange', onVisibility);
-      window.removeEventListener('beforeunload', markIfLastTab);
-      markIfLastTab();
+      cancelled = true;
     };
-  }, [mode, influencerId, brandEmail]);
+  }, []);
 
-  // Brand: poll + subscribe to influencer online status (was defined but never called)
+  // Brand: poll + subscribe to the other party's presence. This view never writes that row.
   const watchedInfluencerId =
     mode === 'brand'
       ? influencerId ||
@@ -331,10 +302,10 @@ export default function Messaging({
   useEffect(() => {
     if (mode !== 'brand') return;
 
-    if (!watchedInfluencerId) {
-      setIsInfluencerOnline(false);
-      return;
-    }
+    setIsInfluencerOnline(false);
+    setInfluencerLastSeen(null);
+    if (!watchedInfluencerId) return;
+    if (viewerUserId && watchedInfluencerId === viewerUserId) return;
 
     checkInfluencerStatus(watchedInfluencerId);
     const interval = setInterval(() => checkInfluencerStatus(watchedInfluencerId), 30_000);
@@ -359,7 +330,31 @@ export default function Messaging({
       clearInterval(interval);
       channel.unsubscribe();
     };
-  }, [mode, watchedInfluencerId]);
+  }, [mode, watchedInfluencerId, viewerUserId]);
+
+  const watchedBrandEmail =
+    mode === 'influencer' && selectedConversation
+      ? conversations.find((c) => c.id === selectedConversation)?.brand_email
+      : undefined;
+
+  useEffect(() => {
+    if (mode !== 'influencer') return;
+    setIsBrandOnline(false);
+    setBrandLastSeen(null);
+    if (!watchedBrandEmail) return;
+    checkBrandStatus(watchedBrandEmail);
+    const interval = setInterval(() => checkBrandStatus(watchedBrandEmail), 30_000);
+    return () => clearInterval(interval);
+  }, [mode, watchedBrandEmail]);
+
+  useEffect(() => {
+    if (!selectedConversation) return;
+    const onVis = () => {
+      if (document.visibilityState === 'visible') markReadRef.current(selectedConversation);
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [selectedConversation]);
 
   // Define checkInactivity BEFORE it's used in useEffect
   // SIMPLIFIED APPROACH: Use last_message_at instead of activity timestamps
@@ -558,14 +553,12 @@ export default function Messaging({
           }
           applyInboxMessageRef.current(newMsg);
 
-          if (!isOurMessage && newMsg.sender_type !== mode) {
-            void supabase.from('messages').update({ read: true }).eq('id', newMsg.id).then(() => {
-              setMessages((prev) => prev.map((m) => (m.id === newMsg.id ? { ...m, read: true } : m)));
-              setConversations((prev) =>
-                prev.map((c) => (c.id === newMsg.conversation_id ? { ...c, unread_count: 0 } : c))
-              );
-              window.dispatchEvent(new CustomEvent('messagesRead'));
-            });
+          if (
+            !isOurMessage &&
+            newMsg.sender_type !== mode &&
+            document.visibilityState === 'visible'
+          ) {
+            markReadRef.current(selectedConversation);
           }
 
           if (mode === 'influencer' && newMsg.sender_type === 'brand') {
@@ -857,7 +850,7 @@ export default function Messaging({
         .from('messages')
         .select('conversation_id')
         .in('conversation_id', ids)
-        .eq('read', false)
+        .or('read.eq.false,read.is.null')
         .neq('sender_type', mode)
         .limit(1000),
       supabase
@@ -896,6 +889,7 @@ export default function Messaging({
       }
       const isFromOther = newMsg.sender_type !== mode;
       const isOpen = selectedConversation === newMsg.conversation_id;
+      const viewing = isOpen && typeof document !== 'undefined' && document.visibilityState === 'visible';
       const updated = [...prev];
       const current = updated[idx];
       updated[idx] = {
@@ -903,9 +897,9 @@ export default function Messaging({
         last_message_at: newMsg.created_at,
         last_message_preview: newMsg.content,
         closed_at: null,
-        unread_count: isFromOther && !isOpen
+        unread_count: isFromOther && !viewing
           ? (current.unread_count || 0) + 1
-          : isOpen
+          : viewing
             ? 0
             : current.unread_count || 0,
       };
@@ -1016,36 +1010,38 @@ export default function Messaging({
       setMessages(data || []);
       stickToBottomRef.current = true;
       scrollToBottom(true);
-      
-      // Mark messages as read when loaded (only for messages sent by the other party)
-      if (data && data.length > 0) {
-        const unreadMessages = data.filter(msg => 
-          !msg.read && msg.sender_type !== mode
-        );
-        
-        if (unreadMessages.length > 0) {
-          // Mark all unread messages from the other party as read
-          const messageIds = unreadMessages.map(msg => msg.id);
-          await supabase
-            .from('messages')
-            .update({ read: true })
-            .in('id', messageIds);
-
-          setConversations((prev) =>
-            prev.map((c) => (c.id === convId ? { ...c, unread_count: 0 } : c))
-          );
-          
-          // Trigger a custom event to update unread count in parent component
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('messagesRead', { 
-              detail: { conversationId: convId, count: unreadMessages.length } 
-            }));
-          }
-        }
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        markReadRef.current(convId);
       }
     } catch (error) {
       console.error('Error loading messages:', error);
     }
+  };
+
+  const markVisibleAsRead = async (convId: string) => {
+    if (!convId || document.visibilityState !== 'visible') return;
+    try {
+      const response = await sessionFetch('/api/messages/read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId: convId, as: mode }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.success) return;
+      const ids: string[] = Array.isArray(result.ids) ? result.ids : [];
+      if (ids.length === 0) return;
+      const idSet = new Set(ids);
+      setMessages((prev) => prev.map((m) => (idSet.has(m.id) ? { ...m, read: true } : m)));
+      setConversations((prev) => prev.map((c) => (c.id === convId ? { ...c, unread_count: 0 } : c)));
+      window.dispatchEvent(new CustomEvent('messagesRead', {
+        detail: { conversationId: convId, count: ids.length },
+      }));
+    } catch (error) {
+      console.error('Error marking messages read:', error);
+    }
+  };
+  markReadRef.current = (convId: string) => {
+    void markVisibleAsRead(convId);
   };
 
   const sendMessage = async (e: React.FormEvent) => {
@@ -1136,8 +1132,6 @@ export default function Messaging({
       if (convId && convId !== convAtSend) {
         setSelectedConversation(convId);
       }
-      if (mode === 'influencer' && influencerId) void updateOnlineStatus();
-      else if (brandEmail) void updateBrandOnlineStatus(brandEmail);
       void loadConversations(true);
       if (!convAtSend) {
         setNewMessage('');
@@ -1235,221 +1229,85 @@ export default function Messaging({
   };
 
   const checkInfluencerStatus = async (idToCheck?: string) => {
-    // Use provided ID or get from current conversation or use prop
     const id = idToCheck || (mode === 'brand' && selectedConversation
       ? conversations.find(c => c.id === selectedConversation)?.influencer_id
-      : influencerId);
-    
-    if (!id) {
-      setIsInfluencerOnline(false);
+      : undefined);
+    const gen = ++influencerWatchGen.current;
+
+    if (!id || (mode === 'brand' && viewerUserId && id === viewerUserId)) {
+      if (gen === influencerWatchGen.current) {
+        setIsInfluencerOnline(false);
+        setInfluencerLastSeen(null);
+      }
       return;
     }
-    
+
     try {
       const { data, error } = await supabase
         .from('influencer_presence')
-        .select('is_online, last_seen, updated_at')
+        .select('influencer_id, is_online, last_seen')
         .eq('influencer_id', id)
         .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+      if (gen !== influencerWatchGen.current) return;
+
+      if (error && error.code !== 'PGRST116') {
         console.error('Error checking influencer status:', error);
         setIsInfluencerOnline(false);
+        setInfluencerLastSeen(null);
         return;
       }
 
-      if (data) {
-        setInfluencerLastSeen(data.last_seen || null);
-        setIsInfluencerOnline(presenceOnline(data));
-      } else {
-        setInfluencerLastSeen(null);
-        setIsInfluencerOnline(false);
-      }
+      const row = counterpartyInfluencerPresence(id, data, mode === 'brand' ? viewerUserId : null);
+      setInfluencerLastSeen(row?.last_seen || null);
+      setIsInfluencerOnline(presenceOnline(row));
     } catch (error) {
+      if (gen !== influencerWatchGen.current) return;
       console.error('Error checking influencer status:', error);
       setIsInfluencerOnline(false);
-    }
-  };
-
-  const updateOnlineStatus = async () => {
-    if (!influencerId) return;
-    await updateOnlineStatusForId(influencerId);
-  };
-
-  const updateOnlineStatusForId = async (id: string) => {
-    if (!id) return;
-    try {
-      const result = await supabase
-        .from('influencer_presence')
-        .upsert({
-          influencer_id: id,
-          is_online: true,
-          last_seen: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'influencer_id'
-        });
-      
-      if (result.error) {
-        console.error('Error updating influencer online status:', result.error);
-      }
-    } catch (error) {
-      console.error('Error updating online status:', error);
-    }
-  };
-
-  const markOffline = async () => {
-    if (!influencerId) return;
-    try {
-      const result = await supabase
-        .from('influencer_presence')
-        .update({
-          is_online: false,
-          last_seen: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('influencer_id', influencerId);
-      
-      if (result.error) {
-        console.error('Error marking influencer offline:', result.error);
-      }
-    } catch (error) {
-      console.error('Error marking offline:', error);
+      setInfluencerLastSeen(null);
     }
   };
 
   const checkBrandStatus = async (emailToCheck?: string) => {
-    // Use provided email or get from current conversation
-    const email = emailToCheck || (mode === 'influencer' && selectedConversation 
-      ? conversations.find(c => c.id === selectedConversation)?.brand_email 
-      : brandEmail);
-    
+    const email = emailToCheck || (mode === 'influencer' && selectedConversation
+      ? conversations.find(c => c.id === selectedConversation)?.brand_email
+      : undefined);
+    const gen = ++brandWatchGen.current;
+
     if (!email) {
-      console.log(`[Brand Status Check] No email provided`);
-      setIsBrandOnline(false);
+      if (gen === brandWatchGen.current) {
+        setIsBrandOnline(false);
+        setBrandLastSeen(null);
+      }
       return;
     }
-    
+
     const emailLower = email.toLowerCase().trim();
-    console.log(`[Brand Status Check] Starting check for email: ${emailLower}`);
-    
     try {
-      // Check presence first - if presence exists, we can check status immediately
-      console.log(`[Brand Status Check] Checking presence for email: ${emailLower}`);
       const { data: presenceData, error: presenceError } = await supabase
         .from('brand_presence')
-        .select('is_online, last_seen, updated_at, brand_email')
+        .select('is_online, last_seen, brand_email')
         .eq('brand_email', emailLower)
         .maybeSingle();
 
+      if (gen !== brandWatchGen.current) return;
+
       if (presenceError && presenceError.code !== 'PGRST116') {
-        console.error(`[Brand Status Check] Error checking presence:`, presenceError);
+        console.error('Error checking brand status:', presenceError);
         setIsBrandOnline(false);
-        return;
-      }
-
-      // If no presence data, brand is offline
-      if (!presenceData) {
-        console.log(`[Brand Status Check] No presence data for ${emailLower} - OFFLINE`);
-        setIsBrandOnline(false);
-        return;
-      }
-
-      // Presence data exists - trust it (presence is only created by authenticated brands)
-      // RLS might block brands table query, but presence data is sufficient proof that brand has account
-      console.log(`[Brand Status Check] Found presence data for ${emailLower}, checking online status...`);
-      
-      // Check if brand is online: must be online AND last_seen/updated_at within ~60s
-      const data = presenceData;
-
-      if (data) {
-        setBrandLastSeen(data.last_seen || null);
-        setIsBrandOnline(presenceOnline(data));
-      } else {
         setBrandLastSeen(null);
-        setIsBrandOnline(false);
+        return;
       }
+
+      const row = counterpartyBrandPresence(emailLower, presenceData);
+      setBrandLastSeen(row?.last_seen || null);
+      setIsBrandOnline(presenceOnline(row));
     } catch (error) {
+      if (gen !== brandWatchGen.current) return;
       console.error('Error checking brand status:', error);
       setIsBrandOnline(false);
-    }
-  };
-
-  const updateBrandOnlineStatus = async (emailToUpdate?: string) => {
-    // Use provided email, or get from current conversation, or use prop
-    const email = emailToUpdate || (mode === 'influencer' && selectedConversation
-      ? conversations.find(c => c.id === selectedConversation)?.brand_email
-      : brandEmail);
-    
-    if (!email) {
-      console.log('[Brand Presence Update] No email provided');
-      return;
-    }
-    
-    try {
-      const emailLower = email.toLowerCase().trim();
-      console.log(`[Brand Presence Update] Updating presence for: ${emailLower}`);
-      
-      // First check if brand has an account - unregistered brands should not update presence
-      const hasAccount = await brandHasAccount(supabase, emailLower);
-
-      if (!hasAccount) {
-        // Brand doesn't have account - don't update presence
-        console.log(`[Brand Presence Update] Brand ${emailLower} does not have account - skipping`);
-        return;
-      }
-
-      // Brand has account - update presence
-      const now = new Date().toISOString();
-      const result = await supabase
-        .from('brand_presence')
-        .upsert({
-          brand_email: emailLower,
-          is_online: true,
-          last_seen: now,
-          updated_at: now,
-        }, {
-          onConflict: 'brand_email'
-        });
-      
-      if (result.error) {
-        console.error('[Brand Presence Update] Error updating brand online status:', result.error);
-      } else {
-        console.log(`[Brand Presence Update] Successfully updated presence for ${emailLower} at ${now}`);
-      }
-    } catch (error) {
-      console.error('[Brand Presence Update] Exception updating brand online status:', error);
-    }
-  };
-
-  const markBrandOffline = async (emailToMark?: string) => {
-    const email = emailToMark || brandEmail || (mode === 'influencer' && selectedConversation
-      ? conversations.find(c => c.id === selectedConversation)?.brand_email
-      : null);
-    
-    if (!email) return;
-    
-    try {
-      // Only mark offline if brand has account
-      const hasAccount = await brandHasAccount(supabase, email);
-
-      if (hasAccount) {
-        // Brand has account - mark as offline
-        const result = await supabase
-          .from('brand_presence')
-          .update({
-            is_online: false,
-            last_seen: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .eq('brand_email', email.toLowerCase().trim());
-        
-        if (result.error) {
-          console.error('Error marking brand offline:', result.error);
-        }
-      }
-    } catch (error) {
-      console.error('Error marking brand offline:', error);
+      setBrandLastSeen(null);
     }
   };
 
@@ -1540,19 +1398,6 @@ export default function Messaging({
       if (updateError) {
         console.error('[Activity] Database update error:', updateError);
         return;
-      }
-
-      // Also update presence table to keep user online status current
-      if (mode === 'influencer' && influencerId) {
-        updateOnlineStatus();
-      } else if (mode === 'brand') {
-        // For brand mode, update brand presence
-        const emailToUpdate = brandEmail || (selectedConversation
-          ? conversations.find(c => c.id === selectedConversation)?.brand_email
-          : null);
-        if (emailToUpdate) {
-          updateBrandOnlineStatus(emailToUpdate);
-        }
       }
 
       if (mode === 'influencer') {

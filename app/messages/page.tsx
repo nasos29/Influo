@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { getStoredLanguage } from '@/lib/language';
 import { displayNameForLang } from '@/lib/greeklish';
 import { loadOwnBrand } from '@/lib/ownProfile';
+import { useOwnPresenceHeartbeat } from '@/lib/useOwnPresenceHeartbeat';
 
 function MessagesContent() {
   const searchParams = useSearchParams();
@@ -59,6 +60,8 @@ function MessagesContent() {
       cancelled = true;
     };
   }, [influencerId]);
+
+  useOwnPresenceHeartbeat(brandEmail ? { kind: 'brand', brandEmail } : null);
 
   if (loading) {
     return (

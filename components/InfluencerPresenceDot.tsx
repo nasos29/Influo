@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { formatActiveLabel, presenceOnline } from "@/lib/presenceStatus";
+import { counterpartyInfluencerPresence } from "@/lib/presenceIdentity";
 
 /** Μικρή ένδειξη online/offline (ίδια λογική με Messaging.checkInfluencerStatus). */
 export default function InfluencerPresenceDot({
@@ -23,7 +24,7 @@ export default function InfluencerPresenceDot({
     const check = async () => {
       const { data, error } = await supabase
         .from("influencer_presence")
-        .select("is_online, last_seen, updated_at")
+        .select("influencer_id, is_online, last_seen")
         .eq("influencer_id", influencerId)
         .maybeSingle();
 
@@ -31,13 +32,14 @@ export default function InfluencerPresenceDot({
         setOnline(false);
         return;
       }
-      if (!data) {
+      const row = counterpartyInfluencerPresence(influencerId, data);
+      if (!row) {
         setOnline(false);
         setLastSeen(null);
         return;
       }
-      setLastSeen(data.last_seen || null);
-      setOnline(presenceOnline(data));
+      setLastSeen(row.last_seen || null);
+      setOnline(presenceOnline(row));
     };
 
     check();
