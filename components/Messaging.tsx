@@ -1781,14 +1781,14 @@ export default function Messaging({
                         type="button"
                         onClick={() => void confirmEndConversation()}
                         disabled={endingConversation}
-                        className="px-3 py-1.5 text-xs font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                        className="px-3 py-1.5 text-xs font-semibold bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
                       >
                         {endingConversation ? txt.endingConversation : txt.endConfirmYes}
                       </button>
                       <button
                         type="button"
                         onClick={() => setShowEndConfirm(false)}
-                        className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-white rounded-lg"
+                        className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-white rounded-lg"
                       >
                         {txt.endConfirmNo}
                       </button>
@@ -1962,7 +1962,7 @@ export default function Messaging({
                   <button
                     type="submit"
                     disabled={sending || (!newMessage.trim() && pendingFiles.length === 0)}
-                    className="px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm shrink-0"
+                    className="px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-sm shrink-0"
                   >
                     {sending ? txt.sending : txt.send}
                   </button>
@@ -2045,7 +2045,7 @@ export default function Messaging({
                     <button
                       type="submit"
                       disabled={sending || (!newMessage.trim() && pendingFiles.length === 0)}
-                      className="px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm shrink-0"
+                      className="px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-sm shrink-0"
                     >
                       {sending ? txt.sending : txt.send}
                     </button>
@@ -2068,7 +2068,7 @@ export default function Messaging({
                   setShowAgreementModal(false);
                   setAgreementAccepted(false);
                 }}
-                className="text-slate-400 hover:text-slate-600 text-2xl"
+                className="text-slate-600 hover:text-slate-900 text-2xl font-semibold leading-none"
               >
                 ×
               </button>
@@ -2207,14 +2207,14 @@ export default function Messaging({
                     setShowAgreementModal(false);
                     setAgreementAccepted(false);
                   }}
-                  className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg font-medium transition-colors"
+                  className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg font-semibold transition-colors"
                 >
                   {txt.agreementCancel}
                 </button>
                 <button
                   onClick={handleAcceptAgreement}
                   disabled={!agreementAccepted || savingAgreement}
-                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl"
+                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl"
                 >
                   {savingAgreement ? txt.agreementSaving : txt.agreementAccept}
                 </button>

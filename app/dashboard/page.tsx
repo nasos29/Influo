@@ -98,7 +98,7 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={() => setAttempt((n) => n + 1)}
-              className="mt-6 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700"
+              className="mt-6 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700"
             >
               Δοκιμάστε ξανά
             </button>
@@ -120,7 +120,7 @@ export default function DashboardPage() {
                    type="button"
                    onClick={clearOrphanAndSignup}
                    disabled={clearingOrphan}
-                   className="mt-6 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 disabled:opacity-50"
+                   className="mt-6 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50"
                  >
                    {clearingOrphan ? '…' : 'Καθαρισμός & νέα εγγραφή'}
                  </button>

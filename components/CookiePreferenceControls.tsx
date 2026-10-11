@@ -25,7 +25,7 @@ export default function CookiePreferenceControls({ lang }: { lang: "el" | "en" }
             setCookieConsent("accepted");
             setChoice("accepted");
           }}
-          className="px-3 py-2 text-sm font-medium rounded-lg bg-slate-900 text-white"
+          className="px-3 py-2 text-sm font-semibold rounded-lg bg-slate-900 text-white"
         >
           {el ? "Αποδοχή" : "Accept"}
         </button>
@@ -35,14 +35,14 @@ export default function CookiePreferenceControls({ lang }: { lang: "el" | "en" }
             setCookieConsent("rejected");
             setChoice("rejected");
           }}
-          className="px-3 py-2 text-sm font-medium rounded-lg border border-slate-300 bg-white text-slate-800"
+          className="px-3 py-2 text-sm font-semibold rounded-lg border border-slate-300 bg-white text-slate-800"
         >
           {el ? "Απόρριψη" : "Reject"}
         </button>
         <button
           type="button"
           onClick={() => openCookieSettings()}
-          className="px-3 py-2 text-sm font-medium rounded-lg text-blue-700 hover:bg-blue-50"
+          className="px-3 py-2 text-sm font-semibold rounded-lg text-blue-700 hover:bg-blue-50"
         >
           {el ? "Άνοιγμα banner" : "Open banner"}
         </button>

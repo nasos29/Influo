@@ -574,7 +574,7 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold py-3 px-6 rounded-lg transition-colors"
+          className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-3 px-6 rounded-lg transition-colors"
         >
           {loading ? txt.loading : txt.submit}
         </button>

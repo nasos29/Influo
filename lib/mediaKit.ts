@@ -97,7 +97,7 @@ export function buildMediaKitHtml(profile: MediaKitProfile): string {
     .muted { color: #94a3b8; text-align: center; }
     @media print { .noprint { display: none !important; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
     .actions { margin: 0 0 16px; display: flex; gap: 8px; }
-    .actions button { border: 0; background: #0f172a; color: #fff; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+    .actions button { border: 0; background: #0f172a; color: #fff; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; }
   </style>
 </head>
 <body>

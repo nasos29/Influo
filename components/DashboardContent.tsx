@@ -527,7 +527,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
             <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto my-8">
                 <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
                     <h2 className="text-xl font-semibold text-slate-900">Επεξεργασία Προφίλ</h2>
-                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600">✕</button>
+                    <button onClick={onClose} className="text-slate-600 hover:text-slate-900 font-semibold">✕</button>
                 </div>
                 
                 <form onSubmit={handleSave} className="p-6 space-y-6">
@@ -854,8 +854,8 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                     </div>
                     
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
-                        <button type="button" onClick={onClose} className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg font-medium transition-colors">Ακύρωση</button>
-                        <button type="submit" disabled={loading} className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium disabled:opacity-50 transition-colors">
+                        <button type="button" onClick={onClose} className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg font-semibold transition-colors">Ακύρωση</button>
+                        <button type="submit" disabled={loading} className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-semibold disabled:opacity-50 transition-colors">
                             {loading ? 'Αποθήκευση...' : 'Αποθήκευση Αλλαγών'}
                         </button>
                     </div>
@@ -1578,7 +1578,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                                 alert('Σφάλμα: ' + error.message);
                                                                             }
                                                                         }}
-                                                                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-all text-xs whitespace-nowrap"
+                                                                        className="px-4 py-2 bg-green-700 hover:bg-green-800 text-white font-semibold rounded-lg transition-all text-xs whitespace-nowrap"
                                                                     >
                                                                         ✅ Αποδοχή
                                                                     </button>
@@ -1679,7 +1679,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                         console.error('Error marking announcement as read:', e);
                                                                     }
                                                                 }}
-                                                                className="px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                                                                className="px-3 py-1.5 text-sm font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
                                                             >
                                                                 Σήμανση ως διαβασμένο
                                                             </button>
@@ -1702,7 +1702,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                     console.error('Error dismissing announcement:', e);
                                                                 }
                                                             }}
-                                                            className="px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                                                            className="px-3 py-1.5 text-sm font-semibold text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
                                                             title="Απόκρυψη από τη λίστα"
                                                         >
                                                             Διαγραφή
@@ -1718,7 +1718,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                             <div className="space-y-6">
                                 <div className="flex items-center justify-between">
                                     <h2 className="text-xl font-semibold text-slate-900">Επισκόπηση Προφίλ</h2>
-                                    <button onClick={() => setShowEditModal(true)} className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium transition-colors">
+                                    <button onClick={() => setShowEditModal(true)} className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-semibold transition-colors">
                                         ✏️ Επεξεργασία Προφίλ
                                     </button>
                                 </div>
@@ -1823,7 +1823,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 
                                 <div className="pt-4 border-t border-slate-200 space-y-4">
                                     <div className="flex flex-col sm:flex-row gap-3">
-                                        <Link href="/logout" className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium text-center transition-colors">
+                                        <Link href="/logout" className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold text-center transition-colors">
                                             Αποσύνδεση
                                         </Link>
                                         <button
@@ -1832,7 +1832,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                 setDeleteAccountError(null);
                                                 setShowDeleteAccountModal(true);
                                             }}
-                                            className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg font-medium transition-colors"
+                                            className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg font-semibold transition-colors"
                                         >
                                             Διαγραφή Λογαριασμού
                                         </button>
@@ -1893,7 +1893,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                     setDeleteAccountError(null);
                                 }}
                                 disabled={deletingAccount}
-                                className="px-4 py-2 rounded-lg font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-60"
+                                className="px-4 py-2 rounded-lg font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-60"
                             >
                                 Όχι, ακύρωση
                             </button>
@@ -1901,7 +1901,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 type="button"
                                 onClick={handleDeleteAccount}
                                 disabled={deletingAccount}
-                                className="px-4 py-2 rounded-lg font-medium bg-red-600 hover:bg-red-700 text-white disabled:opacity-60"
+                                className="px-4 py-2 rounded-lg font-semibold bg-red-600 hover:bg-red-700 text-white disabled:opacity-60"
                             >
                                 {deletingAccount ? 'Διαγραφή…' : 'Ναι, διαγραφή'}
                             </button>
@@ -1922,7 +1922,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                     setSelectedProposal(null);
                                     setAgreementAccepted(false);
                                 }}
-                                className="text-slate-400 hover:text-slate-600 text-2xl"
+                                className="text-slate-600 hover:text-slate-900 text-2xl font-semibold leading-none"
                             >
                                 ×
                             </button>
@@ -2041,14 +2041,14 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                         setSelectedProposal(null);
                                         setAgreementAccepted(false);
                                     }}
-                                    className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg font-medium transition-colors"
+                                    className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg font-semibold transition-colors"
                                 >
                                     Ακύρωση
                                 </button>
                                 <button
                                     onClick={handleAcceptAgreement}
                                     disabled={!agreementAccepted || savingAgreement}
-                                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                 >
                                     {savingAgreement ? 'Αποθήκευση...' : 'Αποδοχή Συμφωνίας'}
                                 </button>
@@ -2071,7 +2071,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                     setCounterBudget('');
                                     setCounterMessage('');
                                 }}
-                                className="text-slate-400 hover:text-slate-600 text-2xl"
+                                className="text-slate-600 hover:text-slate-900 text-2xl font-semibold leading-none"
                             >
                                 ×
                             </button>
@@ -2133,14 +2133,14 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                         setCounterBudget('');
                                         setCounterMessage('');
                                     }}
-                                    className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg font-medium transition-colors"
+                                    className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg font-semibold transition-colors"
                                 >
                                     Ακύρωση
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={!counterBudget || savingCounterProposal}
-                                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                 >
                                     {savingCounterProposal ? 'Αποστολή...' : 'Αποστολή Αντιπρότασης'}
                                 </button>

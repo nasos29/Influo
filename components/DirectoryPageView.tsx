@@ -64,7 +64,7 @@ export default function DirectoryPageView({
                 if (newLang === "en") router.push("/en/directory");
                 else router.push("/directory");
               }}
-              className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
+              className="text-xs font-semibold border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
               aria-label="Toggle language"
             >
               {lang === "el" ? "EN" : "EL"}

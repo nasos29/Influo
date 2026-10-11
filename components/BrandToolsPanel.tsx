@@ -438,7 +438,7 @@ export default function BrandToolsPanel({
       <h1>${escapeHtml(brandName || "Brand")}</h1>
       <p>${el ? "Εκτίμηση (από)" : "Estimate (from)"}: ${Math.round(minTotal)}€</p>
       <table><thead><tr><th>${el ? "Όνομα" : "Name"}</th><th>${el ? "Κατηγορία" : "Category"}</th><th>${el ? "Από" : "From"}</th><th>${el ? "Σημείωση" : "Note"}</th></tr></thead><tbody>${rows || `<tr><td colspan="4">${el ? "Κενή λίστα" : "Empty list"}</td></tr>`}</tbody></table>
-      <p style="margin-top:24px"><button type="button" onclick="window.print()" style="padding:10px 16px;font-size:14px;cursor:pointer">${el ? "Εκτύπωση / PDF" : "Print / PDF"}</button></p>
+      <p style="margin-top:24px"><button type="button" onclick="window.print()" style="padding:10px 16px;font-size:14px;font-weight:600;color:#fff;background:#0f172a;border:0;border-radius:8px;cursor:pointer">${el ? "Εκτύπωση / PDF" : "Print / PDF"}</button></p>
       </body></html>`);
   };
 
@@ -462,7 +462,7 @@ export default function BrandToolsPanel({
       <div class="meta">${escapeHtml([industry, website, contactPerson].filter(Boolean).join(" · ") || "—")}</div>
       <h2>Do</h2><pre>${escapeHtml(kitDos)}</pre>
       <h2>Don&apos;t</h2><pre>${escapeHtml(kitDonts)}</pre>
-      <p style="margin-top:24px"><button type="button" onclick="window.print()" style="padding:10px 16px;font-size:14px;cursor:pointer">${el ? "Εκτύπωση / PDF" : "Print / PDF"}</button></p>
+      <p style="margin-top:24px"><button type="button" onclick="window.print()" style="padding:10px 16px;font-size:14px;font-weight:600;color:#fff;background:#0f172a;border:0;border-radius:8px;cursor:pointer">${el ? "Εκτύπωση / PDF" : "Print / PDF"}</button></p>
       </body></html>`);
   };
 
@@ -525,7 +525,7 @@ export default function BrandToolsPanel({
                     "budget"
                   )
                 }
-                className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800"
+                className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-semibold hover:bg-slate-800"
               >
                 {copied === "budget" ? (el ? "Αντιγράφηκε" : "Copied") : el ? "Αντιγραφή" : "Copy"}
               </button>
@@ -544,7 +544,7 @@ export default function BrandToolsPanel({
                 type="button"
                 disabled={!shortlist.length}
                 onClick={downloadCsv}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-40"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-40"
               >
                 CSV
               </button>
@@ -552,14 +552,14 @@ export default function BrandToolsPanel({
                 type="button"
                 disabled={!shortlist.length}
                 onClick={printSummary}
-                className="px-4 py-2 border border-slate-300 text-slate-900 rounded-lg text-sm font-medium hover:bg-slate-50 disabled:opacity-40"
+                className="px-4 py-2 border border-slate-300 text-slate-900 rounded-lg text-sm font-semibold hover:bg-slate-50 disabled:opacity-40"
               >
                 {el ? "Εκτύπωση / PDF" : "Print / PDF"}
               </button>
               <button
                 type="button"
                 onClick={onOpenShortlist}
-                className="px-4 py-2 border border-slate-300 text-slate-900 rounded-lg text-sm font-medium hover:bg-slate-50"
+                className="px-4 py-2 border border-slate-300 text-slate-900 rounded-lg text-sm font-semibold hover:bg-slate-50"
               >
                 {el ? "Λίστα" : "List"}
               </button>
@@ -715,7 +715,7 @@ export default function BrandToolsPanel({
               type="button"
               disabled={!utmUrl}
               onClick={() => copyText(utmUrl, "utm")}
-              className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 disabled:opacity-40"
+              className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-semibold hover:bg-slate-800 disabled:opacity-40"
             >
               {copied === "utm" ? (el ? "Αντιγράφηκε" : "Copied") : el ? "Αντιγραφή link" : "Copy link"}
             </button>
@@ -729,7 +729,7 @@ export default function BrandToolsPanel({
               <button
                 type="button"
                 onClick={onOpenCampaigns}
-                className="px-4 py-2 border border-slate-300 text-slate-900 rounded-lg text-sm font-medium hover:bg-slate-50"
+                className="px-4 py-2 border border-slate-300 text-slate-900 rounded-lg text-sm font-semibold hover:bg-slate-50"
               >
                 {el ? "Νέα καμπάνια" : "New campaign"}
               </button>
@@ -770,7 +770,7 @@ export default function BrandToolsPanel({
             <button
               type="button"
               onClick={() => copyText(briefText, "brief")}
-              className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800"
+              className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-semibold hover:bg-slate-800"
             >
               {copied === "brief" ? (el ? "Αντιγράφηκε" : "Copied") : el ? "Αντιγραφή brief" : "Copy brief"}
             </button>
@@ -814,7 +814,7 @@ export default function BrandToolsPanel({
             <button
               type="button"
               onClick={addRoi}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700"
             >
               {el ? "Προσθήκη" : "Add entry"}
             </button>
@@ -836,7 +836,7 @@ export default function BrandToolsPanel({
                     <button
                       type="button"
                       onClick={() => removeRoi(r.id)}
-                      className="text-slate-700 hover:text-red-700 text-xs font-medium"
+                      className="text-slate-800 hover:text-red-700 text-xs font-semibold"
                     >
                       {el ? "Διαγραφή" : "Delete"}
                     </button>
@@ -868,7 +868,7 @@ export default function BrandToolsPanel({
             <button
               type="button"
               onClick={printBrandKit}
-              className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800"
+              className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-semibold hover:bg-slate-800"
             >
               {el ? "Εκτύπωση / PDF kit" : "Print / PDF kit"}
             </button>
@@ -930,7 +930,7 @@ export default function BrandToolsPanel({
         <button
           type="button"
           onClick={resetOrder}
-          className="text-sm font-medium text-slate-800 border border-slate-300 px-3 py-1.5 rounded-lg hover:bg-slate-50 self-start"
+          className="text-sm font-semibold text-slate-800 border border-slate-300 px-3 py-1.5 rounded-lg hover:bg-slate-50 self-start"
         >
           {el ? "Επαναφορά σειράς" : "Reset order"}
         </button>

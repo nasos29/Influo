@@ -1299,7 +1299,7 @@ export default function InfluencerProfile(props: {
               setLang(newLang);
               setStoredLanguage(newLang);
             }} 
-            className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors bg-white shadow-sm"
+            className="text-xs font-semibold border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors bg-white shadow-sm"
             aria-label="Toggle language"
           >
             {lang === "el" ? "EN" : "EL"}
@@ -1312,7 +1312,7 @@ export default function InfluencerProfile(props: {
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden relative">
                 <button 
                     onClick={() => { setShowProposalModal(false); setSent(false); }}
-                    className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-xl z-10"
+                    className="absolute top-4 right-4 text-slate-600 hover:text-slate-900 font-bold text-xl z-10"
                 >✕</button>
 
                 {!sent ? (
@@ -1390,7 +1390,7 @@ export default function InfluencerProfile(props: {
                 setReviewBrandName("");
                 setReviewBrandEmail("");
               }}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-xl z-10"
+              className="absolute top-4 right-4 text-slate-600 hover:text-slate-900 font-bold text-xl z-10"
             >✕</button>
 
             <div className="p-8">
@@ -1486,7 +1486,7 @@ export default function InfluencerProfile(props: {
             {/* Close Button */}
             <button 
               onClick={() => setShowRegistrationRequiredModal(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-xl z-10 transition-colors"
+              className="absolute top-4 right-4 text-slate-600 hover:text-slate-900 font-bold text-xl z-10 transition-colors"
             >
               ✕
             </button>
@@ -1560,7 +1560,7 @@ export default function InfluencerProfile(props: {
                 
                 <button
                   onClick={() => setShowRegistrationRequiredModal(false)}
-                  className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-3 px-6 rounded-xl transition-colors"
+                  className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-3 px-6 rounded-xl transition-colors"
                 >
                   {lang === 'el' ? 'Ακύρωση' : 'Cancel'}
                 </button>
@@ -1587,7 +1587,7 @@ export default function InfluencerProfile(props: {
                       setMessageBrandName("");
                       setMessageContent("");
                     }}
-                    className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-xl z-10"
+                    className="absolute top-4 right-4 text-slate-600 hover:text-slate-900 font-bold text-xl z-10"
                 >✕</button>
 
                 <div className="p-8">
@@ -1640,7 +1640,7 @@ export default function InfluencerProfile(props: {
                         <button 
                             type="submit" 
                             disabled={messageSending} 
-                            className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg disabled:opacity-50"
+                            className="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-3 rounded-xl transition-all shadow-lg disabled:opacity-50"
                         >
                             {messageSending ? txt.modal_sending : txt.message_btn}
                         </button>
@@ -1706,7 +1706,7 @@ export default function InfluencerProfile(props: {
         <div className="absolute top-6 left-6 z-20">
           <a
             href={isBrand ? "/brand/dashboard" : "/"}
-            className="text-white bg-white/20 backdrop-blur-md px-4 py-2 rounded-lg font-medium hover:bg-white/30 transition shadow-lg"
+            className="text-white bg-white/20 backdrop-blur-md px-4 py-2 rounded-lg font-semibold hover:bg-white/30 transition shadow-lg"
           >
             {isBrand
               ? (lang === "el" ? "← Dashboard" : "← Dashboard")
@@ -1890,7 +1890,7 @@ export default function InfluencerProfile(props: {
                         setShowRegistrationRequiredModal(true);
                       }
                     }}
-                    className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 px-3 rounded-lg text-sm flex items-center justify-center gap-1.5"
+                    className="bg-green-700 hover:bg-green-800 text-white font-semibold py-2.5 px-3 rounded-lg text-sm flex items-center justify-center gap-1.5"
                 >
                     <span>💬</span> {txt.message_btn}
                 </button>
@@ -2737,7 +2737,7 @@ export default function InfluencerProfile(props: {
                                                                 setShowMessageModal(true);
                                                                 setMessageContent(lang === 'el' ? `Ερώτηση σχετικά με ${service.label.toLowerCase()}` : `Question about ${service.label.toLowerCase()}`);
                                                             }}
-                                                            className="text-xs px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-md font-medium transition-colors"
+                                                            className="text-xs px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-md font-semibold transition-colors"
                                                         >
                                                             {lang === 'el' ? 'Ρώτησε' : 'Ask'}
                                                         </button>
@@ -2902,14 +2902,14 @@ export default function InfluencerProfile(props: {
               <button
                 onClick={() => handleAcceptCounterProposal(counterProposal.id)}
                 disabled={processingAction}
-                className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-bold py-3 px-6 rounded-lg transition-colors"
+                className="flex-1 bg-green-700 hover:bg-green-800 disabled:opacity-50 text-white font-bold py-3 px-6 rounded-lg transition-colors"
               >
                 {processingAction ? 'Επεξεργασία...' : '✅ Αποδοχή Αντιπρότασης'}
               </button>
               <button
                 onClick={() => handleRejectCounterProposal(counterProposal.id)}
                 disabled={processingAction}
-                className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white font-bold py-3 px-6 rounded-lg transition-colors"
+                className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-bold py-3 px-6 rounded-lg transition-colors"
               >
                 {processingAction ? 'Επεξεργασία...' : '❌ Απόρριψη Αντιπρότασης'}
               </button>

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
+import Button, { ButtonLink } from '@/components/ui/Button';
 
 type LinkInfo = {
   approved: boolean;
@@ -160,20 +160,12 @@ export default function InfluencerToolsPanel({
               value={info.url}
               className="flex-1 px-3 py-2 border border-slate-300 rounded-lg bg-slate-50 text-slate-900 text-sm"
             />
-            <button
-              type="button"
-              onClick={() => copy(info.url, 'link')}
-              className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800"
-            >
+            <Button variant="primary" onClick={() => copy(info.url, 'link')}>
               {copied === 'link' ? 'Αντιγράφηκε' : 'Αντιγραφή'}
-            </button>
-            <Link
-              href={info.path}
-              target="_blank"
-              className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 text-center"
-            >
+            </Button>
+            <ButtonLink href={info.path} target="_blank" variant="secondary">
               Προεπισκόπηση
-            </Link>
+            </ButtonLink>
           </div>
 
           {info.slugSupported && (
@@ -194,14 +186,9 @@ export default function InfluencerToolsPanel({
                     maxLength={40}
                   />
                 </div>
-                <button
-                  type="button"
-                  onClick={saveSlug}
-                  disabled={savingSlug}
-                  className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
-                >
+                <Button variant="secondary" onClick={saveSlug} disabled={savingSlug}>
                   {savingSlug ? '…' : 'Αποθήκευση'}
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -216,13 +203,9 @@ export default function InfluencerToolsPanel({
                 rows={2}
                 className="flex-1 px-3 py-2 border border-slate-300 rounded-lg bg-slate-50 text-slate-900 text-sm resize-none"
               />
-              <button
-                type="button"
-                onClick={() => copy(text, 'bio')}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
-              >
+              <Button variant="accent" onClick={() => copy(text, 'bio')}>
                 {copied === 'bio' ? 'Αντιγράφηκε' : 'Αντιγραφή κειμένου'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -231,13 +214,9 @@ export default function InfluencerToolsPanel({
           <h3 className="text-sm font-semibold text-slate-800 uppercase tracking-wide">QR code</h3>
           <img src={qrSrc} alt={`QR για ${displayName}`} className="w-44 h-44 mx-auto border border-slate-100 rounded-lg bg-white" />
           <p className="text-xs text-slate-500">Για story, media kit ή εκδήλωση.</p>
-          <button
-            type="button"
-            onClick={() => downloadQr(info.url)}
-            className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium hover:bg-slate-50"
-          >
+          <Button variant="secondary" className="w-full" onClick={() => downloadQr(info.url)}>
             Λήψη PNG
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -248,12 +227,9 @@ export default function InfluencerToolsPanel({
             Μία σελίδα με φωτο, bio, socials, min rate και το Influo link. Άνοιξε την και πάτα «Αποθήκευση ως PDF».
           </p>
         </div>
-        <Link
-          href="/dashboard/media-kit"
-          className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 whitespace-nowrap text-center"
-        >
+        <ButtonLink href="/dashboard/media-kit" variant="primary" className="whitespace-nowrap">
           Άνοιγμα media kit
-        </Link>
+        </ButtonLink>
       </div>
     </div>
   );

@@ -514,7 +514,7 @@ export default function BrandCampaignsSection({
             <button
               type="button"
               onClick={() => setDismissVerifiedModal(true)}
-              className="mt-6 w-full sm:w-auto px-5 py-2.5 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800"
+              className="mt-6 w-full sm:w-auto px-5 py-2.5 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800"
             >
               {t.verified_modal_ok}
             </button>
@@ -553,7 +553,7 @@ export default function BrandCampaignsSection({
           type="button"
           onClick={openNew}
           disabled={!brandVerified}
-          className="shrink-0 px-4 py-2.5 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-slate-900"
+          className="shrink-0 px-4 py-2.5 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-slate-900"
         >
           {t.new}
         </button>
@@ -650,14 +650,14 @@ export default function BrandCampaignsSection({
             <button
               type="submit"
               disabled={saving}
-              className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
             >
               {t.save}
             </button>
             <button
               type="button"
               onClick={() => setEditing(null)}
-              className="px-4 py-2 rounded-lg border border-slate-300 text-sm text-slate-700"
+              className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-900 hover:bg-slate-50"
             >
               {t.cancel}
             </button>
@@ -706,7 +706,7 @@ export default function BrandCampaignsSection({
                         setExpandedId(expandedId === row.id ? null : row.id);
                         if (expandedId !== row.id) loadApplications(row.id);
                       }}
-                      className="text-sm px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="text-sm px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 font-semibold hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {t.applications}
                     </button>
@@ -714,7 +714,7 @@ export default function BrandCampaignsSection({
                       type="button"
                       disabled={!brandVerified}
                       onClick={() => openEdit(row)}
-                      className="text-sm px-3 py-1.5 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="text-sm px-3 py-1.5 rounded-lg border border-blue-200 text-blue-800 font-semibold hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {t.edit}
                     </button>
@@ -722,7 +722,7 @@ export default function BrandCampaignsSection({
                       type="button"
                       disabled={!brandVerified}
                       onClick={() => remove(row)}
-                      className="text-sm px-3 py-1.5 rounded-lg border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="text-sm px-3 py-1.5 rounded-lg border border-red-200 text-red-800 font-semibold hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {t.delete}
                     </button>
@@ -797,7 +797,7 @@ export default function BrandCampaignsSection({
                                       <button
                                         type="button"
                                         onClick={() => reviewDeliverable(app.id, "approved")}
-                                        className="text-[11px] px-2 py-1 rounded bg-emerald-600 text-white"
+                                        className="text-[11px] px-2 py-1 rounded bg-emerald-700 text-white font-semibold"
                                       >
                                         {t.approve_deliverable}
                                       </button>
@@ -810,7 +810,7 @@ export default function BrandCampaignsSection({
                                               : "";
                                           void reviewDeliverable(app.id, "changes_requested", note);
                                         }}
-                                        className="text-[11px] px-2 py-1 rounded border border-amber-300 text-amber-800 bg-amber-50"
+                                        className="text-[11px] px-2 py-1 rounded border border-amber-300 text-amber-900 bg-amber-50 font-semibold"
                                       >
                                         {t.request_changes}
                                       </button>
@@ -829,7 +829,7 @@ export default function BrandCampaignsSection({
                                         displayName: app.influencers?.display_name || "Influencer",
                                       })
                                     }
-                                    className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 whitespace-nowrap"
+                                    className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 whitespace-nowrap"
                                   >
                                     {t.btn_chat}
                                   </button>

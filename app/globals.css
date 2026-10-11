@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  color-scheme: light;
   --background: #ffffff;
   --foreground: #0f172a;
   
@@ -39,13 +40,27 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Influo is a light UI. A light foreground makes outline buttons
+       (they inherit body color) nearly invisible on white cards. */
+    --background: #ffffff;
+    --foreground: #0f172a;
   }
   
   /* Override dark mode for select dropdowns - force white background */
   select, select *, select option, select option * {
     color-scheme: light !important;
+  }
+}
+
+/* Action controls stay readable even when a class forgets text color or weight.
+   Tailwind text-* and font-* utilities still override these defaults. */
+@layer base {
+  button,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"] {
+    font-weight: 600;
+    color: #0f172a;
   }
 }
 

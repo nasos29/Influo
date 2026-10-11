@@ -175,7 +175,7 @@ export default function PushNotificationPrompt({
             <button
               onClick={handleEnable}
               disabled={status === "subscribing"}
-              className="text-xs font-medium px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded disabled:opacity-70 disabled:cursor-not-allowed"
+              className="text-xs font-semibold text-white px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded disabled:opacity-70 disabled:cursor-not-allowed"
             >
               {status === "subscribing" ? (lang === "el" ? "Αναμονή…" : "Please wait…") : t.enable}
             </button>
@@ -183,7 +183,7 @@ export default function PushNotificationPrompt({
           <button
             onClick={() => setDismissed(true)}
             disabled={status === "subscribing"}
-            className="text-xs text-slate-400 hover:text-slate-200 disabled:opacity-50"
+            className="text-xs font-semibold text-slate-300 hover:text-white disabled:opacity-50"
           >
             {t.dismissed}
           </button>
