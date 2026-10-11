@@ -75,9 +75,14 @@ async function resolveTikTokUrl(url: string): Promise<string> {
       const res = await fetch(current, {
         method: 'GET',
         redirect: 'manual',
+        signal: AbortSignal.timeout(4000),
         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
       });
-      await res.body?.cancel?.();
+      try {
+        await res.body?.cancel?.();
+      } catch {
+        /* ignore */
+      }
       const loc = res.headers.get('location');
       if (!(res.status >= 300 && res.status < 400) || !loc) break;
       current = new URL(loc, current).href;

@@ -39,6 +39,7 @@ function tikTokIdFromUrl(url: string): string | null {
 /**
  * Resolve TikTok short/full URL → numeric id for official embed.
  * Short links (vm/vt) often 302 to /@/photo/{id} now, not /@user/video/{id}.
+ * Keep hops short — TikTok often stalls from Vercel datacenter IPs.
  */
 async function resolveTikTokVideoId(url: string): Promise<string | null> {
   const clean = url.split('?')[0].split('#')[0].trim();
@@ -51,9 +52,14 @@ async function resolveTikTokVideoId(url: string): Promise<string | null> {
       const res = await fetch(current, {
         method: 'GET',
         redirect: 'manual',
+        signal: AbortSignal.timeout(4000),
         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
       });
-      await res.body?.cancel?.();
+      try {
+        await res.body?.cancel?.();
+      } catch {
+        /* ignore */
+      }
       const loc = res.headers.get('location');
       if (!(res.status >= 300 && res.status < 400) || !loc) {
         return tikTokIdFromUrl(current);
@@ -66,6 +72,10 @@ async function resolveTikTokVideoId(url: string): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+function isOfficialTikTokEmbed(embedUrl: string): boolean {
+  return /tiktok\.com\/embed\/v2\/\d+/i.test(embedUrl);
 }
 
 /** Resolve YouTube watch/shorts/youtu.be → 11-char video id. */
@@ -104,8 +114,30 @@ export async function GET(req: NextRequest) {
 
     const provider = detectProvider(originalUrl);
 
-    // TikTok: prefer official player (plays on-site). Do this before IFRAMELY_API_KEY check.
+    // TikTok: serve cached official embed first (short-link resolve often stalls on Vercel).
     if (provider === 'tiktok' && !frameMode) {
+      try {
+        const { data: cachedTt } = await supabaseAdmin
+          .from('video_embed_cache')
+          .select('embed_url, provider, cached_at, expires_at')
+          .eq('original_url', originalUrl)
+          .maybeSingle();
+        if (
+          cachedTt?.embed_url &&
+          isOfficialTikTokEmbed(String(cachedTt.embed_url)) &&
+          new Date(cachedTt.expires_at) > new Date()
+        ) {
+          return NextResponse.json({
+            embed_url: cachedTt.embed_url,
+            provider: 'tiktok',
+            cached: true,
+            cached_at: cachedTt.cached_at,
+          });
+        }
+      } catch {
+        /* cache optional */
+      }
+
       const videoId = await resolveTikTokVideoId(originalUrl);
       if (videoId) {
         const embedUrl = `https://www.tiktok.com/embed/v2/${videoId}`;
