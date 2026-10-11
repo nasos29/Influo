@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseService } from "@/lib/apiAuth";
 import { brandHasAccount, guardProposalAction, influencerContact, isGuardFailure } from "@/lib/proposalAccess";
 import { mailCounter } from "@/lib/proposalMail";
+import { deferAfterResponse, pushParty } from "@/lib/proposalNotify";
 import { cleanBudget, clipText } from "@/lib/proposalParty";
 
 export async function POST(request: Request) {
@@ -26,16 +27,33 @@ export async function POST(request: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     const proposal = guarded.proposal;
-    const influencer = await influencerContact(proposal.influencer_id);
-    await mailCounter({
-      brandEmail: proposal.brand_email,
-      brandName: proposal.brand_name || "Επιχείρηση",
-      influencerName: influencer.name,
-      service: proposal.service_type || "",
-      budget: proposal.budget || "",
-      counterBudget,
-      counterMessage,
-      brandHasAccount: proposal.brand_email ? await brandHasAccount(proposal.brand_email) : false,
+    deferAfterResponse(async () => {
+      const influencer = await influencerContact(proposal.influencer_id);
+      const email = proposal.brand_email;
+      await Promise.all([
+        mailCounter({
+          brandEmail: email,
+          brandName: proposal.brand_name || "Επιχείρηση",
+          influencerName: influencer.name,
+          service: proposal.service_type || "",
+          budget: proposal.budget || "",
+          counterBudget,
+          counterMessage,
+          brandHasAccount: email ? await brandHasAccount(email) : false,
+        }),
+        pushParty({
+          type: "counter_new",
+          side: "brand",
+          influencerId: proposal.influencer_id,
+          brandEmail: email,
+          payload: {
+            title: "Νέα αντιπρόταση",
+            body: `${influencer.name} προτείνει €${counterBudget}.`,
+            url: "/brand/dashboard",
+            tag: "counter-proposal",
+          },
+        }),
+      ]);
     });
     return NextResponse.json({ success: true });
   } catch (error) {

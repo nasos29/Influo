@@ -759,7 +759,7 @@ export default function BrandDashboardContent() {
       // Load recommendations
       await loadRecommendations(brandData);
 
-      const proposalsResponse = await sessionFetch('/api/proposals?role=brand');
+      const proposalsResponse = await sessionFetch('/api/proposals?role=brand', { cache: 'no-store' });
       const proposalsBody = await proposalsResponse.json().catch(() => ({}));
       if (!proposalsResponse.ok) throw new Error(proposalsBody.error || 'Could not load proposals');
       const proposalsData = Array.isArray(proposalsBody.proposals) ? proposalsBody.proposals as Proposal[] : [];
@@ -812,7 +812,19 @@ export default function BrandDashboardContent() {
 
       const result = await response.json();
       if (result.success) {
-        await loadData();
+        const acceptedId = selectedProposal.id;
+        setProposals((prev) =>
+          prev.map((row) => (row.id === acceptedId ? { ...row, brand_agreement_accepted: true } : row))
+        );
+        const proposalsResponse = await sessionFetch('/api/proposals?role=brand', { cache: 'no-store' });
+        const proposalsBody = await proposalsResponse.json().catch(() => ({}));
+        if (proposalsResponse.ok && Array.isArray(proposalsBody.proposals)) {
+          setProposals(
+            (proposalsBody.proposals as Proposal[]).map((row) =>
+              row.id === acceptedId ? { ...row, brand_agreement_accepted: true } : row
+            )
+          );
+        }
         setShowAgreementModal(false);
         setSelectedProposal(null);
         setAgreementAccepted(false);

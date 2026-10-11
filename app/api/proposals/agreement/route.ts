@@ -10,6 +10,7 @@ import {
   requireActor,
 } from "@/lib/proposalAccess";
 import { mailAgreement, mailCollaborationComplete } from "@/lib/proposalMail";
+import { deferAfterResponse, pushParty } from "@/lib/proposalNotify";
 import { partyProposalView, type ProposalParty } from "@/lib/proposalParty";
 
 function preferredParty(value: unknown): ProposalParty | null {
@@ -64,12 +65,12 @@ export async function POST(request: Request) {
 
     const influencerAccepted = party === "influencer" ? true : !!proposal.influencer_agreement_accepted;
     const brandAccepted = party === "brand" ? true : !!proposal.brand_agreement_accepted;
-    const influencer = await influencerContact(proposal.influencer_id);
     const amount = String(proposal.counter_proposal_status === "accepted" && proposal.counter_proposal_budget
       ? proposal.counter_proposal_budget
       : proposal.budget || "");
+    const completed = influencerAccepted && brandAccepted && !proposal.brand_added_to_past_brands;
 
-    if (influencerAccepted && brandAccepted && !proposal.brand_added_to_past_brands) {
+    if (completed) {
       updateData.agreement_accepted_at = new Date().toISOString();
       const current = await supabaseService()
         .from("influencers")
@@ -85,35 +86,75 @@ export async function POST(request: Request) {
           .eq("id", proposal.influencer_id);
         updateData.brand_added_to_past_brands = true;
       }
-      await mailCollaborationComplete({
-        influencerEmail: influencer.email,
-        influencerName: influencer.name,
-        brandName: brandName || "Επιχείρηση",
-      });
-    } else if (party === "influencer") {
-      await mailAgreement({
-        to: proposal.brand_email,
-        recipientName: proposal.brand_name || "Επιχείρηση",
-        otherName: influencer.name,
-        service: proposal.service_type || "",
-        budget: amount,
-        toBrand: true,
-        brandHasAccount: proposal.brand_email ? await brandHasAccount(proposal.brand_email) : false,
-      });
-    } else {
-      await mailAgreement({
-        to: influencer.email,
-        recipientName: influencer.name,
-        otherName: proposal.brand_name || "Επιχείρηση",
-        service: proposal.service_type || "",
-        budget: amount,
-        toBrand: false,
-        brandHasAccount: false,
-      });
     }
 
     const { error } = await supabaseService().from("proposals").update(updateData).eq("id", proposal.id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    const otherSide = party === "influencer" ? "brand" : "influencer";
+    deferAfterResponse(async () => {
+      const influencer = await influencerContact(proposal.influencer_id);
+      const brandName = proposal.brand_name || "Επιχείρηση";
+      const email = proposal.brand_email;
+      const notifyOther = pushParty({
+        type: completed ? "collaboration_complete" : "agreement_accepted",
+        side: otherSide,
+        influencerId: proposal.influencer_id,
+        brandEmail: email,
+        payload:
+          otherSide === "brand"
+            ? {
+                title: completed ? "Η συμφωνία ολοκληρώθηκε" : "Αποδοχή συμφωνίας",
+                body: `${influencer.name} αποδέχτηκε τη συμφωνία.`,
+                url: "/brand/dashboard",
+                tag: completed ? "agreement-complete" : "agreement-accepted",
+              }
+            : {
+                title: completed ? "Η συμφωνία ολοκληρώθηκε" : "Αποδοχή συμφωνίας",
+                body: `${brandName} αποδέχτηκε τη συμφωνία.`,
+                url: "/dashboard",
+                tag: completed ? "agreement-complete" : "agreement-accepted",
+              },
+      });
+      if (completed) {
+        await Promise.all([
+          mailCollaborationComplete({
+            influencerEmail: influencer.email,
+            influencerName: influencer.name,
+            brandName,
+          }),
+          notifyOther,
+        ]);
+        return;
+      }
+      if (party === "influencer") {
+        await Promise.all([
+          mailAgreement({
+            to: email,
+            recipientName: brandName,
+            otherName: influencer.name,
+            service: proposal.service_type || "",
+            budget: amount,
+            toBrand: true,
+            brandHasAccount: email ? await brandHasAccount(email) : false,
+          }),
+          notifyOther,
+        ]);
+        return;
+      }
+      await Promise.all([
+        mailAgreement({
+          to: influencer.email,
+          recipientName: influencer.name,
+          otherName: brandName,
+          service: proposal.service_type || "",
+          budget: amount,
+          toBrand: false,
+          brandHasAccount: false,
+        }),
+        notifyOther,
+      ]);
+    });
     return NextResponse.json({ success: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not save the agreement";

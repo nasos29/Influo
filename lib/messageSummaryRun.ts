@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { logEmail } from "@/lib/deliveryLog";
 import { supabaseService } from "@/lib/apiAuth";
 import {
   adminInboxAddress,
@@ -214,17 +215,26 @@ export function createSupabaseAdminSummaryStore(): AdminSummaryStore {
   };
 }
 
-async function sendWithResend(mail: { to: string; subject: string; html: string }) {
+async function sendWithResend(type: "message_summary" | "message_summary_admin", mail: { to: string; subject: string; html: string }) {
   const key = process.env.RESEND_API_KEY;
-  if (!key) throw new Error("RESEND_API_KEY missing");
+  if (!key) {
+    logEmail(type, false);
+    throw new Error("RESEND_API_KEY missing");
+  }
   const resend = new Resend(key);
-  const { error } = await resend.emails.send({
-    from: FROM,
-    to: mail.to,
-    subject: mail.subject,
-    html: mail.html,
-  });
-  if (error) throw new Error(error.message);
+  try {
+    const { error } = await resend.emails.send({
+      from: FROM,
+      to: mail.to,
+      subject: mail.subject,
+      html: mail.html,
+    });
+    if (error) throw new Error(error.message);
+    logEmail(type, true);
+  } catch (error) {
+    logEmail(type, false);
+    throw error instanceof Error ? error : new Error("Could not send the summary");
+  }
 }
 
 export type SummaryRunResult = {
@@ -242,7 +252,7 @@ async function deliverAdmin(options?: {
 }): Promise<{ sent: number; skipped: number; errors: string[] }> {
   return deliverAdminSummaries({
     store: createSupabaseAdminSummaryStore(),
-    send: sendWithResend,
+    send: (mail) => sendWithResend("message_summary_admin", mail),
     adminEmail: adminInboxAddress(process.env.ADMIN_EMAIL),
     now: options?.now,
     quietMinutes: quietMinutesFromEnv(process.env.MESSAGE_SUMMARY_QUIET_MINUTES),
@@ -276,7 +286,7 @@ export async function runMessageSummaries(options?: {
   }
   const participant = await deliverSummaries({
     store: createSupabaseSummaryStore(),
-    send: sendWithResend,
+    send: (mail) => sendWithResend("message_summary", mail),
     now: options?.now,
     quietMinutes: quietMinutesFromEnv(process.env.MESSAGE_SUMMARY_QUIET_MINUTES),
     forceConversationId: options?.forceConversationId,

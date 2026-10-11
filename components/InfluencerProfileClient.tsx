@@ -282,6 +282,7 @@ const t = {
     modal_srv: "Επιλογή Υπηρεσίας",
     modal_brand: "Όνομα Επιχείρησης",
     modal_email: "Email Επιχείρησης",
+    modal_as: "Η πρόταση στέλνεται ως",
     modal_bud: "Budget (€)",
     modal_desc: "Περιγραφή Project",
     modal_btn: "Αποστολή Πρότασης",
@@ -372,6 +373,7 @@ const t = {
     modal_srv: "Select Service",
     modal_brand: "Company Name",
     modal_email: "Company Email",
+    modal_as: "This offer is sent as",
     modal_bud: "Budget (€)",
     modal_desc: "Project Details",
     modal_btn: "Send Proposal",
@@ -464,72 +466,40 @@ export default function InfluencerProfile(props: {
   const [growth30d, setGrowth30d] = useState<{ growth: number; growthPct: number | null } | null>(null);
   const [growthSeries, setGrowthSeries] = useState<FollowerGrowthPoint[]>([]);
 
-  // Check if current user is a brand
+  // Brand-only requests wait until /api/me/profile confirms a brand row.
   useEffect(() => {
-    const checkUserType = async () => {
-      // First, check sessionStorage for immediate display (fast)
-      if (typeof window !== 'undefined') {
-        const sessionBrand = sessionStorage.getItem('isBrand');
-        if (sessionBrand === 'true') {
-          setIsBrand(true); // Show button immediately
-        }
-      }
-
-      // Then verify with API (background check)
+    let cancelled = false;
+    (async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (cancelled) return;
+        if (!session?.access_token) {
           setIsBrand(false);
-          if (typeof window !== 'undefined') {
-            sessionStorage.removeItem('isBrand');
-          }
+          sessionStorage.removeItem("isBrand");
           return;
         }
-
-        // Check if user is a brand using API route to avoid hanging queries
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.access_token) {
-          const response = await fetch('/api/user/profile', {
-            headers: {
-              'Authorization': `Bearer ${session.access_token}`
-            }
-          });
-          if (response.ok) {
-            const result = await response.json();
-            const isBrandUser = result.profile?.type === 'brand';
-            setIsBrand(isBrandUser); // Update state with actual value
-            
-            // Update sessionStorage to match actual user type
-            if (typeof window !== 'undefined') {
-              if (isBrandUser) {
-                sessionStorage.setItem('isBrand', 'true');
-              } else {
-                sessionStorage.removeItem('isBrand');
-              }
-            }
-          } else {
-            setIsBrand(false);
-            if (typeof window !== 'undefined') {
-              sessionStorage.removeItem('isBrand');
-            }
-          }
-        } else {
-          setIsBrand(false);
-          if (typeof window !== 'undefined') {
-            sessionStorage.removeItem('isBrand');
-          }
+        const profiles = await loadOwnProfiles(supabase);
+        if (cancelled) return;
+        const brand = profiles.ok ? profiles.brand : null;
+        setIsBrand(!!brand);
+        if (!brand) {
+          sessionStorage.removeItem("isBrand");
+          return;
         }
+        sessionStorage.setItem("isBrand", "true");
+        const name = typeof brand.brand_name === "string" ? brand.brand_name.trim() : "";
+        const contact = typeof brand.contact_email === "string" ? brand.contact_email.trim() : "";
+        const email = contact.includes("@") ? contact : (session.user.email || "").trim();
+        if (name) setBrandName(name);
+        if (email) setBrandEmail(email);
       } catch (error) {
-        console.error('Error checking user type:', error);
-        // Don't hide button if sessionStorage says it's a brand (fail gracefully)
-        // Only hide if sessionStorage doesn't say it's a brand
-        if (typeof window === 'undefined' || sessionStorage.getItem('isBrand') !== 'true') {
-          setIsBrand(false);
-        }
+        console.error("Error checking user type:", error);
+        if (!cancelled) setIsBrand(false);
       }
+    })();
+    return () => {
+      cancelled = true;
     };
-
-    checkUserType();
   }, []);
 
   useEffect(() => {
@@ -1214,6 +1184,11 @@ export default function InfluencerProfile(props: {
                                 </div>
                             </div>
 
+                            {isBrand ? (
+                                <p className="text-sm text-slate-600">
+                                    {txt.modal_as}{brandName || brandEmail ? <> <strong>{brandName || brandEmail}</strong></> : null}
+                                </p>
+                            ) : (
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.modal_brand}</label>
@@ -1224,6 +1199,7 @@ export default function InfluencerProfile(props: {
                                     <input required type="email" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white" placeholder="Email" value={brandEmail} onChange={e => setBrandEmail(e.target.value)} />
                                 </div>
                             </div>
+                            )}
                             
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.modal_bud}</label>
