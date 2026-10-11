@@ -2094,6 +2094,21 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const linkedConversationId = useRef<string | null>(null);
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("conversation");
+    if (!id) return;
+    linkedConversationId.current = id;
+    setActiveTab("conversations");
+  }, []);
+  useEffect(() => {
+    const id = linkedConversationId.current;
+    if (!id) return;
+    const match = conversations.find((c) => c.id === id);
+    if (!match) return;
+    setSelectedConversation((current) => (current && current.id !== id ? current : match));
+  }, [conversations]);
+
   useEffect(() => {
     if (selectedConversation) {
       fetchConversationMessages(selectedConversation.id);

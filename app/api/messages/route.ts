@@ -47,7 +47,7 @@ async function insertMessage(row: Record<string, unknown>) {
   const admin = supabaseService();
   const payload: Record<string, unknown> = { ...row };
   let lastError = "Insert failed";
-  for (let attempt = 0; attempt < 4; attempt++) {
+  for (let attempt = 0; attempt < 5; attempt++) {
     const result = await admin.from("messages").insert([payload]).select().single();
     if (!result.error) return { data: result.data, error: null as string | null };
     lastError = result.error.message || lastError;
@@ -58,6 +58,10 @@ async function insertMessage(row: Record<string, unknown>) {
     }
     if (/email_sent/i.test(lastError) && "email_sent" in payload) {
       delete payload.email_sent;
+      continue;
+    }
+    if (/admin_notified/i.test(lastError) && "admin_notified" in payload) {
+      delete payload.admin_notified;
       continue;
     }
     if (/sent_via_email/i.test(lastError) && "sent_via_email" in payload) {
@@ -222,6 +226,7 @@ export async function POST(req: Request) {
         read: false,
         sent_via_email: false,
         email_sent: false,
+        admin_notified: false,
       });
       if (inserted.error || !inserted.data) return NextResponse.json({ error: inserted.error || "Insert failed" }, { status: 500 });
 
@@ -271,6 +276,7 @@ export async function POST(req: Request) {
       read: false,
       sent_via_email: false,
       email_sent: false,
+      admin_notified: false,
     });
     if (inserted.error || !inserted.data) return NextResponse.json({ error: inserted.error || "Insert failed" }, { status: 500 });
 

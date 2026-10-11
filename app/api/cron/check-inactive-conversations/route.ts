@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { closeConversation } from '@/lib/closeConversation';
-import { runMessageSummaries } from '@/lib/messageSummaryRun';
+import { runAdminMessageSummaries, runMessageSummaries } from '@/lib/messageSummaryRun';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -11,7 +11,8 @@ export const maxDuration = 60;
 
 /**
  * Closes threads with no message for 10+ minutes.
- * Also sends at most one unread summary per quiet conversation (default 20 minutes).
+ * Also sends at most one unread summary per quiet conversation (default 20 minutes),
+ * and one admin summary per quiet or newly closed conversation.
  * Does not email a full transcript.
  */
 export async function GET(req: Request) {
@@ -90,11 +91,24 @@ export async function GET(req: Request) {
       }
     }
 
+    const newlyClosed = results
+      .filter((row) => row.status === 'closed')
+      .map((row) => row.conversationId);
+    let adminAfterClose: { sent: number; skipped: number; errors: string[] } | null = null;
+    if (newlyClosed.length > 0) {
+      try {
+        adminAfterClose = await runAdminMessageSummaries({ includeClosed: true });
+      } catch (error) {
+        console.error('[Cron] admin summary after close failed:', error);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       message: `Processed ${inactiveConversations.length} conversations`,
       results,
       summary,
+      adminAfterClose,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Cron error';

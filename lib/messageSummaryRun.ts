@@ -1,6 +1,13 @@
 import { Resend } from "resend";
 import { supabaseService } from "@/lib/apiAuth";
 import {
+  adminInboxAddress,
+  deliverAdminSummaries,
+  type AdminConversation,
+  type AdminSummaryMessage,
+  type AdminSummaryStore,
+} from "@/lib/adminMessageSummary";
+import {
   deliverSummaries,
   quietMinutesFromEnv,
   type SummaryConversation,
@@ -125,6 +132,88 @@ export function createSupabaseSummaryStore(): SummaryStore {
   };
 }
 
+function asAdminMessage(row: Record<string, unknown>): AdminSummaryMessage | null {
+  if (!row.id || !row.conversation_id) return null;
+  const sender = row.sender_type === "brand" ? "brand" : row.sender_type === "influencer" ? "influencer" : null;
+  if (!sender) return null;
+  return {
+    id: String(row.id),
+    conversation_id: String(row.conversation_id),
+    sender_type: sender,
+    content: typeof row.content === "string" ? row.content : "",
+    created_at: typeof row.created_at === "string" ? row.created_at : new Date(0).toISOString(),
+    admin_notified: row.admin_notified === true,
+  };
+}
+
+function asAdminConversation(row: Record<string, unknown>): AdminConversation | null {
+  if (!row.id) return null;
+  return {
+    id: String(row.id),
+    influencer_name: typeof row.influencer_name === "string" ? row.influencer_name : null,
+    brand_name: typeof row.brand_name === "string" ? row.brand_name : null,
+    brand_email: typeof row.brand_email === "string" ? row.brand_email : null,
+    last_message_at: typeof row.last_message_at === "string" ? row.last_message_at : null,
+    closed_at: typeof row.closed_at === "string" ? row.closed_at : null,
+  };
+}
+
+export function createSupabaseAdminSummaryStore(): AdminSummaryStore {
+  const admin = supabaseService();
+  const messageSelect = "id, conversation_id, sender_type, content, created_at, admin_notified";
+
+  return {
+    async listUnnotified(limit: number) {
+      const { data, error } = await admin
+        .from("messages")
+        .select(messageSelect)
+        .or("admin_notified.eq.false,admin_notified.is.null")
+        .order("created_at", { ascending: true })
+        .limit(limit);
+      if (error) throw new Error(error.message);
+      return (data || []).map((row) => asAdminMessage(row as Record<string, unknown>)).filter((m): m is AdminSummaryMessage => !!m);
+    },
+    async listUnnotifiedForConversation(conversationId: string) {
+      const { data, error } = await admin
+        .from("messages")
+        .select(messageSelect)
+        .eq("conversation_id", conversationId)
+        .or("admin_notified.eq.false,admin_notified.is.null")
+        .order("created_at", { ascending: true })
+        .limit(200);
+      if (error) throw new Error(error.message);
+      return (data || []).map((row) => asAdminMessage(row as Record<string, unknown>)).filter((m): m is AdminSummaryMessage => !!m);
+    },
+    async listConversations(ids: string[]) {
+      if (!ids.length) return [];
+      const { data, error } = await admin
+        .from("conversations")
+        .select("id, influencer_name, brand_name, brand_email, last_message_at, closed_at")
+        .in("id", ids);
+      if (error) throw new Error(error.message);
+      return (data || [])
+        .map((row) => asAdminConversation(row as Record<string, unknown>))
+        .filter((c): c is AdminConversation => !!c);
+    },
+    async claim(ids: string[]) {
+      if (!ids.length) return [];
+      const { data, error } = await admin
+        .from("messages")
+        .update({ admin_notified: true })
+        .in("id", ids)
+        .or("admin_notified.eq.false,admin_notified.is.null")
+        .select("id");
+      if (error) throw new Error(error.message);
+      return (data || []).map((row) => String((row as { id: string }).id));
+    },
+    async release(ids: string[]) {
+      if (!ids.length) return;
+      const { error } = await admin.from("messages").update({ admin_notified: false }).in("id", ids);
+      if (error) throw new Error(error.message);
+    },
+  };
+}
+
 async function sendWithResend(mail: { to: string; subject: string; html: string }) {
   const key = process.env.RESEND_API_KEY;
   if (!key) throw new Error("RESEND_API_KEY missing");
@@ -138,14 +227,54 @@ async function sendWithResend(mail: { to: string; subject: string; html: string 
   if (error) throw new Error(error.message);
 }
 
-export async function runMessageSummaries(options?: {
+export type SummaryRunResult = {
+  sent: number;
+  skipped: number;
+  errors: string[];
+  adminSent: number;
+  adminSkipped: number;
+};
+
+async function deliverAdmin(options?: {
   forceConversationId?: string;
+  includeClosed?: boolean;
+  now?: Date;
+}): Promise<{ sent: number; skipped: number; errors: string[] }> {
+  return deliverAdminSummaries({
+    store: createSupabaseAdminSummaryStore(),
+    send: sendWithResend,
+    adminEmail: adminInboxAddress(process.env.ADMIN_EMAIL),
+    now: options?.now,
+    quietMinutes: quietMinutesFromEnv(process.env.MESSAGE_SUMMARY_QUIET_MINUTES),
+    forceConversationId: options?.forceConversationId,
+    includeClosed: options?.includeClosed,
+    siteUrl: siteUrl(),
+  });
+}
+
+export async function runAdminMessageSummaries(options?: {
+  forceConversationId?: string;
+  includeClosed?: boolean;
   now?: Date;
 }): Promise<{ sent: number; skipped: number; errors: string[] }> {
   if (!process.env.RESEND_API_KEY) {
     return { sent: 0, skipped: 0, errors: ["RESEND_API_KEY missing"] };
   }
-  return deliverSummaries({
+  try {
+    return await deliverAdmin(options);
+  } catch (error) {
+    return { sent: 0, skipped: 0, errors: [error instanceof Error ? error.message : String(error)] };
+  }
+}
+
+export async function runMessageSummaries(options?: {
+  forceConversationId?: string;
+  now?: Date;
+}): Promise<SummaryRunResult> {
+  if (!process.env.RESEND_API_KEY) {
+    return { sent: 0, skipped: 0, adminSent: 0, adminSkipped: 0, errors: ["RESEND_API_KEY missing"] };
+  }
+  const participant = await deliverSummaries({
     store: createSupabaseSummaryStore(),
     send: sendWithResend,
     now: options?.now,
@@ -153,4 +282,15 @@ export async function runMessageSummaries(options?: {
     forceConversationId: options?.forceConversationId,
     siteUrl: siteUrl(),
   });
+  const admin = await runAdminMessageSummaries({
+    forceConversationId: options?.forceConversationId,
+    now: options?.now,
+  });
+  return {
+    sent: participant.sent,
+    skipped: participant.skipped,
+    adminSent: admin.sent,
+    adminSkipped: admin.skipped,
+    errors: [...participant.errors, ...admin.errors],
+  };
 }
