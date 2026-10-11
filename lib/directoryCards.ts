@@ -2,6 +2,7 @@ import type { Influencer } from "@/components/Directory";
 import { normalizeGender } from "@/lib/gender";
 import { loadInfluencerRows } from "@/lib/loadPublicInfluencers";
 import { parseFollowerString } from "@/lib/parseFollowers";
+import { parseStoredCategories } from "@/lib/categories";
 import {
   DIRECTORY_QUERY_COLUMNS,
   findPrivateFieldPaths,
@@ -40,7 +41,7 @@ export function mapDirectoryCard(row: Record<string, unknown>): Influencer {
     verified: !!row.analytics_verified,
     socials,
     followers,
-    categories: category ? category.split(",").map((part) => part.trim()).filter(Boolean) : ["New"],
+    categories: category ? (parseStoredCategories(category).length ? parseStoredCategories(category) : ["New"]) : ["New"],
     languages: asLanguages(row.languages),
     platform: "Instagram",
     gender: normalizeGender(typeof row.gender === "string" ? row.gender : null),

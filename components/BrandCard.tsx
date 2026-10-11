@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { getCachedImageUrl } from "@/lib/imageProxy";
 import FastImage from "@/components/FastImage";
+import { formatCategoryLabels } from "@/lib/categories";
 
 interface BrandCardProps {
   id: string;
@@ -76,7 +77,7 @@ export default function BrandCard({
         <div className="mb-3">
           <h4 className="text-base font-semibold text-slate-900 truncate mb-1">{brand_name}</h4>
           {industry && (
-            <p className="text-slate-600 text-xs mb-2">{industry}</p>
+            <p className="text-slate-600 text-xs mb-2">{formatCategoryLabels(industry, lang)}</p>
           )}
         </div>
 

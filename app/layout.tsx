@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     template: "%s | Influo",
   },
   description: "Βρες influencers στην Ελλάδα ανά κατηγορία, πλατφόρμα και budget. Δωρεάν εγγραφή για brands και creators, verified προφίλ και καμπάνιες σε ένα μέρος.",
-  keywords: ["influencer marketing", "influencer marketing Ελλάδα", "brand collaborations", "content creators", "Ελλάδα", "πλατφόρμα influencers", "διαφήμιση στα social media", "συνεργασίες με brands", "creator economy", "διαφημίσεις influencers", "προώθηση προϊόντων", "influencer Ελλάδα"],
+  keywords: ["influencer marketing", "influencer marketing Ελλάδα", "brand collaborations", "content creators", "Ελλάδα", "πλατφόρμα influencers", "διαφήμιση στα social media", "συνεργασίες με brands", "creator economy", "διαφημίσεις influencers", "προώθηση προϊόντων", "influencer Ελλάδα", "Unboxing", "unboxing influencer"],
   authors: [{ name: "Influo" }],
   creator: "Influo",
   publisher: "Influo",

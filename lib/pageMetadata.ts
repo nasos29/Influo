@@ -10,12 +10,14 @@ export function pageMetadata(opts: {
   enPath?: string;
   locale?: "el_GR" | "en_US";
   index?: boolean;
+  keywords?: string[];
 }): Metadata {
   const index = opts.index !== false;
   const elPath = opts.elPath || opts.path;
   return {
     title: { absolute: opts.title },
     description: opts.description,
+    ...(opts.keywords?.length ? { keywords: opts.keywords } : {}),
     robots: index
       ? { index: true, follow: true }
       : { index: false, follow: false, googleBot: { index: false, follow: false } },

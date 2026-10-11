@@ -23,6 +23,8 @@ import BrandToolsPanel from '@/components/BrandToolsPanel';
 import InfluencerPresenceDot from '@/components/InfluencerPresenceDot';
 import { loadOwnProfiles } from '@/lib/ownProfile';
 import { publicProfilePath } from '@/lib/profileSlug';
+import { CATEGORIES, categoriesMatchFilter, categoryLabel, formatStoredCategories, parseStoredCategories } from "@/lib/categories";
+import CategoryCheckboxList from "@/components/CategoryCheckboxList";
 import {
   addBrandShortlist,
   fetchBrandShortlist,
@@ -30,40 +32,6 @@ import {
   updateBrandShortlistNote,
   type BrandShortlistItem,
 } from '@/lib/brandShortlist';
-
-// Categories (same as Directory and InfluencerSignupForm)
-const CATEGORIES = [
-  "Γενικά", "Lifestyle", "Fashion & Style", "Beauty & Makeup", "Travel", "Food & Drink",
-  "Health & Fitness", "Tech & Gadgets", "Business & Finance", "Gaming & Esports",
-  "Parenting & Family", "Home & Decor", "Pets & Animals", "Comedy & Entertainment",
-  "Art & Photography", "Music & Dance", "Education & Coaching", "Sports & Athletes",
-  "DIY & Crafts", "Sustainability & Eco", "Cars & Automotive"
-];
-
-// Category translations (same as Directory)
-const categoryTranslations: { [key: string]: { el: string; en: string } } = {
-  "Lifestyle": { el: "Lifestyle", en: "Lifestyle" },
-  "Fashion & Style": { el: "Μόδα & Στυλ", en: "Fashion & Style" },
-  "Beauty & Makeup": { el: "Ομορφιά & Μακιγιάζ", en: "Beauty & Makeup" },
-  "Travel": { el: "Ταξίδια", en: "Travel" },
-  "Food & Drink": { el: "Φαγητό & Ποτά", en: "Food & Drink" },
-  "Health & Fitness": { el: "Υγεία & Fitness", en: "Health & Fitness" },
-  "Tech & Gadgets": { el: "Τεχνολογία & Gadgets", en: "Tech & Gadgets" },
-  "Business & Finance": { el: "Επιχειρήσεις & Οικονομικά", en: "Business & Finance" },
-  "Gaming & Esports": { el: "Gaming & Esports", en: "Gaming & Esports" },
-  "Parenting & Family": { el: "Οικογένεια & Παιδιά", en: "Parenting & Family" },
-  "Home & Decor": { el: "Σπίτι & Διακόσμηση", en: "Home & Decor" },
-  "Pets & Animals": { el: "Κατοικίδια & Ζώα", en: "Pets & Animals" },
-  "Comedy & Entertainment": { el: "Κωμωδία & Ψυχαγωγία", en: "Comedy & Entertainment" },
-  "Art & Photography": { el: "Τέχνη & Φωτογραφία", en: "Art & Photography" },
-  "Music & Dance": { el: "Μουσική & Χορός", en: "Music & Dance" },
-  "Education & Coaching": { el: "Εκπαίδευση & Coaching", en: "Education & Coaching" },
-  "Sports & Athletes": { el: "Αθλήματα & Αθλητές", en: "Sports & Athletes" },
-  "DIY & Crafts": { el: "DIY & Χειροτεχνίες", en: "DIY & Crafts" },
-  "Sustainability & Eco": { el: "Βιωσιμότητα & Οικολογία", en: "Sustainability & Eco" },
-  "Cars & Automotive": { el: "Αυτοκίνητα", en: "Cars & Automotive" },
-  "Γενικά": { el: "Γενικά", en: "General" },
-};
 
 interface Proposal {
   id: string;
@@ -97,8 +65,6 @@ type EditBrandModalProps = {
   updating: boolean;
   lang: 'el' | 'en';
   txt: any;
-  categories: string[];
-  categoryTranslations: { [key: string]: { el: string; en: string } };
 };
 
 const t = {
@@ -223,11 +189,11 @@ const t = {
 };
 
 // Edit Brand Modal Component
-function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, categories, categoryTranslations }: EditBrandModalProps) {
+function EditBrandModal({ brand, onClose, onSave, updating, lang, txt }: EditBrandModalProps) {
   const [brandName, setBrandName] = useState(brand.brand_name || '');
   const [contactPerson, setContactPerson] = useState(brand.contact_person || '');
   const [website, setWebsite] = useState(brand.website || '');
-  const [category, setCategory] = useState(brand.industry || brand.category || '');
+  const [categories, setCategories] = useState<string[]>(parseStoredCategories(brand.industry || brand.category || ''));
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(brand.logo_url || null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -247,6 +213,10 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, categorie
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (parseStoredCategories(categories).length === 0) {
+      alert(lang === 'el' ? 'Επιλέξτε τουλάχιστον μία κατηγορία.' : 'Select at least one category.');
+      return;
+    }
     
     let logoUrl = brand.logo_url || null;
     
@@ -315,7 +285,7 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, categorie
       brand_name: brandName.trim(),
       contact_person: contactPerson.trim() || null,
       website: website.trim() || null,
-      category: category.trim() || null,
+      category: formatStoredCategories(categories) || null,
       logo_url: logoUrl,
     });
   };
@@ -395,24 +365,14 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, categorie
             </p>
           </div>
 
-          {/* Category */}
-          <div>
-            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
-              {txt.edit_category} *
-            </label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              required
-              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-            >
-              {categories.map(cat => (
-                <option key={cat} value={cat}>
-                  {lang === 'el' ? (categoryTranslations[cat]?.el || cat) : (categoryTranslations[cat]?.en || cat)}
-                </option>
-              ))}
-            </select>
-          </div>
+          <CategoryCheckboxList
+            lang={lang}
+            selected={categories}
+            onChange={setCategories}
+            label={`${txt.edit_category} *`}
+            description={lang === 'el' ? 'Επιλέξτε μία ή περισσότερες κατηγορίες' : 'Select one or more categories'}
+            compact
+          />
 
           {/* Website */}
           <div>
@@ -957,17 +917,12 @@ export default function BrandDashboardContent() {
           avg_likes = fromAccounts.avg_likes ?? inf.avg_likes;
         }
 
+        const parsedCategories = parseStoredCategories(inf.category);
         return {
           id: inf.id,
           display_name: inf.display_name || 'Unknown',
-          category: inf.category,
-          categories: typeof inf.category === "string"
-            ? (inf.category.includes(",")
-                ? inf.category.split(",").map((c: string) => c.trim()).filter(Boolean)
-                : [inf.category])
-            : Array.isArray(inf.category)
-              ? inf.category.filter((c: unknown): c is string => typeof c === "string" && c.length > 0)
-              : undefined,
+          category: parsedCategories[0] || inf.category,
+          categories: parsedCategories,
           engagement_rate,
           followers_count,
           avg_likes,
@@ -1019,22 +974,13 @@ export default function BrandDashboardContent() {
       
       if (recommendationFilters.category) {
         filteredProfiles = filteredProfiles.filter(inf => {
-          // Support "Γενικά" / "General" - matches all
           if (recommendationFilters.category === "Γενικά" || recommendationFilters.category === "General") {
-            return true; // Show all
-          }
-          
-          // Check primary category
-          if (inf.category === recommendationFilters.category) {
             return true;
           }
-          
-          // Check all categories if available
-          if (inf.categories && inf.categories.includes(recommendationFilters.category)) {
-            return true;
-          }
-          
-          return false;
+          return categoriesMatchFilter(
+            inf.categories && inf.categories.length ? inf.categories : inf.category,
+            recommendationFilters.category
+          );
         });
       }
       
@@ -1587,7 +1533,7 @@ export default function BrandDashboardContent() {
                     <option value="">{lang === 'el' ? 'Όλες οι κατηγορίες' : 'All Categories'}</option>
                     {CATEGORIES.map((cat) => (
                       <option key={cat} value={cat}>
-                        {lang === 'el' ? categoryTranslations[cat]?.el || cat : categoryTranslations[cat]?.en || cat}
+                        {categoryLabel(cat, lang)}
                       </option>
                     ))}
                   </select>
@@ -1734,10 +1680,7 @@ export default function BrandDashboardContent() {
                             .slice(0, 3)
                             .map((cat: string, idx: number) => (
                             <span key={idx} className="inline-block px-2 py-1 bg-white/20 backdrop-blur-sm rounded text-xs text-white font-medium mr-1 mb-1">
-                              {lang === 'el' ? 
-                                (categoryTranslations[cat]?.el || cat) : 
-                                (categoryTranslations[cat]?.en || cat)
-                              }
+                              {categoryLabel(cat, lang)}
                             </span>
                           ))}
                         </div>
@@ -2055,8 +1998,6 @@ export default function BrandDashboardContent() {
             updating={updating}
             lang={lang}
             txt={txt}
-            categories={CATEGORIES}
-            categoryTranslations={categoryTranslations}
           />
         )}
 

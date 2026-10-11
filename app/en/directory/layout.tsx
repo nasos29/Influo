@@ -1,4 +1,5 @@
 import { pageMetadata } from "@/lib/pageMetadata";
+import { categorySeoKeywords } from "@/lib/categories";
 
 export const metadata = pageMetadata({
   title: "Greek Influencer Directory: Instagram, TikTok, YouTube | Influo",
@@ -7,6 +8,7 @@ export const metadata = pageMetadata({
   elPath: "/directory",
   enPath: "/en/directory",
   locale: "en_US",
+  keywords: ["Greek influencers", "influencer directory", ...categorySeoKeywords()],
 });
 
 export default function EnDirectoryLayout({ children }: { children: React.ReactNode }) {

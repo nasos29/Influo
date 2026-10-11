@@ -4,49 +4,20 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
+import { getStoredLanguage } from '@/lib/language';
 import { prepareImageForStorage } from '@/lib/prepareImageForStorage';
+import { formatCategoryLabels, formatStoredCategories } from '@/lib/categories';
+import CategoryCheckboxList from '@/components/CategoryCheckboxList';
 
 type Lang = "el" | "en";
-
-// Categories (same as influencers)
-const CATEGORIES = [
-  "Lifestyle", "Fashion & Style", "Beauty & Makeup", "Travel", "Food & Drink",
-  "Health & Fitness", "Tech & Gadgets", "Business & Finance", "Gaming & Esports",
-  "Parenting & Family", "Home & Decor", "Pets & Animals", "Comedy & Entertainment",
-  "Art & Photography", "Music & Dance", "Education & Coaching", "Sports & Athletes",
-  "DIY & Crafts", "Sustainability & Eco", "Cars & Automotive"
-];
-
-// Category translations
-const categoryTranslations: { [key: string]: { el: string; en: string } } = {
-  "Lifestyle": { el: "Lifestyle", en: "Lifestyle" },
-  "Fashion & Style": { el: "Μόδα & Στυλ", en: "Fashion & Style" },
-  "Beauty & Makeup": { el: "Ομορφιά & Μακιγιάζ", en: "Beauty & Makeup" },
-  "Travel": { el: "Ταξίδια", en: "Travel" },
-  "Food & Drink": { el: "Φαγητό & Ποτά", en: "Food & Drink" },
-  "Health & Fitness": { el: "Υγεία & Fitness", en: "Health & Fitness" },
-  "Tech & Gadgets": { el: "Τεχνολογία & Gadgets", en: "Tech & Gadgets" },
-  "Business & Finance": { el: "Επιχειρήσεις & Οικονομικά", en: "Business & Finance" },
-  "Gaming & Esports": { el: "Gaming & Esports", en: "Gaming & Esports" },
-  "Parenting & Family": { el: "Οικογένεια & Παιδιά", en: "Parenting & Family" },
-  "Home & Decor": { el: "Σπίτι & Διακόσμηση", en: "Home & Decor" },
-  "Pets & Animals": { el: "Κατοικίδια & Ζώα", en: "Pets & Animals" },
-  "Comedy & Entertainment": { el: "Κωμωδία & Ψυχαγωγία", en: "Comedy & Entertainment" },
-  "Art & Photography": { el: "Τέχνη & Φωτογραφία", en: "Art & Photography" },
-  "Music & Dance": { el: "Μουσική & Χορός", en: "Music & Dance" },
-  "Education & Coaching": { el: "Εκπαίδευση & Coaching", en: "Education & Coaching" },
-  "Sports & Athletes": { el: "Αθλήματα & Αθλητές", en: "Sports & Athletes" },
-  "DIY & Crafts": { el: "DIY & Χειροτεχνίες", en: "DIY & Crafts" },
-  "Sustainability & Eco": { el: "Βιωσιμότητα & Οικολογία", en: "Sustainability & Eco" },
-  "Cars & Automotive": { el: "Αυτοκίνητα", en: "Cars & Automotive" },
-};
 
 const t = {
   el: {
     headerTitle: "Εγγραφή Επιχείρησης",
     headerDesc: "Δημιούργησε λογαριασμό για να συνεργαστείς με influencers",
     smartFeature: "🤖 Έξυπνη Υπηρεσία Προτάσεων: Το AI μας προτείνει αυτόματα τους καλύτερους influencers για το brand σας. ΔΩΡΕΑΝ!",
+    step1: "Βασικά Στοιχεία",
+    step2: "Προφίλ & Κατηγορίες",
     brandNameLabel: "Όνομα Επιχείρησης",
     brandNamePlace: "π.χ. Acme Corporation",
     contactPersonLabel: "Επικοινωνία (Προαιρετικό)",
@@ -63,23 +34,32 @@ const t = {
     logoRemove: "Αφαίρεση",
     websiteLabel: "Ιστοσελίδα (Προαιρετικό)",
     websitePlace: "example.com ή www.example.com",
-    categoryLabel: "Κατηγορία *",
-    categoryPlace: "Επιλέξτε κατηγορία",
+    categoryLabel: "Κατηγορίες *",
+    categoryDesc: "Επιλέξτε μία ή περισσότερες κατηγορίες",
+    next: "Επόμενο →",
     submit: "Δημιουργία Λογαριασμού",
     loading: "Δημιουργία...",
+    checking: "Έλεγχος...",
     successTitle: "Καλώς ήρθατε!",
     successDesc: "Ο λογαριασμός σας δημιουργήθηκε. Μπορείτε να συνδεθείτε τώρα.",
     close: "Σύνδεση",
     back: "← Πίσω",
     error_required: "Παρακαλώ συμπληρώστε όλα τα απαραίτητα πεδία",
+    error_category: "Παρακαλώ επιλέξτε τουλάχιστον μία κατηγορία.",
     error_email_exists: "Αυτό το email χρησιμοποιείται ήδη",
     error_afm_invalid: "Το ΑΦΜ πρέπει να έχει 9 ψηφία",
-    error_signup: "Σφάλμα κατά την εγγραφή"
+    error_logo_size: "Το αρχείο είναι πολύ μεγάλο. Μέγιστο μέγεθος: 2MB",
+    error_signup: "Σφάλμα κατά την εγγραφή",
+    haveAccount: "Έχετε ήδη λογαριασμό; ",
+    signIn: "Συνδεθείτε",
+    logoHint: "PNG, JPG ή SVG (max. 2MB)",
   },
   en: {
     headerTitle: "Company Registration",
     headerDesc: "Create an account to collaborate with influencers",
     smartFeature: "🤖 Smart Recommendation Service: Our AI automatically suggests the best influencers for your brand. FREE!",
+    step1: "Basic Info",
+    step2: "Profile & Categories",
     brandNameLabel: "Company Name",
     brandNamePlace: "e.g. Acme Corporation",
     contactPersonLabel: "Contact Person (Optional)",
@@ -96,49 +76,56 @@ const t = {
     logoRemove: "Remove",
     websiteLabel: "Website (Optional)",
     websitePlace: "example.com or www.example.com",
-    categoryLabel: "Category *",
-    categoryPlace: "Select category",
+    categoryLabel: "Categories *",
+    categoryDesc: "Select one or more categories",
+    next: "Next →",
     submit: "Create Account",
     loading: "Creating...",
+    checking: "Checking...",
     successTitle: "Welcome!",
     successDesc: "Your account has been created. You can log in now.",
     close: "Sign In",
     back: "← Back",
     error_required: "Please fill in all required fields",
+    error_category: "Please select at least one category.",
     error_email_exists: "This email is already in use",
     error_afm_invalid: "Tax ID must have 9 digits",
-    error_signup: "Error during registration"
+    error_logo_size: "File is too large. Maximum size: 2MB",
+    error_signup: "Error during registration",
+    haveAccount: "Already have an account? ",
+    signIn: "Sign In",
+    logoHint: "PNG, JPG or SVG (max. 2MB)",
   }
 };
 
+const inputClass = "w-full px-4 py-3 !bg-white !text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400 shadow-sm hover:border-slate-300";
+const labelClass = "block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2";
+
 export default function BrandSignupForm({ embedded = false }: { embedded?: boolean }) {
-  const [lang, setLang] = useState<Lang>("el"); // Default to Greek, will be updated in useEffect
+  const [lang, setLang] = useState<Lang>("el");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [step, setStep] = useState(1);
   
   const router = useRouter();
   const txt = t[lang];
 
-  // Load language from localStorage on client-side
   useEffect(() => {
     setLang(getStoredLanguage());
   }, []);
 
-  // Form states
   const [brandName, setBrandName] = useState("");
   const [contactPerson, setContactPerson] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [afm, setAfm] = useState("");
   const [website, setWebsite] = useState("");
-  const [category, setCategory] = useState("");
+  const [categories, setCategories] = useState<string[]>([]);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const [uploadingLogo, setUploadingLogo] = useState(false);
 
-  // Pre-fill email from URL parameter and get redirect URL
   const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
   
   useEffect(() => {
@@ -157,15 +144,30 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
     }
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleStep1Next = () => {
+    setMessage("");
+    if (!brandName.trim() || !email.trim() || !password.trim() || password.length < 6) {
+      setMessage(txt.error_required);
+      return;
+    }
+    setStep(2);
+  };
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     setMessage("");
     setLoading(true);
 
     try {
-      // Validation (AΦΜ optional to reduce signup friction)
-      if (!brandName.trim() || !email.trim() || !password.trim() || password.length < 6 || !category.trim()) {
+      const storedCategories = formatStoredCategories(categories);
+      if (!brandName.trim() || !email.trim() || !password.trim() || password.length < 6) {
         setMessage(txt.error_required);
+        setStep(1);
+        setLoading(false);
+        return;
+      }
+      if (!storedCategories) {
+        setMessage(txt.error_category);
         setLoading(false);
         return;
       }
@@ -177,7 +179,6 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
         return;
       }
 
-      // Check if email already exists (server-side; contact_email is not readable from the browser)
       const checkRes = await fetch('/api/check-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -187,11 +188,11 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
 
       if (checkRes.ok && checkBody.exists) {
         setMessage(txt.error_email_exists);
+        setStep(1);
         setLoading(false);
         return;
       }
 
-      // Create auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: email.toLowerCase().trim(),
         password: password,
@@ -203,10 +204,8 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
         throw new Error('User creation failed');
       }
 
-      // Upload logo if provided
       let logoUrl = null;
       if (logoFile) {
-        setUploadingLogo(true);
         try {
           const preparedLogo = await prepareImageForStorage(logoFile, { maxSide: 640 });
           const safeTail = preparedLogo.name.replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -229,23 +228,16 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
           logoUrl = publicUrl;
         } catch (uploadErr: any) {
           console.error('Logo upload error:', uploadErr);
-          // Continue without logo if upload fails
-        } finally {
-          setUploadingLogo(false);
         }
       }
 
-      // Normalize website URL: remove protocol and www if present, store just the domain
       let normalizedWebsite = website.trim();
       if (normalizedWebsite) {
-        // Remove http://, https://, www. prefixes
         normalizedWebsite = normalizedWebsite.replace(/^https?:\/\//i, '');
         normalizedWebsite = normalizedWebsite.replace(/^www\./i, '');
-        // Remove trailing slash
         normalizedWebsite = normalizedWebsite.replace(/\/$/, '');
       }
 
-      // Create brand record
       const { error: brandError } = await supabase
         .from('brands')
         .insert({
@@ -255,13 +247,11 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
           contact_person: contactPerson.trim() || null,
           afm: afmClean || null,
           website: normalizedWebsite || null,
-          industry: category.trim() || null, // Keep 'industry' column name in DB for compatibility
+          industry: storedCategories,
           logo_url: logoUrl,
         });
 
       if (brandError) {
-        // If brand insert fails, we should clean up the auth user
-        // But this requires admin access, so we'll just show error
         throw brandError;
       }
 
@@ -272,7 +262,6 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
 
       if (signInError) {
         console.error('Auto-login error:', signInError);
-        // Continue anyway - user can login manually
       }
 
       const claimToken = session?.access_token || authData.session?.access_token;
@@ -293,14 +282,13 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
             type: 'signup_brand_admin',
             email: email.toLowerCase().trim(),
             name: brandName.trim(),
-            industry: category.trim(),
+            industry: formatCategoryLabels(storedCategories, 'el') || storedCategories,
           }),
         });
       } catch (e) {
         console.error('Admin notification email error:', e);
       }
       
-      // Redirect to dashboard or redirect URL after a short delay
       setTimeout(() => {
         if (redirectUrl) {
           router.push(redirectUrl);
@@ -316,20 +304,42 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
     }
   };
 
+  const ProgressSteps = () => (
+    <div className="flex justify-between mb-8 relative px-4">
+      <div className="absolute top-1/2 left-0 w-full h-1.5 bg-slate-200 rounded-full -z-10"></div>
+      <div
+        className="absolute top-1/2 left-4 h-1.5 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full transition-all duration-500 -z-10"
+        style={{ width: step >= 2 ? 'calc(100% - 2rem)' : '0%' }}
+      ></div>
+      {[1, 2].map((s) => (
+        <div
+          key={s}
+          className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-bold text-sm transition-all border-2 shadow-md ${
+            step >= s
+              ? 'bg-gradient-to-br from-blue-600 to-purple-600 border-blue-600 text-white scale-110'
+              : 'bg-white border-slate-300 text-slate-500'
+          }`}
+        >
+          {step > s ? '✓' : s}
+        </div>
+      ))}
+    </div>
+  );
+
+  const shellClass = embedded
+    ? "bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] max-w-4xl w-full mx-auto border border-slate-200"
+    : "bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-w-4xl w-full mx-auto border border-slate-200";
+
   if (success) {
     return (
-      <div
-        className={embedded ? "bg-white rounded-2xl shadow-2xl p-8 max-w-4xl w-full mx-auto border border-slate-200" : "bg-white rounded-2xl shadow-xl p-8 max-w-md w-full mx-auto"}
-      >
-        <div className="text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-3xl">✓</span>
-          </div>
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">{txt.successTitle}</h2>
-          <p className="text-slate-600 mb-6">{txt.successDesc}</p>
+      <div className={shellClass}>
+        <div className="p-6 sm:p-8 text-center">
+          <div className="w-24 h-24 bg-gradient-to-br from-green-100 to-emerald-100 text-green-600 rounded-full flex items-center justify-center text-5xl mx-auto mb-6 shadow-lg shadow-green-500/20">✓</div>
+          <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">{txt.successTitle}</h2>
+          <p className="text-slate-600 max-w-md mx-auto mb-10 text-lg leading-relaxed">{txt.successDesc}</p>
           <button
             onClick={() => router.push('/login')}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors"
+            className="px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 transition-all"
           >
             {txt.close}
           </button>
@@ -339,255 +349,224 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
   }
 
   return (
-    <div
-      className={
-        embedded
-          ? "bg-white rounded-2xl shadow-2xl p-0 max-w-4xl w-full mx-auto border border-slate-200 overflow-hidden max-h-[85vh] flex flex-col"
-          : "bg-white rounded-2xl shadow-xl p-8 max-w-md w-full mx-auto"
-      }
-    >
-      {!embedded && (
-        <>
-          <div className="flex justify-between items-center mb-6">
-            <button
-              onClick={() => router.back()}
-              className="text-slate-600 hover:text-slate-900 transition-colors"
-            >
-              {txt.back}
-            </button>
+    <div className={shellClass}>
+      <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-purple-900 p-4 sm:p-6 text-white relative overflow-hidden flex-shrink-0">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-pink-600/20" />
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 pr-10">
+          <div className="flex items-center justify-start">
+            <Image src="/logo.svg" alt="Influo.gr Logo" width={140} height={56} className="h-8 sm:h-10 w-auto" />
           </div>
+          <div className="text-left sm:flex-1 sm:text-center">
+            <h3 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 sm:mb-2 leading-tight">{txt.headerTitle}</h3>
+            <p className="text-slate-300 text-xs sm:text-sm">{txt.headerDesc}</p>
+          </div>
+        </div>
+      </div>
 
-          <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold text-slate-900 mb-2">{txt.headerTitle}</h1>
-            <p className="text-slate-600 text-sm mb-3">{txt.headerDesc}</p>
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-3 text-sm">
+      <div className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto bg-white">
+        {!embedded && (
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="text-sm text-slate-600 hover:text-slate-900 font-medium mb-4"
+          >
+            {txt.back}
+          </button>
+        )}
+
+        <ProgressSteps />
+
+        {step === 1 && (
+          <div className="space-y-6">
+            <h2 className="text-xl font-bold text-black border-b border-gray-200 pb-2">{txt.step1}</h2>
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-3 text-sm">
               <p className="text-blue-900 font-medium">{txt.smartFeature}</p>
             </div>
-          </div>
-        </>
-      )}
 
-      {embedded && (
-        <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-purple-900 p-4 sm:p-6 text-white relative overflow-hidden flex-shrink-0">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-pink-600/20" />
-          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-            <div className="flex items-center justify-start">
-              <Image src="/logo.svg" alt="Influo.gr Logo" width={140} height={56} className="h-8 sm:h-10 w-auto" />
-            </div>
-            <div className="text-left w-full sm:flex-1 sm:text-center">
-              <h3 className="text-2xl md:text-3xl font-bold mb-1 sm:mb-2 leading-[1.1]">{txt.headerTitle}</h3>
-              <p className="text-slate-300 text-xs sm:text-sm">{txt.headerDesc}</p>
-              <div className="mt-3 sm:mt-4 bg-white/10 border border-white/15 rounded-lg p-2.5 sm:p-3 text-xs sm:text-sm">
-                <p className="text-white font-medium">{txt.smartFeature}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className={embedded ? "p-8 overflow-y-auto flex-1" : ""}>
-
-      {message && (
-        <div className={`mb-4 p-3 rounded-lg text-sm ${
-          message.includes('✓') || message.includes('success') 
-            ? 'bg-green-50 text-green-700' 
-            : 'bg-red-50 text-red-700'
-        }`}>
-          {message}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            {txt.brandNameLabel} *
-          </label>
-          <input
-            type="text"
-            value={brandName}
-            onChange={(e) => setBrandName(e.target.value)}
-            placeholder={txt.brandNamePlace}
-            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            {txt.contactPersonLabel}
-          </label>
-          <input
-            type="text"
-            value={contactPerson}
-            onChange={(e) => setContactPerson(e.target.value)}
-            placeholder={txt.contactPersonPlace}
-            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            {txt.emailLabel} *
-          </label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder={txt.emailPlace}
-            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            {txt.passwordLabel} *
-          </label>
-          <div className="relative">
-            <input
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 pr-12"
-              required
-              minLength={6}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 text-sm"
-            >
-              {showPassword ? txt.passwordHide : txt.passwordShow}
-            </button>
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            {txt.afmLabel}
-          </label>
-          <input
-            type="text"
-            value={afm}
-            onChange={(e) => {
-              const value = e.target.value.replace(/\D/g, '').slice(0, 9);
-              setAfm(value);
-            }}
-            placeholder={txt.afmPlace}
-            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900"
-            maxLength={9}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            {txt.logoLabel}
-          </label>
-          {logoPreview ? (
-            <div className="relative inline-block">
-              <div className="w-24 h-24 rounded-lg overflow-hidden border-2 border-slate-200 mb-2">
-                <Image
-                  src={logoPreview}
-                  alt="Logo preview"
-                  width={96}
-                  height={96}
-                  className="object-cover w-full h-full"
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className={labelClass}>{txt.brandNameLabel} *</label>
+                <input
+                  type="text"
+                  value={brandName}
+                  onChange={(e) => setBrandName(e.target.value)}
+                  placeholder={txt.brandNamePlace}
+                  className={inputClass}
                 />
               </div>
+              <div>
+                <label className={labelClass}>{txt.contactPersonLabel}</label>
+                <input
+                  type="text"
+                  value={contactPerson}
+                  onChange={(e) => setContactPerson(e.target.value)}
+                  placeholder={txt.contactPersonPlace}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className={labelClass}>{txt.emailLabel} *</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder={txt.emailPlace}
+                  className={inputClass}
+                />
+              </div>
+              <div className="relative">
+                <label className={labelClass}>{txt.passwordLabel} *</label>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className={inputClass}
+                  minLength={6}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 bottom-2 text-sm text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  {showPassword ? txt.passwordHide : txt.passwordShow}
+                </button>
+              </div>
+            </div>
+
+            {message && <p className="text-red-600 text-sm text-center mt-2 font-medium bg-red-50 p-2 rounded">{message}</p>}
+
+            <div className="mt-8 pt-6 border-t border-slate-200">
               <button
                 type="button"
-                onClick={() => {
-                  setLogoFile(null);
-                  setLogoPreview(null);
-                }}
-                className="text-xs text-red-600 hover:text-red-700 font-medium"
+                onClick={handleStep1Next}
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-blue-500/30 hover:shadow-xl"
               >
-                {txt.logoRemove}
+                {txt.next}
               </button>
             </div>
-          ) : (
-            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer hover:bg-slate-50 transition-colors">
-              <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                <svg className="w-8 h-8 mb-2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-                <p className="mb-2 text-sm text-slate-500">{txt.logoUpload}</p>
-                <p className="text-xs text-slate-400">PNG, JPG ή SVG (max. 2MB)</p>
-              </div>
+          </div>
+        )}
+
+        {step === 2 && (
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <h2 className="text-xl font-bold text-black border-b border-gray-200 pb-2">{txt.step2}</h2>
+
+            <CategoryCheckboxList
+              lang={lang}
+              selected={categories}
+              onChange={setCategories}
+              label={txt.categoryLabel}
+              description={txt.categoryDesc}
+            />
+
+            <div>
+              <label className={labelClass}>{txt.websiteLabel}</label>
               <input
-                type="file"
-                className="hidden"
-                accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    if (file.size > 2 * 1024 * 1024) {
-                      setMessage(lang === 'el' ? 'Το αρχείο είναι πολύ μεγάλο. Μέγιστο μέγεθος: 2MB' : 'File is too large. Maximum size: 2MB');
-                      return;
-                    }
-                    setLogoFile(file);
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                      setLogoPreview(reader.result as string);
-                    };
-                    reader.readAsDataURL(file);
-                  }
-                }}
+                type="text"
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+                placeholder={txt.websitePlace}
+                className={inputClass}
               />
-            </label>
-          )}
-        </div>
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            {txt.websiteLabel}
-          </label>
-          <input
-            type="text"
-            value={website}
-            onChange={(e) => setWebsite(e.target.value)}
-            placeholder={txt.websitePlace}
-            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900"
-          />
-        </div>
+            <div>
+              <label className={labelClass}>{txt.afmLabel}</label>
+              <input
+                type="text"
+                value={afm}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, '').slice(0, 9);
+                  setAfm(value);
+                }}
+                placeholder={txt.afmPlace}
+                className={inputClass}
+                maxLength={9}
+              />
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            {txt.categoryLabel}
-          </label>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            required
-            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white"
-          >
-            <option value="">{txt.categoryPlace}</option>
-            {CATEGORIES.map((cat) => (
-              <option key={cat} value={cat}>
-                {lang === 'el' ? categoryTranslations[cat]?.el || cat : categoryTranslations[cat]?.en || cat}
-              </option>
-            ))}
-          </select>
-        </div>
+            <div>
+              <label className={labelClass}>{txt.logoLabel}</label>
+              {logoPreview ? (
+                <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                  <div className="relative w-20 h-20 rounded-xl overflow-hidden border border-gray-200 bg-white">
+                    <Image src={logoPreview} alt="Logo preview" fill className="object-cover" />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLogoFile(null);
+                      setLogoPreview(null);
+                    }}
+                    className="text-sm text-red-600 hover:text-red-700 font-semibold"
+                  >
+                    {txt.logoRemove}
+                  </button>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center w-full min-h-32 border-2 border-slate-300 border-dashed rounded-xl cursor-pointer hover:bg-slate-50 transition-colors p-4">
+                  <svg className="w-8 h-8 mb-2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  <p className="mb-1 text-sm font-semibold text-slate-600">{txt.logoUpload}</p>
+                  <p className="text-xs text-slate-400">{txt.logoHint}</p>
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        if (file.size > 2 * 1024 * 1024) {
+                          setMessage(txt.error_logo_size);
+                          return;
+                        }
+                        setMessage("");
+                        setLogoFile(file);
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setLogoPreview(reader.result as string);
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                </label>
+              )}
+            </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold py-3 px-6 rounded-lg transition-colors"
-        >
-          {loading ? txt.loading : txt.submit}
-        </button>
-      </form>
+            {message && <p className="text-red-600 text-sm text-center mt-2 font-medium bg-red-50 p-2 rounded">{message}</p>}
 
-      <p className="mt-6 text-center text-sm text-slate-600">
-        {lang === 'el' ? 'Έχετε ήδη λογαριασμό; ' : 'Already have an account? '}
-        <a href="/login" className="text-blue-600 hover:text-blue-700 font-medium">
-          {lang === 'el' ? 'Συνδεθείτε' : 'Sign In'}
-        </a>
-      </p>
-    </div>
+            <div className="mt-8 pt-6 border-t border-slate-200 flex flex-col-reverse sm:flex-row gap-3 sm:gap-4">
+              <button
+                type="button"
+                onClick={() => { setStep(1); setMessage(""); }}
+                className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-all"
+              >
+                {txt.back}
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-900 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-slate-900/30 hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? txt.loading : txt.submit}
+              </button>
+            </div>
+          </form>
+        )}
+
+        <p className="mt-6 text-center text-sm text-slate-600">
+          {txt.haveAccount}
+          <a href="/login" className="text-blue-600 hover:text-blue-700 font-medium">
+            {txt.signIn}
+          </a>
+        </p>
+      </div>
     </div>
   );
 }
-

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { BrandShortlistItem } from "@/lib/brandShortlist";
 import { publicProfilePath } from "@/lib/profileSlug";
+import { formatCategoryLabels } from "@/lib/categories";
 import {
   defaultChecklist,
   loadChecklist,
@@ -250,7 +251,7 @@ export default function BrandToolsPanel({
       el ? `Brief καμπάνιας — ${brandName || "Brand"}` : `Campaign brief — ${brandName || "Brand"}`,
       "",
       `Brand: ${brandName || "—"}`,
-      industry ? (el ? `Κλάδος: ${industry}` : `Industry: ${industry}`) : null,
+      industry ? (el ? `Κλάδος: ${formatCategoryLabels(industry, "el")}` : `Industry: ${formatCategoryLabels(industry, "en")}`) : null,
       website ? `Website: ${website}` : null,
       "",
       el ? `Στόχος: ${goal.trim() || "—"}` : `Goal: ${goal.trim() || "—"}`,
@@ -459,7 +460,7 @@ export default function BrandToolsPanel({
       </style></head><body>
       ${logoBlock}
       <h1>${escapeHtml(brandName || "Brand")}</h1>
-      <div class="meta">${escapeHtml([industry, website, contactPerson].filter(Boolean).join(" · ") || "—")}</div>
+      <div class="meta">${escapeHtml([industry ? formatCategoryLabels(industry, el ? "el" : "en") : "", website, contactPerson].filter(Boolean).join(" · ") || "—")}</div>
       <h2>Do</h2><pre>${escapeHtml(kitDos)}</pre>
       <h2>Don&apos;t</h2><pre>${escapeHtml(kitDonts)}</pre>
       <p style="margin-top:24px"><button type="button" onclick="window.print()" style="padding:10px 16px;font-size:14px;font-weight:700;color:#0f172a;background:#ffffff;border:1px solid #cbd5e1;border-radius:8px;cursor:pointer">${el ? "Εκτύπωση / PDF" : "Print / PDF"}</button></p>

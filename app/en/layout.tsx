@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     template: "%s | Influo",
   },
   description: "Search verified influencers in Greece by category, platform and budget. Free sign-up for brands and creators, with campaigns and messaging in one place.",
-  keywords: ["influencer marketing", "influencer marketing Greece", "Greek influencers", "brand collaborations", "content creators", "Greece"],
+  keywords: ["influencer marketing", "influencer marketing Greece", "Greek influencers", "brand collaborations", "content creators", "Greece", "Unboxing", "unboxing influencer"],
   openGraph: {
     type: "website",
     locale: "en_US",

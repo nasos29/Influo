@@ -9,6 +9,7 @@ import { getVisitorId } from "../lib/visitorId";
 import { normalizeGender, type GenderValue } from "../lib/gender";
 import { isAvailableStatus, trustChipsFromAccounts } from "@/lib/trustSignals";
 import { publicProfilePath } from "@/lib/profileSlug";
+import { CATEGORIES, categoriesMatchFilter, categoryTranslations, parseStoredCategories } from "@/lib/categories";
 import {
   badgeMinRateFromTier,
   budgetTierMatches,
@@ -67,15 +68,6 @@ export interface Influencer {
   completion_rate?: number | null;
 }
 
-// --- FULL CATEGORY LIST ---
-const CATEGORIES = [
-  "Γενικά", "Lifestyle", "Fashion & Style", "Beauty & Makeup", "Travel", "Food & Drink",
-  "Health & Fitness", "Tech & Gadgets", "Business & Finance", "Gaming & Esports",
-  "Parenting & Family", "Home & Decor", "Pets & Animals", "Comedy & Entertainment",
-  "Art & Photography", "Music & Dance", "Education & Coaching", "Sports & Athletes",
-  "DIY & Crafts", "Sustainability & Eco", "Cars & Automotive"
-];
-
 // Languages list
 const LANGUAGES = [
   { code: "el", el: "Ελληνικά", en: "Greek" },
@@ -92,31 +84,6 @@ const LANGUAGES = [
   { code: "bg", el: "Βουλγαρικά", en: "Bulgarian" },
   { code: "tr", el: "Τουρκικά", en: "Turkish" }
 ];
-
-// Category translations
-const categoryTranslations: { [key: string]: { el: string; en: string } } = {
-  "Lifestyle": { el: "Lifestyle", en: "Lifestyle" },
-  "Fashion & Style": { el: "Μόδα & Στυλ", en: "Fashion & Style" },
-  "Beauty & Makeup": { el: "Ομορφιά & Μακιγιάζ", en: "Beauty & Makeup" },
-  "Travel": { el: "Ταξίδια", en: "Travel" },
-  "Food & Drink": { el: "Φαγητό & Ποτά", en: "Food & Drink" },
-  "Health & Fitness": { el: "Υγεία & Fitness", en: "Health & Fitness" },
-  "Tech & Gadgets": { el: "Τεχνολογία & Gadgets", en: "Tech & Gadgets" },
-  "Business & Finance": { el: "Επιχειρήσεις & Οικονομικά", en: "Business & Finance" },
-  "Gaming & Esports": { el: "Gaming & Esports", en: "Gaming & Esports" },
-  "Parenting & Family": { el: "Οικογένεια & Παιδιά", en: "Parenting & Family" },
-  "Home & Decor": { el: "Σπίτι & Διακόσμηση", en: "Home & Decor" },
-  "Pets & Animals": { el: "Κατοικίδια & Ζώα", en: "Pets & Animals" },
-  "Comedy & Entertainment": { el: "Κωμωδία & Ψυχαγωγία", en: "Comedy & Entertainment" },
-  "Art & Photography": { el: "Τέχνη & Φωτογραφία", en: "Art & Photography" },
-  "Music & Dance": { el: "Μουσική & Χορός", en: "Music & Dance" },
-  "Education & Coaching": { el: "Εκπαίδευση & Coaching", en: "Education & Coaching" },
-  "Sports & Athletes": { el: "Αθλήματα & Αθλητές", en: "Sports & Athletes" },
-  "DIY & Crafts": { el: "DIY & Χειροτεχνίες", en: "DIY & Crafts" },
-  "Sustainability & Eco": { el: "Βιωσιμότητα & Οικολογία", en: "Sustainability & Eco" },
-  "Cars & Automotive": { el: "Αυτοκίνητα", en: "Cars & Automotive" },
-  "Γενικά": { el: "Γενικά", en: "General" },
-};
 
 // --- FULL TRANSLATIONS ---
 const t = {
@@ -378,8 +345,8 @@ export default function Directory({
               verified: inf.analytics_verified || false, // Use analytics_verified for verified badge (not approved)
               socials: socialsObj,
               followers: followersObj,
-              categories: inf.category 
-                ? (inf.category.includes(',') ? inf.category.split(',').map((c: string) => c.trim()) : [inf.category])
+              categories: inf.category
+                ? (parseStoredCategories(inf.category).length ? parseStoredCategories(inf.category) : ["New"])
                 : ["New"],
               languages: languagesArray,
               platform: "Instagram",
@@ -435,7 +402,7 @@ export default function Directory({
                           (inf.location && normalizeLocation(inf.location).includes(normalizeLocation(locationQuery)));
     
     const platformMatch = platformFilter === "All" || (inf.socials && inf.socials[platformFilter.toLowerCase()] !== undefined);
-    const categoryMatch = categoryFilter === "All" || inf.categories.includes(categoryFilter);
+    const categoryMatch = categoriesMatchFilter(inf.categories, categoryFilter);
     const genderMatch = genderFilter === "All" || inf.gender === genderFilter;
 
     let followerMatch = true;

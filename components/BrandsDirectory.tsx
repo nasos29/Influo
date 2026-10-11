@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
 import BrandCard from "./BrandCard";
+import { CATEGORIES, categoriesMatchFilter, categoryLabel, formatCategoryLabels, parseStoredCategories } from "@/lib/categories";
 
 interface Brand {
   id: string;
@@ -96,23 +97,25 @@ export default function BrandsDirectory({ lang = "el" }: { lang?: "el" | "en" })
         (b) =>
           b.brand_name.toLowerCase().includes(query) ||
           (b.contact_person && b.contact_person.toLowerCase().includes(query)) ||
-          (b.industry && b.industry.toLowerCase().includes(query))
+          (b.industry && (
+            b.industry.toLowerCase().includes(query) ||
+            formatCategoryLabels(b.industry, lang).toLowerCase().includes(query)
+          ))
       );
     }
 
     // Industry filter
     if (selectedIndustry !== "all") {
-      filtered = filtered.filter(
-        (b) => b.industry && b.industry.toLowerCase() === selectedIndustry.toLowerCase()
-      );
+      filtered = filtered.filter((b) => categoriesMatchFilter(b.industry, selectedIndustry));
     }
 
     setFilteredBrands(filtered);
   };
 
-  const industries = Array.from(
-    new Set(brands.map((b) => b.industry).filter((i): i is string => !!i))
-  ).sort();
+  const storedExtras = Array.from(
+    new Set(brands.flatMap((b) => parseStoredCategories(b.industry)))
+  ).filter((key) => !CATEGORIES.includes(key as (typeof CATEGORIES)[number]));
+  const industries = [...CATEGORIES, ...storedExtras];
 
   const resetFilters = () => {
     setSearchQuery("");
@@ -163,7 +166,7 @@ export default function BrandsDirectory({ lang = "el" }: { lang?: "el" | "en" })
               <option value="all">{txt.industryAll}</option>
               {industries.map((industry) => (
                 <option key={industry} value={industry}>
-                  {industry}
+                  {categoryLabel(industry, lang)}
                 </option>
               ))}
             </select>

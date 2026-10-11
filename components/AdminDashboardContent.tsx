@@ -8,7 +8,8 @@ import VideoThumbnail from "./VideoThumbnail";
 import SocialEmbedCard from "./SocialEmbedCard";
 import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
 import { displayNameForLang } from "@/lib/greeklish";
-import { categoryTranslations } from "@/components/categoryTranslations";
+import { categoryLabel, formatCategoryLabels, formatStoredCategories, parseStoredCategories } from "@/lib/categories";
+import CategoryCheckboxList from "@/components/CategoryCheckboxList";
 import { checkAuditprHealth, fetchAuditprOverridesForAccounts, type AccountFetchResult } from "@/lib/socialRefresh";
 import { downloadSocialRefreshReportExcel } from "@/lib/socialRefreshReport";
 import { getCachedImageUrl } from "@/lib/imageProxy";
@@ -22,15 +23,6 @@ async function adminAuthHeaders(): Promise<Record<string, string>> {
   const { data: { session } } = await supabase.auth.getSession();
   return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
 }
-
-// --- FULL CATEGORY LIST ---
-const CATEGORIES = [
-  "Γενικά", "Lifestyle", "Fashion & Style", "Beauty & Makeup", "Travel", "Food & Drink",
-  "Health & Fitness", "Tech & Gadgets", "Business & Finance", "Gaming & Esports",
-  "Parenting & Family", "Home & Decor", "Pets & Animals", "Comedy & Entertainment",
-  "Art & Photography", "Music & Dance", "Education & Coaching", "Sports & Athletes",
-  "DIY & Crafts", "Sustainability & Eco", "Cars & Automotive"
-];
 
 // --- LANGUAGES LIST ---
 const LANGUAGES = [
@@ -351,7 +343,7 @@ const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClos
   const [brandName, setBrandName] = useState(brand.brand_name || '');
   const [contactPerson, setContactPerson] = useState(brand.contact_person || '');
   const [website, setWebsite] = useState(brand.website || '');
-  const [industry, setIndustry] = useState(brand.industry || '');
+  const [categories, setCategories] = useState<string[]>(parseStoredCategories(brand.industry || ''));
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(brand.logo_url || null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -440,7 +432,7 @@ const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClos
       brand_name: brandName.trim(),
       contact_person: contactPerson.trim() || null,
       website: website.trim() || null,
-      industry: industry.trim() || null,
+      industry: formatStoredCategories(categories) || null,
       logo_url: logoUrl,
     });
     
@@ -503,18 +495,14 @@ const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClos
             />
           </div>
 
-          {/* Industry/Category */}
-          <div>
-            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
-              {lang === 'el' ? 'Κλάδος' : 'Industry'}
-            </label>
-            <input
-              type="text"
-              value={industry}
-              onChange={(e) => setIndustry(e.target.value)}
-              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-            />
-          </div>
+          <CategoryCheckboxList
+            lang={lang}
+            selected={categories}
+            onChange={setCategories}
+            label={lang === 'el' ? 'Κατηγορίες' : 'Categories'}
+            description={lang === 'el' ? 'Επιλέξτε μία ή περισσότερες κατηγορίες' : 'Select one or more categories'}
+            compact
+          />
 
           {/* Website */}
           <div>
@@ -598,8 +586,8 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
     const [profileChanges, setProfileChanges] = useState<any[]>([]);
     const [loadingChanges, setLoadingChanges] = useState(false);
     // Support multiple categories - parse comma-separated string or use single category
-    const initialCategories = user.category 
-        ? (user.category.includes(',') ? user.category.split(',').map(c => c.trim()) : [user.category])
+    const initialCategories = parseStoredCategories(user.category).length
+        ? parseStoredCategories(user.category)
         : ["Lifestyle"];
     const [categories, setCategories] = useState<string[]>(initialCategories);
     // Parse languages from comma-separated string to array of language codes
@@ -930,7 +918,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
             });
 
             // Store categories as comma-separated string for backward compatibility
-            const categoryString = categories.length > 0 ? categories.join(',') : "Lifestyle";
+            const categoryString = formatStoredCategories(categories) || "Lifestyle";
             
             const updateData: any = {
                 display_name: name,
@@ -1163,62 +1151,15 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                         <option value="AI">AI (Artificial Intelligence)</option>
                                     </select>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-semibold text-slate-900 mb-1">Categories *</label>
-                                    <p className="text-xs text-slate-500 mb-2">Select one or more categories</p>
-                                    <div className="border-2 border-slate-200 rounded-lg p-3 bg-slate-50 max-h-48 overflow-y-auto">
-                                        <div className="space-y-2">
-                                            {CATEGORIES.map(cat => {
-                                                const isSelected = categories.includes(cat);
-                                                const displayName = categoryTranslations[cat]?.en || cat;
-                                                
-                                                return (
-                                                    <label 
-                                                        key={cat} 
-                                                        className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-all text-xs ${
-                                                            isSelected 
-                                                                ? 'bg-blue-100 border-2 border-blue-500' 
-                                                                : 'bg-white border-2 border-slate-200 hover:border-blue-300'
-                                                        }`}
-                                                    >
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={isSelected}
-                                                            onChange={(e) => {
-                                                                if (cat === "Γενικά" || cat === "General") {
-                                                                    if (e.target.checked) {
-                                                                        setCategories([cat]);
-                                                                    } else {
-                                                                        setCategories(["Lifestyle"]);
-                                                                    }
-                                                                } else {
-                                                                    const newCats = e.target.checked
-                                                                        ? [...categories.filter(c => c !== "Γενικά" && c !== "General"), cat]
-                                                                        : categories.filter(c => c !== cat);
-                                                                    
-                                                                    if (newCats.length === 0) {
-                                                                        setCategories(["Lifestyle"]);
-                                                                    } else {
-                                                                        setCategories(newCats);
-                                                                    }
-                                                                }
-                                                            }}
-                                                            className="w-4 h-4 text-blue-600 border-2 border-slate-300 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                                                        />
-                                                        <span className={`font-medium ${isSelected ? 'text-blue-900' : 'text-slate-700'}`}>
-                                                            {displayName}
-                                                        </span>
-                                                    </label>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                    {categories.length > 0 && (
-                                        <p className="text-xs text-slate-600 mt-2">
-                                            Selected: {categories.map(c => categoryTranslations[c]?.en || c).join(', ')}
-                                        </p>
-                                    )}
-                                </div>
+                                <CategoryCheckboxList
+                                    lang="en"
+                                    selected={categories}
+                                    onChange={setCategories}
+                                    label="Categories *"
+                                    description="Select one or more categories"
+                                    emptyFallback="Lifestyle"
+                                    compact
+                                />
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-900 mb-1">Languages</label>
                                     <div className="border-2 border-slate-200 rounded-lg p-3 bg-slate-50">
@@ -3267,12 +3208,12 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                 )}
                                 {u.category && (
                                   <div className="flex flex-wrap gap-1 mt-1">
-                                    {(u.category.includes(',') ? u.category.split(',').map((c: string) => c.trim()) : [u.category]).map((cat: string, idx: number) => (
+                                    {parseStoredCategories(u.category).map((cat: string, idx: number) => (
                                       <span
                                         key={idx}
                                         className="text-[10px] uppercase font-medium bg-slate-100 text-slate-600 px-2 py-0.5 rounded"
                                       >
-                                        {cat}
+                                        {categoryLabel(cat, lang)}
                                       </span>
                                     ))}
                                   </div>
@@ -3514,7 +3455,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               )}
                             </div>
                           </td>
-                          <td className="px-3 py-2 text-slate-600 text-xs sm:text-sm">{b.industry || '-'}</td>
+                          <td className="px-3 py-2 text-slate-600 text-xs sm:text-sm">{formatCategoryLabels(b.industry, lang) || '-'}</td>
                           <td className="px-3 py-2 text-slate-600 text-xs sm:text-sm whitespace-nowrap">
                             {new Date(b.created_at).toLocaleDateString('el-GR')}
                           </td>
