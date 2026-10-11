@@ -7,7 +7,6 @@ import BrandCard from "./BrandCard";
 interface Brand {
   id: string;
   brand_name: string;
-  contact_email: string;
   contact_person: string | null;
   website: string | null;
   industry: string | null;
@@ -64,7 +63,7 @@ export default function BrandsDirectory({ lang = "el" }: { lang?: "el" | "en" })
       console.log("[BrandsDirectory] Fetching verified brands...");
       const { data, error } = await supabase
         .from("brands")
-        .select("*")
+        .select("id, brand_name, contact_person, website, industry, logo_url, verified, created_at")
         .eq("verified", true)
         .order("created_at", { ascending: false });
 
@@ -96,7 +95,6 @@ export default function BrandsDirectory({ lang = "el" }: { lang?: "el" | "en" })
       filtered = filtered.filter(
         (b) =>
           b.brand_name.toLowerCase().includes(query) ||
-          b.contact_email.toLowerCase().includes(query) ||
           (b.contact_person && b.contact_person.toLowerCase().includes(query)) ||
           (b.industry && b.industry.toLowerCase().includes(query))
       );

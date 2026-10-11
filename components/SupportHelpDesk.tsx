@@ -2,6 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+
+async function adminAuthHeaders(): Promise<Record<string, string>> {
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
+}
 import Link from 'next/link';
 
 interface Ticket {
@@ -172,12 +177,11 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
     try {
       setLoadingUsers(true);
       // Load influencers
-      const { data: infData, error: infError } = await supabase
-        .from('influencers')
-        .select('id, contact_email, display_name')
-        .order('display_name', { ascending: true });
+      const infResponse = await fetch('/api/admin/influencers', { headers: await adminAuthHeaders() });
+      const infBody = await infResponse.json().catch(() => ({}));
+      const infData = infResponse.ok ? infBody.influencers : null;
 
-      if (!infError && infData) {
+      if (infData) {
         setInfluencers(infData.map((inf: any) => ({
           id: inf.id,
           email: inf.contact_email,
@@ -187,7 +191,7 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
 
       // Load brands via API
       try {
-        const brandsResponse = await fetch('/api/admin/brands');
+        const brandsResponse = await fetch('/api/admin/brands', { headers: await adminAuthHeaders() });
         const brandsResult = await brandsResponse.json();
         if (brandsResult.success && brandsResult.brands) {
           setBrands(brandsResult.brands.map((b: any) => ({

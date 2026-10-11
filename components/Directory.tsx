@@ -9,6 +9,11 @@ import { getVisitorId } from "../lib/visitorId";
 import { normalizeGender, type GenderValue } from "../lib/gender";
 import { isAvailableStatus, trustChipsFromAccounts } from "@/lib/trustSignals";
 import { publicProfilePath } from "@/lib/profileSlug";
+import {
+  badgeMinRateFromTier,
+  budgetTierMatches,
+  DIRECTORY_BUDGET_CAPS,
+} from "@/lib/publicInfluencer";
 
 export interface Influencer {
   id: string | number;
@@ -25,15 +30,16 @@ export interface Influencer {
   videos?: string[];
   location?: string;
   languages?: string[];
-  min_rate?: string;
   avg_likes?: string | { [key: string]: string }; // Can be per-platform object or legacy string
   engagement_rate?: string | { [key: string]: string }; // Can be per-platform object or legacy string
-  rate_card?: { story?: string; post?: string; reel?: string; facebook?: string };
+  /** Server-side bracket. Exact prices stay off this public payload. */
+  price_tier?: string | null;
   past_brands?: any[] | number;
   total_reviews?: number;
   avg_rating?: number;
   created_at?: string;
-  birth_date?: string | null;
+  /** Whole years, computed on the server. Not a birth date. */
+  age?: number | null;
   availability_status?: string | null;
   profile_slug?: string | null;
   accounts?: Array<{
@@ -189,7 +195,6 @@ const FilterIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentCol
 const ChevronDown = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>;
 
 // --- HELPERS ---
-const parsePrice = (price?: string) => price ? parseFloat(price.replace(/[^0-9.]/g, '')) : 0;
 const parseEngagement = (rate?: string | { [key: string]: string }) => {
   if (!rate) return 0;
   
@@ -234,19 +239,8 @@ const badgesForInfluencer = (inf: Influencer, lang: "el" | "en") => {
       avg_rating: inf.avg_rating || 0,
       past_brands: inf.past_brands || 0,
       account_created_days: accountAgeDays,
-      min_rate: inf.min_rate,
+      min_rate: badgeMinRateFromTier(inf.price_tier),
     }, lang);
-};
-
-const getAgeFromBirthDate = (birthDate?: string | null): number | null => {
-    if (!birthDate) return null;
-    const birth = new Date(birthDate);
-    if (isNaN(birth.getTime())) return null;
-    const today = new Date();
-    let age = today.getFullYear() - birth.getFullYear();
-    const m = today.getMonth() - birth.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
-    return age;
 };
 
 /** Κανονικοποίηση για σύγκριση τοποθεσίας: lowercase + αφαίρεση τόνων (αθήνα = αθηνα = Αθήνα) */
@@ -374,7 +368,7 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
               platform: "Instagram",
               gender: normalizeGender(inf.gender),
               location: inf.location,
-              min_rate: inf.min_rate,
+              price_tier: inf.price_tier || "0",
               avg_likes: inf.avg_likes,
               engagement_rate: Object.keys(engagementRatesObj).length > 0 ? engagementRatesObj : (inf.engagement_rate || undefined),
               videos: Array.isArray(inf.videos) ? inf.videos : [],
@@ -384,7 +378,7 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
               completion_rate: inf.completion_rate ?? null,
               past_brands: inf.past_brands || 0,
               created_at: inf.created_at,
-              birth_date: inf.birth_date || null,
+              age: typeof inf.age === "number" ? inf.age : null,
               availability_status: inf.availability_status || 'available',
               profile_slug: inf.profile_slug || null,
               accounts: Array.isArray(inf.accounts) ? inf.accounts : [],
@@ -433,16 +427,7 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
     if (followerRange === "Micro") followerMatch = maxFollowers >= 10000 && maxFollowers < 100000;
     if (followerRange === "Macro") followerMatch = maxFollowers >= 100000;
 
-    let budgetMatch = true;
-    if (budgetMax !== "All") {
-        const rate = parsePrice(inf.min_rate);
-        if (budgetMax === "Unlimited") {
-            budgetMatch = rate >= 5000;
-        } else {
-            const max = parseInt(budgetMax);
-            if (rate > max) budgetMatch = false;
-        }
-    }
+    const budgetMatch = budgetTierMatches(inf.price_tier, budgetMax);
 
     let engageMatch = true;
     if (minEngagement !== "All") {
@@ -490,7 +475,7 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
     }
 
     let ageMatch = true;
-    const age = getAgeFromBirthDate(inf.birth_date);
+    const age = typeof inf.age === "number" ? inf.age : null;
     if (ageMin !== "" || ageMax !== "") {
         const min = ageMin !== "" ? parseInt(ageMin, 10) : 0;
         const max = ageMax !== "" ? parseInt(ageMax, 10) : 999;
@@ -594,18 +579,9 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
 
                 <select value={budgetMax} onChange={(e) => setBudgetMax(e.target.value)} className={`${selectClass} !bg-green-50 !border-green-100 !text-green-800`}>
                     <option value="All">{txt.budAll}</option>
-                    <option value="100">{txt.budUpTo} 100€</option>
-                    <option value="200">{txt.budUpTo} 200€</option>
-                    <option value="500">{txt.budUpTo} 500€</option>
-                    <option value="1000">{txt.budUpTo} 1000€</option>
-                    <option value="1500">{txt.budUpTo} 1500€</option>
-                    <option value="2000">{txt.budUpTo} 2000€</option>
-                    <option value="2500">{txt.budUpTo} 2500€</option>
-                    <option value="3000">{txt.budUpTo} 3000€</option>
-                    <option value="3500">{txt.budUpTo} 3500€</option>
-                    <option value="4000">{txt.budUpTo} 4000€</option>
-                    <option value="4500">{txt.budUpTo} 4500€</option>
-                    <option value="5000">{txt.budUpTo} 5000€</option>
+                    {DIRECTORY_BUDGET_CAPS.map((cap) => (
+                        <option key={cap} value={String(cap)}>{txt.budUpTo} {cap}€</option>
+                    ))}
                     <option value="Unlimited">{txt.budUnlimited}</option>
                 </select>
 
@@ -645,7 +621,7 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
                     ))}
                 </select>
 
-                {/* Age filter (from birth_date) */}
+                {/* Age filter (whole years computed on the server, not a birth date) */}
                 <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-slate-600 whitespace-nowrap">{txt.ageRange}:</span>
                     <input type="number" min={18} max={99} placeholder={txt.ageFrom} value={ageMin} onChange={(e) => setAgeMin(e.target.value)} className={`${selectClass} !py-2`} />

@@ -5,7 +5,8 @@ import { Suspense, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient'; 
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import DashboardContent from '@/components/DashboardContent'; 
+import DashboardContent from '@/components/DashboardContent';
+import { loadOwnInfluencer } from '@/lib/ownProfile'; 
 
 // [!!!] ΒΑΛΕ ΤΟ ADMIN EMAIL ΣΟΥ ΕΔΩ
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'nd.6@hotmail.com';
@@ -33,21 +34,11 @@ export default function DashboardPage() {
                 return;
             }
 
-            // 2. Load Profile (by email, then by auth id for older rows)
-            let { data: profile } = await supabase
-                .from('influencers')
-                .select('*')
-                .eq('contact_email', user.email)
-                .maybeSingle();
-
-            if (!profile && user.id) {
-                const byId = await supabase
-                    .from('influencers')
-                    .select('*')
-                    .eq('id', user.id)
-                    .maybeSingle();
-                profile = byId.data;
-            }
+            // Own row only. Private fields come from influencer_private (RLS).
+            const profile = await loadOwnInfluencer(supabase, {
+                id: user.id,
+                email: user.email,
+            });
             
             if (!profile && user.email) {
                 setOrphanEmail(user.email);

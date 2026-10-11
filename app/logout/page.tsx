@@ -3,6 +3,7 @@
 
 import { useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { loadOwnBrand } from '@/lib/ownProfile';
 import { useRouter } from 'next/navigation';
 
 export default function LogoutPage() {
@@ -43,13 +44,13 @@ export default function LogoutPage() {
                     
                     // Check if user is a brand
                     try {
-                        const { data: brandData } = await supabase
-                            .from('brands')
-                            .select('contact_email')
-                            .eq('id', user.id)
-                            .maybeSingle();
+                        const brandData = await loadOwnBrand(supabase, {
+                            id: user.id,
+                            email: user.email,
+                        });
                         
-                        if (brandData?.contact_email) {
+                        const brandEmail = typeof brandData?.contact_email === "string" ? brandData.contact_email : "";
+                        if (brandEmail) {
                             // Mark brand as offline
                             await supabase
                                 .from('brand_presence')
@@ -58,8 +59,8 @@ export default function LogoutPage() {
                                     last_seen: new Date().toISOString(),
                                     updated_at: new Date().toISOString(),
                                 })
-                                .eq('brand_email', brandData.contact_email.toLowerCase().trim());
-                            console.log('[Logout] Marked brand as offline:', brandData.contact_email);
+                                .eq('brand_email', brandEmail.toLowerCase().trim());
+                            console.log('[Logout] Marked brand as offline:', brandEmail);
                         }
                     } catch (err) {
                         // Fail silently - don't block logout if presence update fails

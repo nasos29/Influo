@@ -177,13 +177,15 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
         return;
       }
 
-      // Check if email already exists in brands
-      const { count } = await supabase
-        .from('brands')
-        .select('id', { count: 'exact', head: true })
-        .eq('contact_email', email.toLowerCase().trim());
+      // Check if email already exists (server-side; contact_email is not readable from the browser)
+      const checkRes = await fetch('/api/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.toLowerCase().trim() }),
+      });
+      const checkBody = await checkRes.json().catch(() => ({}));
 
-      if (count && count > 0) {
+      if (checkRes.ok && checkBody.exists) {
         setMessage(txt.error_email_exists);
         setLoading(false);
         return;

@@ -203,19 +203,14 @@ function LoginPageContent() {
 
         if (!isAdmin) {
             // Match server forgot-password: contact_email only (no brands.email — column may not exist → 400).
-            const { data: influencer, error: influencerError } = await supabase
-                .from('influencers')
-                .select('contact_email')
-                .ilike('contact_email', email)
-                .maybeSingle();
+            const checkRes = await fetch('/api/check-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email }),
+            });
+            const checkBody = await checkRes.json().catch(() => ({}));
 
-            const { data: brandRow, error: brandError } = await supabase
-                .from('brands')
-                .select('contact_email')
-                .ilike('contact_email', email)
-                .maybeSingle();
-
-            if ((influencerError || !influencer) && (brandError || !brandRow)) {
+            if (!checkRes.ok || !checkBody.exists) {
                 setMessage(lang === 'el' 
                     ? 'Το email που εισάγατε δεν βρέθηκε στη βάση δεδομένων. Παρακαλώ ελέγξτε το email σας ή επικοινωνήστε με την υποστήριξη.' 
                     : 'The email you entered was not found in our database. Please check your email or contact support.');

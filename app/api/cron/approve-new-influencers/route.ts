@@ -2,6 +2,12 @@
  * Oracle every-4h job: new (never approved) influencers with social usernames.
  * Scraping is on the VM. This route lists, persists stats, translates bios,
  * verifies analytics, and approves.
+ *
+ * AuditPro contract (do not change): POST with Authorization Bearer CRON_SECRET.
+ * Actions: start → { run, influencers, purged }; apply → { ok, bioNote, result }
+ * or { ok:false, skipped|aborted, ... }; also log, abort, finish.
+ * Reads/writes influencers with the server service role (contact_email for the
+ * approval email, accounts, approved, approved_at). Browser column locks do not apply.
  */
 
 import { NextRequest, NextResponse } from 'next/server';

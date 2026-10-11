@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { isAdminUser, userFromBearer } from '@/lib/apiAuth';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -52,6 +53,11 @@ export async function POST(req: Request) {
 // Get profile changes for an influencer (for admin review)
 export async function GET(req: Request) {
   try {
+    const user = await userFromBearer(req);
+    if (!user || !(await isAdminUser(user))) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const influencerId = searchParams.get('influencerId');
     const unreviewedOnly = searchParams.get('unreviewedOnly') === 'true';
@@ -100,6 +106,11 @@ export async function GET(req: Request) {
 // Mark changes as reviewed by admin
 export async function PATCH(req: Request) {
   try {
+    const user = await userFromBearer(req);
+    if (!user || !(await isAdminUser(user))) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await req.json();
     const { changeIds } = body; // Array of change IDs to mark as reviewed
 

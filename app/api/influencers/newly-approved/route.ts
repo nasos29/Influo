@@ -1,47 +1,25 @@
 /**
- * Newly approved influencers for homepage section (last 8: two rows of 4).
- * Same data shape as Directory: select('*') so images and badges work.
+ * Newly approved influencers for the homepage (last 8).
+ * Same public allow-list as the directory, plus the media the cards display.
  */
 
-import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-);
+import { NextResponse } from "next/server";
+import { loadInfluencerRows } from "@/lib/loadPublicInfluencers";
+import { NEWLY_APPROVED_QUERY_COLUMNS, toPublicNewlyApproved } from "@/lib/publicInfluencer";
 
 const LIMIT = 8;
 
 export async function GET() {
   try {
-    const { data, error } = await supabaseAdmin
-      .from('influencers')
-      .select('*')
-      .eq('approved', true)
-      .order('created_at', { ascending: false })
-      .limit(LIMIT);
-
-    if (error) {
-      console.error('[newly-approved] Supabase error:', error.message, error.details);
-      return NextResponse.json(
-        { error: error.message, influencers: [] },
-        { status: 200 }
-      );
-    }
-
-    const list = Array.isArray(data) ? data : [];
-    return NextResponse.json({ influencers: list });
+    const rows = await loadInfluencerRows(NEWLY_APPROVED_QUERY_COLUMNS, {
+      newestFirst: true,
+      limit: LIMIT,
+    });
+    return NextResponse.json({ influencers: rows.map(toPublicNewlyApproved) });
   } catch (err: unknown) {
-    console.error('[newly-approved] Exception:', err);
+    console.error("[newly-approved] Exception:", err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal server error', influencers: [] },
+      { error: err instanceof Error ? err.message : "Internal server error", influencers: [] },
       { status: 200 }
     );
   }

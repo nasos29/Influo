@@ -9,6 +9,7 @@ import { displayNameForLang } from "@/lib/greeklish";
 import { getBadges, getBadgeStyles, type Badge } from "@/lib/badges";
 import { getVisitorId } from "@/lib/visitorId";
 import { publicProfilePath } from "@/lib/profileSlug";
+import { badgeMinRateFromTier } from "@/lib/publicInfluencer";
 import FastImage from "@/components/FastImage";
 
 type Lang = "el" | "en";
@@ -31,7 +32,7 @@ export type NewlyApprovedInfluencer = {
   past_brands?: unknown[] | number | null;
   total_reviews?: number | null;
   avg_rating?: number | null;
-  min_rate?: string | null;
+  price_tier?: string | null;
   profile_slug?: string | null;
 };
 
@@ -122,7 +123,7 @@ function getPrimaryBadge(inf: NewlyApprovedInfluencer, lang: Lang): Badge | { ty
       avg_rating: inf.avg_rating ?? 0,
       past_brands: Array.isArray(inf.past_brands) ? inf.past_brands.length : (inf.past_brands as number) ?? 0,
       account_created_days: getAccountAgeDays(inf.created_at),
-      min_rate: inf.min_rate ?? undefined,
+      min_rate: badgeMinRateFromTier(inf.price_tier),
     },
     lang
   );

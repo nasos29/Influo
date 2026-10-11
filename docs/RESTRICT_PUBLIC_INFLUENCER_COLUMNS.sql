@@ -1,0 +1,13 @@
+-- Αυτό το αρχείο δεν κλείνει πια το κενό του συνδεδεμένου χρήστη.
+-- Μην το τρέξετε μόνο του.
+--
+-- Σειρά (Supabase → SQL Editor), για να μην πέσει το site:
+--   1. ΠΡΩΤΑ docs/influencer-private/01_create_private_tables.sql
+--      (προσθέτει πίνακες, δεν κλείνει ακόμη τις στήλες· το live συνεχίζει)
+--   2. Μετά το merge / deploy αυτού του PR
+--   3. ΑΜΕΣΩΣ ΜΕΤΑ docs/influencer-private/02_revoke_browser_private_columns.sql
+--
+-- Μην τρέξετε το 02 πριν το deploy: το παλιό site διαβάζει contact_email
+-- από τον browser και θα σπάσει το dashboard μέχρι να ανέβει ο νέος κώδικας.
+--
+-- Rollback: docs/influencer-private/99_rollback_private_tables.sql

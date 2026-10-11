@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { FaPaperclip } from 'react-icons/fa';
 import { supabase } from '@/lib/supabaseClient';
+import { brandHasAccount } from '@/lib/ownProfile';
 import { displayNameForLang } from '@/lib/greeklish';
 import {
   formatChatRelativeTime,
@@ -270,13 +271,9 @@ export default function Messaging({
       // Track brand online status - only if brand has account
       const updateBrandStatus = async () => {
         // Check if brand has account first
-        const { data: brandData } = await supabase
-          .from('brands')
-          .select('id')
-          .eq('contact_email', brandEmail.toLowerCase().trim())
-          .maybeSingle();
+        const hasAccount = await brandHasAccount(supabase, brandEmail);
         
-        if (brandData) {
+        if (hasAccount) {
           // Brand has account - update presence
           updateBrandOnlineStatus(brandEmail);
         }
@@ -1409,13 +1406,9 @@ export default function Messaging({
       console.log(`[Brand Presence Update] Updating presence for: ${emailLower}`);
       
       // First check if brand has an account - unregistered brands should not update presence
-      const { data: brandData } = await supabase
-        .from('brands')
-        .select('id')
-        .eq('contact_email', emailLower)
-        .maybeSingle();
+      const hasAccount = await brandHasAccount(supabase, emailLower);
 
-      if (!brandData) {
+      if (!hasAccount) {
         // Brand doesn't have account - don't update presence
         console.log(`[Brand Presence Update] Brand ${emailLower} does not have account - skipping`);
         return;
@@ -1453,13 +1446,9 @@ export default function Messaging({
     
     try {
       // Only mark offline if brand has account
-      const { data: brandData } = await supabase
-        .from('brands')
-        .select('id')
-        .eq('contact_email', email.toLowerCase().trim())
-        .maybeSingle();
+      const hasAccount = await brandHasAccount(supabase, email);
 
-      if (brandData) {
+      if (hasAccount) {
         // Brand has account - mark as offline
         const result = await supabase
           .from('brand_presence')

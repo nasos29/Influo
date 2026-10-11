@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { insertFollowerSnapshot } from '@/lib/parseFollowers';
+import { requireAdmin } from '@/lib/apiAuth';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,6 +15,11 @@ const supabaseAdmin = createClient(
  */
 export async function POST(request: NextRequest) {
   try {
+    const admin = await requireAdmin(request);
+    if (!admin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json().catch(() => ({}));
     const influencerId = String(body?.influencerId ?? '').trim();
     const updates = body?.updates;

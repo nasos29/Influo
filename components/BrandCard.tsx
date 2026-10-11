@@ -7,7 +7,6 @@ import FastImage from "@/components/FastImage";
 interface BrandCardProps {
   id: string;
   brand_name: string;
-  contact_email: string;
   contact_person: string | null;
   website: string | null;
   industry: string | null;
@@ -19,7 +18,6 @@ interface BrandCardProps {
 export default function BrandCard({
   id,
   brand_name,
-  contact_email,
   contact_person,
   website,
   industry,

@@ -26,6 +26,8 @@ export type ChannelScoreInput = {
   growthPct?: number | null;
   minRate?: string | null;
   rateCard?: { story?: string; post?: string; reel?: string; facebook?: string; youtube?: string } | null;
+  /** When the exact amount is withheld, still count "has a price" toward coop score. */
+  hasPricedMinRate?: boolean;
 };
 
 function clamp(n: number, min = 0, max = 5): number {
@@ -148,7 +150,7 @@ export function buildChannelScore(input: ChannelScoreInput) {
   let coop = 3.2;
   if (input.verified) coop += 1.4;
   if (input.brandSafe) coop += 0.9;
-  if (parseMoney(input.minRate)) coop += 0.7;
+  if (parseMoney(input.minRate) != null || input.hasPricedMinRate) coop += 0.7;
   if (er >= 2) coop += 1;
   if (er >= 4) coop += 0.4;
   if (input.contentCount >= 3) coop += 0.6;
