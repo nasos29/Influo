@@ -5,12 +5,14 @@ import { useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { loadOwnBrand } from '@/lib/ownProfile';
 import { useRouter } from 'next/navigation';
+import { beginPresenceLogout } from '@/lib/presenceControl';
 
 export default function LogoutPage() {
     const router = useRouter();
 
     useEffect(() => {
         async function handleLogout() {
+            beginPresenceLogout();
             try {
                 // Get current user before signing out
                 const { data: { user } } = await supabase.auth.getUser();

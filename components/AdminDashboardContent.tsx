@@ -100,6 +100,13 @@ interface Conversation {
   proposal_id: number | null;
   created_at: string;
   last_message_at: string;
+  closed_at?: string | null;
+}
+
+interface MessageAttachment {
+  url?: string;
+  filename?: string;
+  content_type?: string;
 }
 
 interface Message {
@@ -108,6 +115,7 @@ interface Message {
   sender_id: string;
   sender_type: 'influencer' | 'brand';
   content: string;
+  attachments?: MessageAttachment[] | null;
   read: boolean;
   sent_via_email: boolean;
   created_at: string;
@@ -1604,13 +1612,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
 
   const fetchConversations = async () => {
     try {
-      const { data, error } = await supabase
-        .from('conversations')
-        .select('*')
-        .order('last_message_at', { ascending: false });
-
-      if (error) throw error;
-      setConversations(data || []);
+      const response = await fetch('/api/admin/conversations', { headers: await adminAuthHeaders() });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        console.error('Error fetching conversations:', result.error || response.status);
+        return;
+      }
+      setConversations(result.conversations || []);
     } catch (error) {
       console.error('Error fetching conversations:', error);
     }
@@ -1618,14 +1626,16 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
 
   const fetchConversationMessages = async (convId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('conversation_id', convId)
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-      setConversationMessages(data || []);
+      const response = await fetch(
+        `/api/admin/conversations?conversationId=${encodeURIComponent(convId)}`,
+        { headers: await adminAuthHeaders() }
+      );
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        console.error('Error fetching messages:', result.error || response.status);
+        return;
+      }
+      setConversationMessages(result.messages || []);
     } catch (error) {
       console.error('Error fetching messages:', error);
     }
@@ -2043,17 +2053,15 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     let cancelled = false;
     const loadUnreadMessages = async () => {
       try {
-        const { count, error } = await supabase
-          .from('messages')
-          .select('*', { count: 'exact', head: true })
-          .eq('read', false);
-        
+        const response = await fetch('/api/admin/conversations?count=unread', {
+          headers: await adminAuthHeaders(),
+        });
+        const result = await response.json();
         if (cancelled) return;
-        if (!error && count !== null) {
-          setUnreadMessagesCount(count);
-        } else if (error) {
-          console.error('Error counting unread messages:', error);
-          setUnreadMessagesCount(0);
+        if (response.ok && result.success && typeof result.count === 'number') {
+          setUnreadMessagesCount(result.count);
+        } else {
+          console.error('Error counting unread messages:', result.error || response.status);
         }
       } catch (error) {
         console.error('Error loading unread messages count:', error);
@@ -2979,27 +2987,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                 )}
               </button>
               <button 
-                onClick={async () => {
-                  setActiveTab("conversations");
-                  // Mark all unread messages as read when clicking Conversations tab
-                  if (unreadMessagesCount > 0) {
-                    try {
-                      // Mark all unread messages as read
-                      await supabase
-                        .from('messages')
-                        .update({ read: true })
-                        .eq('read', false);
-                      // Reload count to update badge
-                      const { count } = await supabase
-                        .from('messages')
-                        .select('*', { count: 'exact', head: true })
-                        .eq('read', false);
-                      setUnreadMessagesCount(count || 0);
-                    } catch (error) {
-                      console.error('Error marking messages as read:', error);
-                    }
-                  }
-                }}
+                onClick={() => setActiveTab("conversations")}
                 className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors relative whitespace-nowrap ${
                   activeTab === "conversations" 
                     ? "border-slate-900 text-slate-900" 
@@ -4045,8 +4033,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                         >
                           <div className="font-semibold text-slate-900">{conv.influencer_name}</div>
                           <div className="text-xs text-slate-500 mt-1">↔ {conv.brand_name || conv.brand_email}</div>
-                          <div className="text-xs text-slate-400 mt-1">
-                            {new Date(conv.last_message_at).toLocaleDateString('el-GR')}
+                          <div className="text-xs text-slate-400 mt-1 flex items-center gap-2">
+                            <span>
+                              {conv.last_message_at ? new Date(conv.last_message_at).toLocaleDateString('el-GR') : ''}
+                            </span>
+                            {conv.closed_at && (
+                              <span className="uppercase tracking-wide">{lang === 'el' ? 'Κλειστή' : 'Closed'}</span>
+                            )}
                           </div>
                         </button>
                         <button
@@ -4086,6 +4079,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                           </h3>
                           <div className="text-sm text-slate-500 mt-1">
                             Influencer: {selectedConversation.influencer_email} | Brand: {selectedConversation.brand_email}
+                            {selectedConversation.closed_at ? (lang === 'el' ? ' · Κλειστή' : ' · Closed') : ''}
                           </div>
                         </div>
                         <div className="space-y-4">
@@ -4107,6 +4101,30 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                     }`}
                                   >
                                     <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                                    {Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
+                                      <div className="mt-2 space-y-1">
+                                        {msg.attachments.map((att, index) => {
+                                          const url = att?.url && /^https:\/\//i.test(att.url) ? att.url : '';
+                                          if (!url) return null;
+                                          const image = (att.content_type || '').startsWith('image/');
+                                          return (
+                                            <a
+                                              key={`${msg.id}-${index}`}
+                                              href={url}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              className={`block text-xs underline ${isInfluencer ? 'text-blue-700' : 'text-blue-100'}`}
+                                            >
+                                              {image && (
+                                                // eslint-disable-next-line @next/next/no-img-element
+                                                <img src={url} alt={att.filename || ''} className="mt-1 max-h-48 max-w-full rounded" />
+                                              )}
+                                              {att.filename || url}
+                                            </a>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
                                     <div className="flex items-center gap-2 mt-1">
                                       <p className={`text-xs ${isInfluencer ? 'text-slate-500' : 'text-blue-100'}`}>
                                         {new Date(msg.created_at).toLocaleString('el-GR')}

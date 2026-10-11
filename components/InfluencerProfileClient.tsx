@@ -6,6 +6,8 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Influencer } from "@/components/Directory"; 
 import { supabase } from "@/lib/supabaseClient";
+import { presenceOnline } from "@/lib/presenceStatus";
+import { counterpartyInfluencerPresence } from "@/lib/presenceIdentity";
 import { getVideoThumbnail, isVideoUrl, isDefinitelyVideo, isDefinitelyImage, detectProvider, getIframelyEmbedUrl } from "@/lib/videoThumbnail";
 import VideoThumbnail from "@/components/VideoThumbnail";
 import SocialEmbedCard from "@/components/SocialEmbedCard";
@@ -545,7 +547,7 @@ export default function InfluencerProfile(props: {
         // We can't directly check, but we can verify the presence record is recent and valid
         const { data, error } = await supabase
           .from('influencer_presence')
-          .select('is_online, last_seen, updated_at')
+          .select('influencer_id, is_online, last_seen')
           .eq('influencer_id', id)
           .maybeSingle();
 
@@ -555,46 +557,8 @@ export default function InfluencerProfile(props: {
           return;
         }
 
-        if (data) {
-          const lastSeen = new Date(data.last_seen);
-          const updatedAt = new Date(data.updated_at);
-          const now = new Date();
-          const minutesSinceLastSeen = (now.getTime() - lastSeen.getTime()) / 60000;
-          const minutesSinceUpdated = (now.getTime() - updatedAt.getTime()) / 60000;
-          
-          // Very strict: must be online AND last_seen within 1 minute (not 2)
-          // AND updated_at must be recent (within 1 minute) to ensure it's actively being updated
-          const secondsSinceLastSeen = (now.getTime() - lastSeen.getTime()) / 1000;
-          const secondsSinceUpdated = (now.getTime() - updatedAt.getTime()) / 1000;
-          const isOnline = data.is_online && 
-                          secondsSinceLastSeen < 60 && 
-                          secondsSinceUpdated < 60;
-          
-          setIsOnline(isOnline);
-          
-          // If presence is stale (more than 1 minute), mark as offline in database
-          if (data.is_online && (secondsSinceLastSeen >= 60 || secondsSinceUpdated >= 60)) {
-            // Silently update - don't wait for response
-            (async () => {
-              try {
-                await supabase
-                  .from('influencer_presence')
-                  .update({
-                    is_online: false,
-                    last_seen: new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
-                  })
-                  .eq('influencer_id', id);
-                setIsOnline(false);
-              } catch (err: any) {
-                // Ignore errors
-                console.error('Error updating stale presence:', err);
-              }
-            })();
-          }
-        } else {
-          setIsOnline(false);
-        }
+        const row = counterpartyInfluencerPresence(String(id), data);
+        setIsOnline(presenceOnline(row));
       } catch (error) {
         console.error('Error checking online status:', error);
         setIsOnline(false);

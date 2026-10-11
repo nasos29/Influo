@@ -16,7 +16,8 @@ import { normalizeGender } from '@/lib/gender';
 import InfluencerCampaignsPanel from './InfluencerCampaignsPanel';
 import InfluencerToolsPanel from './InfluencerToolsPanel';
 import { INFLUENCER_BROWSER_COLUMNS, loadOwnInfluencer } from '@/lib/ownProfile';
-import { presenceTabOpened } from '@/lib/presenceTabs';
+import { useOwnPresenceHeartbeat } from '@/lib/useOwnPresenceHeartbeat';
+import { beginPresenceLogout } from '@/lib/presenceControl';
 
 // --- FULL CATEGORY LIST ---
 const CATEGORIES = [
@@ -937,76 +938,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
         }
     }, [searchParams]);
 
-    // Keep influencer online while logged into any dashboard tab (mirrors brand_presence)
-    useEffect(() => {
-        if (!profile?.id) return;
-
-        const updatePresence = async () => {
-            const now = new Date().toISOString();
-            try {
-                const { error } = await supabase.from('influencer_presence').upsert(
-                    {
-                        influencer_id: profile.id,
-                        is_online: true,
-                        last_seen: now,
-                        updated_at: now,
-                    },
-                    { onConflict: 'influencer_id' }
-                );
-                if (error) console.error('[Influencer Dashboard] presence update:', error);
-            } catch (err) {
-                console.error('[Influencer Dashboard] presence exception:', err);
-            }
-        };
-
-        const markOffline = async () => {
-            try {
-                await supabase
-                    .from('influencer_presence')
-                    .update({
-                        is_online: false,
-                        last_seen: new Date().toISOString(),
-                        updated_at: new Date().toISOString(),
-                    })
-                    .eq('influencer_id', profile.id);
-            } catch {
-                /* ignore */
-            }
-        };
-
-        const releaseTab = presenceTabOpened();
-        let released = false;
-        let interval = 0;
-        const releaseOnce = () => {
-            if (released) return false;
-            released = true;
-            return releaseTab();
-        };
-        const start = () => {
-            void updatePresence();
-            window.clearInterval(interval);
-            interval = window.setInterval(() => {
-                if (!document.hidden) void updatePresence();
-            }, 25_000);
-        };
-        const onVisibility = () => {
-            if (document.hidden) window.clearInterval(interval);
-            else start();
-        };
-        const markIfLast = () => {
-            if (releaseOnce()) void markOffline();
-        };
-        if (!document.hidden) start();
-        document.addEventListener('visibilitychange', onVisibility);
-        window.addEventListener('beforeunload', markIfLast);
-
-        return () => {
-            window.clearInterval(interval);
-            document.removeEventListener('visibilitychange', onVisibility);
-            window.removeEventListener('beforeunload', markIfLast);
-            markIfLast();
-        };
-    }, [profile.id]);
+    useOwnPresenceHeartbeat(profile?.id ? { kind: 'influencer', influencerId: profile.id } : null);
 
     const [loading, setLoading] = useState(false);
     const [proposals, setProposals] = useState<Proposal[]>([]);
@@ -1049,6 +981,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                 throw new Error(data.error || 'Η διαγραφή απέτυχε. Δοκιμάστε ξανά.');
             }
 
+            beginPresenceLogout();
             await supabase.auth.signOut();
             window.location.href = '/?account_deleted=1';
         } catch (err: unknown) {
@@ -1080,34 +1013,31 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
         };
         
         const loadUnreadMessages = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                // Get all conversations for this influencer
-                const { data: conversations } = await supabase
-                    .from('conversations')
-                    .select('id')
-                    .eq('influencer_id', user.id);
-                
-                if (conversations && conversations.length > 0) {
-                    const conversationIds = conversations.map(c => c.id);
-                    
-                    // Count unread messages from brands (sender_type = 'brand' and read = false)
-                    const { count, error } = await supabase
-                        .from('messages')
-                        .select('*', { count: 'exact', head: true })
-                        .in('conversation_id', conversationIds)
-                        .eq('sender_type', 'brand')
-                        .eq('read', false);
-                    
-                    if (!error && count !== null) {
-                        setUnreadMessagesCount(count);
-                    } else if (error) {
-                        console.error('Error counting unread messages:', error);
-                        setUnreadMessagesCount(0);
-                    }
-                } else {
-                    setUnreadMessagesCount(0);
-                }
+            const influencerId = profile?.id;
+            if (!influencerId) return;
+            const { data: conversations } = await supabase
+                .from('conversations')
+                .select('id')
+                .eq('influencer_id', influencerId);
+
+            if (!conversations || conversations.length === 0) {
+                setUnreadMessagesCount(0);
+                return;
+            }
+
+            const conversationIds = conversations.map(c => c.id);
+            const { count, error } = await supabase
+                .from('messages')
+                .select('*', { count: 'exact', head: true })
+                .in('conversation_id', conversationIds)
+                .eq('sender_type', 'brand')
+                .or('read.eq.false,read.is.null');
+
+            if (!error && count !== null) {
+                setUnreadMessagesCount(count);
+            } else if (error) {
+                console.error('Error counting unread messages:', error);
+                setUnreadMessagesCount(0);
             }
         };
         
@@ -1134,6 +1064,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
             loadUnreadMessages();
         };
         window.addEventListener('messagesRead', handleMessagesRead);
+        window.addEventListener('focus', handleMessagesRead);
         
         // Refresh counts every 30 seconds
         const interval = setInterval(() => {
@@ -1145,10 +1076,9 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
         return () => {
             clearInterval(interval);
             window.removeEventListener('messagesRead', handleMessagesRead);
+            window.removeEventListener('focus', handleMessagesRead);
         };
-        
-        return () => clearInterval(interval);
-    }, []);
+    }, [profile?.id]);
 
     useEffect(() => {
         // Refresh profile data periodically
