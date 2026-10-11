@@ -31,20 +31,38 @@ function detectProvider(originalUrl: string): string {
   return 'unknown';
 }
 
-/** Resolve TikTok short/full URL → numeric video id for official embed. */
+/** Match TikTok numeric id from /video/ or /photo/ (slideshows) paths. */
+function tikTokIdFromUrl(url: string): string | null {
+  return url.match(/\/(?:video|photo)\/(\d+)/)?.[1] ?? null;
+}
+
+/**
+ * Resolve TikTok short/full URL → numeric id for official embed.
+ * Short links (vm/vt) often 302 to /@/photo/{id} now, not /@user/video/{id}.
+ */
 async function resolveTikTokVideoId(url: string): Promise<string | null> {
   const clean = url.split('?')[0].split('#')[0].trim();
-  const direct = clean.match(/\/video\/(\d+)/);
-  if (direct) return direct[1];
+  const direct = tikTokIdFromUrl(clean);
+  if (direct) return direct;
   if (!/(vm|vt)\.tiktok\.com/i.test(clean)) return null;
   try {
-    const res = await fetch(clean, {
-      method: 'GET',
-      redirect: 'manual',
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-    });
-    const loc = res.headers.get('location') || '';
-    return loc.match(/\/video\/(\d+)/)?.[1] ?? null;
+    let current = clean;
+    for (let hop = 0; hop < 5; hop++) {
+      const res = await fetch(current, {
+        method: 'GET',
+        redirect: 'manual',
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+      });
+      await res.body?.cancel?.();
+      const loc = res.headers.get('location');
+      if (!(res.status >= 300 && res.status < 400) || !loc) {
+        return tikTokIdFromUrl(current);
+      }
+      current = new URL(loc, current).href;
+      const id = tikTokIdFromUrl(current);
+      if (id) return id;
+    }
+    return null;
   } catch {
     return null;
   }

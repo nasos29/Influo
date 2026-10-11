@@ -51,26 +51,40 @@ async function isThumbnailReachable(thumbnailUrl: string): Promise<boolean> {
   }
 }
 
-/** Resolve vm/vt.tiktok.com → canonical video URL. */
+/** Normalize any TikTok URL that contains /video|photo/{id} → oEmbed-friendly video URL. */
+function tikTokOEmbedUrlFromAny(url: string): string | null {
+  const id = url.match(/\/(?:video|photo)\/(\d+)/)?.[1];
+  if (!id) return null;
+  const withUser = url.match(/tiktok\.com\/@([\w.-]+)\/(?:video|photo)\/(\d+)/i);
+  if (withUser?.[1]) return `https://www.tiktok.com/@${withUser[1]}/video/${withUser[2]}`;
+  return `https://www.tiktok.com/video/${id}`;
+}
+
+/**
+ * Resolve vm/vt.tiktok.com → canonical video URL for oEmbed.
+ * Short links often 302 to /@/photo/{id} (slideshow) — oEmbed needs /video/{id}.
+ */
 async function resolveTikTokUrl(url: string): Promise<string> {
   const clean = url.split('?')[0].split('#')[0].trim();
+  const already = tikTokOEmbedUrlFromAny(clean);
+  if (already) return already;
   if (!/(vm|vt)\.tiktok\.com/i.test(clean)) return clean;
   try {
-    const res = await fetch(clean, {
-      method: 'GET',
-      redirect: 'manual',
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-    });
-    const loc = res.headers.get('location');
-    if (!loc) return clean;
-    const abs = loc.startsWith('http')
-      ? loc
-      : `https://www.tiktok.com${loc.startsWith('/') ? loc : `/${loc}`}`;
-    const withUser = abs.match(/tiktok\.com\/@([\w.-]+)\/video\/(\d+)/i);
-    if (withUser) return `https://www.tiktok.com/@${withUser[1]}/video/${withUser[2]}`;
-    const idOnly = abs.match(/\/video\/(\d+)/);
-    if (idOnly) return `https://www.tiktok.com/video/${idOnly[1]}`;
-    return abs.split('?')[0];
+    let current = clean;
+    for (let hop = 0; hop < 5; hop++) {
+      const res = await fetch(current, {
+        method: 'GET',
+        redirect: 'manual',
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+      });
+      await res.body?.cancel?.();
+      const loc = res.headers.get('location');
+      if (!(res.status >= 300 && res.status < 400) || !loc) break;
+      current = new URL(loc, current).href;
+      const resolved = tikTokOEmbedUrlFromAny(current);
+      if (resolved) return resolved;
+    }
+    return clean;
   } catch {
     return clean;
   }

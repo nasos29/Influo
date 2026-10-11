@@ -225,8 +225,15 @@ async function resolveTikTokShort(raw: string): Promise<
     break;
   }
 
-  const video = current.match(/https?:\/\/(?:www\.)?tiktok\.com\/@([^/?#]+)\/video\/(\d+)/i);
-  if (video) return { kind: "video", url: `https://www.tiktok.com/@${video[1]}/video/${video[2]}` };
+  const withUser = current.match(
+    /https?:\/\/(?:www\.)?tiktok\.com\/@([^/?#]+)\/(?:video|photo)\/(\d+)/i
+  );
+  if (withUser?.[1]) {
+    return { kind: "video", url: `https://www.tiktok.com/@${withUser[1]}/video/${withUser[2]}` };
+  }
+  // Short fallback often lands on /@/photo/{id} (empty username) — still a live item.
+  const idOnly = current.match(/\/(?:video|photo)\/(\d+)/);
+  if (idOnly) return { kind: "video", url: `https://www.tiktok.com/video/${idOnly[1]}` };
   try {
     const path = new URL(current).pathname;
     if (path === "/" || path === "") return { kind: "gone" };
