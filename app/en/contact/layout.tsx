@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   },
   alternates: {
     canonical: "/en/contact",
-    languages: { el: "/contact", en: "/en/contact" },
+    languages: { el: "/contact", en: "/en/contact", "x-default": "/contact" },
   },
 };
 

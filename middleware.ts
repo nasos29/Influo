@@ -1,21 +1,59 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+const PRIVATE_PREFIXES = [
+  "/login",
+  "/dashboard",
+  "/admin",
+  "/help-desk",
+  "/logout",
+  "/messages",
+  "/reset-password",
+  "/brand/login",
+  "/brand/dashboard",
+];
+
+function isPrivatePath(pathname: string): boolean {
+  return PRIVATE_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+  const host = (request.headers.get("host") || "").split(":")[0].toLowerCase();
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-pathname", pathname);
 
-  return NextResponse.next({
-    request: {
-      headers: requestHeaders,
-    },
+  // Production *.vercel.app is a duplicate of www. Preview deploys stay up, noindex.
+  // /api is excluded by the matcher, so /api/cron/* is never redirected.
+  if (host.endsWith(".vercel.app") && !pathname.startsWith("/api/cron")) {
+    const productionHost = host === "influo.vercel.app" || process.env.VERCEL_ENV === "production";
+    const preview = process.env.VERCEL_ENV === "preview" || !productionHost;
+    if (preview) {
+      const previewResponse = NextResponse.next({ request: { headers: requestHeaders } });
+      previewResponse.headers.set("X-Robots-Tag", "noindex, nofollow");
+      return previewResponse;
+    }
+    const dest = request.nextUrl.clone();
+    dest.protocol = "https:";
+    dest.hostname = "www.influo.gr";
+    dest.port = "";
+    return NextResponse.redirect(dest, 308);
+  }
+
+  const response = NextResponse.next({
+    request: { headers: requestHeaders },
   });
+
+  if (request.method === "GET" && !isPrivatePath(pathname) && !request.nextUrl.search) {
+    response.headers.set("Cache-Control", "public, s-maxage=3600, stale-while-revalidate=86400");
+  }
+
+  return response;
 }
 
 /**
  * Run middleware only for real app pages.
- * Skips API/static assets to reduce unnecessary Vercel compute transfer.
+ * Skips API/static assets so /api/cron/* (called by the owner's local tool) is untouched.
  */
 export const config = {
   matcher: [

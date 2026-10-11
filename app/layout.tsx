@@ -4,6 +4,7 @@ import { Roboto } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import CookieConsent from "@/components/CookieConsent";
+import { ORGANIZATION_EMAIL, ORGANIZATION_SAME_AS, SITE_NAME, SITE_URL } from "@/lib/site";
 
 const roboto = Roboto({
   weight: ['300', '400', '500', '700'],
@@ -13,12 +14,12 @@ const roboto = Roboto({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr'),
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "Influo.gr - Σύνδεσε το Ταλέντο σου με κορυφαία Brands | Πλατφόρμα Influencer Marketing",
-    template: "%s | Influo.gr"
+    default: "Influencers Ελλάδα: Βρες Influencer για το Brand σου | Influo",
+    template: "%s | Influo",
   },
-  description: "Η πιο σύγχρονη πλατφόρμα Influencer Marketing στην Ελλάδα. Σύνδεσε το ταλέντο σου με κορυφαία Brands. Δημιούργησε το επαγγελματικό σου προφίλ και κλείσε συνεργασίες σήμερα.",
+  description: "Βρες influencers στην Ελλάδα ανά κατηγορία, πλατφόρμα και budget. Δωρεάν εγγραφή για brands και creators, verified προφίλ και καμπάνιες σε ένα μέρος.",
   keywords: ["influencer marketing", "influencer marketing Ελλάδα", "brand collaborations", "content creators", "Ελλάδα", "πλατφόρμα influencers", "διαφήμιση στα social media", "συνεργασίες με brands", "creator economy", "διαφημίσεις influencers", "προώθηση προϊόντων", "influencer Ελλάδα"],
   authors: [{ name: "Influo" }],
   creator: "Influo",
@@ -33,24 +34,23 @@ export const metadata: Metadata = {
     locale: "el_GR",
     alternateLocale: ["en_US"],
     url: "/",
-    siteName: "Influo.gr",
-    title: "Influo - Σύνδεσε το Ταλέντο σου με κορυφαία Brands",
-    description: "Η πιο σύγχρονη πλατφόρμα Influencer Marketing στην Ελλάδα. Σύνδεσε το ταλέντο σου με κορυφαία Brands.",
+    siteName: SITE_NAME,
+    title: "Influencers Ελλάδα: Βρες Influencer για το Brand σου | Influo",
+    description: "Βρες influencers στην Ελλάδα ανά κατηγορία, πλατφόρμα και budget. Δωρεάν εγγραφή για brands και creators, verified προφίλ και καμπάνιες σε ένα μέρος.",
     images: [
       {
-        url: "/logo.svg",
+        url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Influo - Πλατφόρμα Influencer Marketing",
+        alt: "Influo — Influencers στην Ελλάδα",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Influo - Σύνδεσε το Ταλέντο σου με κορυφαία Brands",
-    description: "Η πιο σύγχρονη πλατφόρμα Influencer Marketing στην Ελλάδα.",
-    images: ["/logo.svg"],
-    creator: "@influo",
+    title: "Influencers Ελλάδα: Βρες Influencer για το Brand σου | Influo",
+    description: "Βρες influencers στην Ελλάδα ανά κατηγορία, πλατφόρμα και budget.",
+    images: ["/og-image.png"],
   },
   robots: {
     index: true,
@@ -69,8 +69,9 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/",
     languages: {
-      "el": "/",
-      "en": "/en",
+      el: "/",
+      en: "/en",
+      "x-default": "/",
     },
   },
   icons: {
@@ -99,38 +100,35 @@ export default async function RootLayout({
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Organization",
-    "name": "Influo.gr",
-    "url": process.env.NEXT_PUBLIC_SITE_URL || "https://influo.gr",
-    "logo": `${process.env.NEXT_PUBLIC_SITE_URL || "https://influo.gr"}/logo.svg`,
-    "description": "Η πιο σύγχρονη πλατφόρμα Influencer Marketing στην Ελλάδα. Σύνδεσε το ταλέντο σου με κορυφαία Brands.",
-    "inLanguage": "el",
-    "sameAs": [
-      "https://www.instagram.com/influo",
-      "https://www.facebook.com/influo",
-      "https://twitter.com/influo"
-    ],
-    "contactPoint": {
+    name: "Influo",
+    url: SITE_URL,
+    logo: `${SITE_URL}/logo-512.png`,
+    email: ORGANIZATION_EMAIL,
+    description: "Πλατφόρμα influencer marketing στην Ελλάδα. Βρες influencers ανά κατηγορία, πλατφόρμα και budget.",
+    inLanguage: "el",
+    sameAs: ORGANIZATION_SAME_AS,
+    contactPoint: {
       "@type": "ContactPoint",
-      "contactType": "customer service",
-      "email": "contact@influo.com",
-      "availableLanguage": ["el", "en"]
-    }
+      contactType: "customer service",
+      email: ORGANIZATION_EMAIL,
+      availableLanguage: ["el", "en"],
+    },
   };
 
   const websiteJsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    "name": "Influo.gr",
-    "url": process.env.NEXT_PUBLIC_SITE_URL || "https://influo.gr",
-    "inLanguage": "el",
-    "potentialAction": {
+    name: SITE_NAME,
+    url: SITE_URL,
+    inLanguage: "el",
+    potentialAction: {
       "@type": "SearchAction",
-      "target": {
+      target: {
         "@type": "EntryPoint",
-        "urlTemplate": `${process.env.NEXT_PUBLIC_SITE_URL || "https://influo.gr"}/directory?search={search_term_string}`
+        urlTemplate: `${SITE_URL}/directory?search={search_term_string}`,
       },
-      "query-input": "required name=search_term_string"
-    }
+      "query-input": "required name=search_term_string",
+    },
   };
 
   return (

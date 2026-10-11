@@ -1,19 +1,13 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/pageMetadata";
 
-export const metadata: Metadata = {
-  title: "For Influencers - Connect Your Talent",
-  description: "Create your professional profile, get offers from brands and close deals. The most modern influencer marketing platform in Greece.",
-  keywords: ["for influencers", "influencer platform", "brand collaborations", "Greece", "creator economy"],
-  openGraph: {
-    title: "For Influencers - Connect Your Talent",
-    description: "Create your professional profile and collaborate with brands.",
-    url: "/en/for-influencers",
-  },
-  alternates: {
-    canonical: "/en/for-influencers",
-    languages: { el: "/for-influencers", en: "/en/for-influencers" },
-  },
-};
+export const metadata = pageMetadata({
+  title: "For Influencers: Brand Collaborations in Greece | Influo",
+  description: "Create a free influencer profile, apply to campaigns and close paid collaborations with Greek brands.",
+  path: "/en/for-influencers",
+  elPath: "/for-influencers",
+  enPath: "/en/for-influencers",
+  locale: "en_US",
+});
 
 export default function EnForInfluencersLayout({ children }: { children: React.ReactNode }) {
   return <>{children}</>;

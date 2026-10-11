@@ -171,7 +171,7 @@ export default function InfluoAppPromoSection({ lang }: { lang: Lang }) {
                   aria-label={lang === "el" ? "Σύνδεσμος εγκατάστασης app" : "Install app link"}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={qrSrc} alt="" width={96} height={96} className="h-[80px] w-[80px] sm:h-[88px] sm:w-[88px] md:h-[96px] md:w-[96px]" />
+                  <img src={qrSrc} alt={lang === "el" ? "QR για εγκατάσταση της εφαρμογής Influo" : "QR code to install the Influo app"} width={96} height={96} className="h-[80px] w-[80px] sm:h-[88px] sm:w-[88px] md:h-[96px] md:w-[96px]" />
                 </a>
                 <p className="max-w-[108px] text-left text-[9px] font-bold uppercase leading-snug tracking-wide text-white sm:max-w-[118px] sm:text-[10px] md:max-w-[140px] md:text-xs">
                   {t.scan}

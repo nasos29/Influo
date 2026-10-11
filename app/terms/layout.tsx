@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   },
   alternates: {
     canonical: "/terms",
-    languages: { el: "/terms", en: "/en/terms" },
+    languages: { el: "/terms", en: "/en/terms", "x-default": "/terms" },
   },
 };
 

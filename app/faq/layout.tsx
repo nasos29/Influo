@@ -1,25 +1,21 @@
-import { Metadata } from 'next';
+import { pageMetadata } from "@/lib/pageMetadata";
+import { faqJsonLd } from "@/lib/faqJsonLd";
 
-export const metadata: Metadata = {
-  title: "Συχνές Ερωτήσεις (FAQ)",
-  description: "Βρείτε απαντήσεις στις πιο συχνές ερωτήσεις σχετικά με την πλατφόρμα Influo, την εγγραφή, τις συνεργασίες και πολλά άλλα.",
-  keywords: ["faq", "συχνές ερωτήσεις", "ερωτήσεις influo", "βοήθεια", "support"],
-  openGraph: {
-    title: "Συχνές Ερωτήσεις (FAQ)",
-    description: "Βρείτε απαντήσεις στις πιο συχνές ερωτήσεις σχετικά με την Influo.",
-    url: "/faq",
-  },
-  alternates: {
-    canonical: "/faq",
-    languages: { el: "/faq", en: "/en/faq" },
-  },
-};
+export const metadata = pageMetadata({
+  title: "Συχνές Ερωτήσεις για το Influo | Influo",
+  description: "Απαντήσεις για εγγραφή, κόστος, verified προφίλ, καμπάνιες και συνεργασίες brands και influencers στο Influo.",
+  path: "/faq",
+  enPath: "/en/faq",
+});
 
-export default function FAQLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return children;
+export default function FAQLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd("el")).replace(/</g, "\\u003c") }}
+      />
+      {children}
+    </>
+  );
 }
-

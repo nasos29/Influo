@@ -1,20 +1,23 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/pageMetadata";
+import { faqJsonLd } from "@/lib/faqJsonLd";
 
-export const metadata: Metadata = {
-  title: "FAQ",
-  description: "Frequently asked questions about Influo - the Influencer Marketing platform in Greece.",
-  keywords: ["FAQ", "help", "questions", "influencer marketing"],
-  openGraph: {
-    title: "FAQ",
-    description: "Frequently asked questions about Influo.",
-    url: "/en/faq",
-  },
-  alternates: {
-    canonical: "/en/faq",
-    languages: { el: "/faq", en: "/en/faq" },
-  },
-};
+export const metadata = pageMetadata({
+  title: "Influo FAQ | Influo",
+  description: "Answers about signing up, cost, verified profiles, campaigns and collaborations on Influo.",
+  path: "/en/faq",
+  elPath: "/faq",
+  enPath: "/en/faq",
+  locale: "en_US",
+});
 
 export default function EnFaqLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd("en")).replace(/</g, "\\u003c") }}
+      />
+      {children}
+    </>
+  );
 }

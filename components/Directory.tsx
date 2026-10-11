@@ -254,8 +254,14 @@ const normalizeLocation = (s: string): string => {
   return noAccent;
 };
 
-export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
-  const [influencers, setInfluencers] = useState<Influencer[]>([]);
+export default function Directory({
+  lang = "el",
+  initialInfluencers = [],
+}: {
+  lang?: "el" | "en";
+  initialInfluencers?: Influencer[];
+}) {
+  const [influencers, setInfluencers] = useState<Influencer[]>(initialInfluencers);
   const txt = t[lang];
   const isMountedRef = useRef(true);
 
@@ -276,9 +282,9 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
   const [ageMax, setAgeMax] = useState("");
   const [badgeFilter, setBadgeFilter] = useState<BadgeType | "All">("All");
   const [availabilityFilter, setAvailabilityFilter] = useState<"All" | "available" | "unavailable">("available");
-  const [loading, setLoading] = useState(true);
-  const [visibleCount, setVisibleCount] = useState(20);
-  const PAGE_SIZE = 20;
+  const [loading, setLoading] = useState(initialInfluencers.length === 0);
+  const [visibleCount, setVisibleCount] = useState(24);
+  const PAGE_SIZE = 24;
 
   // Sort function: "New" influencers first, then by created_at descending
   const sortInfluencers = (influencersList: Influencer[]): Influencer[] => {
@@ -305,7 +311,6 @@ export default function Directory({ lang = "el" }: { lang?: "el" | "en" }) {
 
   useEffect(() => {
     isMountedRef.current = true;
-    setLoading(true);
 
     const fetchReal = async () => {
       try {

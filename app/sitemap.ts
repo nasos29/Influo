@@ -1,18 +1,20 @@
 import { MetadataRoute } from 'next'
 import { createClient } from '@supabase/supabase-js'
 import { initialBlogPosts } from '@/lib/blogPosts'
+import { SITE_URL } from '@/lib/site'
 
 // Revalidate sitemap every day (24 hours)
 export const revalidate = 86400
 
-// Create Supabase client for server-side fetching
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey)
+function supabaseForSitemap() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!supabaseUrl || !supabaseServiceKey) return null
+  return createClient(supabaseUrl, supabaseServiceKey)
+}
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.influo.gr'
+  const baseUrl = SITE_URL
   const currentDate = new Date()
   
   // Static pages with priorities and change frequencies
@@ -103,7 +105,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
     ...initialBlogPosts.map((post) => ({
       url: `${baseUrl}/en/blog/${post.slug}`,
-      lastModified: currentDate,
+      lastModified: post.date ? new Date(post.date) : currentDate,
+      changeFrequency: 'monthly' as const,
+      priority: 0.6,
+    })),
+    ...initialBlogPosts.map((post) => ({
+      url: `${baseUrl}/blog/${post.slug}`,
+      lastModified: post.date ? new Date(post.date) : currentDate,
       changeFrequency: 'monthly' as const,
       priority: 0.6,
     })),
@@ -142,12 +150,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: currentDate,
       changeFrequency: 'weekly',
       priority: 0.7,
-    },
-    {
-      url: `${baseUrl}/help-desk`,
-      lastModified: currentDate,
-      changeFrequency: 'monthly',
-      priority: 0.6,
     },
     {
       url: `${baseUrl}/faq`,
@@ -189,7 +191,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Fetch approved influencers for SEO (prefer public slug URLs)
   let influencerPages: MetadataRoute.Sitemap = []
+  const supabase = supabaseForSitemap()
   try {
+    if (!supabase) throw new Error('Supabase is not configured')
     const { data: influencers, error } = await supabase
       .from('influencers')
       .select('id, profile_slug, created_at')

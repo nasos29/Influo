@@ -1,16 +1,11 @@
 User-agent: *
-Allow: /
-Allow: /favicon.ico
-Allow: /favicon.svg
-Allow: /logo-icon.svg
 Disallow: /api/
-Disallow: /admin/
-Disallow: /dashboard/
-Disallow: /logout/
-Disallow: /login/
+Disallow: /admin
+Disallow: /dashboard
+Disallow: /logout
+Disallow: /messages
+Disallow: /reset-password
+Disallow: /brand/dashboard
+Disallow: /brand/login
 
-# Sitemap
 Sitemap: https://www.influo.gr/sitemap.xml
-
-# Crawl-delay
-Crawl-delay: 1
