@@ -2931,7 +2931,7 @@ export default function InfluencerProfile(props: {
                 setShowCounterProposalModal(false);
                 router.push(publicPath);
               }}
-              className="mt-4 w-full text-slate-500 hover:text-slate-700 py-2"
+              className="mt-4 w-full text-slate-900 font-bold hover:text-slate-700 py-2"
             >
               Κλείσιμο
             </button>

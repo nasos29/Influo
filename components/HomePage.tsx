@@ -38,6 +38,7 @@ const t = {
     hero_brand_title_1: "Είσαι influencer;",
     hero_brand_title_2: "Κλείσε συνεργασίες με brands",
     hero_brand_desc: "Έχετε επιχείρηση; Ανακαλύψτε influencers που ταιριάζουν στο κοινό σας, προβάλετε τα προϊόντα ή τις υπηρεσίες σας και ξεκινήστε συνεργασίες μέσα από το Influo. Η εγγραφή είναι δωρεάν.",
+    signup_as: "Εγγραφή ως:",
     signup_choice_influencer: "Είμαι Influencer",
     signup_choice_brand: "Έχω Επιχείρηση",
     brand_section_title: "Έχετε Επιχείρηση;",
@@ -88,6 +89,7 @@ const t = {
     hero_brand_title_1: "Are you a creator?",
     hero_brand_title_2: "Get brand deals",
     hero_brand_desc: "Own a business? Find influencers that match your audience, promote your products or services and start successful collaborations through Influo. Registration is free.",
+    signup_as: "Sign up as:",
     signup_choice_influencer: "I am an Influencer",
     signup_choice_brand: "I have a Company",
     brand_section_title: "Are you a Company?",
@@ -988,28 +990,47 @@ export default function Home({
               className="relative w-full max-w-5xl animate-in zoom-in duration-300"
               onClick={(e) => e.stopPropagation()}
             >
-            <div className="mb-6">
-              <div className="flex gap-3 bg-white/10 backdrop-blur-sm p-2 rounded-xl border border-white/10">
+            <div className="mb-5 sm:mb-6">
+              <p className="mb-2 text-sm font-bold tracking-wide text-white sm:text-base">
+                {txt.signup_as}
+              </p>
+              <div
+                role="group"
+                aria-label={txt.signup_as}
+                className="grid grid-cols-2 gap-2 rounded-2xl border-2 border-white bg-slate-950/55 p-2 shadow-xl"
+              >
                 <button
                   type="button"
+                  aria-pressed={signupType === "influencer"}
                   onClick={() => setSignupType("influencer")}
-                  className={`flex-1 px-4 py-2 rounded-lg text-sm sm:text-base font-bold transition-all ${
+                  className={`flex min-h-[56px] items-center justify-center gap-2 rounded-xl px-2 py-3 text-center text-sm font-bold leading-tight transition-all sm:min-h-[60px] sm:px-4 sm:text-base ${
                     signupType === "influencer"
-                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-indigo-500/20"
-                      : "text-white/80 border border-white/10 hover:text-white hover:bg-white/10"
+                      ? "bg-white text-slate-900 shadow-md ring-2 ring-blue-500"
+                      : "border border-white/80 bg-transparent text-white hover:bg-white/10"
                   }`}
                 >
+                  {signupType === "influencer" && (
+                    <svg viewBox="0 0 20 20" className="h-5 w-5 shrink-0 text-blue-600" fill="currentColor" aria-hidden>
+                      <path fillRule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.2 7.2a1 1 0 0 1-1.4 0L3.3 9.1a1 1 0 1 1 1.4-1.4l4.1 4.1 6.5-6.5a1 1 0 0 1 1.4 0Z" clipRule="evenodd" />
+                    </svg>
+                  )}
                   {txt.signup_choice_influencer}
                 </button>
                 <button
                   type="button"
+                  aria-pressed={signupType === "brand"}
                   onClick={() => setSignupType("brand")}
-                  className={`flex-1 px-4 py-2 rounded-lg text-sm sm:text-base font-bold transition-all ${
+                  className={`flex min-h-[56px] items-center justify-center gap-2 rounded-xl px-2 py-3 text-center text-sm font-bold leading-tight transition-all sm:min-h-[60px] sm:px-4 sm:text-base ${
                     signupType === "brand"
-                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-indigo-500/20"
-                      : "text-white/80 border border-white/10 hover:text-white hover:bg-white/10"
+                      ? "bg-white text-slate-900 shadow-md ring-2 ring-blue-500"
+                      : "border border-white/80 bg-transparent text-white hover:bg-white/10"
                   }`}
                 >
+                  {signupType === "brand" && (
+                    <svg viewBox="0 0 20 20" className="h-5 w-5 shrink-0 text-blue-600" fill="currentColor" aria-hidden>
+                      <path fillRule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.2 7.2a1 1 0 0 1-1.4 0L3.3 9.1a1 1 0 1 1 1.4-1.4l4.1 4.1 6.5-6.5a1 1 0 0 1 1.4 0Z" clipRule="evenodd" />
+                    </svg>
+                  )}
                   {txt.signup_choice_brand}
                 </button>
               </div>
