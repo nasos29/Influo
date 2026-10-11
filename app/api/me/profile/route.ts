@@ -46,7 +46,16 @@ async function privateBrandEmail(brandId: string): Promise<string> {
   return typeof priv.data?.contact_email === "string" ? priv.data.contact_email.trim() : "";
 }
 
-function withOwnerEmail<T extends { id?: string; contact_email?: string | null }>(row: T, email: string): T {
+type BrandRow = { id: string; contact_email?: string | null };
+
+function asBrandRow(value: unknown): BrandRow | null {
+  if (!value || typeof value !== "object" || !("id" in value)) return null;
+  const id = (value as { id?: unknown }).id;
+  if (typeof id !== "string" || !id) return null;
+  return value as BrandRow;
+}
+
+function withOwnerEmail<T extends BrandRow>(row: T, email: string): T {
   if (typeof row.contact_email === "string" && row.contact_email.includes("@")) return row;
   if (!email.includes("@")) return row;
   return { ...row, contact_email: email };
@@ -56,7 +65,8 @@ async function findOwnBrand(user: User) {
   const admin = supabaseService();
   const byId = await admin.from("brands").select(brandColumns).eq("id", user.id).maybeSingle();
   if (byId.error) throw new Error(byId.error.message);
-  if (byId.data) return withOwnerEmail(byId.data, await privateBrandEmail(String(byId.data.id)));
+  const ownById = asBrandRow(byId.data);
+  if (ownById) return withOwnerEmail(ownById, await privateBrandEmail(ownById.id));
 
   const email = user.email?.trim();
   if (!email) return null;
@@ -66,16 +76,18 @@ async function findOwnBrand(user: User) {
   if (priv.data?.brand_id) {
     const row = await admin.from("brands").select(brandColumns).eq("id", priv.data.brand_id).maybeSingle();
     if (row.error) throw new Error(row.error.message);
-    if (row.data) {
+    const matched = asBrandRow(row.data);
+    if (matched) {
       const privateEmail = typeof priv.data.contact_email === "string" ? priv.data.contact_email : "";
-      return withOwnerEmail(row.data, privateEmail);
+      return withOwnerEmail(matched, privateEmail);
     }
   }
 
   const byEmail = await admin.from("brands").select(brandColumns).ilike("contact_email", email).maybeSingle();
   if (byEmail.error) throw new Error(byEmail.error.message);
-  if (!byEmail.data) return null;
-  return withOwnerEmail(byEmail.data, await privateBrandEmail(String(byEmail.data.id)));
+  const ownByEmail = asBrandRow(byEmail.data);
+  if (!ownByEmail) return null;
+  return withOwnerEmail(ownByEmail, await privateBrandEmail(ownByEmail.id));
 }
 
 /** The signed-in user's own rows. Lookup by auth id, then auth_user_id, then email. */
