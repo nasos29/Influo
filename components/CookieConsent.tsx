@@ -105,14 +105,14 @@ export default function CookieConsent() {
             <button
               type="button"
               onClick={() => decide("rejected")}
-              className="flex-1 sm:flex-none min-w-[108px] px-3 py-2 text-sm font-medium rounded-lg border border-slate-300 text-slate-800 bg-white hover:bg-slate-50"
+              className="flex-1 sm:flex-none min-w-[108px] px-3 py-2 text-sm font-semibold rounded-lg border border-slate-300 text-slate-800 bg-white hover:bg-slate-50"
             >
               {el ? "Απόρριψη" : "Reject"}
             </button>
             <button
               type="button"
               onClick={() => decide("accepted")}
-              className="flex-1 sm:flex-none min-w-[108px] px-3 py-2 text-sm font-medium rounded-lg bg-slate-900 text-white hover:bg-slate-800"
+              className="flex-1 sm:flex-none min-w-[108px] px-3 py-2 text-sm font-semibold rounded-lg bg-slate-900 text-white hover:bg-slate-800"
             >
               {el ? "Αποδοχή" : "Accept"}
             </button>

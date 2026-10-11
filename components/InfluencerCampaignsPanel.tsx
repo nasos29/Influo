@@ -339,7 +339,7 @@ export default function InfluencerCampaignsPanel({
               <button
                 type="button"
                 onClick={() => setDismissApprovalModal(true)}
-                className="mt-6 w-full sm:w-auto px-5 py-2.5 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800"
+                className="mt-6 w-full sm:w-auto px-5 py-2.5 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800"
               >
                 {pc.modal_ok}
               </button>
@@ -406,14 +406,14 @@ export default function InfluencerCampaignsPanel({
                     setApplyCampaign(null);
                     setApplyMessage("");
                   }}
-                  className="px-4 py-2 rounded-lg border border-slate-300 text-sm"
+                  className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-900 hover:bg-slate-50"
                 >
                   {uiLang === "el" ? "Ακύρωση" : "Cancel"}
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium disabled:opacity-50"
+                  className="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold disabled:opacity-50"
                 >
                   {uiLang === "el" ? "Υποβολή αίτησης" : "Submit application"}
                 </button>
@@ -468,7 +468,7 @@ export default function InfluencerCampaignsPanel({
                         <button
                           type="button"
                           onClick={() => setApplyCampaign(c)}
-                          className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
+                          className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700"
                         >
                           {uiLang === "el" ? "Αίτηση ενδιαφέροντος" : "Apply"}
                         </button>
@@ -580,7 +580,7 @@ export default function InfluencerCampaignsPanel({
                       type="button"
                       disabled={deliverSaving === m.id}
                       onClick={() => submitDeliverable(m.id)}
-                      className="text-sm px-3 py-1.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-50"
+                      className="text-sm px-3 py-1.5 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-50"
                     >
                       {deliverSaving === m.id
                         ? "…"

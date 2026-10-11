@@ -130,7 +130,7 @@ export default function BrandShortlistPanel({
                           setBusyId(null);
                         }
                       }}
-                      className="text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-900 text-white disabled:opacity-40"
+                      className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-900 text-white disabled:opacity-40"
                     >
                       {busyId === item.influencerId
                         ? (el ? "Αποθήκευση…" : "Saving…")
@@ -143,14 +143,14 @@ export default function BrandShortlistPanel({
                     ) : null}
                     <Link
                       href={publicProfilePath(item.profileSlug, item.influencerId)}
-                      className="text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-100 text-slate-800"
+                      className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-100 text-slate-800"
                     >
                       {el ? "Προφίλ" : "Profile"}
                     </Link>
                     <button
                       type="button"
                       onClick={() => onMessage(item.influencerId, item.displayName)}
-                      className="text-xs font-medium px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200"
+                      className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200"
                     >
                       {el ? "Μήνυμα" : "Message"}
                     </button>
@@ -165,7 +165,7 @@ export default function BrandShortlistPanel({
                           setBusyId(null);
                         }
                       }}
-                      className="text-xs font-medium px-3 py-1.5 rounded-lg text-red-700 hover:bg-red-50"
+                      className="text-xs font-semibold px-3 py-1.5 rounded-lg text-red-700 hover:bg-red-50"
                     >
                       {el ? "Αφαίρεση" : "Remove"}
                     </button>

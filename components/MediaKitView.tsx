@@ -71,7 +71,7 @@ export default function MediaKitView({ profile }: { profile: MediaKitProfile }) 
           padding: 8px 16px;
           border-radius: 10px;
           font-size: 14px;
-          font-weight: 500;
+          font-weight: 600;
           line-height: 1.3;
           letter-spacing: 0;
           cursor: pointer;

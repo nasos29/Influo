@@ -342,7 +342,7 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
     <div
       className={
         embedded
-          ? "bg-white rounded-2xl shadow-2xl p-0 max-w-4xl w-full mx-auto border border-slate-200 overflow-hidden max-h-[85vh] flex flex-col"
+          ? "bg-white rounded-2xl shadow-2xl p-0 max-w-4xl w-full mx-auto border border-slate-200 overflow-hidden max-h-[calc(100dvh-11rem)] flex flex-col"
           : "bg-white rounded-2xl shadow-xl p-8 max-w-md w-full mx-auto"
       }
     >
@@ -574,7 +574,7 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold py-3 px-6 rounded-lg transition-colors"
+          className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-3 px-6 rounded-lg transition-colors"
         >
           {loading ? txt.loading : txt.submit}
         </button>

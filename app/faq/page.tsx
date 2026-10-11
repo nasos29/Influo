@@ -46,7 +46,7 @@ export default function FAQPage() {
                 if (newLang === "en") router.push("/en/faq");
                 else router.push("/faq");
               }}
-              className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
+              className="text-xs font-semibold border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
             >
               {lang === "el" ? "EN" : "EL"}
             </button>
@@ -75,7 +75,7 @@ export default function FAQPage() {
           <div className="flex flex-wrap gap-3 mb-8 justify-center">
             <button
               onClick={() => setSelectedCategory("all")}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
                 selectedCategory === "all"
                   ? "bg-blue-600 text-white"
                   : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
@@ -87,7 +87,7 @@ export default function FAQPage() {
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
                   selectedCategory === cat
                     ? "bg-blue-600 text-white"
                     : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"

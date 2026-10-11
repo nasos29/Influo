@@ -537,7 +537,7 @@ const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClos
                 <button
                   type="button"
                   onClick={handleRemoveLogo}
-                  className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600"
+                  className="absolute top-0 right-0 bg-red-600 text-white font-semibold rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-700"
                 >
                   ×
                 </button>
@@ -556,14 +556,14 @@ const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClos
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-6 py-3 bg-slate-100 text-slate-700 font-medium rounded-xl hover:bg-slate-200 transition-colors"
+              className="flex-1 px-6 py-3 bg-slate-100 text-slate-700 font-semibold rounded-xl hover:bg-slate-200 transition-colors"
             >
               {lang === 'el' ? 'Ακύρωση' : 'Cancel'}
             </button>
             <button
               type="submit"
               disabled={saving || uploadingLogo}
-              className="flex-1 px-6 py-3 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving || uploadingLogo 
                 ? (lang === 'el' ? 'Αποθήκευση...' : 'Saving...')
@@ -1021,7 +1021,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
             <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
                 <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
                     <h2 className="text-xl font-semibold text-slate-900">Edit Profile - {user.display_name}</h2>
-                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600">✕</button>
+                    <button onClick={onClose} className="text-slate-600 hover:text-slate-900 font-semibold">✕</button>
                 </div>
                 
                 {/* Debug Info - Remove in production */}
@@ -1046,7 +1046,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                             <button
                                 type="button"
                                 onClick={() => markChangesAsReviewed(profileChanges.map(c => c.id))}
-                                className="px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700 transition-colors"
+                                className="px-3 py-1 text-xs font-semibold bg-yellow-800 text-white rounded hover:bg-yellow-900 transition-colors"
                             >
                                 Σημάνω ως Εξετασμένα
                             </button>
@@ -1293,10 +1293,10 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                         <label className="block text-xs font-semibold text-slate-700 mb-1">Avg Likes</label>
                                         <input type="text" value={account.avg_likes || ""} onChange={e => handleAccountChange(i, 'avg_likes', e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" placeholder="e.g. 3.2k" />
                                     </div>
-                                    <button type="button" onClick={() => removeAccount(i)} className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">✕</button>
+                                    <button type="button" onClick={() => removeAccount(i)} className="p-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors">✕</button>
                                 </div>
                             ))}
-                            <button type="button" onClick={addAccount} className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm">+ Add Account</button>
+                            <button type="button" onClick={addAccount} className="mt-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors text-sm">+ Add Account</button>
                         </div>
 
                         {/* Analytics */}
@@ -1368,7 +1368,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                                 <label className="block text-xs font-semibold text-slate-700 mb-1">Video/Photo URL</label>
                                                 <input type="url" value={video} onChange={e => handleVideoChange(i, e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" placeholder="https://..." />
                                             </div>
-                                            <button type="button" onClick={() => removeVideo(i)} className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">✕</button>
+                                            <button type="button" onClick={() => removeVideo(i)} className="p-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors">✕</button>
                                         </div>
                                         {video && (
                                             <>
@@ -1385,7 +1385,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                                             type="button"
                                                             onClick={() => handleFetchFromIframely(video)}
                                                             disabled={fetchingThumbnails[video] || !!thumbnailFiles[video] || !!thumbnailUrlString}
-                                                            className="w-full px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors text-sm font-semibold"
+                                                            className="w-full px-3 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-semibold"
                                                         >
                                                             {fetchingThumbnails[video] ? 'Fetching...' : '🔍 Fetch Thumbnail from Iframely'}
                                                         </button>
@@ -1437,7 +1437,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                                         <button 
                                                             type="button" 
                                                             onClick={() => removeThumbnail(video)}
-                                                            className="w-full px-3 py-1.5 bg-slate-400 text-white rounded-lg hover:bg-slate-500 transition-colors text-sm"
+                                                            className="w-full px-3 py-1.5 bg-slate-700 text-white font-semibold rounded-lg hover:bg-slate-800 transition-colors text-sm"
                                                         >
                                                             Clear Thumbnail
                                                         </button>
@@ -1489,7 +1489,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                     </div>
                                 );
                             })}
-                            <button type="button" onClick={addVideo} className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm">+ Προσθήκη Video Link / Φωτογραφίας</button>
+                            <button type="button" onClick={addVideo} className="mt-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors text-sm">+ Προσθήκη Video Link / Φωτογραφίας</button>
                         </div>
 
                         {/* Insights Screenshots */}
@@ -2898,7 +2898,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                   setLang(newLang);
                   setStoredLanguage(newLang);
                 }} 
-                className="text-xs font-medium border border-slate-200 px-2 sm:px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
+                className="text-xs font-semibold border border-slate-200 px-2 sm:px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
                 aria-label="Toggle language"
               >
                 {lang === "el" ? "EN" : "EL"}
@@ -3094,14 +3094,14 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                 </select>
                 <button
                   onClick={exportData}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors"
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold transition-colors"
                 >
                   {txt.export}
                 </button>
                 <button
                   onClick={() => refreshSocialStats()}
                   disabled={refreshingSocialAll}
-                  className="px-4 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {refreshingSocialAll ? '...' : txt.refresh_social_all}
                 </button>
@@ -3154,7 +3154,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     }
                   }}
                   disabled={backfillingAudit}
-                  className="px-4 py-2 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {backfillingAudit ? '...' : txt.backfill_audit}
                 </button>
@@ -3174,7 +3174,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleBulkAction('approve')}
-                      className="px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                      className="px-3 py-1.5 text-sm font-semibold bg-green-700 text-white rounded hover:bg-green-800 transition-colors"
                     >
                       {txt.bulk_approve}
                     </button>
@@ -3755,7 +3755,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     });
                     setShowBlogEditModal(true);
                   }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
                 >
                   + {txt.blog_add}
                 </button>
@@ -3930,7 +3930,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                   <button
                     type="submit"
                     disabled={announcementSending}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {announcementSending ? '...' : txt.ann_send}
                   </button>
@@ -3983,7 +3983,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               alert(lang === 'el' ? 'Σφάλμα διαγραφής' : 'Delete failed');
                             }
                           }}
-                          className="shrink-0 px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                          className="shrink-0 px-3 py-1.5 text-sm font-semibold text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
                           title={lang === 'el' ? 'Διαγραφή ανακοίνωσης' : 'Delete announcement'}
                         >
                           {lang === 'el' ? 'Διαγραφή' : 'Delete'}
@@ -4018,7 +4018,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                   {!selectedConversation && (
                     <button
                       onClick={() => setShowConversationsDrawer(true)}
-                      className="sm:hidden absolute top-2 right-2 z-50 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium shadow-lg hover:bg-blue-700 transition-colors"
+                      className="sm:hidden absolute top-2 right-2 z-50 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold shadow-lg hover:bg-blue-700 transition-colors"
                     >
                       {lang === 'el' ? '📋 Συνομιλίες' : '📋 Conversations'}
                     </button>
@@ -4073,7 +4073,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                           setSelectedConversation(null);
                           setShowConversationsDrawer(true);
                         }}
-                        className="sm:hidden mb-4 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200 transition-colors flex items-center gap-2"
+                        className="sm:hidden mb-4 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-200 transition-colors flex items-center gap-2"
                       >
                         ← {lang === 'el' ? 'Πίσω' : 'Back'}
                       </button>
@@ -4129,7 +4129,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                         <p className="text-center mb-4">{lang === 'el' ? 'Επέλεξε μια συνομιλία για να δεις τα μηνύματα' : 'Select a conversation to view messages'}</p>
                         <button
                           onClick={() => setShowConversationsDrawer(true)}
-                          className="sm:hidden px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                          className="sm:hidden px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
                         >
                           {lang === 'el' ? '📋 Προβολή Συνομιλιών' : '📋 View Conversations'}
                         </button>
@@ -4174,7 +4174,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                   setSelectedBlogPost(null);
                   setIsNewBlogPost(false);
                 }}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-slate-600 hover:text-slate-900 font-semibold text-xl leading-none"
               >
                 ✕
               </button>

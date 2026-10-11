@@ -450,7 +450,7 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, categorie
                   <button
                     type="button"
                     onClick={handleRemoveLogo}
-                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600 transition-colors"
+                    className="absolute top-1 right-1 bg-red-600 text-white font-semibold rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-700 transition-colors"
                   >
                     ×
                   </button>
@@ -464,7 +464,7 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, categorie
                     onChange={handleLogoChange}
                     className="hidden"
                   />
-                  <span className="inline-block px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors cursor-pointer">
+                  <span className="inline-block px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors cursor-pointer">
                     {txt.upload_logo}
                   </span>
                 </label>
@@ -480,14 +480,14 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, categorie
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-6 py-3 bg-slate-100 text-slate-700 font-medium rounded-xl hover:bg-slate-200 transition-colors"
+              className="flex-1 px-6 py-3 bg-slate-100 text-slate-700 font-semibold rounded-xl hover:bg-slate-200 transition-colors"
             >
               {txt.cancel}
             </button>
             <button
               type="submit"
               disabled={updating || uploadingLogo}
-              className="flex-1 px-6 py-3 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {updating || uploadingLogo ? (lang === 'el' ? 'Αποθήκευση...' : 'Saving...') : txt.save_changes}
             </button>
@@ -1324,7 +1324,7 @@ export default function BrandDashboardContent() {
               setLoading(true);
               void loadData();
             }}
-            className="mt-6 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700"
+            className="mt-6 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700"
           >
             {lang === "el" ? "Δοκιμάστε ξανά" : "Try again"}
           </button>
@@ -1354,19 +1354,19 @@ export default function BrandDashboardContent() {
             <div className="flex flex-wrap items-center gap-2 sm:gap-4">
               <Link
                 href="/"
-                className="text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-900 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-slate-100 transition-colors border border-slate-200"
+                className="text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-slate-100 transition-colors border border-slate-200"
               >
                 {lang === "el" ? "🏠 Αρχική" : "🏠 Home"}
               </Link>
               <Link
                 href="/help-desk"
-                className="text-xs sm:text-sm font-medium text-purple-600 hover:text-purple-700 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-purple-50 transition-colors border border-purple-200"
+                className="text-xs sm:text-sm font-semibold text-purple-600 hover:text-purple-700 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-purple-50 transition-colors border border-purple-200"
               >
                 📧 Help Desk
               </Link>
               <button
                 onClick={() => setShowEditModal(true)}
-                className="text-xs sm:text-sm font-medium text-blue-600 hover:text-blue-700 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-blue-50 transition-colors border border-blue-200"
+                className="text-xs sm:text-sm font-semibold text-blue-600 hover:text-blue-700 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-blue-50 transition-colors border border-blue-200"
               >
                 {txt.edit_profile}
               </button>
@@ -1376,13 +1376,13 @@ export default function BrandDashboardContent() {
                   setLang(newLang);
                   setStoredLanguage(newLang);
                 }}
-                className="text-xs sm:text-sm font-medium text-blue-600 hover:text-blue-700 px-2 sm:px-3 py-1 rounded-lg hover:bg-blue-50 transition-colors"
+                className="text-xs sm:text-sm font-semibold text-blue-600 hover:text-blue-700 px-2 sm:px-3 py-1 rounded-lg hover:bg-blue-50 transition-colors"
               >
                 {lang === 'el' ? 'EN' : 'ΕΛ'}
               </button>
               <button
                 onClick={handleLogout}
-                className="text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-900 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-slate-100 transition-colors"
+                className="text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-slate-100 transition-colors"
               >
                 {txt.logout}
               </button>
@@ -1579,7 +1579,7 @@ export default function BrandDashboardContent() {
             <div className="flex gap-2">
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-2"
+                className="px-3 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-2"
               >
                 <span aria-hidden>🔍</span>
                 {txt.filters}
@@ -1587,7 +1587,7 @@ export default function BrandDashboardContent() {
               <button
                 onClick={() => brandData && loadRecommendations(brandData)}
                 disabled={recommendationsLoading}
-                className="px-3 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="px-3 py-2 text-sm font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 <span className={recommendationsLoading ? 'animate-spin' : ''} aria-hidden>↻</span>
                 {txt.refresh}
@@ -1678,7 +1678,7 @@ export default function BrandDashboardContent() {
               <div className="flex gap-3 mt-4">
                 <button
                   onClick={() => brandData && loadRecommendations(brandData)}
-                  className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                  className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   {txt.apply_filters}
                 </button>
@@ -1694,7 +1694,7 @@ export default function BrandDashboardContent() {
                     });
                     if (brandData) loadRecommendations(brandData);
                   }}
-                  className="px-6 py-2 bg-slate-200 text-slate-700 font-medium rounded-lg hover:bg-slate-300 transition-colors"
+                  className="px-6 py-2 bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 transition-colors"
                 >
                   {txt.clear_filters}
                 </button>
@@ -1888,7 +1888,7 @@ export default function BrandDashboardContent() {
                               // Fail silently
                             }
                           }}
-                          className="flex-1 px-3 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg text-center transition-colors"
+                          className="flex-1 px-3 py-2 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg text-center transition-colors"
                         >
                           {txt.view_profile}
                         </Link>
@@ -1901,7 +1901,7 @@ export default function BrandDashboardContent() {
                             }
                             // Note: proposalsSent is now updated only after successful proposal submission
                           }}
-                          className="flex-1 px-3 py-2 text-sm font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-lg text-center transition-colors"
+                          className="flex-1 px-3 py-2 text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg text-center transition-colors"
                         >
                           {txt.send_proposal}
                         </Link>
@@ -1917,7 +1917,7 @@ export default function BrandDashboardContent() {
                             });
                             setActiveTab("messages");
                           }}
-                          className="flex-1 px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors"
+                          className="flex-1 px-3 py-2 text-sm font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors"
                         >
                           {lang === "el" ? "💬 Μήνυμα" : "💬 Message"}
                         </button>
@@ -2009,14 +2009,14 @@ export default function BrandDashboardContent() {
                         <button
                           onClick={() => handleAcceptCounterProposal(proposal.id)}
                           disabled={isProcessing}
-                          className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed text-white font-medium px-4 py-2 rounded-lg transition-colors"
+                          className="flex-1 bg-green-700 hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-4 py-2 rounded-lg transition-colors"
                         >
                           {isProcessing ? (lang === 'el' ? 'Επεξεργασία...' : 'Processing...') : (lang === 'el' ? '✅ Αποδοχή Αντιπρότασης' : '✅ Accept Counter Proposal')}
                         </button>
                         <button
                           onClick={() => handleRejectCounterProposal(proposal.id)}
                           disabled={isProcessing}
-                          className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed text-white font-medium px-4 py-2 rounded-lg transition-colors"
+                          className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-4 py-2 rounded-lg transition-colors"
                         >
                           {lang === 'el' ? '❌ Απόρριψη' : '❌ Reject'}
                         </button>
@@ -2069,7 +2069,7 @@ export default function BrandDashboardContent() {
                             setSelectedProposal(proposal);
                             setShowAgreementModal(true);
                           }}
-                          className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors"
+                          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg transition-colors"
                         >
                           {txt.accept_agreement}
                         </button>
@@ -2116,7 +2116,7 @@ export default function BrandDashboardContent() {
                   setSelectedProposal(null);
                   setAgreementAccepted(false);
                 }}
-                className="text-slate-400 hover:text-slate-600 text-2xl"
+                className="text-slate-600 hover:text-slate-900 text-2xl font-semibold leading-none"
               >
                 ×
               </button>
@@ -2389,14 +2389,14 @@ export default function BrandDashboardContent() {
                   setSelectedProposal(null);
                   setAgreementAccepted(false);
                 }}
-                className="flex-1 px-4 py-3 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors font-medium"
+                className="flex-1 px-4 py-3 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors font-semibold"
               >
                 {lang === 'el' ? 'Ακύρωση' : 'Cancel'}
               </button>
               <button
                 onClick={handleAcceptAgreement}
                 disabled={!agreementAccepted || savingAgreement}
-                className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium"
+                className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-semibold"
               >
                 {savingAgreement ? txt.loading : txt.accept_agreement}
               </button>

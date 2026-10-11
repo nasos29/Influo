@@ -7,6 +7,7 @@ import Directory, { type Influencer } from "@/components/Directory";
 import InfluencerSignupForm from "@/components/InfluencerSignupForm";
 import BrandSignupForm from "@/components/BrandSignupForm";
 import Footer from "@/components/Footer";
+import SignupTypeToggle from "@/components/SignupTypeToggle";
 import TopInfluencersSection from "@/components/TopInfluencersSection";
 import NewlyApprovedInfluencersSection from "@/components/NewlyApprovedInfluencersSection";
 import { supabase } from "@/lib/supabaseClient";
@@ -368,7 +369,7 @@ export default function Home({
               <ul className="flex gap-6 text-sm font-medium text-slate-700">
                 {!isLoggedIn && (
                   <>
-                    <li><button onClick={() => { setSignupType("influencer"); setShowModal(true); }} className="hover:text-slate-900 transition-colors">
+                    <li><button onClick={() => { setSignupType("influencer"); setShowModal(true); }} className="font-medium text-slate-700 hover:text-slate-900 transition-colors">
                       {txt.nav_join}
                     </button></li>
                     <li><a href="/brand/signup" className="hover:text-slate-900 transition-colors">
@@ -428,7 +429,7 @@ export default function Home({
                   if (newLang === "en") router.push("/en");
                   else router.push("/");
                 }}
-                className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
+                className="text-xs font-semibold border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
                 aria-label="Toggle language"
               >
                 {lang === "el" ? "EN" : "EL"}
@@ -469,7 +470,7 @@ export default function Home({
                   if (newLang === "en") router.push("/en");
                   else router.push("/");
                 }}
-                className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
+                className="text-xs font-semibold border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
                 aria-label="Toggle language"
               >
                 {lang === "el" ? "EN" : "EL"}
@@ -981,39 +982,21 @@ export default function Home({
       {/* Modal */}
       {showModal && (
           <div
-            className="fixed inset-0 bg-slate-900/70 backdrop-blur-md flex justify-center items-center z-50 p-4 animate-in fade-in duration-200"
+            className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-md p-3 sm:p-4 animate-in fade-in duration-200"
             onClick={() => setShowModal(false)}
           >
             <div
-              className="relative w-full max-w-5xl animate-in zoom-in duration-300"
+              className="relative mx-auto my-auto flex min-h-full w-full max-w-5xl items-center animate-in zoom-in duration-300"
               onClick={(e) => e.stopPropagation()}
             >
-            <div className="mb-6">
-              <div className="flex gap-3 bg-white/10 backdrop-blur-sm p-2 rounded-xl border border-white/10">
-                <button
-                  type="button"
-                  onClick={() => setSignupType("influencer")}
-                  className={`flex-1 px-4 py-2 rounded-lg text-sm sm:text-base font-bold transition-all ${
-                    signupType === "influencer"
-                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-indigo-500/20"
-                      : "text-white/80 border border-white/10 hover:text-white hover:bg-white/10"
-                  }`}
-                >
-                  {txt.signup_choice_influencer}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSignupType("brand")}
-                  className={`flex-1 px-4 py-2 rounded-lg text-sm sm:text-base font-bold transition-all ${
-                    signupType === "brand"
-                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-indigo-500/20"
-                      : "text-white/80 border border-white/10 hover:text-white hover:bg-white/10"
-                  }`}
-                >
-                  {txt.signup_choice_brand}
-                </button>
-              </div>
-            </div>
+            <div className="w-full py-2">
+            <SignupTypeToggle
+              lang={lang}
+              value={signupType}
+              onChange={setSignupType}
+              influencerLabel={txt.signup_choice_influencer}
+              brandLabel={txt.signup_choice_brand}
+            />
             <div className="relative">
               <button
                 type="button"
@@ -1026,6 +1009,7 @@ export default function Home({
                 </svg>
               </button>
               {signupType === "influencer" ? <InfluencerSignupForm /> : <BrandSignupForm embedded />}
+            </div>
             </div>
           </div>
         </div>

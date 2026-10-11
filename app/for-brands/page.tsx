@@ -8,6 +8,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
 import InfluencerSignupForm from "../../components/InfluencerSignupForm";
 import BrandSignupForm from "../../components/BrandSignupForm";
+import SignupTypeToggle from "../../components/SignupTypeToggle";
 import { supabase } from "@/lib/supabaseClient";
 
 type Lang = "el" | "en";
@@ -286,7 +287,7 @@ export default function ForBrandsPage() {
                 setStoredLanguage(newLang);
                 router.push(newLang === "en" ? "/en/for-brands" : "/for-brands");
               }}
-              className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
+              className="text-xs font-semibold border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
             >
               {lang === "el" ? "EN" : "EL"}
             </button>
@@ -484,34 +485,17 @@ export default function ForBrandsPage() {
 
       {showModal && (
         <div
-          className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex justify-center items-center z-50 p-4"
+          className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-sm p-3 sm:p-4"
           onClick={() => setShowModal(false)}
         >
-          <div className="relative w-full max-w-5xl" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-4 flex gap-2 bg-slate-800 p-1.5 rounded-lg">
-              <button
-                type="button"
-                onClick={() => setSignupType("influencer")}
-                className={`flex-1 px-4 py-2 rounded-md text-sm font-semibold transition-colors ${
-                  signupType === "influencer"
-                    ? "bg-blue-600 text-white"
-                    : "text-slate-300 hover:text-white hover:bg-slate-700"
-                }`}
-              >
-                {txt.signup_influencer}
-              </button>
-              <button
-                type="button"
-                onClick={() => setSignupType("brand")}
-                className={`flex-1 px-4 py-2 rounded-md text-sm font-semibold transition-colors ${
-                  signupType === "brand"
-                    ? "bg-blue-600 text-white"
-                    : "text-slate-300 hover:text-white hover:bg-slate-700"
-                }`}
-              >
-                {txt.signup_brand}
-              </button>
-            </div>
+          <div className="relative mx-auto my-2 w-full max-w-5xl" onClick={(e) => e.stopPropagation()}>
+            <SignupTypeToggle
+              lang={lang}
+              value={signupType}
+              onChange={setSignupType}
+              influencerLabel={txt.signup_influencer}
+              brandLabel={txt.signup_brand}
+            />
             <div className="relative">
               <button
                 type="button"

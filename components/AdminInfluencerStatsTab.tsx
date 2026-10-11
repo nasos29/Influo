@@ -349,7 +349,7 @@ export default function AdminInfluencerStatsTab({
                 key={k}
                 type="button"
                 onClick={() => setPeriod(k)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
                   period === k ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                 }`}
               >
@@ -360,7 +360,7 @@ export default function AdminInfluencerStatsTab({
               type="button"
               onClick={() => void load()}
               disabled={loading || !selectedId}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
             >
               {txt.refresh}
             </button>

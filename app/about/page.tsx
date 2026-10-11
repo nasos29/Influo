@@ -129,7 +129,7 @@ export default function AboutPage() {
                 if (newLang === "en") router.push("/en/about");
                 else router.push("/about");
               }}
-              className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
+              className="text-xs font-semibold border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
               aria-label="Toggle language"
             >
               {lang === "el" ? "EN" : "EL"}
@@ -214,13 +214,13 @@ export default function AboutPage() {
             <div className="mt-6 flex flex-wrap gap-4">
               <Link
                 href={lang === "en" ? "/en/for-brands" : "/for-brands"}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-lg font-medium hover:bg-slate-800 transition-colors"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-lg font-semibold hover:bg-slate-800 transition-colors"
               >
                 {lang === "el" ? "Για Brands" : "For Brands"}
               </Link>
               <Link
                 href={lang === "en" ? "/en/for-influencers" : "/for-influencers"}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
               >
                 {lang === "el" ? "Για Influencers" : "For Influencers"}
               </Link>

@@ -178,7 +178,7 @@ export default function Analytics({ influencerId, lang = 'el' }: AnalyticsProps)
         <div className="flex flex-wrap gap-3">
           <button
             onClick={() => setPeriod('7d')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
               period === '7d'
                 ? 'bg-blue-600 text-white'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -188,7 +188,7 @@ export default function Analytics({ influencerId, lang = 'el' }: AnalyticsProps)
           </button>
           <button
             onClick={() => setPeriod('30d')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
               period === '30d'
                 ? 'bg-blue-600 text-white'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -198,7 +198,7 @@ export default function Analytics({ influencerId, lang = 'el' }: AnalyticsProps)
           </button>
           <button
             onClick={() => setPeriod('quarter')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
               period === 'quarter'
                 ? 'bg-blue-600 text-white'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -208,7 +208,7 @@ export default function Analytics({ influencerId, lang = 'el' }: AnalyticsProps)
           </button>
           <button
             onClick={() => setPeriod('year')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
               period === 'year'
                 ? 'bg-blue-600 text-white'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -218,7 +218,7 @@ export default function Analytics({ influencerId, lang = 'el' }: AnalyticsProps)
           </button>
           <button
             onClick={() => setPeriod('custom')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
               period === 'custom'
                 ? 'bg-blue-600 text-white'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
