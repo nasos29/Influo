@@ -36,17 +36,46 @@ async function findOwnInfluencer(user: User) {
   return byEmail.data;
 }
 
+async function privateBrandEmail(brandId: string): Promise<string> {
+  const priv = await supabaseService()
+    .from("brand_private")
+    .select("contact_email")
+    .eq("brand_id", brandId)
+    .maybeSingle();
+  if (priv.error) throw new Error(priv.error.message);
+  return typeof priv.data?.contact_email === "string" ? priv.data.contact_email.trim() : "";
+}
+
+function withOwnerEmail<T extends { id?: string; contact_email?: string | null }>(row: T, email: string): T {
+  if (typeof row.contact_email === "string" && row.contact_email.includes("@")) return row;
+  if (!email.includes("@")) return row;
+  return { ...row, contact_email: email };
+}
+
 async function findOwnBrand(user: User) {
   const admin = supabaseService();
   const byId = await admin.from("brands").select(brandColumns).eq("id", user.id).maybeSingle();
   if (byId.error) throw new Error(byId.error.message);
-  if (byId.data) return byId.data;
+  if (byId.data) return withOwnerEmail(byId.data, await privateBrandEmail(String(byId.data.id)));
 
   const email = user.email?.trim();
   if (!email) return null;
+
+  const priv = await admin.from("brand_private").select("brand_id, contact_email").ilike("contact_email", email).maybeSingle();
+  if (priv.error) throw new Error(priv.error.message);
+  if (priv.data?.brand_id) {
+    const row = await admin.from("brands").select(brandColumns).eq("id", priv.data.brand_id).maybeSingle();
+    if (row.error) throw new Error(row.error.message);
+    if (row.data) {
+      const privateEmail = typeof priv.data.contact_email === "string" ? priv.data.contact_email : "";
+      return withOwnerEmail(row.data, privateEmail);
+    }
+  }
+
   const byEmail = await admin.from("brands").select(brandColumns).ilike("contact_email", email).maybeSingle();
   if (byEmail.error) throw new Error(byEmail.error.message);
-  return byEmail.data;
+  if (!byEmail.data) return null;
+  return withOwnerEmail(byEmail.data, await privateBrandEmail(String(byEmail.data.id)));
 }
 
 /** The signed-in user's own rows. Lookup by auth id, then auth_user_id, then email. */

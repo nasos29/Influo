@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseService } from "@/lib/apiAuth";
 import { guardProposalAction, influencerContact, isGuardFailure } from "@/lib/proposalAccess";
 import { mailCounterDecision } from "@/lib/proposalMail";
+import { deferAfterResponse, pushParty } from "@/lib/proposalNotify";
 
 export async function POST(request: Request) {
   try {
@@ -20,14 +21,31 @@ export async function POST(request: Request) {
       .eq("id", proposal.id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    const influencer = await influencerContact(proposal.influencer_id);
-    await mailCounterDecision({
-      accepted: false,
-      influencerEmail: influencer.email,
-      influencerName: influencer.name,
-      brandName: proposal.brand_name || "Επιχείρηση",
-      service: proposal.service_type || "",
-      budget: proposal.budget || "",
+    deferAfterResponse(async () => {
+      const influencer = await influencerContact(proposal.influencer_id);
+      const brandName = proposal.brand_name || "Επιχείρηση";
+      await Promise.all([
+        mailCounterDecision({
+          accepted: false,
+          influencerEmail: influencer.email,
+          influencerName: influencer.name,
+          brandName,
+          service: proposal.service_type || "",
+          budget: proposal.budget || "",
+        }),
+        pushParty({
+          type: "counter_rejected",
+          side: "influencer",
+          influencerId: proposal.influencer_id,
+          brandEmail: proposal.brand_email,
+          payload: {
+            title: "Η αντιπρόταση απορρίφθηκε",
+            body: `${brandName} απέρριψε την αντιπρόταση.`,
+            url: "/dashboard",
+            tag: "counter-rejected",
+          },
+        }),
+      ]);
     });
     return NextResponse.json({ success: true });
   } catch (error) {

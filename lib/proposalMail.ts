@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { logEmail } from "@/lib/deliveryLog";
 import { escapeHtml } from "@/lib/proposalParty";
 
 const SENDER = "Influo <noreply@influo.gr>";
@@ -18,20 +19,24 @@ function brandLink(email: string, hasAccount: boolean): string {
   return `${siteUrl()}${target}`;
 }
 
-async function send(to: string | null | undefined, subject: string, html: string): Promise<void> {
+async function send(type: string, to: string | null | undefined, subject: string, html: string): Promise<void> {
   const address = (to || "").trim();
   const key = process.env.RESEND_API_KEY;
-  if (!address || !address.includes("@") || !key) return;
+  if (!address || !address.includes("@") || !key) {
+    logEmail(type, false);
+    return;
+  }
   try {
     const resend = new Resend(key);
-    await resend.emails.send({
+    const { error } = await resend.emails.send({
       from: SENDER,
       to: [address],
       subject: subject.replace(/[\r\n]/g, " ").slice(0, 180),
       html,
     });
-  } catch (error) {
-    console.error("[proposal mail]", subject, error);
+    logEmail(type, !error);
+  } catch {
+    logEmail(type, false);
   }
 }
 
@@ -62,7 +67,9 @@ export async function mailNewProposal(input: {
     ? `<p style="margin: 12px 0 0; white-space: pre-wrap;">${message}</p>`
     : "";
 
-  await send(
+  await Promise.all([
+  send(
+    "proposal_new",
     input.influencerEmail,
     `Νέα πρόταση από ${input.brandName}`,
     shell(
@@ -73,9 +80,9 @@ export async function mailNewProposal(input: {
        ${note}
        <p><a href="${siteUrl()}/dashboard">Άνοιξε τις προσφορές στο dashboard</a></p>`
     )
-  );
-
-  await send(
+  ),
+  send(
+    "proposal_brand_confirmation",
     input.brandEmail,
     `Επιβεβαίωση πρότασης προς ${input.influencerName}`,
     shell(
@@ -83,9 +90,9 @@ export async function mailNewProposal(input: {
       `<p>Λάβαμε την πρόταση της <strong>${brandName}</strong> προς τον/την <strong>${influencerName}</strong> για την υπηρεσία <strong>${service}</strong>.</p>
        <p>Ο/Η influencer θα την δει στις προσφορές του και μπορεί να την αποδεχτεί, να την απορρίψει ή να στείλει αντιπρόταση.</p>`
     )
-  );
-
-  await send(
+  ),
+  send(
+    "proposal_admin",
     adminEmail(),
     `Νέα πρόταση από ${input.brandName} προς ${input.influencerName}`,
     shell(
@@ -98,7 +105,8 @@ export async function mailNewProposal(input: {
        ${note}
        <p><a href="${siteUrl()}/admin">Admin</a></p>`
     )
-  );
+  ),
+  ]);
 }
 
 export async function mailProposalDecision(input: {
@@ -121,6 +129,7 @@ export async function mailProposalDecision(input: {
     ? `<p>Για να κλείσει η συνεργασία, αποδεχτείτε και εσείς τη συμφωνία από τις προσφορές.</p><p><a href="${link}">${input.brandHasAccount ? "Σύνδεση στο dashboard" : "Δημιουργία λογαριασμού"}</a></p>`
     : `<p>Η πρόταση έκλεισε. Μπορείτε να στείλετε νέα πρόταση από το προφίλ του influencer.</p>`;
   await send(
+    input.accepted ? "proposal_accepted" : "proposal_rejected",
     input.brandEmail,
     `${input.accepted ? "Αποδοχή" : "Απόρριψη"} πρότασης από ${input.influencerName}`,
     shell(
@@ -147,6 +156,7 @@ export async function mailCounter(input: {
     ? `<p><strong>Σχόλιο:</strong> ${escapeHtml(input.counterMessage).replace(/\n/g, "<br/>")}</p>`
     : "";
   await send(
+    "counter_new",
     input.brandEmail,
     `Αντιπρόταση από ${input.influencerName}`,
     shell(
@@ -176,6 +186,7 @@ export async function mailCounterDecision(input: {
     ? `Η <strong>${escapeHtml(input.brandName)}</strong> αποδέχτηκε την αντιπρότασή σου. Η τιμή της πρότασης είναι πλέον €${escapeHtml(input.budget)}.`
     : `Η <strong>${escapeHtml(input.brandName)}</strong> απέρριψε την αντιπρόταση. Η αρχική πρόταση παραμένει ανοιχτή.`;
   await send(
+    input.accepted ? "counter_accepted" : "counter_rejected",
     input.influencerEmail,
     `${input.accepted ? "Αποδοχή" : "Απόρριψη"} αντιπρότασης από ${input.brandName}`,
     shell(
@@ -201,6 +212,7 @@ export async function mailAgreement(input: {
     ? brandLink(input.to || "", input.brandHasAccount)
     : `${siteUrl()}/dashboard`;
   await send(
+    "agreement_accepted",
     input.to,
     `Αποδοχή συμφωνίας από ${input.otherName}`,
     shell(
@@ -219,6 +231,7 @@ export async function mailCollaborationComplete(input: {
   brandName: string;
 }): Promise<void> {
   await send(
+    "collaboration_complete",
     input.influencerEmail,
     `Η συνεργασία με ${input.brandName} ολοκληρώθηκε`,
     shell(

@@ -1000,7 +1000,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     };
 
     const reloadProposals = async () => {
-        const response = await sessionFetch('/api/proposals?role=influencer');
+        const response = await sessionFetch('/api/proposals?role=influencer', { cache: 'no-store' });
         const result = await response.json().catch(() => ({}));
         if (!response.ok || !Array.isArray(result.proposals)) return null;
         const rows = result.proposals as Proposal[];
@@ -1159,9 +1159,13 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
 
             const result = await response.json();
             if (result.success) {
+                const acceptedId = selectedProposal.id;
+                const withAcceptance = (rows: Proposal[]) =>
+                    rows.map((row) => row.id === acceptedId ? { ...row, influencer_agreement_accepted: true } : row);
+                setProposals((prev) => withAcceptance(prev));
                 const data = await reloadProposals();
                 if (data) {
-
+                    setProposals(withAcceptance(data));
                     // Refresh profile to get updated past_brands
                     const profileData = await loadOwnInfluencer(supabase);
                     if (profileData.ok) {

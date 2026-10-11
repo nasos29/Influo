@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { supabaseService } from "@/lib/apiAuth";
-import { sendPushToInfluencer } from "@/lib/push";
 import { requireActor, influencerContact, brandHasAccount, listForRole, loadProposal, partyOf } from "@/lib/proposalAccess";
 import { ensureProposalThread } from "@/lib/proposalChat";
 import { mailNewProposal } from "@/lib/proposalMail";
+import { deferAfterResponse, pushParty } from "@/lib/proposalNotify";
 import {
   cleanBudget,
   clipText,
@@ -16,32 +16,39 @@ import {
 const PROPOSAL_COLUMNS =
   "id, influencer_id, brand_name, brand_email, brand_id, service_type, budget, message, status, created_at, counter_proposal_budget, counter_proposal_message, counter_proposal_status, counter_proposal_created_at, influencer_agreement_accepted, brand_agreement_accepted, agreement_accepted_at, brand_added_to_past_brands";
 
+function proposalJson(body: unknown, status = 200) {
+  return NextResponse.json(body, {
+    status,
+    headers: { "Cache-Control": "private, no-store" },
+  });
+}
+
 export async function GET(request: Request) {
   try {
     const session = await requireActor(request);
-    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!session) return proposalJson({ error: "Unauthorized" }, 401);
 
     const url = new URL(request.url);
     const id = (url.searchParams.get("id") || "").trim();
     if (id) {
       const proposal = await loadProposal(id);
       if (!proposal || !partyOf(session.actor, proposal)) {
-        return NextResponse.json({ error: "Proposal not found" }, { status: 404 });
+        return proposalJson({ error: "Proposal not found" }, 404);
       }
       const { data, error } = await supabaseService().from("proposals").select(PROPOSAL_COLUMNS).eq("id", id).maybeSingle();
-      if (error || !data) return NextResponse.json({ error: "Proposal not found" }, { status: 404 });
-      return NextResponse.json({ proposal: partyProposalView(data as Record<string, unknown>) });
+      if (error || !data) return proposalJson({ error: "Proposal not found" }, 404);
+      return proposalJson({ proposal: partyProposalView(data as Record<string, unknown>) });
     }
 
     const role = url.searchParams.get("role");
     if (role !== "influencer" && role !== "brand") {
-      return NextResponse.json({ error: "role must be influencer or brand" }, { status: 400 });
+      return proposalJson({ error: "role must be influencer or brand" }, 400);
     }
     const proposals = await listForRole(session.actor, role);
-    return NextResponse.json({ proposals });
+    return proposalJson({ proposals });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not load proposals";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return proposalJson({ error: message }, 500);
   }
 }
 
@@ -133,8 +140,9 @@ export async function POST(request: Request) {
     if ("error" in saved) return NextResponse.json({ error: saved.error }, { status: 500 });
 
     const content = `Νέα πρόταση: ${service} | Budget: €${budget}${message ? `\n\n${message}` : ""}`;
+    let conversationId: string | null = null;
     try {
-      await ensureProposalThread({
+      conversationId = await ensureProposalThread({
         influencerId,
         brandEmail,
         brandName,
@@ -144,43 +152,49 @@ export async function POST(request: Request) {
         alreadyNotified: !signedIn,
       });
     } catch (error) {
-      console.error("[proposal chat]", error);
+      console.error("[proposal chat]", error instanceof Error ? error.message : "failed");
     }
 
-    await mailNewProposal({
-      influencerEmail: influencer.email,
-      influencerName: influencer.name || profile.data.display_name || "Influencer",
-      brandEmail,
-      brandName,
-      service,
-      budget,
-      message,
-    });
-
-    try {
-      await sendPushToInfluencer(influencerId, {
-        title: "Νέα πρόταση συνεργασίας",
-        body: `${brandName}: ${service} | €${budget}`,
-        url: "/dashboard",
-        tag: "proposal",
-      });
-    } catch (error) {
-      console.warn("[proposal push]", error);
-    }
-
-    try {
-      await supabaseService().from("influencer_analytics").insert([
-        {
-          influencer_id: influencerId,
-          event_type: "proposal_sent",
-          brand_email: brandEmail,
-          brand_name: brandName,
-          metadata: { proposal_id: saved.id, service_type: service, budget },
-        },
+    const influencerName = influencer.name || profile.data.display_name || "Influencer";
+    const proposalId = saved.id;
+    deferAfterResponse(async () => {
+      await Promise.all([
+        mailNewProposal({
+          influencerEmail: influencer.email,
+          influencerName,
+          brandEmail,
+          brandName,
+          service,
+          budget,
+          message,
+        }),
+        pushParty({
+          type: "proposal_new",
+          side: "influencer",
+          influencerId,
+          brandEmail,
+          conversationId,
+          payload: {
+            title: "Νέα πρόταση συνεργασίας",
+            body: `${brandName}: ${service} | €${budget}`,
+            url: "/dashboard",
+            tag: "proposal",
+          },
+        }),
+        supabaseService()
+          .from("influencer_analytics")
+          .insert([
+            {
+              influencer_id: influencerId,
+              event_type: "proposal_sent",
+              brand_email: brandEmail,
+              brand_name: brandName,
+              metadata: { proposal_id: proposalId, service_type: service, budget },
+            },
+          ])
+          .then(() => undefined),
       ]);
-    } catch {
-      /* analytics must not block the proposal */
-    }
+    });
 
     return NextResponse.json({ success: true, proposalId: saved.id });
   } catch (error) {

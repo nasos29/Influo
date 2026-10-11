@@ -25,6 +25,8 @@ async function getBrand(request: NextRequest) {
   const byId = await supabaseAdmin.from("brands").select("id").eq("id", data.user.id).maybeSingle();
   if (byId.data?.id) return { brandId: String(byId.data.id) };
   if (email) {
+    const priv = await supabaseAdmin.from("brand_private").select("brand_id").ilike("contact_email", email).maybeSingle();
+    if (priv.data?.brand_id) return { brandId: String(priv.data.brand_id) };
     const byEmail = await supabaseAdmin
       .from("brands")
       .select("id")

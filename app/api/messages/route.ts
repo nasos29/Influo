@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
 import { isChatParticipant, loadChatActor, senderIdFor } from "@/lib/chatActor";
-import { sendPushToBrand, sendPushToInfluencer } from "@/lib/push";
+import { deferAfterResponse, pushParty } from "@/lib/proposalNotify";
 
 type Attachment = { url: string; filename?: string; size?: number; content_type?: string };
 type SenderType = "influencer" | "brand";
@@ -91,21 +91,27 @@ async function notifyPush(args: {
 }) {
   if (args.skipBecauseProposal) return;
   const text = args.preview.slice(0, 60) + (args.preview.length > 60 ? "…" : "");
-  if (args.senderType === "influencer") {
-    await sendPushToBrand(args.brandEmail, {
-      title: "💬 Νέο μήνυμα",
-      body: `${args.influencerName}: ${text}`,
-      url: threadUrl("influencer", args.conversationId),
-      tag: `message-brand-${args.conversationId}`,
-    }).catch(() => {});
-  } else {
-    await sendPushToInfluencer(args.influencerId, {
-      title: "💬 Νέο μήνυμα",
-      body: `${args.brandName}: ${text}`,
-      url: threadUrl("brand", args.conversationId),
-      tag: `message-inf-${args.conversationId}`,
-    }).catch(() => {});
-  }
+  const toBrand = args.senderType === "influencer";
+  await pushParty({
+    type: "message",
+    side: toBrand ? "brand" : "influencer",
+    influencerId: args.influencerId,
+    brandEmail: args.brandEmail,
+    conversationId: args.conversationId,
+    payload: toBrand
+      ? {
+          title: "💬 Νέο μήνυμα",
+          body: `${args.influencerName}: ${text}`,
+          url: threadUrl("influencer", args.conversationId),
+          tag: `message-brand-${args.conversationId}`,
+        }
+      : {
+          title: "💬 Νέο μήνυμα",
+          body: `${args.brandName}: ${text}`,
+          url: threadUrl("brand", args.conversationId),
+          tag: `message-inf-${args.conversationId}`,
+        },
+  });
 }
 
 async function track(influencerId: string, eventType: string, brandEmail: string | null, brandName: string | null, metadata: Record<string, unknown>) {
@@ -237,16 +243,21 @@ export async function POST(req: Request) {
         .update({ last_message_at: now, [updateField]: now, closed_at: null })
         .eq("id", convId);
 
-      await notifyPush({
-        senderType,
-        conversationId: convId!,
-        preview: contentForNotify,
-        influencerId,
-        influencerName: (await admin.from("influencers").select("display_name").eq("id", influencerId).maybeSingle()).data?.display_name || "Influencer",
-        brandEmail,
-        brandName,
-        skipBecauseProposal: senderType === "brand" && !!proposalId,
-      });
+      const influencerName =
+        (await admin.from("influencers").select("display_name").eq("id", influencerId).maybeSingle()).data?.display_name ||
+        "Influencer";
+      deferAfterResponse(() =>
+        notifyPush({
+          senderType,
+          conversationId: convId!,
+          preview: contentForNotify,
+          influencerId,
+          influencerName,
+          brandEmail,
+          brandName,
+          skipBecauseProposal: senderType === "brand" && !!proposalId,
+        })
+      );
       await track(influencerId, "message_sent", brandEmail, brandName, {
         conversation_id: convId,
         source: "messages_api",
@@ -287,16 +298,18 @@ export async function POST(req: Request) {
       .update({ last_message_at: now, [updateField]: now, closed_at: null })
       .eq("id", conversationId);
 
-    await notifyPush({
-      senderType,
-      conversationId,
-      preview: contentForNotify,
-      influencerId: conv.influencer_id,
-      influencerName: conv.influencer_name || "Influencer",
-      brandEmail: String(conv.brand_email || ""),
-      brandName: conv.brand_name || String(conv.brand_email || "Επιχείρηση"),
-      skipBecauseProposal: false,
-    });
+    deferAfterResponse(() =>
+      notifyPush({
+        senderType,
+        conversationId,
+        preview: contentForNotify,
+        influencerId: conv.influencer_id,
+        influencerName: conv.influencer_name || "Influencer",
+        brandEmail: String(conv.brand_email || ""),
+        brandName: conv.brand_name || "Επιχείρηση",
+        skipBecauseProposal: false,
+      })
+    );
     await track(conv.influencer_id, "message_sent", conv.brand_email, conv.brand_name, {
       conversation_id: conversationId,
       source: "messages_api",
