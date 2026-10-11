@@ -24,6 +24,38 @@ async function adminAuthHeaders(): Promise<Record<string, string>> {
   return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
 }
 
+/** Pending deals badge: dismiss on tab open; only new pending ids show again after refresh. */
+const ADMIN_SEEN_PENDING_PROPOSALS_KEY = "admin_seen_pending_proposal_ids";
+
+function readSeenPendingProposalIds(): number[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const parsed = JSON.parse(localStorage.getItem(ADMIN_SEEN_PENDING_PROPOSALS_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed.map(Number).filter((n) => Number.isFinite(n)) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeSeenPendingProposalIds(ids: number[]) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(ADMIN_SEEN_PENDING_PROPOSALS_KEY, JSON.stringify([...new Set(ids)]));
+}
+
+function pendingProposalIds(list: { id: number; status: string }[]): number[] {
+  return list.filter((p) => p.status === "pending").map((p) => p.id);
+}
+
+function countUnseenPendingProposals(list: { id: number; status: string }[]): number {
+  const pending = pendingProposalIds(list);
+  const seen = new Set(readSeenPendingProposalIds().filter((id) => pending.includes(id)));
+  return pending.filter((id) => !seen.has(id)).length;
+}
+
+function markPendingProposalsSeen(list: { id: number; status: string }[]) {
+  writeSeenPendingProposalIds(pendingProposalIds(list));
+}
+
 // --- LANGUAGES LIST ---
 const LANGUAGES = [
   { code: "el", el: "Ελληνικά", en: "Greek" },
@@ -1960,15 +1992,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       let formattedReach = totalReachNum > 1000000 ? (totalReachNum / 1000000).toFixed(1) + 'M' : (totalReachNum / 1000).toFixed(1) + 'k';
 
       let pipelineSum = 0;
-      let pendingProps = 0;
       if (propData) {
           setProposals(propData as any);
           propData.forEach(p => {
               const val = parseFloat(p.budget);
               if (!isNaN(val)) pipelineSum += val;
-              if (p.status === 'pending') pendingProps++;
           });
-          setPendingProposalsCount(pendingProps);
+          setPendingProposalsCount(countUnseenPendingProposals(propData));
       }
 
         setStats({ 
@@ -2710,10 +2740,10 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         throw new Error(result.error || 'Failed to delete proposal');
       }
 
-      // Remove from local state and recalc pending badge
+      // Remove from local state and recalc unseen pending badge
       setProposals(prev => {
         const next = prev.filter(p => p.id !== proposalId);
-        setPendingProposalsCount(next.filter((p: Proposal) => p.status === 'pending').length);
+        setPendingProposalsCount(countUnseenPendingProposals(next));
         return next;
       });
 
@@ -2931,6 +2961,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
               <button 
                 onClick={() => {
                   setActiveTab("proposals");
+                  markPendingProposalsSeen(proposals);
                   setPendingProposalsCount(0);
                 }} 
                 className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors relative whitespace-nowrap ${
