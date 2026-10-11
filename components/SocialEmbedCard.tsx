@@ -18,7 +18,6 @@ interface SocialEmbedCardProps {
 export default function SocialEmbedCard({
   provider,
   embedUrl,
-  thumbnailUrl,
   width,
   height,
   originalUrl,
@@ -32,12 +31,10 @@ export default function SocialEmbedCard({
   const finalWidth = width || defaultDimensions[provider]?.width || 400;
   const finalHeight = height || defaultDimensions[provider]?.height || 500;
 
-  const deferUntilClick = provider === "instagram";
-  const [activated, setActivated] = useState(!deferUntilClick);
   const [finalEmbedUrl, setFinalEmbedUrl] = useState<string | null>(
-    deferUntilClick || embedUrl.startsWith("/api/video-embed") ? null : embedUrl
+    embedUrl.startsWith("/api/video-embed") ? null : embedUrl
   );
-  const [loading, setLoading] = useState(!deferUntilClick && embedUrl.startsWith("/api/video-embed"));
+  const [loading, setLoading] = useState(embedUrl.startsWith("/api/video-embed"));
   const [error, setError] = useState(false);
 
   const names = { instagram: "Instagram", tiktok: "TikTok", youtube: "YouTube" };
@@ -60,7 +57,6 @@ export default function SocialEmbedCard({
   };
 
   useEffect(() => {
-    if (!activated) return;
     let cancelled = false;
     if (!embedUrl.startsWith("/api/video-embed")) {
       setFinalEmbedUrl(embedUrl);
@@ -93,29 +89,7 @@ export default function SocialEmbedCard({
     return () => {
       cancelled = true;
     };
-  }, [embedUrl, activated]);
-
-  if (!activated) {
-    return (
-      <button
-        type="button"
-        onClick={() => setActivated(true)}
-        className="w-full bg-white rounded-xl border border-slate-200 shadow-md overflow-hidden text-left"
-      >
-        <div
-          className={`bg-gradient-to-br ${colors[provider]} flex flex-col items-center justify-center p-8 min-h-[220px]`}
-        >
-          {thumbnailUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={thumbnailUrl} alt="" className="mb-4 max-h-40 w-auto rounded-lg object-contain" />
-          ) : null}
-          <span className="bg-white text-slate-900 px-6 py-3 rounded-lg font-semibold text-sm shadow-lg">
-            Δες την ανάρτηση
-          </span>
-        </div>
-      </button>
-    );
-  }
+  }, [embedUrl]);
 
   if (error) {
     return (
