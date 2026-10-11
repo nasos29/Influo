@@ -18,6 +18,7 @@ import { displayNameForLang } from "@/lib/greeklish";
 import { getVisitorId } from "@/lib/visitorId";
 import { trackOutboundSocialClick } from "@/lib/trackOutboundSocial";
 import { categoryTranslations } from "@/components/categoryTranslations";
+import { parseStoredCategories } from "@/lib/categories";
 import { genderLabel, normalizeGender } from "@/lib/gender";
 import BrandSaveInfluencerButton from "@/components/BrandSaveInfluencerButton";
 import { addBrandShortlist, fetchBrandShortlist, removeBrandShortlist } from "@/lib/brandShortlist";
@@ -799,8 +800,8 @@ export default function InfluencerProfile(props: {
         verified: data.analytics_verified || false, // Use analytics_verified for verified badge
         socials: socialsObj,
         followers: followersObj,
-        categories: data.category 
-          ? (data.category.includes(',') ? data.category.split(',').map((c: string) => c.trim()) : [data.category])
+        categories: data.category
+          ? (parseStoredCategories(data.category).length ? parseStoredCategories(data.category) : ["Creator"])
           : ["Creator"],
         platform: "Instagram",
         gender: data.gender,

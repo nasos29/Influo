@@ -1,5 +1,7 @@
 // Smart Recommendation System for Matching Influencers to Brands
 
+import { formatCategoryLabels, isGeneralCategory, parseStoredCategories } from "./categories.ts";
+
 export interface BrandProfile {
   id: string;
   brand_name: string;
@@ -207,8 +209,28 @@ function calculateCategoryMatch(
   auditNiche?: string | null,
   auditNicheEn?: string | null
 ): number {
+  const brandCategories = parseStoredCategories(brandIndustry).filter((cat) => !isGeneralCategory(cat));
   if (!brandIndustry) return 0.5;
+  if (brandCategories.length === 0) return 0.5;
 
+  const influencerKeys = parseStoredCategories(
+    influencerCategories && influencerCategories.length ? influencerCategories : influencerCategory
+  );
+
+  return Math.max(
+    ...brandCategories.map((cat) =>
+      scoreOneBrandCategory(cat, influencerKeys[0], influencerKeys, auditNiche, auditNicheEn)
+    )
+  );
+}
+
+function scoreOneBrandCategory(
+  brandIndustry: string,
+  influencerCategory: string | undefined,
+  influencerCategories: string[] | undefined,
+  auditNiche?: string | null,
+  auditNicheEn?: string | null
+): number {
   const industryLower = brandIndustry.toLowerCase().trim();
   const industryNorm = normalizeLabel(brandIndustry);
   const brandConcept = GREEK_TO_CONCEPT[industryNorm] || industryNorm.split(' ')[0] || industryNorm;
@@ -256,6 +278,7 @@ function calculateCategoryMatch(
     fitness: ['health & fitness', 'sports & athletes', 'lifestyle'],
     travel: ['travel', 'lifestyle', 'photography'],
     business: ['business & finance', 'tech & gadgets', 'education & coaching'],
+    unboxing: ['unboxing'],
   };
 
   for (const [industry, mappedCats] of Object.entries(categoryMappings)) {
@@ -483,12 +506,13 @@ export function recommendInfluencers(
 
       const reasons: string[] = [];
 
+      const brandCategoryLabel = formatCategoryLabels(brand.category || brand.industry, lang) || (isEn ? 'your industry' : 'σου');
       if (strengths.categoryMatch >= 0.99) {
-        reasons.push(isEn ? `Perfect niche match for ${brand.category || brand.industry || 'you'} 🎯` : `ΤΕΛΕΙΟ match - Είδος ${brand.category || brand.industry || 'σου'} 🎯⭐`);
+        reasons.push(isEn ? `Perfect niche match for ${brandCategoryLabel} 🎯` : `ΤΕΛΕΙΟ match - Είδος ${brandCategoryLabel} 🎯⭐`);
       } else if (strengths.categoryMatch >= 0.9) {
-        reasons.push(isEn ? `Strong niche match (${audit?.niche_en || audit?.niche || brand.category || 'your industry'}) 🎯` : `Τέλειο match στο niche ${brand.category || brand.industry || 'σου'} 🎯`);
+        reasons.push(isEn ? `Strong niche match (${asText(audit?.niche_en) || asText(audit?.niche) || brandCategoryLabel}) 🎯` : `Τέλειο match στο niche ${asText(audit?.niche) || brandCategoryLabel} 🎯`);
       } else if (strengths.categoryMatch >= 0.7) {
-        reasons.push(isEn ? `Good fit for ${brand.category || brand.industry || 'your industry'}` : `Ταιριάζει στο niche ${brand.category || brand.industry || 'σου'}`);
+        reasons.push(isEn ? `Good fit for ${brandCategoryLabel}` : `Ταιριάζει στο niche ${brandCategoryLabel}`);
       }
 
       if (strengths.engagementQuality >= 0.9) {

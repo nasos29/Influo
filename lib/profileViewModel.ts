@@ -1,4 +1,5 @@
 import { normalizeGender, type GenderValue } from "@/lib/gender";
+import { parseStoredCategories } from "@/lib/categories";
 import { parseFollowerString } from "@/lib/parseFollowers";
 import { toPublicProfile } from "@/lib/publicInfluencer";
 
@@ -94,9 +95,8 @@ export function viewModelFromPublicRow(row: Record<string, unknown>): ProfileVie
   }
 
   const category = typeof data.category === "string" ? data.category : "";
-  const categories = category
-    ? category.split(",").map((part) => part.trim()).filter(Boolean)
-    : ["Creator"];
+  const parsedCategories = parseStoredCategories(category);
+  const categories = parsedCategories.length ? parsedCategories : ["Creator"];
 
   const audit = data.auditpr_audit;
   const flags = (data.rate_card_flags && typeof data.rate_card_flags === "object"

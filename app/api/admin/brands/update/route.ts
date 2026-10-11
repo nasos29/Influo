@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/apiAuth';
+import { formatStoredCategories } from '@/lib/categories';
 
 // Server-side Supabase client με service role key (Admin privileges)
 const supabaseAdmin = createClient(
@@ -35,7 +36,10 @@ export async function POST(request: NextRequest) {
     if (brand_name !== undefined) updateData.brand_name = brand_name;
     if (contact_person !== undefined) updateData.contact_person = contact_person;
     if (website !== undefined) updateData.website = website;
-    if (industry !== undefined) updateData.industry = industry;
+    if (industry !== undefined) {
+      const stored = formatStoredCategories(industry);
+      updateData.industry = stored || null;
+    }
     if (logo_url !== undefined) updateData.logo_url = logo_url;
 
     if (Object.keys(updateData).length === 0) {

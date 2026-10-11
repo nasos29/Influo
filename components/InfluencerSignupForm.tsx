@@ -8,19 +8,12 @@ import { detectProvider, getIframelyEmbedUrl, isDefinitelyImage } from "@/lib/vi
 import { prepareImageForStorage } from "@/lib/prepareImageForStorage";
 import { normalizeGender } from "@/lib/gender";
 import { languagesCodesToStored } from "@/lib/languages";
+import { formatStoredCategories } from "@/lib/categories";
+import CategoryCheckboxList from "./CategoryCheckboxList";
 import SocialEmbedCard from "./SocialEmbedCard";
 
 type Account = { platform: string; username: string; followers: string; engagement_rate?: string; avg_likes?: string };
 type Lang = "el" | "en";
-
-// --- FULL CATEGORY LIST ---
-const CATEGORIES = [
-  "Γενικά", "Lifestyle", "Fashion & Style", "Beauty & Makeup", "Travel", "Food & Drink",
-  "Health & Fitness", "Tech & Gadgets", "Business & Finance", "Gaming & Esports",
-  "Parenting & Family", "Home & Decor", "Pets & Animals", "Comedy & Entertainment",
-  "Art & Photography", "Music & Dance", "Education & Coaching", "Sports & Athletes",
-  "DIY & Crafts", "Sustainability & Eco", "Cars & Automotive"
-];
 
 // --- LANGUAGES LIST ---
 const LANGUAGES = [
@@ -38,31 +31,6 @@ const LANGUAGES = [
   { code: "bg", el: "Βουλγαρικά", en: "Bulgarian" },
   { code: "tr", el: "Τουρκικά", en: "Turkish" }
 ];
-
-// Category translations
-const categoryTranslations: { [key: string]: { el: string; en: string } } = {
-  "Γενικά": { el: "Γενικά", en: "General" },
-  "Lifestyle": { el: "Lifestyle", en: "Lifestyle" },
-  "Fashion & Style": { el: "Μόδα & Στυλ", en: "Fashion & Style" },
-  "Beauty & Makeup": { el: "Ομορφιά & Μακιγιάζ", en: "Beauty & Makeup" },
-  "Travel": { el: "Ταξίδια", en: "Travel" },
-  "Food & Drink": { el: "Φαγητό & Ποτά", en: "Food & Drink" },
-  "Health & Fitness": { el: "Υγεία & Fitness", en: "Health & Fitness" },
-  "Tech & Gadgets": { el: "Τεχνολογία & Gadgets", en: "Tech & Gadgets" },
-  "Business & Finance": { el: "Επιχειρήσεις & Οικονομικά", en: "Business & Finance" },
-  "Gaming & Esports": { el: "Gaming & Esports", en: "Gaming & Esports" },
-  "Parenting & Family": { el: "Οικογένεια & Παιδιά", en: "Parenting & Family" },
-  "Home & Decor": { el: "Σπίτι & Διακόσμηση", en: "Home & Decor" },
-  "Pets & Animals": { el: "Κατοικίδια & Ζώα", en: "Pets & Animals" },
-  "Comedy & Entertainment": { el: "Κωμωδία & Ψυχαγωγία", en: "Comedy & Entertainment" },
-  "Art & Photography": { el: "Τέχνη & Φωτογραφία", en: "Art & Photography" },
-  "Music & Dance": { el: "Μουσική & Χορός", en: "Music & Dance" },
-  "Education & Coaching": { el: "Εκπαίδευση & Coaching", en: "Education & Coaching" },
-  "Sports & Athletes": { el: "Αθλήματα & Αθλητές", en: "Sports & Athletes" },
-  "DIY & Crafts": { el: "DIY & Χειροτεχνίες", en: "DIY & Crafts" },
-  "Sustainability & Eco": { el: "Βιωσιμότητα & Οικολογία", en: "Sustainability & Eco" },
-  "Cars & Automotive": { el: "Αυτοκίνητα", en: "Cars & Automotive" },
-};
 
 const t = {
   el: {
@@ -643,7 +611,7 @@ export default function InfluencerSignupForm() {
           id: authUser.id,
           display_name: displayName, 
           gender: validGender, 
-          category: categories.length > 0 ? categories[0] : null,
+          category: formatStoredCategories(categories) || null,
           location,
           birth_date: birthDate,
           languages: languagesCodesToStored(selectedLanguages),
@@ -748,11 +716,11 @@ export default function InfluencerSignupForm() {
   const labelClass = "block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2";
 
   const ProgressSteps = () => (
-    <div className="flex justify-between mb-8 relative px-4">
+    <div className="flex justify-between mb-8 relative px-2 sm:px-4">
         <div className="absolute top-1/2 left-0 w-full h-1.5 bg-slate-200 rounded-full -z-10"></div>
         <div className={`absolute top-1/2 left-4 h-1.5 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full transition-all duration-500 -z-10`} style={{ width: step >= 3 ? 'calc(100% - 2rem)' : step >= 2 ? 'calc(66.666% - 2rem)' : '0%' }}></div>
         {[1, 2, 3].map((s) => (
-            <div key={s} className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm transition-all border-2 shadow-md ${step >= s ? 'bg-gradient-to-br from-blue-600 to-purple-600 border-blue-600 text-white scale-110' : 'bg-white border-slate-300 text-slate-500'}`}>
+            <div key={s} className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-bold text-sm transition-all border-2 shadow-md ${step >= s ? 'bg-gradient-to-br from-blue-600 to-purple-600 border-blue-600 text-white scale-110' : 'bg-white border-slate-300 text-slate-500'}`}>
                 {step > s ? '✓' : s}
             </div>
         ))}
@@ -763,27 +731,26 @@ export default function InfluencerSignupForm() {
     <div className="bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] max-w-4xl mx-auto border border-slate-200">
       
       {/* Header */}
-      <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-purple-900 p-6 text-white relative overflow-hidden flex-shrink-0">
+      <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-purple-900 p-4 sm:p-6 text-white relative overflow-hidden flex-shrink-0">
         <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-pink-600/20"></div>
-        <div className="flex items-center justify-between relative z-10">
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 pr-10">
           <div className="flex items-center">
             <Image 
               src="/logo.svg" 
               alt="Influo.gr Logo" 
               width={140} 
               height={56} 
-              className="h-10 w-auto"
+              className="h-8 sm:h-10 w-auto"
             />
           </div>
-          <div className="text-center flex-1">
-              <h3 className="text-2xl md:text-3xl font-bold mb-2">{txt.headerTitle}</h3>
-              <p className="text-slate-300 text-sm">{txt.headerDesc}</p>
+          <div className="text-left sm:text-center sm:flex-1">
+              <h3 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 sm:mb-2 leading-tight">{txt.headerTitle}</h3>
+              <p className="text-slate-300 text-xs sm:text-sm">{txt.headerDesc}</p>
           </div>
-          {/* Language toggle removed - use header toggle instead */}
         </div>
       </div>
 
-      <div className="flex-1 p-8 overflow-y-auto bg-white">
+      <div className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto bg-white">
         {step < 4 && <ProgressSteps />}
 
         {/* --- STEP 1 --- (Basic Info & Password) */}
@@ -806,63 +773,13 @@ export default function InfluencerSignupForm() {
                     </div>
                 </div>
 
-                {/* CATEGORIES MULTI-SELECT */}
-                <div>
-                    <label className={labelClass}>{txt.catLabel}</label>
-                    <p className="text-xs text-slate-500 mb-3">{txt.catDesc}</p>
-                    <div className="border-2 border-slate-200 rounded-xl p-4 bg-slate-50 max-h-64 overflow-y-auto">
-                        <div className="space-y-2">
-                            {CATEGORIES.map(cat => {
-                                const isSelected = categories.includes(cat);
-                                const displayName = lang === 'el' 
-                                    ? (categoryTranslations[cat]?.el || cat) 
-                                    : (categoryTranslations[cat]?.en || cat);
-                                
-                                return (
-                                    <label 
-                                        key={cat} 
-                                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${
-                                            isSelected 
-                                                ? 'bg-blue-100 border-2 border-blue-500' 
-                                                : 'bg-white border-2 border-slate-200 hover:border-blue-300'
-                                        }`}
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            checked={isSelected}
-                                            onChange={(e) => {
-                                                if (cat === "Γενικά" || cat === "General") {
-                                                    // If "General" is selected, clear all others
-                                                    if (e.target.checked) {
-                                                        setCategories([cat]);
-                                                    } else {
-                                                        setCategories([]);
-                                                    }
-                                                } else {
-                                                    // Remove "General" if selecting specific category
-                                                    const newCats = e.target.checked
-                                                        ? [...categories.filter(c => c !== "Γενικά" && c !== "General"), cat]
-                                                        : categories.filter(c => c !== cat);
-                                                    
-                                                    setCategories(newCats);
-                                                }
-                                            }}
-                                            className="w-5 h-5 text-blue-600 border-2 border-slate-300 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                                        />
-                                        <span className={`font-medium ${isSelected ? 'text-blue-900' : 'text-slate-700'}`}>
-                                            {displayName}
-                                        </span>
-                                    </label>
-                                );
-                            })}
-                        </div>
-                    </div>
-                    {categories.length > 0 && (
-                        <p className="text-xs text-slate-600 mt-2">
-                            {lang === 'el' ? `Επιλέχθηκαν: ${categories.map(c => categoryTranslations[c]?.el || c).join(', ')}` : `Selected: ${categories.map(c => categoryTranslations[c]?.en || c).join(', ')}`}
-                        </p>
-                    )}
-                </div>
+                <CategoryCheckboxList
+                    lang={lang}
+                    selected={categories}
+                    onChange={setCategories}
+                    label={txt.catLabel}
+                    description={txt.catDesc}
+                />
 
                 <div>
                     <label className={labelClass}>{txt.locationLabel}</label>
@@ -1046,7 +963,7 @@ export default function InfluencerSignupForm() {
                 {message && <p className="text-red-600 text-sm text-center mt-2 font-medium bg-red-50 p-2 rounded">{message}</p>}
 
                 {/* Buttons at the end of Step 2 */}
-                <div className="mt-8 pt-6 border-t border-slate-200 flex gap-4">
+                <div className="mt-8 pt-6 border-t border-slate-200 flex flex-col-reverse sm:flex-row gap-3 sm:gap-4">
                   <button onClick={() => { setStep(1); setMessage(""); }} className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-all">{txt.back}</button>
                   <button onClick={handleStep2Next} className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-500/30 transition-all">{txt.next}</button>
                 </div>
@@ -1200,7 +1117,7 @@ export default function InfluencerSignupForm() {
                 {message && <p className="text-red-600 text-sm text-center mt-2 font-medium bg-red-50 p-2 rounded">{message}</p>}
                 
                 {/* Buttons at the end of Step 3 */}
-                <div className="mt-8 pt-6 border-t border-slate-200 flex gap-4">
+                <div className="mt-8 pt-6 border-t border-slate-200 flex flex-col-reverse sm:flex-row gap-3 sm:gap-4">
                   <button onClick={() => { setStep(2); setMessage(""); }} className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-all">{txt.back}</button>
                   <button onClick={handleSubmit} disabled={loading} className="flex-1 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-900 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-slate-900/30 hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                     {loading ? txt.loading : txt.submit}

@@ -1,4 +1,5 @@
 import { pageMetadata } from "@/lib/pageMetadata";
+import { categorySeoKeywords } from "@/lib/categories";
 
 export const metadata = pageMetadata({
   title: "Brands Looking for Influencers in Greece | Influo",
@@ -7,6 +8,7 @@ export const metadata = pageMetadata({
   elPath: "/brands",
   enPath: "/en/brands",
   locale: "en_US",
+  keywords: ["brands Greece", "influencer collaborations", ...categorySeoKeywords()],
 });
 
 export default function EnBrandsLayout({ children }: { children: React.ReactNode }) {

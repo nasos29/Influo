@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
 import InfluencerPresenceDot from "@/components/InfluencerPresenceDot";
+import { CATEGORIES, categoryLabel, normalizeCategoryToken } from "@/lib/categories";
 
 /** Local calendar YYYY-MM-DD */
 function formatLocalYmd(d: Date): string {
@@ -30,31 +31,6 @@ function getMinCampaignDeadlineYmd(campaignStartYmd: string): string {
   const tomorrow = addDaysLocalYmd(formatLocalYmd(new Date()), 1);
   return maxYmd(dayAfterStart, tomorrow);
 }
-
-const CATEGORIES = [
-  "",
-  "Γενικά",
-  "Lifestyle",
-  "Fashion & Style",
-  "Beauty & Makeup",
-  "Travel",
-  "Food & Drink",
-  "Health & Fitness",
-  "Tech & Gadgets",
-  "Business & Finance",
-  "Gaming & Esports",
-  "Parenting & Family",
-  "Home & Decor",
-  "Pets & Animals",
-  "Comedy & Entertainment",
-  "Art & Photography",
-  "Music & Dance",
-  "Education & Coaching",
-  "Sports & Athletes",
-  "DIY & Crafts",
-  "Sustainability & Eco",
-  "Cars & Automotive",
-];
 
 export type BrandCampaignRow = {
   id: string;
@@ -316,7 +292,7 @@ export default function BrandCampaignsSection({
       title: row.title,
       description: row.description,
       budget: String(row.budget ?? ""),
-      category: row.category || "",
+      category: normalizeCategoryToken(row.category) || row.category || "",
       deliverables: row.deliverables || "",
       deadline: row.deadline ? row.deadline.slice(0, 10) : "",
       status: row.status,
@@ -345,7 +321,7 @@ export default function BrandCampaignsSection({
         title: form.title.trim(),
         description: form.description.trim(),
         budget: Math.max(0, parseFloat(form.budget) || 0),
-        category: form.category || null,
+        category: normalizeCategoryToken(form.category) || form.category || null,
         deliverables: form.deliverables.trim() || null,
         status: form.status,
         deadline: form.deadline ? new Date(form.deadline).toISOString() : null,
@@ -614,11 +590,15 @@ export default function BrandCampaignsSection({
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 bg-white"
               >
+                <option value="">{lang === "el" ? "—" : "—"}</option>
                 {CATEGORIES.map((c) => (
-                  <option key={c || "none"} value={c}>
-                    {c || (lang === "el" ? "—" : "—")}
+                  <option key={c} value={c}>
+                    {categoryLabel(c, lang)}
                   </option>
                 ))}
+                {form.category && !CATEGORIES.includes(normalizeCategoryToken(form.category) as (typeof CATEGORIES)[number]) && (
+                  <option value={form.category}>{form.category}</option>
+                )}
               </select>
             </div>
             <div>
@@ -694,7 +674,7 @@ export default function BrandCampaignsSection({
                     <p className="text-sm text-slate-600 mt-1 line-clamp-2">{row.description}</p>
                     <p className="text-sm text-slate-800 mt-2">
                       <strong>€{Number(row.budget).toLocaleString(lang === "el" ? "el-GR" : "en-GB")}</strong>
-                      {row.category ? ` · ${row.category}` : ""}
+                      {row.category ? ` · ${categoryLabel(row.category, lang)}` : ""}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">

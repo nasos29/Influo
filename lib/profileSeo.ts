@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { categoryTranslations } from "@/components/categoryTranslations";
+import { categoryLabel as labelForCategory } from "@/lib/categories";
 import { findPrivateFieldPaths } from "@/lib/publicInfluencer";
 import type { ProfileViewModel } from "@/lib/profileViewModel";
 import { publicProfilePath } from "@/lib/profileSlug";
@@ -14,7 +14,7 @@ const PLATFORM_LABEL: Record<string, string> = {
 
 function categoryLabel(raw: string | undefined): string {
   const name = (raw || "Creator").trim();
-  return categoryTranslations[name]?.el || name;
+  return labelForCategory(name, "el") || name;
 }
 
 function formatFollowers(count: number): string {
