@@ -567,10 +567,10 @@ export default function Home({
           </div>
           
           <div className="relative z-10 max-w-7xl mx-auto">
-            <div className="grid lg:grid-cols-3 gap-8 lg:gap-12 items-center">
+            <div className="grid lg:grid-cols-3 gap-8 lg:gap-12 items-stretch">
               
               {/* Left Image */}
-              <div className="hidden lg:block relative h-[500px] rounded-2xl overflow-hidden shadow-2xl">
+              <div className="hidden lg:block relative min-h-[500px] h-full rounded-2xl overflow-hidden shadow-2xl">
                 <Image 
                   src={HERO_INFLUENCER_IMAGE}
                   alt={lang === "en" ? "Influencer creating content for social media" : "Influencer δημιουργεί περιεχόμενο για social media"}
@@ -582,19 +582,19 @@ export default function Home({
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
               </div>
               
-              {/* Center Content */}
-              <div className="lg:col-span-1 text-center">
+              {/* Center Content — vertically centered to photo height on desktop */}
+              <div className="lg:col-span-1 text-center lg:text-left lg:min-h-[500px] lg:flex lg:flex-col lg:justify-center">
                 <h1 className="!text-xl md:!text-2xl font-bold text-slate-900 mb-6 !leading-[1.3] tracking-tight">
                   <span className="block">{txt.hero_title_1}</span>
                   <span className="block bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                     {txt.hero_title_2}
                   </span>
                 </h1>
-                <p className="text-lg md:text-xl lg:text-2xl text-slate-600 mb-10 leading-relaxed max-w-xl mx-auto">
+                <p className="text-lg md:text-xl lg:text-2xl text-slate-600 mb-10 leading-relaxed max-w-xl mx-auto lg:mx-0">
                   {txt.hero_desc}
                 </p>
                 
-                <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-4">
+                <div className="flex flex-col sm:flex-row flex-wrap justify-center lg:justify-start gap-4">
                   <button 
                     onClick={() => { setSignupType("influencer"); setShowModal(true); }} 
                     className="px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl transition-all transform hover:scale-105 shadow-lg hover:shadow-xl text-lg"
@@ -614,13 +614,13 @@ export default function Home({
                     {txt.hero_brand_title_2}
                   </span>
                 </h2>
-                <p className="text-lg md:text-xl lg:text-2xl text-slate-600 mb-10 leading-relaxed max-w-xl mx-auto">
+                <p className="text-lg md:text-xl lg:text-2xl text-slate-600 mb-10 leading-relaxed max-w-xl mx-auto lg:mx-0">
                   {txt.hero_brand_desc}
                 </p>
               </div>
               
               {/* Right Image */}
-              <div className="hidden lg:block relative h-[500px] rounded-2xl overflow-hidden shadow-2xl">
+              <div className="hidden lg:block relative min-h-[500px] h-full rounded-2xl overflow-hidden shadow-2xl">
                 <Image 
                   src={HERO_BRAND_COLLAB_IMAGE}
                   alt={lang === "en" ? "Brand starting a collaboration with an influencer" : "Brand ξεκινά συνεργασία με influencer"}
