@@ -760,7 +760,7 @@ export default function InfluencerSignupForm() {
   );
 
   return (
-    <div className="bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] max-w-4xl mx-auto border border-slate-200">
+    <div className="bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[calc(100dvh-11rem)] max-w-4xl mx-auto border border-slate-200">
       
       {/* Header */}
       <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-purple-900 p-6 text-white relative overflow-hidden flex-shrink-0">

@@ -982,13 +982,14 @@ export default function Home({
       {/* Modal */}
       {showModal && (
           <div
-            className="fixed inset-0 bg-slate-900/70 backdrop-blur-md flex justify-center items-center z-50 p-4 animate-in fade-in duration-200"
+            className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-md p-3 sm:p-4 animate-in fade-in duration-200"
             onClick={() => setShowModal(false)}
           >
             <div
-              className="relative w-full max-w-5xl animate-in zoom-in duration-300"
+              className="relative mx-auto my-auto flex min-h-full w-full max-w-5xl items-center animate-in zoom-in duration-300"
               onClick={(e) => e.stopPropagation()}
             >
+            <div className="w-full py-2">
             <SignupTypeToggle
               lang={lang}
               value={signupType}
@@ -1008,6 +1009,7 @@ export default function Home({
                 </svg>
               </button>
               {signupType === "influencer" ? <InfluencerSignupForm /> : <BrandSignupForm embedded />}
+            </div>
             </div>
           </div>
         </div>

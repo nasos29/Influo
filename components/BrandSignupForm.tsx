@@ -342,7 +342,7 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
     <div
       className={
         embedded
-          ? "bg-white rounded-2xl shadow-2xl p-0 max-w-4xl w-full mx-auto border border-slate-200 overflow-hidden max-h-[85vh] flex flex-col"
+          ? "bg-white rounded-2xl shadow-2xl p-0 max-w-4xl w-full mx-auto border border-slate-200 overflow-hidden max-h-[calc(100dvh-11rem)] flex flex-col"
           : "bg-white rounded-2xl shadow-xl p-8 max-w-md w-full mx-auto"
       }
     >

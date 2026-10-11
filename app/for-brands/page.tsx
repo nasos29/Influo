@@ -485,10 +485,10 @@ export default function ForBrandsPage() {
 
       {showModal && (
         <div
-          className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex justify-center items-center z-50 p-4"
+          className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-sm p-3 sm:p-4"
           onClick={() => setShowModal(false)}
         >
-          <div className="relative w-full max-w-5xl" onClick={(e) => e.stopPropagation()}>
+          <div className="relative mx-auto my-2 w-full max-w-5xl" onClick={(e) => e.stopPropagation()}>
             <SignupTypeToggle
               lang={lang}
               value={signupType}
