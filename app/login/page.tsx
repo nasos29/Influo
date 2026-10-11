@@ -3,7 +3,8 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import Image from 'next/image';
-import { supabase } from '@/lib/supabaseClient'; 
+import { supabase } from '@/lib/supabaseClient';
+import { loadOwnProfiles } from '@/lib/ownProfile'; 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 
@@ -71,23 +72,18 @@ function LoginPageContent() {
                 router.replace('/admin');
                 return;
             }
-            const { data: brandRow } = await supabase
-                .from('brands')
-                .select('id')
-                .eq('id', user.id)
-                .maybeSingle();
-            if (brandRow) {
+            const profiles = await loadOwnProfiles(supabase);
+            if (cancelled) return;
+            if (!profiles.ok) {
+                setMessage(profiles.message);
+                setMessageType('error');
+                return;
+            }
+            if (profiles.brand) {
                 router.replace('/brand/dashboard');
                 return;
             }
-            const { data: infRow } = await supabase
-                .from('influencers')
-                .select('id')
-                .eq('id', user.id)
-                .maybeSingle();
-            if (infRow) {
-                router.replace('/dashboard');
-            }
+            router.replace('/dashboard');
         })();
         return () => {
             cancelled = true;
@@ -162,19 +158,16 @@ function LoginPageContent() {
             return;
         }
 
-        // Check if user is a brand (has AFM)
-        const { data: brandData, error: brandError } = await supabase
-            .from('brands')
-            .select('id')
-            .eq('id', data.user.id)
-            .maybeSingle();
-
-        // Check redirect parameter from URL
         const redirectParam = searchParams?.get('redirect');
-        
-        if (!brandError && brandData) {
-            const redirectPath = redirectParam || '/brand/dashboard';
-            router.push(redirectPath);
+        const profiles = await loadOwnProfiles(supabase);
+        if (!profiles.ok) {
+            setMessage(profiles.message);
+            setMessageType('error');
+            setLoading(false);
+            return;
+        }
+        if (profiles.brand) {
+            router.push(redirectParam || '/brand/dashboard');
             setLoading(false);
             return;
         }

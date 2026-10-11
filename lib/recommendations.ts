@@ -143,6 +143,20 @@ function normalizeLabel(s: string | null | undefined): string {
     .replace(/\s+/g, ' ');
 }
 
+/** Audit fields are sometimes a string, a list, or a nested object. Callers must not .slice them raw. */
+export function asText(value: unknown): string {
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  if (Array.isArray(value)) return value.map(asText).filter(Boolean).join(" ");
+  return "";
+}
+
+export function asTextList(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map(asText).filter(Boolean);
+  const text = asText(value);
+  return text ? [text] : [];
+}
+
 /** Greek industry/category keywords → English concept for better matching */
 const GREEK_TO_CONCEPT: { [key: string]: string } = {
   μόδα: 'fashion',
@@ -198,7 +212,9 @@ function calculateCategoryMatch(
   const industryLower = brandIndustry.toLowerCase().trim();
   const industryNorm = normalizeLabel(brandIndustry);
   const brandConcept = GREEK_TO_CONCEPT[industryNorm] || industryNorm.split(' ')[0] || industryNorm;
-  const allCategories = influencerCategories || (influencerCategory ? [influencerCategory] : []);
+  const allCategories = (influencerCategories || (influencerCategory ? [influencerCategory] : []))
+    .map((cat) => (typeof cat === "string" ? cat : ""))
+    .filter(Boolean);
   const hasGeneral = allCategories.some(
     (cat) => cat.toLowerCase().trim() === 'γενικά' || cat.toLowerCase().trim() === 'general'
   );
@@ -207,9 +223,11 @@ function calculateCategoryMatch(
   let bestMatch = 0;
 
   // 1) Audit niche (Gemini) – highest trust for brands
-  if (auditNicheEn || auditNiche) {
-    const nicheScoreEn = auditNicheEn ? labelMatchScore(brandIndustry, auditNicheEn) : 0;
-    const nicheScoreEl = auditNiche ? labelMatchScore(brandIndustry, auditNiche) : 0;
+  const nicheEn = asText(auditNicheEn);
+  const nicheEl = asText(auditNiche);
+  if (nicheEn || nicheEl) {
+    const nicheScoreEn = nicheEn ? labelMatchScore(brandIndustry, nicheEn) : 0;
+    const nicheScoreEl = nicheEl ? labelMatchScore(brandIndustry, nicheEl) : 0;
     bestMatch = Math.max(bestMatch, nicheScoreEn, nicheScoreEl);
     if (bestMatch >= 0.9) return Math.min(1.0, bestMatch + 0.05); // Slight bonus for audit niche
   }
@@ -225,7 +243,7 @@ function calculateCategoryMatch(
   }
   if (bestMatch > 0) return bestMatch;
 
-  if (influencerCategory) {
+  if (typeof influencerCategory === "string" && influencerCategory) {
     const categoryLower = influencerCategory.toLowerCase().trim();
     if (industryLower === categoryLower) return 1.0;
   }
@@ -358,10 +376,9 @@ function calculateLocationMatch(
   brandLocation?: string | null,
   influencerLocation?: string | null
 ): number {
-  if (!brandLocation || !influencerLocation) return 0.5; // Neutral if not specified
-  
-  const brandLoc = brandLocation.toLowerCase().trim();
-  const influencerLoc = influencerLocation.toLowerCase().trim();
+  const brandLoc = asText(brandLocation).toLowerCase();
+  const influencerLoc = asText(influencerLocation).toLowerCase();
+  if (!brandLoc || !influencerLoc) return 0.5;
   
   // Exact match
   if (brandLoc === influencerLoc) return 1.0;
@@ -401,10 +418,12 @@ export function recommendInfluencers(
   const lang = options?.lang || 'el';
   const isEn = lang === 'en';
 
-  console.log('[Recommendations] Processing', influencers.length, 'influencers for brand:', brand.brand_name, 'category:', brand.category || brand.industry);
+  const list = Array.isArray(influencers) ? influencers : [];
+  console.log('[Recommendations] Processing', list.length, 'influencers for brand:', brand.brand_name, 'category:', brand.category || brand.industry);
 
-  const scores: MatchScore[] = influencers
-    .map((influencer, index) => {
+  const scores: MatchScore[] = list
+    .flatMap((influencer): MatchScore[] => {
+      try {
       const audit = influencer.auditpr_audit;
       const categoryMatch = calculateCategoryMatch(
         brand.category || brand.industry,
@@ -508,17 +527,20 @@ export function recommendInfluencers(
         reasons.push(isEn ? 'Brand Safe – low risk for campaigns ✓' : 'Ασφαλής για brands – χαμηλό ρίσκο για καμπάνιες ✓');
       }
 
-      const positives = isEn ? (audit?.positives_en || audit?.positives) : (audit?.positives || audit?.positives_en);
-      if (positives?.length && reasons.length < 5) {
-        const shortPositive = positives.find((p) => p && p.length <= 120) || positives[0];
+      const positives = asTextList(isEn ? (audit?.positives_en || audit?.positives) : (audit?.positives || audit?.positives_en));
+      if (positives.length && reasons.length < 5) {
+        const shortPositive = positives.find((p) => p.length <= 120) || positives[0];
         if (shortPositive) {
           const text = shortPositive.length > 100 ? shortPositive.slice(0, 97) + '...' : shortPositive;
           if (!reasons.some((r) => r.includes(text.slice(0, 30)))) reasons.push(text);
         }
       }
 
-      const whyLine = isEn ? (audit?.whyWorkWithThem_en || audit?.whyWorkWithThem) : (audit?.whyWorkWithThem || audit?.whyWorkWithThem_en);
-      const auditWhyLine = whyLine ? (whyLine.split(/[.!]/)[0]?.trim() + (whyLine.includes('.') ? '.' : '') || whyLine.slice(0, 120)) : null;
+      const whyLine = asText(isEn ? (audit?.whyWorkWithThem_en || audit?.whyWorkWithThem) : (audit?.whyWorkWithThem || audit?.whyWorkWithThem_en));
+      const firstSentence = whyLine.split(/[.!]/)[0]?.trim() || "";
+      const auditWhyLine = whyLine
+        ? (firstSentence ? `${firstSentence}${whyLine.includes(".") ? "." : ""}` : whyLine.slice(0, 120))
+        : null;
       if (auditWhyLine && reasons.length < 5) {
         const trimmed = auditWhyLine.length > 100 ? auditWhyLine.slice(0, 97) + '...' : auditWhyLine;
         if (!reasons.includes(trimmed)) reasons.push(trimmed);
@@ -528,19 +550,23 @@ export function recommendInfluencers(
         reasons.push(isEn ? 'Good fit for your brand' : 'Καλή επιλογή για το brand σας');
       }
 
-      return {
+      return [{
         influencer,
         score: Math.round(score),
         reasons,
         auditWhyLine: auditWhyLine || null,
         strengths,
-      };
+      }];
+      } catch (err) {
+        console.error("[Recommendations] skip influencer", influencer?.id, err);
+        return [];
+      }
     })
     .filter((match) => match.score >= minScore)
     .sort((a, b) => b.score - a.score) // Sort by score descending
     .slice(0, limit); // Limit results
     
-  console.log('[Recommendations] Final matches:', scores.length, 'out of', influencers.length, 'influencers');
+  console.log('[Recommendations] Final matches:', scores.length, 'out of', list.length, 'influencers');
   console.log('[Recommendations] Top matches:', scores.slice(0, 5).map(m => ({ name: m.influencer.display_name, score: m.score })));
   
   return scores;

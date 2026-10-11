@@ -18,7 +18,7 @@ import BrandSaveInfluencerButton from '@/components/BrandSaveInfluencerButton';
 import BrandShortlistPanel from '@/components/BrandShortlistPanel';
 import BrandToolsPanel from '@/components/BrandToolsPanel';
 import InfluencerPresenceDot from '@/components/InfluencerPresenceDot';
-import { loadOwnBrand } from '@/lib/ownProfile';
+import { loadOwnProfiles } from '@/lib/ownProfile';
 import { publicProfilePath } from '@/lib/profileSlug';
 import {
   addBrandShortlist,
@@ -502,6 +502,8 @@ export default function BrandDashboardContent() {
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [influencers, setInfluencers] = useState<Record<string, Influencer>>({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [leaving, setLeaving] = useState(false);
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
 
   // Load language from localStorage on client-side
@@ -834,19 +836,25 @@ export default function BrandDashboardContent() {
 
   const loadData = async () => {
     try {
+      setLoadError(null);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
+        setLeaving(true);
         router.push('/login');
         return;
       }
 
-      // Get brand data
-      const brandData = (await loadOwnBrand(supabase, { id: user.id, email: user.email })) as any;
-
-      if (!brandData) {
-        router.push('/login');
+      const profiles = await loadOwnProfiles(supabase);
+      if (!profiles.ok) {
+        setLoadError(profiles.message);
         return;
       }
+      if (!profiles.brand) {
+        setLeaving(true);
+        router.replace('/dashboard');
+        return;
+      }
+      const brandData = profiles.brand as any;
 
       console.log(`[Brand Dashboard] Loaded brandData:`, brandData);
       console.log(`[Brand Dashboard] Brand email: ${brandData.contact_email}`);
@@ -969,9 +977,18 @@ export default function BrandDashboardContent() {
           );
           if (priceRes.ok) {
             const priceBody = await priceRes.json();
-            const rows = Array.isArray(priceBody.data) ? priceBody.data : [];
+            const payload = priceBody?.data ?? priceBody;
+            const rows = Array.isArray(payload)
+              ? payload
+              : payload && typeof payload === "object"
+                ? [payload]
+                : [];
             for (const row of rows) {
-              if (row?.id) priceById[String(row.id)] = row.min_rate ?? null;
+              if (row?.id) {
+                const rate = row.min_rate;
+                priceById[String(row.id)] =
+                  typeof rate === "string" || typeof rate === "number" ? String(rate) : null;
+              }
             }
           }
         }
@@ -985,9 +1002,9 @@ export default function BrandDashboardContent() {
       console.log('[Brand Dashboard] Sample influencer:', influencersData?.[0]);
       
       // Helper function to parse follower string
-      const parseFollowerString = (str: string) => {
-        if (!str) return 0;
-        const clean = str.toLowerCase().replace(/,/g, '').trim();
+      const parseFollowerString = (value: unknown) => {
+        if (value == null || value === "") return 0;
+        const clean = String(value).toLowerCase().replace(/,/g, '').trim();
         if (clean.includes('k')) return parseFloat(clean) * 1000;
         if (clean.includes('m')) return parseFloat(clean) * 1000000;
         return parseFloat(clean) || 0;
@@ -1043,9 +1060,13 @@ export default function BrandDashboardContent() {
           id: inf.id,
           display_name: inf.display_name || 'Unknown',
           category: inf.category,
-          categories: inf.category
-            ? (inf.category.includes(',') ? inf.category.split(',').map((c: string) => c.trim()) : [inf.category])
-            : undefined,
+          categories: typeof inf.category === "string"
+            ? (inf.category.includes(",")
+                ? inf.category.split(",").map((c: string) => c.trim()).filter(Boolean)
+                : [inf.category])
+            : Array.isArray(inf.category)
+              ? inf.category.filter((c: unknown): c is string => typeof c === "string" && c.length > 0)
+              : undefined,
           engagement_rate,
           followers_count,
           avg_likes,
@@ -1118,7 +1139,8 @@ export default function BrandDashboardContent() {
       
       if (recommendationFilters.maxPrice) {
         filteredProfiles = filteredProfiles.filter(inf => {
-          const rate = parseFloat(inf.min_rate?.replace(/[€$,\s]/g, '') || '0');
+          const rateText = typeof inf.min_rate === "string" ? inf.min_rate : inf.min_rate == null ? "" : String(inf.min_rate);
+          const rate = parseFloat(rateText.replace(/[€$,\s]/g, '') || '0');
           return !isNaN(rate) && rate <= recommendationFilters.maxPrice!;
         });
       }
@@ -1331,12 +1353,35 @@ export default function BrandDashboardContent() {
     }
   };
 
-  if (loading) {
+  if (loading || leaving) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-slate-600">{txt.loading}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError || !brandData) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <div className="max-w-md text-center bg-white border border-slate-200 rounded-2xl p-8">
+          <h1 className="text-xl font-semibold text-slate-900">
+            {lang === "el" ? "Δεν φορτώθηκε το προφίλ" : "Profile could not be loaded"}
+          </h1>
+          <p className="text-slate-600 mt-3">{loadError || (lang === "el" ? "Δοκιμάστε ξανά." : "Try again.")}</p>
+          <button
+            type="button"
+            onClick={() => {
+              setLoading(true);
+              void loadData();
+            }}
+            className="mt-6 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700"
+          >
+            {lang === "el" ? "Δοκιμάστε ξανά" : "Try again"}
+          </button>
         </div>
       </div>
     );
@@ -1809,7 +1854,10 @@ export default function BrandDashboardContent() {
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                         <div className="absolute bottom-3 left-3 right-3">
                           <h3 className="text-white font-bold text-lg mb-1.5">{displayNameForLang(inf.display_name, lang)}</h3>
-                          {(inf.categories && inf.categories.length > 0 ? inf.categories : (inf.category ? [inf.category] : [])).slice(0, 3).map((cat: string, idx: number) => (
+                          {(Array.isArray(inf.categories) ? inf.categories : inf.category ? [inf.category] : [])
+                            .filter((cat: unknown): cat is string => typeof cat === "string" && cat.length > 0)
+                            .slice(0, 3)
+                            .map((cat: string, idx: number) => (
                             <span key={idx} className="inline-block px-2 py-1 bg-white/20 backdrop-blur-sm rounded text-xs text-white font-medium mr-1 mb-1">
                               {lang === 'el' ? 
                                 (categoryTranslations[cat]?.el || cat) : 
@@ -1838,7 +1886,7 @@ export default function BrandDashboardContent() {
                               {typeof inf.engagement_rate === 'object' && inf.engagement_rate !== null && !Array.isArray(inf.engagement_rate)
                                 ? (Object.entries(inf.engagement_rate) as [string, string][]).map(([platform, rate]) => {
                                     const r = rate && !String(rate).includes('%') ? `${rate}%` : rate;
-                                    const label = platform === 'instagram' ? 'IG' : platform === 'tiktok' ? 'TT' : platform.slice(0, 2).toUpperCase();
+                                    const label = platform === 'instagram' ? 'IG' : platform === 'tiktok' ? 'TT' : String(platform).slice(0, 2).toUpperCase();
                                     return `${label} ${r}`;
                                   }).join(' · ')
                                 : (inf.engagement_rate && !String(inf.engagement_rate).includes('%') ? `${inf.engagement_rate}%` : inf.engagement_rate)}
@@ -1851,7 +1899,7 @@ export default function BrandDashboardContent() {
                             <div className="font-semibold text-slate-900">
                               {typeof inf.avg_likes === 'object' && inf.avg_likes !== null && !Array.isArray(inf.avg_likes)
                                 ? (Object.entries(inf.avg_likes) as [string, string][]).map(([platform, val]) => {
-                                    const label = platform === 'instagram' ? 'IG' : platform === 'tiktok' ? 'TT' : platform.slice(0, 2).toUpperCase();
+                                    const label = platform === 'instagram' ? 'IG' : platform === 'tiktok' ? 'TT' : String(platform).slice(0, 2).toUpperCase();
                                     return `${label} ${val}`;
                                   }).join(' · ')
                                 : inf.avg_likes}
@@ -1864,7 +1912,7 @@ export default function BrandDashboardContent() {
                       <div className="mb-4">
                         <p className="text-xs font-medium text-slate-500 mb-1.5">{txt.why_match}</p>
                         <ul className="space-y-1">
-                          {match.reasons.slice(0, 3).map((reason: string, i: number) => (
+                          {(Array.isArray(match.reasons) ? match.reasons : []).slice(0, 3).map((reason: string, i: number) => (
                             <li key={i} className="text-xs text-slate-700 flex items-start gap-2">
                               <span className="text-emerald-500 shrink-0 mt-0.5" aria-hidden>•</span>
                               <span>{reason}</span>

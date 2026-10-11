@@ -23,10 +23,11 @@ export default function DashboardMediaKitPage() {
           router.replace("/login?redirect=/dashboard/media-kit");
           return;
         }
-        const row = (await loadOwnInfluencer(supabase, {
-          id: session.user.id,
-          email: session.user.email,
-        })) as {
+        const loaded = await loadOwnInfluencer(supabase);
+        if (!loaded.ok) {
+          throw new Error(loaded.reason === "missing" ? "Δεν βρέθηκε προφίλ." : loaded.message);
+        }
+        const row = loaded.profile as {
           display_name?: string | null;
           bio?: string | null;
           location?: string | null;

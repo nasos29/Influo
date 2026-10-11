@@ -623,12 +623,10 @@ export default function InfluencerProfile(props: { params: Params }) {
           const { data: { user } } = await supabase.auth.getUser();
           
           if (user && user.email) {
-            const brandData = (await loadOwnBrand(supabase, { id: user.id, email: user.email })) as { brand_name?: string | null } | null;
-            
-            if (brandData) {
-              // User is registered brand - open messaging
+            const brandResult = await loadOwnBrand(supabase);
+            if (brandResult.ok) {
               setMessageBrandEmail(user.email);
-              setMessageBrandName(brandData.brand_name || '');
+              setMessageBrandName(typeof brandResult.profile.brand_name === "string" ? brandResult.profile.brand_name : "");
               setShowMessageModal(true);
               
               // Clean up URL
@@ -1866,17 +1864,18 @@ export default function InfluencerProfile(props: { params: Params }) {
                         }
                         
                         // Check if user is a registered brand
-                        const brandData = (await loadOwnBrand(supabase, { id: user.id, email: user.email })) as { brand_name?: string | null } | null;
-                        
-                        if (!brandData) {
-                          // Not a registered brand - show registration required modal
+                        const brandResult = await loadOwnBrand(supabase);
+                        if (!brandResult.ok && brandResult.reason === "error") {
+                          alert(lang === "el" ? "Δεν ελέγχθηκε ο λογαριασμός. Δοκιμάστε ξανά." : "Could not check the account. Try again.");
+                          return;
+                        }
+                        if (!brandResult.ok) {
                           setShowRegistrationRequiredModal(true);
                           return;
                         }
-                        
-                        // User is a registered brand - redirect to messages page with brand data
+
                         const brandEmail = user.email;
-                        const brandName = brandData.brand_name || '';
+                        const brandName = typeof brandResult.profile.brand_name === "string" ? brandResult.profile.brand_name : "";
                         router.push(`/messages?influencer=${id}&brandEmail=${encodeURIComponent(brandEmail)}&brandName=${encodeURIComponent(brandName)}`);
                       } catch (error) {
                         console.error('Error checking brand status:', error);

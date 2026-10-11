@@ -1,4 +1,14 @@
--- Βήμα 3 από 3. Τρέξτε το ΑΜΕΣΩΣ ΜΕΤΑ το deploy του PR (το βήμα 2).
+-- Τρέξτε το ΜΟΝΟ ΑΦΟΥ ανέβει στο production το PR που σταματά τα
+-- select=* και τα φίλτρα contact_email από τον browser
+-- (dashboard, help desk, login). Αν τρέξει νωρίτερα, οι συνδεδεμένοι
+-- χρήστες παίρνουν 403 permission denied.
+--
+-- Το προηγούμενο τρέξιμο αναιρέθηκε με:
+--   GRANT SELECT ON public.influencers, public.brands, public.influencer_reviews
+--   TO anon, authenticated;
+-- Αυτό το αρχείο το ξανακλείνει. Είναι idempotent: REVOKE και μετά GRANT
+-- μόνο στις δημόσιες στήλες. Μπορεί να ξανατρέξει. Το 01 μένει ως έχει.
+--
 -- Αντικαθιστά το docs/RESTRICT_PUBLIC_INFLUENCER_COLUMNS.sql.
 --
 -- Κλείνει την ανάγνωση ιδιωτικών στηλών από anon ΚΑΙ authenticated.

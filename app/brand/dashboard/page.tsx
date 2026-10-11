@@ -11,23 +11,7 @@ export default function BrandDashboardPage() {
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        router.push('/login');
-        return;
-      }
-
-      // Verify user is a brand
-      const { data: brandData } = await supabase
-        .from('brands')
-        .select('id')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (!brandData) {
-        router.push('/login');
-        return;
-      }
+      if (!user) router.push('/login');
     };
 
     checkAuth();
@@ -45,4 +29,3 @@ export default function BrandDashboardPage() {
     </Suspense>
   );
 }
-
