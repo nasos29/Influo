@@ -7,9 +7,10 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { cleanNegativesLists } from '@/lib/auditNegativesDefaults';
 import {
-  detectErFlag,
-  erFlagFromReason,
+  displayErFlag,
   erFlagHint,
+  isHardErFlag,
+  mainSocialAccount,
   type ErFlag,
   type ErFlagReason,
 } from '@/lib/engagementFlags';
@@ -25,6 +26,15 @@ export type AuditAccount = {
   posts_count?: number | string | null;
   er_suspicious?: boolean;
   er_flag_reason?: ErFlagReason | string | null;
+  engagement_hidden?: boolean | null;
+  suspected_fake_penalty?: boolean | null;
+  engagement_rate_raw?: string | number | null;
+  fake_follower_percent?: number | string | null;
+  suspected_fake_percent?: number | string | null;
+  fake_followers_percent?: number | string | null;
+  quality_penalty_percent?: number | string | null;
+  er_penalty_percent?: number | string | null;
+  penalty_percent?: number | string | null;
 };
 
 /** Shared profile data (bio, category, display name, gender, location, audience split for smarter copy). */
@@ -106,38 +116,14 @@ function auditGenderBucket(raw: string | null | undefined): 'male' | 'female' | 
 }
 
 function resolveAccountErFlag(a: AuditAccount): ErFlag | null {
-  const detected = detectErFlag({
-    engagement_rate: a.engagement_rate,
-    posts_count: a.posts_count,
-    avg_likes: a.avg_likes,
-    avg_views: a.avg_views,
-    platform: a.platform,
-    suspected_fake_penalty: a.er_flag_reason === 'quality_adjusted',
-    engagement_hidden:
-      a.er_flag_reason === 'estimated' || String(a.engagement_rate || '').trim().startsWith('~'),
-  });
-  if (detected) return detected;
-  if (a.er_suspicious && a.er_flag_reason) {
-    const reason = a.er_flag_reason as ErFlagReason;
-    if (['quality_adjusted', 'estimated', 'low_sample', 'inflated'].includes(reason)) {
-      return erFlagFromReason(reason);
-    }
-  }
-  return null;
+  return displayErFlag(a);
 }
 
-function suspiciousErAccounts(accounts: AuditAccount[]): { platform: string; flag: ErFlag }[] {
-  const out: { platform: string; flag: ErFlag }[] = [];
-  for (const a of accounts) {
-    const platform = (a.platform || '').trim().toLowerCase();
-    if (!platform) continue;
-    const flag = resolveAccountErFlag(a);
-    if (!flag) continue;
-    // Skip mild "estimated" only if ER is clearly marked ~ and we already say estimate in metrics —
-    // still include it as a soft attention point for brands.
-    out.push({ platform, flag });
-  }
-  return out;
+function platformLabel(platform: string): string {
+  if (platform === 'instagram') return 'Instagram';
+  if (platform === 'tiktok') return 'TikTok';
+  if (platform === 'youtube') return 'YouTube';
+  return platform;
 }
 
 function erAttentionCopy(
@@ -145,30 +131,10 @@ function erAttentionCopy(
 ): { el: string; en: string } | null {
   if (!items.length) return null;
   const platformsEl = items
-    .map((i) => {
-      const p =
-        i.platform === 'instagram'
-          ? 'Instagram'
-          : i.platform === 'tiktok'
-            ? 'TikTok'
-            : i.platform === 'youtube'
-              ? 'YouTube'
-              : i.platform;
-      return `${p} (${i.flag.labelEl.toLowerCase()})`;
-    })
+    .map((i) => `${platformLabel(i.platform)} (${i.flag.labelEl.toLowerCase()})`)
     .join(', ');
   const platformsEn = items
-    .map((i) => {
-      const p =
-        i.platform === 'instagram'
-          ? 'Instagram'
-          : i.platform === 'tiktok'
-            ? 'TikTok'
-            : i.platform === 'youtube'
-              ? 'YouTube'
-              : i.platform;
-      return `${p} (${i.flag.labelEn.toLowerCase()})`;
-    })
+    .map((i) => `${platformLabel(i.platform)} (${i.flag.labelEn.toLowerCase()})`)
     .join(', ');
   const primary = items[0].flag;
   return {
@@ -186,13 +152,19 @@ function mentionsSuspiciousEr(text: string): boolean {
   );
 }
 
-/** Ensure suspicious ER always appears in negatives (σημεία προσοχής). */
+/**
+ * Brand Safe is cleared only for a hard ER flag on the main account.
+ * Estimates, short samples, unmeasured notes, and a hard flag on a smaller
+ * account stay eligible and do not force a negative.
+ */
 export function ensureSuspiciousErInNegatives(
   accounts: AuditAccount[],
   audit: AuditResult
 ): AuditResult {
-  const items = suspiciousErAccounts(accounts);
-  const copy = erAttentionCopy(items);
+  const main = mainSocialAccount(accounts);
+  const mainFlag = main ? displayErFlag(main) : null;
+  if (!main || !isHardErFlag(mainFlag) || !mainFlag) return audit;
+  const copy = erAttentionCopy([{ platform: String(main.platform || '').toLowerCase(), flag: mainFlag }]);
   if (!copy) return audit;
 
   const negatives = [...(audit.negatives || [])];
@@ -203,7 +175,6 @@ export function ensureSuspiciousErInNegatives(
     negatives.unshift(copy.el);
     negatives_en.unshift(copy.en);
   }
-  // Cap at 4; do not present as Brand Safe when engagement is flagged
   return {
     ...audit,
     brandSafe: false,
@@ -216,23 +187,38 @@ function buildMultiPlatformPrompt(accounts: AuditAccount[], shared: AuditShared,
   const platformsBlock = accounts
     .map((a) => {
       const flag = resolveAccountErFlag(a);
-      const flagNote = flag
-        ? ` | ER_FLAG: ${flag.reason} (${flag.labelEn}) — ${erFlagHint(flag, 'en')}`
-        : '';
-      return `- ${(a.platform || '').trim()}: @${(a.username || '').trim().replace(/^@+/, '')} — Followers: ${a.followers ?? 'N/A'}, Engagement rate: ${a.engagement_rate ?? 'N/A'}, Avg likes: ${a.avg_likes ?? 'N/A'}, Posts: ${a.posts_count ?? 'N/A'}${flagNote}`;
+      const flagNote = !flag
+        ? ''
+        : isHardErFlag(flag)
+          ? ` | ER_FLAG: ${flag.reason} (${flag.labelEn}) — ${erFlagHint(flag, 'en')}`
+          : ` | ER_NOTE: ${flag.reason} (${flag.labelEn}) — not suspicious. ${erFlagHint(flag, 'en')}`;
+      return `- ${(a.platform || '').trim()}: @${(a.username || '').trim().replace(/^@+/, '')} — Followers: ${a.followers ?? 'N/A'}, Engagement rate: ${a.engagement_rate ?? 'N/A'}, Avg likes: ${a.avg_likes ?? 'N/A'}, Avg views: ${a.avg_views ?? 'N/A'}, Posts: ${a.posts_count ?? 'N/A'}${flagNote}`;
     })
     .join('\n');
 
-  const erFlags = suspiciousErAccounts(accounts);
-  const erAttentionBlock =
-    erFlags.length > 0
-      ? `\nSUSPICIOUS / UNRELIABLE ENGAGEMENT (REQUIRED IN negatives):\n${erFlags
-          .map(
-            (i) =>
-              `- ${i.platform}: reason=${i.flag.reason}. ${erFlagHint(i.flag, 'en')}`
-          )
-          .join('\n')}\nYou MUST include at least one bullet in negatives AND negatives_en about this engagement issue (mild “σημεία προσοχής” tone). Do not invent fake-follower accusations beyond what the flag says; describe the measurement reliability risk for brands.`
-      : '';
+  const main = mainSocialAccount(accounts);
+  const mainFlag = main ? displayErFlag(main) : null;
+  const mainHard = isHardErFlag(mainFlag) && main && mainFlag ? { platform: String(main.platform || '').toLowerCase(), flag: mainFlag } : null;
+  const measurementNotes = accounts.flatMap((a) => {
+    const flag = displayErFlag(a);
+    if (!flag) return [];
+    const platform = String(a.platform || '').trim().toLowerCase();
+    const onMain =
+      !!main &&
+      platform === String(main.platform || '').trim().toLowerCase() &&
+      String(a.username || '').replace(/^@+/, '').trim().toLowerCase() ===
+        String(main.username || '').replace(/^@+/, '').trim().toLowerCase();
+    if (onMain && isHardErFlag(flag)) return [];
+    return [`- ${platformLabel(platform)}: ${flag.reason} (${flag.labelEn}). ${erFlagHint(flag, 'en')}`];
+  });
+  const erAttentionBlock = [
+    mainHard
+      ? `\nSUSPICIOUS ENGAGEMENT ON THE MAIN ACCOUNT (${platformLabel(mainHard.platform)}, most followers): reason=${mainHard.flag.reason}. ${erFlagHint(mainHard.flag, 'en')}\nYou MUST include one mild bullet in negatives AND negatives_en about this. Set brandSafe to false. Do not invent fake-follower accusations beyond what the flag says.`
+      : '',
+    measurementNotes.length
+      ? `\nMEASUREMENT NOTES (estimates, few posts, unmeasured quality notes, or a hard flag on a smaller account). These are NOT suspicious and MUST NOT set brandSafe to false. Do NOT add a negative only because of these notes:\n${measurementNotes.join('\n')}`
+      : '',
+  ].join('');
 
   const bio = (shared.biography || '').trim().slice(0, 400);
   const cat = (shared.category_name || '').trim();
@@ -291,7 +277,7 @@ OUTPUT – Return ONLY valid JSON with these exact keys (no markdown, no extra t
 - positives_en: array of 2–4 points in ENGLISH, same content as positives.
 - negatives: array of 0–4 points in GREEK. ONLY when there is a real limitation, trade-off or concrete risk for businesses — ήπια διατύπωση (“σημεία προσοχής για τις επιχειρήσεις”). Αν δεν υπάρχει κάτι αξιοσημείωτο, επέστρεψε κενό array []. FORBIDDEN: σύγκριση με άλλους δημιουργούς, επίκληση λιγότερων followers vs άλλους, ουδέτερα demographics ως “αρνητικό”.
 - negatives_en: array of 0–4 points in ENGLISH, same rules; empty [] when nothing noteworthy.
-- brandSafe: boolean (true if content and metrics suggest brand-safe; false if risks). If any account has ER_FLAG / SUSPICIOUS ENGAGEMENT above, you MUST set brandSafe to false.
+- brandSafe: boolean (true if content and metrics suggest brand-safe; false if risks). Set brandSafe to false for engagement ONLY when the main account (most followers among Instagram, TikTok, and YouTube) has ER_FLAG reason inflated or quality_adjusted. Estimates, few posts, unmeasured quality notes, and a flag on a smaller account MUST NOT set brandSafe to false.
 - niche: ONE niche label in GREEK (e.g. "Μόδα", "Fitness").
 - niche_en: ONE niche label in ENGLISH (Fashion, Fitness, Beauty & Makeup, etc.). Do NOT use: Creator, Content Creator, Influencer, Lifestyle as default.
 

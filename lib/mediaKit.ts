@@ -1,11 +1,22 @@
 export type MediaKitAccount = {
   platform?: string;
   username?: string;
-  followers?: string;
+  followers?: string | number;
   engagement_rate?: string;
-  posts_count?: number;
+  engagement_rate_raw?: string | number | null;
+  avg_likes?: string | number;
+  avg_views?: string | number | null;
+  posts_count?: number | string;
   er_suspicious?: boolean;
-  er_flag_reason?: string;
+  er_flag_reason?: string | null;
+  engagement_hidden?: boolean;
+  suspected_fake_penalty?: boolean;
+  fake_follower_percent?: number | string | null;
+  suspected_fake_percent?: number | string | null;
+  fake_followers_percent?: number | string | null;
+  quality_penalty_percent?: number | string | null;
+  er_penalty_percent?: number | string | null;
+  penalty_percent?: number | string | null;
 };
 
 export type MediaKitProfile = {
@@ -36,7 +47,7 @@ function socialRows(accounts: MediaKitAccount[]): string {
     .map((a) => {
       const platform = esc((a.platform || '').trim());
       const username = esc(String(a.username || '').replace(/^@+/, ''));
-      const followers = esc(a.followers || '—');
+      const followers = esc(String(a.followers || '—'));
       const er = esc(a.engagement_rate || '—');
       return `<tr>
         <td>${platform}</td>

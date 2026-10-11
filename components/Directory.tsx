@@ -44,12 +44,24 @@ export interface Influencer {
   profile_slug?: string | null;
   accounts?: Array<{
     platform?: string;
+    username?: string;
+    followers?: string | number;
     engagement_rate?: string;
+    engagement_rate_raw?: string | number | null;
     posts_count?: number | string;
-    avg_likes?: string;
+    avg_likes?: string | number;
+    avg_views?: string | number | null;
     is_private?: boolean;
     er_suspicious?: boolean;
-    er_flag_reason?: string;
+    er_flag_reason?: string | null;
+    engagement_hidden?: boolean;
+    suspected_fake_penalty?: boolean;
+    fake_follower_percent?: number | string | null;
+    suspected_fake_percent?: number | string | null;
+    fake_followers_percent?: number | string | null;
+    quality_penalty_percent?: number | string | null;
+    er_penalty_percent?: number | string | null;
+    penalty_percent?: number | string | null;
   }>;
   avg_response_time?: number | null;
   completion_rate?: number | null;

@@ -226,6 +226,12 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                 'engagement_hidden',
                 'suspected_fake_penalty',
                 'engagement_rate_raw',
+                'fake_follower_percent',
+                'suspected_fake_percent',
+                'fake_followers_percent',
+                'quality_penalty_percent',
+                'er_penalty_percent',
+                'penalty_percent',
             ]) {
                 const val = oldRec[key];
                 if (val !== undefined && val !== null && val !== '') merged[key] = val;
