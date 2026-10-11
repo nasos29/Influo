@@ -583,18 +583,18 @@ export default function Home({
               </div>
               
               {/* Center Content */}
-              <div className="lg:col-span-1 text-center lg:text-left">
+              <div className="lg:col-span-1 text-center">
                 <h1 className="!text-xl md:!text-2xl font-bold text-slate-900 mb-6 !leading-[1.3] tracking-tight">
                   <span className="block">{txt.hero_title_1}</span>
                   <span className="block bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                     {txt.hero_title_2}
                   </span>
                 </h1>
-                <p className="text-lg md:text-xl lg:text-2xl text-slate-600 mb-10 leading-relaxed max-w-xl mx-auto lg:mx-0">
+                <p className="text-lg md:text-xl lg:text-2xl text-slate-600 mb-10 leading-relaxed max-w-xl mx-auto">
                   {txt.hero_desc}
                 </p>
                 
-                <div className="flex flex-col sm:flex-row flex-wrap justify-center lg:justify-start gap-4">
+                <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-4">
                   <button 
                     onClick={() => { setSignupType("influencer"); setShowModal(true); }} 
                     className="px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl transition-all transform hover:scale-105 shadow-lg hover:shadow-xl text-lg"
@@ -614,7 +614,7 @@ export default function Home({
                     {txt.hero_brand_title_2}
                   </span>
                 </h2>
-                <p className="text-lg md:text-xl lg:text-2xl text-slate-600 mb-10 leading-relaxed max-w-xl mx-auto lg:mx-0">
+                <p className="text-lg md:text-xl lg:text-2xl text-slate-600 mb-10 leading-relaxed max-w-xl mx-auto">
                   {txt.hero_brand_desc}
                 </p>
               </div>
