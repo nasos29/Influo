@@ -1988,10 +1988,14 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         setUsers([]);
       }
       
-      const { data: propData, error: proposalsError } = await supabase
-        .from("proposals")
-        .select("*, influencers(display_name)")
-        .order("created_at", { ascending: false });
+      const proposalsResponse = await fetch('/api/admin/proposals', {
+        headers: await adminAuthHeaders(),
+      });
+      const proposalsBody = await proposalsResponse.json().catch(() => ({}));
+      const propData = (
+        proposalsResponse.ok && Array.isArray(proposalsBody.proposals) ? proposalsBody.proposals : null
+      ) as Proposal[] | null;
+      const proposalsError = proposalsResponse.ok ? null : { message: proposalsBody.error || 'Failed to load proposals' };
 
       if (proposalsError) {
         console.error('Error fetching proposals:', proposalsError);
@@ -2755,7 +2759,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     try {
       const response = await fetch('/api/admin/delete-proposal', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await adminAuthHeaders()) },
         body: JSON.stringify({ proposalId }),
       });
 

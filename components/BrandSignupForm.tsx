@@ -265,14 +265,6 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
         throw brandError;
       }
 
-      // Link existing proposals to this brand (by email)
-      await supabase
-        .from('proposals')
-        .update({ brand_id: authData.user.id })
-        .eq('brand_email', email.toLowerCase().trim())
-        .is('brand_id', null);
-
-      // Auto-login after successful signup
       const { data: { session }, error: signInError } = await supabase.auth.signInWithPassword({
         email: email.toLowerCase().trim(),
         password: password,
@@ -281,6 +273,14 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
       if (signInError) {
         console.error('Auto-login error:', signInError);
         // Continue anyway - user can login manually
+      }
+
+      const claimToken = session?.access_token || authData.session?.access_token;
+      if (claimToken) {
+        await fetch('/api/proposals/claim', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${claimToken}` },
+        }).catch(() => {});
       }
 
       setSuccess(true);
