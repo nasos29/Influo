@@ -265,7 +265,7 @@ export default function ForInfluencersPage() {
         <div className="absolute inset-0 bg-slate-950">
           <Image
             src="https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=1600&q=80"
-            alt=""
+            alt={lang === "en" ? "Influencer creating content for social media" : "Influencer δημιουργεί περιεχόμενο για social media"}
             fill
             className="object-cover opacity-40"
             priority
@@ -325,7 +325,7 @@ export default function ForInfluencersPage() {
           <div className="relative aspect-[4/3] rounded-lg overflow-hidden bg-slate-200">
             <Image
               src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1200&q=80"
-              alt=""
+              alt={lang === "en" ? "Creators working together" : "Creators σε συνεργασία"}
               fill
               className="object-cover"
               sizes="(max-width: 1024px) 100vw, 50vw"
@@ -392,7 +392,7 @@ export default function ForInfluencersPage() {
               <blockquote key={item.name} className="border border-slate-200 rounded-lg p-6 bg-white">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="relative w-12 h-12 rounded-full overflow-hidden bg-slate-100 shrink-0">
-                    <Image src={item.img} alt="" fill className="object-cover" sizes="48px" />
+                    <Image src={item.img} alt={item.name} fill className="object-cover" sizes="48px" />
                   </div>
                   <div>
                     <div className="font-semibold text-slate-900 text-sm">{item.name}</div>

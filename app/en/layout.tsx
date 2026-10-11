@@ -1,30 +1,43 @@
 import type { Metadata } from "next";
+import { SITE_NAME, SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "Influo.gr - Connect Your Talent with Top Brands | Influencer Marketing Platform",
-    template: "%s | Influo.gr",
+    absolute: "Find Greek Influencers for Your Brand | Influo",
+    template: "%s | Influo",
   },
-  description: "The most modern Influencer Marketing platform in Greece. Connect your talent with top Brands. Create your professional profile and get hired today.",
-  keywords: ["influencer marketing", "influencer marketing Greece", "brand collaborations", "content creators", "Greece", "influencer platform", "social media advertising", "creator economy", "influencer Greece"],
+  description: "Search verified influencers in Greece by category, platform and budget. Free sign-up for brands and creators, with campaigns and messaging in one place.",
+  keywords: ["influencer marketing", "influencer marketing Greece", "Greek influencers", "brand collaborations", "content creators", "Greece"],
   openGraph: {
+    type: "website",
     locale: "en_US",
     alternateLocale: ["el_GR"],
     url: "/en",
-    title: "Influo.gr - Connect Your Talent with Top Brands",
-    description: "The most modern Influencer Marketing platform in Greece. Connect your talent with top Brands.",
-    siteName: "Influo.gr",
+    siteName: SITE_NAME,
+    title: "Find Greek Influencers for Your Brand | Influo",
+    description: "Search verified influencers in Greece by category, platform and budget. Free sign-up for brands and creators, with campaigns and messaging in one place.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Influo — Greek influencers",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Influo.gr - Connect Your Talent with Top Brands",
-    description: "The most modern Influencer Marketing platform in Greece.",
+    title: "Find Greek Influencers for Your Brand | Influo",
+    description: "Search verified influencers in Greece by category, platform and budget.",
+    images: ["/og-image.png"],
   },
   alternates: {
     canonical: "/en",
     languages: {
       el: "/",
       en: "/en",
+      "x-default": "/",
     },
   },
 };

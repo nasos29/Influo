@@ -3,6 +3,7 @@ import { supabaseService } from "@/lib/apiAuth";
 
 type Filter = {
   id?: string;
+  slug?: string;
   limit?: number;
   newestFirst?: boolean;
 };
@@ -35,6 +36,7 @@ export async function loadInfluencerRows(
     }
     let query = admin.from("influencers").select(remaining.join(",")).eq("approved", true);
     if (filter.id) query = query.eq("id", filter.id);
+    if (filter.slug) query = query.eq("profile_slug", filter.slug);
     if (filter.newestFirst) query = query.order("created_at", { ascending: false });
     if (filter.limit) query = query.limit(filter.limit);
 

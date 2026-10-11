@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import Footer from "../../components/Footer";
-import { initializeBlogPosts, getBlogPosts, type BlogPost } from "@/lib/blogPosts";
+import { initializeBlogPosts, getBlogPosts, initialBlogPosts, type BlogPost } from "@/lib/blogPosts";
 import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
 
 type Lang = "el" | "en";
@@ -14,8 +14,8 @@ export default function BlogPage() {
   const pathname = usePathname();
   const router = useRouter();
   const [lang, setLang] = useState<Lang>(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
-  const [posts, setPosts] = useState<BlogPost[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [posts, setPosts] = useState<BlogPost[]>(initialBlogPosts);
+  const [loading, setLoading] = useState(false);
 
   // Load language from pathname (/en/blog) or localStorage on client-side
   useEffect(() => {

@@ -1,25 +1,12 @@
-import { Metadata } from 'next';
+import { pageMetadata } from "@/lib/pageMetadata";
 
-export const metadata: Metadata = {
-  title: "Για Brands - Βρείτε Influencers",
-  description: "Βρείτε τους καλύτερους influencers για την εταιρεία σας. Αναζητήστε, επικοινωνήστε και συνεργαστείτε με verified creators. 🤖 Λάβετε AI-powered προτάσεις δωρεάν!",
-  keywords: ["για brands", "for brands", "influencer marketing brands", "βρες influencers", "συνεργασία με influencers"],
-  openGraph: {
-    title: "Για Brands - Βρείτε Influencers",
-    description: "Βρείτε τους καλύτερους influencers για την εταιρεία σας με AI-powered προτάσεις.",
-    url: "/for-brands",
-  },
-  alternates: {
-    canonical: "/for-brands",
-    languages: { el: "/for-brands", en: "/en/for-brands" },
-  },
-};
+export const metadata = pageMetadata({
+  title: "Influencer Marketing για Επιχειρήσεις στην Ελλάδα | Influo",
+  description: "Βρες influencers για την επιχείρησή σου, δημοσίευσε καμπάνιες και διαχειρίσου συνεργασίες από ένα dashboard. AI προτάσεις χωρίς κόστος.",
+  path: "/for-brands",
+  enPath: "/en/for-brands",
+});
 
-export default function ForBrandsLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function ForBrandsLayout({ children }: { children: React.ReactNode }) {
   return children;
 }
-

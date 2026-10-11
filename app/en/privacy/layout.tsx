@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   },
   alternates: {
     canonical: "/en/privacy",
-    languages: { el: "/privacy", en: "/en/privacy" },
+    languages: { el: "/privacy", en: "/en/privacy", "x-default": "/privacy" },
   },
 };
 

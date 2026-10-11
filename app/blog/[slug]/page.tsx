@@ -49,7 +49,7 @@ function BlogContent({ content }: { content: string }) {
       elements.push(<h2 key={`h2-${i}`} className="text-3xl font-bold text-slate-900 mt-10 mb-6" dangerouslySetInnerHTML={{ __html: safeHtml(line.replace(/^##\s+/, '')) }} />);
     } else if (line.startsWith('# ')) {
       flushParagraph(`p-${i}`);
-      elements.push(<h1 key={`h1-${i}`} className="text-4xl font-bold text-slate-900 mt-8 mb-6" dangerouslySetInnerHTML={{ __html: safeHtml(line.replace(/^#\s+/, '')) }} />);
+      elements.push(<p key={`lead-${i}`} className="text-xl font-semibold text-slate-800 mb-6" dangerouslySetInnerHTML={{ __html: safeHtml(line.replace(/^#\s+/, '')) }} />);
     } else if (line.match(/^\d+\.\s+\*\*/)) {
       flushParagraph(`p-${i}`);
       const text = line.replace(/^\d+\.\s+\*\*/, '').replace(/\*\*$/, '');
@@ -2549,9 +2549,10 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
   const pathname = usePathname();
   const router = useRouter();
   const resolvedParams = use(params);
+  const hardcodedPost = ((posts as Record<string, PostData>)[resolvedParams.slug] ?? null) as PostData | null;
   const [lang, setLang] = useState<Lang>(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
-  const [post, setPost] = useState<PostData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [post, setPost] = useState<PostData | null>(hardcodedPost);
+  const [loading, setLoading] = useState(!hardcodedPost);
 
   // Expose hardcoded posts to window immediately (before useEffect)
   if (typeof window !== 'undefined') {

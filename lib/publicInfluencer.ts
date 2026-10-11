@@ -337,6 +337,15 @@ export const PROFILE_QUERY_COLUMNS = [
   ...PUBLIC_PROFILE_EXTRA_COLUMNS,
   ...PRICING_SOURCE_COLUMNS,
 ] as const;
+
+/**
+ * Columns rendered into public HTML, metadata, and JSON-LD.
+ * Private columns (email, birth date, prices, auth id) are not selected.
+ */
+export const SEO_PROFILE_COLUMNS = [
+  ...DIRECTORY_CARD_COLUMNS,
+  ...PUBLIC_PROFILE_EXTRA_COLUMNS,
+] as const;
 export const COMMERCIAL_QUERY_COLUMNS = ["id", "min_rate", "rate_card", "service_packages"] as const;
 
 export type CommercialInfluencer = {

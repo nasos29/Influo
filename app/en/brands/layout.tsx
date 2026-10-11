@@ -1,19 +1,13 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/pageMetadata";
 
-export const metadata: Metadata = {
-  title: "Brands Directory",
-  description: "Discover verified companies that collaborate with influencers. Connect with top brands for partnerships.",
-  keywords: ["brands", "companies directory", "verified companies", "influencer marketing", "partnerships"],
-  openGraph: {
-    title: "Brands Directory",
-    description: "Discover verified companies that collaborate with influencers.",
-    url: "/en/brands",
-  },
-  alternates: {
-    canonical: "/en/brands",
-    languages: { el: "/brands", en: "/en/brands" },
-  },
-};
+export const metadata = pageMetadata({
+  title: "Brands Looking for Influencers in Greece | Influo",
+  description: "See Greek businesses looking for influencers for collaborations and campaigns. Free sign-up for creators.",
+  path: "/en/brands",
+  elPath: "/brands",
+  enPath: "/en/brands",
+  locale: "en_US",
+});
 
 export default function EnBrandsLayout({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
