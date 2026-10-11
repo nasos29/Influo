@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/apiAuth';
 
 // Server-side Supabase client με service role key (Admin privileges)
 const supabaseAdmin = createClient(
@@ -15,6 +16,11 @@ const supabaseAdmin = createClient(
 
 export async function POST(request: NextRequest) {
   try {
+    const admin = await requireAdmin(request);
+    if (!admin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { brandId, verified } = await request.json();
 
     if (!brandId || typeof verified !== 'boolean') {

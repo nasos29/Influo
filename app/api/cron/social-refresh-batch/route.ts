@@ -2,6 +2,12 @@
  * Oracle 15-day social refresh worker API.
  * Scraping happens on the VM against localhost AuditPro — this route only
  * lists influencers, persists stats, unapproves profile errors, and stores logs.
+ *
+ * AuditPro contract (do not change): POST with Authorization Bearer CRON_SECRET.
+ * Actions: start → { run, influencers, purged }; apply → { ok, result } or
+ * { ok:false, unapproved|aborted, ... }; also log, abort, finish.
+ * Supabase access is server-side service role only, so column/RLS locks on
+ * anon and authenticated do not apply here.
  */
 
 import { NextRequest, NextResponse } from 'next/server';

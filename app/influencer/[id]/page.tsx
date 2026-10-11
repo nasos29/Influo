@@ -23,6 +23,7 @@ import ChannelScorePanel from "@/components/ChannelScorePanel";
 import FollowerGrowthChart from "@/components/FollowerGrowthChart";
 import StatsInsightsPanel from "@/components/StatsInsightsPanel";
 import { buildChannelScore } from "@/lib/channelScore";
+import { loadOwnBrand } from "@/lib/ownProfile";
 import { detectErFlag, erFlagFromReason, erFlagHint, erFlagLabel, type ErFlagReason } from "@/lib/engagementFlags";
 import type { FollowerGrowthPoint } from "@/lib/followerGrowth";
 import { displayLanguageLabel } from "@/lib/languages";
@@ -622,11 +623,7 @@ export default function InfluencerProfile(props: { params: Params }) {
           const { data: { user } } = await supabase.auth.getUser();
           
           if (user && user.email) {
-            const { data: brandData } = await supabase
-              .from('brands')
-              .select('*')
-              .eq('contact_email', user.email)
-              .single();
+            const brandData = (await loadOwnBrand(supabase, { id: user.id, email: user.email })) as { brand_name?: string | null } | null;
             
             if (brandData) {
               // User is registered brand - open messaging
@@ -1869,11 +1866,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                         }
                         
                         // Check if user is a registered brand
-                        const { data: brandData } = await supabase
-                          .from('brands')
-                          .select('*')
-                          .eq('contact_email', user.email)
-                          .single();
+                        const brandData = (await loadOwnBrand(supabase, { id: user.id, email: user.email })) as { brand_name?: string | null } | null;
                         
                         if (!brandData) {
                           // Not a registered brand - show registration required modal

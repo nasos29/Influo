@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import MediaKitView from "@/components/MediaKitView";
 import type { MediaKitProfile } from "@/lib/mediaKit";
+import { loadOwnInfluencer } from "@/lib/ownProfile";
 
 export default function DashboardMediaKitPage() {
   const router = useRouter();
@@ -22,12 +23,22 @@ export default function DashboardMediaKitPage() {
           router.replace("/login?redirect=/dashboard/media-kit");
           return;
         }
-        const { data: row, error: rowErr } = await supabase
-          .from("influencers")
-          .select("display_name, bio, location, category, min_rate, avatar_url, accounts, approved, audience_male_percent, audience_female_percent, audience_top_age")
-          .eq("contact_email", session.user.email)
-          .maybeSingle();
-        if (rowErr) throw new Error(rowErr.message);
+        const row = (await loadOwnInfluencer(supabase, {
+          id: session.user.id,
+          email: session.user.email,
+        })) as {
+          display_name?: string | null;
+          bio?: string | null;
+          location?: string | null;
+          category?: string | null;
+          min_rate?: string | null;
+          avatar_url?: string | null;
+          accounts?: MediaKitProfile["accounts"];
+          approved?: boolean | null;
+          audience_male_percent?: number | null;
+          audience_female_percent?: number | null;
+          audience_top_age?: string | null;
+        } | null;
         if (!row) throw new Error("Δεν βρέθηκε προφίλ.");
         if (!row.approved) throw new Error("Το media kit ενεργοποιείται μετά την έγκριση του προφίλ.");
 

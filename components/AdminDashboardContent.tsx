@@ -953,7 +953,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
 
             const saveRes = await fetch('/api/admin/influencers/update', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...(await adminAuthHeaders()) },
                 body: JSON.stringify({
                     influencerId: String(user.id),
                     updates: updateData,
@@ -1634,7 +1634,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const fetchBrands = async () => {
     try {
       // Use API route with service role key to bypass RLS
-      const response = await fetch('/api/admin/brands');
+      const response = await fetch('/api/admin/brands', { headers: await adminAuthHeaders() });
       const result = await response.json();
       
       if (!response.ok || !result.success) {
@@ -1959,10 +1959,14 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     if (!silent) setLoading(true);
     try {
       // Only fetch from influencers table - brands should not appear here
-      const { data: usersData, error: influencersError } = await supabase
-        .from("influencers")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const influencersResponse = await fetch('/api/admin/influencers', {
+        headers: await adminAuthHeaders(),
+      });
+      const influencersBody = await influencersResponse.json().catch(() => ({}));
+      const usersData = (influencersResponse.ok ? influencersBody.influencers : null) as DbInfluencer[] | null;
+      const influencersError = influencersResponse.ok
+        ? null
+        : { message: influencersBody.error || 'Failed to load influencers' };
       
       if (influencersError) {
         console.error('Error fetching influencers:', influencersError);
@@ -2152,7 +2156,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const toggleApproval = async (id: number, currentStatus: boolean, userEmail: string, userName: string) => {
     const response = await fetch('/api/admin/influencers/update', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await adminAuthHeaders()) },
       body: JSON.stringify({
         influencerId: id,
         updates: {
@@ -2215,7 +2219,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const toggleAnalyticsVerification = async (id: number, currentStatus: boolean) => {
     const response = await fetch('/api/admin/influencers/update', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await adminAuthHeaders()) },
       body: JSON.stringify({
         influencerId: id,
         updates: {
@@ -2551,7 +2555,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     try {
       const response = await fetch('/api/admin/brands/verify', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await adminAuthHeaders()) },
         body: JSON.stringify({
           brandId,
           verified: !currentStatus
@@ -2591,7 +2595,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     try {
       const response = await fetch('/api/admin/brands/update', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await adminAuthHeaders()) },
         body: JSON.stringify({
           brandId: selectedBrand.id,
           ...updatedBrand
@@ -2775,7 +2779,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         if (action === 'approve') {
           const response = await fetch('/api/admin/influencers/update', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...(await adminAuthHeaders()) },
             body: JSON.stringify({
               influencerId: userId,
               updates: {

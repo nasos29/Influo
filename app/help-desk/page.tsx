@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import HelpDeskPublic from '@/components/HelpDeskPublic';
+import { loadOwnInfluencer } from '@/lib/ownProfile';
 
 export default function HelpDeskPage() {
   const [loading, setLoading] = useState(true);
@@ -23,17 +24,16 @@ export default function HelpDeskPage() {
       }
 
       // Check if influencer
-      const { data: influencer } = await supabase
-        .from('influencers')
-        .select('id, display_name, contact_email')
-        .eq('contact_email', authUser.email)
-        .single();
+      const influencer = await loadOwnInfluencer(supabase, {
+        id: authUser.id,
+        email: authUser.email,
+      });
 
       if (influencer) {
         setUser({
           id: influencer.id,
-          name: influencer.display_name,
-          email: influencer.contact_email,
+          name: typeof influencer.display_name === "string" ? influencer.display_name : "",
+          email: typeof influencer.contact_email === "string" ? influencer.contact_email : authUser.email,
         });
         setUserType('influencer');
         setLoading(false);

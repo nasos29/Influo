@@ -18,6 +18,7 @@ import BrandSaveInfluencerButton from '@/components/BrandSaveInfluencerButton';
 import BrandShortlistPanel from '@/components/BrandShortlistPanel';
 import BrandToolsPanel from '@/components/BrandToolsPanel';
 import InfluencerPresenceDot from '@/components/InfluencerPresenceDot';
+import { loadOwnBrand } from '@/lib/ownProfile';
 import { publicProfilePath } from '@/lib/profileSlug';
 import {
   addBrandShortlist,
@@ -840,11 +841,7 @@ export default function BrandDashboardContent() {
       }
 
       // Get brand data
-      const { data: brandData } = await supabase
-        .from('brands')
-        .select('*')
-        .eq('id', user.id)
-        .maybeSingle();
+      const brandData = (await loadOwnBrand(supabase, { id: user.id, email: user.email })) as any;
 
       if (!brandData) {
         router.push('/login');
@@ -953,12 +950,34 @@ export default function BrandDashboardContent() {
       // Fetch only approved influencers from database (same as Directory)
       const { data: influencersData, error } = await supabase
         .from('influencers')
-        .select('id, display_name, category, engagement_rate, avg_likes, min_rate, location, gender, avg_rating, total_reviews, verified, approved, analytics_verified, accounts, avatar_url, audience_male_percent, audience_female_percent, audience_top_age, bio, auditpr_audit, profile_slug')
+        .select('id, display_name, category, engagement_rate, avg_likes, location, gender, avg_rating, total_reviews, verified, approved, analytics_verified, accounts, avatar_url, audience_male_percent, audience_female_percent, audience_top_age, bio, auditpr_audit, profile_slug')
         .eq('approved', true) // Only approved influencers (same as Directory)
         .order('created_at', { ascending: false }) // Sort by creation date
         .limit(200);
       
       if (error) throw error;
+
+      const priceById: Record<string, string | null> = {};
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        const ids = (influencersData || []).map((inf: { id: string }) => inf.id).filter(Boolean);
+        if (token && ids.length) {
+          const priceRes = await fetch(
+            `/api/influencers/commercial?ids=${encodeURIComponent(ids.join(","))}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          if (priceRes.ok) {
+            const priceBody = await priceRes.json();
+            const rows = Array.isArray(priceBody.data) ? priceBody.data : [];
+            for (const row of rows) {
+              if (row?.id) priceById[String(row.id)] = row.min_rate ?? null;
+            }
+          }
+        }
+      } catch (priceErr) {
+        console.error("[Brand Dashboard] price lookup failed", priceErr);
+      }
       
       // Debug: Log fetched influencers
       console.log('[Brand Dashboard] Fetched approved influencers from DB:', influencersData?.length || 0);
@@ -1030,7 +1049,7 @@ export default function BrandDashboardContent() {
           engagement_rate,
           followers_count,
           avg_likes,
-          min_rate: inf.min_rate,
+          min_rate: priceById[inf.id] ?? null,
           location: inf.location,
           gender: inf.gender,
           avg_rating: inf.avg_rating,
@@ -1877,11 +1896,11 @@ export default function BrandDashboardContent() {
                               const { data: { user } } = await supabase.auth.getUser();
                               const brandEmail = user?.email || null;
                               let brandName = null;
-                              if (brandEmail) {
+                              if (brandEmail && user) {
                                 const { data: brandData } = await supabase
                                   .from('brands')
                                   .select('brand_name')
-                                  .or(`contact_email.ilike.${brandEmail},email.ilike.${brandEmail}`)
+                                  .eq('id', user.id)
                                   .maybeSingle();
                                 brandName = brandData?.brand_name || null;
                               }

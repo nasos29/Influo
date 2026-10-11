@@ -15,6 +15,7 @@ import { prepareImageForStorage } from '@/lib/prepareImageForStorage';
 import { normalizeGender } from '@/lib/gender';
 import InfluencerCampaignsPanel from './InfluencerCampaignsPanel';
 import InfluencerToolsPanel from './InfluencerToolsPanel';
+import { loadOwnInfluencer } from '@/lib/ownProfile';
 
 // --- FULL CATEGORY LIST ---
 const CATEGORIES = [
@@ -266,14 +267,13 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
 
         try {
             // First, fetch current values from database to compare
-            const { data: currentData, error: fetchError } = await supabase
-                .from('influencers')
-                .select('*')
-                .eq('id', user.id)
-                .single();
+            const currentData = (await loadOwnInfluencer(supabase, {
+                id: String(user.id),
+                email: user.contact_email,
+            })) as InfluencerData | null;
 
-            if (fetchError) {
-                throw new Error('Failed to fetch current profile: ' + fetchError.message);
+            if (!currentData) {
+                throw new Error('Failed to fetch current profile');
             }
 
             let avatarUrl = user.avatar_url || null;
@@ -503,7 +503,14 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                 console.error("Email notification failed:", mailError);
             }
 
-            onSave(data as InfluencerData);
+            onSave({
+                ...(data as InfluencerData),
+                contact_email: user.contact_email,
+                min_rate: newValues.min_rate,
+                birth_date: newValues.birth_date,
+                rate_card: newValues.rate_card,
+                insights_urls: user.insights_urls,
+            });
             alert("Το προφίλ σου ενημερώθηκε! Θα ελέγξουμε τις αλλαγές και θα σε ενημερώσουμε όταν εγκριθεί ξανά.");
             onClose();
         } catch (err: any) {
@@ -1137,14 +1144,13 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
         const refreshProfile = async () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
-                const { data } = await supabase
-                    .from('influencers')
-                    .select('*')
-                    .eq('id', user.id)
-                    .single();
+                const data = await loadOwnInfluencer(supabase, {
+                    id: user.id,
+                    email: user.email,
+                });
                 
                 if (data) {
-                    setProfile(data as InfluencerData);
+                    setProfile(data as unknown as InfluencerData);
                 }
             }
         };
@@ -1239,14 +1245,13 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                     }
 
                     // Refresh profile to get updated past_brands
-                    const { data: profileData } = await supabase
-                        .from('influencers')
-                        .select('*')
-                        .eq('id', user.id)
-                        .single();
+                    const profileData = await loadOwnInfluencer(supabase, {
+                        id: user.id,
+                        email: user.email,
+                    });
                     
                     if (profileData) {
-                        setProfile(profileData as InfluencerData);
+                        setProfile(profileData as unknown as InfluencerData);
                     }
                 }
 

@@ -30,6 +30,14 @@ export async function isAdminUser(user: User): Promise<boolean> {
   return data?.role === "admin";
 }
 
+/** Admin session (ADMIN_EMAIL or user_roles.role = admin). Null when missing or not admin. */
+export async function requireAdmin(request: Request): Promise<User | null> {
+  const user = await userFromBearer(request);
+  if (!user) return null;
+  if (!(await isAdminUser(user))) return null;
+  return user;
+}
+
 /** Same brand check the public profile uses before showing prices. */
 export async function isBrandUser(user: User): Promise<boolean> {
   const admin = supabaseService();
