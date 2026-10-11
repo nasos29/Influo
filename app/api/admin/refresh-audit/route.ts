@@ -30,8 +30,18 @@ type AccountRow = {
   engagement_rate?: string;
   avg_likes?: string;
   posts_count?: number;
+  avg_views?: number | null;
   er_suspicious?: boolean;
   er_flag_reason?: string;
+  engagement_hidden?: boolean;
+  suspected_fake_penalty?: boolean;
+  engagement_rate_raw?: string | null;
+  fake_follower_percent?: number | null;
+  suspected_fake_percent?: number | null;
+  fake_followers_percent?: number | null;
+  quality_penalty_percent?: number | null;
+  er_penalty_percent?: number | null;
+  penalty_percent?: number | null;
 };
 
 type AuditprAudit = {
@@ -101,8 +111,17 @@ export async function POST(request: NextRequest) {
         followers: a.followers ?? undefined,
         engagement_rate: a.engagement_rate ?? undefined,
         avg_likes: a.avg_likes ?? undefined,
+        avg_views: a.avg_views ?? undefined,
         posts_count: a.posts_count ?? undefined,
-        er_suspicious: a.er_suspicious === true,
+        engagement_rate_raw: a.engagement_rate_raw ?? undefined,
+        engagement_hidden: a.engagement_hidden === true,
+        suspected_fake_penalty: a.suspected_fake_penalty === true,
+        fake_follower_percent: a.fake_follower_percent ?? undefined,
+        suspected_fake_percent: a.suspected_fake_percent ?? undefined,
+        fake_followers_percent: a.fake_followers_percent ?? undefined,
+        quality_penalty_percent: a.quality_penalty_percent ?? undefined,
+        er_penalty_percent: a.er_penalty_percent ?? undefined,
+        penalty_percent: a.penalty_percent ?? undefined,
         er_flag_reason: a.er_flag_reason ?? undefined,
       }));
 

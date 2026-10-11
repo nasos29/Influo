@@ -27,7 +27,7 @@ import FollowerGrowthChart from "@/components/FollowerGrowthChart";
 import StatsInsightsPanel from "@/components/StatsInsightsPanel";
 import { buildChannelScore } from "@/lib/channelScore";
 import { loadOwnBrand, loadOwnProfiles } from "@/lib/ownProfile";
-import { detectErFlag, erFlagFromReason, erFlagHint, erFlagLabel, type ErFlagReason } from "@/lib/engagementFlags";
+import { creatorHasHardErOnMainAccount, displayErFlag, erFlagHint, erFlagLabel } from "@/lib/engagementFlags";
 import type { FollowerGrowthPoint } from "@/lib/followerGrowth";
 import { displayLanguageLabel } from "@/lib/languages";
 import { badgeMinRateFromTier } from "@/lib/publicInfluencer";
@@ -39,12 +39,22 @@ type Params = Promise<{ id: string }>;
 type ProfileAccount = {
   platform?: string;
   username?: string;
-  followers?: string;
+  followers?: string | number;
   engagement_rate?: string;
-  avg_likes?: string;
+  engagement_rate_raw?: string | number | null;
+  avg_likes?: string | number;
+  avg_views?: string | number | null;
   posts_count?: number | string;
   er_suspicious?: boolean;
   er_flag_reason?: string;
+  engagement_hidden?: boolean;
+  suspected_fake_penalty?: boolean;
+  fake_follower_percent?: number | string | null;
+  suspected_fake_percent?: number | string | null;
+  fake_followers_percent?: number | string | null;
+  quality_penalty_percent?: number | string | null;
+  er_penalty_percent?: number | string | null;
+  penalty_percent?: number | string | null;
 };
 
 interface ProInfluencer extends Influencer {
@@ -1850,19 +1860,11 @@ export default function InfluencerProfile(props: {
                           const erFlag =
                             engagementRate === "-"
                               ? null
-                              : detectErFlag({
+                              : displayErFlag({
+                                  ...acc,
+                                  platform: acc?.platform || platform.key,
                                   engagement_rate: engagementRate,
-                                  posts_count: acc?.posts_count,
-                                  avg_likes: acc?.avg_likes,
-                                  suspected_fake_penalty:
-                                    acc?.er_flag_reason === "quality_adjusted",
-                                  engagement_hidden:
-                                    acc?.er_flag_reason === "estimated" ||
-                                    String(engagementRate).startsWith("~"),
-                                }) ||
-                                (acc?.er_suspicious && acc.er_flag_reason
-                                  ? erFlagFromReason(acc.er_flag_reason as ErFlagReason)
-                                  : null);
+                                });
                           return platformRow(
                             platform.key,
                             <>
@@ -2218,18 +2220,7 @@ export default function InfluencerProfile(props: {
                                 <div className="flex flex-wrap items-center gap-3 mb-4">
                                     <h2 className="text-xl font-bold text-slate-900">{txt.audit_title}</h2>
                                     {(() => {
-                                      const hasSuspiciousEr = (profile.accounts || []).some((acc) =>
-                                        !!detectErFlag({
-                                          engagement_rate: acc.engagement_rate,
-                                          posts_count: acc.posts_count,
-                                          avg_likes: acc.avg_likes,
-                                          suspected_fake_penalty: acc.er_flag_reason === 'quality_adjusted',
-                                          engagement_hidden:
-                                            acc.er_flag_reason === 'estimated' ||
-                                            String(acc.engagement_rate || '').startsWith('~'),
-                                        }) ||
-                                        (acc.er_suspicious === true)
-                                      );
+                                      const hasSuspiciousEr = creatorHasHardErOnMainAccount(profile.accounts);
                                       if (hasSuspiciousEr) {
                                         return (
                                           <span

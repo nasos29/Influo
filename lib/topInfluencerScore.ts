@@ -9,7 +9,7 @@
  */
 
 import { buildChannelScore } from '@/lib/channelScore';
-import { detectErFlag, parseErPercent } from '@/lib/engagementFlags';
+import { creatorHasHardErOnMainAccount, displayErFlag, isHardErFlag, parseErPercent } from '@/lib/engagementFlags';
 import { FOLLOWER_GROWTH_WINDOW_DAYS } from '@/lib/followerGrowth';
 import { parseFollowerString, totalFollowersFromAccounts } from '@/lib/parseFollowers';
 import { getBadges, type BadgeType } from '@/lib/badges';
@@ -26,6 +26,13 @@ export type TopScoreAccount = {
   er_flag_reason?: string | null;
   suspected_fake_penalty?: boolean | null;
   engagement_hidden?: boolean | null;
+  engagement_rate_raw?: string | number | null;
+  fake_follower_percent?: number | string | null;
+  suspected_fake_percent?: number | string | null;
+  fake_followers_percent?: number | string | null;
+  quality_penalty_percent?: number | string | null;
+  er_penalty_percent?: number | string | null;
+  penalty_percent?: number | string | null;
   /** Locked / private social profile (from scrape). */
   is_private?: boolean | null;
 };
@@ -95,16 +102,7 @@ function socialAccounts(accounts: TopScoreAccount[] | null | undefined): TopScor
 export function trustedErPercent(acc: TopScoreAccount): number | null {
   const raw = parseErPercent(acc.engagement_rate);
   if (raw == null) return null;
-  const flagged =
-    acc.er_suspicious === true ||
-    !!detectErFlag({
-      engagement_rate: acc.engagement_rate,
-      posts_count: acc.posts_count,
-      avg_likes: acc.avg_likes,
-      suspected_fake_penalty: acc.suspected_fake_penalty,
-      engagement_hidden: acc.engagement_hidden,
-    });
-  if (flagged) {
+  if (isHardErFlag(displayErFlag(acc))) {
     if (raw >= 25) return Math.min(raw, 4);
     if (raw >= 15) return Math.min(raw, 6);
     return Math.min(raw, 8) * 0.65;
@@ -182,16 +180,7 @@ export function computeReachScore(inf: TopScoreInfluencer): number {
       viewsSum += views;
       viewsN += 1;
     }
-    if (
-      acc.er_suspicious ||
-      detectErFlag({
-        engagement_rate: acc.engagement_rate,
-        posts_count: acc.posts_count,
-        avg_likes: acc.avg_likes,
-        suspected_fake_penalty: acc.suspected_fake_penalty,
-        engagement_hidden: acc.engagement_hidden,
-      })
-    ) {
+    if (isHardErFlag(displayErFlag(acc))) {
       suspicious += 1;
     }
   }
@@ -315,27 +304,12 @@ export function blendTopScore(
 export const TOP_TRUST_PENALTY_MULT = 0.35;
 
 /**
- * True when any IG/TikTok/YouTube account has suspicious/estimated ER or a private profile.
- * Used to demote (not exclude) from Top 10.
+ * True when the creator's main IG/TikTok/YouTube account has a clearly inflated
+ * rate or a large measured quality cut. Estimates, short samples, unmeasured
+ * notes, secondary accounts, and private profiles do not take this penalty.
  */
 export function hasTopTrustIssue(inf: TopScoreInfluencer): boolean {
-  const accounts = socialAccounts(inf.accounts);
-  for (const acc of accounts) {
-    if (acc.is_private === true) return true;
-    if (acc.er_suspicious === true) return true;
-    if (
-      detectErFlag({
-        engagement_rate: acc.engagement_rate,
-        posts_count: acc.posts_count,
-        avg_likes: acc.avg_likes,
-        suspected_fake_penalty: acc.suspected_fake_penalty,
-        engagement_hidden: acc.engagement_hidden,
-      })
-    ) {
-      return true;
-    }
-  }
-  return false;
+  return creatorHasHardErOnMainAccount(socialAccounts(inf.accounts));
 }
 
 /** Apply Top 10 trust demotion to a composite score (0–100 scale). */

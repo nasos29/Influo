@@ -45,8 +45,8 @@ const FAQ_ITEMS: FaqEntry[] = [
       en: "How do I know if an influencer is trustworthy?",
     },
     a: {
-      el: "Ελέγξτε το επαληθευμένο προφίλ (verified), reviews και rating, συνέπεια περιεχομένου, ρεαλιστικό engagement, σήματα όπως «Ιδιωτικό» / «Ύποπτο ER» στον κατάλογο, και πραγματικό χρόνο απόκρισης στο προφίλ (όχι πάντα 24h).",
-      en: "Check verification, reviews and rating, content consistency, realistic engagement, directory signals like Private / ER flag, and real response time on the profile (not always 24h).",
+      el: "Ελέγξτε το επαληθευμένο προφίλ (verified), reviews και rating, συνέπεια περιεχομένου, ρεαλιστικό engagement, σήματα όπως «Ιδιωτικό», «Ύποπτο ER», «Εκτίμηση» ή «Λίγα δεδομένα» στον κατάλογο, και πραγματικό χρόνο απόκρισης στο προφίλ (όχι πάντα 24h).",
+      en: "Check verification, reviews and rating, content consistency, realistic engagement, directory signals like Private, Suspicious ER, Estimate, or Few posts, and real response time on the profile (not always 24h).",
     },
   },
   {
@@ -463,8 +463,8 @@ export default function DocsPage() {
                 <ul className="text-sm text-slate-700 space-y-2 list-disc list-inside mb-0">
                   <li>
                     {lang === 'el'
-                      ? 'Στις κάρτες καταλόγου μπορεί να εμφανιστεί «Ιδιωτικό» (ιδιωτικός λογαριασμός) ή «Ύποπτο ER».'
-                      : 'Directory cards may show Private (private account) or ER flag (suspicious engagement).'}
+                      ? 'Στις κάρτες καταλόγου μπορεί να εμφανιστεί «Ιδιωτικό» (ιδιωτικός λογαριασμός), «Ύποπτο ER» (υπερβολικό ή έντονα διορθωμένο ποσοστό), «Εκτίμηση» (κρυφά likes) ή «Λίγα δεδομένα» (πολύ λίγα posts).'
+                      : 'Directory cards may show Private, Suspicious ER (an extreme or sharply reduced rate), Estimate (hidden likes), or Few posts.'}
                   </li>
                   <li>
                     {lang === 'el'
