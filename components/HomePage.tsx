@@ -584,7 +584,7 @@ export default function Home({
               
               {/* Center Content */}
               <div className="lg:col-span-1 text-center lg:text-left">
-                <h1 className="text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-bold text-slate-900 mb-6 leading-[1.1] tracking-tight">
+                <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-slate-900 mb-6 leading-[1.1] tracking-tight">
                   <span className="block">{txt.hero_title_1}</span>
                   <span className="block bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                     {txt.hero_title_2}
