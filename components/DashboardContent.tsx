@@ -15,7 +15,7 @@ import { prepareImageForStorage } from '@/lib/prepareImageForStorage';
 import { normalizeGender } from '@/lib/gender';
 import InfluencerCampaignsPanel from './InfluencerCampaignsPanel';
 import InfluencerToolsPanel from './InfluencerToolsPanel';
-import { loadOwnInfluencer } from '@/lib/ownProfile';
+import { INFLUENCER_BROWSER_COLUMNS, loadOwnInfluencer } from '@/lib/ownProfile';
 
 // --- FULL CATEGORY LIST ---
 const CATEGORIES = [
@@ -267,14 +267,11 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
 
         try {
             // First, fetch current values from database to compare
-            const currentData = (await loadOwnInfluencer(supabase, {
-                id: String(user.id),
-                email: user.contact_email,
-            })) as InfluencerData | null;
-
-            if (!currentData) {
-                throw new Error('Failed to fetch current profile');
+            const current = await loadOwnInfluencer(supabase);
+            if (!current.ok) {
+                throw new Error(current.reason === "missing" ? "Failed to fetch current profile" : current.message);
             }
+            const currentData = current.profile as unknown as InfluencerData;
 
             let avatarUrl = user.avatar_url || null;
 
@@ -409,12 +406,16 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                 analytics_verified: false, // Reset analytics verification
             };
 
-            let { data, error } = await supabase
+            let data: InfluencerData | null = null;
+            let error: { message?: string; code?: string } | null = null;
+            const saved = await supabase
                 .from('influencers')
                 .update(updateData)
                 .eq('id', user.id)
-                .select()
+                .select(INFLUENCER_BROWSER_COLUMNS.join(","))
                 .single();
+            data = saved.data as unknown as InfluencerData | null;
+            error = saved.error;
 
             if (
                 error &&
@@ -427,15 +428,15 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                     .from('influencers')
                     .update(withoutRateCard)
                     .eq('id', user.id)
-                    .select()
+                    .select(INFLUENCER_BROWSER_COLUMNS.join(","))
                     .single();
-                data = retry.data;
+                data = retry.data as unknown as InfluencerData | null;
                 error = retry.error;
             }
 
-            if (error) {
+            if (error || !data) {
                 setLoading(false);
-                alert("Σφάλμα: " + error.message);
+                alert("Σφάλμα: " + (error?.message || "Δεν επιστράφηκε το προφίλ"));
                 return;
             }
 
@@ -1144,13 +1145,9 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
         const refreshProfile = async () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
-                const data = await loadOwnInfluencer(supabase, {
-                    id: user.id,
-                    email: user.email,
-                });
-                
-                if (data) {
-                    setProfile(data as unknown as InfluencerData);
+                const loaded = await loadOwnInfluencer(supabase);
+                if (loaded.ok) {
+                    setProfile(loaded.profile as unknown as InfluencerData);
                 }
             }
         };
@@ -1245,13 +1242,9 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                     }
 
                     // Refresh profile to get updated past_brands
-                    const profileData = await loadOwnInfluencer(supabase, {
-                        id: user.id,
-                        email: user.email,
-                    });
-                    
-                    if (profileData) {
-                        setProfile(profileData as unknown as InfluencerData);
+                    const profileData = await loadOwnInfluencer(supabase);
+                    if (profileData.ok) {
+                        setProfile(profileData.profile as unknown as InfluencerData);
                     }
                 }
 

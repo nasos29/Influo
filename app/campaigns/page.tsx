@@ -7,6 +7,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import Footer from "@/components/Footer";
 import { supabase } from "@/lib/supabaseClient";
+import { loadOwnProfiles } from "@/lib/ownProfile";
 import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
 import { getCachedImageUrl } from "@/lib/imageProxy";
 
@@ -77,13 +78,16 @@ export default function PublicCampaignsPage() {
         setUserKind("admin");
         return;
       }
-      const { data: brand } = await supabase.from("brands").select("id").eq("id", user.id).maybeSingle();
-      if (brand) {
+      const profiles = await loadOwnProfiles(supabase);
+      if (!profiles.ok) {
+        setUserKind("none");
+        return;
+      }
+      if (profiles.brand) {
         setUserKind("brand");
         return;
       }
-      const { data: inf } = await supabase.from("influencers").select("id").eq("id", user.id).maybeSingle();
-      setUserKind(inf ? "influencer" : "none");
+      setUserKind(profiles.influencer ? "influencer" : "none");
     };
     resolveUser();
   }, [session?.user?.id]);

@@ -44,12 +44,10 @@ export default function LogoutPage() {
                     
                     // Check if user is a brand
                     try {
-                        const brandData = await loadOwnBrand(supabase, {
-                            id: user.id,
-                            email: user.email,
-                        });
-                        
-                        const brandEmail = typeof brandData?.contact_email === "string" ? brandData.contact_email : "";
+                        const brandResult = await loadOwnBrand(supabase);
+                        const brandEmail = brandResult.ok && typeof brandResult.profile.contact_email === "string"
+                            ? brandResult.profile.contact_email
+                            : "";
                         if (brandEmail) {
                             // Mark brand as offline
                             await supabase

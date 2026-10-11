@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import DashboardContent from '@/components/DashboardContent';
-import { loadOwnInfluencer } from '@/lib/ownProfile'; 
+import { loadOwnProfiles } from '@/lib/ownProfile'; 
 
 // [!!!] ΒΑΛΕ ΤΟ ADMIN EMAIL ΣΟΥ ΕΔΩ
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'nd.6@hotmail.com';
@@ -17,10 +17,15 @@ export default function DashboardPage() {
     const [loading, setLoading] = useState(true);
     const [profileData, setProfileData] = useState<any>(null);
     const [orphanEmail, setOrphanEmail] = useState<string | null>(null);
+    const [loadError, setLoadError] = useState<string | null>(null);
+    const [attempt, setAttempt] = useState(0);
     const [clearingOrphan, setClearingOrphan] = useState(false);
 
     useEffect(() => {
+        let cancelled = false;
         async function checkAuthAndLoadProfile() {
+            setLoading(true);
+            setLoadError(null);
             const { data: { user } } = await supabase.auth.getUser();
 
             if (!user) {
@@ -28,26 +33,40 @@ export default function DashboardPage() {
                 return;
             }
 
-            // 1. ΕΛΕΓΧΟΣ ADMIN (Redirect)
             if (user.email === ADMIN_EMAIL) {
                 router.replace('/admin'); 
                 return;
             }
 
-            // Own row only. Private fields come from influencer_private (RLS).
-            const profile = await loadOwnInfluencer(supabase, {
-                id: user.id,
-                email: user.email,
-            });
-            
-            if (!profile && user.email) {
-                setOrphanEmail(user.email);
+            const profiles = await loadOwnProfiles(supabase);
+            if (cancelled) return;
+
+            if (!profiles.ok) {
+                setLoadError(profiles.message);
+                setProfileData(null);
+                setLoading(false);
+                return;
             }
-            setProfileData(profile);
+
+            if (!profiles.influencer) {
+                if (profiles.brand) {
+                    router.replace('/brand/dashboard');
+                    return;
+                }
+                setOrphanEmail(user.email || null);
+                setProfileData(null);
+                setLoading(false);
+                return;
+            }
+
+            setProfileData(profiles.influencer);
             setLoading(false);
         }
         checkAuthAndLoadProfile();
-    }, [router]);
+        return () => {
+            cancelled = true;
+        };
+    }, [router, attempt]);
 
     const clearOrphanAndSignup = async () => {
         if (!orphanEmail) return;
@@ -67,6 +86,26 @@ export default function DashboardPage() {
             setClearingOrphan(false);
         }
     };
+
+    if (loadError) {
+        return (
+          <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center max-w-lg mx-auto">
+            <h1 className="text-2xl font-bold text-slate-900">Δεν φορτώθηκε το προφίλ</h1>
+            <p className="text-slate-600 mt-3">{loadError}</p>
+            <p className="text-slate-500 mt-2 text-sm">
+              Ο λογαριασμός δεν διαγράφεται από αυτή την οθόνη.
+            </p>
+            <button
+              type="button"
+              onClick={() => setAttempt((n) => n + 1)}
+              className="mt-6 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700"
+            >
+              Δοκιμάστε ξανά
+            </button>
+            <Link href="/logout" className="mt-4 text-red-500 hover:underline text-sm">Αποσύνδεση</Link>
+          </div>
+        );
+    }
 
     if (loading || !profileData) {
         if (!loading && !profileData) {
@@ -92,7 +131,6 @@ export default function DashboardPage() {
         return <div className="min-h-screen flex items-center justify-center">Loading Dashboard...</div>;
     }
     
-    // 3. Εμφάνιση Dashboard Content (περνώντας τα δεδομένα)
     return (
         <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-600">Loading…</div>}>
             <DashboardContent profile={profileData} />
