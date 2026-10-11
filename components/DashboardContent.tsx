@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
+import { sessionFetch } from '@/lib/sessionFetch';
 import Image from 'next/image';
 import { getVideoThumbnail, isVideoUrl, isDefinitelyVideo, isDefinitelyImage } from '@/lib/videoThumbnail';
 import VideoThumbnail from './VideoThumbnail';
@@ -992,24 +993,20 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
         }
     };
 
+    const reloadProposals = async () => {
+        const response = await sessionFetch('/api/proposals?role=influencer');
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !Array.isArray(result.proposals)) return null;
+        const rows = result.proposals as Proposal[];
+        setProposals(rows);
+        setPendingProposalsCount(rows.filter((p) => p.status === 'pending').length);
+        return rows;
+    };
+
     // Load proposals and counts
     useEffect(() => {
         const loadProposals = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                const { data } = await supabase
-                    .from('proposals')
-                    .select('*')
-                    .eq('influencer_id', user.id)
-                    .order('created_at', { ascending: false });
-                
-                if (data) {
-                    setProposals(data as Proposal[]);
-                    // Count pending proposals
-                    const pending = data.filter(p => p.status === 'pending').length;
-                    setPendingProposalsCount(pending);
-                }
-            }
+            await reloadProposals();
         };
         
         const loadUnreadMessages = async () => {
@@ -1106,7 +1103,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
 
         setSavingCounterProposal(true);
         try {
-            const response = await fetch('/api/proposals/counter', {
+            const response = await sessionFetch('/api/proposals/counter', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1118,19 +1115,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
 
             const result = await response.json();
             if (result.success) {
-                // Refresh proposals
-                const { data: { user } } = await supabase.auth.getUser();
-                if (user) {
-                    const { data } = await supabase
-                        .from('proposals')
-                        .select('*')
-                        .eq('influencer_id', user.id)
-                        .order('created_at', { ascending: false });
-                    
-                    if (data) {
-                        setProposals(data as Proposal[]);
-                    }
-                }
+                await reloadProposals();
 
                 setShowCounterProposalModal(false);
                 setSelectedProposal(null);
@@ -1156,7 +1141,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
 
         setSavingAgreement(true);
         try {
-            const response = await fetch('/api/proposals/agreement', {
+            const response = await sessionFetch('/api/proposals/agreement', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1168,18 +1153,8 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
 
             const result = await response.json();
             if (result.success) {
-                // Refresh proposals
-                const { data: { user } } = await supabase.auth.getUser();
-                if (user) {
-                    const { data } = await supabase
-                        .from('proposals')
-                        .select('*')
-                        .eq('influencer_id', user.id)
-                        .order('created_at', { ascending: false });
-                    
-                    if (data) {
-                        setProposals(data as Proposal[]);
-                    }
+                const data = await reloadProposals();
+                if (data) {
 
                     // Refresh profile to get updated past_brands
                     const profileData = await loadOwnInfluencer(supabase);
@@ -1447,7 +1422,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                     <button
                                                                         onClick={async () => {
                                                                             try {
-                                                                                const response = await fetch('/api/proposals/accept', {
+                                                                                const response = await sessionFetch('/api/proposals/accept', {
                                                                                     method: 'POST',
                                                                                     headers: { 'Content-Type': 'application/json' },
                                                                                     body: JSON.stringify({ proposalId: prop.id })
@@ -1455,24 +1430,11 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
 
                                                                                 const result = await response.json();
                                                                                 if (result.success) {
-                                                                                    // Refresh proposals to show the accepted status and agreement modal
-                                                                                    const { data: { user } } = await supabase.auth.getUser();
-                                                                                    if (user) {
-                                                                                        const { data } = await supabase
-                                                                                            .from('proposals')
-                                                                                            .select('*')
-                                                                                            .eq('influencer_id', user.id)
-                                                                                            .order('created_at', { ascending: false });
-                                                                                        
-                                                                                        if (data) {
-                                                                                            setProposals(data as Proposal[]);
-                                                                                            // Open agreement modal for the accepted proposal
-                                                                                            const acceptedProp = data.find((p: Proposal) => p.id === prop.id);
-                                                                                            if (acceptedProp && acceptedProp.status === 'accepted') {
-                                                                                                setSelectedProposal(acceptedProp as Proposal);
-                                                                                                setShowAgreementModal(true);
-                                                                                            }
-                                                                                        }
+                                                                                    const data = await reloadProposals();
+                                                                                    const acceptedProp = data?.find((p: Proposal) => p.id === prop.id);
+                                                                                    if (acceptedProp && acceptedProp.status === 'accepted') {
+                                                                                        setSelectedProposal(acceptedProp);
+                                                                                        setShowAgreementModal(true);
                                                                                     }
                                                                                 } else {
                                                                                     alert('Σφάλμα: ' + (result.error || 'Αποτυχία αποδοχής προσφοράς'));
@@ -1487,6 +1449,29 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                         ✅ Αποδοχή
                                                                     </button>
                                                                     <button
+                                                                        onClick={async () => {
+                                                                            if (!confirm('Να απορριφθεί η πρόταση; Το brand θα ειδοποιηθεί.')) return;
+                                                                            try {
+                                                                                const response = await sessionFetch('/api/proposals/reject', {
+                                                                                    method: 'POST',
+                                                                                    headers: { 'Content-Type': 'application/json' },
+                                                                                    body: JSON.stringify({ proposalId: prop.id })
+                                                                                });
+                                                                                const result = await response.json();
+                                                                                if (result.success) {
+                                                                                    await reloadProposals();
+                                                                                } else {
+                                                                                    alert('Σφάλμα: ' + (result.error || 'Αποτυχία απόρριψης'));
+                                                                                }
+                                                                            } catch (error: any) {
+                                                                                alert('Σφάλμα: ' + error.message);
+                                                                            }
+                                                                        }}
+                                                                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-all text-xs whitespace-nowrap"
+                                                                    >
+                                                                        Απόρριψη
+                                                                    </button>
+                                                                    <button
                                                                         onClick={() => {
                                                                             setSelectedProposal(prop);
                                                                             setCounterBudget('');
@@ -1498,13 +1483,18 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                         💰 Αντιπρόταση
                                                                     </button>
                                                                     <button
-                                                                        onClick={() => {
+                                                                        onClick={async () => {
+                                                                            try {
+                                                                                await sessionFetch('/api/proposals/thread', {
+                                                                                    method: 'POST',
+                                                                                    headers: { 'Content-Type': 'application/json' },
+                                                                                    body: JSON.stringify({ proposalId: prop.id }),
+                                                                                });
+                                                                            } catch (error) {
+                                                                                console.error('Error opening proposal chat:', error);
+                                                                            }
                                                                             setSelectedProposalForMessaging(prop);
                                                                             setActiveTab('messages');
-                                                                            // Auto-select conversation for this brand
-                                                                            setTimeout(() => {
-                                                                                // Will be handled by Messaging component
-                                                                            }, 100);
                                                                         }}
                                                                         className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white font-semibold rounded-lg transition-all text-xs whitespace-nowrap"
                                                                     >

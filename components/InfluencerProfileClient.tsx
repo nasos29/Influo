@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Influencer } from "@/components/Directory"; 
 import { supabase } from "@/lib/supabaseClient";
+import { sessionFetch } from "@/lib/sessionFetch";
 import { presenceOnline } from "@/lib/presenceStatus";
 import { counterpartyInfluencerPresence } from "@/lib/presenceIdentity";
 import { getVideoThumbnail, isVideoUrl, isDefinitelyVideo, isDefinitelyImage, detectProvider, getIframelyEmbedUrl } from "@/lib/videoThumbnail";
@@ -615,38 +616,32 @@ export default function InfluencerProfile(props: {
 
   const loadCounterProposal = async (proposalId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('proposals')
-        .select('*')
-        .eq('id', proposalId)
-        .single();
-      
-      if (!error && data) {
-        setCounterProposal(data);
-        
-        // Auto-execute action if specified
-        const action = searchParams?.get('action');
-        if (action === 'accept') {
-          handleAcceptCounterProposal(proposalId);
-        } else if (action === 'reject') {
-          handleRejectCounterProposal(proposalId);
-        } else if (action === 'message') {
-          // Open message modal with brand email
-          setMessageBrandEmail(data.brand_email);
-          setMessageBrandName(data.brand_name);
-          setShowMessageModal(true);
-          setShowCounterProposalModal(false);
+      const response = await sessionFetch(`/api/proposals?id=${encodeURIComponent(proposalId)}`);
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.proposal) {
+        setShowCounterProposalModal(false);
+        if (response.status === 401) {
+          alert(lang === 'el' ? 'Συνδεθείτε με τον λογαριασμό της επιχείρησης για να δείτε την αντιπρόταση.' : 'Log in with the brand account to see the counter offer.');
         }
+        return;
+      }
+      setCounterProposal(result.proposal);
+      if (searchParams?.get('action') === 'message') {
+        setMessageBrandEmail(result.proposal.brand_email);
+        setMessageBrandName(result.proposal.brand_name);
+        setShowMessageModal(true);
+        setShowCounterProposalModal(false);
       }
     } catch (error) {
       console.error('Error loading counter proposal:', error);
+      setShowCounterProposalModal(false);
     }
   };
 
   const handleAcceptCounterProposal = async (proposalId: string) => {
     setProcessingAction(true);
     try {
-      const response = await fetch('/api/proposals/counter/accept', {
+      const response = await sessionFetch('/api/proposals/counter/accept', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ proposalId })
@@ -672,7 +667,7 @@ export default function InfluencerProfile(props: {
   const handleRejectCounterProposal = async (proposalId: string) => {
     setProcessingAction(true);
     try {
-      const response = await fetch('/api/proposals/counter/reject', {
+      const response = await sessionFetch('/api/proposals/counter/reject', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ proposalId })
@@ -708,16 +703,13 @@ export default function InfluencerProfile(props: {
     let calculatedCompletionRate: number | undefined;
     let computedResponseHours: number | null = null;
     if (data && !error) {
-      const { computeAvgResponseHours, computeCompletionRate } = await import('@/lib/influencerMetrics');
-      const [completion, responseH] = await Promise.all([
-        computeCompletionRate(supabase, String(id)),
-        computeAvgResponseHours(supabase, String(id)),
-      ]);
-      if (completion != null) calculatedCompletionRate = completion;
+      if (typeof data.completion_rate === "number") calculatedCompletionRate = data.completion_rate;
+      const { computeAvgResponseHours } = await import('@/lib/influencerMetrics');
+      const responseH = await computeAvgResponseHours(supabase, String(id));
       computedResponseHours = responseH;
-      // Persist real metrics; clear legacy placeholder 24h when we have no samples
+      // The public completion percentage is stored on the profile.
+      // A visitor only sees their own proposals, so the browser must not rewrite it.
       const patch: Record<string, number | null> = {};
-      if (completion != null) patch.completion_rate = completion;
       if (responseH != null) {
         patch.avg_response_time = responseH;
       } else if (data.avg_response_time === 24 || data.avg_response_time === '24') {
@@ -997,141 +989,24 @@ export default function InfluencerProfile(props: {
     setSending(true);
 
     try {
-        // 1. Save Proposal in DB
-        // Note: influencer_id should match the type in your proposals table
-        // If it's UUID (string), use id directly; if it's integer, we need to handle differently
-        const proposalData: any = {
-            influencer_id: id, // Use id as-is (works for both UUID and numeric)
-            brand_name: brandName,
-            brand_email: brandEmail,
-            service_type: proposalType,
-            budget: budget,
-            message: message,
-            status: 'pending'
-        };
-        
-        const { data: proposalResult, error } = await supabase.from("proposals").insert([proposalData]).select().single();
-        
-        if (error) {
-            console.error(error);
-            alert(lang === 'el' ? "Κάτι πήγε στραβά. Παρακαλώ δοκιμάστε ξανά." : "Something went wrong. Please try again.");
+        const response = await sessionFetch('/api/proposals', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                influencerId: id,
+                brandName,
+                brandEmail,
+                serviceType: proposalType,
+                budget,
+                message,
+            }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.success) {
+            const fallback = lang === 'el' ? "Κάτι πήγε στραβά. Παρακαλώ δοκιμάστε ξανά." : "Something went wrong. Please try again.";
+            alert(result.error || fallback);
             setSending(false);
             return;
-        }
-        
-        // Send email to influencer about new proposal
-        try {
-            await fetch('/api/emails', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    type: 'proposal_influencer_notification',
-                    influencerId: id,
-                    influencerName: profile?.name || 'Influencer',
-                    brandName: brandName,
-                    brandEmail: brandEmail,
-                    proposalType: proposalType,
-                    budget: budget,
-                    message: message
-                })
-            });
-        } catch (emailError) {
-            console.error("Influencer notification email failed:", emailError);
-        }
-
-        // Push notification to influencer (new proposal)
-        try {
-            await fetch('/api/push/trigger-proposal', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    influencerId: id,
-                    brandName: brandName,
-                    proposalType: proposalType,
-                    budget: budget,
-                }),
-            });
-        } catch (pushErr) {
-            console.error('Push notification failed:', pushErr);
-        }
-
-        // Chat only when the brand is signed in. Guests still save the proposal and get the emails.
-        if (proposalResult && proposalResult.id) {
-            try {
-                const { data: { session } } = await supabase.auth.getSession();
-                if (session?.access_token) {
-                    await fetch('/api/messages', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            Authorization: `Bearer ${session.access_token}`,
-                        },
-                        body: JSON.stringify({
-                            influencerId: id,
-                            brandName: brandName,
-                            senderType: 'brand',
-                            content: `Νέα πρόταση: ${proposalType} | Budget: €${budget}\n\n${message}`,
-                            proposalId: proposalResult.id
-                        })
-                    });
-                }
-            } catch (convError) {
-                console.error("Auto-create conversation failed:", convError);
-            }
-        }
-
-        // 2. Send Brand Confirmation Email
-        try {
-            await fetch('/api/emails', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    type: 'proposal_brand_confirmation', 
-                    email: brandEmail,
-                    brandName: brandName,
-                    influencerName: profile?.name,
-                    proposalType: proposalType
-                })
-            });
-        } catch (mailError) {
-             console.error("Brand Confirmation Email failed:", mailError);
-        }
-
-        // 3. Send Admin Notification Email
-        try {
-            await fetch('/api/emails', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    type: 'proposal_admin_notification', 
-                    email: brandEmail,
-                    brandName: brandName,
-                    influencerName: profile?.name || 'Unknown',
-                    influencerId: id,
-                    proposalType: proposalType,
-                    budget: budget,
-                    message: message
-                })
-            });
-        } catch (mailError) {
-             console.error("Admin Notification Email failed:", mailError);
-        }
-
-        // 4. Track analytics: proposal_sent
-        try {
-            await fetch('/api/analytics/track', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    influencerId: id,
-                    eventType: 'proposal_sent',
-                    brandEmail: brandEmail,
-                    brandName: brandName,
-                    metadata: { proposal_id: proposalResult.id, service_type: proposalType, budget: budget }
-                })
-            }).catch(() => {}); // Fail silently
-        } catch (err) {
-            // Fail silently - analytics tracking should not break the flow
         }
 
         // 5. Update brand dashboard stats (proposalsSent) - only after successful submission

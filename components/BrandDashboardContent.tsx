@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { sessionFetch } from '@/lib/sessionFetch';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -753,20 +754,15 @@ export default function BrandDashboardContent() {
       console.log(`[Brand Dashboard] Loaded brandData:`, brandData);
       console.log(`[Brand Dashboard] Brand email: ${brandData.contact_email}`);
       setBrandData(brandData);
+      await sessionFetch('/api/proposals/claim', { method: 'POST' }).catch(() => {});
       
       // Load recommendations
       await loadRecommendations(brandData);
 
-      // Get proposals for this brand (by email or brand_id)
-      const { data: proposalsData, error: proposalsError } = await supabase
-        .from('proposals')
-        .select('*')
-        .or(`brand_email.eq.${brandData.contact_email},brand_id.eq.${user.id}`)
-        .order('created_at', { ascending: false });
-
-      if (proposalsError) throw proposalsError;
-
-      if (proposalsData) {
+      const proposalsResponse = await sessionFetch('/api/proposals?role=brand');
+      const proposalsBody = await proposalsResponse.json().catch(() => ({}));
+      if (!proposalsResponse.ok) throw new Error(proposalsBody.error || 'Could not load proposals');
+      const proposalsData = Array.isArray(proposalsBody.proposals) ? proposalsBody.proposals as Proposal[] : [];
         setProposals(proposalsData as Proposal[]);
 
         // Get unique influencer IDs
@@ -787,7 +783,6 @@ export default function BrandDashboardContent() {
             setInfluencers(influencersMap);
           }
         }
-      }
     } catch (err) {
       console.error('Error loading data:', err);
     } finally {
@@ -805,7 +800,7 @@ export default function BrandDashboardContent() {
 
     setSavingAgreement(true);
     try {
-      const response = await fetch('/api/proposals/agreement', {
+      const response = await sessionFetch('/api/proposals/agreement', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1193,7 +1188,7 @@ export default function BrandDashboardContent() {
   const handleAcceptCounterProposal = async (proposalId: string) => {
     setProcessingCounterProposal(proposalId);
     try {
-      const response = await fetch('/api/proposals/counter/accept', {
+      const response = await sessionFetch('/api/proposals/counter/accept', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ proposalId })
@@ -1225,7 +1220,7 @@ export default function BrandDashboardContent() {
 
     setProcessingCounterProposal(proposalId);
     try {
-      const response = await fetch('/api/proposals/counter/reject', {
+      const response = await sessionFetch('/api/proposals/counter/reject', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ proposalId })

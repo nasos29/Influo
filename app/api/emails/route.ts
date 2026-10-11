@@ -49,6 +49,13 @@ export async function POST(req: Request) {
       'message_influencer_to_brand',
       'message_brand_to_influencer',
       'conversation_end',
+      // Proposal mail is sent by the proposal routes, to the address on the private tables.
+      'proposal_influencer_notification',
+      'proposal_brand_confirmation',
+      'proposal_admin_notification',
+      'proposal_accepted_brand',
+      'counter_proposal_notification',
+      'collaboration_complete',
     ]);
     if (threadEmailTypes.has(type)) {
       const secret = process.env.CRON_SECRET;

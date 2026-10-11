@@ -241,15 +241,25 @@ export default function Messaging({
   const autoCloseTimerRef = useRef<NodeJS.Timeout | null>(null);
   const ACTIVITY_UPDATE_THROTTLE = 30000; // Update at most once per 30 seconds
 
+  const activeProposalIdRef = useRef<number | string | null>(null);
+
   // Offer card follows the open thread's proposal, or the one passed in from a dashboard.
   useEffect(() => {
     const fromThread = conversations.find((c) => c.id === selectedConversation)?.proposal_id;
     const id = proposalId || fromThread || null;
+    activeProposalIdRef.current = id;
     if (!id) {
       setProposalInfo(null);
       return;
     }
-    void loadProposalInfo(id);
+    const load = () => { void loadProposalInfo(id); };
+    load();
+    window.addEventListener('focus', load);
+    const timer = window.setInterval(load, 30000);
+    return () => {
+      window.removeEventListener('focus', load);
+      window.clearInterval(timer);
+    };
   }, [proposalId, selectedConversation, conversations]);
 
   // Load conversations
@@ -917,16 +927,13 @@ export default function Messaging({
   const loadProposalInfo = async (id = proposalId) => {
     if (!id) return;
     try {
-      const { data, error } = await supabase
-        .from('proposals')
-        .select('id, brand_name, brand_email, budget, service_type, status, counter_proposal_budget, counter_proposal_status, influencer_agreement_accepted, brand_agreement_accepted')
-        .eq('id', id)
-        .single();
-
-      if (error) throw error;
-      if (data) {
-        setProposalInfo(data as ProposalInfo);
+      const response = await sessionFetch(`/api/proposals?id=${encodeURIComponent(String(id))}`);
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.proposal) {
+        setProposalInfo(null);
+        return;
       }
+      setProposalInfo(result.proposal as ProposalInfo);
     } catch (error) {
       console.error('Error loading proposal info:', error);
     }
@@ -953,7 +960,8 @@ export default function Messaging({
   const canShowAgreementSummary = selectedConversation && !conversationClosed;
 
   const handleAcceptAgreement = async () => {
-    if (!proposalId || !agreementAccepted) {
+    const activeProposalId = activeProposalIdRef.current || proposalId;
+    if (!activeProposalId || !agreementAccepted) {
       alert(lang === 'el' 
         ? 'Παρακαλώ διαβάστε και αποδεχτείτε τους όρους χρήσης'
         : 'Please read and accept the terms of service');
@@ -962,12 +970,12 @@ export default function Messaging({
 
     setSavingAgreement(true);
     try {
-      const response = await fetch('/api/proposals/agreement', {
+      const response = await sessionFetch('/api/proposals/agreement', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          proposalId: proposalId,
-          userType: mode, // 'influencer' or 'brand'
+          proposalId: activeProposalId,
+          userType: mode,
           accepted: true
         })
       });

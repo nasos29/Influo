@@ -6,6 +6,10 @@ import { sendPushToInfluencer } from '@/lib/push';
 
 export async function POST(req: Request) {
   try {
+    const secret = process.env.CRON_SECRET;
+    if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const body = await req.json();
     const { influencerId, brandName, proposalType, budget } = body;
 
