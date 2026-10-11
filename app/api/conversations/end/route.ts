@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
 import { isChatParticipant, loadChatActor } from "@/lib/chatActor";
 import { closeConversation } from "@/lib/closeConversation";
-import { runMessageSummaries } from "@/lib/messageSummaryRun";
+import { runAdminMessageSummaries, runMessageSummaries } from "@/lib/messageSummaryRun";
 
 /**
- * Either participant can close. Closing sends the unread summary immediately
- * (messages already read in the app are skipped). Auto-close from the quiet
- * cron does not call this route.
+ * Either participant can close. An explicit close sends the unread participant
+ * summary immediately and the admin summary for messages not yet notified.
+ * Auto-close does not email participants early; it still emails the admin.
  */
 export async function POST(req: Request) {
   try {
@@ -36,10 +36,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: closed.error || "Failed to close conversation" }, { status: 500 });
     }
 
-    let summary: { sent: number; skipped: number; errors: string[] } | null = null;
-    if (!autoClose && !closed.alreadyClosed) {
+    let summary: { sent: number; skipped: number; errors: string[]; adminSent?: number } | null = null;
+    if (!closed.alreadyClosed) {
       try {
-        summary = await runMessageSummaries({ forceConversationId: conversationId });
+        summary = autoClose
+          ? await runAdminMessageSummaries({ forceConversationId: conversationId }).then((admin) => ({
+              sent: 0,
+              skipped: 0,
+              adminSent: admin.sent,
+              errors: admin.errors,
+            }))
+          : await runMessageSummaries({ forceConversationId: conversationId });
       } catch (error) {
         console.error("[End Conversation] summary email failed:", error);
       }
