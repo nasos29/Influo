@@ -584,7 +584,7 @@ export default function Home({
               
               {/* Center Content */}
               <div className="lg:col-span-1 text-center lg:text-left">
-                <h1 className="!text-2xl md:!text-3xl font-bold text-slate-900 mb-6 !leading-[1.3] tracking-tight">
+                <h1 className="!text-xl md:!text-2xl font-bold text-slate-900 mb-6 !leading-[1.3] tracking-tight">
                   <span className="block">{txt.hero_title_1}</span>
                   <span className="block bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                     {txt.hero_title_2}
@@ -608,7 +608,7 @@ export default function Home({
                     {txt.hero_btn_secondary}
                   </a>
                 </div>
-                <h2 className="!text-2xl md:!text-3xl font-bold text-slate-900 mb-6 !leading-[1.3] tracking-tight mt-10">
+                <h2 className="!text-xl md:!text-2xl font-bold text-slate-900 mb-6 !leading-[1.3] tracking-tight mt-10">
                   <span className="block">{txt.hero_brand_title_1}</span>
                   <span className="block bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                     {txt.hero_brand_title_2}
