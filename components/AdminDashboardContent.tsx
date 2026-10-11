@@ -18,6 +18,11 @@ import PushNotificationPrompt from "./PushNotificationPrompt";
 import AdminInfluencerStatsTab from "./AdminInfluencerStatsTab";
 import SocialRefreshLogsPanel from "./SocialRefreshLogsPanel";
 
+async function adminAuthHeaders(): Promise<Record<string, string>> {
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
+}
+
 // --- FULL CATEGORY LIST ---
 const CATEGORIES = [
   "Γενικά", "Lifestyle", "Fashion & Style", "Beauty & Makeup", "Travel", "Food & Drink",
@@ -760,7 +765,9 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                 const influencerId = String(user.id);
                 console.log('[Profile Changes] Fetching changes for influencer ID:', influencerId, '(type:', typeof user.id, ')');
                 
-                const response = await fetch(`/api/profile-changes?influencerId=${encodeURIComponent(influencerId)}&unreviewedOnly=true`);
+                const response = await fetch(`/api/profile-changes?influencerId=${encodeURIComponent(influencerId)}&unreviewedOnly=true`, {
+                    headers: await adminAuthHeaders(),
+                });
                 
                 if (!response.ok) {
                     console.error('[Profile Changes] HTTP error:', response.status, response.statusText);
@@ -797,7 +804,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
         try {
             const response = await fetch('/api/profile-changes', {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...(await adminAuthHeaders()) },
                 body: JSON.stringify({ changeIds })
             });
             const data = await response.json();
@@ -2163,13 +2170,15 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         // If approving, mark all unreviewed changes as reviewed
         if (!currentStatus) {
             try {
-                const changesResponse = await fetch(`/api/profile-changes?influencerId=${id}&unreviewedOnly=true`);
+                const changesResponse = await fetch(`/api/profile-changes?influencerId=${id}&unreviewedOnly=true`, {
+                    headers: await adminAuthHeaders(),
+                });
                 const changesData = await changesResponse.json();
                 if (changesData.success && changesData.data && changesData.data.length > 0) {
                     const changeIds = changesData.data.map((c: any) => c.id);
                     await fetch('/api/profile-changes', {
                         method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 'Content-Type': 'application/json', ...(await adminAuthHeaders()) },
                         body: JSON.stringify({ changeIds })
                     });
                 }

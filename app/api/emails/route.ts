@@ -1,6 +1,7 @@
 import { Resend } from 'resend';
 import { NextResponse } from 'next/server';
 import { buildPasswordResetEmail } from '@/lib/passwordResetEmail';
+import { supabaseService } from '@/lib/apiAuth';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -45,6 +46,13 @@ export async function POST(req: Request) {
     // Some email types don't require email field (admin notifications)
     if ((type === 'message_admin_notification' || type === 'proposal_admin_notification' || type === 'profile_edit_admin' || type === 'signup_admin' || type === 'signup_brand_admin' || type === 'campaign_published_admin')) {
       // Admin notifications - email is not required from body
+    } else if (type === 'proposal_influencer_notification') {
+      if (!influencerId) {
+        return NextResponse.json(
+          { success: false, error: 'Missing required field: influencerId' },
+          { status: 400 }
+        );
+      }
     } else if (type === 'conversation_end' || type === 'message_offline') {
       // conversation_end and message_offline require email but it might be in body.email or body.toEmail
       if (!email && !body.toEmail) {
@@ -411,7 +419,19 @@ export async function POST(req: Request) {
         `;
     }
     else if (type === 'proposal_influencer_notification') {
-        toEmail = email;
+        const { data: influencerRow } = await supabaseService()
+          .from('influencers')
+          .select('contact_email')
+          .eq('id', influencerId)
+          .maybeSingle();
+        const lookedUp = influencerRow?.contact_email?.trim();
+        if (!lookedUp) {
+          return NextResponse.json(
+            { success: false, error: 'Influencer email not found' },
+            { status: 404 }
+          );
+        }
+        toEmail = lookedUp;
         subject = `📨 Νέα Πρόταση από ${brandName}`;
         html = `
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">

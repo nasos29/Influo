@@ -12,6 +12,9 @@ import {
 type Props = {
   lang: "el" | "en";
   isBrand: boolean;
+  /** Logged-out visitors: show the price lock without putting the amount in the page. */
+  costLocked?: boolean;
+  integrationLocked?: boolean;
   axes: ChannelAxis[];
   influoScore: number;
   coopPotential: number;
@@ -52,6 +55,8 @@ function Dots({ score }: { score: number }) {
 export default function ChannelScorePanel({
   lang,
   isBrand,
+  costLocked = false,
+  integrationLocked = false,
   axes,
   influoScore,
   coopPotential,
@@ -168,9 +173,9 @@ export default function ChannelScorePanel({
           </div>
           {costPer1k != null && isBrand ? (
             <div className="mt-1 text-2xl font-extrabold text-slate-900 tabular-nums">{costPer1k}€</div>
-          ) : costPer1k != null ? (
+          ) : costLocked ? (
             <>
-              <div className="mt-1 text-2xl font-extrabold text-slate-900 blur-md select-none">{costPer1k}€</div>
+              <div className="mt-1 text-2xl font-extrabold text-slate-900 blur-md select-none">••••</div>
               <p className="text-[11px] text-slate-500 mt-1 leading-snug">
                 <Link href="/login" className="text-blue-600 underline hover:text-blue-800">
                   {el ? "Σύνδεση" : "Login"}
@@ -195,11 +200,9 @@ export default function ChannelScorePanel({
                 <p className="text-[11px] text-slate-500 mt-1">{el ? "Εκτίμηση" : "Estimate"}</p>
               )}
             </>
-          ) : integrationFrom != null && integrationTo != null ? (
+          ) : integrationLocked ? (
             <>
-              <div className="mt-1 text-lg font-extrabold text-slate-900 blur-md select-none">
-                {money(integrationFrom)} – {money(integrationTo)}
-              </div>
+              <div className="mt-1 text-lg font-extrabold text-slate-900 blur-md select-none">••••</div>
               <p className="text-[11px] text-slate-500 mt-1 leading-snug">
                 <Link href="/login" className="text-blue-600 underline hover:text-blue-800">
                   {el ? "Σύνδεση" : "Login"}

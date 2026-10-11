@@ -16,7 +16,7 @@ export async function GET(req: Request) {
 
     const { data: reviews, error } = await supabaseAdmin
       .from('influencer_reviews')
-      .select('*')
+      .select('id, influencer_id, brand_name, rating, review_text, project_type, created_at, verified')
       .eq('influencer_id', influencerId)
       .eq('verified', true) // Only show verified reviews
       .order('created_at', { ascending: false });
@@ -25,7 +25,18 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ reviews: reviews || [] });
+    const publicReviews = (reviews || []).map((review) => ({
+      id: review.id,
+      influencer_id: review.influencer_id,
+      brand_name: review.brand_name || null,
+      rating: review.rating,
+      review_text: review.review_text,
+      project_type: review.project_type,
+      created_at: review.created_at,
+      verified: review.verified,
+    }));
+
+    return NextResponse.json({ reviews: publicReviews });
   } catch (error: any) {
     console.error('Reviews GET error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

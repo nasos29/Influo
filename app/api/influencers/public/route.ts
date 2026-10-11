@@ -1,38 +1,14 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-);
+import { NextResponse } from "next/server";
+import { loadInfluencerRows } from "@/lib/loadPublicInfluencers";
+import { DIRECTORY_QUERY_COLUMNS, toPublicDirectoryCard } from "@/lib/publicInfluencer";
 
 export async function GET() {
   try {
-    const { data, error } = await supabaseAdmin
-      .from('influencers')
-      .select('*')
-      .eq('approved', true);
-
-    if (error) {
-      console.error('[API /api/influencers/public] Error:', error);
-      return NextResponse.json(
-        { error: error.message, details: error.details },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({ data: data || [] });
-  } catch (err: any) {
-    console.error('[API /api/influencers/public] Exception:', err);
-    return NextResponse.json(
-      { error: err.message || 'Internal server error' },
-      { status: 500 }
-    );
+    const rows = await loadInfluencerRows(DIRECTORY_QUERY_COLUMNS);
+    return NextResponse.json({ data: rows.map(toPublicDirectoryCard) });
+  } catch (err: unknown) {
+    console.error("[API /api/influencers/public] Exception:", err);
+    const message = err instanceof Error ? err.message : "Internal server error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

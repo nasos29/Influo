@@ -26,6 +26,7 @@ import { buildChannelScore } from "@/lib/channelScore";
 import { detectErFlag, erFlagFromReason, erFlagHint, erFlagLabel, type ErFlagReason } from "@/lib/engagementFlags";
 import type { FollowerGrowthPoint } from "@/lib/followerGrowth";
 import { displayLanguageLabel } from "@/lib/languages";
+import { badgeMinRateFromTier } from "@/lib/publicInfluencer";
 
 type Params = Promise<{ id: string }>;
 
@@ -42,7 +43,11 @@ type ProfileAccount = {
 
 interface ProInfluencer extends Influencer {
   video_thumbnails?: Record<string, string> | null;
-  contact_email?: string;
+  has_min_rate?: boolean;
+  has_priced_min_rate?: boolean;
+  price_tier?: string | null;
+  rate_card_flags?: { story?: boolean; post?: boolean; reel?: boolean; facebook?: boolean; youtube?: boolean };
+  min_rate?: string;
   engagement_rate?: string | { [key: string]: string }; // Can be per-platform object or legacy string
   avg_likes?: string | { [key: string]: string }; // Can be per-platform object or legacy string
   accounts?: ProfileAccount[];
@@ -56,7 +61,7 @@ interface ProInfluencer extends Influencer {
   availability_status?: string;
   skills?: string[];
   certifications?: string[];
-  service_packages?: Array<{ name: string; description: string; price: string; includes: string[] }>;
+  service_packages?: Array<{ name: string; description?: string; price?: string; includes?: string[]; has_price?: boolean }>;
   calculatedCompletionRate?: number;
   created_at?: string;
   /** Gemini audit (updated only when followers/engagement/avg_likes are refreshed). */
@@ -168,7 +173,8 @@ const formatNum = (num?: number) => {
 
 function scoreChannelFromProfile(
   profile: ProInfluencer,
-  growthPct: number | null
+  growthPct: number | null,
+  revealPrices: boolean
 ) {
   const followerVals = Object.values(profile.followers || {});
   const followersTotal = followerVals.reduce(
@@ -189,8 +195,9 @@ function scoreChannelFromProfile(
     reviewCount: profile.total_reviews || 0,
     completionRate: profile.calculatedCompletionRate,
     growthPct,
-    minRate: profile.min_rate,
-    rateCard: profile.rate_card,
+    minRate: revealPrices ? profile.min_rate : undefined,
+    rateCard: revealPrices ? profile.rate_card : undefined,
+    hasPricedMinRate: !!profile.has_priced_min_rate,
   });
 }
 
@@ -426,6 +433,11 @@ export default function InfluencerProfile(props: { params: Params }) {
   const [reviewBrandName, setReviewBrandName] = useState("");
   const [reviewBrandEmail, setReviewBrandEmail] = useState("");
   const [isBrand, setIsBrand] = useState(false);
+  const commercialRef = useRef<{
+    min_rate?: string;
+    rate_card?: ProInfluencer["rate_card"];
+    service_packages?: ProInfluencer["service_packages"];
+  } | null>(null);
   const [shortlistSaved, setShortlistSaved] = useState(false);
   const [shortlistBusy, setShortlistBusy] = useState(false);
   const [growth30d, setGrowth30d] = useState<{ growth: number; growthPct: number | null } | null>(null);
@@ -721,9 +733,10 @@ export default function InfluencerProfile(props: { params: Params }) {
   const fetchProfile = async () => {
     if (!id) return;
 
-    // Fetch influencer data - Works with both UUIDs (new influencers) and numeric IDs (if any)
-    // Try to fetch by id (works for both UUIDs and numeric IDs)
-    const { data, error } = await supabase.from("influencers").select("*").eq("id", id).single();
+    const response = await fetch(`/api/influencers/public/${encodeURIComponent(String(id))}`);
+    const result = await response.json().catch(() => ({}));
+    const data = response.ok ? result.data : null;
+    const error = data ? null : { message: result.error || "Not found" };
     
     // Calculate completion + response metrics from real activity
     let calculatedCompletionRate: number | undefined;
@@ -818,7 +831,6 @@ export default function InfluencerProfile(props: { params: Params }) {
         bio_en: data.bio_en || null,
         avatar: data.avatar_url || null,
         verified: data.analytics_verified || false, // Use analytics_verified for verified badge
-        contact_email: data.contact_email,
         socials: socialsObj,
         followers: followersObj,
         categories: data.category 
@@ -832,7 +844,9 @@ export default function InfluencerProfile(props: { params: Params }) {
             ? (data.languages.includes(',') ? data.languages.split(',').map((l: string) => l.trim()) : [data.languages.trim()])
             : (Array.isArray(data.languages) ? data.languages : []))
           : [],
-        min_rate: data.min_rate,
+        has_min_rate: !!data.has_min_rate,
+        has_priced_min_rate: !!data.has_priced_min_rate,
+        price_tier: data.price_tier || "0",
         videos: Array.isArray(data.videos) ? data.videos : [],
         video_thumbnails: data.video_thumbnails || null,
         engagement_rate: Object.keys(engagementRatesObj).length > 0 ? engagementRatesObj : (data.engagement_rate || undefined), // Store as object per platform, fallback to legacy string
@@ -843,7 +857,7 @@ export default function InfluencerProfile(props: { params: Params }) {
           female: data.audience_female_percent || 50,
           top_age: data.audience_top_age || "?"
         },
-        rate_card: data.rate_card || { story: "Ρώτησε", post: "Ρώτησε", reel: "Ρώτησε", facebook: "Ρώτησε" },
+        rate_card_flags: data.rate_card_flags || {},
         past_brands: data.past_brands || [],
         avg_rating: data.avg_rating || 0,
         total_reviews: data.total_reviews || 0,
@@ -855,7 +869,10 @@ export default function InfluencerProfile(props: { params: Params }) {
         availability_status: data.availability_status || 'available',
         skills: data.skills || [],
         certifications: data.certifications || [],
-        service_packages: data.service_packages || [],
+        service_packages: commercialRef.current?.service_packages
+          ?? (Array.isArray(data.service_packages) ? data.service_packages : []),
+        min_rate: commercialRef.current?.min_rate,
+        rate_card: commercialRef.current?.rate_card,
         calculatedCompletionRate: calculatedCompletionRate,
         created_at: data.created_at,
         auditpr_audit: data.auditpr_audit ?? undefined,
@@ -869,6 +886,31 @@ export default function InfluencerProfile(props: { params: Params }) {
     setLoading(true);
     fetchProfile();
   }, [id]);
+
+  // Exact prices only after the existing brand check. Logged-out visitors keep the lock.
+  useEffect(() => {
+    if (!isBrand || !id) return;
+    let cancelled = false;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token || cancelled) return;
+      const res = await fetch(`/api/influencers/commercial?id=${encodeURIComponent(String(id))}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!res.ok || cancelled) return;
+      const body = await res.json().catch(() => ({}));
+      const row = body.data;
+      if (!row || cancelled) return;
+      const commercial = {
+        min_rate: row.min_rate || undefined,
+        rate_card: row.rate_card || undefined,
+        service_packages: Array.isArray(row.service_packages) ? row.service_packages : undefined,
+      };
+      commercialRef.current = commercial;
+      setProfile((prev) => prev ? { ...prev, ...commercial } : prev);
+    })();
+    return () => { cancelled = true; };
+  }, [isBrand, id]);
 
   // Track profile view after profile loads
   useEffect(() => {
@@ -1018,7 +1060,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     type: 'proposal_influencer_notification',
-                    email: profile?.contact_email || '',
+                    influencerId: id,
                     influencerName: profile?.name || 'Influencer',
                     brandName: brandName,
                     brandEmail: brandEmail,
@@ -1752,7 +1794,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                   avg_rating: profile.avg_rating || 0,
                   past_brands: profile.past_brands || [],
                   account_created_days: accountAgeDays,
-                  min_rate: profile.min_rate,
+                  min_rate: profile.min_rate || badgeMinRateFromTier(profile.price_tier),
                 }, lang);
                 
                 // Debug: log badge calculation (always log for debugging)
@@ -2213,7 +2255,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                     </span>
                   </ProfileStatCard>
 
-                  {profile.min_rate && (
+                  {(profile.has_min_rate || profile.min_rate) && (
                     <ProfileStatCard
                       label={txt.min_rate}
                       accent
@@ -2224,7 +2266,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                         </MetricIcon>
                       }
                     >
-                      {isBrand ? (
+                      {isBrand && profile.min_rate ? (
                         <div>
                           <p className="text-2xl font-semibold tracking-tight text-blue-700 tabular-nums">
                             {profile.min_rate}€
@@ -2234,7 +2276,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                       ) : (
                         <div>
                           <p className="select-none text-2xl font-semibold tracking-tight text-blue-700 blur-md tabular-nums">
-                            {profile.min_rate}€
+                            ••••
                           </p>
                           <p className="mt-1 text-xs leading-snug text-slate-600">
                             <Link
@@ -2279,7 +2321,13 @@ export default function InfluencerProfile(props: { params: Params }) {
                 <ChannelScorePanel
                   lang={lang}
                   isBrand={isBrand}
-                  {...scoreChannelFromProfile(profile, growth30d?.growthPct ?? null)}
+                  costLocked={!isBrand && !!profile.has_priced_min_rate}
+                  integrationLocked={
+                    !isBrand &&
+                    (!!profile.has_priced_min_rate ||
+                      Object.values(profile.rate_card_flags || {}).some(Boolean))
+                  }
+                  {...scoreChannelFromProfile(profile, growth30d?.growthPct ?? null, isBrand)}
                 />
                 <FollowerGrowthChart lang={lang} points={growthSeries} />
                 <StatsInsightsPanel
@@ -2575,20 +2623,20 @@ export default function InfluencerProfile(props: { params: Params }) {
                         <h2 className="text-xl font-bold text-slate-900 mb-6">{txt.tab_price}</h2>
                         
                         {/* Minimum Rate - θολή τιμή αν δεν είναι συνδεδεμένη επιχείρηση */}
-                        {profile.min_rate && (
+                        {(profile.has_min_rate || profile.min_rate) && (
                           <div className="mb-8 p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 shadow-md">
                             <div className="flex items-center gap-3 mb-2">
                               <span className="text-2xl">💰</span>
                               <h3 className="text-lg font-bold text-slate-900">{txt.min_rate}</h3>
                             </div>
-                            {isBrand ? (
+                            {isBrand && profile.min_rate ? (
                               <>
                                 <p className="text-4xl font-extrabold text-blue-700 mb-2">{profile.min_rate}€</p>
                                 <p className="text-sm text-slate-600">{txt.min_rate_desc}</p>
                               </>
                             ) : (
                               <>
-                                <p className="text-4xl font-extrabold text-blue-700 mb-2 select-none blur-md">{profile.min_rate}€</p>
+                                <p className="text-4xl font-extrabold text-blue-700 mb-2 select-none blur-md">••••</p>
                                 <p className="text-sm text-slate-600">
                                   <Link href="/login" className="text-blue-600 underline hover:text-blue-800">{txt.min_rate_cta_login}</Link>
                                   {lang === 'el' ? ' ή ' : ' or '}
@@ -2609,11 +2657,11 @@ export default function InfluencerProfile(props: { params: Params }) {
                                 <div key={i} className="border-2 border-blue-200 rounded-xl p-6 bg-gradient-to-br from-blue-50 to-white">
                                   <h4 className="font-bold text-slate-900 text-lg mb-2">{pkg.name}</h4>
                                   <p className="text-slate-600 text-sm mb-4">{pkg.description}</p>
-                                  {isBrand ? (
+                                  {isBrand && pkg.price ? (
                                     <p className="text-2xl font-extrabold text-blue-600 mb-4">{pkg.price}</p>
-                                  ) : (
-                                    <p className="text-2xl font-extrabold text-blue-600 mb-4 select-none blur-md">{pkg.price}</p>
-                                  )}
+                                  ) : (pkg.has_price || pkg.price) ? (
+                                    <p className="text-2xl font-extrabold text-blue-600 mb-4 select-none blur-md">••••</p>
+                                  ) : null}
                                   {pkg.includes && Array.isArray(pkg.includes) && (
                                     <ul className="space-y-2 mb-4">
                                       {pkg.includes.map((item: string, j: number) => (
@@ -2674,8 +2722,11 @@ export default function InfluencerProfile(props: { params: Params }) {
                                         }
                                         
                                         return Array.from(serviceMap.values()).map((service, idx) => {
-                                            const price = profile.rate_card?.[service.key];
-                                            const isAsk = !price || price.toLowerCase() === 'ask' || price.toLowerCase() === 'ρώτησε' || price.trim() === '';
+                                            const price = isBrand ? profile.rate_card?.[service.key] : undefined;
+                                            const flagged = !!profile.rate_card_flags?.[service.key];
+                                            const isAsk = isBrand
+                                              ? (!price || price.toLowerCase() === 'ask' || price.toLowerCase() === 'ρώτησε' || price.trim() === '')
+                                              : !flagged;
                                             
                                             return (
                                                 <div key={idx} className="flex justify-between items-center px-4 py-2.5 hover:bg-slate-50 transition-colors">
@@ -2693,7 +2744,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                                                     ) : isBrand ? (
                                                         <span className="font-bold text-lg text-slate-900">{price}</span>
                                                     ) : (
-                                                        <span className="font-bold text-lg text-slate-900 select-none blur-md">{price}</span>
+                                                        <span className="font-bold text-lg text-slate-900 select-none blur-md">••••</span>
                                                     )}
                                                 </div>
                                             );
@@ -2746,7 +2797,7 @@ export default function InfluencerProfile(props: { params: Params }) {
                           <div key={review.id} className="border border-slate-200 rounded-xl p-6 hover:shadow-md transition-shadow">
                             <div className="flex items-start justify-between mb-3">
                               <div>
-                                <h4 className="font-bold text-slate-900">{review.brand_name || review.brand_email}</h4>
+                                <h4 className="font-bold text-slate-900">{review.brand_name || (lang === "el" ? "Επιχείρηση" : "Brand")}</h4>
                                 <p className="text-xs text-slate-500">{new Date(review.created_at).toLocaleDateString()}</p>
                               </div>
                               <div className="flex items-center gap-1">
