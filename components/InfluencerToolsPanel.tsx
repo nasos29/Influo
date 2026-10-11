@@ -181,9 +181,12 @@ export default function InfluencerToolsPanel({
               <label className="block text-xs font-medium text-slate-600 mb-1">
                 Σύντομο όνομα στο URL (λατινικά)
               </label>
+              <p className="text-xs text-slate-500 mb-1">
+                Αν το αλλάξεις, το παλιό link συνεχίζει να ανοίγει το προφίλ σου.
+              </p>
               <div className="flex flex-col sm:flex-row gap-2">
                 <div className="flex-1 flex items-center border border-slate-300 rounded-lg overflow-hidden">
-                  <span className="px-3 py-2 bg-slate-100 text-slate-500 text-sm whitespace-nowrap">influo.gr/in/</span>
+                  <span className="px-3 py-2 bg-slate-100 text-slate-500 text-sm whitespace-nowrap">www.influo.gr/in/</span>
                   <input
                     value={slugDraft}
                     onChange={(e) => setSlugDraft(e.target.value)}

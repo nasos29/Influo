@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { sendPushInfluencerAccountApproved } from '@/lib/push';
 import { ensureBilingualBio } from '@/lib/bioTranslate';
+import { ensureProfileSlug } from '@/lib/profileSlugAssign';
 
 function escapeHtml(s: string): string {
   return String(s)
@@ -108,6 +109,9 @@ export async function finalizeNewInfluencerApproval(
     throw new Error(approveErr.message);
   }
 
+  await ensureProfileSlug(supabaseAdmin, influencerId).catch((e) => {
+    console.error('[approve-new] slug', e);
+  });
   await markProfileChangesReviewed(supabaseAdmin, influencerId).catch(() => undefined);
   const name = inf.display_name || String(influencerId);
   const email = String(inf.contact_email || '').trim();

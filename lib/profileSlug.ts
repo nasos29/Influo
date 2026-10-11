@@ -32,23 +32,24 @@ export const PROFILE_SLUG_RESERVED = new Set([
   'www',
 ]);
 
-export function slugifyProfileName(name: string, fallbackId: string): string {
-  const base = toGreeklish(name || '')
+function cleanSlug(raw: string): string {
+  return toGreeklish(raw || "")
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 40);
-  if (base && !PROFILE_SLUG_RESERVED.has(base)) return base;
-  const short = String(fallbackId).replace(/-/g, '').slice(0, 8);
-  return `creator-${short || 'profile'}`;
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40)
+    .replace(/^-+|-+$/g, "");
+}
+
+export function slugifyProfileName(name: string, fallbackId: string): string {
+  const base = cleanSlug(name);
+  if (base.length >= 2 && !PROFILE_SLUG_RESERVED.has(base)) return base;
+  const short = String(fallbackId).replace(/-/g, "").slice(0, 8);
+  return `creator-${short || "profile"}`;
 }
 
 export function normalizeProfileSlug(raw: string): string | null {
-  const slug = toGreeklish(raw || '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 40);
+  const slug = cleanSlug(raw);
   if (slug.length < 2 || PROFILE_SLUG_RESERVED.has(slug)) return null;
   return slug;
 }
