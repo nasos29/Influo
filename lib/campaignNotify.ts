@@ -4,6 +4,23 @@ import { sendPushToInfluencer } from "@/lib/push";
 import { escapeHtml, sendTransactional } from "@/lib/transactionalEmail";
 
 const MATCH_LIMIT = 25;
+const SEND_TIMEOUT_MS = 8000;
+
+function withTimeout<T>(work: Promise<T>, ms: number): Promise<T | undefined> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(undefined), ms);
+    work.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      () => {
+        clearTimeout(timer);
+        resolve(undefined);
+      }
+    );
+  });
+}
 
 type Contact = { id: string; name: string; email: string | null; category: string | null };
 
@@ -65,28 +82,36 @@ export async function notifyMatchingOpenCampaign(opts: {
   const link = campaignLink(opts.campaignId);
   const safeTitle = escapeHtml(opts.title);
   const safeBrand = escapeHtml(opts.brandName);
-  let emailed = 0;
-  let pushed = 0;
-  for (const person of people) {
-    const mail = await sendTransactional(
-      person.email,
-      `Νέα καμπάνια: ${opts.title}`,
-      `<div style="font-family:sans-serif;font-size:14px;color:#1f2937;max-width:560px">
+  const deliveries = await Promise.all(
+    people.map(async (person) => {
+      const mail = await withTimeout(
+        sendTransactional(
+          person.email,
+          `Νέα καμπάνια: ${opts.title}`,
+          `<div style="font-family:sans-serif;font-size:14px;color:#1f2937;max-width:560px">
         <p>Γεια σου ${escapeHtml(person.name)},</p>
         <p>Η επιχείρηση <strong>${safeBrand}</strong> δημοσίευσε την καμπάνια <strong>${safeTitle}</strong> σε κατηγορία που ταιριάζει με το προφίλ σου.</p>
         <p><a href="${link}">Δες την καμπάνια και κάνε αίτηση</a></p>
       </div>`
-    );
-    if (mail.ok) emailed += 1;
-    const push = await sendPushToInfluencer(person.id, {
-      title: "Νέα καμπάνια",
-      body: `${opts.brandName}: ${opts.title}`.slice(0, 120),
-      url: `/campaigns/${opts.campaignId}`,
-      tag: `campaign-open-${opts.campaignId}`,
-    });
-    pushed += push.sent;
-  }
-  return { emailed, pushed };
+        ),
+        SEND_TIMEOUT_MS
+      );
+      const push = await withTimeout(
+        sendPushToInfluencer(person.id, {
+          title: "Νέα καμπάνια",
+          body: `${opts.brandName}: ${opts.title}`.slice(0, 120),
+          url: `/campaigns/${opts.campaignId}`,
+          tag: `campaign-open-${opts.campaignId}`,
+        }),
+        SEND_TIMEOUT_MS
+      );
+      return { emailed: mail?.ok ? 1 : 0, pushed: push?.sent || 0 };
+    })
+  );
+  return {
+    emailed: deliveries.reduce((sum, row) => sum + row.emailed, 0),
+    pushed: deliveries.reduce((sum, row) => sum + row.pushed, 0),
+  };
 }
 
 export async function notifyApplicationStatus(opts: {

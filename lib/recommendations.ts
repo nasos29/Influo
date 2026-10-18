@@ -1,6 +1,6 @@
 // Smart Recommendation System for Matching Influencers to Brands
 
-import { categoryLabel, formatCategoryLabels, isGeneralCategory, parseStoredCategories } from "./categories.ts";
+import { categoryLabel, categoryTranslations, isGeneralCategory, parseStoredCategories } from "./categories.ts";
 
 export interface BrandProfile {
   id: string;
@@ -187,11 +187,38 @@ const GREEK_TO_CONCEPT: { [key: string]: string } = {
 /**
  * Match brand industry to a single label (category or niche)
  */
-/** Canonical categories that the brand and the creator both list. Audit text is ignored. */
+function canonicalCategoryKeys(value: unknown): string[] {
+  const out: string[] = [];
+  for (const cat of parseStoredCategories(value)) {
+    if (!cat || isGeneralCategory(cat) || out.includes(cat)) continue;
+    if (!categoryTranslations[cat]) continue;
+    out.push(cat);
+  }
+  return out;
+}
+
+/**
+ * Canonical categories listed by both sides.
+ * Audit niche text is not a category. A loose alias inside another label does not count.
+ * Empty when the creator does not list the brand's category.
+ */
 export function sharedCategoryKeys(brandValue: unknown, influencerValue: unknown): string[] {
-  const brand = parseStoredCategories(brandValue).filter((cat) => !isGeneralCategory(cat));
-  const influencer = parseStoredCategories(influencerValue).filter((cat) => !isGeneralCategory(cat));
-  return brand.filter((cat) => influencer.includes(cat));
+  const influencer = new Set(canonicalCategoryKeys(influencerValue));
+  return canonicalCategoryKeys(brandValue).filter((cat) => influencer.has(cat));
+}
+
+/** Shared-category sentence, or null when the intersection is empty. */
+export function sharedCategoryReason(
+  brandValue: unknown,
+  influencerValue: unknown,
+  lang: "el" | "en"
+): string | null {
+  const labels = sharedCategoryKeys(brandValue, influencerValue)
+    .map((key) => categoryLabel(key, lang))
+    .filter(Boolean);
+  if (!labels.length) return null;
+  const line = lang === "en" ? `Shared categories: ${labels.join(", ")}` : `Κοινές κατηγορίες: ${labels.join(", ")}`;
+  return clipReason(line);
 }
 
 function clipReason(text: string, max = 96): string {
@@ -526,17 +553,12 @@ export function recommendInfluencers(
       score = Math.min(score, 100);
 
       const reasons: string[] = [];
-
-      if (overlap.length) {
-        const labels = overlap.map((key) => categoryLabel(key, lang)).filter(Boolean).join(", ");
-        reasons.push(clipReason(isEn ? `Shared categories: ${labels}` : `Κοινές κατηγορίες: ${labels}`));
-      } else {
-        const own = formatCategoryLabels(
-          influencer.categories?.length ? influencer.categories : influencer.category,
-          lang
-        );
-        if (own) reasons.push(clipReason(isEn ? `Creator categories: ${own}` : `Κατηγορίες creator: ${own}`));
-      }
+      const sharedLine = sharedCategoryReason(
+        brand.category || brand.industry,
+        influencer.categories?.length ? influencer.categories : influencer.category,
+        lang
+      );
+      if (sharedLine) reasons.push(sharedLine);
 
       if (strengths.engagementQuality >= 0.9) {
         const rate = parseEngagementRate(influencer.engagement_rate);

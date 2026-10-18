@@ -6,7 +6,7 @@ import { sessionFetch } from '@/lib/sessionFetch';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { recommendInfluencers, type InfluencerProfile, type BrandProfile } from '@/lib/recommendations';
+import { recommendInfluencers, sharedCategoryKeys, sharedCategoryReason, type InfluencerProfile, type BrandProfile } from '@/lib/recommendations';
 import { lookupAuthUser, logoutEverywhere } from '@/lib/authSession';
 import CreatorPhoto from '@/components/CreatorPhoto';
 import PlatformFollowers from '@/components/PlatformFollowers';
@@ -479,7 +479,8 @@ export default function BrandDashboardContent() {
   const [savingAgreement, setSavingAgreement] = useState(false);
   const [processingCounterProposal, setProcessingCounterProposal] = useState<string | null>(null);
   const [recommendations, setRecommendations] = useState<any[]>([]);
-  const [recommendationsLoading, setRecommendationsLoading] = useState(false);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(true);
+  const [recommendationsReady, setRecommendationsReady] = useState(false);
   const [brandData, setBrandData] = useState<any>(null);
 
   useOwnPresenceHeartbeat(
@@ -721,10 +722,10 @@ export default function BrandDashboardContent() {
       console.log(`[Brand Dashboard] Brand email: ${brandData.contact_email}`);
       setBrandData(brandData);
       setLoading(false);
-      await sessionFetch('/api/proposals/claim', { method: 'POST' }).catch(() => {});
-      
-      // Recommendations load after the dashboard shell is visible.
+
+      // Start suggestions before the claim call so the empty state cannot show during that wait.
       void loadRecommendations(brandData);
+      await sessionFetch('/api/proposals/claim', { method: 'POST' }).catch(() => {});
 
       const proposalsResponse = await sessionFetch('/api/proposals?role=brand', { cache: 'no-store' });
       const proposalsBody = await proposalsResponse.json().catch(() => ({}));
@@ -1067,6 +1068,7 @@ export default function BrandDashboardContent() {
       console.error('Error loading recommendations:', err);
     } finally {
       setRecommendationsLoading(false);
+      setRecommendationsReady(true);
     }
   };
 
@@ -1644,10 +1646,19 @@ export default function BrandDashboardContent() {
             </div>
           )}
           
-          {recommendationsLoading ? (
-            <div className="bg-white rounded-xl p-12 text-center border border-slate-200">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-slate-600">{txt.recommendations_loading}</p>
+          {recommendationsLoading || !recommendationsReady ? (
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6" aria-busy="true">
+              {Array.from({ length: 4 }, (_, i) => (
+                <div key={i} className="bg-white rounded-xl border border-slate-200 overflow-hidden animate-pulse">
+                  <div className="h-48 bg-slate-200" />
+                  <div className="p-4 space-y-3">
+                    <div className="h-3 bg-slate-200 rounded w-2/3" />
+                    <div className="h-3 bg-slate-200 rounded w-1/2" />
+                    <div className="h-3 bg-slate-100 rounded w-5/6" />
+                  </div>
+                </div>
+              ))}
+              <p className="sr-only">{txt.recommendations_loading}</p>
             </div>
           ) : recommendations.length === 0 ? (
             <div className="bg-white rounded-xl p-8 text-center border border-slate-200">
@@ -1657,13 +1668,23 @@ export default function BrandDashboardContent() {
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               {recommendations.map((match, index) => {
                 const inf = match.influencer;
+                const creatorCats = Array.isArray(inf.categories) && inf.categories.length ? inf.categories : inf.category;
+                const shared = new Set(sharedCategoryKeys(brandData?.industry, creatorCats));
+                const cats = (Array.isArray(inf.categories) ? inf.categories : inf.category ? [inf.category] : [])
+                  .filter((cat: unknown): cat is string => typeof cat === "string" && cat.length > 0);
+                const orderedCats = [...cats.filter((cat: string) => shared.has(cat)), ...cats.filter((cat: string) => !shared.has(cat))].slice(0, 3);
+                const sharedLine = sharedCategoryReason(brandData?.industry, creatorCats, lang);
+                const otherReasons = (Array.isArray(match.reasons) ? match.reasons : []).filter(
+                  (reason: string) => !/^(Κοινές κατηγορίες|Shared categories|Κατηγορίες creator|Creator categories)\s*:/.test(reason)
+                );
+                const reasons = (sharedLine ? [sharedLine, ...otherReasons] : otherReasons).slice(0, 3);
                 return (
                   <div
                     key={inf.id}
                     className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all overflow-hidden"
                   >
                     <div className="relative">
-                      <div className="absolute top-2 right-2 z-10">
+                      <div className="absolute top-2 right-2 z-30">
                         <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold text-white ${
                           match.score >= 80 ? 'bg-emerald-600' :
                           match.score >= 65 ? 'bg-blue-600' :
@@ -1674,19 +1695,17 @@ export default function BrandDashboardContent() {
                       </div>
                       
                       {/* Avatar */}
-                      <div className="relative h-48 bg-slate-200">
+                      <div className="relative h-48 overflow-hidden bg-slate-200">
                         <CreatorPhoto
                           src={inf.avatar_url}
                           name={displayNameForLang(inf.display_name, lang)}
-                          className="absolute inset-0 h-full w-full"
+                          fill
+                          className="absolute inset-0 z-10 h-full w-full"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                        <div className="absolute bottom-3 left-3 right-3">
+                        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-24 bg-gradient-to-t from-black/75 to-black/0"></div>
+                        <div className="absolute bottom-3 left-3 right-3 z-20">
                           <h3 className="text-white font-bold text-lg mb-1.5">{displayNameForLang(inf.display_name, lang)}</h3>
-                          {(Array.isArray(inf.categories) ? inf.categories : inf.category ? [inf.category] : [])
-                            .filter((cat: unknown): cat is string => typeof cat === "string" && cat.length > 0)
-                            .slice(0, 3)
-                            .map((cat: string, idx: number) => (
+                          {orderedCats.map((cat: string, idx: number) => (
                             <span key={idx} className="inline-block px-2 py-1 bg-white/20 backdrop-blur-sm rounded text-xs text-white font-medium mr-1 mb-1">
                               {categoryLabel(cat, lang)}
                             </span>
@@ -1736,7 +1755,7 @@ export default function BrandDashboardContent() {
                       <div className="mb-4">
                         <p className="text-xs font-medium text-slate-500 mb-1.5">{txt.why_match}</p>
                         <ul className="space-y-1">
-                          {(Array.isArray(match.reasons) ? match.reasons : []).slice(0, 3).map((reason: string, i: number) => (
+                          {reasons.map((reason: string, i: number) => (
                             <li key={i} className="text-xs text-slate-700 flex items-start gap-2">
                               <span className="text-emerald-500 shrink-0 mt-0.5" aria-hidden>•</span>
                               <span className="line-clamp-2">{reason}</span>

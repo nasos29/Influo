@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { sessionFetch } from "@/lib/sessionFetch";
@@ -76,6 +76,34 @@ type InviteMatch = {
 };
 
 type LangPair = { el: string; en: string };
+
+function publishFollowUp(campaignId: string, token: string, onMatches: (matches: InviteMatch[]) => void): Promise<void> {
+  const notify = fetch("/api/push/campaign-published", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ campaignId }),
+    signal: AbortSignal.timeout(12000),
+  })
+    .then(() => undefined)
+    .catch((err) => {
+      console.error("[campaign publish] notify", err);
+    });
+  const matches = sessionFetch(`/api/campaigns/matches?campaignId=${encodeURIComponent(campaignId)}`, {
+    signal: AbortSignal.timeout(12000),
+  })
+    .then(async (matchRes) => {
+      if (!matchRes.ok) return;
+      const body = await matchRes.json();
+      onMatches(Array.isArray(body.matches) ? body.matches : []);
+    })
+    .catch((err) => {
+      console.error("[campaign publish] matches", err);
+    });
+  return Promise.all([notify, matches]).then(() => undefined);
+}
 
 function langPack<K extends string>(rows: Record<K, LangPair>) {
   const pack = { el: {} as Record<K, string>, en: {} as Record<K, string> };
@@ -233,6 +261,7 @@ export default function BrandCampaignsSection({
   const [loadingApps, setLoadingApps] = useState<string | null>(null);
   const [editing, setEditing] = useState<BrandCampaignRow | "new" | null>(null);
   const [saving, setSaving] = useState(false);
+  const saveLock = useRef(false);
   const [form, setForm] = useState(emptyForm);
   const [invites, setInvites] = useState<InviteMatch[]>([]);
   const [inviteCampaignId, setInviteCampaignId] = useState<string | null>(null);
@@ -360,6 +389,16 @@ export default function BrandCampaignsSection({
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saveLock.current) return;
+    saveLock.current = true;
+    try {
+    await saveCampaign();
+    } finally {
+      saveLock.current = false;
+    }
+  };
+
+  const saveCampaign = async () => {
     if (!form.title.trim() || !form.description.trim()) return;
     if (!form.category) {
       toastError(lang === "el" ? "Η κατηγορία είναι υποχρεωτική." : "Category is required.");
@@ -451,24 +490,18 @@ export default function BrandCampaignsSection({
       }
       campaignId = result.data?.id || (editing && typeof editing !== "string" ? editing.id : null);
       if (shouldNotify && campaignId) {
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (sessionData.session?.access_token) {
-          await fetch("/api/push/campaign-published", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${sessionData.session.access_token}`,
-            },
-            body: JSON.stringify({ campaignId }),
-          }).catch(() => undefined);
-          const matchRes = await sessionFetch(`/api/campaigns/matches?campaignId=${campaignId}`);
-          if (matchRes.ok) {
-            const body = await matchRes.json();
-            setInvites(Array.isArray(body.matches) ? body.matches : []);
-            setInviteCampaignId(campaignId);
-          }
-        }
         toastSuccess(x.published);
+        const publishedId = campaignId;
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        if (token) {
+          publishFollowUp(publishedId, token, (matches) => {
+            setInvites(matches);
+            setInviteCampaignId(publishedId);
+          }).catch((err) => {
+            console.error("[campaign publish] follow-up", err);
+          });
+        }
       } else if (form.status === "draft") {
         toastSuccess(x.draft_saved);
       } else {

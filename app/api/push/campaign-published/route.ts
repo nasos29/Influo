@@ -1,6 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { notifyMatchingOpenCampaign } from "@/lib/campaignNotify";
+
+export const maxDuration = 60;
 
 function userClient(accessToken: string) {
   return createClient(
@@ -64,41 +66,41 @@ export async function POST(req: NextRequest) {
     const br = row.brands as { brand_name?: string } | { brand_name?: string }[] | null;
     const brandName =
       (Array.isArray(br) ? br[0]?.brand_name : br?.brand_name) || "Brand";
-    const result = await notifyMatchingOpenCampaign({
-      campaignId: row.id,
-      title: row.title,
-      category: (row as { category?: string | null }).category || null,
-      brandName,
-    });
+    const title = row.title;
+    const category = (row as { category?: string | null }).category || null;
+    const budget = row.budget;
+    const siteUrl = req.nextUrl.origin;
 
-    let adminEmailSent = false;
-    try {
-      const siteUrl = req.nextUrl.origin;
-      const emailRes = await fetch(`${siteUrl}/api/emails`, {
+    after(() =>
+      notifyMatchingOpenCampaign({ campaignId, title, category, brandName }).catch((err) => {
+        console.error("[push/campaign-published] notify", err);
+      })
+    );
+    after(() =>
+      fetch(`${siteUrl}/api/emails`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: "campaign_published_admin",
-          campaignId: row.id,
-          campaignTitle: row.title,
+          campaignId,
+          campaignTitle: title,
           brandName,
-          budget: row.budget,
+          budget,
         }),
-      });
-      adminEmailSent = emailRes.ok;
-      if (!emailRes.ok) {
-        const errText = await emailRes.text();
-        console.error(
-          "[push/campaign-published] admin email API failed",
-          emailRes.status,
-          errText
-        );
-      }
-    } catch (emailErr) {
-      console.error("[push/campaign-published] admin email error", emailErr);
-    }
+        signal: AbortSignal.timeout(12000),
+      })
+        .then(async (emailRes) => {
+          if (!emailRes.ok) {
+            const errText = await emailRes.text();
+            console.error("[push/campaign-published] admin email API failed", emailRes.status, errText);
+          }
+        })
+        .catch((emailErr) => {
+          console.error("[push/campaign-published] admin email error", emailErr);
+        })
+    );
 
-    return NextResponse.json({ ok: true, ...result, adminEmailSent });
+    return NextResponse.json({ ok: true, queued: true });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Server error";
     console.error("[push/campaign-published]", e);
