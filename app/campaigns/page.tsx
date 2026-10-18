@@ -37,6 +37,9 @@ export default function PublicCampaignsPage() {
   const [userKind, setUserKind] = useState<UserKind>("none");
   const [authReady, setAuthReady] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
+  const [influencerId, setInfluencerId] = useState<string | null>(null);
+  const [approvedInfluencer, setApprovedInfluencer] = useState(false);
+  const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setLang(pathname?.startsWith("/en") ? "en" : getStoredLanguage() === "en" ? "en" : "el");
@@ -46,8 +49,24 @@ export default function PublicCampaignsPage() {
     let cancelled = false;
     const path = pathname || "/campaigns";
     (async () => {
-      const { data: { session: s } } = await supabase.auth.getSession();
+      let timedOut = false;
+      const sessionResult = await Promise.race([
+        supabase.auth.getSession().then((result) => result.data.session),
+        new Promise<null>((resolve) =>
+          setTimeout(() => {
+            timedOut = true;
+            resolve(null);
+          }, 8000)
+        ),
+      ]);
       if (cancelled) return;
+      if (timedOut && !sessionResult) {
+        setAuthReady(true);
+        setErr(true);
+        setLoading(false);
+        return;
+      }
+      const s = sessionResult;
       setSession(s);
       setAuthReady(true);
       if (!s) {
@@ -87,14 +106,40 @@ export default function PublicCampaignsPage() {
         setUserKind("brand");
         return;
       }
-      setUserKind(profiles.influencer ? "influencer" : "none");
+      if (profiles.influencer) {
+        setUserKind("influencer");
+        setInfluencerId(String(profiles.influencer.id || ""));
+        setApprovedInfluencer(!!profiles.influencer.approved);
+        return;
+      }
+      setUserKind("none");
     };
     resolveUser();
   }, [session?.user?.id]);
 
   useEffect(() => {
+    if (!influencerId || !approvedInfluencer) {
+      setAppliedIds(new Set());
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("campaign_applications")
+        .select("campaign_id, status")
+        .eq("influencer_id", influencerId);
+      if (cancelled) return;
+      setAppliedIds(new Set((data || []).filter((row) => row.status !== "withdrawn").map((row) => String(row.campaign_id))));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [influencerId, approvedInfluencer]);
+
+  useEffect(() => {
     if (!session) return;
     let cancelled = false;
+    let finished = false;
     (async () => {
       setLoading(true);
       setErr(false);
@@ -123,10 +168,18 @@ export default function PublicCampaignsPage() {
       } else {
         setRows((data as unknown as Row[]) || []);
       }
+      finished = true;
       setLoading(false);
     })();
+    const timer = window.setTimeout(() => {
+      if (!cancelled && !finished) {
+        setLoading(false);
+        setErr(true);
+      }
+    }, 12000);
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
   }, [session]);
 
@@ -186,7 +239,7 @@ export default function PublicCampaignsPage() {
     return (
       <div className="min-h-screen flex flex-col bg-slate-50">
         <div className="flex-1 flex items-center justify-center">
-          <p className="text-slate-500">…</p>
+          <div className="h-28 w-full max-w-xl rounded-xl bg-white border border-slate-200 animate-pulse" />
         </div>
       </div>
     );
@@ -247,7 +300,10 @@ export default function PublicCampaignsPage() {
         </div>
 
         {loading ? (
-          <p className="mt-10 text-slate-500">…</p>
+          <div className="mt-10 space-y-3" aria-busy="true">
+            <div className="h-28 rounded-xl bg-white border border-slate-200 animate-pulse" />
+            <div className="h-28 rounded-xl bg-white border border-slate-200 animate-pulse" />
+          </div>
         ) : err ? (
           <p className="mt-10 text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm">{t.loadErr}</p>
         ) : rows.length === 0 ? (
@@ -271,7 +327,21 @@ export default function PublicCampaignsPage() {
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <h2 className="text-lg font-semibold text-slate-900">{c.title}</h2>
+                    <h2 className="text-lg font-semibold text-slate-900">
+                      <Link href={`/campaigns/${c.id}`} className="hover:underline">
+                        {c.title}
+                      </Link>
+                    </h2>
+                    {approvedInfluencer && appliedIds.has(c.id) && (
+                      <p className="text-xs font-medium text-emerald-700 mt-1">
+                        {lang === "el" ? "Έχετε ήδη κάνει αίτηση" : "Already applied"}
+                      </p>
+                    )}
+                    {approvedInfluencer && !appliedIds.has(c.id) && (
+                      <Link href={`/campaigns/${c.id}`} className="inline-block mt-2 text-sm font-medium text-blue-700 hover:underline">
+                        {lang === "el" ? "Αίτηση" : "Apply"}
+                      </Link>
+                    )}
                     <p className="text-sm text-slate-500">{c.brands?.brand_name}</p>
                     <p className="text-slate-700 mt-3 whitespace-pre-wrap">{c.description}</p>
                     {c.deliverables && (

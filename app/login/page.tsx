@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { loadOwnProfiles } from '@/lib/ownProfile'; 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
+import { clearSupabaseAuthStorage, consumeLoggedOutFlag } from '@/lib/authSession';
 
 const t = {
   el: {
@@ -64,6 +65,12 @@ function LoginPageContent() {
     useEffect(() => {
         let cancelled = false;
         (async () => {
+            if (consumeLoggedOutFlag()) {
+                clearSupabaseAuthStorage();
+                await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
+                clearSupabaseAuthStorage();
+                return;
+            }
             const { data: { user } } = await supabase.auth.getUser();
             if (!user || cancelled) return;
             const userEmail = user.email?.toLowerCase().trim();
@@ -282,7 +289,10 @@ function LoginPageContent() {
                             <input
                                 type="email"
                                 value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                                onChange={(e) => {
+                                    setEmail(e.target.value);
+                                    if (messageType === 'error') setMessage('');
+                                }}
                                 required
                                 className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 !text-black !bg-white transition-all shadow-sm hover:border-slate-300"
                                 placeholder={txt.email_placeholder}
@@ -295,7 +305,10 @@ function LoginPageContent() {
                                 <input
                                     type={showPassword ? "text" : "password"} 
                                     value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
+                                    onChange={(e) => {
+                                        setPassword(e.target.value);
+                                        if (messageType === 'error') setMessage('');
+                                    }}
                                     required
                                     className="w-full px-4 py-3 pr-12 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 !text-black !bg-white transition-all shadow-sm hover:border-slate-300"
                                     placeholder={txt.password_placeholder}

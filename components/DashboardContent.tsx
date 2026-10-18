@@ -18,7 +18,7 @@ import InfluencerCampaignsPanel from './InfluencerCampaignsPanel';
 import InfluencerToolsPanel from './InfluencerToolsPanel';
 import { INFLUENCER_BROWSER_COLUMNS, loadOwnInfluencer } from '@/lib/ownProfile';
 import { useOwnPresenceHeartbeat } from '@/lib/useOwnPresenceHeartbeat';
-import { beginPresenceLogout } from '@/lib/presenceControl';
+import { logoutEverywhere } from '@/lib/authSession';
 import { formatStoredCategories, parseStoredCategories } from '@/lib/categories';
 import CategoryCheckboxList from '@/components/CategoryCheckboxList';
 
@@ -909,9 +909,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                 throw new Error(data.error || 'Η διαγραφή απέτυχε. Δοκιμάστε ξανά.');
             }
 
-            beginPresenceLogout();
-            await supabase.auth.signOut();
-            window.location.href = '/?account_deleted=1';
+            await logoutEverywhere('/?account_deleted=1');
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : 'Η διαγραφή απέτυχε. Δοκιμάστε ξανά.';
             setDeleteAccountError(message);
@@ -1263,6 +1261,8 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 <InfluencerCampaignsPanel
                                   influencerId={profile.id}
                                   approved={!!profile.approved}
+                                  available={isAvailable}
+                                  onMarkAvailable={() => setAvailabilityStatus("available")}
                                   onAttentionCountChange={setCampaignAttentionCount}
                                 />
                             </div>
@@ -1620,6 +1620,11 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                             <span className={`text-lg font-semibold ${profile.approved ? 'text-green-600' : 'text-yellow-600'}`}>
                                 {profile.approved ? '✅ Εγκεκριμένο' : '⏳ Σε Εκκρεμότητα'}
                             </span>
+                            {!profile.approved && (
+                                <p className="text-sm text-amber-800 mt-2 leading-relaxed">
+                                    Η εκκρεμότητα σημαίνει ότι δεν μπορείτε ακόμη να δείτε ή να κάνετε αίτηση σε καμπάνιες. Τα υπόλοιπα tabs του dashboard παραμένουν διαθέσιμα. Η ομάδα ελέγχει το προφίλ, συνήθως εντός 1–2 εργάσιμων ημερών.
+                                </p>
+                            )}
                         </div>
                         <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
                             <span className="block text-xs text-slate-500 uppercase font-medium mb-2">Min Rate</span>
@@ -1639,7 +1644,9 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                     <div key={i} className="p-3 border border-slate-200 rounded-lg">
                                         <div className="font-medium text-slate-900">{acc.platform}</div>
                                         <div className="text-sm text-slate-600">@{acc.username}</div>
-                                        <div className="text-sm text-slate-500">{acc.followers} followers</div>
+                                        {acc.followers ? (
+                                            <div className="text-sm text-slate-500">{acc.followers} followers</div>
+                                        ) : null}
                                     </div>
                                 ))}
                             </div>
@@ -1648,9 +1655,9 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 
                                 <div className="pt-4 border-t border-slate-200 space-y-4">
                                     <div className="flex flex-col sm:flex-row gap-3">
-                                        <Link href="/logout" className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium text-center transition-colors">
+                                        <button type="button" onClick={() => void logoutEverywhere("/login")} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium text-center transition-colors">
                                             Αποσύνδεση
-                                        </Link>
+                                        </button>
                                         <button
                                             type="button"
                                             onClick={() => {

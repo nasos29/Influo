@@ -7,13 +7,14 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { recommendInfluencers, type InfluencerProfile, type BrandProfile } from '@/lib/recommendations';
+import { lookupAuthUser, logoutEverywhere } from '@/lib/authSession';
+import CreatorPhoto from '@/components/CreatorPhoto';
+import PlatformFollowers from '@/components/PlatformFollowers';
 import Messaging from '@/components/Messaging';
 import { useOwnPresenceHeartbeat } from '@/lib/useOwnPresenceHeartbeat';
-import { beginPresenceLogout } from '@/lib/presenceControl';
 import PushNotificationPrompt from '@/components/PushNotificationPrompt';
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 import { displayNameForLang } from '@/lib/greeklish';
-import { getCachedImageUrl } from '@/lib/imageProxy';
 import { prepareImageForStorage } from '@/lib/prepareImageForStorage';
 import BrandCampaignsSection from '@/components/BrandCampaignsSection';
 import BrandActionInbox from '@/components/BrandActionInbox';
@@ -532,6 +533,7 @@ export default function BrandDashboardContent() {
   const [shortlistBusyId, setShortlistBusyId] = useState<string | null>(null);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [pendingCampaignApplicationsCount, setPendingCampaignApplicationsCount] = useState(0);
+  const [appsFocus, setAppsFocus] = useState(0);
   /** Ανοίγει το tab Μηνύματα με συγκεκριμένο influencer (από αίτηση καμπάνιας ή πρόταση). */
   const [messageTargetInfluencer, setMessageTargetInfluencer] = useState<{
     id: string;
@@ -692,10 +694,14 @@ export default function BrandDashboardContent() {
   const loadData = async () => {
     try {
       setLoadError(null);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setLeaving(true);
-        router.push('/login');
+      const auth = await lookupAuthUser(8000);
+      if (!auth.user) {
+        if (auth.timedOut) {
+          setLoadError(lang === 'el' ? 'Η σύνδεση άργησε να απαντήσει. Δοκιμάστε ξανά.' : 'Sign-in took too long. Try again.');
+          setLoading(false);
+          return;
+        }
+        router.replace('/login');
         return;
       }
 
@@ -714,10 +720,11 @@ export default function BrandDashboardContent() {
       console.log(`[Brand Dashboard] Loaded brandData:`, brandData);
       console.log(`[Brand Dashboard] Brand email: ${brandData.contact_email}`);
       setBrandData(brandData);
+      setLoading(false);
       await sessionFetch('/api/proposals/claim', { method: 'POST' }).catch(() => {});
       
-      // Load recommendations
-      await loadRecommendations(brandData);
+      // Recommendations load after the dashboard shell is visible.
+      void loadRecommendations(brandData);
 
       const proposalsResponse = await sessionFetch('/api/proposals?role=brand', { cache: 'no-store' });
       const proposalsBody = await proposalsResponse.json().catch(() => ({}));
@@ -1064,34 +1071,18 @@ export default function BrandDashboardContent() {
   };
 
   const handleLogout = async () => {
-    beginPresenceLogout();
-    try {
-      // Get current user before signing out
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      // Mark brand as offline if they are a brand
-      if (user && brandData?.contact_email) {
-        try {
-          await supabase
-            .from('brand_presence')
-            .update({
-              is_online: false,
-              last_seen: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            })
-            .eq('brand_email', brandData.contact_email.toLowerCase().trim());
-          console.log('[Logout] Marked brand as offline:', brandData.contact_email);
-        } catch (err) {
-          // Fail silently - don't block logout if presence update fails
-          console.error('[Logout] Error marking brand offline:', err);
-        }
-      }
-    } catch (err) {
-      console.error('[Logout] Error getting user before logout:', err);
+    const email = brandData?.contact_email;
+    if (email) {
+      void supabase
+        .from('brand_presence')
+        .update({
+          is_online: false,
+          last_seen: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('brand_email', String(email).toLowerCase().trim());
     }
-    
-    await supabase.auth.signOut();
-    router.push('/brand/login');
+    await logoutEverywhere('/login');
   };
 
   const handleUpdateProfile = async (updatedData: any) => {
@@ -1203,10 +1194,17 @@ export default function BrandDashboardContent() {
 
   if (loading || leaving) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-slate-600">{txt.loading}</p>
+      <div className="min-h-screen bg-slate-50">
+        <div className="max-w-7xl mx-auto px-4 py-8 space-y-4">
+          <div className="h-10 w-48 bg-slate-200 rounded animate-pulse" />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="h-24 bg-white border border-slate-200 rounded-xl animate-pulse" />
+            <div className="h-24 bg-white border border-slate-200 rounded-xl animate-pulse" />
+            <div className="h-24 bg-white border border-slate-200 rounded-xl animate-pulse" />
+            <div className="h-24 bg-white border border-slate-200 rounded-xl animate-pulse" />
+          </div>
+          <div className="h-64 bg-white border border-slate-200 rounded-xl animate-pulse" />
+          <p className="text-slate-600 text-sm">{txt.loading}</p>
         </div>
       </div>
     );
@@ -1294,6 +1292,30 @@ export default function BrandDashboardContent() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
+        <div
+          className={`mb-6 rounded-xl border px-4 py-3 text-sm ${
+            brandData?.verified ? "border-emerald-200 bg-emerald-50 text-emerald-950" : "border-amber-200 bg-amber-50 text-amber-950"
+          }`}
+        >
+          <p className="font-semibold">
+            {brandData?.verified
+              ? lang === "el"
+                ? "Η επιχείρηση είναι επαληθευμένη"
+                : "Your company is verified"
+              : lang === "el"
+                ? "Επαλήθευση σε αναμονή"
+                : "Verification pending"}
+          </p>
+          <p className="mt-1 leading-relaxed">
+            {brandData?.verified
+              ? lang === "el"
+                ? "Μπορείτε να δημοσιεύετε καμπάνιες δημόσια. Οι ανοιχτές εμφανίζονται σε εγκεκριμένους influencers."
+                : "You can publish campaigns. Open ones are visible to approved influencers."
+              : lang === "el"
+                ? "Μπορείτε να ετοιμάσετε καμπάνιες ως Πρόχειρο. Η δημοσίευση (Ανοιχτή) ξεκλειδώνει μετά την έγκριση, συνήθως εντός 1–2 εργάσιμων ημερών. Μέχρι τότε η καμπάνια φαίνεται μόνο σε εσάς."
+                : "You can prepare campaigns as drafts. Publishing (Open) unlocks after approval, usually within 1–2 business days. Until then only you can see them."}
+          </p>
+        </div>
         <BrandActionInbox
           lang={lang}
           pendingApplications={pendingCampaignApplicationsCount}
@@ -1301,6 +1323,10 @@ export default function BrandDashboardContent() {
           pendingAgreements={pendingAgreements.length}
           unreadMessages={unreadMessageCount}
           onOpenTab={openBrandTab}
+          onOpenApplications={() => {
+            setAppsFocus((n) => n + 1);
+            openBrandTab("campaigns");
+          }}
         />
 
         {/* Tabs */}
@@ -1439,6 +1465,7 @@ export default function BrandDashboardContent() {
               lang={lang}
               brandVerified={!!brandData.verified}
               pendingApplicationsCount={pendingCampaignApplicationsCount}
+              focusApplications={appsFocus}
               onApplicationsUpdated={() => {
                 if (!brandData?.id) return;
                 (async () => {
@@ -1465,6 +1492,10 @@ export default function BrandDashboardContent() {
                   name: p.displayName,
                 });
                 setActiveTab("messages");
+                const url = p.conversationId
+                  ? `/brand/dashboard?tab=messages&conversation=${encodeURIComponent(p.conversationId)}`
+                  : "/brand/dashboard?tab=messages";
+                router.replace(url, { scroll: false });
               }}
             />
           </div>
@@ -1626,25 +1657,6 @@ export default function BrandDashboardContent() {
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               {recommendations.map((match, index) => {
                 const inf = match.influencer;
-                // Priority: 1) avatar_url from DB (via proxy to reduce Supabase egress), 2) Instagram/unavatar, 3) fallback to initials
-                let avatarUrl = getCachedImageUrl(inf.avatar_url) ?? inf.avatar_url;
-                if (!avatarUrl && inf.accounts && Array.isArray(inf.accounts)) {
-                  // Try to find Instagram username first
-                  const instagramAccount = inf.accounts.find((acc: any) => 
-                    acc.platform?.toLowerCase() === 'instagram' || acc.platform?.toLowerCase() === 'instagram'
-                  );
-                  if (instagramAccount?.username) {
-                    avatarUrl = `https://unavatar.io/instagram/${instagramAccount.username}`;
-                  } else if (inf.accounts[0]?.username) {
-                    // Fallback to first account username
-                    avatarUrl = `https://unavatar.io/${inf.accounts[0].username}`;
-                  }
-                }
-                // Final fallback: generate avatar with initials
-                if (!avatarUrl) {
-                  avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(inf.display_name)}&background=random&size=256`;
-                }
-                
                 return (
                   <div
                     key={inf.id}
@@ -1662,15 +1674,11 @@ export default function BrandDashboardContent() {
                       </div>
                       
                       {/* Avatar */}
-                      <div className="relative h-48 bg-gradient-to-br from-blue-100 to-purple-100">
-                        <Image
-                          src={avatarUrl}
-                          alt={displayNameForLang(inf.display_name, lang)}
-                          fill
-                          sizes="(max-width: 768px) 50vw, 25vw"
-                          quality={75}
-                          className="object-cover"
-                          unoptimized={avatarUrl.startsWith("/api/image-proxy")}
+                      <div className="relative h-48 bg-slate-200">
+                        <CreatorPhoto
+                          src={inf.avatar_url}
+                          name={displayNameForLang(inf.display_name, lang)}
+                          className="absolute inset-0 h-full w-full"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                         <div className="absolute bottom-3 left-3 right-3">
@@ -1691,12 +1699,10 @@ export default function BrandDashboardContent() {
                     <div className="p-4">
                       {/* Stats – Followers, Engagement, Avg Likes only (reviews stay in algorithm, not shown) */}
                       <div className="grid grid-cols-2 gap-3 mb-4 text-xs">
-                        {inf.followers_count && inf.followers_count !== '0' && (
-                          <div>
-                            <div className="text-slate-500 uppercase tracking-wide">{txt.followers}</div>
-                            <div className="font-semibold text-slate-900">{inf.followers_count}</div>
-                          </div>
-                        )}
+                        <div className="col-span-2">
+                          <div className="text-slate-500 uppercase tracking-wide mb-1">{txt.followers}</div>
+                          <PlatformFollowers accounts={inf.accounts} lang={lang} />
+                        </div>
                         {(inf.engagement_rate && (typeof inf.engagement_rate === 'object' ? Object.keys(inf.engagement_rate).length > 0 : true)) && (
                           <div>
                             <div className="text-slate-500 uppercase tracking-wide">{txt.engagement_rate}</div>
@@ -1733,7 +1739,7 @@ export default function BrandDashboardContent() {
                           {(Array.isArray(match.reasons) ? match.reasons : []).slice(0, 3).map((reason: string, i: number) => (
                             <li key={i} className="text-xs text-slate-700 flex items-start gap-2">
                               <span className="text-emerald-500 shrink-0 mt-0.5" aria-hidden>•</span>
-                              <span>{reason}</span>
+                              <span className="line-clamp-2">{reason}</span>
                             </li>
                           ))}
                         </ul>

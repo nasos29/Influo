@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { sendPushNewOpenCampaignToAllApprovedInfluencers } from "@/lib/push";
+import { notifyMatchingOpenCampaign } from "@/lib/campaignNotify";
 
 function userClient(accessToken: string) {
   return createClient(
@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
         status,
         title,
         budget,
+        category,
         brands ( brand_name )
       `
       )
@@ -63,9 +64,10 @@ export async function POST(req: NextRequest) {
     const br = row.brands as { brand_name?: string } | { brand_name?: string }[] | null;
     const brandName =
       (Array.isArray(br) ? br[0]?.brand_name : br?.brand_name) || "Brand";
-    const result = await sendPushNewOpenCampaignToAllApprovedInfluencers({
+    const result = await notifyMatchingOpenCampaign({
       campaignId: row.id,
-      campaignTitle: row.title,
+      title: row.title,
+      category: (row as { category?: string | null }).category || null,
       brandName,
     });
 

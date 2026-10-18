@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
 import { getStoredLanguage } from "@/lib/language";
+import { notifyBrandOfApplication, submitCampaignApplication } from "@/lib/campaignApply";
+import { toastError, toastSuccess } from "@/components/Feedback";
 
 type CampaignWithBrand = {
   id: string;
@@ -60,12 +62,14 @@ const applicationStatusUi = {
     shortlisted: "Σε λίστα",
     rejected: "Απόρριψη",
     withdrawn: "Αποσύρθηκε",
+    accepted: "Αποδεκτή",
   },
   en: {
     pending: "Pending",
     shortlisted: "Shortlisted",
     rejected: "Rejected",
     withdrawn: "Withdrawn",
+    accepted: "Accepted",
   },
 };
 
@@ -87,16 +91,18 @@ const deliverableStatusUi = {
 export default function InfluencerCampaignsPanel({
   influencerId,
   approved,
+  available = true,
+  onMarkAvailable,
   onAttentionCountChange,
 }: {
   influencerId: string;
   approved: boolean;
+  available?: boolean;
+  onMarkAvailable?: () => Promise<void> | void;
   /** Για badge στο tab «Καμπάνιες»: εκκρεμείς αιτήσεις + ανοιχτές καμπάνιες χωρίς αίτηση. */
   onAttentionCountChange?: (count: number) => void;
 }) {
   const [uiLang, setUiLang] = useState<"el" | "en">("el");
-  const [dismissApprovalModal, setDismissApprovalModal] = useState(false);
-  const showApprovalModal = !approved && !dismissApprovalModal;
   const pc = pendingCopy[uiLang];
 
   const [campaigns, setCampaigns] = useState<CampaignWithBrand[]>([]);
@@ -105,6 +111,8 @@ export default function InfluencerCampaignsPanel({
   const [schemaError, setSchemaError] = useState(false);
   const [applyCampaign, setApplyCampaign] = useState<CampaignWithBrand | null>(null);
   const [applyMessage, setApplyMessage] = useState("");
+  const [proposedPrice, setProposedPrice] = useState("");
+  const [workLinks, setWorkLinks] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [deliverDraft, setDeliverDraft] = useState<Record<string, { url: string; note: string }>>({});
   const [deliverSaving, setDeliverSaving] = useState<string | null>(null);
@@ -207,47 +215,33 @@ export default function InfluencerCampaignsPanel({
   const submitApply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!applyCampaign || !approved) return;
+    if (!available) {
+      toastError(uiLang === "el" ? "Είστε προσωρινά μη διαθέσιμος. Αλλάξτε τη διαθεσιμότητα για να κάνετε αίτηση." : "You are temporarily unavailable. Change availability to apply.");
+      return;
+    }
     setSubmitting(true);
     try {
-      const { data: insertedApp, error } = await supabase
-        .from("campaign_applications")
-        .insert({
-          campaign_id: applyCampaign.id,
-          influencer_id: influencerId,
-          message: applyMessage.trim() || null,
-          status: "pending",
-        })
-        .select("id")
-        .single();
-      if (error) {
-        if (error.code === "23505") {
-          alert(uiLang === "el" ? "Έχετε ήδη κάνει αίτηση σε αυτή την καμπάνια." : "You have already applied to this campaign.");
-        } else {
-          alert(error.message);
-        }
+      const result = await submitCampaignApplication({
+        campaignId: applyCampaign.id,
+        influencerId,
+        message: applyMessage,
+        proposedPrice,
+        workLinks,
+      });
+      if (result.duplicate) {
+        toastError(uiLang === "el" ? "Έχετε ήδη κάνει αίτηση σε αυτή την καμπάνια." : "You have already applied to this campaign.");
         return;
       }
-      if (insertedApp?.id) {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        if (session?.access_token) {
-          try {
-            await fetch("/api/push/campaign-application", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${session.access_token}`,
-              },
-              body: JSON.stringify({ applicationId: insertedApp.id }),
-            });
-          } catch (e) {
-            console.error("[InfluencerCampaigns] campaign-application notify", e);
-          }
-        }
+      if (result.error || !result.id) {
+        toastError(result.error || "Error");
+        return;
       }
+      await notifyBrandOfApplication(result.id);
       setApplyCampaign(null);
       setApplyMessage("");
+      setProposedPrice("");
+      setWorkLinks("");
+      toastSuccess(uiLang === "el" ? "Η αίτηση στάλθηκε." : "Application sent.");
       await load();
     } finally {
       setSubmitting(false);
@@ -302,6 +296,7 @@ export default function InfluencerCampaignsPanel({
 
   const canShowDeliverable = (m: MyApplication) =>
     m.status === "shortlisted" ||
+    m.status === "accepted" ||
     (!!m.deliverable_status && m.deliverable_status !== "none");
 
   if (schemaError) {
@@ -324,29 +319,10 @@ export default function InfluencerCampaignsPanel({
 
   if (!approved) {
     return (
-      <div className="relative">
-        {showApprovalModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50">
-            <div
-              className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl border border-slate-200"
-              role="dialog"
-              aria-labelledby="approval-modal-title"
-            >
-              <h3 id="approval-modal-title" className="text-lg font-semibold text-slate-900">
-                {pc.modal_title}
-              </h3>
-              <p className="text-slate-600 text-sm mt-3 leading-relaxed">{pc.modal_body}</p>
-              <button
-                type="button"
-                onClick={() => setDismissApprovalModal(true)}
-                className="mt-6 w-full sm:w-auto px-5 py-2.5 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800"
-              >
-                {pc.modal_ok}
-              </button>
-            </div>
-          </div>
-        )}
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 text-sm">{pc.banner}</div>
+      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950 text-sm space-y-2">
+        <p className="font-semibold">{pc.modal_title}</p>
+        <p className="leading-relaxed">{pc.modal_body}</p>
+        <p className="leading-relaxed">{pc.banner}</p>
       </div>
     );
   }
@@ -383,6 +359,16 @@ export default function InfluencerCampaignsPanel({
             </h3>
             <p className="text-sm text-slate-500 mb-4">{applyCampaign.brands?.brand_name}</p>
             <form onSubmit={submitApply} className="space-y-4">
+              {!available && (
+                <div className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <p>{uiLang === "el" ? "Εμφανίζεστε ως μη διαθέσιμος προσωρινά, οπότε η αίτηση είναι κλειστή." : "You are marked temporarily unavailable, so applications are closed."}</p>
+                  {onMarkAvailable && (
+                    <button type="button" onClick={() => void onMarkAvailable()} className="mt-2 text-sm font-medium text-blue-700 underline">
+                      {uiLang === "el" ? "Σήμανση ως διαθέσιμος" : "Mark as available"}
+                    </button>
+                  )}
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
                   {uiLang === "el" ? "Μήνυμα (προαιρετικό)" : "Message (optional)"}
@@ -399,6 +385,18 @@ export default function InfluencerCampaignsPanel({
                   }
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  {uiLang === "el" ? "Προτεινόμενη τιμή (προαιρετικό)" : "Proposed price (optional)"}
+                </label>
+                <input type="number" min={0} step="0.01" value={proposedPrice} onChange={(e) => setProposedPrice(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  {uiLang === "el" ? "Σύνδεσμοι προηγούμενης δουλειάς (προαιρετικό)" : "Links to past work (optional)"}
+                </label>
+                <textarea rows={2} value={workLinks} onChange={(e) => setWorkLinks(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" placeholder="https://" />
+              </div>
               <div className="flex gap-2 justify-end">
                 <button
                   type="button"
@@ -412,7 +410,7 @@ export default function InfluencerCampaignsPanel({
                 </button>
                 <button
                   type="submit"
-                  disabled={submitting}
+                  disabled={submitting || !available}
                   className="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium disabled:opacity-50"
                 >
                   {uiLang === "el" ? "Υποβολή αίτησης" : "Submit application"}

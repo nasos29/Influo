@@ -2284,9 +2284,9 @@ export default function InfluencerProfile(props: {
                         )}
                          <div>
                             <h3 className="text-lg font-bold text-slate-900 mb-4">{txt.portfolio}</h3>
-                            {profile.videos && profile.videos.length > 0 && profile.videos[0] !== "" ? (
+                            {profile.videos && profile.videos.some((vid) => String(vid || "").trim()) ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    {profile.videos.map((vid, i) => {
+                                    {profile.videos.filter((vid) => String(vid || "").trim()).map((vid, i) => {
                                         const isVideo = isDefinitelyVideo(vid);
                                         const isImage = isDefinitelyImage(vid);
                                         // For Instagram posts (p/), we can't be sure if it's video or photo, so don't show play button
@@ -2347,12 +2347,14 @@ export default function InfluencerProfile(props: {
                                             
                                             return (
                                                 <div className="w-full flex items-center justify-center p-4">
-                                                    <img 
+                                                        <img 
                                                         src={imgSrc}
                                                         alt={alt}
                                                         className="max-w-full max-h-[600px] w-auto h-auto object-contain rounded"
                                                         loading="lazy"
+                                                        referrerPolicy="no-referrer"
                                                         style={{ display: 'block' }}
+                                                        onError={() => setError(true)}
                                                     />
                                                 </div>
                                             );

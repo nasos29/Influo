@@ -1,6 +1,6 @@
 // Smart Recommendation System for Matching Influencers to Brands
 
-import { formatCategoryLabels, isGeneralCategory, parseStoredCategories } from "./categories.ts";
+import { categoryLabel, formatCategoryLabels, isGeneralCategory, parseStoredCategories } from "./categories.ts";
 
 export interface BrandProfile {
   id: string;
@@ -50,6 +50,7 @@ export interface InfluencerProfile {
     facebook?: string;
   } | null;
   profile_slug?: string | null;
+  avatar_url?: string | null;
   /** Strategic audit – niche, brandSafe, whyWorkWithThem (for brands). */
   auditpr_audit?: AuditprAuditProfile | null;
   /** Brand dashboard: email for messaging (not shown publicly). */
@@ -186,6 +187,19 @@ const GREEK_TO_CONCEPT: { [key: string]: string } = {
 /**
  * Match brand industry to a single label (category or niche)
  */
+/** Canonical categories that the brand and the creator both list. Audit text is ignored. */
+export function sharedCategoryKeys(brandValue: unknown, influencerValue: unknown): string[] {
+  const brand = parseStoredCategories(brandValue).filter((cat) => !isGeneralCategory(cat));
+  const influencer = parseStoredCategories(influencerValue).filter((cat) => !isGeneralCategory(cat));
+  return brand.filter((cat) => influencer.includes(cat));
+}
+
+function clipReason(text: string, max = 96): string {
+  const clean = text.replace(/\s+/g, " ").trim();
+  if (clean.length <= max) return clean;
+  return `${clean.slice(0, max - 1).trimEnd()}…`;
+}
+
 function labelMatchScore(brandIndustry: string, label: string): number {
   const brand = normalizeLabel(brandIndustry);
   const labelNorm = normalizeLabel(label);
@@ -448,13 +462,20 @@ export function recommendInfluencers(
     .flatMap((influencer): MatchScore[] => {
       try {
       const audit = influencer.auditpr_audit;
-      const categoryMatch = calculateCategoryMatch(
+      const overlap = sharedCategoryKeys(
+        brand.category || brand.industry,
+        influencer.categories?.length ? influencer.categories : influencer.category
+      );
+      let categoryMatch = calculateCategoryMatch(
         brand.category || brand.industry,
         influencer.category,
         influencer.categories,
         audit?.niche,
         audit?.niche_en
       );
+      // A loose niche or "lifestyle" mapping must not read as a perfect category match.
+      if (overlap.length === 0) categoryMatch = Math.min(categoryMatch, 0.55);
+      else categoryMatch = Math.max(categoryMatch, 0.95);
 
       const locationMatch = brand.location && influencer.location
         ? calculateLocationMatch(brand.location, influencer.location)
@@ -506,13 +527,15 @@ export function recommendInfluencers(
 
       const reasons: string[] = [];
 
-      const brandCategoryLabel = formatCategoryLabels(brand.category || brand.industry, lang) || (isEn ? 'your industry' : 'σου');
-      if (strengths.categoryMatch >= 0.99) {
-        reasons.push(isEn ? `Perfect niche match for ${brandCategoryLabel} 🎯` : `ΤΕΛΕΙΟ match - Είδος ${brandCategoryLabel} 🎯⭐`);
-      } else if (strengths.categoryMatch >= 0.9) {
-        reasons.push(isEn ? `Strong niche match (${asText(audit?.niche_en) || asText(audit?.niche) || brandCategoryLabel}) 🎯` : `Τέλειο match στο niche ${asText(audit?.niche) || brandCategoryLabel} 🎯`);
-      } else if (strengths.categoryMatch >= 0.7) {
-        reasons.push(isEn ? `Good fit for ${brandCategoryLabel}` : `Ταιριάζει στο niche ${brandCategoryLabel}`);
+      if (overlap.length) {
+        const labels = overlap.map((key) => categoryLabel(key, lang)).filter(Boolean).join(", ");
+        reasons.push(clipReason(isEn ? `Shared categories: ${labels}` : `Κοινές κατηγορίες: ${labels}`));
+      } else {
+        const own = formatCategoryLabels(
+          influencer.categories?.length ? influencer.categories : influencer.category,
+          lang
+        );
+        if (own) reasons.push(clipReason(isEn ? `Creator categories: ${own}` : `Κατηγορίες creator: ${own}`));
       }
 
       if (strengths.engagementQuality >= 0.9) {
@@ -577,7 +600,7 @@ export function recommendInfluencers(
       return [{
         influencer,
         score: Math.round(score),
-        reasons,
+        reasons: reasons.map((reason) => clipReason(reason)),
         auditWhyLine: auditWhyLine || null,
         strengths,
       }];
