@@ -10,9 +10,11 @@ import { categoryLabel } from "@/lib/categories";
 import { notifyBrandOfApplication, submitCampaignApplication } from "@/lib/campaignApply";
 import { toastError, toastSuccess } from "@/components/Feedback";
 import { getStoredLanguage } from "@/lib/language";
+import { campaignAudience, type CampaignAudience } from "@/lib/campaignAudience";
 
 type Campaign = {
   id: string;
+  brand_id?: string | null;
   title: string;
   description: string;
   budget: number;
@@ -41,6 +43,7 @@ export default function CampaignPublicView({ id }: { id: string }) {
   const [missing, setMissing] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [audience, setAudience] = useState<CampaignAudience>({ kind: "anonymous" });
   const [influencerId, setInfluencerId] = useState<string | null>(null);
   const [approved, setApproved] = useState(false);
   const [available, setAvailable] = useState(true);
@@ -56,10 +59,14 @@ export default function CampaignPublicView({ id }: { id: string }) {
       setLoading(true);
       setLoadError(false);
       setMissing(false);
+      setApplied(false);
+      setInfluencerId(null);
+      setApproved(false);
+      setAudience({ kind: "anonymous" });
       let timedOut = false;
       const query = supabase
         .from("brand_campaigns")
-        .select("id, title, description, budget, category, deliverables, deadline, starts_on, location, min_followers, platforms, compensation_type, status, brands(brand_name, logo_url)")
+        .select("id, brand_id, title, description, budget, category, deliverables, deadline, starts_on, location, min_followers, platforms, compensation_type, status, brands(brand_name, logo_url)")
         .eq("id", id)
         .eq("status", "open")
         .maybeSingle();
@@ -76,38 +83,58 @@ export default function CampaignPublicView({ id }: { id: string }) {
         return;
       }
       const { data, error } = result;
+      let loadedRow: Campaign | null = null;
       if (error && /column|schema cache/i.test(error.message || "")) {
         const basic = await supabase
           .from("brand_campaigns")
-          .select("id, title, description, budget, category, deliverables, deadline, status, brands(brand_name, logo_url)")
+          .select("id, brand_id, title, description, budget, category, deliverables, deadline, status, brands(brand_name, logo_url)")
           .eq("id", id)
           .eq("status", "open")
           .maybeSingle();
-        if (!basic.error && basic.data && (basic.data as Campaign).status === "open") setCampaign(basic.data as Campaign);
-        else setMissing(true);
+        if (!basic.error && basic.data && (basic.data as Campaign).status === "open") {
+          loadedRow = basic.data as Campaign;
+          setCampaign(loadedRow);
+        } else setMissing(true);
       } else if (error || !data || data.status !== "open") {
         setMissing(true);
       } else {
+        loadedRow = data;
         setCampaign(data);
       }
       const { data: sessionData } = await supabase.auth.getSession();
-      if (sessionData.session) {
+      const signedIn = !!sessionData.session;
+      let nextInfluencerId: string | null = null;
+      let nextBrandId: string | null = null;
+      if (signedIn) {
         const profiles = await loadOwnProfiles(supabase);
+        if (profiles.ok && profiles.brand && typeof profiles.brand.id === "string") {
+          nextBrandId = profiles.brand.id;
+        }
         if (profiles.ok && profiles.influencer) {
           const inf = profiles.influencer;
           const rawId = inf.id;
-          setInfluencerId(typeof rawId === "string" || typeof rawId === "number" ? String(rawId) : "");
+          nextInfluencerId = typeof rawId === "string" || typeof rawId === "number" ? String(rawId) : "";
+          setInfluencerId(nextInfluencerId);
           setApproved(!!inf.approved);
           setAvailable(!inf.availability_status || inf.availability_status === "available");
-          const { data: mine } = await supabase
-            .from("campaign_applications")
-            .select("id, status")
-            .eq("campaign_id", id)
-            .eq("influencer_id", inf.id)
-            .maybeSingle();
-          if (mine && mine.status !== "withdrawn") setApplied(true);
+          if (nextInfluencerId) {
+            const { data: mine } = await supabase
+              .from("campaign_applications")
+              .select("id, status")
+              .eq("campaign_id", id)
+              .eq("influencer_id", nextInfluencerId)
+              .maybeSingle();
+            if (mine && mine.status !== "withdrawn") setApplied(true);
+          }
         }
       }
+      const campaignBrandId = loadedRow && typeof loadedRow.brand_id === "string" ? loadedRow.brand_id : null;
+      setAudience(campaignAudience({
+        signedIn,
+        influencerId: nextInfluencerId,
+        brandId: nextBrandId,
+        campaignBrandId,
+      }));
       setLoading(false);
     };
     load().catch(() => {
@@ -211,21 +238,29 @@ export default function CampaignPublicView({ id }: { id: string }) {
             </ul>
 
             <div className="mt-8 border-t border-slate-100 pt-6">
-              {!influencerId ? (
+              {audience.kind === "anonymous" && (
                 <Link href={`/login?redirect=${encodeURIComponent(`/campaigns/${id}`)}`} className="inline-flex px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium">
                   {el ? "Σύνδεση για αίτηση" : "Sign in to apply"}
                 </Link>
-              ) : !approved ? (
+              )}
+              {audience.kind === "brand" && audience.owns && (
+                <Link href="/brand/dashboard?tab=campaigns" className="inline-flex px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium">
+                  {el ? "Διαχείριση καμπάνιας" : "Manage campaign"}
+                </Link>
+              )}
+              {audience.kind === "influencer" && !approved && (
                 <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-3">
                   {el
                     ? "Το προφίλ σας είναι σε εκκρεμότητα. Μέχρι την έγκριση δεν μπορείτε να δείτε ή να κάνετε αίτηση σε καμπάνιες."
                     : "Your profile is pending. You cannot view or apply to campaigns until it is approved."}
                 </p>
-              ) : applied ? (
+              )}
+              {audience.kind === "influencer" && approved && applied && (
                 <p className="text-sm font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
                   {el ? "Έχετε ήδη κάνει αίτηση σε αυτή την καμπάνια." : "You have already applied to this campaign."}
                 </p>
-              ) : (
+              )}
+              {audience.kind === "influencer" && approved && !applied && (
                 <form onSubmit={apply} className="space-y-3">
                   {!available && (
                     <div className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-3">

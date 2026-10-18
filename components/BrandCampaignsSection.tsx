@@ -154,6 +154,7 @@ const extra = langPack({
   open_locked: { el: "Η κατάσταση «Ανοιχτή» είναι διαθέσιμη μετά την επαλήθευση.", en: "Open status is available after verification." },
   migration: { el: "Χρειάζεται το docs/CAMPAIGN_WORKFLOW_2026.sql στο Supabase για τα νέα πεδία.", en: "Run docs/CAMPAIGN_WORKFLOW_2026.sql in Supabase for the new fields." },
   public_page: { el: "Δημόσια σελίδα", en: "Public page" },
+  card_start: { el: "Έναρξη", en: "Starts" },
   accept: { el: "Αποδοχή", en: "Accept" },
   profile: { el: "Προφίλ", en: "Profile" },
   rate: { el: "Ελάχιστη τιμή", en: "Min rate" },
@@ -234,6 +235,19 @@ function ymd(value: string | null | undefined): string {
   return value.slice(0, 10);
 }
 
+function dmy(value: string | null | undefined): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(ymd(value));
+  if (!match) return "";
+  return `${match[3]}/${match[2]}/${match[1]}`;
+}
+
+function platformNames(ids: string[] | null | undefined, lang: "el" | "en"): string {
+  if (!Array.isArray(ids) || !ids.length) return "";
+  return ids
+    .map((id) => PLATFORMS.find((platform) => platform.id === id)?.[lang] || id)
+    .join(", ");
+}
+
 export default function BrandCampaignsSection({
   brandId,
   lang,
@@ -254,6 +268,7 @@ export default function BrandCampaignsSection({
   const t = txt[lang];
   const x = extra[lang];
   const [rows, setRows] = useState<BrandCampaignRow[]>([]);
+  const [appCounts, setAppCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [schemaError, setSchemaError] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -282,7 +297,24 @@ export default function BrandCampaignsSection({
       setLoading(false);
       return;
     }
-    setRows((data as BrandCampaignRow[]) || []);
+    const list = (data as BrandCampaignRow[]) || [];
+    const counts: Record<string, number> = {};
+    for (const row of list) counts[row.id] = 0;
+    if (list.length) {
+      const apps = await supabase
+        .from("campaign_applications")
+        .select("campaign_id, status")
+        .in("campaign_id", list.map((row) => row.id));
+      if (!apps.error && apps.data) {
+        for (const app of apps.data) {
+          if (app.status === "withdrawn") continue;
+          const campaignId = String(app.campaign_id);
+          counts[campaignId] = (counts[campaignId] || 0) + 1;
+        }
+      }
+    }
+    setRows(list);
+    setAppCounts(counts);
     setLoading(false);
   }, [brandId]);
 
@@ -806,6 +838,13 @@ export default function BrandCampaignsSection({
                       <strong>€{Number(row.budget).toLocaleString(lang === "el" ? "el-GR" : "en-GB")}</strong>
                       {row.category ? ` · ${categoryLabel(row.category, lang)}` : ""}
                       {row.compensation_type ? ` · ${row.compensation_type === "money" ? x.comp_money : row.compensation_type === "product" ? x.comp_product : x.comp_both}` : ""}
+                    </p>
+                    <p className="text-xs text-slate-600 mt-1">
+                      {[
+                        platformNames(row.platforms, lang),
+                        row.starts_on ? `${x.card_start} ${dmy(row.starts_on)}` : "",
+                        `${appCounts[row.id] ?? 0} ${t.applications}`,
+                      ].filter(Boolean).join(" · ")}
                     </p>
                     {row.status === "open" && (
                       <Link href={`/campaigns/${row.id}`} className="inline-block mt-2 text-sm text-blue-600 hover:underline">
