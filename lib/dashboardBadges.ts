@@ -32,19 +32,19 @@ export function influencerProposalSeenKey(userId: string): string {
 export function readIdList(store: SeenStore, key: string): string[] {
   try {
     const parsed = JSON.parse(store.getItem(key) || "[]") as unknown;
-    return Array.isArray(parsed) ? parsed.map((id) => String(id)).filter((id) => id.length > 0) : [];
+    return Array.isArray(parsed) ? parsed.map(String).filter((id) => id.length > 0) : [];
   } catch {
     return [];
   }
 }
 
 export function writeIdList(store: SeenStore, key: string, ids: Array<string | number>): void {
-  store.setItem(key, JSON.stringify([...new Set(ids.map((id) => String(id)))]));
+  store.setItem(key, JSON.stringify([...new Set(ids.map(String))]));
 }
 
 export function readStamp(store: SeenStore, key: string): string | null {
   const value = store.getItem(key);
-  return value && value.trim() ? value : null;
+  return value?.trim() ? value : null;
 }
 
 export function writeStamp(store: SeenStore, key: string, iso: string): void {
@@ -52,8 +52,8 @@ export function writeStamp(store: SeenStore, key: string, iso: string): void {
 }
 
 export function countUnseenIds(ids: Array<string | number>, seenIds: Array<string | number>): number {
-  const seen = new Set(seenIds.map((id) => String(id)));
-  return ids.map((id) => String(id)).filter((id) => id && !seen.has(id)).length;
+  const seen = new Set(seenIds.map(String));
+  return ids.map(String).filter((id) => id && !seen.has(id)).length;
 }
 
 export function countNewerThan(times: Array<string | null | undefined>, seenAt: string | null): number {

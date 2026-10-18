@@ -821,6 +821,12 @@ interface Proposal {
   counter_proposal_message?: string | null;
 }
 
+function tabBadgeText(count: number): string {
+  if (count > 99) return "99+";
+  if (count > 9) return "9+";
+  return String(count);
+}
+
 export default function DashboardContent({ profile: initialProfile }: { profile: InfluencerData }) {
     const [profile, setProfile] = useState(initialProfile);
     const [showEditModal, setShowEditModal] = useState(false);
@@ -1079,7 +1085,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     useEffect(() => {
         if (activeTab !== 'announcements' || !profile?.id) return;
         let cancelled = false;
-        (async () => {
+        void (async () => {
             setAnnouncementsLoading(true);
             try {
                 const { data: { session } } = await supabase.auth.getSession();
@@ -1278,7 +1284,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 <span className="hidden md:inline">📣 </span>Καμπάνιες
                                 {unseenCampaignCount > 0 && (
                                     <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 bg-red-500 text-white text-[9px] sm:text-[10px] font-bold rounded-full min-w-[14px] sm:min-w-[16px] h-[14px] sm:h-[16px] flex items-center justify-center px-0.5">
-                                        {unseenCampaignCount > 99 ? '99+' : unseenCampaignCount > 9 ? '9+' : unseenCampaignCount}
+                                        {tabBadgeText(unseenCampaignCount)}
                                     </span>
                                 )}
                                 {changesRequestedCount > 0 && (
@@ -1298,7 +1304,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 <span className="hidden md:inline">📋 </span>Προσφορές
                                 {unseenProposalCount > 0 && (
                                     <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 bg-red-500 text-white text-[9px] sm:text-[10px] font-bold rounded-full min-w-[14px] sm:min-w-[16px] h-[14px] sm:h-[16px] flex items-center justify-center px-0.5">
-                                        {unseenProposalCount > 99 ? '99+' : unseenProposalCount > 9 ? '9+' : unseenProposalCount}
+                                        {tabBadgeText(unseenProposalCount)}
                                     </span>
                                 )}
                             </button>
