@@ -174,7 +174,7 @@ export default function Footer({ lang = "el" }: FooterProps) {
                 </svg>
               </a>
               <a 
-                href="https://www.linkedin.com/in/influo-gr-736667379/" 
+                href="https://www.linkedin.com/company/influo-gr/" 
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-slate-400 hover:text-white transition-colors"
