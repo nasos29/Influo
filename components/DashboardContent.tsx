@@ -1,7 +1,7 @@
 // components/DashboardContent.tsx
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
@@ -21,6 +21,14 @@ import { useOwnPresenceHeartbeat } from '@/lib/useOwnPresenceHeartbeat';
 import { logoutEverywhere } from '@/lib/authSession';
 import { formatStoredCategories, parseStoredCategories } from '@/lib/categories';
 import CategoryCheckboxList from '@/components/CategoryCheckboxList';
+import {
+    badgeAfterOpen,
+    influencerCampaignSeenKey,
+    influencerProposalAlertIds,
+    influencerProposalSeenKey,
+    readIdList,
+    writeIdList,
+} from '@/lib/dashboardBadges';
 
 // --- LANGUAGES LIST ---
 const LANGUAGES = [
@@ -813,12 +821,20 @@ interface Proposal {
   counter_proposal_message?: string | null;
 }
 
+function tabBadgeText(count: number): string {
+  if (count > 99) return "99+";
+  if (count > 9) return "9+";
+  return String(count);
+}
+
 export default function DashboardContent({ profile: initialProfile }: { profile: InfluencerData }) {
     const [profile, setProfile] = useState(initialProfile);
     const [showEditModal, setShowEditModal] = useState(false);
     const [availabilitySaving, setAvailabilitySaving] = useState(false);
     const [availabilityError, setAvailabilityError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'profile' | 'tools' | 'messages' | 'proposals' | 'campaigns' | 'analytics' | 'announcements'>('profile');
+    const activeTabRef = useRef(activeTab);
+    activeTabRef.current = activeTab;
     const searchParams = useSearchParams();
 
     const isAvailable =
@@ -879,12 +895,16 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     const [counterMessage, setCounterMessage] = useState('');
     const [savingCounterProposal, setSavingCounterProposal] = useState(false);
     const [selectedProposalForMessaging, setSelectedProposalForMessaging] = useState<Proposal | null>(null);
-    const [pendingProposalsCount, setPendingProposalsCount] = useState(0);
+    const [proposalsLoaded, setProposalsLoaded] = useState(false);
+    const [unseenProposalCount, setUnseenProposalCount] = useState(0);
     const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
     const [announcementsList, setAnnouncementsList] = useState<Array<{ id: string; title: string; body: string; created_at: string; read: boolean; read_at: string | null }>>([]);
     const [unreadAnnouncementsCount, setUnreadAnnouncementsCount] = useState(0);
     const [announcementsLoading, setAnnouncementsLoading] = useState(false);
-    const [campaignAttentionCount, setCampaignAttentionCount] = useState(0);
+    const [openCampaignIds, setOpenCampaignIds] = useState<string[]>([]);
+    const [campaignsLoaded, setCampaignsLoaded] = useState(false);
+    const [changesRequestedCount, setChangesRequestedCount] = useState(0);
+    const [unseenCampaignCount, setUnseenCampaignCount] = useState(0);
     const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
     const [deletingAccount, setDeletingAccount] = useState(false);
     const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null);
@@ -924,7 +944,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
         if (!response.ok || !Array.isArray(result.proposals)) return null;
         const rows = result.proposals as Proposal[];
         setProposals(rows);
-        setPendingProposalsCount(rows.filter((p) => p.status === 'pending').length);
+        setProposalsLoaded(true);
         return rows;
     };
 
@@ -964,6 +984,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
         };
         
         const loadUnreadAnnouncementsCount = async () => {
+            if (activeTabRef.current === 'announcements') return;
             const { data: { session } } = await supabase.auth.getSession();
             if (!session?.access_token) return;
             try {
@@ -977,9 +998,39 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
             }
         };
 
+        const loadCampaignAttention = async () => {
+            if (!profile?.approved) {
+                setOpenCampaignIds([]);
+                setChangesRequestedCount(0);
+                setCampaignsLoaded(true);
+                return;
+            }
+            const { data: openRows, error: openErr } = await supabase
+                .from('brand_campaigns')
+                .select('id')
+                .eq('status', 'open');
+            if (openErr) {
+                console.error('Error loading open campaigns for badge', openErr);
+                return;
+            }
+            const { count, error: changeErr } = await supabase
+                .from('campaign_applications')
+                .select('id', { count: 'exact', head: true })
+                .eq('influencer_id', profile.id)
+                .eq('deliverable_status', 'changes_requested');
+            if (changeErr) {
+                console.error('Error loading deliverable changes for badge', changeErr);
+                return;
+            }
+            setOpenCampaignIds((openRows || []).map((row) => String(row.id)));
+            setChangesRequestedCount(count ?? 0);
+            setCampaignsLoaded(true);
+        };
+
         loadProposals();
         loadUnreadMessages();
         loadUnreadAnnouncementsCount();
+        void loadCampaignAttention();
         
         // Listen for messages read event to update count immediately
         const handleMessagesRead = () => {
@@ -993,6 +1044,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
             loadProposals();
             loadUnreadMessages();
             loadUnreadAnnouncementsCount();
+            void loadCampaignAttention();
         }, 30000);
         
         return () => {
@@ -1000,7 +1052,68 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
             window.removeEventListener('messagesRead', handleMessagesRead);
             window.removeEventListener('focus', handleMessagesRead);
         };
-    }, [profile?.id]);
+    }, [profile?.id, profile?.approved]);
+
+    useEffect(() => {
+        if (!profile?.id || typeof window === 'undefined') return;
+        const store = window.localStorage;
+        setUnseenCampaignCount(
+            badgeAfterOpen(
+                activeTab === 'campaigns',
+                campaignsLoaded,
+                openCampaignIds,
+                readIdList(store, influencerCampaignSeenKey(profile.id))
+            )
+        );
+        if (activeTab === 'campaigns' && campaignsLoaded) {
+            writeIdList(store, influencerCampaignSeenKey(profile.id), openCampaignIds);
+        }
+        const offerIds = influencerProposalAlertIds(proposals);
+        setUnseenProposalCount(
+            badgeAfterOpen(
+                activeTab === 'proposals',
+                proposalsLoaded,
+                offerIds,
+                readIdList(store, influencerProposalSeenKey(profile.id))
+            )
+        );
+        if (activeTab === 'proposals' && proposalsLoaded) {
+            writeIdList(store, influencerProposalSeenKey(profile.id), offerIds);
+        }
+    }, [profile?.id, activeTab, campaignsLoaded, openCampaignIds, proposals, proposalsLoaded]);
+
+    useEffect(() => {
+        if (activeTab !== 'announcements' || !profile?.id) return;
+        let cancelled = false;
+        void (async () => {
+            setAnnouncementsLoading(true);
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session?.access_token || cancelled) return;
+                const res = await fetch('/api/announcements', {
+                    headers: { Authorization: `Bearer ${session.access_token}` },
+                });
+                const data = await res.json();
+                if (cancelled || !res.ok || !Array.isArray(data.data)) return;
+                const rows = data.data as typeof announcementsList;
+                const unread = rows.filter((row) => !row.read);
+                const now = new Date().toISOString();
+                setAnnouncementsList(rows.map((row) => (row.read ? row : { ...row, read: true, read_at: row.read_at || now })));
+                setUnreadAnnouncementsCount(0);
+                await Promise.all(unread.map((row) => fetch(`/api/announcements/${row.id}/read`, {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${session.access_token}` },
+                })));
+            } catch (e) {
+                console.error('Error loading announcements:', e);
+            } finally {
+                if (!cancelled) setAnnouncementsLoading(false);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [activeTab, profile?.id]);
 
     useEffect(() => {
         // Refresh profile data periodically
@@ -1169,9 +1282,14 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 }`}
                             >
                                 <span className="hidden md:inline">📣 </span>Καμπάνιες
-                                {campaignAttentionCount > 0 && (
+                                {unseenCampaignCount > 0 && (
                                     <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 bg-red-500 text-white text-[9px] sm:text-[10px] font-bold rounded-full min-w-[14px] sm:min-w-[16px] h-[14px] sm:h-[16px] flex items-center justify-center px-0.5">
-                                        {campaignAttentionCount > 99 ? '99+' : campaignAttentionCount > 9 ? '9+' : campaignAttentionCount}
+                                        {tabBadgeText(unseenCampaignCount)}
+                                    </span>
+                                )}
+                                {changesRequestedCount > 0 && (
+                                    <span className="ml-1.5 inline-flex items-center justify-center min-w-[14px] sm:min-w-[16px] h-[14px] sm:h-[16px] px-0.5 rounded-full bg-amber-500 text-white text-[9px] sm:text-[10px] font-bold">
+                                        {changesRequestedCount > 99 ? '99+' : changesRequestedCount}
                                     </span>
                                 )}
                             </button>
@@ -1184,9 +1302,9 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 }`}
                             >
                                 <span className="hidden md:inline">📋 </span>Προσφορές
-                                {pendingProposalsCount > 0 && (
+                                {unseenProposalCount > 0 && (
                                     <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 bg-red-500 text-white text-[9px] sm:text-[10px] font-bold rounded-full min-w-[14px] sm:min-w-[16px] h-[14px] sm:h-[16px] flex items-center justify-center px-0.5">
-                                        {pendingProposalsCount > 99 ? '99+' : pendingProposalsCount > 9 ? '9+' : pendingProposalsCount}
+                                        {tabBadgeText(unseenProposalCount)}
                                     </span>
                                 )}
                             </button>
@@ -1216,24 +1334,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 <span className="hidden md:inline">📊 </span>Στατιστικά
                             </button>
                             <button
-                                onClick={async () => {
-                                    setActiveTab('announcements');
-                                    setAnnouncementsLoading(true);
-                                    try {
-                                        const { data: { session } } = await supabase.auth.getSession();
-                                        if (session?.access_token) {
-                                            const res = await fetch('/api/announcements', {
-                                                headers: { Authorization: `Bearer ${session.access_token}` },
-                                            });
-                                            const data = await res.json();
-                                            if (res.ok && Array.isArray(data.data)) setAnnouncementsList(data.data);
-                                        }
-                                    } catch (e) {
-                                        console.error('Error loading announcements:', e);
-                                    } finally {
-                                        setAnnouncementsLoading(false);
-                                    }
-                                }}
+                                onClick={() => setActiveTab('announcements')}
                                 className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors relative whitespace-nowrap ${
                                     activeTab === 'announcements'
                                         ? 'border-slate-900 text-slate-900'
@@ -1272,7 +1373,6 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                   approved={!!profile.approved}
                                   available={isAvailable}
                                   onMarkAvailable={() => setAvailabilityStatus("available")}
-                                  onAttentionCountChange={setCampaignAttentionCount}
                                 />
                             </div>
                         ) : activeTab === 'proposals' ? (

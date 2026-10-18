@@ -20,6 +20,17 @@ import AdminInfluencerStatsTab from "./AdminInfluencerStatsTab";
 import SocialRefreshLogsPanel from "./SocialRefreshLogsPanel";
 import { askConfirm } from "@/components/Feedback";
 import { logoutEverywhere } from "@/lib/authSession";
+import {
+  companySeenKey,
+  conversationSeenKey,
+  countNewerThan,
+  countUnseenIds,
+  latestIso,
+  readIdList,
+  readStamp,
+  writeIdList,
+  writeStamp,
+} from "@/lib/dashboardBadges";
 
 async function adminAuthHeaders(): Promise<Record<string, string>> {
   const { data: { session } } = await supabase.auth.getSession();
@@ -1523,6 +1534,9 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
+  const [brandsLoaded, setBrandsLoaded] = useState(false);
+  const [unseenBrandCount, setUnseenBrandCount] = useState(0);
+  const [viewerId, setViewerId] = useState<string | null>(null);
   const [brandSearchQuery, setBrandSearchQuery] = useState("");
   const [brandStatusFilter, setBrandStatusFilter] = useState<"all" | "verified" | "pending">("pending");
   const [updatingBrand, setUpdatingBrand] = useState<string | null>(null);
@@ -1637,6 +1651,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       } else {
         setBrands([]);
       }
+      setBrandsLoaded(true);
     } catch (error: any) {
       console.error('Error fetching brands:', error);
       setBrands([]);
@@ -2023,7 +2038,6 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     }
   };
   
-  // Load unread messages count for admin (background only — never remounts the page)
   const editModalOpenRef = useRef(false);
   useEffect(() => {
     editModalOpenRef.current = showEditModal || showBlogEditModal || showBrandEditModal;
@@ -2031,30 +2045,46 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
 
   useEffect(() => {
     let cancelled = false;
-    const loadUnreadMessages = async () => {
-      try {
-        const response = await fetch('/api/admin/conversations?count=unread', {
-          headers: await adminAuthHeaders(),
-        });
-        const result = await response.json();
-        if (cancelled) return;
-        if (response.ok && result.success && typeof result.count === 'number') {
-          setUnreadMessagesCount(result.count);
-        } else {
-          console.error('Error counting unread messages:', result.error || response.status);
-        }
-      } catch (error) {
-        console.error('Error loading unread messages count:', error);
-      }
-    };
-    
-    loadUnreadMessages();
-    const interval = setInterval(loadUnreadMessages, 60000);
+    supabase.auth.getSession().then(({ data }) => {
+      if (!cancelled) setViewerId(data.session?.user?.id ?? null);
+    });
     return () => {
       cancelled = true;
-      clearInterval(interval);
     };
   }, []);
+
+  // Συνομιλίες: threads newer than this admin's last open. Companies: unverified brands not yet opened.
+  useEffect(() => {
+    if (!viewerId || typeof window === "undefined") return;
+    const store = window.localStorage;
+    if (activeTab === "conversations") {
+      setUnreadMessagesCount(0);
+      if (conversations.length > 0) {
+        writeStamp(
+          store,
+          conversationSeenKey(viewerId),
+          latestIso(
+            conversations.map((row) => row.last_message_at || row.created_at),
+            new Date().toISOString()
+          )
+        );
+      }
+    } else {
+      setUnreadMessagesCount(
+        countNewerThan(
+          conversations.map((row) => row.last_message_at || row.created_at),
+          readStamp(store, conversationSeenKey(viewerId))
+        )
+      );
+    }
+    const pendingBrandIds = brands.filter((brand) => !brand.verified).map((brand) => brand.id);
+    if (activeTab === "brands") {
+      setUnseenBrandCount(0);
+      if (brandsLoaded) writeIdList(store, companySeenKey(viewerId), pendingBrandIds);
+    } else if (brandsLoaded) {
+      setUnseenBrandCount(countUnseenIds(pendingBrandIds, readIdList(store, companySeenKey(viewerId))));
+    }
+  }, [viewerId, activeTab, conversations, brands, brandsLoaded]);
 
   // Initial load once; background refresh without flipping `loading` (avoids full-page remount)
   useEffect(() => {
@@ -3063,9 +3093,9 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                 }`}
               >
                 {txt.tab_brands} ({brands.length})
-                {pendingBrandCount > 0 && (
+                {unseenBrandCount > 0 && (
                   <span className="ml-1.5 inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold">
-                    {pendingBrandCount > 99 ? "99+" : pendingBrandCount}
+                    {unseenBrandCount > 99 ? "99+" : unseenBrandCount}
                   </span>
                 )}
               </button>
