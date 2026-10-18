@@ -34,6 +34,14 @@ import {
   type BrandShortlistItem,
 } from '@/lib/brandShortlist';
 import { openAgreementCount, openBrandAgreements } from '@/lib/brandAgreements';
+import {
+  badgeAfterOpen,
+  brandApplicationSeenKey,
+  brandProposalAlertIds,
+  brandProposalSeenKey,
+  readIdList,
+  writeIdList,
+} from '@/lib/dashboardBadges';
 
 interface Proposal {
   id: string;
@@ -466,6 +474,29 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt }: EditBra
   );
 }
 
+async function fetchPendingApplicationIds(brandId: string): Promise<string[] | null> {
+  const { data: camps, error: campError } = await supabase
+    .from("brand_campaigns")
+    .select("id")
+    .eq("brand_id", brandId);
+  if (campError) {
+    console.error("[Brand Dashboard] pending campaign applications", campError);
+    return null;
+  }
+  if (!camps?.length) return [];
+  const ids = camps.map((c) => c.id);
+  const { data, error } = await supabase
+    .from("campaign_applications")
+    .select("id")
+    .in("campaign_id", ids)
+    .eq("status", "pending");
+  if (error) {
+    console.error("[Brand Dashboard] pending campaign applications", error);
+    return null;
+  }
+  return (data || []).map((row) => String(row.id));
+}
+
 export default function BrandDashboardContent() {
   const [lang, setLang] = useState<'el' | 'en'>('el'); // Default to Greek, will be updated in useEffect
   const [proposals, setProposals] = useState<Proposal[]>([]);
@@ -539,6 +570,12 @@ export default function BrandDashboardContent() {
   const [shortlistBusyId, setShortlistBusyId] = useState<string | null>(null);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [pendingCampaignApplicationsCount, setPendingCampaignApplicationsCount] = useState(0);
+  const [pendingApplicationIds, setPendingApplicationIds] = useState<string[]>([]);
+  const [applicationsLoaded, setApplicationsLoaded] = useState(false);
+  const [proposalsLoaded, setProposalsLoaded] = useState(false);
+  const [unseenApplicationCount, setUnseenApplicationCount] = useState(0);
+  const [unseenProposalCount, setUnseenProposalCount] = useState(0);
+  const [viewerId, setViewerId] = useState<string | null>(null);
   const [appsFocus, setAppsFocus] = useState(0);
   /** Ανοίγει το tab Μηνύματα με συγκεκριμένο influencer (από αίτηση καμπάνιας ή πρόταση). */
   const [messageTargetInfluencer, setMessageTargetInfluencer] = useState<{
@@ -570,9 +607,18 @@ export default function BrandDashboardContent() {
 
   useEffect(() => {
     if (brandData?.contact_email) {
-      loadUnreadMessageCount();
-      const interval = setInterval(loadUnreadMessageCount, 30000);
-      return () => clearInterval(interval);
+      const refresh = () => {
+        void loadUnreadMessageCount();
+      };
+      refresh();
+      const interval = setInterval(refresh, 30000);
+      window.addEventListener("messagesRead", refresh);
+      window.addEventListener("focus", refresh);
+      return () => {
+        clearInterval(interval);
+        window.removeEventListener("messagesRead", refresh);
+        window.removeEventListener("focus", refresh);
+      };
     }
   }, [brandData?.contact_email]);
 
@@ -611,40 +657,54 @@ export default function BrandDashboardContent() {
     }
   };
 
-  /** Εκκρεμείς αιτήσεις (pending) σε όλες τις καμπάνιες του brand — badges «Καμπάνιες» / «Αιτήσεις». */
+  /** Pending applications across this brand's campaigns. The red tab badge is only the ones not opened yet. */
   useEffect(() => {
     if (!brandData?.id) {
+      setPendingApplicationIds([]);
       setPendingCampaignApplicationsCount(0);
+      setApplicationsLoaded(false);
       return;
     }
     let cancelled = false;
     (async () => {
-      const { data: camps } = await supabase
-        .from("brand_campaigns")
-        .select("id")
-        .eq("brand_id", brandData.id);
-      if (cancelled) return;
-      if (!camps?.length) {
-        setPendingCampaignApplicationsCount(0);
-        return;
-      }
-      const ids = camps.map((c) => c.id);
-      const { count, error } = await supabase
-        .from("campaign_applications")
-        .select("*", { count: "exact", head: true })
-        .in("campaign_id", ids)
-        .eq("status", "pending");
-      if (cancelled) return;
-      if (error) {
-        console.error("[Brand Dashboard] pending campaign applications count", error);
-        return;
-      }
-      setPendingCampaignApplicationsCount(count ?? 0);
+      const ids = await fetchPendingApplicationIds(String(brandData.id));
+      if (cancelled || ids === null) return;
+      setPendingApplicationIds(ids);
+      setPendingCampaignApplicationsCount(ids.length);
+      setApplicationsLoaded(true);
     })();
     return () => {
       cancelled = true;
     };
   }, [brandData?.id, activeTab]);
+
+  useEffect(() => {
+    if (!viewerId || typeof window === "undefined") return;
+    const store = window.localStorage;
+    setUnseenApplicationCount(
+      badgeAfterOpen(
+        activeTab === "campaigns",
+        applicationsLoaded,
+        pendingApplicationIds,
+        readIdList(store, brandApplicationSeenKey(viewerId))
+      )
+    );
+    if (activeTab === "campaigns" && applicationsLoaded) {
+      writeIdList(store, brandApplicationSeenKey(viewerId), pendingApplicationIds);
+    }
+    const proposalIds = brandProposalAlertIds(proposals);
+    setUnseenProposalCount(
+      badgeAfterOpen(
+        activeTab === "proposals",
+        proposalsLoaded,
+        proposalIds,
+        readIdList(store, brandProposalSeenKey(viewerId))
+      )
+    );
+    if (activeTab === "proposals" && proposalsLoaded) {
+      writeIdList(store, brandProposalSeenKey(viewerId), proposalIds);
+    }
+  }, [viewerId, activeTab, applicationsLoaded, pendingApplicationIds, proposals, proposalsLoaded]);
 
   useEffect(() => {
     if (activeTab !== "messages") {
@@ -712,6 +772,7 @@ export default function BrandDashboardContent() {
         router.replace('/login');
         return;
       }
+      setViewerId(auth.user.id);
 
       const profiles = await loadOwnProfiles(supabase);
       if (!profiles.ok) {
@@ -739,6 +800,7 @@ export default function BrandDashboardContent() {
       if (!proposalsResponse.ok) throw new Error(proposalsBody.error || 'Could not load proposals');
       const proposalsData = Array.isArray(proposalsBody.proposals) ? proposalsBody.proposals as Proposal[] : [];
         setProposals(proposalsData as Proposal[]);
+        setProposalsLoaded(true);
 
         // Get unique influencer IDs
         const influencerIds = [...new Set(proposalsData.map((p: Proposal) => p.influencer_id))];
@@ -772,6 +834,7 @@ export default function BrandDashboardContent() {
       if (!proposalsResponse.ok || !Array.isArray(proposalsBody.proposals)) return;
       const proposalsData = proposalsBody.proposals as Proposal[];
       setProposals(proposalsData);
+      setProposalsLoaded(true);
       const influencerIds = [...new Set(proposalsData.map((p) => p.influencer_id).filter(Boolean))];
       if (!influencerIds.length) return;
       const { data: influencersData } = await supabase
@@ -1399,9 +1462,9 @@ export default function BrandDashboardContent() {
                 }`}
               >
                 {lang === 'el' ? '📣 Καμπάνιες' : '📣 Campaigns'}
-                {pendingCampaignApplicationsCount > 0 && (
+                {unseenApplicationCount > 0 && (
                   <span className="absolute top-1.5 sm:top-2 right-0 sm:right-1 bg-red-500 text-white text-[10px] sm:text-xs font-bold rounded-full min-w-[16px] sm:min-w-[18px] h-[16px] sm:h-[18px] flex items-center justify-center px-1">
-                    {pendingCampaignApplicationsCount > 99 ? '99+' : pendingCampaignApplicationsCount}
+                    {unseenApplicationCount > 99 ? '99+' : unseenApplicationCount}
                   </span>
                 )}
               </button>
@@ -1414,9 +1477,9 @@ export default function BrandDashboardContent() {
                 }`}
               >
                 {lang === 'el' ? '📋 Προσφορές' : '📋 Proposals'}
-                {(openAgreements > 0 || pendingCounterProposals.length > 0) && (
+                {unseenProposalCount > 0 && (
                   <span className="ml-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[16px] sm:min-w-[18px] h-[16px] sm:h-[18px] flex items-center justify-center px-1">
-                    {openAgreements + pendingCounterProposals.length > 99 ? '99+' : openAgreements + pendingCounterProposals.length}
+                    {unseenProposalCount > 99 ? '99+' : unseenProposalCount}
                   </span>
                 )}
               </button>
@@ -1502,22 +1565,12 @@ export default function BrandDashboardContent() {
               onApplicationsUpdated={() => {
                 void reloadProposals();
                 if (!brandData?.id) return;
-                (async () => {
-                  const { data: camps } = await supabase
-                    .from("brand_campaigns")
-                    .select("id")
-                    .eq("brand_id", brandData.id);
-                  if (!camps?.length) {
-                    setPendingCampaignApplicationsCount(0);
-                    return;
-                  }
-                  const ids = camps.map((c) => c.id);
-                  const { count } = await supabase
-                    .from("campaign_applications")
-                    .select("*", { count: "exact", head: true })
-                    .in("campaign_id", ids)
-                    .eq("status", "pending");
-                  setPendingCampaignApplicationsCount(count ?? 0);
+                void (async () => {
+                  const ids = await fetchPendingApplicationIds(String(brandData.id));
+                  if (!ids) return;
+                  setPendingApplicationIds(ids);
+                  setPendingCampaignApplicationsCount(ids.length);
+                  setApplicationsLoaded(true);
                 })();
               }}
               onOpenInfluencerMessage={(p) => {
