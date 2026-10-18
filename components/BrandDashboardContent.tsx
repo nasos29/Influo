@@ -1684,7 +1684,7 @@ export default function BrandDashboardContent() {
                     className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all overflow-hidden"
                   >
                     <div className="relative">
-                      <div className="absolute top-2 right-2 z-30">
+                      <div className="absolute top-2 right-2 z-10">
                         <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold text-white ${
                           match.score >= 80 ? 'bg-emerald-600' :
                           match.score >= 65 ? 'bg-blue-600' :
@@ -1695,15 +1695,14 @@ export default function BrandDashboardContent() {
                       </div>
                       
                       {/* Avatar */}
-                      <div className="relative h-48 overflow-hidden bg-slate-200">
+                      <div className="relative h-48 bg-slate-200">
                         <CreatorPhoto
                           src={inf.avatar_url}
                           name={displayNameForLang(inf.display_name, lang)}
-                          fill
-                          className="absolute inset-0 z-10 h-full w-full"
+                          className="absolute inset-0 h-full w-full"
                         />
-                        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-24 bg-gradient-to-t from-black/75 to-black/0"></div>
-                        <div className="absolute bottom-3 left-3 right-3 z-20">
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                        <div className="absolute bottom-3 left-3 right-3">
                           <h3 className="text-white font-bold text-lg mb-1.5">{displayNameForLang(inf.display_name, lang)}</h3>
                           {orderedCats.map((cat: string, idx: number) => (
                             <span key={idx} className="inline-block px-2 py-1 bg-white/20 backdrop-blur-sm rounded text-xs text-white font-medium mr-1 mb-1">
