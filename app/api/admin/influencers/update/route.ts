@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { insertFollowerSnapshot } from '@/lib/parseFollowers';
 import { requireAdmin } from '@/lib/apiAuth';
 import { ensureProfileSlug } from '@/lib/profileSlugAssign';
+import { escapeHtml, sendTransactional } from '@/lib/transactionalEmail';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
 
     const { data: existing, error: fetchErr } = await supabaseAdmin
       .from('influencers')
-      .select('id, contact_email, accounts')
+      .select('id, contact_email, accounts, approved, display_name')
       .eq('id', influencerId)
       .maybeSingle();
 
@@ -72,6 +73,19 @@ export async function POST(request: NextRequest) {
       await ensureProfileSlug(supabaseAdmin, influencerId).catch((e) => {
         console.error('[admin/influencers/update] slug', e);
       });
+      if (existing.approved !== true) {
+        const email = String(data.contact_email || existing.contact_email || "").trim();
+        const name = escapeHtml(data.display_name || existing.display_name || "");
+        await sendTransactional(
+          email,
+          "Συγχαρητήρια! Το προφίλ σου εγκρίθηκε ✅",
+          `<div style="font-family:sans-serif;font-size:14px;color:#1f2937;max-width:560px">
+            <p>Γεια σου ${name},</p>
+            <p>Το προφίλ σου εγκρίθηκε και είναι πλέον ορατό στις επιχειρήσεις. Μπορείς να βλέπεις ανοιχτές καμπάνιες και να κάνεις αίτηση.</p>
+            <p><a href="https://www.influo.gr/dashboard">Άνοιγμα dashboard</a></p>
+          </div>`
+        ).catch((err) => console.error("[influencer approved email]", err));
+      }
     }
 
     const newEmail =

@@ -84,6 +84,16 @@ export default function CookieConsent() {
   };
 
   const showBanner = choice !== "pending" && (choice === null || forceShow);
+
+  useEffect(() => {
+    if (!showBanner) return;
+    const previous = document.body.style.paddingBottom;
+    document.body.style.paddingBottom = "8.5rem";
+    return () => {
+      document.body.style.paddingBottom = previous;
+    };
+  }, [showBanner]);
+
   if (!showBanner) return null;
 
   const el = lang === "el";

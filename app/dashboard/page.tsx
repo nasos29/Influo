@@ -6,7 +6,8 @@ import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import DashboardContent from '@/components/DashboardContent';
-import { loadOwnProfiles } from '@/lib/ownProfile'; 
+import { loadOwnProfiles } from '@/lib/ownProfile';
+import { lookupAuthUser } from '@/lib/authSession'; 
 
 // [!!!] ΒΑΛΕ ΤΟ ADMIN EMAIL ΣΟΥ ΕΔΩ
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'nd.6@hotmail.com';
@@ -26,12 +27,18 @@ export default function DashboardPage() {
         async function checkAuthAndLoadProfile() {
             setLoading(true);
             setLoadError(null);
-            const { data: { user } } = await supabase.auth.getUser();
+            const auth = await lookupAuthUser(8000);
 
-            if (!user) {
+            if (!auth.user) {
+                if (auth.timedOut) {
+                    setLoadError("Η σύνδεση άργησε να απαντήσει. Δοκιμάστε ξανά.");
+                    setLoading(false);
+                    return;
+                }
                 router.replace('/login');
                 return;
             }
+            const user = auth.user;
 
             if (user.email === ADMIN_EMAIL) {
                 router.replace('/admin'); 
@@ -128,7 +135,16 @@ export default function DashboardPage() {
                </div>
              );
         }
-        return <div className="min-h-screen flex items-center justify-center">Loading Dashboard...</div>;
+        return (
+            <div className="min-h-screen bg-slate-50">
+                <div className="max-w-5xl mx-auto px-4 py-8 space-y-4">
+                    <div className="h-10 w-56 bg-slate-200 rounded animate-pulse" />
+                    <div className="h-40 bg-white border border-slate-200 rounded-xl animate-pulse" />
+                    <div className="h-64 bg-white border border-slate-200 rounded-xl animate-pulse" />
+                    <p className="text-sm text-slate-600">Φόρτωση...</p>
+                </div>
+            </div>
+        );
     }
     
     return (

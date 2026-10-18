@@ -4,6 +4,7 @@ import { Roboto } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import CookieConsent from "@/components/CookieConsent";
+import FeedbackHost from "@/components/Feedback";
 import { ORGANIZATION_EMAIL, ORGANIZATION_SAME_AS, SITE_NAME, SITE_URL } from "@/lib/site";
 
 const roboto = Roboto({
@@ -176,6 +177,7 @@ export default async function RootLayout({
           `}
         </Script>
         {children}
+        <FeedbackHost />
         <CookieConsent />
       </body>
     </html>

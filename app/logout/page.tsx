@@ -4,79 +4,52 @@
 import { useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { loadOwnBrand } from '@/lib/ownProfile';
-import { useRouter } from 'next/navigation';
-import { beginPresenceLogout } from '@/lib/presenceControl';
+import { logoutEverywhere } from '@/lib/authSession';
 
 export default function LogoutPage() {
-    const router = useRouter();
-
     useEffect(() => {
+        let finished = false;
+        const go = () => {
+            if (finished) return;
+            finished = true;
+            void logoutEverywhere('/login');
+        };
+        const watchdog = window.setTimeout(go, 2000);
+
         async function handleLogout() {
-            beginPresenceLogout();
             try {
-                // Get current user before signing out
-                const { data: { user } } = await supabase.auth.getUser();
-                
-                // Mark influencer as offline if they are an influencer
+                const userResult = await Promise.race([
+                    supabase.auth.getUser(),
+                    new Promise<null>((resolve) => setTimeout(() => resolve(null), 800)),
+                ]);
+                const user = userResult && 'data' in userResult ? userResult.data.user : null;
                 if (user) {
-                    try {
-                        // Check if user is an influencer
-                        const { data: influencerData } = await supabase
-                            .from('influencers')
-                            .select('id')
-                            .eq('id', user.id)
-                            .maybeSingle();
-                        
-                        if (influencerData) {
-                            // Mark influencer as offline
-                            await supabase
-                                .from('influencer_presence')
-                                .update({
-                                    is_online: false,
-                                    last_seen: new Date().toISOString(),
-                                    updated_at: new Date().toISOString(),
-                                })
-                                .eq('influencer_id', user.id);
-                            console.log('[Logout] Marked influencer as offline:', user.id);
-                        }
-                    } catch (err) {
-                        // Fail silently - don't block logout if presence update fails
-                        console.error('[Logout] Error marking influencer offline:', err);
-                    }
-                    
-                    // Check if user is a brand
-                    try {
-                        const brandResult = await loadOwnBrand(supabase);
-                        const brandEmail = brandResult.ok && typeof brandResult.profile.contact_email === "string"
-                            ? brandResult.profile.contact_email
-                            : "";
-                        if (brandEmail) {
-                            // Mark brand as offline
-                            await supabase
-                                .from('brand_presence')
-                                .update({
-                                    is_online: false,
-                                    last_seen: new Date().toISOString(),
-                                    updated_at: new Date().toISOString(),
-                                })
-                                .eq('brand_email', brandEmail.toLowerCase().trim());
-                            console.log('[Logout] Marked brand as offline:', brandEmail);
-                        }
-                    } catch (err) {
-                        // Fail silently - don't block logout if presence update fails
-                        console.error('[Logout] Error marking brand offline:', err);
+                    void supabase
+                        .from('influencer_presence')
+                        .update({ is_online: false, last_seen: new Date().toISOString(), updated_at: new Date().toISOString() })
+                        .eq('influencer_id', user.id);
+                    const brandResult = await Promise.race([
+                        loadOwnBrand(supabase),
+                        new Promise<null>((resolve) => setTimeout(() => resolve(null), 800)),
+                    ]);
+                    const brandEmail = brandResult && 'ok' in brandResult && brandResult.ok && typeof brandResult.profile.contact_email === "string"
+                        ? brandResult.profile.contact_email
+                        : "";
+                    if (brandEmail) {
+                        void supabase
+                            .from('brand_presence')
+                            .update({ is_online: false, last_seen: new Date().toISOString(), updated_at: new Date().toISOString() })
+                            .eq('brand_email', brandEmail.toLowerCase().trim());
                     }
                 }
-            } catch (err) {
-                console.error('[Logout] Error getting user before logout:', err);
+            } catch {
+                /* presence must not block logout */
             }
-            
-            // Sign out
-            await supabase.auth.signOut();
-            router.replace('/login');
+            window.clearTimeout(watchdog);
+            go();
         }
         handleLogout();
-    }, [router]);
+    }, []);
 
     return (
         <div className="min-h-screen flex items-center justify-center">

@@ -9,6 +9,7 @@ type Props = {
   pendingAgreements: number;
   unreadMessages: number;
   onOpenTab: (tab: BrandTab) => void;
+  onOpenApplications?: () => void;
 };
 
 function fmt(n: number): string {
@@ -22,6 +23,7 @@ export default function BrandActionInbox({
   pendingAgreements,
   unreadMessages,
   onOpenTab,
+  onOpenApplications,
 }: Props) {
   const el = lang === "el";
   const items = [
@@ -83,7 +85,10 @@ export default function BrandActionInbox({
             <button
               key={`${item.tab}-${i}`}
               type="button"
-              onClick={() => onOpenTab(item.tab)}
+              onClick={() => {
+                if (item.tab === "campaigns" && onOpenApplications) onOpenApplications();
+                else onOpenTab(item.tab);
+              }}
               className={`text-left rounded-xl border p-3.5 sm:p-4 transition-colors ${
                 active
                   ? "bg-white border-blue-200 hover:border-blue-400 hover:bg-blue-50"

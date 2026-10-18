@@ -18,6 +18,8 @@ import { normalizeGender } from "@/lib/gender";
 import PushNotificationPrompt from "./PushNotificationPrompt";
 import AdminInfluencerStatsTab from "./AdminInfluencerStatsTab";
 import SocialRefreshLogsPanel from "./SocialRefreshLogsPanel";
+import { askConfirm } from "@/components/Feedback";
+import { logoutEverywhere } from "@/lib/authSession";
 
 async function adminAuthHeaders(): Promise<Record<string, string>> {
   const { data: { session } } = await supabase.auth.getSession();
@@ -208,6 +210,7 @@ const t = {
     back: "Πίσω στο Site",
     users: "Συνολικοί Χρήστες",
     pending: "Εκκρεμούν",
+    pending_brands: "Εκκρεμείς επιχειρήσεις",
     verified: "Εγκεκριμένοι",
     reach: "Απήχηση",
     pipeline: "Pipeline",
@@ -291,6 +294,7 @@ const t = {
     back: "Back to Site",
     users: "Total Users",
     pending: "Pending",
+    pending_brands: "Pending companies",
     verified: "Verified",
     reach: "Total Reach",
     pipeline: "Pipeline",
@@ -1520,6 +1524,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [brandSearchQuery, setBrandSearchQuery] = useState("");
+  const [brandStatusFilter, setBrandStatusFilter] = useState<"all" | "verified" | "pending">("pending");
   const [updatingBrand, setUpdatingBrand] = useState<string | null>(null);
   const [deletingBrand, setDeletingBrand] = useState<string | null>(null);
   const [deletingConversation, setDeletingConversation] = useState<string | null>(null);
@@ -2069,6 +2074,12 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (activeTab !== "influencers") setSearchQuery("");
+    if (activeTab !== "brands") setBrandSearchQuery("");
+    if (activeTab !== "campaigns") setCampaignSearchQuery("");
+  }, [activeTab]);
+
   const linkedConversationId = useRef<string | null>(null);
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("conversation");
@@ -2152,6 +2163,18 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   };
 
   const toggleApproval = async (id: number, currentStatus: boolean, userEmail: string, userName: string) => {
+    if (currentStatus) {
+      const ok = await askConfirm({
+        title: lang === "el" ? "Ακύρωση έγκρισης" : "Remove approval",
+        body: lang === "el"
+          ? `Ο/Η «${userName || userEmail}» δεν θα βλέπει πλέον ανοιχτές καμπάνιες.`
+          : `${userName || userEmail} will no longer see open campaigns.`,
+        confirmLabel: lang === "el" ? "Ακύρωση έγκρισης" : "Unapprove",
+        cancelLabel: lang === "el" ? "Άκυρο" : "Cancel",
+        danger: true,
+      });
+      if (!ok) return;
+    }
     const response = await fetch('/api/admin/influencers/update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(await adminAuthHeaders()) },
@@ -2191,16 +2214,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         
         fetchData();
         if (!currentStatus) {
-                // Email to influencer (approved) – independent from brand notifications
-                try {
-                    await fetch('/api/emails', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ type: 'approved', email: userEmail, name: userName })
-                    });
-                } catch (e) {
-                    console.error('Influencer approved email error:', e);
-                }
+                // Approval email is sent by /api/admin/influencers/update.
                 fetch('/api/push/trigger-influencer-approved', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
@@ -2504,13 +2518,16 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     const userEmail = user?.contact_email || 'unknown';
     const userName = user?.display_name || 'unknown';
     
-    if (!confirm(
-      lang === 'el' 
-        ? `Είσαι σίγουρος ότι θες να διαγράψεις τον χρήστη "${userName}" (${userEmail})?\n\n⚠️ Προσοχή: Αυτή η ενέργεια θα διαγράψει:\n- Τον influencer από τη βάση\n- Τον auth user\n- Όλες τις συνομιλίες (CASCADE)\n- Όλα τα μηνύματα (CASCADE)\n- Όλα τα proposals\n\nΑυτή η ενέργεια ΔΕΝ μπορεί να αναιρεθεί!`
-        : `Are you sure you want to delete user "${userName}" (${userEmail})?\n\n⚠️ Warning: This action will delete:\n- The influencer from database\n- The auth user\n- All conversations (CASCADE)\n- All messages (CASCADE)\n- All proposals\n\nThis action CANNOT be undone!`
-    )) {
-        return;
-    }
+    const ok = await askConfirm({
+      title: lang === "el" ? "Διαγραφή influencer" : "Delete influencer",
+      body: lang === "el"
+        ? `Διαγραφή του «${userName}» (${userEmail}); Θα αφαιρεθούν το προφίλ, ο λογαριασμός σύνδεσης, οι συνομιλίες και οι προτάσεις. Δεν αναιρείται.`
+        : `Delete “${userName}” (${userEmail})? This removes the profile, login, conversations and proposals. It cannot be undone.`,
+      confirmLabel: lang === "el" ? "Διαγραφή" : "Delete",
+      cancelLabel: lang === "el" ? "Άκυρο" : "Cancel",
+      danger: true,
+    });
+    if (!ok) return;
 
     try {
         const response = await fetch('/api/admin/delete-user', {
@@ -2549,6 +2566,19 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   };
 
   const handleToggleBrandVerification = async (brandId: string, currentStatus: boolean) => {
+    if (currentStatus) {
+      const brand = brands.find((b) => b.id === brandId);
+      const ok = await askConfirm({
+        title: lang === "el" ? "Απόρριψη επιχείρησης" : "Reject company",
+        body: lang === "el"
+          ? `Η «${brand?.brand_name || ""}» θα χάσει την επαλήθευση και δεν θα μπορεί να δημοσιεύει ανοιχτές καμπάνιες.`
+          : `“${brand?.brand_name || ""}” will lose verification and cannot publish open campaigns.`,
+        confirmLabel: lang === "el" ? "Απόρριψη" : "Reject",
+        cancelLabel: lang === "el" ? "Άκυρο" : "Cancel",
+        danger: true,
+      });
+      if (!ok) return;
+    }
     setUpdatingBrand(brandId);
     try {
       const response = await fetch('/api/admin/brands/verify', {
@@ -2630,13 +2660,16 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   };
 
   const deleteBrand = async (brandId: string, brandName: string) => {
-    if (!confirm(
-      lang === 'el' 
-        ? `Είσαι σίγουρος ότι θες να διαγράψεις την επιχείρηση "${brandName}";`
-        : `Are you sure you want to delete the brand "${brandName}"?`
-    )) {
-      return;
-    }
+    const ok = await askConfirm({
+      title: lang === "el" ? "Διαγραφή επιχείρησης" : "Delete company",
+      body: lang === "el"
+        ? `Διαγραφή της «${brandName}»; Η ενέργεια δεν αναιρείται.`
+        : `Delete “${brandName}”? This cannot be undone.`,
+      confirmLabel: lang === "el" ? "Διαγραφή" : "Delete",
+      cancelLabel: lang === "el" ? "Άκυρο" : "Cancel",
+      danger: true,
+    });
+    if (!ok) return;
 
     setDeletingBrand(brandId);
     try {
@@ -2768,8 +2801,15 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       return;
     }
 
-    if (action === 'delete' && !confirm(lang === "el" ? `Διαγραφή ${selectedUsers.length} χρηστών;` : `Delete ${selectedUsers.length} users?`)) {
-      return;
+    if (action === 'delete') {
+      const ok = await askConfirm({
+        title: lang === "el" ? "Μαζική διαγραφή" : "Bulk delete",
+        body: lang === "el" ? `Διαγραφή ${selectedUsers.length} χρηστών; Δεν αναιρείται.` : `Delete ${selectedUsers.length} users? This cannot be undone.`,
+        confirmLabel: lang === "el" ? "Διαγραφή" : "Delete",
+        cancelLabel: lang === "el" ? "Άκυρο" : "Cancel",
+        danger: true,
+      });
+      if (!ok) return;
     }
 
     try {
@@ -2843,6 +2883,24 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     a.click();
   };
 
+  const pendingBrandCount = brands.filter((b) => !b.verified).length;
+  const visibleBrands = brands
+    .filter((b) => {
+      const query = brandSearchQuery.trim().toLowerCase();
+      const matchesSearch =
+        !query ||
+        b.brand_name.toLowerCase().includes(query) ||
+        b.contact_email.toLowerCase().includes(query);
+      const matchesStatus =
+        brandStatusFilter === "all" ||
+        (brandStatusFilter === "pending" ? !b.verified : b.verified);
+      return matchesSearch && matchesStatus;
+    })
+    .sort((a, b) => {
+      if (a.verified !== b.verified) return a.verified ? 1 : -1;
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    });
+
   const filteredUsers = users.filter(u => {
     const matchesSearch = !searchQuery || 
       u.display_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -2901,7 +2959,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
               >
                 {lang === "el" ? "EN" : "EL"}
               </button>
-              <a href="/logout" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors">Logout</a>
+              <button type="button" onClick={() => void logoutEverywhere("/login")} className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors">Logout</button>
               <a href="/" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors">{txt.back}</a>
             </div>
           </div>
@@ -2910,7 +2968,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
           <div className="bg-white p-4 rounded-lg border border-slate-200">
             <p className="text-xs text-slate-500 uppercase font-medium mb-1">{txt.users}</p>
             <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
@@ -2918,6 +2976,10 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
           <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
             <p className="text-xs text-yellow-700 uppercase font-medium mb-1">{txt.pending}</p>
             <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
+          </div>
+          <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg">
+            <p className="text-xs text-amber-800 uppercase font-medium mb-1">{txt.pending_brands}</p>
+            <p className="text-2xl font-bold text-amber-700">{pendingBrandCount}</p>
           </div>
           <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
             <p className="text-xs text-green-700 uppercase font-medium mb-1">{txt.verified}</p>
@@ -2994,13 +3056,18 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
               </button>
               <button 
                 onClick={() => setActiveTab("brands")} 
-                className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                className={`relative px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === "brands" 
                     ? "border-slate-900 text-slate-900" 
                     : "border-transparent text-slate-500 hover:text-slate-700"
                 }`}
               >
                 {txt.tab_brands} ({brands.length})
+                {pendingBrandCount > 0 && (
+                  <span className="ml-1.5 inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold">
+                    {pendingBrandCount > 99 ? "99+" : pendingBrandCount}
+                  </span>
+                )}
               </button>
               <button
                 type="button"
@@ -3283,53 +3350,69 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                             </div>
                           </td>
                           <td className="px-4 py-3">
-                            <div className="flex items-center justify-end gap-2 flex-wrap">
-                              <button
-                                onClick={() => { setSelectedUser(u); setShowEditModal(true); }}
-                                className="px-2 py-1 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors"
-                              >
-                                {txt.edit}
-                              </button>
-                              <button
-                                onClick={() => toggleApproval(u.id, u.approved || false, u.contact_email || "", u.display_name)}
-                                className={`px-2 py-1 text-xs rounded transition-colors ${
-                                  u.approved 
-                                    ? 'text-red-600 hover:text-red-700 hover:bg-red-50' 
-                                    : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'
-                                }`}
-                              >
-                                {u.approved ? txt.btn_unapprove : txt.btn_approve}
-                              </button>
-                              <button
-                                onClick={() => toggleAnalyticsVerification(u.id, u.analytics_verified || false)}
-                                className={`px-2 py-1 text-xs rounded transition-colors ${
-                                  u.analytics_verified 
-                                    ? 'text-red-600 hover:text-red-700 hover:bg-red-50' 
-                                    : 'text-green-600 hover:text-green-700 hover:bg-green-50'
-                                }`}
-                              >
-                                {u.analytics_verified ? txt.btn_unverify_analytics : txt.btn_verify_analytics}
-                              </button>
-                              <button
-                                onClick={() => refreshSocialStats(u)}
-                                disabled={refreshingSocialFor === String(u.id)}
-                                className="px-2 py-1 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                {refreshingSocialFor === String(u.id) ? '...' : txt.refresh_social}
-                              </button>
-                              <button
-                                onClick={() => refreshAudit(u)}
-                                disabled={refreshingAuditFor === String(u.id)}
-                                className="px-2 py-1 text-xs text-violet-600 hover:text-violet-700 hover:bg-violet-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                {refreshingAuditFor === String(u.id) ? '...' : txt.refresh_audit}
-                              </button>
-                              <button
-                                onClick={() => deleteUser(u.id)}
-                                className="px-2 py-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
-                              >
-                                {txt.btn_delete}
-                              </button>
+                            <div className="flex flex-col items-end gap-2">
+                              <div className="flex items-center justify-end gap-2 flex-wrap">
+                                <button
+                                  onClick={() => { setSelectedUser(u); setShowEditModal(true); }}
+                                  className="px-2 py-1 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors"
+                                >
+                                  {txt.edit}
+                                </button>
+                                {!u.approved && (
+                                  <button
+                                    onClick={() => toggleApproval(u.id, false, u.contact_email || "", u.display_name)}
+                                    className="px-2 py-1 text-xs rounded transition-colors text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                  >
+                                    {txt.btn_approve}
+                                  </button>
+                                )}
+                                {!u.analytics_verified && (
+                                  <button
+                                    onClick={() => toggleAnalyticsVerification(u.id, false)}
+                                    className="px-2 py-1 text-xs rounded transition-colors text-green-600 hover:text-green-700 hover:bg-green-50"
+                                  >
+                                    {txt.btn_verify_analytics}
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => refreshSocialStats(u)}
+                                  disabled={refreshingSocialFor === String(u.id)}
+                                  className="px-2 py-1 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {refreshingSocialFor === String(u.id) ? '...' : txt.refresh_social}
+                                </button>
+                                <button
+                                  onClick={() => refreshAudit(u)}
+                                  disabled={refreshingAuditFor === String(u.id)}
+                                  className="px-2 py-1 text-xs text-violet-600 hover:text-violet-700 hover:bg-violet-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {refreshingAuditFor === String(u.id) ? '...' : txt.refresh_audit}
+                                </button>
+                              </div>
+                              <div className="flex items-center justify-end gap-2 flex-wrap border-t border-red-100 pt-2">
+                                {u.approved && (
+                                  <button
+                                    onClick={() => toggleApproval(u.id, true, u.contact_email || "", u.display_name)}
+                                    className="px-2 py-1 text-xs rounded transition-colors text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    {txt.btn_unapprove}
+                                  </button>
+                                )}
+                                {u.analytics_verified && (
+                                  <button
+                                    onClick={() => toggleAnalyticsVerification(u.id, true)}
+                                    className="px-2 py-1 text-xs rounded transition-colors text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    {txt.btn_unverify_analytics}
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => deleteUser(u.id)}
+                                  className="px-2 py-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                                >
+                                  {txt.btn_delete}
+                                </button>
+                              </div>
                             </div>
                           </td>
                         </tr>
@@ -3402,7 +3485,27 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
           {activeTab === "brands" && (
             <>
               {/* Search */}
-              <div className="p-4 border-b border-slate-200">
+              <div className="p-4 border-b border-slate-200 space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    ["pending", lang === "el" ? `Εκκρεμείς (${pendingBrandCount})` : `Pending (${pendingBrandCount})`],
+                    ["verified", lang === "el" ? "Επαληθευμένες" : "Verified"],
+                    ["all", lang === "el" ? "Όλες" : "All"],
+                  ] as const).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setBrandStatusFilter(value)}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-full border ${
+                        brandStatusFilter === value
+                          ? "bg-slate-900 text-white border-slate-900"
+                          : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
                 <div className="flex items-center justify-between gap-4">
                   <input
                     type="text"
@@ -3436,11 +3539,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
-                    {brands.filter(b => 
-                      brandSearchQuery === "" || 
-                      b.brand_name.toLowerCase().includes(brandSearchQuery.toLowerCase()) ||
-                      b.contact_email.toLowerCase().includes(brandSearchQuery.toLowerCase())
-                    ).length === 0 ? (
+                    {visibleBrands.length === 0 ? (
                       <tr>
                         <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
                           {brands.length === 0 
@@ -3449,11 +3548,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                         </td>
                       </tr>
                     ) : (
-                      brands.filter(b => 
-                        brandSearchQuery === "" || 
-                        b.brand_name.toLowerCase().includes(brandSearchQuery.toLowerCase()) ||
-                        b.contact_email.toLowerCase().includes(brandSearchQuery.toLowerCase())
-                      ).map(b => (
+                      visibleBrands.map(b => (
                         <tr key={b.id} className="hover:bg-slate-50">
                           <td className="px-3 py-2">
                             <div className="flex items-center gap-3">
@@ -3500,40 +3595,50 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                             </span>
                           </td>
                           <td className="px-3 py-2">
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <button
-                                onClick={() => { setSelectedBrand(b); setShowBrandEditModal(true); }}
-                                disabled={updatingBrand === b.id || deletingBrand === b.id}
-                                className="px-2.5 py-1 text-[11px] bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                              >
-                                {lang === 'el' ? 'Επεξεργασία' : 'Edit'}
-                              </button>
-                              <button
-                                onClick={() => handleToggleBrandVerification(b.id, b.verified)}
-                                disabled={updatingBrand === b.id || deletingBrand === b.id}
-                                className={`px-2.5 py-1 text-[11px] rounded-md transition-colors ${
-                                  b.verified
-                                    ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                                    : 'bg-green-100 text-green-700 hover:bg-green-200'
-                                } disabled:opacity-50 disabled:cursor-not-allowed`}
-                              >
-                                {updatingBrand === b.id 
-                                  ? (lang === 'el' ? 'Επεξεργασία...' : 'Processing...')
-                                  : b.verified
-                                    ? (lang === 'el' ? 'Απόρριψη' : 'Reject')
-                                    : (lang === 'el' ? 'Έγκριση' : 'Approve')
-                                }
-                              </button>
-                              <button
-                                onClick={() => deleteBrand(b.id, b.brand_name)}
-                                disabled={updatingBrand === b.id || deletingBrand === b.id}
-                                className="px-2.5 py-1 text-[11px] bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                              >
-                                {deletingBrand === b.id 
-                                  ? (lang === 'el' ? 'Διαγραφή...' : 'Deleting...')
-                                  : (lang === 'el' ? 'Διαγραφή' : 'Delete')
-                                }
-                              </button>
+                            <div className="flex flex-col items-start gap-1.5">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <button
+                                  onClick={() => { setSelectedBrand(b); setShowBrandEditModal(true); }}
+                                  disabled={updatingBrand === b.id || deletingBrand === b.id}
+                                  className="px-2.5 py-1 text-[11px] bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                  {lang === 'el' ? 'Επεξεργασία' : 'Edit'}
+                                </button>
+                                {!b.verified && (
+                                  <button
+                                    onClick={() => handleToggleBrandVerification(b.id, false)}
+                                    disabled={updatingBrand === b.id || deletingBrand === b.id}
+                                    className="px-2.5 py-1 text-[11px] rounded-md transition-colors bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    {updatingBrand === b.id
+                                      ? (lang === 'el' ? 'Επεξεργασία...' : 'Processing...')
+                                      : (lang === 'el' ? 'Έγκριση' : 'Approve')}
+                                  </button>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-1.5 border-t border-red-100 pt-1.5">
+                                {b.verified && (
+                                  <button
+                                    onClick={() => handleToggleBrandVerification(b.id, true)}
+                                    disabled={updatingBrand === b.id || deletingBrand === b.id}
+                                    className="px-2.5 py-1 text-[11px] rounded-md transition-colors bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    {updatingBrand === b.id
+                                      ? (lang === 'el' ? 'Επεξεργασία...' : 'Processing...')
+                                      : (lang === 'el' ? 'Απόρριψη' : 'Reject')}
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => deleteBrand(b.id, b.brand_name)}
+                                  disabled={updatingBrand === b.id || deletingBrand === b.id}
+                                  className="px-2.5 py-1 text-[11px] bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                  {deletingBrand === b.id 
+                                    ? (lang === 'el' ? 'Διαγραφή...' : 'Deleting...')
+                                    : (lang === 'el' ? 'Διαγραφή' : 'Delete')
+                                  }
+                                </button>
+                              </div>
                             </div>
                           </td>
                         </tr>

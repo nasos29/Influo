@@ -18,6 +18,7 @@ interface SocialEmbedCardProps {
 export default function SocialEmbedCard({
   provider,
   embedUrl,
+  thumbnailUrl,
   width,
   height,
   originalUrl,
@@ -31,11 +32,13 @@ export default function SocialEmbedCard({
   const finalWidth = width || defaultDimensions[provider]?.width || 400;
   const finalHeight = height || defaultDimensions[provider]?.height || 500;
 
-  const [finalEmbedUrl, setFinalEmbedUrl] = useState<string | null>(
-    embedUrl.startsWith("/api/video-embed") ? null : embedUrl
-  );
+  const directEmbed = embedUrl.startsWith("/api/video-embed") ? "" : embedUrl;
+  const [fetchedEmbed, setFetchedEmbed] = useState<string | null>(null);
+  const finalEmbedUrl = directEmbed || fetchedEmbed;
   const [loading, setLoading] = useState(embedUrl.startsWith("/api/video-embed"));
   const [error, setError] = useState(false);
+  const [thumbFailed, setThumbFailed] = useState(false);
+  const [showEmbed, setShowEmbed] = useState(false);
 
   const names = { instagram: "Instagram", tiktok: "TikTok", youtube: "YouTube" };
   const colors = {
@@ -57,14 +60,8 @@ export default function SocialEmbedCard({
   };
 
   useEffect(() => {
+    if (!embedUrl.startsWith("/api/video-embed")) return;
     let cancelled = false;
-    if (!embedUrl.startsWith("/api/video-embed")) {
-      setFinalEmbedUrl(embedUrl);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setError(false);
     fetch(embedUrl)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -73,7 +70,7 @@ export default function SocialEmbedCard({
       .then((data) => {
         if (cancelled) return;
         if (data.embed_url) {
-          setFinalEmbedUrl(String(data.embed_url));
+          setFetchedEmbed(String(data.embed_url));
           setLoading(false);
         } else {
           setError(true);
@@ -111,25 +108,51 @@ export default function SocialEmbedCard({
     );
   }
 
+  const openHref = getOriginalUrl();
+  const thumb = thumbnailUrl && !thumbFailed ? thumbnailUrl : "";
+
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-md overflow-hidden w-full max-w-full">
       <div
-        className="relative w-full bg-slate-100"
-        style={{ aspectRatio: `${finalWidth} / ${finalHeight}`, minHeight: 300 }}
+        className="relative w-full bg-slate-900"
+        style={{ aspectRatio: `${finalWidth} / ${finalHeight}`, minHeight: 220 }}
       >
-        {loading && (
-          <div
-            className={`absolute inset-0 z-10 bg-gradient-to-br ${colors[provider]} flex flex-col items-center justify-center`}
-          >
-            <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin mb-2" />
-            <span className="text-white text-xs font-medium">Loading {names[provider]}…</span>
-          </div>
+        {thumb ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={thumb}
+            alt=""
+            referrerPolicy="no-referrer"
+            className="absolute inset-0 h-full w-full object-cover"
+            onError={() => setThumbFailed(true)}
+          />
+        ) : (
+          <div className={`absolute inset-0 bg-gradient-to-br ${colors[provider]}`} />
         )}
-        {finalEmbedUrl && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/25 p-4">
+          <a
+            href={openHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-white text-slate-900 px-4 py-2 rounded-lg font-semibold text-sm hover:bg-slate-100 shadow"
+          >
+            {names[provider]}
+          </a>
+          {finalEmbedUrl && !showEmbed && (
+            <button
+              type="button"
+              onClick={() => setShowEmbed(true)}
+              className="text-xs text-white underline"
+            >
+              {loading ? "…" : "Embed"}
+            </button>
+          )}
+        </div>
+        {showEmbed && finalEmbedUrl && (
           <iframe
             src={finalEmbedUrl}
             title={`${names[provider]} video`}
-            className="absolute top-0 left-0 w-full h-full border-0"
+            className="absolute top-0 left-0 w-full h-full border-0 bg-white"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
             loading="lazy"
