@@ -197,7 +197,7 @@ export default function Messaging({
   const txt = t[lang];
   
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
+  const [selectedConversation, setSelectedConversation] = useState<string | null>(initialConversationId);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -299,11 +299,8 @@ export default function Messaging({
   }, [proposalId, brandEmail, conversations]);
 
   useEffect(() => {
-    if (!initialConversationId) return;
-    if (conversations.some((c) => c.id === initialConversationId)) {
-      setSelectedConversation(initialConversationId);
-    }
-  }, [initialConversationId, conversations]);
+    if (initialConversationId) setSelectedConversation(initialConversationId);
+  }, [initialConversationId]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setPresenceTick((n) => n + 1), 30_000);
@@ -1445,7 +1442,7 @@ export default function Messaging({
     : displayNameForLang(currentConversation?.influencer_name, lang || 'el');
 
   const isComposingNew =
-    mode === 'brand' && !!influencerId && !!brandEmail && !selectedConversation;
+    mode === 'brand' && !!influencerId && !!brandEmail && !selectedConversation && !initialConversationId;
   const showMobileList = !selectedConversation && !isComposingNew;
   const showThreadPane = !!selectedConversation || isComposingNew;
 

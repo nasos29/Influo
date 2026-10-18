@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { getVideoThumbnail, isVideoUrl } from '@/lib/videoThumbnail';
 
 interface VideoThumbnailProps {
@@ -57,7 +58,7 @@ export default function VideoThumbnail({
       // For Instagram, TikTok or other platforms that need API call
       if (directThumbnail?.startsWith('/api/')) {
         try {
-          const response = await fetch(directThumbnail, { signal: AbortSignal.timeout(8000) });
+          const response = await fetch(directThumbnail);
           const data = await response.json();
           if (data.thumbnail) {
             setThumbnail(data.thumbnail);
@@ -84,7 +85,7 @@ export default function VideoThumbnail({
           try {
             const apiUrl = `/api/video-thumbnail?url=${encodeURIComponent(url)}`;
             console.log('Fetching thumbnail from:', apiUrl);
-            const response = await fetch(apiUrl, { signal: AbortSignal.timeout(8000) });
+            const response = await fetch(apiUrl);
             const data = await response.json();
             console.log('Thumbnail API response:', data);
             if (data.thumbnail) {
@@ -140,14 +141,16 @@ export default function VideoThumbnail({
     }
     
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
+      <Image
         src={thumbnail}
         alt={alt}
-        referrerPolicy="no-referrer"
+        fill={fill}
+        width={fill ? undefined : width}
+        height={fill ? undefined : height}
+        sizes={fill ? undefined : "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"}
         className={className}
-        style={fill ? { width: '100%', height: '100%', objectFit: 'cover' } : { width: 'auto', height: 'auto', maxWidth: '100%', maxHeight: '500px', objectFit: 'contain' }}
-        onError={() => setFailed(true)}
+        unoptimized
+        style={fill ? undefined : { width: 'auto', height: 'auto', maxWidth: '100%', maxHeight: '500px', objectFit: 'contain' }}
       />
     );
   }

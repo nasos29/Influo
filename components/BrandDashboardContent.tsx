@@ -6,7 +6,7 @@ import { sessionFetch } from '@/lib/sessionFetch';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { recommendInfluencers, type InfluencerProfile, type BrandProfile } from '@/lib/recommendations';
+import { recommendInfluencers, sharedCategoryKeys, sharedCategoryReason, type InfluencerProfile, type BrandProfile } from '@/lib/recommendations';
 import { lookupAuthUser, logoutEverywhere } from '@/lib/authSession';
 import CreatorPhoto from '@/components/CreatorPhoto';
 import PlatformFollowers from '@/components/PlatformFollowers';
@@ -33,6 +33,7 @@ import {
   updateBrandShortlistNote,
   type BrandShortlistItem,
 } from '@/lib/brandShortlist';
+import { openAgreementCount, openBrandAgreements } from '@/lib/brandAgreements';
 
 interface Proposal {
   id: string;
@@ -87,6 +88,8 @@ const t = {
     profile_updated: "Το προφίλ ενημερώθηκε επιτυχώς!",
     error_updating: "Σφάλμα κατά την ενημέρωση",
     pending_agreements: "Συμφωνίες που αναμένουν αποδοχή",
+    awaiting_agreements: "Συμφωνίες που περιμένουν τον influencer",
+    awaiting_note: "Η αίτηση έγινε αποδεκτή. Ο influencer δεν έχει αποδεχτεί ακόμα τους όρους.",
     no_pending: "Δεν υπάρχουν συμφωνίες που αναμένουν αποδοχή",
     proposal_details: "Λεπτομέρειες Πρότασης",
     influencer: "Influencer",
@@ -146,6 +149,8 @@ const t = {
     profile_updated: "Profile updated successfully!",
     error_updating: "Error updating profile",
     pending_agreements: "Agreements Pending Acceptance",
+    awaiting_agreements: "Agreements waiting on the influencer",
+    awaiting_note: "The application was accepted. The influencer has not accepted the terms yet.",
     no_pending: "No agreements pending acceptance",
     recommendations_title: "Recommended Influencers for You",
     recommendations_subtitle: "Based on your industry, strategic audit (niche, engagement) and value for brands",
@@ -479,7 +484,8 @@ export default function BrandDashboardContent() {
   const [savingAgreement, setSavingAgreement] = useState(false);
   const [processingCounterProposal, setProcessingCounterProposal] = useState<string | null>(null);
   const [recommendations, setRecommendations] = useState<any[]>([]);
-  const [recommendationsLoading, setRecommendationsLoading] = useState(false);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(true);
+  const [recommendationsReady, setRecommendationsReady] = useState(false);
   const [brandData, setBrandData] = useState<any>(null);
 
   useOwnPresenceHeartbeat(
@@ -539,6 +545,7 @@ export default function BrandDashboardContent() {
     id: string;
     name: string;
   } | null>(null);
+  const [threadConversationId, setThreadConversationId] = useState<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const txt = t[lang];
@@ -642,6 +649,7 @@ export default function BrandDashboardContent() {
   useEffect(() => {
     if (activeTab !== "messages") {
       setMessageTargetInfluencer(null);
+      setThreadConversationId(null);
     }
   }, [activeTab]);
 
@@ -721,10 +729,10 @@ export default function BrandDashboardContent() {
       console.log(`[Brand Dashboard] Brand email: ${brandData.contact_email}`);
       setBrandData(brandData);
       setLoading(false);
-      await sessionFetch('/api/proposals/claim', { method: 'POST' }).catch(() => {});
-      
-      // Recommendations load after the dashboard shell is visible.
+
+      // Start suggestions before the claim call so the empty state cannot show during that wait.
       void loadRecommendations(brandData);
+      await sessionFetch('/api/proposals/claim', { method: 'POST' }).catch(() => {});
 
       const proposalsResponse = await sessionFetch('/api/proposals?role=brand', { cache: 'no-store' });
       const proposalsBody = await proposalsResponse.json().catch(() => ({}));
@@ -754,6 +762,30 @@ export default function BrandDashboardContent() {
       console.error('Error loading data:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const reloadProposals = async () => {
+    try {
+      const proposalsResponse = await sessionFetch('/api/proposals?role=brand', { cache: 'no-store' });
+      const proposalsBody = await proposalsResponse.json().catch(() => ({}));
+      if (!proposalsResponse.ok || !Array.isArray(proposalsBody.proposals)) return;
+      const proposalsData = proposalsBody.proposals as Proposal[];
+      setProposals(proposalsData);
+      const influencerIds = [...new Set(proposalsData.map((p) => p.influencer_id).filter(Boolean))];
+      if (!influencerIds.length) return;
+      const { data: influencersData } = await supabase
+        .from('influencers')
+        .select('id, display_name, avatar_url')
+        .in('id', influencerIds);
+      if (!influencersData) return;
+      setInfluencers((prev) => {
+        const next = { ...prev };
+        for (const inf of influencersData as Influencer[]) next[inf.id] = inf;
+        return next;
+      });
+    } catch (err) {
+      console.error('Error reloading proposals:', err);
     }
   };
 
@@ -1067,6 +1099,7 @@ export default function BrandDashboardContent() {
       console.error('Error loading recommendations:', err);
     } finally {
       setRecommendationsLoading(false);
+      setRecommendationsReady(true);
     }
   };
 
@@ -1117,11 +1150,10 @@ export default function BrandDashboardContent() {
     }
   };
 
-  // Get pending agreements (where influencer accepted but brand hasn't)
-  const pendingAgreements = proposals.filter(
-    p => p.influencer_agreement_accepted && !p.brand_agreement_accepted && 
-    (p.status === 'accepted' || p.status === 'completed')
-  );
+  const agreementQueue = openBrandAgreements(proposals);
+  const pendingAgreements = agreementQueue.needsBrand;
+  const awaitingInfluencerAgreements = agreementQueue.awaitingInfluencer;
+  const openAgreements = openAgreementCount(proposals);
 
   // Get pending counter proposals (where influencer sent counter proposal and brand hasn't responded)
   const pendingCounterProposals = proposals.filter(
@@ -1320,7 +1352,7 @@ export default function BrandDashboardContent() {
           lang={lang}
           pendingApplications={pendingCampaignApplicationsCount}
           pendingCounters={pendingCounterProposals.length}
-          pendingAgreements={pendingAgreements.length}
+          pendingAgreements={openAgreements}
           unreadMessages={unreadMessageCount}
           onOpenTab={openBrandTab}
           onOpenApplications={() => {
@@ -1382,9 +1414,9 @@ export default function BrandDashboardContent() {
                 }`}
               >
                 {lang === 'el' ? '📋 Προσφορές' : '📋 Proposals'}
-                {(pendingAgreements.length > 0 || pendingCounterProposals.length > 0) && (
+                {(openAgreements > 0 || pendingCounterProposals.length > 0) && (
                   <span className="ml-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[16px] sm:min-w-[18px] h-[16px] sm:h-[18px] flex items-center justify-center px-1">
-                    {pendingAgreements.length + pendingCounterProposals.length > 99 ? '99+' : pendingAgreements.length + pendingCounterProposals.length}
+                    {openAgreements + pendingCounterProposals.length > 99 ? '99+' : openAgreements + pendingCounterProposals.length}
                   </span>
                 )}
               </button>
@@ -1434,6 +1466,7 @@ export default function BrandDashboardContent() {
                 setShortlist((rows) => rows.filter((s) => s.influencerId !== influencerId));
               }}
               onMessage={(influencerId, displayName) => {
+                setThreadConversationId(null);
                 setMessageTargetInfluencer({ id: influencerId, name: displayName });
                 openBrandTab('messages');
               }}
@@ -1467,6 +1500,7 @@ export default function BrandDashboardContent() {
               pendingApplicationsCount={pendingCampaignApplicationsCount}
               focusApplications={appsFocus}
               onApplicationsUpdated={() => {
+                void reloadProposals();
                 if (!brandData?.id) return;
                 (async () => {
                   const { data: camps } = await supabase
@@ -1491,6 +1525,7 @@ export default function BrandDashboardContent() {
                   id: p.influencerId,
                   name: p.displayName,
                 });
+                setThreadConversationId(p.conversationId || null);
                 setActiveTab("messages");
                 const url = p.conversationId
                   ? `/brand/dashboard?tab=messages&conversation=${encodeURIComponent(p.conversationId)}`
@@ -1644,10 +1679,19 @@ export default function BrandDashboardContent() {
             </div>
           )}
           
-          {recommendationsLoading ? (
-            <div className="bg-white rounded-xl p-12 text-center border border-slate-200">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-slate-600">{txt.recommendations_loading}</p>
+          {recommendationsLoading || !recommendationsReady ? (
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6" aria-busy="true">
+              {Array.from({ length: 4 }, (_, i) => (
+                <div key={i} className="bg-white rounded-xl border border-slate-200 overflow-hidden animate-pulse">
+                  <div className="h-48 bg-slate-200" />
+                  <div className="p-4 space-y-3">
+                    <div className="h-3 bg-slate-200 rounded w-2/3" />
+                    <div className="h-3 bg-slate-200 rounded w-1/2" />
+                    <div className="h-3 bg-slate-100 rounded w-5/6" />
+                  </div>
+                </div>
+              ))}
+              <p className="sr-only">{txt.recommendations_loading}</p>
             </div>
           ) : recommendations.length === 0 ? (
             <div className="bg-white rounded-xl p-8 text-center border border-slate-200">
@@ -1657,6 +1701,16 @@ export default function BrandDashboardContent() {
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               {recommendations.map((match, index) => {
                 const inf = match.influencer;
+                const creatorCats = Array.isArray(inf.categories) && inf.categories.length ? inf.categories : inf.category;
+                const shared = new Set(sharedCategoryKeys(brandData?.industry, creatorCats));
+                const cats = (Array.isArray(inf.categories) ? inf.categories : inf.category ? [inf.category] : [])
+                  .filter((cat: unknown): cat is string => typeof cat === "string" && cat.length > 0);
+                const orderedCats = [...cats.filter((cat: string) => shared.has(cat)), ...cats.filter((cat: string) => !shared.has(cat))].slice(0, 3);
+                const sharedLine = sharedCategoryReason(brandData?.industry, creatorCats, lang);
+                const otherReasons = (Array.isArray(match.reasons) ? match.reasons : []).filter(
+                  (reason: string) => !/^(Κοινές κατηγορίες|Shared categories|Κατηγορίες creator|Creator categories)\s*:/.test(reason)
+                );
+                const reasons = (sharedLine ? [sharedLine, ...otherReasons] : otherReasons).slice(0, 3);
                 return (
                   <div
                     key={inf.id}
@@ -1683,10 +1737,7 @@ export default function BrandDashboardContent() {
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                         <div className="absolute bottom-3 left-3 right-3">
                           <h3 className="text-white font-bold text-lg mb-1.5">{displayNameForLang(inf.display_name, lang)}</h3>
-                          {(Array.isArray(inf.categories) ? inf.categories : inf.category ? [inf.category] : [])
-                            .filter((cat: unknown): cat is string => typeof cat === "string" && cat.length > 0)
-                            .slice(0, 3)
-                            .map((cat: string, idx: number) => (
+                          {orderedCats.map((cat: string, idx: number) => (
                             <span key={idx} className="inline-block px-2 py-1 bg-white/20 backdrop-blur-sm rounded text-xs text-white font-medium mr-1 mb-1">
                               {categoryLabel(cat, lang)}
                             </span>
@@ -1736,7 +1787,7 @@ export default function BrandDashboardContent() {
                       <div className="mb-4">
                         <p className="text-xs font-medium text-slate-500 mb-1.5">{txt.why_match}</p>
                         <ul className="space-y-1">
-                          {(Array.isArray(match.reasons) ? match.reasons : []).slice(0, 3).map((reason: string, i: number) => (
+                          {reasons.map((reason: string, i: number) => (
                             <li key={i} className="text-xs text-slate-700 flex items-start gap-2">
                               <span className="text-emerald-500 shrink-0 mt-0.5" aria-hidden>•</span>
                               <span className="line-clamp-2">{reason}</span>
@@ -1816,6 +1867,7 @@ export default function BrandDashboardContent() {
                         <button
                           type="button"
                           onClick={() => {
+                            setThreadConversationId(null);
                             setMessageTargetInfluencer({
                               id: String(inf.id),
                               name: inf.display_name,
@@ -1852,7 +1904,7 @@ export default function BrandDashboardContent() {
               brandEmail={brandData.contact_email}
               brandName={brandData.brand_name}
               proposalId={undefined}
-              initialConversationId={searchParams?.get('conversation')}
+              initialConversationId={threadConversationId || searchParams?.get('conversation')}
               mode="brand"
               lang={lang}
               onUnreadCountChange={setUnreadMessageCount}
@@ -1986,8 +2038,42 @@ export default function BrandDashboardContent() {
             </div>
           )}
 
+          {awaitingInfluencerAgreements.length > 0 && (
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 mb-4">{txt.awaiting_agreements}</h2>
+              <div className="space-y-4">
+                {awaitingInfluencerAgreements.map((proposal) => {
+                  const influencer = influencers[proposal.influencer_id];
+                  return (
+                    <div
+                      key={proposal.id}
+                      className="bg-white rounded-xl p-6 border border-slate-200 hover:shadow-md transition-shadow"
+                    >
+                      <h3 className="text-lg font-bold text-slate-900 mb-2">
+                        {displayNameForLang(influencer?.display_name, lang) || 'Unknown Influencer'}
+                      </h3>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-slate-500">{txt.service}:</span>{' '}
+                          <span className="font-medium text-slate-900">{proposal.service_type}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500">{txt.budget}:</span>{' '}
+                          <span className="font-medium text-slate-900">
+                            €{proposal.counter_proposal_budget || proposal.budget}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="mt-3 text-sm text-slate-600">{txt.awaiting_note}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* No Pending Items */}
-          {pendingAgreements.length === 0 && pendingCounterProposals.length === 0 && (
+          {openAgreements === 0 && pendingCounterProposals.length === 0 && (
             <div className="bg-white rounded-xl p-8 text-center border border-slate-200">
               <p className="text-slate-600">{txt.no_pending}</p>
             </div>

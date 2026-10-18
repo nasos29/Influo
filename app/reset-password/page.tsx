@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
+import { clearLoggedOutMark } from '@/lib/authSession';
 
 const t = {
   el: {
@@ -121,6 +122,8 @@ export default function ResetPasswordPage() {
                     setValidating(false);
                     return;
                 }
+
+                clearLoggedOutMark();
 
                 // Clear the hash from URL for security
                 window.history.replaceState(null, '', window.location.pathname);

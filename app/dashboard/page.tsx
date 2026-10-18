@@ -4,10 +4,9 @@
 import { Suspense, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient'; 
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import DashboardContent from '@/components/DashboardContent';
 import { loadOwnProfiles } from '@/lib/ownProfile';
-import { lookupAuthUser } from '@/lib/authSession'; 
+import { logoutEverywhere, lookupAuthUser } from '@/lib/authSession'; 
 
 // [!!!] ΒΑΛΕ ΤΟ ADMIN EMAIL ΣΟΥ ΕΔΩ
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'nd.6@hotmail.com';
@@ -84,11 +83,9 @@ export default function DashboardPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: orphanEmail }),
             });
-            await supabase.auth.signOut();
-            router.replace('/?signup=influencer');
+            logoutEverywhere('/?signup=influencer');
         } catch {
-            await supabase.auth.signOut();
-            router.replace('/?signup=influencer');
+            logoutEverywhere('/?signup=influencer');
         } finally {
             setClearingOrphan(false);
         }
@@ -109,7 +106,7 @@ export default function DashboardPage() {
             >
               Δοκιμάστε ξανά
             </button>
-            <Link href="/logout" className="mt-4 text-red-500 hover:underline text-sm">Αποσύνδεση</Link>
+            <button type="button" onClick={() => logoutEverywhere("/login")} className="mt-4 text-red-500 hover:underline text-sm">Αποσύνδεση</button>
           </div>
         );
     }
@@ -131,7 +128,7 @@ export default function DashboardPage() {
                  >
                    {clearingOrphan ? '…' : 'Καθαρισμός & νέα εγγραφή'}
                  </button>
-                 <Link href="/logout" className="mt-4 text-red-500 hover:underline text-sm">Sign Out</Link>
+                 <button type="button" onClick={() => logoutEverywhere("/login")} className="mt-4 text-red-500 hover:underline text-sm">Sign Out</button>
                </div>
              );
         }

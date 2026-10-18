@@ -57,14 +57,17 @@ export default function PlatformFollowers({
   accounts,
   className = "",
   showTotal = true,
+  showDeclared = false,
   lang = "el",
 }: {
   accounts: unknown;
   className?: string;
   showTotal?: boolean;
+  /** List a connected platform even when its follower count is blank. */
+  showDeclared?: boolean;
   lang?: "el" | "en";
 }) {
-  const stats = statsFromAccounts(accounts);
+  const stats = statsFromAccounts(accounts, { keepEmpty: showDeclared });
   if (!stats.length) return null;
   const total = stats.reduce((sum, row) => sum + parseFollowerNumber(row.followers), 0);
   return (
@@ -74,7 +77,7 @@ export default function PlatformFollowers({
           <span key={row.platform} className="inline-flex items-center gap-1 text-xs font-semibold text-slate-900">
             <Icon platform={row.platform} />
             <span className="text-slate-500 font-medium">{LABEL[row.platform] || row.platform.slice(0, 2).toUpperCase()}</span>
-            {row.followers}
+            {parseFollowerNumber(row.followers) > 0 ? row.followers : "—"}
           </span>
         ))}
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { sessionFetch } from "@/lib/sessionFetch";
@@ -11,6 +11,7 @@ import DmyDateField from "@/components/DmyDateField";
 import { askConfirm, toastError, toastSuccess } from "@/components/Feedback";
 import { CATEGORIES, categoryLabel, normalizeCategoryToken } from "@/lib/categories";
 import { publicProfilePath } from "@/lib/profileSlug";
+import { mergeApplicantProfile } from "@/lib/applicantProfile";
 
 const PLATFORMS = [
   { id: "instagram", el: "Instagram", en: "Instagram" },
@@ -77,6 +78,34 @@ type InviteMatch = {
 
 type LangPair = { el: string; en: string };
 
+function publishFollowUp(campaignId: string, token: string, onMatches: (matches: InviteMatch[]) => void): Promise<void> {
+  const notify = fetch("/api/push/campaign-published", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ campaignId }),
+    signal: AbortSignal.timeout(12000),
+  })
+    .then(() => undefined)
+    .catch((err) => {
+      console.error("[campaign publish] notify", err);
+    });
+  const matches = sessionFetch(`/api/campaigns/matches?campaignId=${encodeURIComponent(campaignId)}`, {
+    signal: AbortSignal.timeout(12000),
+  })
+    .then(async (matchRes) => {
+      if (!matchRes.ok) return;
+      const body = await matchRes.json();
+      onMatches(Array.isArray(body.matches) ? body.matches : []);
+    })
+    .catch((err) => {
+      console.error("[campaign publish] matches", err);
+    });
+  return Promise.all([notify, matches]).then(() => undefined);
+}
+
 function langPack<K extends string>(rows: Record<K, LangPair>) {
   const pack = { el: {} as Record<K, string>, en: {} as Record<K, string> };
   for (const key of Object.keys(rows) as K[]) {
@@ -126,6 +155,7 @@ const extra = langPack({
   open_locked: { el: "Η κατάσταση «Ανοιχτή» είναι διαθέσιμη μετά την επαλήθευση.", en: "Open status is available after verification." },
   migration: { el: "Χρειάζεται το docs/CAMPAIGN_WORKFLOW_2026.sql στο Supabase για τα νέα πεδία.", en: "Run docs/CAMPAIGN_WORKFLOW_2026.sql in Supabase for the new fields." },
   public_page: { el: "Δημόσια σελίδα", en: "Public page" },
+  card_start: { el: "Έναρξη", en: "Starts" },
   accept: { el: "Αποδοχή", en: "Accept" },
   profile: { el: "Προφίλ", en: "Profile" },
   rate: { el: "Ελάχιστη τιμή", en: "Min rate" },
@@ -206,6 +236,19 @@ function ymd(value: string | null | undefined): string {
   return value.slice(0, 10);
 }
 
+function dmy(value: string | null | undefined): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(ymd(value));
+  if (!match) return "";
+  return `${match[3]}/${match[2]}/${match[1]}`;
+}
+
+function platformNames(ids: string[] | null | undefined, lang: "el" | "en"): string {
+  if (!Array.isArray(ids) || !ids.length) return "";
+  return ids
+    .map((id) => PLATFORMS.find((platform) => platform.id === id)?.[lang] || id)
+    .join(", ");
+}
+
 export default function BrandCampaignsSection({
   brandId,
   lang,
@@ -226,6 +269,7 @@ export default function BrandCampaignsSection({
   const t = txt[lang];
   const x = extra[lang];
   const [rows, setRows] = useState<BrandCampaignRow[]>([]);
+  const [appCounts, setAppCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [schemaError, setSchemaError] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -233,6 +277,7 @@ export default function BrandCampaignsSection({
   const [loadingApps, setLoadingApps] = useState<string | null>(null);
   const [editing, setEditing] = useState<BrandCampaignRow | "new" | null>(null);
   const [saving, setSaving] = useState(false);
+  const saveLock = useRef(false);
   const [form, setForm] = useState(emptyForm);
   const [invites, setInvites] = useState<InviteMatch[]>([]);
   const [inviteCampaignId, setInviteCampaignId] = useState<string | null>(null);
@@ -253,7 +298,24 @@ export default function BrandCampaignsSection({
       setLoading(false);
       return;
     }
-    setRows((data as BrandCampaignRow[]) || []);
+    const list = (data as BrandCampaignRow[]) || [];
+    const counts: Record<string, number> = {};
+    for (const row of list) counts[row.id] = 0;
+    if (list.length) {
+      const apps = await supabase
+        .from("campaign_applications")
+        .select("campaign_id, status")
+        .in("campaign_id", list.map((row) => row.id));
+      if (!apps.error && apps.data) {
+        for (const app of apps.data) {
+          if (app.status === "withdrawn") continue;
+          const campaignId = String(app.campaign_id);
+          counts[campaignId] = (counts[campaignId] || 0) + 1;
+        }
+      }
+    }
+    setRows(list);
+    setAppCounts(counts);
     setLoading(false);
   }, [brandId]);
 
@@ -289,12 +351,24 @@ export default function BrandCampaignsSection({
     }
     if (!error && data) {
       const apps = data as unknown as ApplicationRow[];
+      const ids = [...new Set(apps.map((app) => app.influencer_id).filter(Boolean))];
+      if (ids.length) {
+        const { data: profiles } = await supabase
+          .from("influencers")
+          .select("id, display_name, avatar_url, profile_slug, category, accounts, engagement_rate")
+          .in("id", ids);
+        const byId = new Map((profiles || []).map((row) => [String(row.id), row]));
+        for (const app of apps) {
+          const merged = mergeApplicantProfile(app.influencers, byId.get(app.influencer_id));
+          if (merged) app.influencers = { ...merged, min_rate: app.influencers?.min_rate ?? null };
+        }
+      }
       try {
         const { data: sessionData } = await supabase.auth.getSession();
         const token = sessionData.session?.access_token;
-        const ids = apps.map((app) => app.influencer_id).filter(Boolean);
-        if (token && ids.length) {
-          const priceRes = await fetch(`/api/influencers/commercial?ids=${encodeURIComponent(ids.join(","))}`, {
+        const priceIds = apps.map((app) => app.influencer_id).filter(Boolean);
+        if (token && priceIds.length) {
+          const priceRes = await fetch(`/api/influencers/commercial?ids=${encodeURIComponent(priceIds.join(","))}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (priceRes.ok) {
@@ -360,6 +434,16 @@ export default function BrandCampaignsSection({
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saveLock.current) return;
+    saveLock.current = true;
+    try {
+    await saveCampaign();
+    } finally {
+      saveLock.current = false;
+    }
+  };
+
+  const saveCampaign = async () => {
     if (!form.title.trim() || !form.description.trim()) return;
     if (!form.category) {
       toastError(lang === "el" ? "Η κατηγορία είναι υποχρεωτική." : "Category is required.");
@@ -451,24 +535,18 @@ export default function BrandCampaignsSection({
       }
       campaignId = result.data?.id || (editing && typeof editing !== "string" ? editing.id : null);
       if (shouldNotify && campaignId) {
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (sessionData.session?.access_token) {
-          await fetch("/api/push/campaign-published", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${sessionData.session.access_token}`,
-            },
-            body: JSON.stringify({ campaignId }),
-          }).catch(() => undefined);
-          const matchRes = await sessionFetch(`/api/campaigns/matches?campaignId=${campaignId}`);
-          if (matchRes.ok) {
-            const body = await matchRes.json();
-            setInvites(Array.isArray(body.matches) ? body.matches : []);
-            setInviteCampaignId(campaignId);
-          }
-        }
         toastSuccess(x.published);
+        const publishedId = campaignId;
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        if (token) {
+          publishFollowUp(publishedId, token, (matches) => {
+            setInvites(matches);
+            setInviteCampaignId(publishedId);
+          }).catch((err) => {
+            console.error("[campaign publish] follow-up", err);
+          });
+        }
       } else if (form.status === "draft") {
         toastSuccess(x.draft_saved);
       } else {
@@ -761,7 +839,7 @@ export default function BrandCampaignsSection({
             {rows.map((row) => (
               <li key={row.id} className="border border-slate-200 rounded-xl bg-white overflow-hidden">
                 <div className="p-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                  <div>
+                  <div className="min-w-0 flex-1 overflow-hidden">
                     <div className="flex flex-wrap items-center gap-2">
                       <h4 className="font-semibold text-slate-900">{row.title}</h4>
                       <span className={`text-xs px-2 py-0.5 rounded-full ${row.status === "open" ? "bg-green-100 text-green-800" : row.status === "closed" ? "bg-slate-200 text-slate-700" : "bg-amber-100 text-amber-900"}`}>
@@ -774,13 +852,20 @@ export default function BrandCampaignsSection({
                       {row.category ? ` · ${categoryLabel(row.category, lang)}` : ""}
                       {row.compensation_type ? ` · ${row.compensation_type === "money" ? x.comp_money : row.compensation_type === "product" ? x.comp_product : x.comp_both}` : ""}
                     </p>
+                    <p className="text-xs text-slate-600 mt-1">
+                      {[
+                        platformNames(row.platforms, lang),
+                        row.starts_on ? `${x.card_start} ${dmy(row.starts_on)}` : "",
+                        `${appCounts[row.id] ?? 0} ${t.applications}`,
+                      ].filter(Boolean).join(" · ")}
+                    </p>
                     {row.status === "open" && (
                       <Link href={`/campaigns/${row.id}`} className="inline-block mt-2 text-sm text-blue-600 hover:underline">
                         {x.public_page}
                       </Link>
                     )}
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="relative z-10 flex shrink-0 flex-wrap gap-2 self-start">
                     <button type="button" onClick={() => { setExpandedId(expandedId === row.id ? null : row.id); if (expandedId !== row.id) void loadApplications(row.id); }} className="text-sm px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50">
                       {t.applications}
                     </button>
@@ -812,7 +897,7 @@ export default function BrandCampaignsSection({
                                     <p className="font-medium text-slate-900">{inf?.display_name || app.influencer_id}</p>
                                     <Link href={publicProfilePath(inf?.profile_slug, app.influencer_id)} className="text-xs text-blue-600 hover:underline">{x.profile}</Link>
                                   </div>
-                                  <PlatformFollowers accounts={inf?.accounts} lang={lang} className="mt-1" />
+                                  <PlatformFollowers accounts={inf?.accounts} lang={lang} className="mt-1" showDeclared />
                                   <p className="text-xs text-slate-600 mt-1">
                                     {engagement ? `${x.engagement}: ${engagement}` : ""}
                                     {inf?.min_rate ? ` · ${x.rate}: ${inf.min_rate}` : ""}

@@ -43,7 +43,9 @@ export default function BrandActionInbox({
       tab: "proposals" as const,
       count: pendingAgreements,
       title: el ? "Συμφωνίες" : "Agreements",
-      hint: el ? "Ο influencer αποδέχτηκε — σειρά σας" : "The influencer accepted — your turn",
+      hint: el
+        ? "Αποδεκτές συνεργασίες που δεν έχουν υπογραφεί και από τις δύο πλευρές"
+        : "Accepted collaborations that are not signed by both sides",
     },
     {
       tab: "messages" as const,

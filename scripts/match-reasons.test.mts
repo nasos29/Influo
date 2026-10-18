@@ -33,11 +33,30 @@ test("a lifestyle creator is not described as a fashion match", () => {
   );
   assert.ok(match);
   const text = match.reasons.join(" | ");
+  assert.equal(text.includes("Κοινές κατηγορίες"), false);
+  assert.equal(text.includes("Shared categories"), false);
   assert.equal(text.includes("Μόδα"), false);
   assert.equal(text.includes("Fashion"), false);
   assert.equal(text.includes("ΤΕΛΕΙΟ"), false);
-  assert.match(text, /Lifestyle|Φαγητό|Ταξίδια/);
   assert.ok((match.strengths.categoryMatch ?? 1) <= 0.55);
+});
+
+test("an audit niche is not a shared category", () => {
+  const line = recommendInfluencers(
+    fashionBrand,
+    [
+      {
+        id: 3,
+        display_name: "Nia",
+        categories: ["Lifestyle"],
+        engagement_rate: "3%",
+        auditpr_audit: { niche: "Μόδα", niche_en: "Fashion" },
+      },
+    ],
+    { minScore: 0, lang: "el" }
+  )[0];
+  assert.ok(line);
+  assert.equal(line.reasons.some((reason) => reason.startsWith("Κοινές κατηγορίες")), false);
 });
 
 test("real category overlap is named and clipped", () => {

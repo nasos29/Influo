@@ -4,6 +4,55 @@ export type PlatformStat = {
   engagement?: string | null;
 };
 
+const PLATFORM_ALIASES: Record<string, string> = {
+  ig: "instagram",
+  insta: "instagram",
+  instagram: "instagram",
+  tt: "tiktok",
+  tiktok: "tiktok",
+  yt: "youtube",
+  youtube: "youtube",
+  fb: "facebook",
+  facebook: "facebook",
+  x: "twitter",
+  twitter: "twitter",
+};
+
+/** One key per network so "IG" and "Instagram" cannot both render. */
+export function canonicalPlatform(value: unknown): string {
+  const raw = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s._-]+/g, "");
+  if (!raw) return "";
+  return PLATFORM_ALIASES[raw] || raw;
+}
+
+type AccountFields = {
+  platform?: string;
+  followers?: string | number | null;
+  engagement_rate?: string | number | null;
+  verified?: boolean;
+  is_verified?: boolean;
+  analytics_verified?: boolean;
+  updated_at?: string | null;
+  created_at?: string | null;
+  synced_at?: string | null;
+};
+
+function accountVerified(acc: AccountFields): number {
+  if (acc.verified === true || acc.is_verified === true || acc.analytics_verified === true) return 1;
+  return 0;
+}
+
+/** Timestamp when present; otherwise array position (later row = more recently stored). */
+function accountRecency(acc: AccountFields, index: number): number {
+  const stamp = acc.updated_at || acc.synced_at || acc.created_at;
+  const parsed = typeof stamp === "string" ? Date.parse(stamp) : Number.NaN;
+  if (Number.isFinite(parsed)) return parsed;
+  return index;
+}
+
 export function parseFollowerNumber(value: unknown): number {
   if (typeof value !== "string" && typeof value !== "number") return 0;
   const clean = String(value).toLowerCase().replace(/,/g, "").replace(/\s/g, "").trim();
@@ -22,21 +71,35 @@ export function formatFollowerCount(n: number): string {
   return String(Math.round(n));
 }
 
-export function statsFromAccounts(accounts: unknown): PlatformStat[] {
+export function statsFromAccounts(accounts: unknown, options?: { keepEmpty?: boolean }): PlatformStat[] {
   if (!Array.isArray(accounts)) return [];
-  const out: PlatformStat[] = [];
-  for (const raw of accounts) {
-    if (!raw || typeof raw !== "object") continue;
-    const acc = raw as { platform?: string; followers?: string; engagement_rate?: string };
-    const platform = String(acc.platform || "").toLowerCase();
-    if (!platform) continue;
+  const best = new Map<string, { stat: PlatformStat; verified: number; recent: number; hasCount: boolean }>();
+  accounts.forEach((raw, index) => {
+    if (!raw || typeof raw !== "object") return;
+    const acc = raw as AccountFields;
+    const platform = canonicalPlatform(acc.platform);
+    if (!platform) return;
     const followers = acc.followers != null ? String(acc.followers).trim() : "";
-    if (!followers || parseFollowerNumber(followers) <= 0) continue;
-    out.push({
-      platform,
-      followers,
-      engagement: acc.engagement_rate ? String(acc.engagement_rate) : null,
-    });
-  }
-  return out;
+    const hasCount = !!followers && parseFollowerNumber(followers) > 0;
+    if (!hasCount && !options?.keepEmpty) return;
+    const candidate = {
+      stat: {
+        platform,
+        followers: hasCount ? followers : "",
+        engagement: acc.engagement_rate != null ? String(acc.engagement_rate) : null,
+      },
+      verified: accountVerified(acc),
+      recent: accountRecency(acc, index),
+      hasCount,
+    };
+    const current = best.get(platform);
+    const better =
+      !current ||
+      (candidate.hasCount && !current.hasCount) ||
+      (candidate.hasCount === current.hasCount &&
+        (candidate.verified > current.verified ||
+          (candidate.verified === current.verified && candidate.recent >= current.recent)));
+    if (better) best.set(platform, candidate);
+  });
+  return [...best.values()].map((row) => row.stat);
 }

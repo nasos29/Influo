@@ -1,19 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Session } from "@supabase/supabase-js";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import Footer from "@/components/Footer";
 import { supabase } from "@/lib/supabaseClient";
 import { loadOwnProfiles } from "@/lib/ownProfile";
+import { lookupAuthUser } from "@/lib/authSession";
 import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
 import { getCachedImageUrl } from "@/lib/imageProxy";
 
 const ADMIN_EMAIL_FALLBACK = "nd.6@hotmail.com";
 
-type UserKind = "none" | "brand" | "influencer" | "admin";
+type UserKind = "none" | "brand" | "influencer" | "admin" | "signed-in";
 
 type Row = {
   id: string;
@@ -36,7 +36,7 @@ export default function PublicCampaignsPage() {
   const [err, setErr] = useState(false);
   const [userKind, setUserKind] = useState<UserKind>("none");
   const [authReady, setAuthReady] = useState(false);
-  const [session, setSession] = useState<Session | null>(null);
+  const [identityReady, setIdentityReady] = useState(false);
   const [influencerId, setInfluencerId] = useState<string | null>(null);
   const [approvedInfluencer, setApprovedInfluencer] = useState(false);
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
@@ -47,76 +47,66 @@ export default function PublicCampaignsPage() {
 
   useEffect(() => {
     let cancelled = false;
-    const path = pathname || "/campaigns";
+    const applyInfluencer = (id: string, approved: boolean) => {
+      setUserKind("influencer");
+      setInfluencerId(id);
+      setApprovedInfluencer(approved);
+    };
     (async () => {
-      let timedOut = false;
-      const sessionResult = await Promise.race([
-        supabase.auth.getSession().then((result) => result.data.session),
-        new Promise<null>((resolve) =>
-          setTimeout(() => {
-            timedOut = true;
-            resolve(null);
-          }, 8000)
-        ),
-      ]);
+      const auth = await lookupAuthUser(8000);
       if (cancelled) return;
-      if (timedOut && !sessionResult) {
+      if (!auth.user) {
+        setUserKind("none");
+        setInfluencerId(null);
+        setApprovedInfluencer(false);
         setAuthReady(true);
-        setErr(true);
-        setLoading(false);
+        setIdentityReady(true);
         return;
       }
-      const s = sessionResult;
-      setSession(s);
+      const email = auth.user.email?.toLowerCase().trim();
+      if (email === ADMIN_EMAIL_FALLBACK.toLowerCase()) {
+        setUserKind("admin");
+        setAuthReady(true);
+        setIdentityReady(true);
+        return;
+      }
+      let profiles = await loadOwnProfiles(supabase);
+      if (!profiles.ok) profiles = await loadOwnProfiles(supabase);
+      if (cancelled) return;
+      if (profiles.ok && profiles.brand && !profiles.influencer) {
+        setUserKind("brand");
+      } else if (profiles.ok && profiles.influencer) {
+        const rawId = profiles.influencer.id;
+        const id = typeof rawId === "string" || typeof rawId === "number" ? String(rawId) : auth.user.id;
+        applyInfluencer(id, !!profiles.influencer.approved);
+      } else {
+        const { data } = await supabase
+          .from("campaign_applications")
+          .select("campaign_id, status")
+          .eq("influencer_id", auth.user.id);
+        if (cancelled) return;
+        const applied = (data || []).filter((row) => row.status !== "withdrawn");
+        if (applied.length > 0) {
+          applyInfluencer(auth.user.id, true);
+          setAppliedIds(new Set(applied.map((row) => String(row.campaign_id))));
+        } else if (profiles.ok) {
+          setUserKind("none");
+        } else {
+          setUserKind("signed-in");
+        }
+      }
       setAuthReady(true);
-      if (!s) {
-        router.replace(`/login?redirect=${encodeURIComponent(path)}`);
-      }
-    })();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-      if (!s) {
-        router.replace(`/login?redirect=${encodeURIComponent(pathname || "/campaigns")}`);
-      }
+      setIdentityReady(true);
+    })().catch(() => {
+      if (cancelled) return;
+      setUserKind("none");
+      setAuthReady(true);
+      setIdentityReady(true);
     });
     return () => {
       cancelled = true;
-      subscription.unsubscribe();
     };
-  }, [pathname, router]);
-
-  useEffect(() => {
-    const user = session?.user;
-    if (!user) {
-      setUserKind("none");
-      return;
-    }
-    const resolveUser = async () => {
-      const em = user.email?.toLowerCase().trim();
-      if (em === ADMIN_EMAIL_FALLBACK.toLowerCase()) {
-        setUserKind("admin");
-        return;
-      }
-      const profiles = await loadOwnProfiles(supabase);
-      if (!profiles.ok) {
-        setUserKind("none");
-        return;
-      }
-      if (profiles.brand) {
-        setUserKind("brand");
-        return;
-      }
-      if (profiles.influencer) {
-        setUserKind("influencer");
-        const rawId = profiles.influencer.id;
-        setInfluencerId(typeof rawId === "string" || typeof rawId === "number" ? String(rawId) : "");
-        setApprovedInfluencer(!!profiles.influencer.approved);
-        return;
-      }
-      setUserKind("none");
-    };
-    resolveUser().catch(() => setUserKind("none"));
-  }, [session?.user?.id]);
+  }, []);
 
   useEffect(() => {
     if (!influencerId || !approvedInfluencer) {
@@ -141,7 +131,7 @@ export default function PublicCampaignsPage() {
   }, [influencerId, approvedInfluencer]);
 
   useEffect(() => {
-    if (!session) return;
+    if (!authReady) return;
     let cancelled = false;
     let finished = false;
     const loadRows = async () => {
@@ -191,7 +181,7 @@ export default function PublicCampaignsPage() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [session]);
+  }, [authReady]);
 
   const t = {
     el: {
@@ -231,7 +221,7 @@ export default function PublicCampaignsPage() {
   const dashboardPath =
     userKind === "brand"
       ? "/brand/dashboard"
-      : userKind === "influencer"
+      : userKind === "influencer" || userKind === "signed-in"
         ? "/dashboard"
         : userKind === "admin"
           ? "/admin"
@@ -243,7 +233,9 @@ export default function PublicCampaignsPage() {
         ? t.infDashboard
         : userKind === "admin"
           ? t.adminDash
-          : t.login;
+          : userKind === "signed-in"
+            ? t.myDashboard
+            : t.login;
 
   if (!authReady) {
     return (
@@ -254,9 +246,13 @@ export default function PublicCampaignsPage() {
       </div>
     );
   }
-  if (!session) {
-    return null;
-  }
+  const accountLink = identityReady ? (
+    <Link href={dashboardPath} className="text-blue-600 font-medium hover:underline">
+      {dashboardLabel}
+    </Link>
+  ) : (
+    <span className="inline-block h-4 w-28 rounded bg-slate-200 animate-pulse" aria-hidden />
+  );
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
@@ -266,9 +262,7 @@ export default function PublicCampaignsPage() {
             <Image src="/logo.svg" alt="Influo" width={120} height={40} className="h-8 w-auto" />
           </Link>
           <div className="flex items-center gap-3 text-sm">
-            <Link href={dashboardPath} className="text-blue-600 font-medium hover:underline">
-              {dashboardLabel}
-            </Link>
+            {accountLink}
             <button
               type="button"
               onClick={() => {
@@ -289,10 +283,8 @@ export default function PublicCampaignsPage() {
         <h1 className="text-3xl font-bold text-slate-900">{t.title}</h1>
         <p className="text-slate-600 mt-2 max-w-2xl">{t.subtitle}</p>
         <div className="mt-6 flex flex-wrap gap-3 text-sm items-center">
-          <Link href={dashboardPath} className="text-blue-600 font-medium hover:underline">
-            {userKind === "none" ? t.login : t.myDashboard}
-          </Link>
-          {userKind === "none" && (
+          {accountLink}
+          {identityReady && userKind === "none" && (
             <>
               <span className="text-slate-300">|</span>
               <Link
