@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { loadOwnProfiles } from '@/lib/ownProfile'; 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
-import { clearSupabaseAuthStorage, consumeLoggedOutFlag } from '@/lib/authSession';
+import { clearLoggedOutMark, clearSupabaseAuthStorage, isLoggedOutMarked } from '@/lib/authSession';
 
 const t = {
   el: {
@@ -65,10 +65,9 @@ function LoginPageContent() {
     useEffect(() => {
         let cancelled = false;
         (async () => {
-            if (consumeLoggedOutFlag()) {
+            if (isLoggedOutMarked()) {
                 clearSupabaseAuthStorage();
-                await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
-                clearSupabaseAuthStorage();
+                void supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
                 return;
             }
             const { data: { user } } = await supabase.auth.getUser();
@@ -143,6 +142,8 @@ function LoginPageContent() {
             setLoading(false);
             return;
         }
+
+        clearLoggedOutMark();
 
         // Check if user exists but login succeeded
         if (!data.user) {

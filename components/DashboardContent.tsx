@@ -1120,11 +1120,20 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                         <span>←</span> Επιστροφή στην Αρχική
                     </a>
                 </div>
-                <div className="mb-8">
+                <div className="mb-8 flex flex-wrap items-start justify-between gap-3">
+                    <div>
                     <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">
                         Καλώς ήρθες, <span className="text-slate-900">{profile.display_name}</span>!
                 </h1>
                     <p className="text-slate-600">Διαχείριση προφίλ και ρυθμίσεων</p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => logoutEverywhere("/login")}
+                        className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium text-sm transition-colors"
+                    >
+                        Αποσύνδεση
+                    </button>
                 </div>
                 
                 <div className="bg-white rounded-lg border border-slate-200">

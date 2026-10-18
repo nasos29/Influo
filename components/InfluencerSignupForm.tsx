@@ -11,6 +11,7 @@ import { languagesCodesToStored } from "@/lib/languages";
 import { formatStoredCategories } from "@/lib/categories";
 import CategoryCheckboxList from "./CategoryCheckboxList";
 import SocialEmbedCard from "./SocialEmbedCard";
+import { clearLoggedOutMark } from "@/lib/authSession";
 
 type Account = { platform: string; username: string; followers: string; engagement_rate?: string; avg_likes?: string };
 type Lang = "el" | "en";
@@ -562,6 +563,8 @@ export default function InfluencerSignupForm() {
           }
           authUser = authData.user;
       }
+
+      clearLoggedOutMark();
 
       // 2. Uploads (WebP/JPEG resize client-side → less Storage egress)
       const preparedAvatar = await prepareImageForStorage(avatarFile, {

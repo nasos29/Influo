@@ -8,6 +8,7 @@ import { getStoredLanguage } from '@/lib/language';
 import { prepareImageForStorage } from '@/lib/prepareImageForStorage';
 import { formatCategoryLabels, formatStoredCategories } from '@/lib/categories';
 import CategoryCheckboxList from '@/components/CategoryCheckboxList';
+import { clearLoggedOutMark } from '@/lib/authSession';
 
 type Lang = "el" | "en";
 
@@ -262,6 +263,8 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
 
       if (signInError) {
         console.error('Auto-login error:', signInError);
+      } else {
+        clearLoggedOutMark();
       }
 
       const claimToken = session?.access_token || authData.session?.access_token;
