@@ -8,7 +8,7 @@ export const ORGANIZATION_SAME_AS = [
   "https://www.instagram.com/influo.gr/",
   "https://www.facebook.com/profile.php?id=61585893435769",
   "https://www.tiktok.com/@influo.gr",
-  "https://www.linkedin.com/in/influo-gr-736667379/",
+  "https://www.linkedin.com/company/influo-gr/",
 ];
 
 /**
