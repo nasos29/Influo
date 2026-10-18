@@ -52,7 +52,7 @@ export default function CampaignPublicView({ id }: { id: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    const load = async () => {
       setLoading(true);
       setLoadError(false);
       setMissing(false);
@@ -95,7 +95,8 @@ export default function CampaignPublicView({ id }: { id: string }) {
         const profiles = await loadOwnProfiles(supabase);
         if (profiles.ok && profiles.influencer) {
           const inf = profiles.influencer;
-          setInfluencerId(String(inf.id || ""));
+          const rawId = inf.id;
+          setInfluencerId(typeof rawId === "string" || typeof rawId === "number" ? String(rawId) : "");
           setApproved(!!inf.approved);
           setAvailable(!inf.availability_status || inf.availability_status === "available");
           const { data: mine } = await supabase
@@ -108,7 +109,12 @@ export default function CampaignPublicView({ id }: { id: string }) {
         }
       }
       setLoading(false);
-    })();
+    };
+    load().catch(() => {
+      if (cancelled) return;
+      setLoadError(true);
+      setLoading(false);
+    });
     return () => {
       cancelled = true;
     };
@@ -191,7 +197,7 @@ export default function CampaignPublicView({ id }: { id: string }) {
             <h1 className="text-3xl font-bold text-slate-900 mt-1">{campaign.title}</h1>
             <p className="text-slate-700 mt-4 whitespace-pre-wrap">{campaign.description}</p>
             <ul className="mt-4 text-sm text-slate-800 space-y-1">
-              <li>{el ? "Budget" : "Budget"}: €{Number(campaign.budget).toLocaleString(el ? "el-GR" : "en-GB")}</li>
+              <li>Budget: €{Number(campaign.budget).toLocaleString(el ? "el-GR" : "en-GB")}</li>
               {campaign.category && <li>{el ? "Κατηγορία" : "Category"}: {categoryLabel(campaign.category, lang)}</li>}
               {comp && <li>{el ? "Αμοιβή" : "Compensation"}: {comp}</li>}
               {Array.isArray(campaign.platforms) && campaign.platforms.length > 0 && (

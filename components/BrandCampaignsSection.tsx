@@ -75,191 +75,116 @@ type InviteMatch = {
   reasons: string[];
 };
 
-const extra = {
-  el: {
-    required: "υποχρεωτικό",
-    form_platforms: "Πλατφόρμες",
-    form_min_followers: "Ελάχιστοι ακόλουθοι",
-    form_location: "Περιοχή",
-    form_start: "Ημερομηνία έναρξης",
-    form_compensation: "Αμοιβή",
-    comp_money: "Χρήματα",
-    comp_product: "Προϊόν",
-    comp_both: "Χρήματα και προϊόν",
-    date_order: "Ημερομηνία με σειρά ημέρα / μήνας / έτος.",
-    deadline_after_start: "Η προθεσμία πρέπει να είναι μετά την ημερομηνία έναρξης.",
-    draft_saved: "Αποθηκεύτηκε ως πρόχειρο. Το βλέπει μόνο η επιχείρησή σας.",
-    saved: "Η καμπάνια αποθηκεύτηκε.",
-    publish_title: "Δημοσίευση",
-    publish_body:
-      "Η καμπάνια θα είναι ορατή σε εγκεκριμένους influencers και στη δημόσια σελίδα καμπανιών. Συνέχεια;",
-    publish_ok: "Δημοσίευση",
-    published: "Η καμπάνια είναι πλέον ανοιχτή.",
-    delete_title: "Διαγραφή καμπάνιας",
-    delete_plain: "Να διαγραφεί αυτή η καμπάνια;",
-    delete_with_apps:
-      "Υπάρχουν αιτήσεις. Οι creators θα ενημερωθούν ότι η καμπάνια αφαιρέθηκε και οι αιτήσεις τους δεν θα είναι πλέον ενεργές.",
-    deleted: "Η καμπάνια διαγράφηκε.",
-    status_updated: "Η κατάσταση της αίτησης ενημερώθηκε.",
-    accepted: "Η αίτηση έγινε αποδεκτή. Άνοιξε η συνομιλία και δημιουργήθηκε συμφωνία.",
-    unverified_card_title: "Επαλήθευση σε αναμονή",
-    unverified_card_body:
-      "Μπορείτε να ετοιμάσετε καμπάνιες ως Πρόχειρο. Η δημοσίευση (Ανοιχτή) ξεκλειδώνει μετά την έγκριση, συνήθως εντός 1–2 εργάσιμων ημερών.",
-    verified_card_title: "Η επιχείρηση είναι επαληθευμένη",
-    verified_card_body: "Μπορείτε να δημοσιεύετε καμπάνιες δημόσια.",
-    open_locked: "Η κατάσταση «Ανοιχτή» είναι διαθέσιμη μετά την επαλήθευση.",
-    migration: "Χρειάζεται το docs/CAMPAIGN_WORKFLOW_2026.sql στο Supabase για τα νέα πεδία.",
-    public_page: "Δημόσια σελίδα",
-    accept: "Αποδοχή",
-    profile: "Προφίλ",
-    rate: "Ελάχιστη τιμή",
-    proposed: "Προτεινόμενη τιμή",
-    work: "Δείγματα",
-    invites_title: "Προτάσεις για πρόσκληση",
-    invites_body: "Εγκεκριμένοι creators που ταιριάζουν με την καμπάνια. Η πρόσκληση στέλνει πρόταση συνεργασίας.",
-    invite: "Πρόσκληση",
-    invited: "Η πρόσκληση στάλθηκε.",
-    followers: "Ακόλουθοι",
-    engagement: "Engagement",
-    cancel: "Ακύρωση",
-  },
-  en: {
-    required: "required",
-    form_platforms: "Platforms",
-    form_min_followers: "Minimum followers",
-    form_location: "Area",
-    form_start: "Start date",
-    form_compensation: "Compensation",
-    comp_money: "Money",
-    comp_product: "Product",
-    comp_both: "Money and product",
-    date_order: "Enter the date as day / month / year.",
-    deadline_after_start: "The deadline must be after the start date.",
-    draft_saved: "Saved as a draft. Only your company can see it.",
-    saved: "Campaign saved.",
-    publish_title: "Publish",
-    publish_body:
-      "Approved influencers and anyone with the public link will be able to see this campaign. Continue?",
-    publish_ok: "Publish",
-    published: "The campaign is now open.",
-    delete_title: "Delete campaign",
-    delete_plain: "Delete this campaign?",
-    delete_with_apps:
-      "This campaign has applications. Creators will be told it was removed and their applications will no longer be active.",
-    deleted: "Campaign deleted.",
-    status_updated: "Application status updated.",
-    accepted: "Application accepted. A message thread and an agreement were opened.",
-    unverified_card_title: "Verification pending",
-    unverified_card_body:
-      "You can prepare campaigns as drafts. Publishing (Open) unlocks after approval, usually within 1–2 business days.",
-    verified_card_title: "Your company is verified",
-    verified_card_body: "You can publish campaigns publicly.",
-    open_locked: "Open status is available after verification.",
-    migration: "Run docs/CAMPAIGN_WORKFLOW_2026.sql in Supabase for the new fields.",
-    public_page: "Public page",
-    accept: "Accept",
-    profile: "Profile",
-    rate: "Min rate",
-    proposed: "Proposed price",
-    work: "Past work",
-    invites_title: "Creators to invite",
-    invites_body: "Approved creators who fit this campaign. Invite sends a collaboration proposal.",
-    invite: "Invite",
-    invited: "Invite sent.",
-    followers: "Followers",
-    engagement: "Engagement",
-    cancel: "Cancel",
-  },
-};
+type LangPair = { el: string; en: string };
 
-const txt = {
-  el: {
-    title: "Καμπάνιες",
-    subtitle: "Δημοσιεύστε καμπάνια με τίτλο, περιγραφή και budget — οι influencers κάνουν αίτηση ενδιαφέροντος.",
-    new: "Νέα καμπάνια",
-    edit: "Επεξεργασία",
-    save: "Αποθήκευση",
-    cancel: "Ακύρωση",
-    delete: "Διαγραφή",
-    list_title: "Οι καμπάνιες σας",
-    empty: "Δεν έχετε καμπάνια ακόμα. Δημιουργήστε μία για να λάβετε αιτήσεις από influencers.",
-    form_title: "Τίτλος",
-    form_desc: "Περιγραφή",
-    form_budget: "Budget (€)",
-    form_category: "Κατηγορία",
-    form_deliverables: "Παράδοση / deliverables (προαιρετικό)",
-    form_deadline: "Προθεσμία (προαιρετικό)",
-    form_status: "Κατάσταση",
-    status_draft: "Πρόχειρο",
-    status_open: "Ανοιχτή (δημόσια)",
-    status_closed: "Κλειστή",
-    applications: "Αιτήσεις",
-    no_apps: "Καμία αίτηση ακόμα.",
-    app_status: "Κατάσταση αίτησης",
-    app_pending: "Εκκρεμεί",
-    app_shortlisted: "Σε λίστα",
-    app_rejected: "Απόρριψη",
-    app_withdrawn: "Αποσύρθηκε",
-    app_accepted: "Αποδεκτή",
-    applications_heading: "Αιτήσεις",
-    influencer: "Influencer",
-    message: "Μήνυμα",
-    btn_chat: "Μήνυμα",
-    deliverable: "Παράδοση",
-    deliverable_none: "—",
-    deliverable_submitted: "Υποβλήθηκε",
-    deliverable_approved: "Εγκρίθηκε",
-    deliverable_changes: "Αλλαγές",
-    approve_deliverable: "Έγκριση",
-    request_changes: "Ζήτα αλλαγές",
-    review_note_ph: "Σχόλιο για αλλαγές…",
-    table_missing:
-      "Η λειτουργία καμπανιών δεν είναι ενεργή στη βάση. Εκτελέστε το αρχείο docs/BRAND_CAMPAIGNS_SCHEMA.sql στο Supabase.",
+function langPack<K extends string>(rows: Record<K, LangPair>) {
+  const pack = { el: {} as Record<K, string>, en: {} as Record<K, string> };
+  for (const key of Object.keys(rows) as K[]) {
+    pack.el[key] = rows[key].el;
+    pack.en[key] = rows[key].en;
+  }
+  return pack;
+}
+
+const extra = langPack({
+  required: { el: "υποχρεωτικό", en: "required" },
+  form_platforms: { el: "Πλατφόρμες", en: "Platforms" },
+  form_min_followers: { el: "Ελάχιστοι ακόλουθοι", en: "Minimum followers" },
+  form_location: { el: "Περιοχή", en: "Area" },
+  form_start: { el: "Ημερομηνία έναρξης", en: "Start date" },
+  form_compensation: { el: "Αμοιβή", en: "Compensation" },
+  comp_money: { el: "Χρήματα", en: "Money" },
+  comp_product: { el: "Προϊόν", en: "Product" },
+  comp_both: { el: "Χρήματα και προϊόν", en: "Money and product" },
+  date_order: { el: "Ημερομηνία με σειρά ημέρα / μήνας / έτος.", en: "Enter the date as day / month / year." },
+  deadline_after_start: { el: "Η προθεσμία πρέπει να είναι μετά την ημερομηνία έναρξης.", en: "The deadline must be after the start date." },
+  draft_saved: { el: "Αποθηκεύτηκε ως πρόχειρο. Το βλέπει μόνο η επιχείρησή σας.", en: "Saved as a draft. Only your company can see it." },
+  saved: { el: "Η καμπάνια αποθηκεύτηκε.", en: "Campaign saved." },
+  publish_title: { el: "Δημοσίευση", en: "Publish" },
+  publish_body: {
+    el: "Η καμπάνια θα είναι ορατή σε εγκεκριμένους influencers και στη δημόσια σελίδα καμπανιών. Συνέχεια;",
+    en: "Approved influencers and anyone with the public link will be able to see this campaign. Continue?",
   },
-  en: {
-    title: "Campaigns",
-    subtitle: "Publish a campaign with title, description and budget — influencers can apply.",
-    new: "New campaign",
-    edit: "Edit",
-    save: "Save",
-    cancel: "Cancel",
-    delete: "Delete",
-    list_title: "Your campaigns",
-    empty: "No campaigns yet. Create one to receive applications from influencers.",
-    form_title: "Title",
-    form_desc: "Description",
-    form_budget: "Budget (€)",
-    form_category: "Category",
-    form_deliverables: "Deliverables (optional)",
-    form_deadline: "Deadline (optional)",
-    form_status: "Status",
-    status_draft: "Draft",
-    status_open: "Open (public)",
-    status_closed: "Closed",
-    applications: "Applications",
-    no_apps: "No applications yet.",
-    app_status: "Application status",
-    app_pending: "Pending",
-    app_shortlisted: "Shortlisted",
-    app_rejected: "Rejected",
-    app_withdrawn: "Withdrawn",
-    app_accepted: "Accepted",
-    applications_heading: "Applications",
-    influencer: "Influencer",
-    message: "Message",
-    btn_chat: "Message",
-    deliverable: "Deliverable",
-    deliverable_none: "—",
-    deliverable_submitted: "Submitted",
-    deliverable_approved: "Approved",
-    deliverable_changes: "Changes requested",
-    approve_deliverable: "Approve",
-    request_changes: "Request changes",
-    review_note_ph: "Note for changes…",
-    table_missing:
-      "Campaigns are not enabled in the database. Run docs/BRAND_CAMPAIGNS_SCHEMA.sql in Supabase.",
+  publish_ok: { el: "Δημοσίευση", en: "Publish" },
+  published: { el: "Η καμπάνια είναι πλέον ανοιχτή.", en: "The campaign is now open." },
+  delete_title: { el: "Διαγραφή καμπάνιας", en: "Delete campaign" },
+  delete_plain: { el: "Να διαγραφεί αυτή η καμπάνια;", en: "Delete this campaign?" },
+  delete_with_apps: {
+    el: "Υπάρχουν αιτήσεις. Οι creators θα ενημερωθούν ότι η καμπάνια αφαιρέθηκε και οι αιτήσεις τους δεν θα είναι πλέον ενεργές.",
+    en: "This campaign has applications. Creators will be told it was removed and their applications will no longer be active.",
   },
-};
+  deleted: { el: "Η καμπάνια διαγράφηκε.", en: "Campaign deleted." },
+  status_updated: { el: "Η κατάσταση της αίτησης ενημερώθηκε.", en: "Application status updated." },
+  accepted: { el: "Η αίτηση έγινε αποδεκτή. Άνοιξε η συνομιλία και δημιουργήθηκε συμφωνία.", en: "Application accepted. A message thread and an agreement were opened." },
+  unverified_card_title: { el: "Επαλήθευση σε αναμονή", en: "Verification pending" },
+  unverified_card_body: {
+    el: "Μπορείτε να ετοιμάσετε καμπάνιες ως Πρόχειρο. Η δημοσίευση (Ανοιχτή) ξεκλειδώνει μετά την έγκριση, συνήθως εντός 1–2 εργάσιμων ημερών.",
+    en: "You can prepare campaigns as drafts. Publishing (Open) unlocks after approval, usually within 1–2 business days.",
+  },
+  verified_card_title: { el: "Η επιχείρηση είναι επαληθευμένη", en: "Your company is verified" },
+  verified_card_body: { el: "Μπορείτε να δημοσιεύετε καμπάνιες δημόσια.", en: "You can publish campaigns publicly." },
+  open_locked: { el: "Η κατάσταση «Ανοιχτή» είναι διαθέσιμη μετά την επαλήθευση.", en: "Open status is available after verification." },
+  migration: { el: "Χρειάζεται το docs/CAMPAIGN_WORKFLOW_2026.sql στο Supabase για τα νέα πεδία.", en: "Run docs/CAMPAIGN_WORKFLOW_2026.sql in Supabase for the new fields." },
+  public_page: { el: "Δημόσια σελίδα", en: "Public page" },
+  accept: { el: "Αποδοχή", en: "Accept" },
+  profile: { el: "Προφίλ", en: "Profile" },
+  rate: { el: "Ελάχιστη τιμή", en: "Min rate" },
+  proposed: { el: "Προτεινόμενη τιμή", en: "Proposed price" },
+  work: { el: "Δείγματα", en: "Past work" },
+  invites_title: { el: "Προτάσεις για πρόσκληση", en: "Creators to invite" },
+  invites_body: { el: "Εγκεκριμένοι creators που ταιριάζουν με την καμπάνια. Η πρόσκληση στέλνει πρόταση συνεργασίας.", en: "Approved creators who fit this campaign. Invite sends a collaboration proposal." },
+  invite: { el: "Πρόσκληση", en: "Invite" },
+  invited: { el: "Η πρόσκληση στάλθηκε.", en: "Invite sent." },
+  followers: { el: "Ακόλουθοι", en: "Followers" },
+  engagement: { el: "Engagement", en: "Engagement" },
+  cancel: { el: "Ακύρωση", en: "Cancel" },
+});
+
+const txt = langPack({
+  title: { el: "Καμπάνιες", en: "Campaigns" },
+  subtitle: { el: "Δημοσιεύστε καμπάνια με τίτλο, περιγραφή και budget — οι influencers κάνουν αίτηση ενδιαφέροντος.", en: "Publish a campaign with title, description and budget — influencers can apply." },
+  new: { el: "Νέα καμπάνια", en: "New campaign" },
+  edit: { el: "Επεξεργασία", en: "Edit" },
+  save: { el: "Αποθήκευση", en: "Save" },
+  cancel: { el: "Ακύρωση", en: "Cancel" },
+  delete: { el: "Διαγραφή", en: "Delete" },
+  list_title: { el: "Οι καμπάνιες σας", en: "Your campaigns" },
+  empty: { el: "Δεν έχετε καμπάνια ακόμα. Δημιουργήστε μία για να λάβετε αιτήσεις από influencers.", en: "No campaigns yet. Create one to receive applications from influencers." },
+  form_title: { el: "Τίτλος", en: "Title" },
+  form_desc: { el: "Περιγραφή", en: "Description" },
+  form_budget: { el: "Budget (€)", en: "Budget (€)" },
+  form_category: { el: "Κατηγορία", en: "Category" },
+  form_deliverables: { el: "Παράδοση / deliverables (προαιρετικό)", en: "Deliverables (optional)" },
+  form_deadline: { el: "Προθεσμία (προαιρετικό)", en: "Deadline (optional)" },
+  form_status: { el: "Κατάσταση", en: "Status" },
+  status_draft: { el: "Πρόχειρο", en: "Draft" },
+  status_open: { el: "Ανοιχτή (δημόσια)", en: "Open (public)" },
+  status_closed: { el: "Κλειστή", en: "Closed" },
+  applications: { el: "Αιτήσεις", en: "Applications" },
+  no_apps: { el: "Καμία αίτηση ακόμα.", en: "No applications yet." },
+  app_status: { el: "Κατάσταση αίτησης", en: "Application status" },
+  app_pending: { el: "Εκκρεμεί", en: "Pending" },
+  app_shortlisted: { el: "Σε λίστα", en: "Shortlisted" },
+  app_rejected: { el: "Απόρριψη", en: "Rejected" },
+  app_withdrawn: { el: "Αποσύρθηκε", en: "Withdrawn" },
+  app_accepted: { el: "Αποδεκτή", en: "Accepted" },
+  applications_heading: { el: "Αιτήσεις", en: "Applications" },
+  influencer: { el: "Influencer", en: "Influencer" },
+  message: { el: "Μήνυμα", en: "Message" },
+  btn_chat: { el: "Μήνυμα", en: "Message" },
+  deliverable: { el: "Παράδοση", en: "Deliverable" },
+  deliverable_none: { el: "—", en: "—" },
+  deliverable_submitted: { el: "Υποβλήθηκε", en: "Submitted" },
+  deliverable_approved: { el: "Εγκρίθηκε", en: "Approved" },
+  deliverable_changes: { el: "Αλλαγές", en: "Changes requested" },
+  approve_deliverable: { el: "Έγκριση", en: "Approve" },
+  request_changes: { el: "Ζήτα αλλαγές", en: "Request changes" },
+  review_note_ph: { el: "Σχόλιο για αλλαγές…", en: "Note for changes…" },
+  table_missing: {
+    el: "Η λειτουργία καμπανιών δεν είναι ενεργή στη βάση. Εκτελέστε το αρχείο docs/BRAND_CAMPAIGNS_SCHEMA.sql στο Supabase.",
+    en: "Campaigns are not enabled in the database. Run docs/BRAND_CAMPAIGNS_SCHEMA.sql in Supabase.",
+  },
+});
 
 const emptyForm = () => ({
   title: "",
@@ -497,7 +422,7 @@ export default function BrandCampaignsSection({
       };
       const shouldNotify = brandVerified && payload.status === "open" && !wasOpen;
       let campaignId: string | null = null;
-      const write = async (body: Record<string, unknown>) => {
+      const write = (body: Record<string, unknown>) => {
         if (editing === "new") {
           return supabase.from("brand_campaigns").insert({ brand_id: brandId, ...body }).select("id").single();
         }
@@ -509,13 +434,16 @@ export default function BrandCampaignsSection({
       let result = await write(payload);
       if (result.error && /column|schema cache|compensation|platforms|starts_on|min_followers/i.test(result.error.message)) {
         toastError(x.migration);
-        const { starts_on, location, min_followers, platforms, compensation_type, ...legacy } = payload;
-        void starts_on;
-        void location;
-        void min_followers;
-        void platforms;
-        void compensation_type;
-        result = await write(legacy);
+        result = await write({
+          title: payload.title,
+          description: payload.description,
+          budget: payload.budget,
+          category: payload.category,
+          deliverables: payload.deliverables,
+          deadline: payload.deadline,
+          status: payload.status,
+          updated_at: payload.updated_at,
+        });
       }
       if (result.error) {
         const message = /only_verified|policy|row-level/i.test(result.error.message) ? x.open_locked : result.error.message;

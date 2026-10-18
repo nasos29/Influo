@@ -14,6 +14,7 @@ type ConfirmRequest = {
 
 let pushToast: ((kind: "ok" | "err", text: string) => void) | null = null;
 let pushConfirm: ((request: Omit<ConfirmRequest, "resolve">) => Promise<boolean>) | null = null;
+let nextToastId = 1;
 
 export function toastSuccess(text: string) {
   pushToast?.("ok", text);
@@ -46,7 +47,8 @@ export default function FeedbackHost() {
 
   useEffect(() => {
     pushToast = (kind, text) => {
-      const id = Date.now() + Math.random();
+      const id = nextToastId;
+      nextToastId += 1;
       setToasts((prev) => [...prev.slice(-4), { id, kind, text }]);
       window.setTimeout(() => {
         setToasts((prev) => prev.filter((item) => item.id !== id));

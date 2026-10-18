@@ -31,8 +31,11 @@ async function contactsFor(ids: string[]): Promise<Contact[]> {
 }
 
 function campaignLink(id: string): string {
-  const host = process.env.NEXT_PUBLIC_SITE_URL || "https://www.influo.gr";
-  return `${host.replace(/\/$/, "")}/campaigns/${id}`;
+  const host = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.influo.gr").replace(/\/$/, "");
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
+    return `${host}/campaigns`;
+  }
+  return `${host}/campaigns/${id}`;
 }
 
 export async function matchingInfluencerIds(category: string | null | undefined): Promise<string[]> {

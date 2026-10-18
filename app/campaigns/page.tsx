@@ -108,13 +108,14 @@ export default function PublicCampaignsPage() {
       }
       if (profiles.influencer) {
         setUserKind("influencer");
-        setInfluencerId(String(profiles.influencer.id || ""));
+        const rawId = profiles.influencer.id;
+        setInfluencerId(typeof rawId === "string" || typeof rawId === "number" ? String(rawId) : "");
         setApprovedInfluencer(!!profiles.influencer.approved);
         return;
       }
       setUserKind("none");
     };
-    resolveUser();
+    resolveUser().catch(() => setUserKind("none"));
   }, [session?.user?.id]);
 
   useEffect(() => {
@@ -123,14 +124,17 @@ export default function PublicCampaignsPage() {
       return;
     }
     let cancelled = false;
-    (async () => {
+    const loadApplied = async () => {
       const { data } = await supabase
         .from("campaign_applications")
         .select("campaign_id, status")
         .eq("influencer_id", influencerId);
       if (cancelled) return;
       setAppliedIds(new Set((data || []).filter((row) => row.status !== "withdrawn").map((row) => String(row.campaign_id))));
-    })();
+    };
+    loadApplied().catch(() => {
+      if (!cancelled) setAppliedIds(new Set());
+    });
     return () => {
       cancelled = true;
     };
@@ -140,7 +144,7 @@ export default function PublicCampaignsPage() {
     if (!session) return;
     let cancelled = false;
     let finished = false;
-    (async () => {
+    const loadRows = async () => {
       setLoading(true);
       setErr(false);
       const { data, error } = await supabase
@@ -170,7 +174,13 @@ export default function PublicCampaignsPage() {
       }
       finished = true;
       setLoading(false);
-    })();
+    };
+    loadRows().catch(() => {
+      if (cancelled) return;
+      finished = true;
+      setErr(true);
+      setLoading(false);
+    });
     const timer = window.setTimeout(() => {
       if (!cancelled && !finished) {
         setLoading(false);
