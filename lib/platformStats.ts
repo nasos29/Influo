@@ -71,30 +71,34 @@ export function formatFollowerCount(n: number): string {
   return String(Math.round(n));
 }
 
-export function statsFromAccounts(accounts: unknown): PlatformStat[] {
+export function statsFromAccounts(accounts: unknown, options?: { keepEmpty?: boolean }): PlatformStat[] {
   if (!Array.isArray(accounts)) return [];
-  const best = new Map<string, { stat: PlatformStat; verified: number; recent: number }>();
+  const best = new Map<string, { stat: PlatformStat; verified: number; recent: number; hasCount: boolean }>();
   accounts.forEach((raw, index) => {
     if (!raw || typeof raw !== "object") return;
     const acc = raw as AccountFields;
     const platform = canonicalPlatform(acc.platform);
     if (!platform) return;
     const followers = acc.followers != null ? String(acc.followers).trim() : "";
-    if (!followers || parseFollowerNumber(followers) <= 0) return;
+    const hasCount = !!followers && parseFollowerNumber(followers) > 0;
+    if (!hasCount && !options?.keepEmpty) return;
     const candidate = {
       stat: {
         platform,
-        followers,
+        followers: hasCount ? followers : "",
         engagement: acc.engagement_rate != null ? String(acc.engagement_rate) : null,
       },
       verified: accountVerified(acc),
       recent: accountRecency(acc, index),
+      hasCount,
     };
     const current = best.get(platform);
     const better =
       !current ||
-      candidate.verified > current.verified ||
-      (candidate.verified === current.verified && candidate.recent >= current.recent);
+      (candidate.hasCount && !current.hasCount) ||
+      (candidate.hasCount === current.hasCount &&
+        (candidate.verified > current.verified ||
+          (candidate.verified === current.verified && candidate.recent >= current.recent)));
     if (better) best.set(platform, candidate);
   });
   return [...best.values()].map((row) => row.stat);

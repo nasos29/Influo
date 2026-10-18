@@ -11,6 +11,7 @@ import DmyDateField from "@/components/DmyDateField";
 import { askConfirm, toastError, toastSuccess } from "@/components/Feedback";
 import { CATEGORIES, categoryLabel, normalizeCategoryToken } from "@/lib/categories";
 import { publicProfilePath } from "@/lib/profileSlug";
+import { mergeApplicantProfile } from "@/lib/applicantProfile";
 
 const PLATFORMS = [
   { id: "instagram", el: "Instagram", en: "Instagram" },
@@ -350,12 +351,24 @@ export default function BrandCampaignsSection({
     }
     if (!error && data) {
       const apps = data as unknown as ApplicationRow[];
+      const ids = [...new Set(apps.map((app) => app.influencer_id).filter(Boolean))];
+      if (ids.length) {
+        const { data: profiles } = await supabase
+          .from("influencers")
+          .select("id, display_name, avatar_url, profile_slug, category, accounts, engagement_rate")
+          .in("id", ids);
+        const byId = new Map((profiles || []).map((row) => [String(row.id), row]));
+        for (const app of apps) {
+          const merged = mergeApplicantProfile(app.influencers, byId.get(app.influencer_id));
+          if (merged) app.influencers = { ...merged, min_rate: app.influencers?.min_rate ?? null };
+        }
+      }
       try {
         const { data: sessionData } = await supabase.auth.getSession();
         const token = sessionData.session?.access_token;
-        const ids = apps.map((app) => app.influencer_id).filter(Boolean);
-        if (token && ids.length) {
-          const priceRes = await fetch(`/api/influencers/commercial?ids=${encodeURIComponent(ids.join(","))}`, {
+        const priceIds = apps.map((app) => app.influencer_id).filter(Boolean);
+        if (token && priceIds.length) {
+          const priceRes = await fetch(`/api/influencers/commercial?ids=${encodeURIComponent(priceIds.join(","))}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (priceRes.ok) {
@@ -826,7 +839,7 @@ export default function BrandCampaignsSection({
             {rows.map((row) => (
               <li key={row.id} className="border border-slate-200 rounded-xl bg-white overflow-hidden">
                 <div className="p-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                  <div>
+                  <div className="min-w-0 flex-1 overflow-hidden">
                     <div className="flex flex-wrap items-center gap-2">
                       <h4 className="font-semibold text-slate-900">{row.title}</h4>
                       <span className={`text-xs px-2 py-0.5 rounded-full ${row.status === "open" ? "bg-green-100 text-green-800" : row.status === "closed" ? "bg-slate-200 text-slate-700" : "bg-amber-100 text-amber-900"}`}>
@@ -852,7 +865,7 @@ export default function BrandCampaignsSection({
                       </Link>
                     )}
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="relative z-10 flex shrink-0 flex-wrap gap-2 self-start">
                     <button type="button" onClick={() => { setExpandedId(expandedId === row.id ? null : row.id); if (expandedId !== row.id) void loadApplications(row.id); }} className="text-sm px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50">
                       {t.applications}
                     </button>
@@ -884,7 +897,7 @@ export default function BrandCampaignsSection({
                                     <p className="font-medium text-slate-900">{inf?.display_name || app.influencer_id}</p>
                                     <Link href={publicProfilePath(inf?.profile_slug, app.influencer_id)} className="text-xs text-blue-600 hover:underline">{x.profile}</Link>
                                   </div>
-                                  <PlatformFollowers accounts={inf?.accounts} lang={lang} className="mt-1" />
+                                  <PlatformFollowers accounts={inf?.accounts} lang={lang} className="mt-1" showDeclared />
                                   <p className="text-xs text-slate-600 mt-1">
                                     {engagement ? `${x.engagement}: ${engagement}` : ""}
                                     {inf?.min_rate ? ` · ${x.rate}: ${inf.min_rate}` : ""}

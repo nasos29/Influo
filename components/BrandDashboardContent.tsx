@@ -33,6 +33,7 @@ import {
   updateBrandShortlistNote,
   type BrandShortlistItem,
 } from '@/lib/brandShortlist';
+import { openAgreementCount, openBrandAgreements } from '@/lib/brandAgreements';
 
 interface Proposal {
   id: string;
@@ -87,6 +88,8 @@ const t = {
     profile_updated: "Το προφίλ ενημερώθηκε επιτυχώς!",
     error_updating: "Σφάλμα κατά την ενημέρωση",
     pending_agreements: "Συμφωνίες που αναμένουν αποδοχή",
+    awaiting_agreements: "Συμφωνίες που περιμένουν τον influencer",
+    awaiting_note: "Η αίτηση έγινε αποδεκτή. Ο influencer δεν έχει αποδεχτεί ακόμα τους όρους.",
     no_pending: "Δεν υπάρχουν συμφωνίες που αναμένουν αποδοχή",
     proposal_details: "Λεπτομέρειες Πρότασης",
     influencer: "Influencer",
@@ -146,6 +149,8 @@ const t = {
     profile_updated: "Profile updated successfully!",
     error_updating: "Error updating profile",
     pending_agreements: "Agreements Pending Acceptance",
+    awaiting_agreements: "Agreements waiting on the influencer",
+    awaiting_note: "The application was accepted. The influencer has not accepted the terms yet.",
     no_pending: "No agreements pending acceptance",
     recommendations_title: "Recommended Influencers for You",
     recommendations_subtitle: "Based on your industry, strategic audit (niche, engagement) and value for brands",
@@ -540,6 +545,7 @@ export default function BrandDashboardContent() {
     id: string;
     name: string;
   } | null>(null);
+  const [threadConversationId, setThreadConversationId] = useState<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const txt = t[lang];
@@ -643,6 +649,7 @@ export default function BrandDashboardContent() {
   useEffect(() => {
     if (activeTab !== "messages") {
       setMessageTargetInfluencer(null);
+      setThreadConversationId(null);
     }
   }, [activeTab]);
 
@@ -755,6 +762,30 @@ export default function BrandDashboardContent() {
       console.error('Error loading data:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const reloadProposals = async () => {
+    try {
+      const proposalsResponse = await sessionFetch('/api/proposals?role=brand', { cache: 'no-store' });
+      const proposalsBody = await proposalsResponse.json().catch(() => ({}));
+      if (!proposalsResponse.ok || !Array.isArray(proposalsBody.proposals)) return;
+      const proposalsData = proposalsBody.proposals as Proposal[];
+      setProposals(proposalsData);
+      const influencerIds = [...new Set(proposalsData.map((p) => p.influencer_id).filter(Boolean))];
+      if (!influencerIds.length) return;
+      const { data: influencersData } = await supabase
+        .from('influencers')
+        .select('id, display_name, avatar_url')
+        .in('id', influencerIds);
+      if (!influencersData) return;
+      setInfluencers((prev) => {
+        const next = { ...prev };
+        for (const inf of influencersData as Influencer[]) next[inf.id] = inf;
+        return next;
+      });
+    } catch (err) {
+      console.error('Error reloading proposals:', err);
     }
   };
 
@@ -1119,11 +1150,10 @@ export default function BrandDashboardContent() {
     }
   };
 
-  // Get pending agreements (where influencer accepted but brand hasn't)
-  const pendingAgreements = proposals.filter(
-    p => p.influencer_agreement_accepted && !p.brand_agreement_accepted && 
-    (p.status === 'accepted' || p.status === 'completed')
-  );
+  const agreementQueue = openBrandAgreements(proposals);
+  const pendingAgreements = agreementQueue.needsBrand;
+  const awaitingInfluencerAgreements = agreementQueue.awaitingInfluencer;
+  const openAgreements = openAgreementCount(proposals);
 
   // Get pending counter proposals (where influencer sent counter proposal and brand hasn't responded)
   const pendingCounterProposals = proposals.filter(
@@ -1322,7 +1352,7 @@ export default function BrandDashboardContent() {
           lang={lang}
           pendingApplications={pendingCampaignApplicationsCount}
           pendingCounters={pendingCounterProposals.length}
-          pendingAgreements={pendingAgreements.length}
+          pendingAgreements={openAgreements}
           unreadMessages={unreadMessageCount}
           onOpenTab={openBrandTab}
           onOpenApplications={() => {
@@ -1384,9 +1414,9 @@ export default function BrandDashboardContent() {
                 }`}
               >
                 {lang === 'el' ? '📋 Προσφορές' : '📋 Proposals'}
-                {(pendingAgreements.length > 0 || pendingCounterProposals.length > 0) && (
+                {(openAgreements > 0 || pendingCounterProposals.length > 0) && (
                   <span className="ml-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[16px] sm:min-w-[18px] h-[16px] sm:h-[18px] flex items-center justify-center px-1">
-                    {pendingAgreements.length + pendingCounterProposals.length > 99 ? '99+' : pendingAgreements.length + pendingCounterProposals.length}
+                    {openAgreements + pendingCounterProposals.length > 99 ? '99+' : openAgreements + pendingCounterProposals.length}
                   </span>
                 )}
               </button>
@@ -1436,6 +1466,7 @@ export default function BrandDashboardContent() {
                 setShortlist((rows) => rows.filter((s) => s.influencerId !== influencerId));
               }}
               onMessage={(influencerId, displayName) => {
+                setThreadConversationId(null);
                 setMessageTargetInfluencer({ id: influencerId, name: displayName });
                 openBrandTab('messages');
               }}
@@ -1469,6 +1500,7 @@ export default function BrandDashboardContent() {
               pendingApplicationsCount={pendingCampaignApplicationsCount}
               focusApplications={appsFocus}
               onApplicationsUpdated={() => {
+                void reloadProposals();
                 if (!brandData?.id) return;
                 (async () => {
                   const { data: camps } = await supabase
@@ -1493,6 +1525,7 @@ export default function BrandDashboardContent() {
                   id: p.influencerId,
                   name: p.displayName,
                 });
+                setThreadConversationId(p.conversationId || null);
                 setActiveTab("messages");
                 const url = p.conversationId
                   ? `/brand/dashboard?tab=messages&conversation=${encodeURIComponent(p.conversationId)}`
@@ -1834,6 +1867,7 @@ export default function BrandDashboardContent() {
                         <button
                           type="button"
                           onClick={() => {
+                            setThreadConversationId(null);
                             setMessageTargetInfluencer({
                               id: String(inf.id),
                               name: inf.display_name,
@@ -1870,7 +1904,7 @@ export default function BrandDashboardContent() {
               brandEmail={brandData.contact_email}
               brandName={brandData.brand_name}
               proposalId={undefined}
-              initialConversationId={searchParams?.get('conversation')}
+              initialConversationId={threadConversationId || searchParams?.get('conversation')}
               mode="brand"
               lang={lang}
               onUnreadCountChange={setUnreadMessageCount}
@@ -2004,8 +2038,42 @@ export default function BrandDashboardContent() {
             </div>
           )}
 
+          {awaitingInfluencerAgreements.length > 0 && (
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 mb-4">{txt.awaiting_agreements}</h2>
+              <div className="space-y-4">
+                {awaitingInfluencerAgreements.map((proposal) => {
+                  const influencer = influencers[proposal.influencer_id];
+                  return (
+                    <div
+                      key={proposal.id}
+                      className="bg-white rounded-xl p-6 border border-slate-200 hover:shadow-md transition-shadow"
+                    >
+                      <h3 className="text-lg font-bold text-slate-900 mb-2">
+                        {displayNameForLang(influencer?.display_name, lang) || 'Unknown Influencer'}
+                      </h3>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-slate-500">{txt.service}:</span>{' '}
+                          <span className="font-medium text-slate-900">{proposal.service_type}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500">{txt.budget}:</span>{' '}
+                          <span className="font-medium text-slate-900">
+                            €{proposal.counter_proposal_budget || proposal.budget}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="mt-3 text-sm text-slate-600">{txt.awaiting_note}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* No Pending Items */}
-          {pendingAgreements.length === 0 && pendingCounterProposals.length === 0 && (
+          {openAgreements === 0 && pendingCounterProposals.length === 0 && (
             <div className="bg-white rounded-xl p-8 text-center border border-slate-200">
               <p className="text-slate-600">{txt.no_pending}</p>
             </div>
