@@ -1,22 +1,16 @@
-/** Per-person "I have opened this" marks. localStorage, keyed by user id, so a reload keeps them. */
-
-const LEGACY_PROPOSAL_KEY = "admin_seen_pending_proposal_ids";
+/** Per-admin "I opened this tab" marks. Stored in the browser under the admin's user id so a reload keeps them. */
 
 export type SeenStore = {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
 };
 
-export function proposalSeenKey(userId: string): string {
-  return `influo.seen.${userId}.proposals`;
-}
-
 export function conversationSeenKey(userId: string): string {
   return `influo.seen.${userId}.conversations`;
 }
 
-export function campaignSeenKey(userId: string): string {
-  return `influo.seen.${userId}.campaigns`;
+export function companySeenKey(userId: string): string {
+  return `influo.seen.${userId}.companies`;
 }
 
 export function readIdList(store: SeenStore, key: string): string[] {
@@ -39,15 +33,6 @@ export function readStamp(store: SeenStore, key: string): string | null {
 
 export function writeStamp(store: SeenStore, key: string, iso: string): void {
   store.setItem(key, iso);
-}
-
-/** First read copies the old unscoped proposal list so an existing admin does not see those deals as new again. */
-export function readProposalSeenIds(store: SeenStore, userId: string): string[] {
-  const key = proposalSeenKey(userId);
-  if (store.getItem(key) != null) return readIdList(store, key);
-  const legacy = readIdList(store, LEGACY_PROPOSAL_KEY);
-  if (legacy.length) writeIdList(store, key, legacy);
-  return legacy;
 }
 
 export function countUnseenIds(ids: Array<string | number>, seenIds: Array<string | number>): number {

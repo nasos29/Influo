@@ -525,7 +525,7 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-900">
             {t[lang].tickets} {tickets.filter(t => t.status === 'open').length > 0 && (
-              <span className="ml-2 bg-amber-100 text-amber-900 text-sm font-semibold rounded-full px-2 py-1">
+              <span className="ml-2 bg-red-500 text-white text-sm font-bold rounded-full px-2 py-1">
                 {tickets.filter(t => t.status === 'open').length}
               </span>
             )}

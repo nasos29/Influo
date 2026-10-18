@@ -93,11 +93,14 @@ export default function InfluencerCampaignsPanel({
   approved,
   available = true,
   onMarkAvailable,
+  onAttentionCountChange,
 }: {
   influencerId: string;
   approved: boolean;
   available?: boolean;
   onMarkAvailable?: () => Promise<void> | void;
+  /** Για badge στο tab «Καμπάνιες»: εκκρεμείς αιτήσεις + ανοιχτές καμπάνιες χωρίς αίτηση. */
+  onAttentionCountChange?: (count: number) => void;
 }) {
   const [uiLang, setUiLang] = useState<"el" | "en">("el");
   const pc = pendingCopy[uiLang];
@@ -198,6 +201,16 @@ export default function InfluencerCampaignsPanel({
     }
     load();
   }, [approved, load]);
+
+  useEffect(() => {
+    if (!approved) {
+      onAttentionCountChange?.(0);
+      return;
+    }
+    const pendingMine = mine.filter((m) => m.status === "pending").length;
+    const notAppliedCount = campaigns.filter((c) => !appliedCampaignIds.has(c.id)).length;
+    onAttentionCountChange?.(pendingMine + notAppliedCount);
+  }, [approved, campaigns, mine, appliedCampaignIds, onAttentionCountChange]);
 
   const submitApply = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -471,7 +484,7 @@ export default function InfluencerCampaignsPanel({
         <h2 className="text-xl font-semibold text-slate-900 mb-3 flex flex-wrap items-center gap-2">
           {uiLang === "el" ? "Οι αιτήσεις μου" : "My applications"}
           {mine.some((m) => m.status === "pending") && (
-            <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-amber-100 text-amber-900 text-xs font-semibold">
+            <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold">
               {mine.filter((m) => m.status === "pending").length > 99
                 ? "99+"
                 : mine.filter((m) => m.status === "pending").length}
