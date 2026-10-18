@@ -19,6 +19,7 @@ import InfluencerToolsPanel from './InfluencerToolsPanel';
 import { INFLUENCER_BROWSER_COLUMNS, loadOwnInfluencer } from '@/lib/ownProfile';
 import { useOwnPresenceHeartbeat } from '@/lib/useOwnPresenceHeartbeat';
 import { logoutEverywhere } from '@/lib/authSession';
+import { campaignSeenKey, countUnseenIds, readIdList, writeIdList } from '@/lib/dashboardBadges';
 import { formatStoredCategories, parseStoredCategories } from '@/lib/categories';
 import CategoryCheckboxList from '@/components/CategoryCheckboxList';
 
@@ -885,6 +886,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     const [unreadAnnouncementsCount, setUnreadAnnouncementsCount] = useState(0);
     const [announcementsLoading, setAnnouncementsLoading] = useState(false);
     const [campaignAttentionCount, setCampaignAttentionCount] = useState(0);
+    const [campaignActionCount, setCampaignActionCount] = useState(0);
     const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
     const [deletingAccount, setDeletingAccount] = useState(false);
     const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null);
@@ -1001,6 +1003,73 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
             window.removeEventListener('focus', handleMessagesRead);
         };
     }, [profile?.id]);
+
+    useEffect(() => {
+        const influencerId = profile?.id;
+        if (!influencerId || !profile?.approved) {
+            setCampaignAttentionCount(0);
+            setCampaignActionCount(0);
+            return;
+        }
+        let cancelled = false;
+        if (activeTab === 'campaigns') setCampaignAttentionCount(0);
+        (async () => {
+            const [openRes, mineRes] = await Promise.all([
+                supabase.from('brand_campaigns').select('id').eq('status', 'open'),
+                supabase.from('campaign_applications').select('deliverable_status').eq('influencer_id', influencerId),
+            ]);
+            if (cancelled) return;
+            const action = (mineRes.data || []).filter((row) => row.deliverable_status === 'changes_requested').length;
+            setCampaignActionCount(action);
+            if (openRes.error || typeof window === 'undefined') return;
+            const openIds = (openRes.data || []).map((row) => String(row.id));
+            const key = campaignSeenKey(String(influencerId));
+            if (activeTab === 'campaigns') {
+                writeIdList(window.localStorage, key, openIds);
+                setCampaignAttentionCount(0);
+            } else {
+                setCampaignAttentionCount(countUnseenIds(openIds, readIdList(window.localStorage, key)));
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [profile?.id, profile?.approved, activeTab]);
+
+    useEffect(() => {
+        if (activeTab !== 'announcements' || !profile?.id) return;
+        setUnreadAnnouncementsCount(0);
+        let cancelled = false;
+        (async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.access_token || cancelled) return;
+            setAnnouncementsLoading(true);
+            try {
+                const res = await fetch('/api/announcements', {
+                    headers: { Authorization: `Bearer ${session.access_token}` },
+                });
+                const data = await res.json();
+                if (cancelled || !res.ok || !Array.isArray(data.data)) return;
+                const rows = data.data as Array<{ id: string; title: string; body: string; created_at: string; read: boolean; read_at: string | null }>;
+                const unread = rows.filter((row) => !row.read);
+                await Promise.all(unread.map((row) => fetch(`/api/announcements/${row.id}/read`, {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${session.access_token}` },
+                })));
+                if (cancelled) return;
+                const now = new Date().toISOString();
+                setAnnouncementsList(rows.map((row) => row.read ? row : { ...row, read: true, read_at: now }));
+                setUnreadAnnouncementsCount(0);
+            } catch (e) {
+                console.error('Error opening announcements:', e);
+            } finally {
+                if (!cancelled) setAnnouncementsLoading(false);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [activeTab, profile?.id]);
 
     useEffect(() => {
         // Refresh profile data periodically
@@ -1174,6 +1243,11 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                         {campaignAttentionCount > 99 ? '99+' : campaignAttentionCount > 9 ? '9+' : campaignAttentionCount}
                                     </span>
                                 )}
+                                {campaignAttentionCount === 0 && campaignActionCount > 0 && (
+                                    <span className="ml-1.5 inline-flex items-center justify-center min-w-[1rem] h-4 px-1 rounded-full bg-amber-100 text-amber-900 text-[10px] font-semibold">
+                                        {campaignActionCount > 99 ? '99+' : campaignActionCount}
+                                    </span>
+                                )}
                             </button>
                             <button
                                 onClick={() => setActiveTab('proposals')}
@@ -1185,8 +1259,8 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                             >
                                 <span className="hidden md:inline">📋 </span>Προσφορές
                                 {pendingProposalsCount > 0 && (
-                                    <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 bg-red-500 text-white text-[9px] sm:text-[10px] font-bold rounded-full min-w-[14px] sm:min-w-[16px] h-[14px] sm:h-[16px] flex items-center justify-center px-0.5">
-                                        {pendingProposalsCount > 99 ? '99+' : pendingProposalsCount > 9 ? '9+' : pendingProposalsCount}
+                                    <span className="ml-1.5 inline-flex items-center justify-center min-w-[1rem] h-4 px-1 rounded-full bg-amber-100 text-amber-900 text-[10px] font-semibold">
+                                        {pendingProposalsCount > 99 ? '99+' : pendingProposalsCount}
                                     </span>
                                 )}
                             </button>
@@ -1216,24 +1290,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 <span className="hidden md:inline">📊 </span>Στατιστικά
                             </button>
                             <button
-                                onClick={async () => {
-                                    setActiveTab('announcements');
-                                    setAnnouncementsLoading(true);
-                                    try {
-                                        const { data: { session } } = await supabase.auth.getSession();
-                                        if (session?.access_token) {
-                                            const res = await fetch('/api/announcements', {
-                                                headers: { Authorization: `Bearer ${session.access_token}` },
-                                            });
-                                            const data = await res.json();
-                                            if (res.ok && Array.isArray(data.data)) setAnnouncementsList(data.data);
-                                        }
-                                    } catch (e) {
-                                        console.error('Error loading announcements:', e);
-                                    } finally {
-                                        setAnnouncementsLoading(false);
-                                    }
-                                }}
+                                onClick={() => setActiveTab('announcements')}
                                 className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors relative whitespace-nowrap ${
                                     activeTab === 'announcements'
                                         ? 'border-slate-900 text-slate-900'
@@ -1272,7 +1329,6 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                   approved={!!profile.approved}
                                   available={isAvailable}
                                   onMarkAvailable={() => setAvailabilityStatus("available")}
-                                  onAttentionCountChange={setCampaignAttentionCount}
                                 />
                             </div>
                         ) : activeTab === 'proposals' ? (

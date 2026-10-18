@@ -20,42 +20,21 @@ import AdminInfluencerStatsTab from "./AdminInfluencerStatsTab";
 import SocialRefreshLogsPanel from "./SocialRefreshLogsPanel";
 import { askConfirm } from "@/components/Feedback";
 import { logoutEverywhere } from "@/lib/authSession";
+import {
+  conversationSeenKey,
+  countNewerThan,
+  countUnseenIds,
+  latestIso,
+  proposalSeenKey,
+  readProposalSeenIds,
+  readStamp,
+  writeIdList,
+  writeStamp,
+} from "@/lib/dashboardBadges";
 
 async function adminAuthHeaders(): Promise<Record<string, string>> {
   const { data: { session } } = await supabase.auth.getSession();
   return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
-}
-
-/** Pending deals badge: dismiss on tab open; only new pending ids show again after refresh. */
-const ADMIN_SEEN_PENDING_PROPOSALS_KEY = "admin_seen_pending_proposal_ids";
-
-function readSeenPendingProposalIds(): number[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const parsed = JSON.parse(localStorage.getItem(ADMIN_SEEN_PENDING_PROPOSALS_KEY) || "[]");
-    return Array.isArray(parsed) ? parsed.map(Number).filter((n) => Number.isFinite(n)) : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeSeenPendingProposalIds(ids: number[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(ADMIN_SEEN_PENDING_PROPOSALS_KEY, JSON.stringify([...new Set(ids)]));
-}
-
-function pendingProposalIds(list: { id: number; status: string }[]): number[] {
-  return list.filter((p) => p.status === "pending").map((p) => p.id);
-}
-
-function countUnseenPendingProposals(list: { id: number; status: string }[]): number {
-  const pending = pendingProposalIds(list);
-  const seen = new Set(readSeenPendingProposalIds().filter((id) => pending.includes(id)));
-  return pending.filter((id) => !seen.has(id)).length;
-}
-
-function markPendingProposalsSeen(list: { id: number; status: string }[]) {
-  writeSeenPendingProposalIds(pendingProposalIds(list));
 }
 
 // --- LANGUAGES LIST ---
@@ -2003,7 +1982,6 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
               const val = parseFloat(p.budget);
               if (!isNaN(val)) pipelineSum += val;
           });
-          setPendingProposalsCount(countUnseenPendingProposals(propData));
       }
 
         setStats({ 
@@ -2023,38 +2001,53 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     }
   };
   
-  // Load unread messages count for admin (background only — never remounts the page)
   const editModalOpenRef = useRef(false);
   useEffect(() => {
     editModalOpenRef.current = showEditModal || showBlogEditModal || showBrandEditModal;
   }, [showEditModal, showBlogEditModal, showBrandEditModal]);
 
+  const [viewerId, setViewerId] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
-    const loadUnreadMessages = async () => {
-      try {
-        const response = await fetch('/api/admin/conversations?count=unread', {
-          headers: await adminAuthHeaders(),
-        });
-        const result = await response.json();
-        if (cancelled) return;
-        if (response.ok && result.success && typeof result.count === 'number') {
-          setUnreadMessagesCount(result.count);
-        } else {
-          console.error('Error counting unread messages:', result.error || response.status);
-        }
-      } catch (error) {
-        console.error('Error loading unread messages count:', error);
-      }
-    };
-    
-    loadUnreadMessages();
-    const interval = setInterval(loadUnreadMessages, 60000);
+    supabase.auth.getSession().then(({ data }) => {
+      if (!cancelled) setViewerId(data.session?.user?.id ?? null);
+    });
     return () => {
       cancelled = true;
-      clearInterval(interval);
     };
   }, []);
+
+  // Conversations: red badge is threads with activity after this admin last opened the tab.
+  // Proposals: red badge is pending deals this admin has not opened. Both survive reload.
+  useEffect(() => {
+    if (!viewerId || typeof window === "undefined") return;
+    const store = window.localStorage;
+    if (activeTab === "conversations") {
+      setUnreadMessagesCount(0);
+      if (conversations.length > 0) {
+        const stamp = latestIso(
+          conversations.map((row) => row.last_message_at || row.created_at),
+          new Date().toISOString()
+        );
+        writeStamp(store, conversationSeenKey(viewerId), stamp);
+      }
+    } else {
+      const seenAt = readStamp(store, conversationSeenKey(viewerId));
+      setUnreadMessagesCount(
+        countNewerThan(
+          conversations.map((row) => row.last_message_at || row.created_at),
+          seenAt
+        )
+      );
+    }
+    const pendingIds = proposals.filter((row) => row.status === "pending").map((row) => row.id);
+    if (activeTab === "proposals") {
+      setPendingProposalsCount(0);
+      if (!loading) writeIdList(store, proposalSeenKey(viewerId), pendingIds);
+    } else if (!loading) {
+      setPendingProposalsCount(countUnseenIds(pendingIds, readProposalSeenIds(store, viewerId)));
+    }
+  }, [viewerId, activeTab, conversations, proposals, loading]);
 
   // Initial load once; background refresh without flipping `loading` (avoids full-page remount)
   useEffect(() => {
@@ -2773,12 +2766,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         throw new Error(result.error || 'Failed to delete proposal');
       }
 
-      // Remove from local state and recalc unseen pending badge
-      setProposals(prev => {
-        const next = prev.filter(p => p.id !== proposalId);
-        setPendingProposalsCount(countUnseenPendingProposals(next));
-        return next;
-      });
+      setProposals(prev => prev.filter(p => p.id !== proposalId));
 
       alert(lang === 'el' 
         ? 'Η πρόταση διαγράφηκε επιτυχώς.'
@@ -3021,11 +3009,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                 {txt.tab_inf_analytics}
               </button>
               <button 
-                onClick={() => {
-                  setActiveTab("proposals");
-                  markPendingProposalsSeen(proposals);
-                  setPendingProposalsCount(0);
-                }} 
+                onClick={() => setActiveTab("proposals")} 
                 className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors relative whitespace-nowrap ${
                   activeTab === "proposals" 
                     ? "border-slate-900 text-slate-900" 
@@ -3064,8 +3048,8 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
               >
                 {txt.tab_brands} ({brands.length})
                 {pendingBrandCount > 0 && (
-                  <span className="ml-1.5 inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold">
-                    {pendingBrandCount > 99 ? "99+" : pendingBrandCount}
+                  <span className="ml-1.5 text-[10px] sm:text-xs font-medium text-amber-800">
+                    {pendingBrandCount > 99 ? "99+" : pendingBrandCount} {txt.pending}
                   </span>
                 )}
               </button>

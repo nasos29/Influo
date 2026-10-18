@@ -571,8 +571,15 @@ export default function BrandDashboardContent() {
   useEffect(() => {
     if (brandData?.contact_email) {
       loadUnreadMessageCount();
+      const onMessagesRead = () => {
+        void loadUnreadMessageCount();
+      };
+      window.addEventListener("messagesRead", onMessagesRead);
       const interval = setInterval(loadUnreadMessageCount, 30000);
-      return () => clearInterval(interval);
+      return () => {
+        window.removeEventListener("messagesRead", onMessagesRead);
+        clearInterval(interval);
+      };
     }
   }, [brandData?.contact_email]);
 
@@ -1385,8 +1392,8 @@ export default function BrandDashboardContent() {
               >
                 {lang === 'el' ? '★ Οι influencers μου' : '★ My influencers'}
                 {shortlist.length > 0 && (
-                  <span className="ml-2 bg-amber-500 text-white text-xs font-bold rounded-full min-w-[16px] sm:min-w-[18px] h-[16px] sm:h-[18px] inline-flex items-center justify-center px-1">
-                    {shortlist.length > 99 ? '99+' : shortlist.length}
+                  <span className="ml-1 text-xs font-medium text-slate-500">
+                    ({shortlist.length > 99 ? '99+' : shortlist.length})
                   </span>
                 )}
               </button>
@@ -1400,7 +1407,7 @@ export default function BrandDashboardContent() {
               >
                 {lang === 'el' ? '📣 Καμπάνιες' : '📣 Campaigns'}
                 {pendingCampaignApplicationsCount > 0 && (
-                  <span className="absolute top-1.5 sm:top-2 right-0 sm:right-1 bg-red-500 text-white text-[10px] sm:text-xs font-bold rounded-full min-w-[16px] sm:min-w-[18px] h-[16px] sm:h-[18px] flex items-center justify-center px-1">
+                  <span className="ml-1.5 inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] px-1 rounded-full bg-amber-100 text-amber-900 text-[10px] font-semibold">
                     {pendingCampaignApplicationsCount > 99 ? '99+' : pendingCampaignApplicationsCount}
                   </span>
                 )}
@@ -1415,7 +1422,7 @@ export default function BrandDashboardContent() {
               >
                 {lang === 'el' ? '📋 Προσφορές' : '📋 Proposals'}
                 {(openAgreements > 0 || pendingCounterProposals.length > 0) && (
-                  <span className="ml-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[16px] sm:min-w-[18px] h-[16px] sm:h-[18px] flex items-center justify-center px-1">
+                  <span className="ml-1.5 inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] px-1 rounded-full bg-amber-100 text-amber-900 text-[10px] font-semibold">
                     {openAgreements + pendingCounterProposals.length > 99 ? '99+' : openAgreements + pendingCounterProposals.length}
                   </span>
                 )}

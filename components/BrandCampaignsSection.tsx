@@ -694,7 +694,7 @@ export default function BrandCampaignsSection({
               <span className="text-slate-500">·</span>
               {t.applications_heading}
               {pendingApplicationsCount > 0 && (
-                <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-red-500 text-white text-xs font-bold">
+                <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-amber-100 text-amber-900 text-xs font-semibold">
                   {pendingApplicationsCount > 99 ? "99+" : pendingApplicationsCount}
                 </span>
               )}
