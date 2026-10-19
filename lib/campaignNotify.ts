@@ -1,10 +1,21 @@
 import { supabaseService } from "@/lib/apiAuth";
-import { campaignAlertTarget, type AlertCandidate } from "@/lib/campaignAlert";
+import {
+  isUuid,
+  outreachBudgetLeft,
+  OUTREACH_BATCH_SIZE,
+  OUTREACH_BUDGET_MS,
+  OUTREACH_GAP_MS,
+  rankCampaignAlerts,
+  type AlertCandidate,
+  type RankedAlert,
+} from "@/lib/campaignAlert";
 import { sendPushToInfluencer } from "@/lib/push";
 import { escapeHtml, sendTransactional } from "@/lib/transactionalEmail";
 
-const MATCH_LIMIT = 25;
 const SEND_TIMEOUT_MS = 8000;
+const PAGE = 1000;
+const MAX_PAGES = 50;
+const INSERT_BATCH = 80;
 
 function withTimeout<T>(work: Promise<T>, ms: number): Promise<T | undefined> {
   return new Promise((resolve) => {
@@ -24,8 +35,18 @@ function withTimeout<T>(work: Promise<T>, ms: number): Promise<T | undefined> {
 
 type Contact = { id: string; name: string; email: string | null; category: string | null; authUserId: string };
 
+const IN_CHUNK = 100;
+
 async function contactsFor(ids: string[]): Promise<Contact[]> {
-  if (!ids.length) return [];
+  const unique = [...new Set(ids.filter(Boolean))];
+  const out: Contact[] = [];
+  for (let index = 0; index < unique.length; index += IN_CHUNK) {
+    out.push(...(await contactsChunk(unique.slice(index, index + IN_CHUNK))));
+  }
+  return out;
+}
+
+async function contactsChunk(ids: string[]): Promise<Contact[]> {
   const admin = supabaseService();
   const { data: people } = await admin
     .from("influencers")
@@ -56,22 +77,54 @@ function campaignLink(id: string): string {
   return `${host}/campaigns/${id}`;
 }
 
-export async function matchingInfluencerIds(category: string | null | undefined): Promise<Array<{ id: string; authUserId: string }>> {
-  if (!category) return [];
+async function loadApprovedCreators(): Promise<AlertCandidate[]> {
   const admin = supabaseService();
-  const { data, error } = await admin
-    .from("influencers")
-    .select("id, category, approved, availability_status, auth_user_id")
-    .eq("approved", true)
-    .limit(400);
-  if (error || !data) return [];
-  const matched: Array<{ id: string; authUserId: string }> = [];
-  for (const row of data) {
-    const target = campaignAlertTarget(row as AlertCandidate, category);
-    if (target) matched.push(target);
-    if (matched.length >= MATCH_LIMIT) break;
+  const rows: AlertCandidate[] = [];
+  let from = 0;
+  for (let page = 0; page < MAX_PAGES; page += 1) {
+    const { data, error } = await admin
+      .from("influencers")
+      .select("id, category, approved, availability_status, auth_user_id, location, accounts")
+      .eq("approved", true)
+      .range(from, from + PAGE - 1);
+    if (error || !data?.length) {
+      if (error) console.error("[campaignNotify] creators", error);
+      break;
+    }
+    rows.push(...(data as AlertCandidate[]));
+    if (data.length < PAGE) break;
+    from += PAGE;
   }
-  return matched;
+  return rows;
+}
+
+async function alreadyNotified(campaignId: string): Promise<Set<string>> {
+  const ids = new Set<string>();
+  if (!isUuid(campaignId)) return ids;
+  const admin = supabaseService();
+  let from = 0;
+  for (let page = 0; page < MAX_PAGES; page += 1) {
+    const { data, error } = await admin
+      .from("announcements")
+      .select("target_influencer_id")
+      .eq("target_type", "specific")
+      .ilike("body", `%${campaignId}%`)
+      .range(from, from + PAGE - 1);
+    if (error || !data?.length) {
+      if (error) console.error("[campaignNotify] existing", error);
+      break;
+    }
+    for (const row of data) {
+      if (row.target_influencer_id) ids.add(String(row.target_influencer_id));
+    }
+    if (data.length < PAGE) break;
+    from += PAGE;
+  }
+  return ids;
+}
+
+function announcementBody(brandName: string, title: string, campaignId: string): string {
+  return `${brandName} δημοσίευσε «${title}».\n${campaignLink(campaignId)}\ncampaign-id:${campaignId}`;
 }
 
 export async function notifyMatchingOpenCampaign(opts: {
@@ -79,72 +132,122 @@ export async function notifyMatchingOpenCampaign(opts: {
   title: string;
   category: string | null;
   brandName: string;
+  location?: string | null;
+  minFollowers?: number | null;
+  platforms?: string[] | null;
 }): Promise<{ emailed: number; pushed: number; inApp: number }> {
-  const targets = await matchingInfluencerIds(opts.category);
-  if (!targets.length) return { emailed: 0, pushed: 0, inApp: 0 };
-  const people = (await contactsFor(targets.map((row) => row.id))).map((person) => ({
-    ...person,
-    authUserId: targets.find((row) => row.id === person.id)?.authUserId || person.id,
-  }));
+  const started = Date.now();
+  const ranked = rankCampaignAlerts(await loadApprovedCreators(), {
+    category: opts.category,
+    location: opts.location,
+    minFollowers: opts.minFollowers,
+    platforms: opts.platforms,
+  });
+  if (!ranked.length) return { emailed: 0, pushed: 0, inApp: 0 };
+  const already = await alreadyNotified(opts.campaignId);
+  const fresh = ranked.filter((row) => !already.has(row.authUserId));
+  const inApp = await insertCampaignAnnouncements(
+    fresh.map((row) => row.authUserId),
+    opts.title,
+    announcementBody(opts.brandName, opts.title, opts.campaignId)
+  );
+  if (inApp < fresh.length) {
+    console.warn("[campaignNotify] in-app insert incomplete", inApp, "of", fresh.length);
+    return { emailed: 0, pushed: 0, inApp };
+  }
+  const outreach = await deliverStrongMatches(fresh.filter((row) => row.strong), opts, started);
+  return { emailed: outreach.emailed, pushed: outreach.pushed, inApp };
+}
+
+async function deliverStrongMatches(
+  targets: RankedAlert[],
+  opts: { campaignId: string; title: string; brandName: string },
+  started: number
+): Promise<{ emailed: number; pushed: number }> {
+  if (!targets.length) return { emailed: 0, pushed: 0 };
+  const order = new Map(targets.map((row, index) => [row.id, index]));
+  const people = await contactsFor(targets.map((row) => row.id));
+  people.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+  let emailed = 0;
+  let pushed = 0;
+  for (let index = 0; index < people.length; index += OUTREACH_BATCH_SIZE) {
+    if (!outreachBudgetLeft(started, Date.now(), OUTREACH_BUDGET_MS)) {
+      console.warn("[campaignNotify] outreach budget", index, "of", people.length);
+      break;
+    }
+    const slice = people.slice(index, index + OUTREACH_BATCH_SIZE);
+    const counts = await Promise.all(slice.map((person) => sendCampaignOutreach(person, opts)));
+    for (const count of counts) {
+      emailed += count.emailed;
+      pushed += count.pushed;
+    }
+    const more = index + OUTREACH_BATCH_SIZE < people.length;
+    if (more && outreachBudgetLeft(started, Date.now(), OUTREACH_BUDGET_MS)) {
+      await sleep(OUTREACH_GAP_MS);
+    }
+  }
+  return { emailed, pushed };
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function sendCampaignOutreach(
+  person: Contact,
+  opts: { campaignId: string; title: string; brandName: string }
+): Promise<{ emailed: number; pushed: number }> {
   const link = campaignLink(opts.campaignId);
-  const safeTitle = escapeHtml(opts.title);
-  const safeBrand = escapeHtml(opts.brandName);
-  const deliveries = await Promise.all(
-    people.map(async (person) => {
-      const mail = await withTimeout(
-        sendTransactional(
-          person.email,
-          `Νέα καμπάνια: ${opts.title}`,
-          `<div style="font-family:sans-serif;font-size:14px;color:#1f2937;max-width:560px">
+  const mail = await withTimeout(
+    sendTransactional(
+      person.email,
+      `Νέα καμπάνια: ${opts.title}`,
+      `<div style="font-family:sans-serif;font-size:14px;color:#1f2937;max-width:560px">
         <p>Γεια σου ${escapeHtml(person.name)},</p>
-        <p>Η επιχείρηση <strong>${safeBrand}</strong> δημοσίευσε την καμπάνια <strong>${safeTitle}</strong> σε κατηγορία που ταιριάζει με το προφίλ σου.</p>
+        <p>Η επιχείρηση <strong>${escapeHtml(opts.brandName)}</strong> δημοσίευσε την καμπάνια <strong>${escapeHtml(opts.title)}</strong> σε κατηγορία που ταιριάζει με το προφίλ σου.</p>
         <p><a href="${link}">Δες την καμπάνια και κάνε αίτηση</a></p>
       </div>`
-        ),
-        SEND_TIMEOUT_MS
-      );
-      const push = await withTimeout(
-        sendPushToInfluencer(person.id, {
-          title: "Νέα καμπάνια",
-          body: `${opts.brandName}: ${opts.title}`.slice(0, 120),
-          url: `/campaigns/${opts.campaignId}`,
-          tag: `campaign-open-${opts.campaignId}`,
-        }),
-        SEND_TIMEOUT_MS
-      );
-      return { emailed: mail?.ok ? 1 : 0, pushed: push?.sent || 0 };
-    })
+    ),
+    SEND_TIMEOUT_MS
   );
-  const inApp = await insertCampaignAnnouncements(
-    people.map((person) => person.authUserId),
-    opts.title,
-    `${opts.brandName} δημοσίευσε «${opts.title}».\n${link}`
+  const push = await withTimeout(
+    sendPushToInfluencer(person.id, {
+      title: "Νέα καμπάνια",
+      body: `${opts.brandName}: ${opts.title}`.slice(0, 120),
+      url: `/campaigns/${opts.campaignId}`,
+      tag: `campaign-open-${opts.campaignId}`,
+    }),
+    SEND_TIMEOUT_MS
   );
-  return {
-    emailed: deliveries.reduce((sum, row) => sum + row.emailed, 0),
-    pushed: deliveries.reduce((sum, row) => sum + row.pushed, 0),
-    inApp,
-  };
+  return { emailed: mail?.ok ? 1 : 0, pushed: push?.sent || 0 };
 }
 
 async function insertCampaignAnnouncements(authUserIds: string[], title: string, body: string): Promise<number> {
   const unique = [...new Set(authUserIds.filter(Boolean))];
   if (!unique.length) return 0;
   const admin = supabaseService();
-  const { data, error } = await admin
-    .from("announcements")
-    .insert(unique.map((id) => ({
-      title: `Νέα καμπάνια: ${title}`.slice(0, 180),
-      body,
-      target_type: "specific",
-      target_influencer_id: id,
-    })))
-    .select("id");
-  if (error) {
-    console.error("[campaignNotify] in-app", error);
-    return 0;
+  const announcementTitle = `Νέα καμπάνια: ${title}`.slice(0, 180);
+  let inserted = 0;
+  for (let index = 0; index < unique.length; index += INSERT_BATCH) {
+    const slice = unique.slice(index, index + INSERT_BATCH);
+    const { data, error } = await admin
+      .from("announcements")
+      .insert(slice.map((id) => ({
+        title: announcementTitle,
+        body,
+        target_type: "specific",
+        target_influencer_id: id,
+      })))
+      .select("id");
+    if (error) {
+      console.error("[campaignNotify] in-app", error);
+      break;
+    }
+    inserted += data?.length || 0;
   }
-  return data?.length || 0;
+  return inserted;
 }
 
 export async function notifyApplicationStatus(opts: {
@@ -182,7 +285,7 @@ export async function notifyApplicantsCampaignRemoved(opts: {
   influencerIds: string[];
   campaignTitle: string;
 }): Promise<number> {
-  const people = await contactsFor(opts.influencerIds.slice(0, MATCH_LIMIT));
+  const people = await contactsFor(opts.influencerIds.slice(0, 25));
   let sent = 0;
   for (const person of people) {
     const mail = await sendTransactional(

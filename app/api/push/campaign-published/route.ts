@@ -4,6 +4,11 @@ import { notifyMatchingOpenCampaign } from "@/lib/campaignNotify";
 
 export const maxDuration = 60;
 
+function platformList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map(String);
+}
+
 function userClient(accessToken: string) {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -47,6 +52,9 @@ export async function POST(req: NextRequest) {
         title,
         budget,
         category,
+        location,
+        min_followers,
+        platforms,
         brands ( brand_name )
       `
       )
@@ -68,11 +76,22 @@ export async function POST(req: NextRequest) {
       (Array.isArray(br) ? br[0]?.brand_name : br?.brand_name) || "Brand";
     const title = row.title;
     const category = (row as { category?: string | null }).category || null;
+    const location = (row as { location?: string | null }).location || null;
+    const minFollowers = (row as { min_followers?: number | null }).min_followers ?? null;
+    const platforms = platformList((row as { platforms?: unknown }).platforms);
     const budget = row.budget;
     const siteUrl = req.nextUrl.origin;
 
     after(() =>
-      notifyMatchingOpenCampaign({ campaignId, title, category, brandName }).catch((err) => {
+      notifyMatchingOpenCampaign({
+        campaignId,
+        title,
+        category,
+        brandName,
+        location,
+        minFollowers,
+        platforms,
+      }).catch((err) => {
         console.error("[push/campaign-published] notify", err);
       })
     );
