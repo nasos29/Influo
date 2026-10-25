@@ -37,16 +37,51 @@ async function createApplication(request: NextRequest, body: Record<string, unkn
   }
 
   const admin = supabaseService();
-  const influencerQuery = admin
-    .from("influencers")
-    .select("id, approved, availability_status, auth_user_id");
-  const { data: influencer } = influencerIdRaw
-    ? await influencerQuery.eq("id", influencerIdRaw).maybeSingle()
-    : await influencerQuery.eq("auth_user_id", user.id).maybeSingle();
+  const userEmail = (user.email || "").trim().toLowerCase();
+  const influencerCols = "id, approved, availability_status, auth_user_id, contact_email";
+
+  let influencer: {
+    id: string;
+    approved: boolean | null;
+    availability_status?: string | null;
+    auth_user_id: string | null;
+    contact_email: string | null;
+  } | null = null;
+
+  if (influencerIdRaw) {
+    const { data } = await admin
+      .from("influencers")
+      .select(influencerCols)
+      .eq("id", influencerIdRaw)
+      .maybeSingle();
+    influencer = data;
+  } else {
+    const byAuth = await admin
+      .from("influencers")
+      .select(influencerCols)
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+    influencer = byAuth.data;
+    if (!influencer && userEmail) {
+      const byEmail = await admin
+        .from("influencers")
+        .select(influencerCols)
+        .eq("contact_email", userEmail)
+        .maybeSingle();
+      influencer = byEmail.data;
+    }
+  }
+
   if (!influencer) {
     return NextResponse.json({ error: "Influencer not found" }, { status: 404 });
   }
-  if (influencer.auth_user_id !== user.id) {
+
+  const ownsByAuth = influencer.auth_user_id === user.id;
+  const ownsByEmail =
+    influencer.auth_user_id == null &&
+    !!userEmail &&
+    (influencer.contact_email || "").trim().toLowerCase() === userEmail;
+  if (!ownsByAuth && !ownsByEmail) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   if (!influencer.approved) {
