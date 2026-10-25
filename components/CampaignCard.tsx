@@ -196,7 +196,7 @@ export default function CampaignCard({
 
   return (
     <article
-      className={`bg-white border border-slate-200 rounded-2xl p-5 shadow-sm transition-shadow hover:shadow-md ${className}`}
+      className={`group relative bg-white border border-slate-200 rounded-2xl p-5 shadow-sm cursor-pointer transition-[box-shadow,border-color] hover:shadow-md hover:border-slate-300 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-blue-500 has-[:focus-visible]:ring-offset-2 ${className}`}
     >
       {!hideBrand && (
         <div className="flex items-start gap-3">
@@ -238,7 +238,10 @@ export default function CampaignCard({
       )}
 
       <h3 className="mt-3 text-xl font-bold text-slate-900 leading-snug">
-        <Link href={link} className="hover:text-blue-700 hover:underline">
+        <Link
+          href={link}
+          className="text-inherit after:absolute after:inset-0 after:z-0 after:rounded-2xl after:content-[''] focus-visible:outline-none group-hover:text-blue-700"
+        >
           {campaign.title}
         </Link>
       </h3>
@@ -310,7 +313,7 @@ export default function CampaignCard({
         </div>
       )}
 
-      {footer ? <div className="mt-4 pt-3 border-t border-slate-100">{footer}</div> : null}
+      {footer ? <div className="relative z-10 mt-4 pt-3 border-t border-slate-100">{footer}</div> : null}
     </article>
   );
 }
