@@ -651,7 +651,7 @@ export default function Home({
                   src={HERO_INFLUENCER_IMAGE}
                   alt={lang === "en" ? "Influencer creating content for social media" : "Influencer δημιουργεί περιεχόμενο για social media"}
                   fill
-                  className="object-cover object-center rounded-2xl"
+                  className="object-cover object-[72%_center] rounded-2xl"
                   sizes="50vw"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-2xl pointer-events-none"></div>
