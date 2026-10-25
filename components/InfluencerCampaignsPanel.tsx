@@ -156,6 +156,7 @@ export default function InfluencerCampaignsPanel({
         deadline,
         status,
         created_at,
+        opened_at,
         brands ( brand_name, logo_url )
       `
       )

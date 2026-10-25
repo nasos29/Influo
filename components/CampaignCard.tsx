@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import FastImage from "@/components/FastImage";
 import { categoryLabel } from "@/lib/categories";
-import { campaignClosesAt } from "@/lib/campaignLifecycle";
+import { campaignClosesAt, daysUntilCampaignCloses } from "@/lib/campaignLifecycle";
 import { formatFollowerCount } from "@/lib/platformStats";
 import { getCachedImageUrl } from "@/lib/imageProxy";
 
@@ -32,6 +32,27 @@ export type CampaignCardData = {
   brands?: CampaignCardBrand | CampaignCardBrand[] | null;
 };
 
+const closeCopy = {
+  el: {
+    ended: "Έληξε",
+    deadlineToday: "Λήγει σήμερα",
+    deadlineOne: "Λήγει σε 1 μέρα",
+    deadlineN: (n: number) => `Λήγει σε ${n} μέρες`,
+    autoToday: "Κλείνει αυτόματα σήμερα",
+    autoOne: "Κλείνει αυτόματα σε 1 μέρα",
+    autoN: (n: number) => `Κλείνει αυτόματα σε ${n} μέρες`,
+  },
+  en: {
+    ended: "Ended",
+    deadlineToday: "Ends today",
+    deadlineOne: "Ends in 1 day",
+    deadlineN: (n: number) => `Ends in ${n} days`,
+    autoToday: "Closes automatically today",
+    autoOne: "Closes automatically in 1 day",
+    autoN: (n: number) => `Closes automatically in ${n} days`,
+  },
+} as const;
+
 function brandOf(brands: CampaignCardData["brands"]): CampaignCardBrand {
   if (!brands) return null;
   return Array.isArray(brands) ? brands[0] || null : brands;
@@ -56,31 +77,26 @@ function publishedAgoLabel(createdAt: string | null | undefined, lang: "el" | "e
 }
 
 function closesInLabel(
-  campaign: CampaignCardData,
+  campaign: {
+    deadline?: string | null;
+    opened_at?: string | null;
+    created_at?: string | null;
+  },
   lang: "el" | "en"
 ): { text: string; urgent: boolean } | null {
-  const created = campaign.created_at || campaign.opened_at;
-  if (!campaign.deadline && !created) return null;
-  const closes = campaignClosesAt({
-    deadline: campaign.deadline ?? null,
-    opened_at: campaign.opened_at ?? null,
-    created_at: created || new Date().toISOString(),
-  });
-  const days = daysBetween(new Date(), closes);
-  if (days < 0) {
-    return {
-      text: lang === "el" ? "Έληξε" : "Ended",
-      urgent: true,
-    };
+  const days = daysUntilCampaignCloses(campaign);
+  if (days === null) return null;
+  const t = closeCopy[lang];
+  if (days < 0) return { text: t.ended, urgent: true };
+  const hasDeadline = Boolean(campaign.deadline);
+  if (hasDeadline) {
+    if (days === 0) return { text: t.deadlineToday, urgent: true };
+    if (days === 1) return { text: t.deadlineOne, urgent: true };
+    return { text: t.deadlineN(days), urgent: days <= 3 };
   }
-  if (lang === "el") {
-    if (days === 0) return { text: "Λήγει σήμερα", urgent: true };
-    if (days === 1) return { text: "Λήγει σε 1 μέρα", urgent: true };
-    return { text: `Λήγει σε ${days} μέρες`, urgent: days <= 3 };
-  }
-  if (days === 0) return { text: "Ends today", urgent: true };
-  if (days === 1) return { text: "Ends in 1 day", urgent: true };
-  return { text: `Ends in ${days} days`, urgent: days <= 3 };
+  if (days === 0) return { text: t.autoToday, urgent: true };
+  if (days === 1) return { text: t.autoOne, urgent: true };
+  return { text: t.autoN(days), urgent: days <= 3 };
 }
 
 function compensationLabel(type: string | null | undefined, lang: "el" | "en"): string | null {
@@ -327,39 +343,17 @@ export function campaignClosesMeta(
   },
   lang: "el" | "en"
 ): { text: string; urgent: boolean; dateLabel: string | null } | null {
-  if (campaign.deadline) {
-    const closes = new Date(campaign.deadline);
-    const days = daysBetween(new Date(), closes);
-    const dateLabel = closes.toLocaleDateString(lang === "el" ? "el-GR" : "en-GB");
-    if (days < 0) return { text: lang === "el" ? "Έληξε" : "Ended", urgent: true, dateLabel };
-    if (lang === "el") {
-      if (days === 0) return { text: "Λήγει σήμερα", urgent: true, dateLabel };
-      if (days === 1) return { text: "Λήγει σε 1 μέρα", urgent: true, dateLabel };
-      return { text: `Λήγει σε ${days} μέρες`, urgent: days <= 3, dateLabel };
-    }
-    if (days === 0) return { text: "Ends today", urgent: true, dateLabel };
-    if (days === 1) return { text: "Ends in 1 day", urgent: true, dateLabel };
-    return { text: `Ends in ${days} days`, urgent: days <= 3, dateLabel };
-  }
-  if (campaign.created_at || campaign.opened_at) {
-    const meta = closesInLabel(
-      {
-        id: "",
-        title: "",
-        description: "",
-        budget: 0,
-        deadline: null,
-        created_at: campaign.created_at,
-        opened_at: campaign.opened_at,
-      },
-      lang
-    );
-    if (!meta) return null;
-    return { ...meta, dateLabel: null };
-  }
+  const meta = closesInLabel(campaign, lang);
+  if (!meta) return null;
+  const created = campaign.created_at || campaign.opened_at;
+  if (!campaign.deadline && !created) return { ...meta, dateLabel: null };
+  const closes = campaignClosesAt({
+    deadline: campaign.deadline ?? null,
+    opened_at: campaign.opened_at ?? null,
+    created_at: (created || campaign.deadline) as string,
+  });
   return {
-    text: lang === "el" ? "Κλείνει αυτόματα σε έως 30 μέρες" : "Auto-closes within 30 days",
-    urgent: false,
-    dateLabel: null,
+    ...meta,
+    dateLabel: closes.toLocaleDateString(lang === "el" ? "el-GR" : "en-GB"),
   };
 }
