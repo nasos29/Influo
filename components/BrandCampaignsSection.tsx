@@ -12,6 +12,12 @@ import { askConfirm, toastError, toastSuccess } from "@/components/Feedback";
 import { CATEGORIES, categoryLabel, normalizeCategoryToken } from "@/lib/categories";
 import { publicProfilePath } from "@/lib/profileSlug";
 import { mergeApplicantProfile } from "@/lib/applicantProfile";
+import { findContactInfo, filterWorkLinks } from "@/lib/contactFilter";
+
+const CONTACT_BLOCKED: { el: string; en: string } = {
+  el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
+  en: "For your safety, links, emails and phone numbers aren't allowed. Communication happens inside Influo.",
+};
 
 const PLATFORMS = [
   { id: "instagram", el: "Instagram", en: "Instagram" },
@@ -130,6 +136,10 @@ const extra = langPack({
   deadline_auto_close: {
     el: "Αν δεν ορίσετε προθεσμία, η καμπάνια κλείνει αυτόματα σε 30 μέρες.",
     en: "If you do not set a deadline, the campaign closes automatically after 30 days.",
+  },
+  contact_hint: {
+    el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
+    en: "For your safety, links, emails and phone numbers aren't allowed. Communication happens inside Influo.",
   },
   draft_saved: { el: "Αποθηκεύτηκε ως πρόχειρο. Το βλέπει μόνο η επιχείρησή σας.", en: "Saved as a draft. Only your company can see it." },
   saved: { el: "Η καμπάνια αποθηκεύτηκε.", en: "Campaign saved." },
@@ -283,6 +293,7 @@ export default function BrandCampaignsSection({
   const [saving, setSaving] = useState(false);
   const saveLock = useRef(false);
   const [form, setForm] = useState(emptyForm);
+  const [contactFieldErrors, setContactFieldErrors] = useState<Partial<Record<"title" | "description" | "deliverables" | "location", string>>>({});
   const [invites, setInvites] = useState<InviteMatch[]>([]);
   const [inviteCampaignId, setInviteCampaignId] = useState<string | null>(null);
   const [invitingId, setInvitingId] = useState<string | null>(null);
@@ -408,6 +419,7 @@ export default function BrandCampaignsSection({
 
   const openNew = () => {
     setForm(emptyForm());
+    setContactFieldErrors({});
     setEditing("new");
   };
 
@@ -426,6 +438,7 @@ export default function BrandCampaignsSection({
       compensation_type: row.compensation_type || "",
       status: row.status,
     });
+    setContactFieldErrors({});
     setEditing(row);
   };
 
@@ -449,6 +462,18 @@ export default function BrandCampaignsSection({
 
   const saveCampaign = async () => {
     if (!form.title.trim() || !form.description.trim()) return;
+    const blockedMsg = CONTACT_BLOCKED[lang];
+    const nextErrors: typeof contactFieldErrors = {};
+    const textFields: Array<keyof typeof nextErrors> = ["title", "description", "deliverables", "location"];
+    for (const field of textFields) {
+      const value = form[field] || "";
+      if (value.trim() && findContactInfo(value)) nextErrors[field] = blockedMsg;
+    }
+    setContactFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
+      toastError(blockedMsg);
+      return;
+    }
     if (!form.category) {
       toastError(lang === "el" ? "Η κατηγορία είναι υποχρεωτική." : "Category is required.");
       return;
@@ -737,11 +762,15 @@ export default function BrandCampaignsSection({
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
               <label className="block text-sm font-medium text-slate-700 mb-1">{t.form_title}{req}</label>
-              <input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
+              <input required value={form.title} onChange={(e) => { setForm({ ...form, title: e.target.value }); setContactFieldErrors((prev) => ({ ...prev, title: undefined })); }} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
+              <p className="text-xs text-slate-500 mt-1">{x.contact_hint}</p>
+              {contactFieldErrors.title && <p className="text-xs text-red-600 mt-1">{contactFieldErrors.title}</p>}
             </div>
             <div className="sm:col-span-2">
               <label className="block text-sm font-medium text-slate-700 mb-1">{t.form_desc}{req}</label>
-              <textarea required rows={4} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
+              <textarea required rows={4} value={form.description} onChange={(e) => { setForm({ ...form, description: e.target.value }); setContactFieldErrors((prev) => ({ ...prev, description: undefined })); }} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
+              <p className="text-xs text-slate-500 mt-1">{x.contact_hint}</p>
+              {contactFieldErrors.description && <p className="text-xs text-red-600 mt-1">{contactFieldErrors.description}</p>}
             </div>
             <div className="sm:col-span-2">
               <p className="block text-sm font-medium text-slate-700 mb-2">{x.form_platforms}{req}</p>
@@ -785,7 +814,8 @@ export default function BrandCampaignsSection({
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">{x.form_location}</label>
-              <input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" placeholder={lang === "el" ? "π.χ. Αθήνα" : "e.g. Athens"} />
+              <input value={form.location} onChange={(e) => { setForm({ ...form, location: e.target.value }); setContactFieldErrors((prev) => ({ ...prev, location: undefined })); }} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" placeholder={lang === "el" ? "π.χ. Αθήνα" : "e.g. Athens"} />
+              {contactFieldErrors.location && <p className="text-xs text-red-600 mt-1">{contactFieldErrors.location}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">{x.form_start}{req}</label>
@@ -812,7 +842,9 @@ export default function BrandCampaignsSection({
             </div>
             <div className="sm:col-span-2">
               <label className="block text-sm font-medium text-slate-700 mb-1">{t.form_deliverables}</label>
-              <textarea rows={2} value={form.deliverables} onChange={(e) => setForm({ ...form, deliverables: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" placeholder={lang === "el" ? "π.χ. 2 Reels + 1 Story" : "e.g. 2 Reels + 1 Story"} />
+              <textarea rows={2} value={form.deliverables} onChange={(e) => { setForm({ ...form, deliverables: e.target.value }); setContactFieldErrors((prev) => ({ ...prev, deliverables: undefined })); }} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" placeholder={lang === "el" ? "π.χ. 2 Reels + 1 Story" : "e.g. 2 Reels + 1 Story"} />
+              <p className="text-xs text-slate-500 mt-1">{x.contact_hint}</p>
+              {contactFieldErrors.deliverables && <p className="text-xs text-red-600 mt-1">{contactFieldErrors.deliverables}</p>}
             </div>
           </div>
           <div className="flex gap-2">
@@ -925,7 +957,20 @@ export default function BrandCampaignsSection({
                                     {inf?.category ? ` · ${categoryLabel(inf.category, lang) || inf.category}` : ""}
                                   </p>
                                   {app.proposed_price != null && <p className="text-xs text-slate-700 mt-1">{x.proposed}: €{app.proposed_price}</p>}
-                                  {app.work_links && <p className="text-xs text-blue-700 mt-1 break-all">{x.work}: {app.work_links}</p>}
+                                  {(() => {
+                                    const allowed = filterWorkLinks(app.work_links || "").ok;
+                                    if (!allowed.length) return null;
+                                    return (
+                                      <div className="mt-1 space-y-0.5">
+                                        <p className="text-xs text-slate-600">{x.work}:</p>
+                                        {allowed.map((url) => (
+                                          <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="block text-xs text-blue-700 hover:underline break-all">
+                                            {url}
+                                          </a>
+                                        ))}
+                                      </div>
+                                    );
+                                  })()}
                                   <p className="text-sm text-slate-700 mt-2 whitespace-pre-wrap">{app.message || "—"}</p>
                                 </div>
                               </div>

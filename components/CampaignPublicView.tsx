@@ -8,9 +8,19 @@ import { supabase } from "@/lib/supabaseClient";
 import { loadOwnProfiles } from "@/lib/ownProfile";
 import { categoryLabel } from "@/lib/categories";
 import { notifyBrandOfApplication, submitCampaignApplication } from "@/lib/campaignApply";
+import { findContactInfo, filterWorkLinks } from "@/lib/contactFilter";
 import { toastError, toastSuccess } from "@/components/Feedback";
 import { getStoredLanguage } from "@/lib/language";
 import { campaignAudience, type CampaignAudience } from "@/lib/campaignAudience";
+
+const CONTACT_BLOCKED = {
+  el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
+  en: "For your safety, links, emails and phone numbers aren't allowed. Communication happens inside Influo.",
+};
+const WORK_LINK_HINT = {
+  el: "Επιτρέπονται μόνο links από Instagram, TikTok, YouTube, Facebook και άλλα social.",
+  en: "Only Instagram, TikTok, YouTube, Facebook and other social links are allowed.",
+};
 
 type Campaign = {
   id: string;
@@ -51,6 +61,8 @@ export default function CampaignPublicView({ id }: { id: string }) {
   const [message, setMessage] = useState("");
   const [price, setPrice] = useState("");
   const [links, setLinks] = useState("");
+  const [messageError, setMessageError] = useState<string | null>(null);
+  const [workLinksError, setWorkLinksError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -167,18 +179,45 @@ export default function CampaignPublicView({ id }: { id: string }) {
       toastError(el ? "Είστε προσωρινά μη διαθέσιμος. Σημειώστε διαθεσιμότητα για να κάνετε αίτηση." : "You are temporarily unavailable. Mark yourself available to apply.");
       return;
     }
+    setMessageError(null);
+    setWorkLinksError(null);
+    if (findContactInfo(message)) {
+      const msg = CONTACT_BLOCKED[el ? "el" : "en"];
+      setMessageError(msg);
+      toastError(msg);
+      return;
+    }
+    const filtered = filterWorkLinks(links);
+    if (filtered.rejected.length > 0) {
+      const msg = WORK_LINK_HINT[el ? "el" : "en"];
+      setWorkLinksError(msg);
+      toastError(msg);
+      return;
+    }
     setSubmitting(true);
     const result = await submitCampaignApplication({
       campaignId: id,
       influencerId,
       message,
       proposedPrice: price,
-      workLinks: links,
+      workLinks: filtered.ok.join("\n"),
     });
     setSubmitting(false);
     if (result.duplicate) {
       setApplied(true);
       toastError(el ? "Έχετε ήδη κάνει αίτηση." : "You already applied.");
+      return;
+    }
+    if (result.error === "contact_info_not_allowed") {
+      const msg = CONTACT_BLOCKED[el ? "el" : "en"];
+      setMessageError(msg);
+      toastError(msg);
+      return;
+    }
+    if (result.error === "work_link_not_allowed") {
+      const msg = WORK_LINK_HINT[el ? "el" : "en"];
+      setWorkLinksError(msg);
+      toastError(msg);
       return;
     }
     if (result.error || !result.id) {
@@ -275,7 +314,18 @@ export default function CampaignPublicView({ id }: { id: string }) {
                   )}
                   <label className="block text-sm font-medium text-slate-700">
                     {el ? "Μήνυμα" : "Message"}
-                    <textarea required rows={4} value={message} onChange={(e) => setMessage(e.target.value)} className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
+                    <textarea
+                      required
+                      rows={4}
+                      value={message}
+                      onChange={(e) => {
+                        setMessage(e.target.value);
+                        setMessageError(null);
+                      }}
+                      className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
+                    />
+                    <span className="block text-xs text-slate-500 mt-1 font-normal">{CONTACT_BLOCKED[el ? "el" : "en"]}</span>
+                    {messageError && <span className="block text-xs text-red-600 mt-1 font-normal">{messageError}</span>}
                   </label>
                   <label className="block text-sm font-medium text-slate-700">
                     {el ? "Προτεινόμενη τιμή (προαιρετικό)" : "Proposed price (optional)"}
@@ -283,7 +333,18 @@ export default function CampaignPublicView({ id }: { id: string }) {
                   </label>
                   <label className="block text-sm font-medium text-slate-700">
                     {el ? "Σύνδεσμοι προηγούμενης δουλειάς (προαιρετικό)" : "Links to past work (optional)"}
-                    <textarea rows={2} value={links} onChange={(e) => setLinks(e.target.value)} className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" placeholder="https://" />
+                    <textarea
+                      rows={2}
+                      value={links}
+                      onChange={(e) => {
+                        setLinks(e.target.value);
+                        setWorkLinksError(null);
+                      }}
+                      className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
+                      placeholder="https://"
+                    />
+                    <span className="block text-xs text-slate-500 mt-1 font-normal">{WORK_LINK_HINT[el ? "el" : "en"]}</span>
+                    {workLinksError && <span className="block text-xs text-red-600 mt-1 font-normal">{workLinksError}</span>}
                   </label>
                   <button type="submit" disabled={submitting || !available} className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium disabled:opacity-50">
                     {submitting ? "…" : el ? "Αίτηση" : "Apply"}
