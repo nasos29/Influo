@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import { isAdminUser, userFromBearer } from "@/lib/apiAuth";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,9 +10,23 @@ const supabaseAdmin = createClient(
   }
 );
 
-/** Λίστα όλων των καμπανιών (service role — προστατεύεται από το UI admin). */
-export async function GET() {
+async function requireLoggedInAdmin(request: NextRequest) {
+  const user = await userFromBearer(request);
+  if (!user) {
+    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+  }
+  if (!(await isAdminUser(user))) {
+    return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
+  }
+  return { user };
+}
+
+/** Λίστα όλων των καμπανιών (service role — μόνο admin). */
+export async function GET(request: NextRequest) {
   try {
+    const auth = await requireLoggedInAdmin(request);
+    if (auth.error) return auth.error;
+
     const { data, error } = await supabaseAdmin
       .from("brand_campaigns")
       .select(
@@ -64,6 +79,9 @@ export async function GET() {
 /** Διαγραφή καμπάνιας και (μέσω CASCADE) των αιτήσεων. */
 export async function DELETE(request: NextRequest) {
   try {
+    const auth = await requireLoggedInAdmin(request);
+    if (auth.error) return auth.error;
+
     const body = await request.json();
     const campaignId = body.campaignId as string | undefined;
     if (!campaignId) {
