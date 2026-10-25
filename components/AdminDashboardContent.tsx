@@ -1665,7 +1665,9 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     setCampaignsLoading(true);
     setCampaignsSchemaMissing(false);
     try {
-      const response = await fetch("/api/admin/campaigns");
+      const response = await fetch("/api/admin/campaigns", {
+        headers: await adminAuthHeaders(),
+      });
       const result = await response.json();
       if (!response.ok || !result.success) {
         console.error("[Admin] campaigns fetch", result.error);
@@ -1689,7 +1691,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     try {
       const response = await fetch("/api/admin/campaigns", {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await adminAuthHeaders()) },
         body: JSON.stringify({ campaignId: row.id }),
       });
       const result = await response.json();
