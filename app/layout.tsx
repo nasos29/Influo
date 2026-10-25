@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import { Roboto } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import CookieConsent from "@/components/CookieConsent";
 import FeedbackHost from "@/components/Feedback";
+import HtmlLang from "@/components/HtmlLang";
 import { ORGANIZATION_EMAIL, ORGANIZATION_SAME_AS, SITE_NAME, SITE_URL } from "@/lib/site";
 
 const roboto = Roboto({
@@ -94,10 +94,6 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const headersList = await headers();
-  const pathname = headersList.get("x-pathname") || "/";
-  const htmlLang = pathname.startsWith("/en") ? "en" : "el";
-
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Organization",
@@ -133,7 +129,7 @@ export default async function RootLayout({
   };
 
   return (
-    <html lang={htmlLang}>
+    <html lang="el">
       <head>
         <link rel="icon" href="/logo-icon.svg" type="image/svg+xml" sizes="any" />
         <link rel="icon" href="/logo-icon.svg" type="image/svg+xml" sizes="48x48" />
@@ -177,6 +173,7 @@ export default async function RootLayout({
           `}
         </Script>
         {children}
+        <HtmlLang />
         <FeedbackHost />
         <CookieConsent />
       </body>
