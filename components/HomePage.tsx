@@ -413,6 +413,7 @@ export default function Home({
                         width={40}
                         height={40}
                         className="w-full h-full object-cover"
+                        unoptimized
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-500 text-white font-semibold text-sm">
@@ -454,6 +455,7 @@ export default function Home({
                         width={40}
                         height={40}
                         className="w-full h-full object-cover"
+                        unoptimized
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-500 text-white font-semibold text-sm">

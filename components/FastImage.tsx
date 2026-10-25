@@ -23,6 +23,15 @@ type FastImageProps = Omit<ImageProps, "src"> & {
   src: string;
 };
 
+function isSupabaseUrl(url: string): boolean {
+  try {
+    const host = new URL(url).hostname;
+    return host.endsWith("supabase.co") || host.endsWith("supabase.in");
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Prefer next/image (resized/WebP via /_next/image) for known hosts.
  * Fall back to native <img> for TikTok/IG CDNs that aren't worth the optimizer hop.
@@ -69,6 +78,7 @@ export default function FastImage({
       quality={quality}
       onError={onError}
       {...rest}
+      unoptimized={isSupabaseUrl(src) || rest.unoptimized}
     />
   );
 }

@@ -45,8 +45,8 @@ export default function Avatar({
 
   const isProxy = displaySrc.startsWith("/api/image-proxy");
   const isLocal = displaySrc.startsWith("http") && displaySrc.includes("localhost");
-  // Let Next.js resize/compress remote Supabase images (much smaller than raw 200–800KB avatars).
-  const unoptimized = isProxy || isLocal;
+  const isSupabase = displaySrc.includes("supabase.co") || displaySrc.includes("supabase.in");
+  const unoptimized = isProxy || isLocal || isSupabase;
 
   return (
     <div
