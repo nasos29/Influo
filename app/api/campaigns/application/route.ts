@@ -11,16 +11,13 @@ async function createApplication(request: NextRequest, body: Record<string, unkn
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const campaignId = String(body.campaignId || "").trim();
-  const influencerId = String(body.influencerId || "").trim() || user.id;
+  const influencerIdRaw = String(body.influencerId || "").trim();
   const message = String(body.message ?? "");
   const workLinksRaw = String(body.workLinks ?? "");
   const proposedPriceRaw = body.proposedPrice != null ? String(body.proposedPrice) : "";
 
   if (!campaignId) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
-  }
-  if (influencerId !== user.id) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const contactHit = findContactInfo(message);
@@ -40,13 +37,17 @@ async function createApplication(request: NextRequest, body: Record<string, unkn
   }
 
   const admin = supabaseService();
-  const { data: influencer } = await admin
+  const influencerQuery = admin
     .from("influencers")
-    .select("id, approved, availability_status")
-    .eq("id", influencerId)
-    .maybeSingle();
+    .select("id, approved, availability_status, auth_user_id");
+  const { data: influencer } = influencerIdRaw
+    ? await influencerQuery.eq("id", influencerIdRaw).maybeSingle()
+    : await influencerQuery.eq("auth_user_id", user.id).maybeSingle();
   if (!influencer) {
     return NextResponse.json({ error: "Influencer not found" }, { status: 404 });
+  }
+  if (influencer.auth_user_id !== user.id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   if (!influencer.approved) {
     return NextResponse.json({ error: "Not approved" }, { status: 403 });
@@ -66,7 +67,7 @@ async function createApplication(request: NextRequest, body: Record<string, unkn
     : null;
   const base = {
     campaign_id: campaignId,
-    influencer_id: influencerId,
+    influencer_id: influencer.id,
     message: message.trim() || null,
     status: "pending" as const,
   };
