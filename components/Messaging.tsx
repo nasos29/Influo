@@ -276,9 +276,17 @@ export default function Messaging({
     const load = () => { void loadProposalInfo(id); };
     load();
     window.addEventListener('focus', load);
-    const timer = window.setInterval(load, 30000);
+    const timer = window.setInterval(() => {
+      if (document.hidden) return;
+      load();
+    }, 300000);
+    const onVisibility = () => {
+      if (!document.hidden) load();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
     return () => {
       window.removeEventListener('focus', load);
+      document.removeEventListener('visibilitychange', onVisibility);
       window.clearInterval(timer);
     };
   }, [proposalId, selectedConversation, conversations]);
@@ -336,7 +344,10 @@ export default function Messaging({
     if (viewerUserId && watchedInfluencerId === viewerUserId) return;
 
     checkInfluencerStatus(watchedInfluencerId);
-    const interval = setInterval(() => checkInfluencerStatus(watchedInfluencerId), 30_000);
+    const interval = setInterval(() => {
+      if (document.hidden) return;
+      checkInfluencerStatus(watchedInfluencerId);
+    }, 300000);
 
     const channel = supabase
       .channel(`influencer_presence_watch:${watchedInfluencerId}`)
@@ -371,7 +382,10 @@ export default function Messaging({
     setBrandLastSeen(null);
     if (!watchedBrandEmail) return;
     checkBrandStatus(watchedBrandEmail);
-    const interval = setInterval(() => checkBrandStatus(watchedBrandEmail), 30_000);
+    const interval = setInterval(() => {
+      if (document.hidden) return;
+      checkBrandStatus(watchedBrandEmail);
+    }, 300000);
     return () => clearInterval(interval);
   }, [mode, watchedBrandEmail]);
 
@@ -667,16 +681,22 @@ export default function Messaging({
       )
       .subscribe();
     const poll = window.setInterval(() => {
+      if (document.hidden) return;
       void loadConversations(true);
-    }, 30_000);
+    }, 120000);
     const onFocus = () => {
       void loadConversations(true);
     };
+    const onVisibility = () => {
+      if (!document.hidden) void loadConversations(true);
+    };
     window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
     return () => {
       channel.unsubscribe();
       window.clearInterval(poll);
       window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [mode, influencerId, brandEmail]);
 

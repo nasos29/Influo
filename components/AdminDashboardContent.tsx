@@ -2086,21 +2086,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     }
   }, [viewerId, activeTab, conversations, brands, brandsLoaded]);
 
-  // Initial load once; background refresh without flipping `loading` (avoids full-page remount)
+  // Initial load once
   useEffect(() => {
     fetchData();
     fetchConversations();
     fetchBrands();
     fetchBlogPosts();
     fetchAnnouncements();
-
-    const interval = setInterval(() => {
-      if (editModalOpenRef.current) return;
-      void fetchData({ silent: true });
-      void fetchConversations();
-    }, 120000);
-
-    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

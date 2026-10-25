@@ -1039,16 +1039,24 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
         window.addEventListener('messagesRead', handleMessagesRead);
         window.addEventListener('focus', handleMessagesRead);
         
-        // Refresh counts every 30 seconds
-        const interval = setInterval(() => {
+        const refreshCounts = () => {
             loadProposals();
             loadUnreadMessages();
             loadUnreadAnnouncementsCount();
             void loadCampaignAttention();
-        }, 30000);
+        };
+        const interval = setInterval(() => {
+            if (document.hidden) return;
+            refreshCounts();
+        }, 120000);
+        const onVisibility = () => {
+            if (!document.hidden) refreshCounts();
+        };
+        document.addEventListener('visibilitychange', onVisibility);
         
         return () => {
             clearInterval(interval);
+            document.removeEventListener('visibilitychange', onVisibility);
             window.removeEventListener('messagesRead', handleMessagesRead);
             window.removeEventListener('focus', handleMessagesRead);
         };

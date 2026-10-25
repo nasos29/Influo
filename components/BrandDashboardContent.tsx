@@ -611,11 +611,19 @@ export default function BrandDashboardContent() {
         void loadUnreadMessageCount();
       };
       refresh();
-      const interval = setInterval(refresh, 30000);
+      const interval = setInterval(() => {
+        if (document.hidden) return;
+        refresh();
+      }, 120000);
+      const onVisibility = () => {
+        if (!document.hidden) refresh();
+      };
+      document.addEventListener("visibilitychange", onVisibility);
       window.addEventListener("messagesRead", refresh);
       window.addEventListener("focus", refresh);
       return () => {
         clearInterval(interval);
+        document.removeEventListener("visibilitychange", onVisibility);
         window.removeEventListener("messagesRead", refresh);
         window.removeEventListener("focus", refresh);
       };
@@ -907,17 +915,6 @@ export default function BrandDashboardContent() {
   const loadRecommendations = async (brand: any) => {
     setRecommendationsLoading(true);
     try {
-      // First, let's check all influencers to see their approved status
-      const { data: allInfluencers, error: allError } = await supabase
-        .from('influencers')
-        .select('id, display_name, approved, verified')
-        .limit(50);
-      
-      console.log('[Brand Dashboard] All influencers (first 50):', allInfluencers);
-      console.log('[Brand Dashboard] Approved count:', allInfluencers?.filter(inf => inf.approved === true).length);
-      console.log('[Brand Dashboard] Verified count:', allInfluencers?.filter(inf => inf.verified === true).length);
-      console.log('[Brand Dashboard] Unapproved count:', allInfluencers?.filter(inf => inf.approved === false || inf.approved === null).length);
-      
       // Fetch only approved influencers from database (same as Directory)
       const { data: influencersData, error } = await supabase
         .from('influencers')
