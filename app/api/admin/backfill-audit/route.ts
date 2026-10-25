@@ -13,6 +13,7 @@ import {
   type AuditShared,
   type AuditResult,
 } from '@/lib/auditGemini';
+import { GEMINI_PAUSED_MSG, isGeminiPaused } from '@/lib/geminiPause';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -60,6 +61,9 @@ type AuditprAudit = {
 
 export async function POST(request: NextRequest) {
   try {
+    if (isGeminiPaused()) {
+      return NextResponse.json({ success: false, error: GEMINI_PAUSED_MSG }, { status: 503 });
+    }
     const apiKey = (
       process.env.GEMINI_API_KEY ||
       process.env.GOOGLE_GENERATIVE_AI_API_KEY ||

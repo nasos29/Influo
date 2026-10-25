@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { copyAuditprErExtras } from '@/lib/engagementFlags';
+import { GEMINI_PAUSED_MSG, isGeminiPaused } from '@/lib/geminiPause';
 import { doRefreshSocialStats, type InstagramOverrides, type TikTokOverrides, type YouTubeOverrides } from '@/lib/refreshSocialStats';
 import {
   appendSocialRefreshLog,
@@ -141,6 +142,10 @@ export async function POST(request: NextRequest) {
     const action = String(body?.action || '').trim();
 
     if (action === 'start') {
+      if (isGeminiPaused()) {
+        console.log('[social-refresh-batch] ' + GEMINI_PAUSED_MSG);
+        return NextResponse.json({ run: null, influencers: [], purged: 0, paused: true, message: GEMINI_PAUSED_MSG });
+      }
       const purged = await purgeOldSocialRefreshLogs(supabaseAdmin);
       const influencers = await listAllInfluencersWithSocials();
       const run = await createSocialRefreshRun(supabaseAdmin, influencers.length);

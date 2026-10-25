@@ -13,6 +13,10 @@ export function companySeenKey(userId: string): string {
   return `influo.seen.${userId}.companies`;
 }
 
+export function adminCampaignSeenKey(userId: string): string {
+  return `influo.seen.${userId}.admin-campaigns`;
+}
+
 export function brandApplicationSeenKey(userId: string): string {
   return `influo.seen.${userId}.brand-applications`;
 }

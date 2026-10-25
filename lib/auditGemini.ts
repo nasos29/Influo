@@ -14,6 +14,7 @@ import {
   type ErFlag,
   type ErFlagReason,
 } from '@/lib/engagementFlags';
+import { GEMINI_PAUSED_MSG, isGeminiPaused } from '@/lib/geminiPause';
 
 /** One social account (Instagram, TikTok, or YouTube) with metrics. YouTube: subscribers = followers. */
 export type AuditAccount = {
@@ -446,6 +447,7 @@ export async function runAuditGeminiStrict(
   shared: AuditShared,
   options?: { exampleAudits?: AuditResult[] }
 ): Promise<AuditResult> {
+  if (isGeminiPaused()) throw new Error(GEMINI_PAUSED_MSG);
   const apiKey = (
     process.env.GEMINI_API_KEY ||
     process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
@@ -503,6 +505,10 @@ export async function runAuditGemini(
   shared: AuditShared,
   options?: { exampleAudits?: AuditResult[] }
 ): Promise<AuditResult> {
+  if (isGeminiPaused()) {
+    console.log('[auditGemini] ' + GEMINI_PAUSED_MSG);
+    return FALLBACK;
+  }
   const apiKey = (
     process.env.GEMINI_API_KEY ||
     process.env.GOOGLE_GENERATIVE_AI_API_KEY ||

@@ -15,6 +15,7 @@ import {
 } from '@/lib/socialRefresh';
 import { applyErFlags, type ErFlagReason, type PenaltyPercentField } from '@/lib/engagementFlags';
 import { runAuditGemini } from '@/lib/auditGemini';
+import { isGeminiPaused } from '@/lib/geminiPause';
 import { totalFollowersFromAccounts, totalPostsFromAccounts } from '@/lib/parseFollowers';
 
 type AccountRow = {
@@ -279,7 +280,7 @@ export async function doRefreshSocialStats(
     };
 
     // Gemini audit: only when we actually refreshed at least one IG/TikTok/YouTube. Multi-platform: pass all IG, TikTok, and YouTube accounts.
-    if (firstRefreshedForAudit) {
+    if (firstRefreshedForAudit && !isGeminiPaused()) {
       try {
         const igTtAccounts = updatedAccounts
           .filter(
