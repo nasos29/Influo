@@ -106,12 +106,16 @@ export async function prepareImageForStorage(
 
   const webpBlob = await canvasToBlob(canvas, 'image/webp', webpQ);
   if (webpBlob && webpBlob.size > 0) {
-    return new File([webpBlob], `${baseName}.webp`, { type: 'image/webp' });
+    const newFile = new File([webpBlob], `${baseName}.webp`, { type: 'image/webp' });
+    if (newFile.size >= file.size) return file;
+    return newFile;
   }
 
   const jpegBlob = await canvasToBlob(canvas, 'image/jpeg', jpegQ);
   if (jpegBlob && jpegBlob.size > 0) {
-    return new File([jpegBlob], `${baseName}.jpg`, { type: 'image/jpeg' });
+    const newFile = new File([jpegBlob], `${baseName}.jpg`, { type: 'image/jpeg' });
+    if (newFile.size >= file.size) return file;
+    return newFile;
   }
 
   return file;

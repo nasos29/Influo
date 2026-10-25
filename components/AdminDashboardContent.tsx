@@ -441,7 +441,7 @@ const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClos
         const { error: uploadError } = await supabase.storage
           .from('avatars')
           .upload(filePath, preparedLogo, { 
-            cacheControl: '3600',
+            cacheControl: '31536000',
             upsert: false 
           });
 
@@ -922,7 +922,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                   jpegQuality: 0.78,
                 });
                 const fileName = `avatar-${Date.now()}-${preparedAvatar.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-                const { error: uploadError } = await supabase.storage.from("avatars").upload(fileName, preparedAvatar);
+                const { error: uploadError } = await supabase.storage.from("avatars").upload(fileName, preparedAvatar, { cacheControl: '31536000', upsert: false });
                 
                 if (uploadError) {
                     throw uploadError;
@@ -940,7 +940,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                         const preparedThumb = await prepareImageForStorage(file, { maxSide: 1280 });
                         const fileName = `thumbnails/${user.id}/${Date.now()}-${preparedThumb.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
                         const { error: uploadError } = await supabase.storage.from("avatars").upload(fileName, preparedThumb, {
-                            cacheControl: '3600',
+                            cacheControl: '31536000',
                             upsert: false
                         });
                         

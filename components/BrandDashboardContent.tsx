@@ -262,7 +262,7 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt }: EditBra
         const { error: uploadError } = await supabase.storage
           .from('avatars')
           .upload(filePath, preparedLogo, { 
-            cacheControl: '3600',
+            cacheControl: '31536000',
             upsert: false 
           });
 
