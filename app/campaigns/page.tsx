@@ -142,6 +142,7 @@ export default function PublicCampaignsPage() {
           deliverables,
           deadline,
           created_at,
+          opened_at,
           platforms,
           compensation_type,
           min_followers,

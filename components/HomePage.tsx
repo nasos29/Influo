@@ -566,8 +566,8 @@ export default function Home({
         )}
       </header>
 
-      {/* Hero Section */}
-        <section className="relative pt-16 pb-24 md:pt-24 md:pb-32 px-6 overflow-hidden bg-gradient-to-br from-slate-50 via-white to-slate-100">
+      {/* Hero Section — overflow-hidden only on lg+ so mobile twin photos aren't clipped by section overflow + shadow */}
+        <section className="relative pt-16 pb-24 md:pt-24 md:pb-32 px-6 overflow-visible lg:overflow-hidden bg-gradient-to-br from-slate-50 via-white to-slate-100">
           {/* Gray background with handshake pattern */}
           <div className="absolute inset-0 bg-gradient-to-r from-slate-100 via-slate-50 to-slate-100"></div>
           
@@ -644,27 +644,27 @@ export default function Home({
               </div>
             </div>
             
-            {/* Mobile Images - Stack below */}
-            <div className="lg:hidden grid grid-cols-2 gap-4 mt-12">
-              <div className="relative h-[300px] rounded-2xl overflow-hidden shadow-xl">
+            {/* Mobile Images — equal rounded rects; inset so left edge/shadow isn't clipped by viewport */}
+            <div className="lg:hidden grid grid-cols-2 gap-3 mt-12 px-2 box-border">
+              <div className="relative h-[280px] w-full min-w-0 rounded-2xl overflow-hidden shadow-xl ring-0">
                 <Image 
                   src={HERO_INFLUENCER_IMAGE}
                   alt={lang === "en" ? "Influencer creating content for social media" : "Influencer δημιουργεί περιεχόμενο για social media"}
                   fill
-                  className="object-cover object-center"
+                  className="object-cover object-center rounded-2xl"
                   sizes="50vw"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-2xl pointer-events-none"></div>
               </div>
-              <div className="relative h-[300px] rounded-2xl overflow-hidden shadow-xl">
+              <div className="relative h-[280px] w-full min-w-0 rounded-2xl overflow-hidden shadow-xl ring-0">
                 <Image 
                   src={HERO_BRAND_COLLAB_IMAGE}
                   alt={lang === "en" ? "Brand starting a collaboration with an influencer" : "Brand ξεκινά συνεργασία με influencer"}
                   fill
-                  className="object-cover object-center"
+                  className="object-cover object-center rounded-2xl"
                   sizes="50vw"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-2xl pointer-events-none"></div>
               </div>
             </div>
           </div>

@@ -38,6 +38,7 @@ export type BrandCampaignRow = {
   status: "draft" | "open" | "closed";
   deadline: string | null;
   created_at: string;
+  opened_at?: string | null;
   updated_at: string;
   platforms?: string[] | null;
   min_followers?: number | null;
