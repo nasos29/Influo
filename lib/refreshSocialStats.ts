@@ -14,7 +14,12 @@ import {
   type SocialMetrics,
 } from '@/lib/socialRefresh';
 import { applyErFlags, type ErFlagReason, type PenaltyPercentField } from '@/lib/engagementFlags';
-import { runAuditGemini } from '@/lib/auditGemini';
+import {
+  AUDIT_FALLBACK_MESSAGE,
+  computeAuditFingerprint,
+  isAuditFallbackResult,
+  runAuditGemini,
+} from '@/lib/auditGemini';
 import { totalFollowersFromAccounts, totalPostsFromAccounts } from '@/lib/parseFollowers';
 
 type AccountRow = {
@@ -105,7 +110,7 @@ export async function doRefreshSocialStats(
 
   let query = supabaseAdmin
     .from('influencers')
-    .select('id, display_name, gender, accounts, bio, category, location, audience_male_percent, audience_female_percent');
+    .select('id, display_name, gender, accounts, bio, category, location, audience_male_percent, audience_female_percent, auditpr_audit');
 
   if (influencerId) {
     query = query.eq('id', influencerId);
@@ -145,6 +150,7 @@ export async function doRefreshSocialStats(
     brandSafe: boolean;
     niche?: string;
     niche_en?: string;
+    input_fingerprint?: string;
   };
 
   for (const inf of influencers) {
@@ -317,21 +323,36 @@ export async function doRefreshSocialStats(
             audience_male_percent: (inf as { audience_male_percent?: number | null }).audience_male_percent ?? undefined,
             audience_female_percent: (inf as { audience_female_percent?: number | null }).audience_female_percent ?? undefined,
           };
-          const auditResult = await runAuditGemini(igTtAccounts, shared);
-          if (auditResult && Array.isArray(auditResult.scoreBreakdown)) {
-            updatePayload.auditpr_audit = {
-              scoreBreakdown: auditResult.scoreBreakdown,
-              scoreBreakdown_en: auditResult.scoreBreakdown_en,
-              whyWorkWithThem: auditResult.whyWorkWithThem,
-              whyWorkWithThem_en: auditResult.whyWorkWithThem_en,
-              positives: auditResult.positives,
-              positives_en: auditResult.positives_en,
-              negatives: auditResult.negatives,
-              negatives_en: auditResult.negatives_en,
-              brandSafe: auditResult.brandSafe,
-              niche: auditResult.niche,
-              niche_en: auditResult.niche_en,
-            };
+          const fp = computeAuditFingerprint(igTtAccounts, shared);
+          const existingAudit = (inf as { auditpr_audit?: AuditprAudit | null }).auditpr_audit;
+          const existingBreakdown = existingAudit?.scoreBreakdown;
+          const hasUsableAudit =
+            Array.isArray(existingBreakdown) &&
+            existingBreakdown.length > 0 &&
+            !existingBreakdown.some((line) => String(line).includes(AUDIT_FALLBACK_MESSAGE));
+          if (hasUsableAudit && existingAudit?.input_fingerprint === fp) {
+            console.log('[refreshSocialStats] audit skipped, inputs unchanged', inf.id);
+          } else {
+            const auditResult = await runAuditGemini(igTtAccounts, shared);
+            if (auditResult && Array.isArray(auditResult.scoreBreakdown)) {
+              const nextAudit: AuditprAudit = {
+                scoreBreakdown: auditResult.scoreBreakdown,
+                scoreBreakdown_en: auditResult.scoreBreakdown_en,
+                whyWorkWithThem: auditResult.whyWorkWithThem,
+                whyWorkWithThem_en: auditResult.whyWorkWithThem_en,
+                positives: auditResult.positives,
+                positives_en: auditResult.positives_en,
+                negatives: auditResult.negatives,
+                negatives_en: auditResult.negatives_en,
+                brandSafe: auditResult.brandSafe,
+                niche: auditResult.niche,
+                niche_en: auditResult.niche_en,
+              };
+              if (!isAuditFallbackResult(auditResult)) {
+                nextAudit.input_fingerprint = fp;
+              }
+              updatePayload.auditpr_audit = nextAudit;
+            }
           }
         }
       } catch (auditErr) {
