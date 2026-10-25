@@ -64,11 +64,13 @@ export default function CampaignPublicView({ id }: { id: string }) {
       setApproved(false);
       setAudience({ kind: "anonymous" });
       let timedOut = false;
+      const nowIso = new Date().toISOString();
       const query = supabase
         .from("brand_campaigns")
         .select("id, brand_id, title, description, budget, category, deliverables, deadline, starts_on, location, min_followers, platforms, compensation_type, status, brands(brand_name, logo_url)")
         .eq("id", id)
         .eq("status", "open")
+        .or(`deadline.is.null,deadline.gt.${nowIso}`)
         .maybeSingle();
       const timeout = new Promise<null>((resolve) => setTimeout(() => {
         timedOut = true;
@@ -90,6 +92,7 @@ export default function CampaignPublicView({ id }: { id: string }) {
           .select("id, brand_id, title, description, budget, category, deliverables, deadline, status, brands(brand_name, logo_url)")
           .eq("id", id)
           .eq("status", "open")
+          .or(`deadline.is.null,deadline.gt.${nowIso}`)
           .maybeSingle();
         if (!basic.error && basic.data && (basic.data as Campaign).status === "open") {
           loadedRow = basic.data as Campaign;

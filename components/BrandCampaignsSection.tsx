@@ -127,6 +127,10 @@ const extra = langPack({
   comp_both: { el: "Χρήματα και προϊόν", en: "Money and product" },
   date_order: { el: "Ημερομηνία με σειρά ημέρα / μήνας / έτος.", en: "Enter the date as day / month / year." },
   deadline_after_start: { el: "Η προθεσμία πρέπει να είναι μετά την ημερομηνία έναρξης.", en: "The deadline must be after the start date." },
+  deadline_auto_close: {
+    el: "Αν δεν ορίσετε προθεσμία, η καμπάνια κλείνει αυτόματα σε 30 μέρες.",
+    en: "If you do not set a deadline, the campaign closes automatically after 30 days.",
+  },
   draft_saved: { el: "Αποθηκεύτηκε ως πρόχειρο. Το βλέπει μόνο η επιχείρησή σας.", en: "Saved as a draft. Only your company can see it." },
   saved: { el: "Η καμπάνια αποθηκεύτηκε.", en: "Campaign saved." },
   publish_title: { el: "Δημοσίευση", en: "Publish" },
@@ -477,6 +481,8 @@ export default function BrandCampaignsSection({
       return;
     }
     const wasOpen = editing !== "new" && editing && "status" in editing && editing.status === "open";
+    const wasClosed =
+      editing !== "new" && editing && "status" in editing && editing.status === "closed";
     if (form.status === "open" && !wasOpen) {
       const ok = await askConfirm({
         title: x.publish_title,
@@ -489,6 +495,7 @@ export default function BrandCampaignsSection({
 
     setSaving(true);
     try {
+      const nowIso = new Date().toISOString();
       const payload: Record<string, unknown> = {
         title: form.title.trim(),
         description: form.description.trim(),
@@ -502,8 +509,17 @@ export default function BrandCampaignsSection({
         min_followers: form.min_followers ? Math.max(0, parseInt(form.min_followers, 10) || 0) : null,
         platforms: form.platforms,
         compensation_type: form.compensation_type,
-        updated_at: new Date().toISOString(),
+        updated_at: nowIso,
       };
+      if (form.status === "open" && !wasOpen) {
+        payload.opened_at = nowIso;
+        payload.close_reminder_sent_at = null;
+        payload.closed_at = null;
+        payload.auto_closed = false;
+      }
+      if (form.status === "closed" && !wasClosed) {
+        payload.closed_at = nowIso;
+      }
       const shouldNotify = brandVerified && payload.status === "open" && !wasOpen;
       let campaignId: string | null = null;
       const write = (body: Record<string, unknown>) => {
@@ -518,7 +534,7 @@ export default function BrandCampaignsSection({
       let result = await write(payload);
       if (result.error && /column|schema cache|compensation|platforms|starts_on|min_followers/i.test(result.error.message)) {
         toastError(x.migration);
-        result = await write({
+        const fallback: Record<string, unknown> = {
           title: payload.title,
           description: payload.description,
           budget: payload.budget,
@@ -527,7 +543,12 @@ export default function BrandCampaignsSection({
           deadline: payload.deadline,
           status: payload.status,
           updated_at: payload.updated_at,
-        });
+        };
+        if ("opened_at" in payload) fallback.opened_at = payload.opened_at;
+        if ("close_reminder_sent_at" in payload) fallback.close_reminder_sent_at = payload.close_reminder_sent_at;
+        if ("closed_at" in payload) fallback.closed_at = payload.closed_at;
+        if ("auto_closed" in payload) fallback.auto_closed = payload.auto_closed;
+        result = await write(fallback);
       }
       if (result.error) {
         const message = /only_verified|policy|row-level/i.test(result.error.message) ? x.open_locked : result.error.message;
@@ -774,7 +795,7 @@ export default function BrandCampaignsSection({
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">{t.form_deadline}</label>
               <DmyDateField value={form.deadline} onChange={(deadline) => setForm({ ...form, deadline })} />
-              <p className="text-xs text-slate-500 mt-1">{x.deadline_after_start}</p>
+              <p className="text-xs text-slate-500 mt-1">{x.deadline_auto_close}</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">{t.form_status}</label>
