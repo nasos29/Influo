@@ -612,6 +612,7 @@ export default function InfluencerSignupForm() {
 
       const baseRow: Record<string, unknown> = {
           id: authUser.id,
+          auth_user_id: authUser.id,
           display_name: displayName, 
           gender: validGender, 
           category: formatStoredCategories(categories) || null,
