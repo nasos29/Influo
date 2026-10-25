@@ -2,13 +2,140 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
 import { ensureProposalThread } from "@/lib/proposalChat";
 import { notifyApplicationStatus } from "@/lib/campaignNotify";
+import { findContactInfo, filterWorkLinks } from "@/lib/contactFilter";
 
 const STATUSES = new Set(["pending", "shortlisted", "rejected", "accepted"]);
 
-export async function POST(request: NextRequest) {
+async function createApplication(request: NextRequest, body: Record<string, unknown>) {
   const user = await userFromBearer(request);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const body = await request.json().catch(() => ({}));
+
+  const campaignId = String(body.campaignId || "").trim();
+  const influencerIdRaw = String(body.influencerId || "").trim();
+  const message = String(body.message ?? "");
+  const workLinksRaw = String(body.workLinks ?? "");
+  const proposedPriceRaw = body.proposedPrice != null ? String(body.proposedPrice) : "";
+
+  if (!campaignId) {
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
+
+  const contactHit = findContactInfo(message);
+  if (contactHit) {
+    return NextResponse.json(
+      { error: "contact_info_not_allowed", field: "message", kind: contactHit },
+      { status: 400 }
+    );
+  }
+
+  const filtered = filterWorkLinks(workLinksRaw);
+  if (filtered.rejected.length > 0) {
+    return NextResponse.json(
+      { error: "work_link_not_allowed", rejected: filtered.rejected },
+      { status: 400 }
+    );
+  }
+
+  const admin = supabaseService();
+  const userEmail = (user.email || "").trim().toLowerCase();
+  const influencerCols = "id, approved, availability_status, auth_user_id, contact_email";
+
+  let influencer: {
+    id: string;
+    approved: boolean | null;
+    availability_status?: string | null;
+    auth_user_id: string | null;
+    contact_email: string | null;
+  } | null = null;
+
+  if (influencerIdRaw) {
+    const { data } = await admin
+      .from("influencers")
+      .select(influencerCols)
+      .eq("id", influencerIdRaw)
+      .maybeSingle();
+    influencer = data;
+  } else {
+    const byAuth = await admin
+      .from("influencers")
+      .select(influencerCols)
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+    influencer = byAuth.data;
+    if (!influencer && userEmail) {
+      const byEmail = await admin
+        .from("influencers")
+        .select(influencerCols)
+        .eq("contact_email", userEmail)
+        .maybeSingle();
+      influencer = byEmail.data;
+    }
+  }
+
+  if (!influencer) {
+    return NextResponse.json({ error: "Influencer not found" }, { status: 404 });
+  }
+
+  const ownsByAuth = influencer.auth_user_id === user.id;
+  const ownsByEmail =
+    influencer.auth_user_id == null &&
+    !!userEmail &&
+    (influencer.contact_email || "").trim().toLowerCase() === userEmail;
+  if (!ownsByAuth && !ownsByEmail) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  if (!influencer.approved) {
+    return NextResponse.json({ error: "Not approved" }, { status: 403 });
+  }
+
+  const { data: campaign } = await admin
+    .from("brand_campaigns")
+    .select("id, status")
+    .eq("id", campaignId)
+    .maybeSingle();
+  if (!campaign || campaign.status !== "open") {
+    return NextResponse.json({ error: "Campaign not available" }, { status: 400 });
+  }
+
+  const price = proposedPriceRaw.trim()
+    ? Number(proposedPriceRaw.replace(",", "."))
+    : null;
+  const base = {
+    campaign_id: campaignId,
+    influencer_id: influencer.id,
+    message: message.trim() || null,
+    status: "pending" as const,
+  };
+  const full: Record<string, unknown> = { ...base };
+  if (price != null && Number.isFinite(price) && price >= 0) full.proposed_price = price;
+  if (filtered.ok.length > 0) full.work_links = filtered.ok.join("\n");
+
+  let result = await admin.from("campaign_applications").insert(full).select("id").single();
+  if (result.error && /proposed_price|work_links|schema cache|column/i.test(result.error.message)) {
+    result = await admin.from("campaign_applications").insert(base).select("id").single();
+    if (!result.error) {
+      return NextResponse.json({ ok: true, id: result.data?.id, migration: true });
+    }
+  }
+  if (result.error) {
+    if (result.error.code === "23505") {
+      return NextResponse.json({ error: "duplicate", duplicate: true }, { status: 409 });
+    }
+    return NextResponse.json({ error: result.error.message }, { status: 400 });
+  }
+  return NextResponse.json({ ok: true, id: result.data?.id });
+}
+
+export async function POST(request: NextRequest) {
+  const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+
+  // Create application (influencer apply)
+  if (body.campaignId && !body.applicationId) {
+    return createApplication(request, body);
+  }
+
+  const user = await userFromBearer(request);
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const applicationId = String(body.applicationId || "");
   const status = String(body.status || "");
   if (!applicationId || !STATUSES.has(status)) {

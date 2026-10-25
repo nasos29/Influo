@@ -5,7 +5,17 @@ import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
 import { getStoredLanguage } from "@/lib/language";
 import { notifyBrandOfApplication, submitCampaignApplication } from "@/lib/campaignApply";
+import { findContactInfo, filterWorkLinks } from "@/lib/contactFilter";
 import { toastError, toastSuccess } from "@/components/Feedback";
+
+const CONTACT_BLOCKED = {
+  el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
+  en: "For your safety, links, emails and phone numbers aren't allowed. Communication happens inside Influo.",
+};
+const WORK_LINK_HINT = {
+  el: "Επιτρέπονται μόνο links από Instagram, TikTok, YouTube, Facebook και άλλα social.",
+  en: "Only Instagram, TikTok, YouTube, Facebook and other social links are allowed.",
+};
 
 type CampaignWithBrand = {
   id: string;
@@ -110,6 +120,8 @@ export default function InfluencerCampaignsPanel({
   const [applyMessage, setApplyMessage] = useState("");
   const [proposedPrice, setProposedPrice] = useState("");
   const [workLinks, setWorkLinks] = useState("");
+  const [messageError, setMessageError] = useState<string | null>(null);
+  const [workLinksError, setWorkLinksError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [deliverDraft, setDeliverDraft] = useState<Record<string, { url: string; note: string }>>({});
   const [deliverSaving, setDeliverSaving] = useState<string | null>(null);
@@ -206,6 +218,21 @@ export default function InfluencerCampaignsPanel({
       toastError(uiLang === "el" ? "Είστε προσωρινά μη διαθέσιμος. Αλλάξτε τη διαθεσιμότητα για να κάνετε αίτηση." : "You are temporarily unavailable. Change availability to apply.");
       return;
     }
+    setMessageError(null);
+    setWorkLinksError(null);
+    if (findContactInfo(applyMessage)) {
+      const msg = CONTACT_BLOCKED[uiLang];
+      setMessageError(msg);
+      toastError(msg);
+      return;
+    }
+    const filtered = filterWorkLinks(workLinks);
+    if (filtered.rejected.length > 0) {
+      const msg = WORK_LINK_HINT[uiLang];
+      setWorkLinksError(msg);
+      toastError(msg);
+      return;
+    }
     setSubmitting(true);
     try {
       const result = await submitCampaignApplication({
@@ -213,10 +240,22 @@ export default function InfluencerCampaignsPanel({
         influencerId,
         message: applyMessage,
         proposedPrice,
-        workLinks,
+        workLinks: filtered.ok.join("\n"),
       });
       if (result.duplicate) {
         toastError(uiLang === "el" ? "Έχετε ήδη κάνει αίτηση σε αυτή την καμπάνια." : "You have already applied to this campaign.");
+        return;
+      }
+      if (result.error === "contact_info_not_allowed") {
+        const msg = CONTACT_BLOCKED[uiLang];
+        setMessageError(msg);
+        toastError(msg);
+        return;
+      }
+      if (result.error === "work_link_not_allowed") {
+        const msg = WORK_LINK_HINT[uiLang];
+        setWorkLinksError(msg);
+        toastError(msg);
         return;
       }
       if (result.error || !result.id) {
@@ -228,6 +267,8 @@ export default function InfluencerCampaignsPanel({
       setApplyMessage("");
       setProposedPrice("");
       setWorkLinks("");
+      setMessageError(null);
+      setWorkLinksError(null);
       toastSuccess(uiLang === "el" ? "Η αίτηση στάλθηκε." : "Application sent.");
       await load();
     } finally {
@@ -363,7 +404,10 @@ export default function InfluencerCampaignsPanel({
                 <textarea
                   rows={4}
                   value={applyMessage}
-                  onChange={(e) => setApplyMessage(e.target.value)}
+                  onChange={(e) => {
+                    setApplyMessage(e.target.value);
+                    setMessageError(null);
+                  }}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
                   placeholder={
                     uiLang === "el"
@@ -371,6 +415,8 @@ export default function InfluencerCampaignsPanel({
                       : "Why you are a good fit…"
                   }
                 />
+                <p className="text-xs text-slate-500 mt-1">{CONTACT_BLOCKED[uiLang]}</p>
+                {messageError && <p className="text-xs text-red-600 mt-1">{messageError}</p>}
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -382,7 +428,18 @@ export default function InfluencerCampaignsPanel({
                 <label className="block text-sm font-medium text-slate-700 mb-1">
                   {uiLang === "el" ? "Σύνδεσμοι προηγούμενης δουλειάς (προαιρετικό)" : "Links to past work (optional)"}
                 </label>
-                <textarea rows={2} value={workLinks} onChange={(e) => setWorkLinks(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" placeholder="https://" />
+                <textarea
+                  rows={2}
+                  value={workLinks}
+                  onChange={(e) => {
+                    setWorkLinks(e.target.value);
+                    setWorkLinksError(null);
+                  }}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
+                  placeholder="https://"
+                />
+                <p className="text-xs text-slate-500 mt-1">{WORK_LINK_HINT[uiLang]}</p>
+                {workLinksError && <p className="text-xs text-red-600 mt-1">{workLinksError}</p>}
               </div>
               <div className="flex gap-2 justify-end">
                 <button
@@ -390,6 +447,8 @@ export default function InfluencerCampaignsPanel({
                   onClick={() => {
                     setApplyCampaign(null);
                     setApplyMessage("");
+                    setMessageError(null);
+                    setWorkLinksError(null);
                   }}
                   className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm font-bold text-slate-900 hover:bg-slate-50"
                 >

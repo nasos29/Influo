@@ -33,6 +33,7 @@ import {
   writeIdList,
   writeStamp,
 } from "@/lib/dashboardBadges";
+import { filterWorkLinks } from "@/lib/contactFilter";
 
 async function adminAuthHeaders(): Promise<Record<string, string>> {
   const { data: { session } } = await supabase.auth.getSession();
@@ -220,14 +221,6 @@ function getApplicationInfluencerMeta(app: AdminCampaignApplication): {
     name: o?.display_name?.trim() || app.influencer_id,
     avatar: o?.avatar_url || null,
   };
-}
-
-function splitWorkLinks(raw: string | null | undefined): string[] {
-  if (!raw?.trim()) return [];
-  return raw
-    .split(/[\s,]+/)
-    .map((s) => s.trim())
-    .filter((s) => /^https?:\/\//i.test(s));
 }
 
 function getCampaignBrandMeta(row: AdminBrandCampaignRow): {
@@ -3857,7 +3850,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     <div className="space-y-3">
                       {apps.map((app) => {
                         const inf = getApplicationInfluencerMeta(app);
-                        const links = splitWorkLinks(app.work_links);
+                        const links = filterWorkLinks(app.work_links || "").ok;
                         return (
                           <article
                             key={app.id}
