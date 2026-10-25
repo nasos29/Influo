@@ -483,6 +483,8 @@ export async function POST(req: Request) {
         const brandNameVal = (body.brandName as string) || 'Επιχείρηση';
         const infNameVal = (body.influencerName as string) || 'Influencer';
         const applicationMessage = body.applicationMessage as string | null | undefined;
+        const proposedPrice = body.proposedPrice as number | string | null | undefined;
+        const workLinks = body.workLinks as string | null | undefined;
         const brandHasAccount = !!(body.brandHasAccount as boolean | undefined);
 
         if (!toEmail) {
@@ -499,6 +501,14 @@ export async function POST(req: Request) {
         const msgBlock =
           applicationMessage && String(applicationMessage).trim()
             ? `<div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #c7d2fe;"><p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #3730a3;">Μήνυμα από τον influencer:</p><p style="margin: 0; font-size: 13px; color: #1f2937; white-space: pre-wrap;">${escapeHtml(String(applicationMessage).trim()).replace(/\n/g, '<br/>')}</p></div>`
+            : '';
+        const priceBlock =
+          proposedPrice !== undefined && proposedPrice !== null && String(proposedPrice).trim() !== ''
+            ? `<div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #c7d2fe;"><p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #3730a3;">Προτεινόμενη τιμή:</p><p style="margin: 0; font-size: 13px; color: #1f2937;">€${escapeHtml(String(proposedPrice))}</p></div>`
+            : '';
+        const linksBlock =
+          workLinks && String(workLinks).trim()
+            ? `<div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #c7d2fe;"><p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #3730a3;">Work links:</p><p style="margin: 0; font-size: 13px; color: #1f2937; white-space: pre-wrap; word-break: break-all;">${escapeHtml(String(workLinks).trim()).replace(/\n/g, '<br/>')}</p></div>`
             : '';
 
         const subjTitle = campaignTitleRaw.length > 55 ? `${campaignTitleRaw.slice(0, 52)}…` : campaignTitleRaw;
@@ -522,6 +532,8 @@ export async function POST(req: Request) {
                   <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #4338ca;">Καμπάνια</p>
                   <p style="margin: 0; font-size: 15px; color: #1f2937;">${safeTitle}</p>
                   ${msgBlock}
+                  ${priceBlock}
+                  ${linksBlock}
                 </div>
                 <p style="margin: 16px 0; font-size: 13px; color: #4b5563;">Συνδεθείτε στο Influo για να δείτε την αίτηση και να απαντήσετε.</p>
                 <div style="margin: 24px 0; text-align: center;">
