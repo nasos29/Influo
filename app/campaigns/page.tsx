@@ -5,26 +5,18 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import Footer from "@/components/Footer";
+import CampaignCard, { type CampaignCardData } from "@/components/CampaignCard";
 import { supabase } from "@/lib/supabaseClient";
 import { loadOwnProfiles } from "@/lib/ownProfile";
 import { lookupAuthUser } from "@/lib/authSession";
 import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
-import { getCachedImageUrl } from "@/lib/imageProxy";
 
 const ADMIN_EMAIL_FALLBACK = "nd.6@hotmail.com";
 
 type UserKind = "none" | "brand" | "influencer" | "admin" | "signed-in";
 
-type Row = {
-  id: string;
-  title: string;
-  description: string;
-  budget: number;
-  category: string | null;
-  deliverables: string | null;
-  deadline: string | null;
-  created_at: string;
-  brands: { brand_name: string; logo_url: string | null } | null;
+type Row = CampaignCardData & {
+  status?: string | null;
 };
 
 export default function PublicCampaignsPage() {
@@ -150,7 +142,12 @@ export default function PublicCampaignsPage() {
           deliverables,
           deadline,
           created_at,
-          brands ( brand_name, logo_url )
+          platforms,
+          compensation_type,
+          min_followers,
+          location,
+          status,
+          brands ( brand_name, logo_url, verified )
         `
         )
         .eq("status", "open")
@@ -304,64 +301,35 @@ export default function PublicCampaignsPage() {
         </div>
 
         {loading ? (
-          <div className="mt-10 space-y-3" aria-busy="true">
-            <div className="h-28 rounded-xl bg-white border border-slate-200 animate-pulse" />
-            <div className="h-28 rounded-xl bg-white border border-slate-200 animate-pulse" />
+          <div className="mt-10 grid gap-4 md:grid-cols-2" aria-busy="true">
+            <div className="h-48 rounded-2xl bg-white border border-slate-200 animate-pulse" />
+            <div className="h-48 rounded-2xl bg-white border border-slate-200 animate-pulse" />
           </div>
         ) : err ? (
           <p className="mt-10 text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm">{t.loadErr}</p>
         ) : rows.length === 0 ? (
           <p className="mt-10 text-slate-500">{t.empty}</p>
         ) : (
-          <ul className="mt-10 space-y-4">
+          <ul className="mt-10 grid gap-4 md:grid-cols-2">
             {rows.map((c) => (
-              <li key={c.id} className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-                <div className="flex items-start gap-3">
-                  {c.brands?.logo_url ? (
-                    <Image
-                      src={getCachedImageUrl(c.brands.logo_url) ?? c.brands.logo_url}
-                      alt=""
-                      width={48}
-                      height={48}
-                      className="rounded-lg object-cover w-12 h-12 border border-slate-100"
-                    />
-                  ) : (
-                    <div className="w-12 h-12 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 text-lg font-semibold">
-                      {(c.brands?.brand_name || "B").slice(0, 1)}
-                    </div>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <h2 className="text-lg font-semibold text-slate-900">
-                      <Link href={`/campaigns/${c.id}`} className="hover:underline">
-                        {c.title}
-                      </Link>
-                    </h2>
-                    {approvedInfluencer && appliedIds.has(c.id) && (
-                      <p className="text-xs font-medium text-emerald-700 mt-1">
-                        {lang === "el" ? "Έχετε ήδη κάνει αίτηση" : "Already applied"}
-                      </p>
-                    )}
-                    {approvedInfluencer && !appliedIds.has(c.id) && (
-                      <Link href={`/campaigns/${c.id}`} className="inline-block mt-2 text-sm font-medium text-blue-700 hover:underline">
-                        {lang === "el" ? "Αίτηση" : "Apply"}
-                      </Link>
-                    )}
-                    <p className="text-sm text-slate-500">{c.brands?.brand_name}</p>
-                    <p className="text-slate-700 mt-3 whitespace-pre-wrap">{c.description}</p>
-                    {c.deliverables && (
-                      <p className="text-sm text-slate-600 mt-2">
-                        <strong>{t.deliverables}:</strong> {c.deliverables}
-                      </p>
-                    )}
-                    <p className="text-sm font-medium text-slate-900 mt-3">
-                      {t.budget}: €{Number(c.budget).toLocaleString(lang === "el" ? "el-GR" : "en-GB")}
-                      {c.category ? ` · ${c.category}` : ""}
-                      {c.deadline
-                        ? ` · ${lang === "el" ? "Έως" : "Until"} ${new Date(c.deadline).toLocaleDateString(lang === "el" ? "el-GR" : "en-GB")}`
-                        : ""}
-                    </p>
-                  </div>
-                </div>
+              <li key={c.id}>
+                <CampaignCard
+                  campaign={{ ...c, status: c.status || "open" }}
+                  lang={lang}
+                  footer={
+                    approvedInfluencer ? (
+                      appliedIds.has(c.id) ? (
+                        <p className="text-xs font-medium text-emerald-700">
+                          {lang === "el" ? "Έχετε ήδη κάνει αίτηση" : "Already applied"}
+                        </p>
+                      ) : (
+                        <Link href={`/campaigns/${c.id}`} className="inline-flex text-sm font-medium text-blue-700 hover:underline">
+                          {lang === "el" ? "Αίτηση" : "Apply"}
+                        </Link>
+                      )
+                    ) : null
+                  }
+                />
               </li>
             ))}
           </ul>

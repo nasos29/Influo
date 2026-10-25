@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Footer from "@/components/Footer";
+import FastImage from "@/components/FastImage";
+import { campaignClosesMeta } from "@/components/CampaignCard";
 import { supabase } from "@/lib/supabaseClient";
 import { loadOwnProfiles } from "@/lib/ownProfile";
 import { categoryLabel } from "@/lib/categories";
@@ -12,6 +14,8 @@ import { findContactInfo, filterWorkLinks } from "@/lib/contactFilter";
 import { toastError, toastSuccess } from "@/components/Feedback";
 import { getStoredLanguage } from "@/lib/language";
 import { campaignAudience, type CampaignAudience } from "@/lib/campaignAudience";
+import { formatFollowerCount } from "@/lib/platformStats";
+import { getCachedImageUrl } from "@/lib/imageProxy";
 
 const CONTACT_BLOCKED = {
   el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
@@ -44,6 +48,21 @@ function brandOf(row: Campaign) {
   const value = row.brands;
   return Array.isArray(value) ? value[0] : value;
 }
+
+function splitDeliverables(raw: string | null | undefined): string[] {
+  if (!raw?.trim()) return [];
+  return raw
+    .split(/[\n,;+]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+const PLATFORM_LABEL: Record<string, { el: string; en: string }> = {
+  instagram: { el: "Instagram", en: "Instagram" },
+  tiktok: { el: "TikTok", en: "TikTok" },
+  youtube: { el: "YouTube", en: "YouTube" },
+  facebook: { el: "Facebook", en: "Facebook" },
+};
 
 export default function CampaignPublicView({ id }: { id: string }) {
   const pathname = usePathname();
@@ -231,128 +250,212 @@ export default function CampaignPublicView({ id }: { id: string }) {
   };
 
   const brand = campaign ? brandOf(campaign) : null;
-  const comp =
-    campaign?.compensation_type === "money"
-      ? el ? "Χρήματα" : "Money"
-      : campaign?.compensation_type === "product"
-        ? el ? "Προϊόν" : "Product"
-        : campaign?.compensation_type === "both"
-          ? el ? "Χρήματα και προϊόν" : "Money and product"
-          : "";
+  const logoSrc = brand?.logo_url ? getCachedImageUrl(brand.logo_url) ?? brand.logo_url : null;
+  const deliverables = campaign ? splitDeliverables(campaign.deliverables) : [];
+  const platforms = campaign && Array.isArray(campaign.platforms) ? campaign.platforms : [];
+  const closes = campaign
+    ? campaignClosesMeta({ deadline: campaign.deadline }, lang === "en" ? "en" : "el")
+    : null;
+  const locale = el ? "el-GR" : "en-GB";
+
+  const applyBlock = (
+    <div className="space-y-3">
+      {audience.kind === "anonymous" && (
+        <Link href={`/login?redirect=${encodeURIComponent(`/campaigns/${id}`)}`} className="inline-flex w-full justify-center px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-medium">
+          {el ? "Σύνδεση για αίτηση" : "Sign in to apply"}
+        </Link>
+      )}
+      {audience.kind === "brand" && audience.owns && (
+        <Link href="/brand/dashboard?tab=campaigns" className="inline-flex w-full justify-center px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-medium">
+          {el ? "Διαχείριση καμπάνιας" : "Manage campaign"}
+        </Link>
+      )}
+      {audience.kind === "influencer" && !approved && (
+        <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-3">
+          {el
+            ? "Το προφίλ σας είναι σε εκκρεμότητα. Μέχρι την έγκριση δεν μπορείτε να δείτε ή να κάνετε αίτηση σε καμπάνιες."
+            : "Your profile is pending. You cannot view or apply to campaigns until it is approved."}
+        </p>
+      )}
+      {audience.kind === "influencer" && approved && applied && (
+        <p className="text-sm font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+          {el ? "Έχετε ήδη κάνει αίτηση σε αυτή την καμπάνια." : "You have already applied to this campaign."}
+        </p>
+      )}
+      {audience.kind === "influencer" && approved && !applied && (
+        <form onSubmit={apply} className="space-y-3">
+          {!available && (
+            <div className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <p>{el ? "Εμφανίζεστε ως μη διαθέσιμος προσωρινά, οπότε η αίτηση είναι κλειστή." : "You are marked temporarily unavailable, so applications are closed."}</p>
+              <button type="button" onClick={markAvailable} className="mt-2 text-sm font-medium text-blue-700 underline">
+                {el ? "Σήμανση ως διαθέσιμος" : "Mark as available"}
+              </button>
+            </div>
+          )}
+          <label className="block text-sm font-medium text-slate-700">
+            {el ? "Μήνυμα" : "Message"}
+            <textarea
+              required
+              rows={4}
+              value={message}
+              onChange={(e) => {
+                setMessage(e.target.value);
+                setMessageError(null);
+              }}
+              className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
+            />
+            <span className="block text-xs text-slate-500 mt-1 font-normal">{CONTACT_BLOCKED[el ? "el" : "en"]}</span>
+            {messageError && <span className="block text-xs text-red-600 mt-1 font-normal">{messageError}</span>}
+          </label>
+          <label className="block text-sm font-medium text-slate-700">
+            {el ? "Προτεινόμενη τιμή (προαιρετικό)" : "Proposed price (optional)"}
+            <input type="number" min={0} step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
+          </label>
+          <label className="block text-sm font-medium text-slate-700">
+            {el ? "Σύνδεσμοι προηγούμενης δουλειάς (προαιρετικό)" : "Links to past work (optional)"}
+            <textarea
+              rows={2}
+              value={links}
+              onChange={(e) => {
+                setLinks(e.target.value);
+                setWorkLinksError(null);
+              }}
+              className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
+              placeholder="https://"
+            />
+            <span className="block text-xs text-slate-500 mt-1 font-normal">{WORK_LINK_HINT[el ? "el" : "en"]}</span>
+            {workLinksError && <span className="block text-xs text-red-600 mt-1 font-normal">{workLinksError}</span>}
+          </label>
+          <button type="submit" disabled={submitting || !available} className="w-full px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium disabled:opacity-50">
+            {submitting ? "…" : el ? "Αίτηση" : "Apply"}
+          </button>
+        </form>
+      )}
+    </div>
+  );
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
-      <main className="flex-1 max-w-3xl mx-auto px-4 py-10 w-full">
+      <main className="flex-1 max-w-5xl mx-auto px-4 py-10 w-full">
         <Link href={lang === "en" ? "/en/campaigns" : "/campaigns"} className="text-sm text-blue-600 hover:underline">
           {el ? "← Ανοιχτές καμπάνιες" : "← Open campaigns"}
         </Link>
         {loading ? (
-          <div className="mt-6 h-64 rounded-xl bg-white border border-slate-200 animate-pulse" />
+          <div className="mt-6 h-64 rounded-2xl bg-white border border-slate-200 animate-pulse" />
         ) : loadError ? (
-          <div className="mt-6 rounded-xl border border-slate-200 bg-white p-8">
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-8">
             <h1 className="text-2xl font-bold text-slate-900">{el ? "Η καμπάνια άργησε να φορτώσει" : "This campaign took too long to load"}</h1>
             <button type="button" onClick={() => window.location.reload()} className="mt-4 px-4 py-2 rounded-lg bg-slate-900 text-white text-sm">
               {el ? "Δοκιμάστε ξανά" : "Try again"}
             </button>
           </div>
         ) : missing || !campaign ? (
-          <div className="mt-6 rounded-xl border border-slate-200 bg-white p-8">
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-8">
             <h1 className="text-2xl font-bold text-slate-900">{el ? "Η καμπάνια δεν είναι διαθέσιμη" : "This campaign is not available"}</h1>
             <p className="text-slate-600 mt-2">{el ? "Τα πρόχειρα και οι κλειστές καμπάνιες δεν είναι δημόσιες." : "Draft and closed campaigns are not public."}</p>
           </div>
         ) : (
-          <article className="mt-6 bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-            <p className="text-sm text-slate-500">{brand?.brand_name}</p>
-            <h1 className="text-3xl font-bold text-slate-900 mt-1">{campaign.title}</h1>
-            <p className="text-slate-700 mt-4 whitespace-pre-wrap">{campaign.description}</p>
-            <ul className="mt-4 text-sm text-slate-800 space-y-1">
-              <li>Budget: €{Number(campaign.budget).toLocaleString(el ? "el-GR" : "en-GB")}</li>
-              {campaign.category && <li>{el ? "Κατηγορία" : "Category"}: {categoryLabel(campaign.category, lang)}</li>}
-              {comp && <li>{el ? "Αμοιβή" : "Compensation"}: {comp}</li>}
-              {Array.isArray(campaign.platforms) && campaign.platforms.length > 0 && (
-                <li>{el ? "Πλατφόρμες" : "Platforms"}: {campaign.platforms.join(", ")}</li>
-              )}
-              {campaign.min_followers ? <li>{el ? "Ελάχιστοι ακόλουθοι" : "Minimum followers"}: {campaign.min_followers}</li> : null}
-              {campaign.location ? <li>{el ? "Περιοχή" : "Area"}: {campaign.location}</li> : null}
-              {campaign.starts_on ? <li>{el ? "Έναρξη" : "Starts"}: {new Date(campaign.starts_on).toLocaleDateString(el ? "el-GR" : "en-GB")}</li> : null}
-              {campaign.deadline ? <li>{el ? "Προθεσμία" : "Deadline"}: {new Date(campaign.deadline).toLocaleDateString(el ? "el-GR" : "en-GB")}</li> : null}
-              {campaign.deliverables ? <li>{el ? "Παράδοση" : "Deliverables"}: {campaign.deliverables}</li> : null}
-            </ul>
+          <div className="mt-6 grid gap-6 md:grid-cols-[minmax(0,1fr)_320px] md:items-start">
+            <article className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+              <h1 className="text-3xl font-bold text-slate-900">{campaign.title}</h1>
+              <p className="text-slate-700 mt-4 whitespace-pre-wrap">{campaign.description}</p>
 
-            <div className="mt-8 border-t border-slate-100 pt-6">
-              {audience.kind === "anonymous" && (
-                <Link href={`/login?redirect=${encodeURIComponent(`/campaigns/${id}`)}`} className="inline-flex px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium">
-                  {el ? "Σύνδεση για αίτηση" : "Sign in to apply"}
-                </Link>
+              {deliverables.length > 0 && (
+                <div className="mt-8">
+                  <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
+                    {el ? "Παραδοτέα" : "Deliverables"}
+                  </h2>
+                  <ul className="mt-3 space-y-2">
+                    {deliverables.map((d) => (
+                      <li key={d} className="flex gap-2 text-sm text-slate-700">
+                        <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400 shrink-0" />
+                        <span>{d}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
-              {audience.kind === "brand" && audience.owns && (
-                <Link href="/brand/dashboard?tab=campaigns" className="inline-flex px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium">
-                  {el ? "Διαχείριση καμπάνιας" : "Manage campaign"}
-                </Link>
-              )}
-              {audience.kind === "influencer" && !approved && (
-                <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-3">
-                  {el
-                    ? "Το προφίλ σας είναι σε εκκρεμότητα. Μέχρι την έγκριση δεν μπορείτε να δείτε ή να κάνετε αίτηση σε καμπάνιες."
-                    : "Your profile is pending. You cannot view or apply to campaigns until it is approved."}
+
+              <div className="mt-8">
+                <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
+                  {el ? "Απαιτήσεις" : "Requirements"}
+                </h2>
+                <ul className="mt-3 space-y-2 text-sm text-slate-800">
+                  {platforms.length > 0 && (
+                    <li>
+                      <span className="text-slate-500">{el ? "Πλατφόρμες" : "Platforms"}: </span>
+                      {platforms.map((p) => PLATFORM_LABEL[p]?.[lang === "en" ? "en" : "el"] || p).join(", ")}
+                    </li>
+                  )}
+                  {campaign.min_followers ? (
+                    <li>
+                      <span className="text-slate-500">{el ? "Ελάχιστοι ακόλουθοι" : "Minimum followers"}: </span>
+                      {formatFollowerCount(campaign.min_followers)}
+                    </li>
+                  ) : null}
+                  {campaign.location ? (
+                    <li>
+                      <span className="text-slate-500">{el ? "Τοποθεσία" : "Location"}: </span>
+                      {campaign.location}
+                    </li>
+                  ) : null}
+                  {campaign.starts_on ? (
+                    <li>
+                      <span className="text-slate-500">{el ? "Έναρξη" : "Starts"}: </span>
+                      {new Date(campaign.starts_on).toLocaleDateString(locale)}
+                    </li>
+                  ) : null}
+                  {campaign.category ? (
+                    <li>
+                      <span className="text-slate-500">{el ? "Κατηγορία" : "Category"}: </span>
+                      {categoryLabel(campaign.category, lang) || campaign.category}
+                    </li>
+                  ) : null}
+                </ul>
+              </div>
+
+              <div className="mt-8 md:hidden border-t border-slate-100 pt-6">{applyBlock}</div>
+            </article>
+
+            <aside className="space-y-4 md:sticky md:top-6">
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{el ? "Budget" : "Budget"}</p>
+                <p className="mt-1 text-2xl font-bold text-slate-900">
+                  €{Number(campaign.budget).toLocaleString(locale)}
                 </p>
-              )}
-              {audience.kind === "influencer" && approved && applied && (
-                <p className="text-sm font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
-                  {el ? "Έχετε ήδη κάνει αίτηση σε αυτή την καμπάνια." : "You have already applied to this campaign."}
+                {closes && (
+                  <div className="mt-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      {el ? "Προθεσμία" : "Deadline"}
+                    </p>
+                    <p className={`mt-1 text-sm font-semibold ${closes.urgent ? "text-red-700" : "text-slate-800"}`}>
+                      {closes.text}
+                    </p>
+                    {closes.dateLabel && <p className="text-xs text-slate-500 mt-0.5">{closes.dateLabel}</p>}
+                  </div>
+                )}
+                <div className="mt-5 hidden md:block">{applyBlock}</div>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  {el ? "Σχετικά με το brand" : "About the brand"}
                 </p>
-              )}
-              {audience.kind === "influencer" && approved && !applied && (
-                <form onSubmit={apply} className="space-y-3">
-                  {!available && (
-                    <div className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-3">
-                      <p>{el ? "Εμφανίζεστε ως μη διαθέσιμος προσωρινά, οπότε η αίτηση είναι κλειστή." : "You are marked temporarily unavailable, so applications are closed."}</p>
-                      <button type="button" onClick={markAvailable} className="mt-2 text-sm font-medium text-blue-700 underline">
-                        {el ? "Σήμανση ως διαθέσιμος" : "Mark as available"}
-                      </button>
+                <div className="mt-3 flex items-center gap-3">
+                  {logoSrc ? (
+                    <div className="relative w-12 h-12 rounded-xl overflow-hidden border border-slate-100 bg-slate-50 shrink-0">
+                      <FastImage src={logoSrc} alt={brand?.brand_name || "Brand"} fill className="object-cover" sizes="48px" />
+                    </div>
+                  ) : (
+                    <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 text-lg font-semibold shrink-0">
+                      {(brand?.brand_name || "B").slice(0, 1).toUpperCase()}
                     </div>
                   )}
-                  <label className="block text-sm font-medium text-slate-700">
-                    {el ? "Μήνυμα" : "Message"}
-                    <textarea
-                      required
-                      rows={4}
-                      value={message}
-                      onChange={(e) => {
-                        setMessage(e.target.value);
-                        setMessageError(null);
-                      }}
-                      className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
-                    />
-                    <span className="block text-xs text-slate-500 mt-1 font-normal">{CONTACT_BLOCKED[el ? "el" : "en"]}</span>
-                    {messageError && <span className="block text-xs text-red-600 mt-1 font-normal">{messageError}</span>}
-                  </label>
-                  <label className="block text-sm font-medium text-slate-700">
-                    {el ? "Προτεινόμενη τιμή (προαιρετικό)" : "Proposed price (optional)"}
-                    <input type="number" min={0} step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
-                  </label>
-                  <label className="block text-sm font-medium text-slate-700">
-                    {el ? "Σύνδεσμοι προηγούμενης δουλειάς (προαιρετικό)" : "Links to past work (optional)"}
-                    <textarea
-                      rows={2}
-                      value={links}
-                      onChange={(e) => {
-                        setLinks(e.target.value);
-                        setWorkLinksError(null);
-                      }}
-                      className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
-                      placeholder="https://"
-                    />
-                    <span className="block text-xs text-slate-500 mt-1 font-normal">{WORK_LINK_HINT[el ? "el" : "en"]}</span>
-                    {workLinksError && <span className="block text-xs text-red-600 mt-1 font-normal">{workLinksError}</span>}
-                  </label>
-                  <button type="submit" disabled={submitting || !available} className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium disabled:opacity-50">
-                    {submitting ? "…" : el ? "Αίτηση" : "Apply"}
-                  </button>
-                </form>
-              )}
-            </div>
-          </article>
+                  <p className="font-semibold text-slate-900">{brand?.brand_name || "Brand"}</p>
+                </div>
+              </div>
+            </aside>
+          </div>
         )}
       </main>
       <Footer lang={lang === "en" ? "en" : "el"} />

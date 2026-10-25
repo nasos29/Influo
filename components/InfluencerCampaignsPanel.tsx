@@ -6,6 +6,7 @@ import Link from "next/link";
 import { getStoredLanguage } from "@/lib/language";
 import { notifyBrandOfApplication, submitCampaignApplication } from "@/lib/campaignApply";
 import { findContactInfo, filterWorkLinks } from "@/lib/contactFilter";
+import CampaignCard from "@/components/CampaignCard";
 import { toastError, toastSuccess } from "@/components/Feedback";
 
 const CONTACT_BLOCKED = {
@@ -480,31 +481,16 @@ export default function InfluencerCampaignsPanel({
               : "No open campaigns right now. Check back later."}
           </p>
         ) : (
-          <ul className="space-y-4">
+          <ul className="grid gap-4 md:grid-cols-2">
             {campaigns.map((c) => {
               const already = appliedCampaignIds.has(c.id);
               return (
-                <li key={c.id} className="border border-slate-200 rounded-xl p-4 bg-white">
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
-                    <div>
-                      <h3 className="font-semibold text-slate-900">{c.title}</h3>
-                      <p className="text-sm text-slate-600 mt-1">{c.brands?.brand_name ?? "Brand"}</p>
-                      <p className="text-sm text-slate-700 mt-2 whitespace-pre-wrap">{c.description}</p>
-                      {c.deliverables && (
-                        <p className="text-xs text-slate-500 mt-2">
-                          <strong>{uiLang === "el" ? "Παράδοση:" : "Deliverables:"}</strong> {c.deliverables}
-                        </p>
-                      )}
-                      <p className="text-sm font-medium text-slate-900 mt-2">
-                        Budget: €{Number(c.budget).toLocaleString(uiLang === "el" ? "el-GR" : "en-GB")}
-                        {c.category ? ` · ${c.category}` : ""}
-                        {c.deadline
-                          ? ` · ${uiLang === "el" ? "Έως" : "Until"} ${new Date(c.deadline).toLocaleDateString(uiLang === "el" ? "el-GR" : "en-GB")}`
-                          : ""}
-                      </p>
-                    </div>
-                    <div className="shrink-0">
-                      {already ? (
+                <li key={c.id}>
+                  <CampaignCard
+                    campaign={{ ...c, status: c.status || "open" }}
+                    lang={uiLang}
+                    footer={
+                      already ? (
                         <span className="inline-block text-xs font-medium px-3 py-1.5 rounded-full bg-green-100 text-green-800">
                           {uiLang === "el" ? "Έχετε ήδη αίτηση" : "Already applied"}
                         </span>
@@ -516,9 +502,9 @@ export default function InfluencerCampaignsPanel({
                         >
                           {uiLang === "el" ? "Αίτηση ενδιαφέροντος" : "Apply"}
                         </button>
-                      )}
-                    </div>
-                  </div>
+                      )
+                    }
+                  />
                 </li>
               );
             })}
