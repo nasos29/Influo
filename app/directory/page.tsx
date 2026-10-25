@@ -1,7 +1,7 @@
 import DirectoryPageView from "@/components/DirectoryPageView";
 import { loadPublicDirectoryCards } from "@/lib/directoryCards";
 
-export const revalidate = 3600;
+export const revalidate = 300;
 
 export default async function DirectoryPage() {
   const initialInfluencers = await loadPublicDirectoryCards(24);

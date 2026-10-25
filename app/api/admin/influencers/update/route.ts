@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { revalidatePath } from 'next/cache';
 import { NextRequest, NextResponse } from 'next/server';
 import { insertFollowerSnapshot } from '@/lib/parseFollowers';
 import { requireAdmin } from '@/lib/apiAuth';
@@ -100,6 +101,12 @@ export async function POST(request: NextRequest) {
       });
       if (authErr) {
         console.error('[admin/influencers/update] auth email sync failed', authErr);
+        if (patch.approved !== undefined) {
+          revalidatePath('/');
+          revalidatePath('/directory');
+          revalidatePath('/en');
+          revalidatePath('/en/directory');
+        }
         return NextResponse.json({
           success: true,
           influencer: data,
@@ -111,6 +118,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    if (patch.approved !== undefined) {
+      revalidatePath('/');
+      revalidatePath('/directory');
+      revalidatePath('/en');
+      revalidatePath('/en/directory');
+    }
     return NextResponse.json({ success: true, influencer: data });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Internal error';

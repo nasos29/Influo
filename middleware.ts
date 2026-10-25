@@ -45,7 +45,7 @@ export function middleware(request: NextRequest) {
   });
 
   if (request.method === "GET" && !isPrivatePath(pathname) && !request.nextUrl.search) {
-    response.headers.set("Cache-Control", "public, s-maxage=3600, stale-while-revalidate=86400");
+    response.headers.set("Cache-Control", "public, s-maxage=300, stale-while-revalidate=86400");
   }
 
   return response;
