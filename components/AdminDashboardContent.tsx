@@ -21,6 +21,7 @@ import SocialRefreshLogsPanel from "./SocialRefreshLogsPanel";
 import { askConfirm } from "@/components/Feedback";
 import { logoutEverywhere } from "@/lib/authSession";
 import {
+  adminCampaignSeenKey,
   companySeenKey,
   conversationSeenKey,
   countNewerThan,
@@ -1545,9 +1546,11 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [deletingProposal, setDeletingProposal] = useState<number | null>(null);
   const [adminCampaigns, setAdminCampaigns] = useState<AdminBrandCampaignRow[]>([]);
   const [campaignsLoading, setCampaignsLoading] = useState(false);
+  const [campaignsLoaded, setCampaignsLoaded] = useState(false);
   const [campaignsSchemaMissing, setCampaignsSchemaMissing] = useState(false);
   const [deletingCampaignId, setDeletingCampaignId] = useState<string | null>(null);
   const [campaignSearchQuery, setCampaignSearchQuery] = useState("");
+  const [unseenCampaignCount, setUnseenCampaignCount] = useState(0);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [conversationMessages, setConversationMessages] = useState<Message[]>([]);
   const [showConversationsDrawer, setShowConversationsDrawer] = useState(false); // Mobile: toggle conversations drawer
@@ -1676,6 +1679,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       setAdminCampaigns([]);
     } finally {
       setCampaignsLoading(false);
+      setCampaignsLoaded(true);
     }
   };
 
@@ -2086,13 +2090,52 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     }
   }, [viewerId, activeTab, conversations, brands, brandsLoaded]);
 
+  useEffect(() => {
+    if (!viewerId || typeof window === "undefined") return;
+    const store = window.localStorage;
+    const campaignIds = adminCampaigns.map((c) => c.id);
+    if (activeTab === "campaigns") {
+      setUnseenCampaignCount(0);
+      if (campaignsLoaded) writeIdList(store, adminCampaignSeenKey(viewerId), campaignIds);
+    } else if (campaignsLoaded) {
+      setUnseenCampaignCount(countUnseenIds(campaignIds, readIdList(store, adminCampaignSeenKey(viewerId))));
+    }
+  }, [viewerId, activeTab, adminCampaigns, campaignsLoaded]);
+
   // Initial load once
   useEffect(() => {
     fetchData();
     fetchConversations();
     fetchBrands();
+    fetchAdminCampaigns();
     fetchBlogPosts();
     fetchAnnouncements();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const adminSoftRefreshAtRef = useRef(0);
+  useEffect(() => {
+    const softRefresh = () => {
+      if (document.hidden || editModalOpenRef.current) return;
+      const now = Date.now();
+      if (now - adminSoftRefreshAtRef.current < 60_000) return;
+      adminSoftRefreshAtRef.current = now;
+      void fetchAdminCampaigns();
+      void fetchBrands();
+      void fetchConversations();
+    };
+    const onVisibility = () => {
+      if (!document.hidden) softRefresh();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    const interval = window.setInterval(() => {
+      if (document.hidden || editModalOpenRef.current) return;
+      void fetchAdminCampaigns();
+    }, 600000);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.clearInterval(interval);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -3097,13 +3140,18 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                   setActiveTab("campaigns");
                   fetchAdminCampaigns();
                 }}
-                className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                className={`relative px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === "campaigns"
                     ? "border-slate-900 text-slate-900"
                     : "border-transparent text-slate-500 hover:text-slate-700"
                 }`}
               >
                 {txt.tab_campaigns} ({adminCampaigns.length})
+                {unseenCampaignCount > 0 && (
+                  <span className="ml-1.5 inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold">
+                    {unseenCampaignCount > 99 ? "99+" : unseenCampaignCount}
+                  </span>
+                )}
               </button>
               <button 
                 onClick={() => setActiveTab("blog")} 
