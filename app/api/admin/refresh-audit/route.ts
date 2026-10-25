@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import {
+  computeAuditFingerprint,
   runAuditGeminiStrict,
   type AuditAccount,
   type AuditShared,
@@ -56,6 +57,7 @@ type AuditprAudit = {
   brandSafe: boolean;
   niche?: string;
   niche_en?: string;
+  input_fingerprint?: string;
 };
 
 export async function POST(request: NextRequest) {
@@ -190,6 +192,7 @@ export async function POST(request: NextRequest) {
       brandSafe: auditResult.brandSafe,
       niche: auditResult.niche,
       niche_en: auditResult.niche_en,
+      input_fingerprint: computeAuditFingerprint(igTtAccounts, shared),
     };
 
     const { error: updateError } = await supabaseAdmin

@@ -4,6 +4,7 @@
  * Requires GEMINI_API_KEY (or GOOGLE_GENERATIVE_AI_API_KEY) in env.
  */
 
+import { createHash } from 'node:crypto';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { cleanNegativesLists } from '@/lib/auditNegativesDefaults';
 import {
@@ -66,7 +67,7 @@ export type AuditResult = {
 export const AUDIT_FALLBACK_MESSAGE = 'Προσωρινή αδυναμία ανάλυσης.';
 const GEMINI_TIMEOUT_MS = Math.min(
   120000,
-  Math.max(15000, Number(process.env.GEMINI_TIMEOUT_MS || 45000))
+  Math.max(15000, Number(process.env.GEMINI_TIMEOUT_MS || 90000))
 );
 const GEMINI_MAX_RETRIES = Math.min(
   3,
@@ -406,13 +407,87 @@ async function generateContentWithTimeout(
   return Promise.race([model.generateContent(prompt), timeoutPromise]);
 }
 
-function isRetryableGeminiError(err: unknown): boolean {
+function isOurGeminiTimeoutError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
+  return /Gemini request timeout after \d+ms/i.test(msg);
+}
+
+function isRetryableGeminiError(err: unknown): boolean {
+  if (isOurGeminiTimeoutError(err)) return false;
+  const msg = err instanceof Error ? err.message : String(err);
+  const lower = msg.toLowerCase();
   return (
     msg.includes('429') ||
-    msg.toLowerCase().includes('resource exhausted') ||
-    msg.toLowerCase().includes('timeout')
+    msg.includes('500') ||
+    msg.includes('502') ||
+    msg.includes('503') ||
+    msg.includes('504') ||
+    lower.includes('resource exhausted') ||
+    lower.includes('network') ||
+    lower.includes('econnreset') ||
+    lower.includes('etimedout') ||
+    lower.includes('fetch failed')
   );
+}
+
+function fingerprintFollowers(raw: unknown): number {
+  if (typeof raw === 'number' && Number.isFinite(raw)) return Math.max(0, raw);
+  const s = String(raw ?? '')
+    .trim()
+    .replace(/,/g, '')
+    .toLowerCase();
+  if (!s) return 0;
+  const m = s.match(/^([\d.]+)\s*([kmb])?/i);
+  if (!m) {
+    const n = Number(s);
+    return Number.isFinite(n) ? Math.max(0, n) : 0;
+  }
+  let n = Number(m[1]);
+  if (!Number.isFinite(n)) return 0;
+  const u = (m[2] || '').toLowerCase();
+  if (u === 'k') n *= 1e3;
+  else if (u === 'm') n *= 1e6;
+  else if (u === 'b') n *= 1e9;
+  return Math.max(0, n);
+}
+
+function fingerprintEngagementRate(raw: unknown): number {
+  if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+  const s = String(raw ?? '')
+    .trim()
+    .replace(/%/g, '');
+  const n = Number(s);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** Stable hash of audit inputs so refresh can skip Gemini when nothing material changed. */
+export function computeAuditFingerprint(accounts: AuditAccount[], shared: AuditShared): string {
+  const sorted = [...accounts].sort((a, b) => {
+    const ka = `${(a.platform || '').toLowerCase()}\0${(a.username || '').toLowerCase()}`;
+    const kb = `${(b.platform || '').toLowerCase()}\0${(b.username || '').toLowerCase()}`;
+    return ka < kb ? -1 : ka > kb ? 1 : 0;
+  });
+  const payload = {
+    accounts: sorted.map((a) => {
+      const followers = fingerprintFollowers(a.followers);
+      const er = fingerprintEngagementRate(a.engagement_rate);
+      return {
+        platform: (a.platform || '').trim().toLowerCase(),
+        username: (a.username || '').trim().replace(/^@+/, '').toLowerCase(),
+        followers: Math.round(Math.log(followers || 1) / Math.log(1.05)),
+        engagement_rate: Math.round(er / 0.3),
+        er_flag_reason: a.er_flag_reason ?? null,
+        engagement_hidden: a.engagement_hidden === true,
+        suspected_fake_penalty: a.suspected_fake_penalty === true,
+      };
+    }),
+    biography: String(shared.biography ?? '')
+      .trim()
+      .slice(0, 400),
+    category_name: shared.category_name ?? null,
+    gender: shared.gender ?? null,
+  };
+  return createHash('sha256').update(JSON.stringify(payload)).digest('hex');
 }
 
 function sleep(ms: number): Promise<void> {
@@ -469,7 +544,10 @@ export async function runAuditGeminiStrict(
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: modelId });
+    const model = genAI.getGenerativeModel({
+      model: modelId,
+      generationConfig: { responseMimeType: 'application/json', temperature: 0.4 },
+    });
     const result = await generateContentResilient(model, prompt);
     const response = result.response;
     const text = response.text?.()?.trim() ?? '';
@@ -528,7 +606,10 @@ export async function runAuditGemini(
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: modelId });
+    const model = genAI.getGenerativeModel({
+      model: modelId,
+      generationConfig: { responseMimeType: 'application/json', temperature: 0.4 },
+    });
     const result = await generateContentResilient(model, prompt);
     const response = result.response;
     const text = response.text?.()?.trim() ?? '';
