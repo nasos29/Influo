@@ -9,6 +9,7 @@ import BrandSignupForm from "@/components/BrandSignupForm";
 import Footer from "@/components/Footer";
 import TopInfluencersSection from "@/components/TopInfluencersSection";
 import NewlyApprovedInfluencersSection from "@/components/NewlyApprovedInfluencersSection";
+import CampaignCard, { type CampaignCardData } from "@/components/CampaignCard";
 import { supabase } from "@/lib/supabaseClient";
 import { getStoredLanguage, setStoredLanguage, type Language } from "@/lib/language";
 import { getCachedImageUrl } from "@/lib/imageProxy";
@@ -67,6 +68,11 @@ const t = {
     feat_3_desc: "Ασφαλείς και γρήγορες πληρωμές.",
     feat_4_title: "Καμπάνιες",
     feat_4_desc: "Τα brands δημοσιεύουν καμπάνιες με budget — οι creators κάνουν αίτηση ενδιαφέροντος.",
+    open_campaigns_eyebrow: "Νέες ευκαιρίες",
+    open_campaigns_title: "Ανοιχτές καμπάνιες από brands",
+    open_campaigns_subtitle: "Κάνε αίτηση και συνεργάσου με brands που ψάχνουν influencers σαν εσένα.",
+    open_campaigns_see_all: "Δες όλες τις καμπάνιες →",
+    open_campaigns_post: "Δημοσίευσε καμπάνια",
     footer_rights: "Με επιφύλαξη παντός δικαιώματος.",
     footer_privacy: "Απόρρητο",
     footer_terms: "Όροι Χρήσης",
@@ -118,6 +124,11 @@ const t = {
     feat_3_desc: "Secure and fast payouts.",
     feat_4_title: "Campaigns",
     feat_4_desc: "Brands publish campaigns with budget — creators apply if interested.",
+    open_campaigns_eyebrow: "New opportunities",
+    open_campaigns_title: "Open campaigns from brands",
+    open_campaigns_subtitle: "Apply and work with brands looking for influencers like you.",
+    open_campaigns_see_all: "See all campaigns →",
+    open_campaigns_post: "Post a campaign",
     footer_rights: "All rights reserved.",
     footer_privacy: "Privacy",
     footer_terms: "Terms",
@@ -134,8 +145,10 @@ interface VerifiedBrand {
 
 export default function Home({
   initialInfluencers = [],
+  openCampaigns = [],
 }: {
   initialInfluencers?: Influencer[];
+  openCampaigns?: CampaignCardData[];
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -381,13 +394,11 @@ export default function Home({
                 <li><a href="/directory" className="hover:text-slate-900 transition-colors">
                   {txt.nav_directory}
                 </a></li>
-                {isLoggedIn && (
-                  <li>
-                    <a href={lang === "en" ? "/en/campaigns" : "/campaigns"} className="hover:text-slate-900 transition-colors">
-                      {txt.nav_campaigns}
-                    </a>
-                  </li>
-                )}
+                <li>
+                  <a href={lang === "en" ? "/en/campaigns" : "/campaigns"} className="hover:text-slate-900 transition-colors">
+                    {txt.nav_campaigns}
+                  </a>
+                </li>
                 {isLoggedIn ? (
                   <li><a href={userType === 'brand' ? '/brand/dashboard' : '/dashboard'} className="hover:text-slate-900 transition-colors">
                     {lang === "el" ? "Dashboard" : "Dashboard"}
@@ -526,15 +537,13 @@ export default function Home({
               >
                 {txt.nav_directory}
               </a>
-              {isLoggedIn && (
-                <a
-                  href={lang === "en" ? "/en/campaigns" : "/campaigns"}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors"
-                >
-                  {txt.nav_campaigns}
-                </a>
-              )}
+              <a
+                href={lang === "en" ? "/en/campaigns" : "/campaigns"}
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors"
+              >
+                {txt.nav_campaigns}
+              </a>
               {isLoggedIn ? (
                 <a 
                   href="/dashboard"
@@ -663,6 +672,53 @@ export default function Home({
 
       {/* Top Influencers of the Month */}
         <TopInfluencersSection lang={lang} />
+
+      {openCampaigns.length > 0 && (
+        <section className="relative py-20 px-6 bg-gradient-to-br from-slate-50 via-white to-blue-50 border-y border-slate-100/80">
+          <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden>
+            <div className="absolute -top-24 right-0 w-80 h-80 bg-blue-100/30 rounded-full blur-3xl" />
+            <div className="absolute -bottom-24 left-0 w-80 h-80 bg-slate-200/40 rounded-full blur-3xl" />
+          </div>
+          <div className="relative max-w-7xl mx-auto">
+            <div className="text-center mb-12 max-w-2xl mx-auto">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase bg-blue-50 text-blue-700 border border-blue-100">
+                {txt.open_campaigns_eyebrow}
+              </span>
+              <h2 className="mt-4 text-3xl md:text-4xl font-bold text-slate-900 tracking-tight">
+                {txt.open_campaigns_title}
+              </h2>
+              <p className="mt-3 text-base md:text-lg text-slate-600">
+                {txt.open_campaigns_subtitle}
+              </p>
+            </div>
+            <ul className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {openCampaigns.map((campaign) => (
+                <li key={campaign.id}>
+                  <CampaignCard campaign={campaign} lang={lang} />
+                </li>
+              ))}
+            </ul>
+            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <a
+                href={lang === "en" ? "/en/campaigns" : "/campaigns"}
+                className="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold transition-colors shadow-sm"
+              >
+                {txt.open_campaigns_see_all}
+              </a>
+              <a
+                href={
+                  userType === "brand"
+                    ? "/brand/dashboard?tab=campaigns"
+                    : "/brand/signup"
+                }
+                className="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-white hover:bg-slate-50 text-slate-900 text-sm font-semibold border border-slate-200 transition-colors"
+              >
+                {txt.open_campaigns_post}
+              </a>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Directory Section */}
         <section className="relative py-20 px-6 bg-white" id="directory">
