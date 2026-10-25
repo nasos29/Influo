@@ -137,6 +137,7 @@ export default function PublicCampaignsPage() {
     const loadRows = async () => {
       setLoading(true);
       setErr(false);
+      const nowIso = new Date().toISOString();
       const { data, error } = await supabase
         .from("brand_campaigns")
         .select(
@@ -153,6 +154,7 @@ export default function PublicCampaignsPage() {
         `
         )
         .eq("status", "open")
+        .or(`deadline.is.null,deadline.gt.${nowIso}`)
         .order("created_at", { ascending: false });
       if (cancelled) return;
       if (error) {
