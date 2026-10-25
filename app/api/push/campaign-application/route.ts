@@ -53,8 +53,11 @@ export async function POST(req: NextRequest) {
         `
         id,
         message,
+        proposed_price,
+        work_links,
         influencer_id,
         brand_campaigns (
+          id,
           title,
           brand_id,
           brands ( brand_name, contact_email )
@@ -73,6 +76,7 @@ export async function POST(req: NextRequest) {
 
     const rawBc = app.brand_campaigns as unknown;
     const bc = (Array.isArray(rawBc) ? rawBc[0] : rawBc) as {
+      id?: string;
       title?: string;
       brands?: { brand_name?: string; contact_email?: string } | { brand_name?: string; contact_email?: string }[] | null;
     } | null;
@@ -83,6 +87,10 @@ export async function POST(req: NextRequest) {
         : (brandsRow as { brand_name?: string; contact_email?: string } | undefined);
     const contactEmail = b?.contact_email?.trim().toLowerCase();
     if (!contactEmail) {
+      console.warn(
+        "[push/campaign-application] brand missing contact_email",
+        bc?.id || "unknown_campaign"
+      );
       return NextResponse.json({ ok: true, skipped: true, reason: "no_brand_email" });
     }
 
@@ -128,6 +136,8 @@ export async function POST(req: NextRequest) {
           campaignTitle: (bc?.title as string) || "Καμπάνια",
           influencerName,
           applicationMessage: (app as { message?: string | null }).message ?? null,
+          proposedPrice: (app as { proposed_price?: number | null }).proposed_price ?? null,
+          workLinks: (app as { work_links?: string | null }).work_links ?? null,
           brandHasAccount,
         }),
       });

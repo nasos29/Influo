@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { Fragment, useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient"; 
 import Image from "next/image";
 import { isDefinitelyVideo, isDefinitelyImage, detectProvider, getIframelyEmbedUrl } from "@/lib/videoThumbnail";
@@ -18,6 +18,7 @@ import { normalizeGender } from "@/lib/gender";
 import PushNotificationPrompt from "./PushNotificationPrompt";
 import AdminInfluencerStatsTab from "./AdminInfluencerStatsTab";
 import SocialRefreshLogsPanel from "./SocialRefreshLogsPanel";
+import Avatar from "./Avatar";
 import { askConfirm } from "@/components/Feedback";
 import { logoutEverywhere } from "@/lib/authSession";
 import {
@@ -172,6 +173,21 @@ interface Brand {
   created_at: string;
 }
 
+interface AdminCampaignApplication {
+  id: string;
+  campaign_id: string;
+  influencer_id: string;
+  status: string;
+  message: string | null;
+  proposed_price: number | null;
+  work_links: string | null;
+  created_at: string;
+  influencers:
+    | { display_name: string | null; avatar_url: string | null }
+    | Array<{ display_name: string | null; avatar_url: string | null }>
+    | null;
+}
+
 interface AdminBrandCampaignRow {
   id: string;
   brand_id: string;
@@ -181,12 +197,37 @@ interface AdminBrandCampaignRow {
   category: string | null;
   status: string;
   deadline: string | null;
+  platforms?: string[] | string | null;
+  compensation_type?: string | null;
+  deliverables?: string | null;
   created_at: string;
   updated_at: string;
+  applications?: AdminCampaignApplication[];
+  applications_count?: number;
   brands:
     | { brand_name: string | null; contact_email: string | null; verified: boolean | null }
     | Array<{ brand_name: string | null; contact_email: string | null; verified: boolean | null }>
     | null;
+}
+
+function getApplicationInfluencerMeta(app: AdminCampaignApplication): {
+  name: string;
+  avatar: string | null;
+} {
+  const raw = app.influencers;
+  const o = Array.isArray(raw) ? raw[0] : raw;
+  return {
+    name: o?.display_name?.trim() || app.influencer_id,
+    avatar: o?.avatar_url || null,
+  };
+}
+
+function splitWorkLinks(raw: string | null | undefined): string[] {
+  if (!raw?.trim()) return [];
+  return raw
+    .split(/[\s,]+/)
+    .map((s) => s.trim())
+    .filter((s) => /^https?:\/\//i.test(s));
 }
 
 function getCampaignBrandMeta(row: AdminBrandCampaignRow): {
@@ -299,6 +340,18 @@ const t = {
     campaigns_refresh: "Ανανέωση λίστας",
     campaign_delete_confirm:
       "Να διαγραφεί αυτή η καμπάνια και όλες οι σχετικές αιτήσεις influencers; Η ενέργεια δεν αναιρείται.",
+    col_applications: "Αιτήσεις",
+    apps_expand: "Εμφάνιση",
+    apps_collapse: "Απόκρυψη",
+    apps_none: "Καμία αίτηση ακόμα.",
+    apps_proposed: "Προτεινόμενη τιμή",
+    apps_message: "Μήνυμα",
+    apps_links: "Work links",
+    apps_status_pending: "Εκκρεμεί",
+    apps_status_accepted: "Αποδεκτή",
+    apps_status_rejected: "Απορρίφθηκε",
+    apps_status_shortlisted: "Shortlist",
+    apps_status_withdrawn: "Αποσύρθηκε",
   },
   en: {
     title: "Admin Dashboard",
@@ -383,6 +436,18 @@ const t = {
     campaigns_refresh: "Refresh list",
     campaign_delete_confirm:
       "Delete this campaign and all related influencer applications? This cannot be undone.",
+    col_applications: "Applications",
+    apps_expand: "Show",
+    apps_collapse: "Hide",
+    apps_none: "No applications yet.",
+    apps_proposed: "Proposed price",
+    apps_message: "Message",
+    apps_links: "Work links",
+    apps_status_pending: "Pending",
+    apps_status_accepted: "Accepted",
+    apps_status_rejected: "Rejected",
+    apps_status_shortlisted: "Shortlisted",
+    apps_status_withdrawn: "Withdrawn",
   },
 };
 
@@ -1550,6 +1615,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [campaignsSchemaMissing, setCampaignsSchemaMissing] = useState(false);
   const [deletingCampaignId, setDeletingCampaignId] = useState<string | null>(null);
   const [campaignSearchQuery, setCampaignSearchQuery] = useState("");
+  const [expandedCampaignId, setExpandedCampaignId] = useState<string | null>(null);
   const [unseenCampaignCount, setUnseenCampaignCount] = useState(0);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [conversationMessages, setConversationMessages] = useState<Message[]>([]);
@@ -3750,136 +3816,357 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     : txt.campaigns_refresh}
                 </button>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-slate-50 border-b border-slate-200">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">
-                        {txt.col_brand}
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">
-                        {txt.col_campaign_title}
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">
-                        {txt.col_campaign_status}
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">
-                        {txt.col_bud}
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">
-                        {lang === "el" ? "Προθεσμία" : "Deadline"}
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">
-                        {txt.col_date}
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">
-                        {txt.col_act}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    {campaignsLoading && adminCampaigns.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
-                          {lang === "el" ? "Φόρτωση…" : "Loading…"}
-                        </td>
-                      </tr>
-                    ) : (
-                      (() => {
-                        const q = campaignSearchQuery.trim().toLowerCase();
-                        const filtered = q
-                          ? adminCampaigns.filter((c) => {
-                              const meta = getCampaignBrandMeta(c);
-                              return (
-                                c.title.toLowerCase().includes(q) ||
-                                meta.name.toLowerCase().includes(q) ||
-                                (meta.email && meta.email.toLowerCase().includes(q))
-                              );
-                            })
-                          : adminCampaigns;
-                        if (filtered.length === 0) {
-                          return (
-                            <tr>
-                              <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
-                                {adminCampaigns.length === 0
-                                  ? lang === "el"
-                                    ? "Δεν υπάρχουν καμπάνιες."
-                                    : "No campaigns yet."
-                                  : txt.no_data}
-                              </td>
-                            </tr>
-                          );
-                        }
-                        return filtered.map((c) => {
-                          const meta = getCampaignBrandMeta(c);
-                          const statusEn = c.status === "open" ? "Open" : c.status === "closed" ? "Closed" : "Draft";
-                          const statusEl =
-                            c.status === "open" ? "Ανοιχτή" : c.status === "closed" ? "Κλειστή" : "Πρόχειρο";
-                          const statusCls =
-                            c.status === "open"
-                              ? "bg-emerald-100 text-emerald-800"
-                              : c.status === "closed"
-                                ? "bg-slate-200 text-slate-700"
-                                : "bg-amber-100 text-amber-800";
-                          return (
-                            <tr key={c.id} className="hover:bg-slate-50">
-                              <td className="px-3 py-2 align-top">
-                                <div className="font-medium text-slate-900">{meta.name}</div>
-                                {meta.email && (
-                                  <div className="text-xs text-slate-500 break-all max-w-[180px]">{meta.email}</div>
-                                )}
-                                {meta.verified ? (
-                                  <span className="mt-1 inline-flex text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-800">
-                                    verified
-                                  </span>
-                                ) : null}
-                              </td>
-                              <td className="px-3 py-2 align-top max-w-[220px]">
-                                <div className="font-medium text-slate-800 line-clamp-2">{c.title}</div>
-                                {c.category ? (
-                                  <div className="text-xs text-slate-500 mt-0.5">{c.category}</div>
-                                ) : null}
-                              </td>
-                              <td className="px-3 py-2 align-top whitespace-nowrap">
+              {(() => {
+                const q = campaignSearchQuery.trim().toLowerCase();
+                const filtered = q
+                  ? adminCampaigns.filter((c) => {
+                      const meta = getCampaignBrandMeta(c);
+                      return (
+                        c.title.toLowerCase().includes(q) ||
+                        meta.name.toLowerCase().includes(q) ||
+                        (meta.email && meta.email.toLowerCase().includes(q))
+                      );
+                    })
+                  : adminCampaigns;
+                const emptyLabel =
+                  adminCampaigns.length === 0
+                    ? lang === "el"
+                      ? "Δεν υπάρχουν καμπάνιες."
+                      : "No campaigns yet."
+                    : txt.no_data;
+                const appStatusLabel = (status: string) => {
+                  if (status === "accepted") return txt.apps_status_accepted;
+                  if (status === "rejected") return txt.apps_status_rejected;
+                  if (status === "shortlisted") return txt.apps_status_shortlisted;
+                  if (status === "withdrawn") return txt.apps_status_withdrawn;
+                  return txt.apps_status_pending;
+                };
+                const appStatusCls = (status: string) => {
+                  if (status === "accepted") return "bg-emerald-100 text-emerald-800";
+                  if (status === "rejected") return "bg-slate-200 text-slate-700";
+                  if (status === "shortlisted") return "bg-blue-100 text-blue-800";
+                  if (status === "withdrawn") return "bg-slate-100 text-slate-500";
+                  return "bg-amber-100 text-amber-800";
+                };
+                const renderApplicants = (c: AdminBrandCampaignRow) => {
+                  const apps = c.applications || [];
+                  if (apps.length === 0) {
+                    return <p className="text-sm text-slate-500">{txt.apps_none}</p>;
+                  }
+                  return (
+                    <div className="space-y-3">
+                      {apps.map((app) => {
+                        const inf = getApplicationInfluencerMeta(app);
+                        const links = splitWorkLinks(app.work_links);
+                        return (
+                          <article
+                            key={app.id}
+                            className="bg-white border border-slate-200 rounded-lg p-3 flex gap-3"
+                          >
+                            <Avatar src={inf.avatar} alt={inf.name} size={48} className="shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <a
+                                  href={`/influencer/${app.influencer_id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="font-medium text-slate-900 hover:text-blue-700 hover:underline"
+                                >
+                                  {inf.name}
+                                </a>
                                 <span
-                                  className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusCls}`}
+                                  className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium ${appStatusCls(app.status)}`}
                                 >
-                                  {lang === "el" ? statusEl : statusEn}
+                                  {appStatusLabel(app.status)}
                                 </span>
-                              </td>
-                              <td className="px-3 py-2 align-top text-sm whitespace-nowrap">
-                                €{Number(c.budget || 0).toLocaleString(lang === "el" ? "el-GR" : "en-GB")}
-                              </td>
-                              <td className="px-3 py-2 align-top text-sm text-slate-600 whitespace-nowrap">
-                                {c.deadline
-                                  ? new Date(c.deadline).toLocaleDateString(lang === "el" ? "el-GR" : "en-GB")
-                                  : "—"}
-                              </td>
-                              <td className="px-3 py-2 align-top text-sm text-slate-600 whitespace-nowrap">
-                                {new Date(c.created_at).toLocaleDateString(lang === "el" ? "el-GR" : "en-GB")}
-                              </td>
-                              <td className="px-3 py-2 align-top">
-                                <button
-                                  type="button"
-                                  onClick={() => deleteAdminCampaign(c)}
-                                  disabled={deletingCampaignId === c.id}
-                                  className="px-2.5 py-1 text-[11px] bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
-                                >
-                                  {deletingCampaignId === c.id
-                                    ? lang === "el"
-                                      ? "Διαγραφή…"
-                                      : "Deleting…"
-                                    : txt.btn_delete}
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        });
-                      })()
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                              </div>
+                              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-600">
+                                {app.proposed_price != null && (
+                                  <span>
+                                    {txt.apps_proposed}: €
+                                    {Number(app.proposed_price).toLocaleString(
+                                      lang === "el" ? "el-GR" : "en-GB"
+                                    )}
+                                  </span>
+                                )}
+                                <span>
+                                  {new Date(app.created_at).toLocaleDateString(
+                                    lang === "el" ? "el-GR" : "en-GB"
+                                  )}
+                                </span>
+                              </div>
+                              {app.message?.trim() ? (
+                                <p className="mt-2 text-sm text-slate-700 line-clamp-3 whitespace-pre-wrap">
+                                  {app.message}
+                                </p>
+                              ) : null}
+                              {links.length > 0 ? (
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  {links.map((url) => (
+                                    <a
+                                      key={url}
+                                      href={url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-xs text-blue-700 hover:underline break-all"
+                                    >
+                                      {url}
+                                    </a>
+                                  ))}
+                                </div>
+                              ) : null}
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  );
+                };
+
+                if (campaignsLoading && adminCampaigns.length === 0) {
+                  return (
+                    <div className="px-4 py-8 text-center text-slate-500">
+                      {lang === "el" ? "Φόρτωση…" : "Loading…"}
+                    </div>
+                  );
+                }
+                if (filtered.length === 0) {
+                  return (
+                    <div className="px-4 py-8 text-center text-slate-500">{emptyLabel}</div>
+                  );
+                }
+
+                return (
+                  <>
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-slate-50 border-b border-slate-200">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">
+                              {txt.col_brand}
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">
+                              {txt.col_campaign_title}
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">
+                              {txt.col_campaign_status}
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">
+                              {txt.col_bud}
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">
+                              {txt.col_applications}
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">
+                              {lang === "el" ? "Προθεσμία" : "Deadline"}
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">
+                              {txt.col_date}
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">
+                              {txt.col_act}
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                          {filtered.map((c) => {
+                            const meta = getCampaignBrandMeta(c);
+                            const statusEn =
+                              c.status === "open" ? "Open" : c.status === "closed" ? "Closed" : "Draft";
+                            const statusEl =
+                              c.status === "open"
+                                ? "Ανοιχτή"
+                                : c.status === "closed"
+                                  ? "Κλειστή"
+                                  : "Πρόχειρο";
+                            const statusCls =
+                              c.status === "open"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : c.status === "closed"
+                                  ? "bg-slate-200 text-slate-700"
+                                  : "bg-amber-100 text-amber-800";
+                            const appCount = c.applications_count ?? c.applications?.length ?? 0;
+                            const expanded = expandedCampaignId === c.id;
+                            return (
+                              <Fragment key={c.id}>
+                                <tr className="hover:bg-slate-50">
+                                  <td className="px-3 py-2 align-top">
+                                    <div className="font-medium text-slate-900">{meta.name}</div>
+                                    {meta.email && (
+                                      <div className="text-xs text-slate-500 break-all max-w-[180px]">
+                                        {meta.email}
+                                      </div>
+                                    )}
+                                    {meta.verified ? (
+                                      <span className="mt-1 inline-flex text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-800">
+                                        verified
+                                      </span>
+                                    ) : null}
+                                  </td>
+                                  <td className="px-3 py-2 align-top max-w-[220px]">
+                                    <div className="font-medium text-slate-800 line-clamp-2">{c.title}</div>
+                                    {c.category ? (
+                                      <div className="text-xs text-slate-500 mt-0.5">{c.category}</div>
+                                    ) : null}
+                                  </td>
+                                  <td className="px-3 py-2 align-top whitespace-nowrap">
+                                    <span
+                                      className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusCls}`}
+                                    >
+                                      {lang === "el" ? statusEl : statusEn}
+                                    </span>
+                                  </td>
+                                  <td className="px-3 py-2 align-top text-sm whitespace-nowrap">
+                                    €
+                                    {Number(c.budget || 0).toLocaleString(
+                                      lang === "el" ? "el-GR" : "en-GB"
+                                    )}
+                                  </td>
+                                  <td className="px-3 py-2 align-top whitespace-nowrap">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setExpandedCampaignId(expanded ? null : c.id)
+                                      }
+                                      className="inline-flex items-center gap-1.5 text-sm text-slate-800 hover:text-blue-700"
+                                    >
+                                      <span className="font-medium">
+                                        {txt.col_applications} ({appCount})
+                                      </span>
+                                      <span className="text-xs text-slate-500">
+                                        {expanded ? txt.apps_collapse : txt.apps_expand}
+                                      </span>
+                                    </button>
+                                  </td>
+                                  <td className="px-3 py-2 align-top text-sm text-slate-600 whitespace-nowrap">
+                                    {c.deadline
+                                      ? new Date(c.deadline).toLocaleDateString(
+                                          lang === "el" ? "el-GR" : "en-GB"
+                                        )
+                                      : "—"}
+                                  </td>
+                                  <td className="px-3 py-2 align-top text-sm text-slate-600 whitespace-nowrap">
+                                    {new Date(c.created_at).toLocaleDateString(
+                                      lang === "el" ? "el-GR" : "en-GB"
+                                    )}
+                                  </td>
+                                  <td className="px-3 py-2 align-top">
+                                    <button
+                                      type="button"
+                                      onClick={() => deleteAdminCampaign(c)}
+                                      disabled={deletingCampaignId === c.id}
+                                      className="px-2.5 py-1 text-[11px] bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+                                    >
+                                      {deletingCampaignId === c.id
+                                        ? lang === "el"
+                                          ? "Διαγραφή…"
+                                          : "Deleting…"
+                                        : txt.btn_delete}
+                                    </button>
+                                  </td>
+                                </tr>
+                                {expanded ? (
+                                  <tr className="bg-slate-50">
+                                    <td colSpan={8} className="px-4 py-3">
+                                      {renderApplicants(c)}
+                                    </td>
+                                  </tr>
+                                ) : null}
+                              </Fragment>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="md:hidden divide-y divide-slate-200">
+                      {filtered.map((c) => {
+                        const meta = getCampaignBrandMeta(c);
+                        const statusEn =
+                          c.status === "open" ? "Open" : c.status === "closed" ? "Closed" : "Draft";
+                        const statusEl =
+                          c.status === "open"
+                            ? "Ανοιχτή"
+                            : c.status === "closed"
+                              ? "Κλειστή"
+                              : "Πρόχειρο";
+                        const statusCls =
+                          c.status === "open"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : c.status === "closed"
+                              ? "bg-slate-200 text-slate-700"
+                              : "bg-amber-100 text-amber-800";
+                        const appCount = c.applications_count ?? c.applications?.length ?? 0;
+                        const expanded = expandedCampaignId === c.id;
+                        return (
+                          <article key={c.id} className="p-4 space-y-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="font-semibold text-slate-900 line-clamp-2">{c.title}</p>
+                                <p className="text-sm text-slate-600 mt-0.5">{meta.name}</p>
+                                {meta.email ? (
+                                  <p className="text-xs text-slate-500 break-all">{meta.email}</p>
+                                ) : null}
+                              </div>
+                              <span
+                                className={`shrink-0 inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusCls}`}
+                              >
+                                {lang === "el" ? statusEl : statusEn}
+                              </span>
+                            </div>
+                            <div className="text-sm text-slate-700 flex flex-wrap gap-x-3 gap-y-1">
+                              <span>
+                                €
+                                {Number(c.budget || 0).toLocaleString(
+                                  lang === "el" ? "el-GR" : "en-GB"
+                                )}
+                              </span>
+                              <span>
+                                {new Date(c.created_at).toLocaleDateString(
+                                  lang === "el" ? "el-GR" : "en-GB"
+                                )}
+                              </span>
+                              {c.deadline ? (
+                                <span>
+                                  {lang === "el" ? "Προθεσμία" : "Deadline"}:{" "}
+                                  {new Date(c.deadline).toLocaleDateString(
+                                    lang === "el" ? "el-GR" : "en-GB"
+                                  )}
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setExpandedCampaignId(expanded ? null : c.id)}
+                                className="px-3 py-1.5 text-xs rounded-md border border-slate-300 text-slate-800"
+                              >
+                                {txt.col_applications} ({appCount}) ·{" "}
+                                {expanded ? txt.apps_collapse : txt.apps_expand}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => deleteAdminCampaign(c)}
+                                disabled={deletingCampaignId === c.id}
+                                className="px-3 py-1.5 text-xs rounded-md bg-red-600 text-white disabled:opacity-50"
+                              >
+                                {deletingCampaignId === c.id
+                                  ? lang === "el"
+                                    ? "Διαγραφή…"
+                                    : "Deleting…"
+                                  : txt.btn_delete}
+                              </button>
+                            </div>
+                            {expanded ? (
+                              <div className="pt-2 border-t border-slate-100">{renderApplicants(c)}</div>
+                            ) : null}
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </>
+                );
+              })()}
             </>
           )}
 

@@ -21,6 +21,21 @@ async function requireLoggedInAdmin(request: NextRequest) {
   return { user };
 }
 
+type CampaignApplicationRow = {
+  id: string;
+  campaign_id: string;
+  influencer_id: string;
+  status: string;
+  message: string | null;
+  proposed_price: number | null;
+  work_links: string | null;
+  created_at: string;
+  influencers:
+    | { display_name: string | null; avatar_url: string | null }
+    | Array<{ display_name: string | null; avatar_url: string | null }>
+    | null;
+};
+
 /** Λίστα όλων των καμπανιών (service role — μόνο admin). */
 export async function GET(request: NextRequest) {
   try {
@@ -39,6 +54,9 @@ export async function GET(request: NextRequest) {
         category,
         status,
         deadline,
+        platforms,
+        compensation_type,
+        deliverables,
         created_at,
         updated_at,
         brands ( brand_name, contact_email, verified )
@@ -61,9 +79,52 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const campaigns = data ?? [];
+    const ids = campaigns.map((c) => c.id).filter(Boolean);
+    const appsByCampaign = new Map<string, CampaignApplicationRow[]>();
+
+    if (ids.length > 0) {
+      const { data: apps, error: appsError } = await supabaseAdmin
+        .from("campaign_applications")
+        .select(
+          `
+          id,
+          campaign_id,
+          influencer_id,
+          status,
+          message,
+          proposed_price,
+          work_links,
+          created_at,
+          influencers ( display_name, avatar_url )
+        `
+        )
+        .in("campaign_id", ids)
+        .order("created_at", { ascending: false });
+
+      if (appsError) {
+        console.error("[admin/campaigns GET applications]", appsError);
+      } else {
+        for (const row of (apps ?? []) as CampaignApplicationRow[]) {
+          const list = appsByCampaign.get(row.campaign_id) || [];
+          list.push(row);
+          appsByCampaign.set(row.campaign_id, list);
+        }
+      }
+    }
+
+    const withApps = campaigns.map((c) => {
+      const applications = appsByCampaign.get(c.id) || [];
+      return {
+        ...c,
+        applications,
+        applications_count: applications.length,
+      };
+    });
+
     return NextResponse.json({
       success: true,
-      campaigns: data ?? [],
+      campaigns: withApps,
       schemaMissing: false,
     });
   } catch (e: unknown) {
