@@ -1,5 +1,4 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { GEMINI_PAUSED_MSG, isGeminiPaused } from '@/lib/geminiPause';
 
 const GREEK_RE = /[\u0370-\u03FF\u1F00-\u1FFF]/;
 const LATIN_RE = /[A-Za-z]/;
@@ -21,7 +20,6 @@ export type BioPair = {
 };
 
 async function translateWithGemini(text: string, target: 'el' | 'en'): Promise<string> {
-  if (isGeminiPaused()) throw new Error(GEMINI_PAUSED_MSG);
   const apiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || '').trim();
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY missing');
