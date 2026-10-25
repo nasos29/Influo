@@ -13,6 +13,7 @@ import { CATEGORIES, categoryLabel, normalizeCategoryToken } from "@/lib/categor
 import { publicProfilePath } from "@/lib/profileSlug";
 import { mergeApplicantProfile } from "@/lib/applicantProfile";
 import { findContactInfo, filterWorkLinks } from "@/lib/contactFilter";
+import CampaignCard from "@/components/CampaignCard";
 
 const CONTACT_BLOCKED: { el: string; en: string } = {
   el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
@@ -254,13 +255,6 @@ function dmy(value: string | null | undefined): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(ymd(value));
   if (!match) return "";
   return `${match[3]}/${match[2]}/${match[1]}`;
-}
-
-function platformNames(ids: string[] | null | undefined, lang: "el" | "en"): string {
-  if (!Array.isArray(ids) || !ids.length) return "";
-  return ids
-    .map((id) => PLATFORMS.find((platform) => platform.id === id)?.[lang] || id)
-    .join(", ");
 }
 
 export default function BrandCampaignsSection({
@@ -888,46 +882,40 @@ export default function BrandCampaignsSection({
         ) : rows.length === 0 ? (
           <p className="text-slate-500 text-sm border border-dashed border-slate-200 rounded-xl p-8 text-center">{t.empty}</p>
         ) : (
-          <ul className="space-y-3">
+          <ul className="grid gap-4 md:grid-cols-2">
             {rows.map((row) => (
-              <li key={row.id} className="border border-slate-200 rounded-xl bg-white overflow-hidden">
-                <div className="p-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                  <div className="min-w-0 flex-1 overflow-hidden">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h4 className="font-semibold text-slate-900">{row.title}</h4>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${row.status === "open" ? "bg-green-100 text-green-800" : row.status === "closed" ? "bg-slate-200 text-slate-700" : "bg-amber-100 text-amber-900"}`}>
-                        {row.status === "open" ? t.status_open : row.status === "closed" ? t.status_closed : t.status_draft}
-                      </span>
+              <li key={row.id} className="space-y-3">
+                <CampaignCard
+                  campaign={row}
+                  lang={lang}
+                  hideBrand
+                  footer={
+                    <div className="flex flex-col gap-3">
+                      <p className="text-xs text-slate-600">
+                        {[
+                          row.starts_on ? `${x.card_start} ${dmy(row.starts_on)}` : "",
+                          `${appCounts[row.id] ?? 0} ${t.applications}`,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                      {row.status === "open" && (
+                        <Link href={`/campaigns/${row.id}`} className="inline-block text-sm text-blue-600 hover:underline">
+                          {x.public_page}
+                        </Link>
+                      )}
+                      <div className="relative z-10 flex flex-wrap gap-2">
+                        <button type="button" onClick={() => { setExpandedId(expandedId === row.id ? null : row.id); if (expandedId !== row.id) void loadApplications(row.id); }} className="text-sm px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50">
+                          {t.applications}
+                        </button>
+                        <button type="button" onClick={() => openEdit(row)} className="text-sm px-3 py-1.5 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50">{t.edit}</button>
+                        <button type="button" onClick={() => remove(row)} className="text-sm px-3 py-1.5 rounded-lg border border-red-200 text-red-700 hover:bg-red-50">{t.delete}</button>
+                      </div>
                     </div>
-                    <p className="text-sm text-slate-600 mt-1 line-clamp-2">{row.description}</p>
-                    <p className="text-sm text-slate-800 mt-2">
-                      <strong>€{Number(row.budget).toLocaleString(lang === "el" ? "el-GR" : "en-GB")}</strong>
-                      {row.category ? ` · ${categoryLabel(row.category, lang)}` : ""}
-                      {row.compensation_type ? ` · ${row.compensation_type === "money" ? x.comp_money : row.compensation_type === "product" ? x.comp_product : x.comp_both}` : ""}
-                    </p>
-                    <p className="text-xs text-slate-600 mt-1">
-                      {[
-                        platformNames(row.platforms, lang),
-                        row.starts_on ? `${x.card_start} ${dmy(row.starts_on)}` : "",
-                        `${appCounts[row.id] ?? 0} ${t.applications}`,
-                      ].filter(Boolean).join(" · ")}
-                    </p>
-                    {row.status === "open" && (
-                      <Link href={`/campaigns/${row.id}`} className="inline-block mt-2 text-sm text-blue-600 hover:underline">
-                        {x.public_page}
-                      </Link>
-                    )}
-                  </div>
-                  <div className="relative z-10 flex shrink-0 flex-wrap gap-2 self-start">
-                    <button type="button" onClick={() => { setExpandedId(expandedId === row.id ? null : row.id); if (expandedId !== row.id) void loadApplications(row.id); }} className="text-sm px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50">
-                      {t.applications}
-                    </button>
-                    <button type="button" onClick={() => openEdit(row)} className="text-sm px-3 py-1.5 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50">{t.edit}</button>
-                    <button type="button" onClick={() => remove(row)} className="text-sm px-3 py-1.5 rounded-lg border border-red-200 text-red-700 hover:bg-red-50">{t.delete}</button>
-                  </div>
-                </div>
+                  }
+                />
                 {expandedId === row.id && (
-                  <div className="border-t border-slate-100 bg-slate-50 p-4">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     {loadingApps === row.id ? (
                       <div className="h-16 rounded-lg bg-slate-200 animate-pulse" />
                     ) : (appsByCampaign[row.id]?.length ?? 0) === 0 ? (
@@ -940,14 +928,35 @@ export default function BrandCampaignsSection({
                             inf?.engagement_rate && typeof inf.engagement_rate === "object"
                               ? Object.entries(inf.engagement_rate as Record<string, string>).map(([k, v]) => `${k.slice(0, 2).toUpperCase()} ${v}`).join(" · ")
                               : inf?.engagement_rate ? String(inf.engagement_rate) : "";
+                          const appStatusChip =
+                            app.status === "accepted"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : app.status === "rejected"
+                                ? "bg-slate-200 text-slate-700"
+                                : app.status === "shortlisted"
+                                  ? "bg-blue-100 text-blue-800"
+                                  : app.status === "withdrawn"
+                                    ? "bg-slate-100 text-slate-500"
+                                    : "bg-amber-100 text-amber-900";
+                          const appStatusText =
+                            app.status === "accepted"
+                              ? t.app_accepted
+                              : app.status === "rejected"
+                                ? t.app_rejected
+                                : app.status === "shortlisted"
+                                  ? t.app_shortlisted
+                                  : app.status === "withdrawn"
+                                    ? t.app_withdrawn
+                                    : t.app_pending;
                           return (
-                            <article key={app.id} className="bg-white border border-slate-200 rounded-lg p-3">
+                            <article key={app.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
                               <div className="flex gap-3">
                                 <CreatorPhoto src={inf?.avatar_url} name={inf?.display_name || "Creator"} className="w-14 h-14" rounded="rounded-full" />
                                 <div className="min-w-0 flex-1">
                                   <div className="flex flex-wrap items-center gap-2">
                                     <InfluencerPresenceDot influencerId={app.influencer_id} lang={lang} />
                                     <p className="font-medium text-slate-900">{inf?.display_name || app.influencer_id}</p>
+                                    <span className={`text-[11px] font-medium px-2.5 py-1 rounded-full ${appStatusChip}`}>{appStatusText}</span>
                                     <Link href={publicProfilePath(inf?.profile_slug, app.influencer_id)} className="text-xs text-blue-600 hover:underline">{x.profile}</Link>
                                   </div>
                                   <PlatformFollowers accounts={inf?.accounts} lang={lang} className="mt-1" showDeclared />
