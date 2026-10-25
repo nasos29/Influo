@@ -216,7 +216,7 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
           const { error: uploadError } = await supabase.storage
             .from('avatars')
             .upload(filePath, preparedLogo, {
-              cacheControl: '3600',
+              cacheControl: '31536000',
               upsert: false
             });
 

@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
 
   const { error: updateError } = await admin
     .from("campaign_applications")
-    .update({ status })
+    .update({ status, reviewed_at: new Date().toISOString() })
     .eq("id", applicationId);
   if (updateError) {
     const migration = /check constraint|status/i.test(updateError.message);

@@ -573,7 +573,7 @@ export default function InfluencerSignupForm() {
         jpegQuality: 0.78,
       });
       const fileName = `avatar-${Date.now()}-${preparedAvatar.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-      const { error: uploadError } = await supabase.storage.from("avatars").upload(fileName, preparedAvatar);
+      const { error: uploadError } = await supabase.storage.from("avatars").upload(fileName, preparedAvatar, { cacheControl: '31536000', upsert: false });
       if (uploadError) {
         throw new Error(lang === "el" ? "Αποτυχία ανεβάσματος φωτογραφίας. Δοκίμασε ξανά." : "Photo upload failed. Please try again.");
       }
