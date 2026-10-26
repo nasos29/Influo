@@ -10,12 +10,15 @@ import Footer from "@/components/Footer";
 import TopInfluencersSection from "@/components/TopInfluencersSection";
 import NewlyApprovedInfluencersSection from "@/components/NewlyApprovedInfluencersSection";
 import CampaignCard, { type CampaignCardData } from "@/components/CampaignCard";
+import HomeTrustStatsRow from "@/components/HomeTrustStats";
+import HomeHowItWorks from "@/components/HomeHowItWorks";
 import { supabase } from "@/lib/supabaseClient";
 import { getStoredLanguage, setStoredLanguage, type Language } from "@/lib/language";
 import { getCachedImageUrl } from "@/lib/imageProxy";
 import FastImage from "@/components/FastImage";
 import { SITE_URL } from "@/lib/site";
 import { normalizeNameCase } from "@/lib/greeklish";
+import type { HomeTrustStats } from "@/lib/loadHomeTrustStats";
 
 type Lang = "el" | "en";
 
@@ -147,9 +150,11 @@ interface VerifiedBrand {
 export default function Home({
   initialInfluencers = [],
   openCampaigns = [],
+  trustStats = { approvedInfluencers: null, openCampaigns: null },
 }: {
   initialInfluencers?: Influencer[];
   openCampaigns?: CampaignCardData[];
+  trustStats?: HomeTrustStats;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -364,7 +369,7 @@ export default function Home({
         }}
       />
       
-      <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-white to-blue-50/30 font-sans text-slate-900 selection:bg-purple-200">
+      <div className="min-h-screen flex flex-col overflow-x-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50/30 font-sans text-slate-900 selection:bg-purple-200">
       {/* Header */}
         <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-200/50 shadow-sm">
         <div className="max-w-7xl mx-auto flex justify-between items-center px-4 sm:px-6 py-4">
@@ -668,8 +673,12 @@ export default function Home({
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-2xl pointer-events-none"></div>
               </div>
             </div>
+
+            <HomeTrustStatsRow stats={trustStats} lang={lang} />
           </div>
         </section>
+
+      <HomeHowItWorks lang={lang} />
 
       {/* Top Influencers of the Month */}
         <TopInfluencersSection lang={lang} />
