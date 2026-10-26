@@ -8,7 +8,11 @@ export async function POST(request: NextRequest) {
     if (denied) return denied;
 
     const { email } = await request.json();
-    const result = await cleanupOrphanedAuthByEmail(supabaseService(), String(email || ""));
+    const result = await cleanupOrphanedAuthByEmail(
+      supabaseService(),
+      String(email || ""),
+      "admin"
+    );
     return NextResponse.json(result.body, { status: result.status });
   } catch (error: unknown) {
     console.error("Error in cleanup-orphaned-auth API:", error);
