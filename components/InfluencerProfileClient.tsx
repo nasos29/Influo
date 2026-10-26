@@ -257,7 +257,10 @@ const t = {
     reviews_comment: "Σχόλια",
     reviews_project: "Τύπος Project",
     reviews_submit: "Υποβολή",
-    review_error_no_collab: "Μπορείτε να αξιολογήσετε μόνο influencers με τους οποίους έχετε συνεργαστεί. Παρακαλώ ολοκληρώστε πρώτα μια συνεργασία.",
+    reviews_login_brand: "Συνδεθείτε ως brand για να αξιολογήσετε",
+    reviews_login_link: "Σύνδεση",
+    reviews_subtitle: "Μόνο brands που συνεργάστηκαν μέσω Influo (συμφωνία ή εγκεκριμένη παράδοση καμπάνιας) μπορούν να αξιολογήσουν",
+    review_error_no_collab: "Μπορείτε να αξιολογήσετε μόνο influencers με τους οποίους έχετε συνεργαστεί. Παρακαλώ ολοκληρώστε πρώτα μια συνεργασία. Μετράει και η εγκεκριμένη παράδοση σε καμπάνια μέσω Influo.",
     review_error_already: "Έχετε ήδη αξιολογήσει αυτόν τον influencer. Μπορείτε να υποβάλετε μόνο μια αξιολόγηση ανά συνεργασία.",
     badges_verified: "Επαληθευμένος",
     badges_top: "Top Performer",
@@ -348,7 +351,10 @@ const t = {
     reviews_comment: "Comment",
     reviews_project: "Project Type",
     reviews_submit: "Submit",
-    review_error_no_collab: "You can only review influencers you have worked with. Please complete a collaboration first.",
+    reviews_login_brand: "Sign in as a brand to leave a review",
+    reviews_login_link: "Sign in",
+    reviews_subtitle: "Only brands that collaborated through Influo (agreement or approved campaign deliverable) can leave a review",
+    review_error_no_collab: "You can only review influencers you have worked with. Please complete a collaboration first. An approved campaign deliverable through Influo also counts.",
     review_error_already: "You have already reviewed this influencer. You can only submit one review per collaboration.",
     badges_verified: "Verified",
     badges_top: "Top Performer",
@@ -455,8 +461,7 @@ export default function InfluencerProfile(props: {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewText, setReviewText] = useState("");
   const [reviewProjectType, setReviewProjectType] = useState("");
-  const [reviewBrandName, setReviewBrandName] = useState("");
-  const [reviewBrandEmail, setReviewBrandEmail] = useState("");
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [isBrand, setIsBrand] = useState(false);
   const commercialRef = useRef<{
     min_rate?: string;
@@ -1024,49 +1029,58 @@ export default function InfluencerProfile(props: {
   // --- HANDLER: SUBMIT REVIEW ---
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!reviewBrandEmail || !reviewRating) {
-      alert(lang === 'el' ? 'Παρακαλώ συμπληρώστε email και βαθμολογία' : 'Please fill in email and rating');
+    if (!isBrand) {
+      alert(txt.reviews_login_brand);
+      return;
+    }
+    if (!reviewRating || reviewRating < 1 || reviewRating > 5) {
+      alert(lang === "el" ? "Παρακαλώ επιλέξτε βαθμολογία (1-5)" : "Please choose a rating (1-5)");
+      return;
+    }
+    if (reviewText.trim().length > 1000) {
+      alert(
+        lang === "el"
+          ? "Το κείμενο αξιολόγησης δεν μπορεί να υπερβαίνει τους 1000 χαρακτήρες."
+          : "Review text cannot exceed 1000 characters."
+      );
       return;
     }
 
+    setReviewSubmitting(true);
     try {
-      const response = await fetch('/api/reviews', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await sessionFetch("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           influencerId: id,
-          brandEmail: reviewBrandEmail,
-          brandName: reviewBrandName || reviewBrandEmail,
           rating: reviewRating,
           reviewText: reviewText,
           projectType: reviewProjectType,
-          lang: lang
-        })
+          lang: lang,
+        }),
       });
 
       const result = await response.json();
       if (result.success) {
-        alert(lang === 'el' ? 'Η αξιολόγηση υποβλήθηκε!' : 'Review submitted!');
+        alert(lang === "el" ? "Η αξιολόγηση υποβλήθηκε!" : "Review submitted!");
         setShowReviewModal(false);
         setReviewRating(5);
         setReviewText("");
         setReviewProjectType("");
-        setReviewBrandName("");
-        setReviewBrandEmail("");
-        // Reload reviews
         const reloadResponse = await fetch(`/api/reviews?influencerId=${id}`);
         const reloadData = await reloadResponse.json();
         if (reloadData.reviews) setReviews(reloadData.reviews);
-        // Reload profile to update stats
         window.location.reload();
       } else {
-        // Use translated error message from API or fallback to translation keys
-        const errorMsg = result.error || (lang === 'el' ? txt.review_error_no_collab : 'Error submitting review');
+        const errorMsg = result.error || txt.review_error_no_collab;
         throw new Error(errorMsg);
       }
-    } catch (err: any) {
-      console.error('Error submitting review:', err);
-      alert(lang === 'el' ? 'Σφάλμα: ' + err.message : 'Error: ' + err.message);
+    } catch (err: unknown) {
+      console.error("Error submitting review:", err);
+      const message = err instanceof Error ? err.message : "Error";
+      alert(lang === "el" ? "Σφάλμα: " + message : "Error: " + message);
+    } finally {
+      setReviewSubmitting(false);
     }
   };
 
@@ -1228,8 +1242,6 @@ export default function InfluencerProfile(props: {
                 setReviewRating(5);
                 setReviewText("");
                 setReviewProjectType("");
-                setReviewBrandName("");
-                setReviewBrandEmail("");
               }}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-xl z-10"
             >✕</button>
@@ -1237,32 +1249,19 @@ export default function InfluencerProfile(props: {
             <div className="p-8">
               <h2 className="text-2xl font-bold text-slate-900 mb-2">{txt.reviews_add}</h2>
               <p className="text-slate-500 mb-6">{lang === 'el' ? 'Αξιολόγησε αυτόν τον influencer' : 'Rate this influencer'}</p>
-              
+
+              {!isBrand ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                  <p className="font-medium">{txt.reviews_login_brand}</p>
+                  <Link
+                    href={`/brand/login?redirect=${encodeURIComponent(publicPath)}`}
+                    className="mt-3 inline-flex text-blue-700 font-semibold hover:underline"
+                  >
+                    {txt.reviews_login_link}
+                  </Link>
+                </div>
+              ) : (
               <form onSubmit={handleSubmitReview} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.modal_brand}</label>
-                  <input 
-                    required 
-                    type="text" 
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-900" 
-                    placeholder={txt.modal_brand}
-                    value={reviewBrandName}
-                    onChange={e => setReviewBrandName(e.target.value)}
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.modal_email}</label>
-                  <input 
-                    required 
-                    type="email" 
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-900" 
-                    placeholder={txt.modal_email}
-                    value={reviewBrandEmail}
-                    onChange={e => setReviewBrandEmail(e.target.value)}
-                  />
-                </div>
-                
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{txt.reviews_rating}</label>
                   <div className="flex gap-2">
@@ -1300,20 +1299,24 @@ export default function InfluencerProfile(props: {
                   <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.reviews_comment}</label>
                   <textarea 
                     rows={4} 
+                    maxLength={1000}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-900 resize-none" 
                     placeholder={lang === 'el' ? 'Γράψτε την άποψή σας...' : 'Write your review...'}
                     value={reviewText}
                     onChange={e => setReviewText(e.target.value)}
                   />
+                  <p className="mt-1 text-xs text-slate-400">{reviewText.trim().length}/1000</p>
                 </div>
 
                 <button 
-                  type="submit" 
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg"
+                  type="submit"
+                  disabled={reviewSubmitting}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg disabled:opacity-50"
                 >
-                  {txt.reviews_submit}
+                  {reviewSubmitting ? "…" : txt.reviews_submit}
                 </button>
               </form>
+              )}
             </div>
           </div>
         </div>
@@ -2593,18 +2596,14 @@ export default function InfluencerProfile(props: {
                 
                 {activeTab === "reviews" && (
                   <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
-                    <div className="flex justify-between items-center mb-6">
+                    <div className="flex justify-between items-center mb-6 gap-4">
                       <div>
                         <h2 className="text-xl font-bold text-slate-900">{txt.reviews_title}</h2>
-                        <p className="text-sm text-slate-500 mt-1">
-                          {lang === 'el' 
-                            ? 'Μόνο brands που έχουν ολοκληρώσει συνεργασία μπορούν να αξιολογήσουν' 
-                            : 'Only brands who have completed collaborations can review'}
-                        </p>
+                        <p className="text-sm text-slate-500 mt-1">{txt.reviews_subtitle}</p>
                       </div>
                       <button 
                         onClick={() => setShowReviewModal(true)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-lg transition-colors text-sm"
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-lg transition-colors text-sm shrink-0"
                       >
                         + {txt.reviews_add}
                       </button>
