@@ -13,6 +13,9 @@ interface BrandCardProps {
   industry: string | null;
   logo_url: string | null;
   verified: boolean;
+  bio?: string | null;
+  city?: string | null;
+  instagram?: string | null;
   lang?: 'el' | 'en';
 }
 
@@ -24,8 +27,12 @@ export default function BrandCard({
   industry,
   logo_url,
   verified,
+  bio,
+  city,
+  instagram,
   lang = 'el',
 }: BrandCardProps) {
+  const bioText = (bio || "").trim();
   return (
     <div className="group bg-white rounded-lg border border-slate-200 overflow-hidden hover:shadow-md transition-shadow h-full flex flex-col">
       {/* Header Background */}
@@ -79,9 +86,46 @@ export default function BrandCard({
           {industry && (
             <p className="text-slate-600 text-xs mb-2">{formatCategoryLabels(industry, lang)}</p>
           )}
+          {city && (
+            <p className="text-slate-500 text-xs mb-1">{city}</p>
+          )}
         </div>
 
-        {/* Contact Info */}
+        {bioText ? (
+          <div className="mb-4 rounded-lg border border-slate-100 bg-slate-50/80 p-3">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-1">
+              {lang === 'el' ? 'Για το brand' : 'About the brand'}
+            </p>
+            <p className="text-xs text-slate-700 line-clamp-4 whitespace-pre-wrap">{bioText}</p>
+            {(website || instagram) && (
+              <div className="mt-2 flex flex-col gap-1 text-xs">
+                {website && (
+                  <a
+                    href={website.startsWith('http') ? website : `https://${website}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline truncate"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {website.replace(/^https?:\/\//, '')}
+                  </a>
+                )}
+                {instagram && (
+                  <a
+                    href={instagram.startsWith('http') ? instagram : `https://${instagram}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline truncate"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Instagram
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+        /* Contact Info (no public bio yet) */
         <div className="flex flex-col gap-2 mb-4 text-xs text-slate-600">
           {contact_person && (
             <div className="flex items-center gap-2">
@@ -108,6 +152,7 @@ export default function BrandCard({
             </div>
           )}
         </div>
+        )}
 
         {/* Footer: Verified Badge */}
         <div className="mt-auto pt-3 border-t border-slate-200">

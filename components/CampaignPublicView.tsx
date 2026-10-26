@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Footer from "@/components/Footer";
 import SiteHeader from "@/components/SiteHeader";
-import FastImage from "@/components/FastImage";
 import { campaignClosesMeta } from "@/components/CampaignCard";
 import { supabase } from "@/lib/supabaseClient";
 import { loadOwnProfiles } from "@/lib/ownProfile";
@@ -16,8 +15,8 @@ import { toastError, toastSuccess } from "@/components/Feedback";
 import { getStoredLanguage } from "@/lib/language";
 import { campaignAudience, type CampaignAudience } from "@/lib/campaignAudience";
 import { formatFollowerCount } from "@/lib/platformStats";
-import { getCachedImageUrl } from "@/lib/imageProxy";
 import { campaignPublicBadgeLabel } from "@/lib/campaignPublicBadge";
+import BrandAboutCard from "@/components/BrandAboutCard";
 
 const CONTACT_BLOCKED = {
   el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
@@ -46,7 +45,24 @@ type Campaign = {
   compensation_type?: string | null;
   status: string;
   applications_count?: number | null;
-  brands: { brand_name: string; logo_url: string | null } | { brand_name: string; logo_url: string | null }[] | null;
+  brands:
+    | {
+        brand_name: string;
+        logo_url: string | null;
+        bio?: string | null;
+        city?: string | null;
+        website?: string | null;
+        instagram?: string | null;
+      }
+    | {
+        brand_name: string;
+        logo_url: string | null;
+        bio?: string | null;
+        city?: string | null;
+        website?: string | null;
+        instagram?: string | null;
+      }[]
+    | null;
 };
 
 function brandOf(row: Campaign) {
@@ -112,9 +128,14 @@ export default function CampaignPublicView({
       setAudience({ kind: "anonymous" });
       let timedOut = false;
       const nowIso = new Date().toISOString();
+      const brandSelectFull =
+        "brands(brand_name, logo_url, bio, city, website, instagram)";
+      const brandSelectBasic = "brands(brand_name, logo_url)";
       const query = supabase
         .from("brand_campaigns")
-        .select("id, brand_id, title, description, budget, category, deliverables, deadline, opened_at, created_at, starts_on, location, min_followers, platforms, compensation_type, status, brands(brand_name, logo_url)")
+        .select(
+          `id, brand_id, title, description, budget, category, deliverables, deadline, opened_at, created_at, starts_on, location, min_followers, platforms, compensation_type, status, ${brandSelectFull}`
+        )
         .eq("id", id)
         .eq("status", "open")
         .or(`deadline.is.null,deadline.gt.${nowIso}`)
@@ -136,7 +157,9 @@ export default function CampaignPublicView({
       if (error && /column|schema cache/i.test(error.message || "")) {
         const basic = await supabase
           .from("brand_campaigns")
-          .select("id, brand_id, title, description, budget, category, deliverables, deadline, opened_at, created_at, status, brands(brand_name, logo_url)")
+          .select(
+            `id, brand_id, title, description, budget, category, deliverables, deadline, opened_at, created_at, status, ${brandSelectBasic}`
+          )
           .eq("id", id)
           .eq("status", "open")
           .or(`deadline.is.null,deadline.gt.${nowIso}`)
@@ -266,7 +289,6 @@ export default function CampaignPublicView({
   };
 
   const brand = campaign ? brandOf(campaign) : null;
-  const logoSrc = brand?.logo_url ? getCachedImageUrl(brand.logo_url) ?? brand.logo_url : null;
   const deliverables = campaign ? splitDeliverables(campaign.deliverables) : [];
   const platforms = campaign && Array.isArray(campaign.platforms) ? campaign.platforms : [];
   const closes = campaign
@@ -393,6 +415,13 @@ export default function CampaignPublicView({
                   </span>
                 ) : null}
               </div>
+              {brand?.brand_name ? (
+                <p className="mt-2 text-sm text-slate-500">
+                  {el ? "Από" : "By"}{" "}
+                  <span className="font-medium text-slate-700">{brand.brand_name}</span>
+                  {brand.city ? <span className="text-slate-400"> · {brand.city}</span> : null}
+                </p>
+              ) : null}
               <p className="text-slate-700 mt-4 whitespace-pre-wrap">{campaign.description}</p>
 
               {deliverables.length > 0 && (
@@ -472,23 +501,7 @@ export default function CampaignPublicView({
                 <div className="mt-5 hidden md:block">{applyBlock}</div>
               </div>
 
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  {el ? "Σχετικά με το brand" : "About the brand"}
-                </p>
-                <div className="mt-3 flex items-center gap-3">
-                  {logoSrc ? (
-                    <div className="relative w-12 h-12 rounded-xl overflow-hidden border border-slate-100 bg-slate-50 shrink-0">
-                      <FastImage src={logoSrc} alt={brand?.brand_name || "Brand"} fill className="object-cover" sizes="48px" />
-                    </div>
-                  ) : (
-                    <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 text-lg font-semibold shrink-0">
-                      {(brand?.brand_name || "B").slice(0, 1).toUpperCase()}
-                    </div>
-                  )}
-                  <p className="font-semibold text-slate-900">{brand?.brand_name || "Brand"}</p>
-                </div>
-              </div>
+              <BrandAboutCard brand={brand} lang={lang === "en" ? "en" : "el"} />
             </aside>
           </div>
         )}
