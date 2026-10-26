@@ -2,6 +2,7 @@
 
 import FastImage from "@/components/FastImage";
 import { getCachedImageUrl } from "@/lib/imageProxy";
+import { toPublicHttpsHref } from "@/lib/brandProfile";
 
 export type BrandAboutData = {
   brand_name?: string | null;
@@ -64,10 +65,10 @@ export default function BrandAboutCard({
       <p className="mt-4 text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{bio}</p>
       {(website || instagram) && (
         <ul className="mt-4 space-y-2 text-sm">
-          {website ? (
+          {website && toPublicHttpsHref(website) ? (
             <li>
               <a
-                href={website.startsWith("http") ? website : `https://${website}`}
+                href={toPublicHttpsHref(website)!}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-600 hover:underline break-all"
@@ -76,10 +77,10 @@ export default function BrandAboutCard({
               </a>
             </li>
           ) : null}
-          {instagram ? (
+          {instagram && toPublicHttpsHref(instagram) ? (
             <li>
               <a
-                href={instagram.startsWith("http") ? instagram : `https://${instagram}`}
+                href={toPublicHttpsHref(instagram)!}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-600 hover:underline break-all"

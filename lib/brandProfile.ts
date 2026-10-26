@@ -56,14 +56,53 @@ function trimOrNull(value: string): string | null {
   return t ? t : null;
 }
 
-/** Require https URL; return normalized href or null if empty; throw message key if invalid. */
+const INSTAGRAM_HANDLE_RE = /^[A-Za-z0-9._]{1,30}$/;
+
+function looksLikeDomain(hostname: string): boolean {
+  const host = hostname.replace(/\.$/, "").toLowerCase();
+  if (!host || /\s/.test(host)) return false;
+  // Require at least one dot (e.g. example.com) — reject bare words.
+  if (!host.includes(".")) return false;
+  if (host.startsWith(".") || host.endsWith(".") || host.includes("..")) return false;
+  return /^[a-z0-9.-]+$/.test(host);
+}
+
+function stripTrailingSlash(href: string): string {
+  return href.replace(/\/+$/, "") || href;
+}
+
+/**
+ * Normalize website / Instagram to a canonical https URL (no trailing slash).
+ * Accepts bare domains, www., http://, https://. Never rejects solely for http vs https.
+ * Instagram also accepts bare @username / username → https://instagram.com/{user}.
+ * Empty → null. Invalid domain / handle → throws invalid_website | invalid_instagram.
+ */
 export function parseHttpsUrl(raw: string, field: "website" | "instagram"): string | null {
   const trimmed = raw.trim();
   if (!trimmed) return null;
+  if (/\s/.test(trimmed)) {
+    throw new Error(field === "instagram" ? "invalid_instagram" : "invalid_website");
+  }
+
+  if (field === "instagram") {
+    const noAt = trimmed.replace(/^@+/, "");
+    const isBareHandle =
+      !!noAt &&
+      !/^https?:\/\//i.test(noAt) &&
+      !/instagram\.com/i.test(noAt) &&
+      !/^www\./i.test(noAt) &&
+      !noAt.includes("/");
+    if (isBareHandle) {
+      if (!INSTAGRAM_HANDLE_RE.test(noAt)) throw new Error("invalid_instagram");
+      return `https://instagram.com/${noAt}`;
+    }
+  }
 
   let withProtocol = trimmed;
   if (!/^https?:\/\//i.test(withProtocol)) {
     withProtocol = `https://${withProtocol}`;
+  } else if (/^http:\/\//i.test(withProtocol)) {
+    withProtocol = withProtocol.replace(/^http:\/\//i, "https://");
   }
 
   let url: URL;
@@ -73,18 +112,37 @@ export function parseHttpsUrl(raw: string, field: "website" | "instagram"): stri
     throw new Error(field === "instagram" ? "invalid_instagram" : "invalid_website");
   }
 
-  if (url.protocol !== "https:") {
-    throw new Error(field === "instagram" ? "invalid_instagram" : "invalid_website");
-  }
+  // Force https even if something odd slipped through.
+  url.protocol = "https:";
 
+  const host = url.hostname.replace(/^www\./i, "").toLowerCase();
   if (field === "instagram") {
-    const host = url.hostname.replace(/^www\./i, "").toLowerCase();
-    if (host !== "instagram.com") {
-      throw new Error("invalid_instagram");
-    }
+    if (host !== "instagram.com") throw new Error("invalid_instagram");
+    // Normalize to https://instagram.com/{path} without trailing slash / www.
+    const path = url.pathname.replace(/\/+$/, "") || "";
+    const handle = path.replace(/^\//, "").split("/")[0] || "";
+    if (handle && !INSTAGRAM_HANDLE_RE.test(handle)) throw new Error("invalid_instagram");
+    return handle ? `https://instagram.com/${handle}` : "https://instagram.com";
   }
 
-  return url.toString();
+  if (!looksLikeDomain(url.hostname)) {
+    throw new Error("invalid_website");
+  }
+
+  url.hash = "";
+  // Drop default empty path trailing slash via href cleanup.
+  const href = `${url.origin}${url.pathname === "/" ? "" : url.pathname}${url.search}`;
+  return stripTrailingSlash(href);
+}
+
+/** Public href for stored website/instagram values (adds https:// when missing). */
+export function toPublicHttpsHref(raw: string | null | undefined): string | null {
+  const t = (raw || "").trim();
+  if (!t) return null;
+  if (/^https?:\/\//i.test(t)) {
+    return t.replace(/^http:\/\//i, "https://");
+  }
+  return `https://${t}`;
 }
 
 export function normalizeBrandBio(raw: string): string | null {

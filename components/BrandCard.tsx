@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getCachedImageUrl } from "@/lib/imageProxy";
 import FastImage from "@/components/FastImage";
 import { formatCategoryLabels } from "@/lib/categories";
+import { toPublicHttpsHref } from "@/lib/brandProfile";
 
 interface BrandCardProps {
   id: string;
@@ -99,9 +100,9 @@ export default function BrandCard({
             <p className="text-xs text-slate-700 line-clamp-4 whitespace-pre-wrap">{bioText}</p>
             {(website || instagram) && (
               <div className="mt-2 flex flex-col gap-1 text-xs">
-                {website && (
+                {website && toPublicHttpsHref(website) && (
                   <a
-                    href={website.startsWith('http') ? website : `https://${website}`}
+                    href={toPublicHttpsHref(website)!}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-blue-600 hover:underline truncate"
@@ -110,9 +111,9 @@ export default function BrandCard({
                     {website.replace(/^https?:\/\//, '')}
                   </a>
                 )}
-                {instagram && (
+                {instagram && toPublicHttpsHref(instagram) && (
                   <a
-                    href={instagram.startsWith('http') ? instagram : `https://${instagram}`}
+                    href={toPublicHttpsHref(instagram)!}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-blue-600 hover:underline truncate"
@@ -135,13 +136,13 @@ export default function BrandCard({
               <span className="truncate">{contact_person}</span>
             </div>
           )}
-          {website && (
+          {website && toPublicHttpsHref(website) && (
             <div className="flex items-center gap-2">
               <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
               </svg>
               <a 
-                href={website.startsWith('http') ? website : `https://${website}`}
+                href={toPublicHttpsHref(website)!}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-600 hover:underline truncate"

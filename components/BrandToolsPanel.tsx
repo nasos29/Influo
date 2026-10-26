@@ -20,6 +20,7 @@ import {
   type BrandSnippetsState,
   type ToolSectionId,
 } from "@/lib/brandToolsStorage";
+import { toPublicHttpsHref } from "@/lib/brandProfile";
 
 type Props = {
   lang: "el" | "en";
@@ -211,9 +212,8 @@ export default function BrandToolsPanel({
   }, [brandId, el]);
 
   useEffect(() => {
-    if (website) {
-      setUtmBase(website.startsWith("http") ? website : `https://${website}`);
-    }
+    const href = toPublicHttpsHref(website);
+    if (href) setUtmBase(href);
   }, [website]);
 
   const priced = useMemo(() => {
