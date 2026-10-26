@@ -37,7 +37,7 @@ const t = {
     feat_6_desc: "Οι creators υποβάλλουν URL· εσείς εγκρίνετε ή ζητάτε αλλαγές.",
     campaign_title: "Καμπάνιες με αιτήσεις",
     campaign_desc:
-      "Ανεβάστε τίτλο, περιγραφή και budget. Οι verified influencers κάνουν αίτηση ενδιαφέροντος· εσείς διαχειρίζεστε τις αιτήσεις.",
+      "Ανεβάστε τίτλο, περιγραφή και budget — δωρεάν, χωρίς προμήθεια. Οι εγκεκριμένοι influencers κάνουν αίτηση ενδιαφέροντος· εσείς διαχειρίζεστε τις αιτήσεις.",
     campaign_cta: "Δημιουργία καμπάνιας",
     campaign_cta_guest: "Εγγραφή για καμπάνιες",
     ai_badge: "Περιλαμβάνεται",
@@ -99,7 +99,7 @@ const t = {
     feat_6_desc: "Creators submit a URL; you approve or request changes.",
     campaign_title: "Campaigns with applications",
     campaign_desc:
-      "Publish title, description, and budget. Verified influencers apply; you manage applications.",
+      "Publish title, description, and budget — free, no commission. Approved influencers apply; you manage applications.",
     campaign_cta: "Create a campaign",
     campaign_cta_guest: "Sign up for campaigns",
     ai_badge: "Included",

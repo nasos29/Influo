@@ -12,8 +12,8 @@ export const faqs: FAQItem[] = [
       en: "What is Influo?"
     },
     answer: {
-      el: "Η Influo είναι η πιο σύγχρονη πλατφόρμα Influencer Marketing στην Ελλάδα. Συνδέει brands με verified influencers για επαγγελματικές συνεργασίες.",
-      en: "Influo is the most modern Influencer Marketing platform in Greece. It connects brands with verified influencers for professional collaborations."
+      el: "Η Influo είναι η πιο σύγχρονη πλατφόρμα Influencer Marketing στην Ελλάδα. Συνδέει brands με εγκεκριμένους influencers για επαγγελματικές συνεργασίες.",
+      en: "Influo is the most modern Influencer Marketing platform in Greece. It connects brands with approved influencers for professional collaborations."
     }
   },
   {
@@ -23,8 +23,8 @@ export const faqs: FAQItem[] = [
       en: "How much does it cost to use the platform?"
     },
     answer: {
-      el: "Η εγγραφή και η βασική χρήση είναι δωρεάν για influencers και brands. Κερδίζετε μόνο όταν κλείνετε συνεργασίες!",
-      en: "Registration and basic use is free for influencers and brands. You only earn when you close collaborations!"
+      el: "Η εγγραφή και η βασική χρήση είναι δωρεάν για influencers και brands. Δεν παίρνουμε προμήθεια από τις συνεργασίες σας.",
+      en: "Registration and basic use is free for influencers and brands. We do not take a commission from your collaborations."
     }
   },
   {
@@ -34,8 +34,8 @@ export const faqs: FAQItem[] = [
       en: "How do I become an influencer on Influo?"
     },
     answer: {
-      el: "Εγγραφείτε δωρεάν, συμπληρώστε το προφίλ σας με stats, pricing και portfolio. Μετά την verification, θα εμφανίζεστε στον κατάλογο και θα λαμβάνετε προσφορές από brands.",
-      en: "Sign up for free, complete your profile with stats, pricing and portfolio. After verification, you'll appear in the directory and receive offers from brands."
+      el: "Εγγραφείτε δωρεάν, συμπληρώστε το προφίλ σας με stats, pricing και portfolio. Μετά την έγκριση, θα εμφανίζεστε στον κατάλογο και θα λαμβάνετε προσφορές από brands.",
+      en: "Sign up for free, complete your profile with stats, pricing and portfolio. After approval, you'll appear in the directory and receive offers from brands."
     }
   },
   {
@@ -56,8 +56,8 @@ export const faqs: FAQItem[] = [
       en: "What are badges and how do I earn them?"
     },
     answer: {
-      el: "Τα badges αναγνωρίζουν την απόδοση σας (New, Rising, Top Performer, Pro, Elite, VIP). Ενημερώνονται αυτόματα βάσει των followers, engagement rate, συνεργασιών και reviews.",
-      en: "Badges recognize your performance (New, Rising, Top Performer, Pro, Elite, VIP). They update automatically based on followers, engagement rate, collaborations and reviews."
+      el: "Τα badges αναγνωρίζουν την απόδοση σας (New, Rising, Top Performer, Pro, Elite, VIP). Ενημερώνονται αυτόματα βάσει των followers, engagement rate, συνεργασιών και reviews. Το ✓ «Στατιστικά ελεγμένα από το Influo» στο avatar δεν είναι badge κάρτας.",
+      en: "Badges recognize your performance (New, Rising, Top Performer, Pro, Elite, VIP). They update automatically based on followers, engagement rate, collaborations and reviews. The ✓ “Stats checked by Influo” on the avatar is not a card badge."
     }
   },
   {
@@ -78,8 +78,8 @@ export const faqs: FAQItem[] = [
       en: "How do I know if an influencer is trustworthy?"
     },
     answer: {
-      el: "Ελέγξτε: Verified badge, reviews από άλλα brands, completion rate, response time, και engagement rate. Όλοι οι influencers είναι verified με πραγματικά stats.",
-      en: "Check: Verified badge, reviews from other brands, completion rate, response time, and engagement rate. All influencers are verified with real stats."
+      el: "Ελέγξτε: το ✓ «Στατιστικά ελεγμένα από το Influo», reviews από άλλα brands, completion rate, response time, και engagement rate. Οι εγκεκριμένοι influencers εμφανίζονται στον κατάλογο με ελεγμένα στοιχεία.",
+      en: "Check: the ✓ “Stats checked by Influo”, reviews from other brands, completion rate, response time, and engagement rate. Approved influencers appear in the directory with checked stats."
     }
   },
   {
@@ -133,8 +133,19 @@ export const faqs: FAQItem[] = [
       en: "What are “Campaigns” in the brand dashboard?"
     },
     answer: {
-      el: "Μπορείτε να δημοσιεύσετε καμπάνια με τίτλο, περιγραφή, budget (€), προαιρετική κατηγορία, προθεσμία και deliverables. Όταν η κατάσταση είναι «Ανοιχτή», οι verified influencers τη βλέπουν στο dashboard τους και στη δημόσια σελίδα καμπανιών και μπορούν να υποβάλουν αίτηση ενδιαφέροντος. Διαχειρίζεστε τις αιτήσεις από την ίδια καρτέλα.",
-      en: "You can publish a campaign with title, description, budget (€), optional category, deadline and deliverables. When status is “Open”, verified influencers see it on their dashboard and on the public campaigns page and can submit an interest application. You manage applications in the same tab."
+      el: "Μπορείτε να δημοσιεύσετε καμπάνια με τίτλο, περιγραφή, budget (€), προαιρετική κατηγορία, προθεσμία και deliverables — δωρεάν, χωρίς προμήθεια. Όταν η κατάσταση είναι «Ανοιχτή», οι εγκεκριμένοι influencers τη βλέπουν στο dashboard τους και στη δημόσια σελίδα Καμπάνιες (/campaigns) και μπορούν να υποβάλουν αίτηση ενδιαφέροντος με προτεινόμενη τιμή, links προηγούμενης δουλειάς (μόνο από social δίκτυα) και προαιρετικό μήνυμα. Διαχειρίζεστε τις αιτήσεις από την ίδια καρτέλα.",
+      en: "You can publish a campaign with title, description, budget (€), optional category, deadline and deliverables — free, no commission. When status is “Open”, approved influencers see it on their dashboard and on the public Campaigns page (/en/campaigns) and can submit an interest application with a proposed rate, links to past work (social networks only) and an optional message. You manage applications in the same tab."
+    }
+  },
+  {
+    category: { el: "Για Brands", en: "For Brands" },
+    question: {
+      el: "Πόσο μένει ανοιχτή μια καμπάνια;",
+      en: "How long does a campaign stay open?"
+    },
+    answer: {
+      el: "Κλείνει αυτόματα στην προθεσμία της· αν δεν έχει προθεσμία, 30 μέρες μετά το άνοιγμα. Η κάρτα δείχνει «Κλείνει αυτόματα σε N μέρες» ή «Λήγει σε…». 3 μέρες πριν, το brand παίρνει υπενθύμιση email· όταν κλείσει, ενημερώνονται brand και αιτούντες σε εκκρεμότητα. Οι ληγμένες δεν εμφανίζονται δημόσια. Δεν διαγράφονται — μόνο κλείνουν. Για ξανάνοιγμα: επεξεργασία → κατάσταση «Ανοιχτή» (νέο 30ήμερο)· αν η προθεσμία πέρασε, ορίστε νέα.",
+      en: "It closes automatically on its deadline; with no deadline, 30 days after opening. The card shows “Closes automatically in N days” or “Ends in…”. Three days before close the brand gets an email reminder; when it closes, the brand and pending applicants are emailed. Expired campaigns leave the public list. They are not deleted — only closed. To reopen: edit → set status to Open (new 30-day window); if the deadline has passed, set a new one."
     }
   },
   {
@@ -144,8 +155,8 @@ export const faqs: FAQItem[] = [
       en: "How do I apply to a brand campaign?"
     },
     answer: {
-      el: "Με εγκεκριμένο προφίλ, από την καρτέλα «Καμπάνιες» βλέπετε ανοιχτές καμπάνιες από επαληθευμένα brands και υποβάλλετε αίτηση. Αν δεν έχετε εγκριθεί ακόμα, εμφανίζεται ενημερωτικό μήνυμα. Η δημόσια λίστα (μενού «Καμπάνιες») δείχνει καμπάνιες επαληθευμένων brands· ως μη εγκεκριμένος χρήστης δεν εμφανίζονται λεπτομέρειες καμπανιών.",
-      en: "With an approved profile, the “Campaigns” tab lists open campaigns from verified brands and you can apply. If you are not approved yet, you’ll see an explanatory message. The public “Campaigns” page lists campaigns from verified brands; until you are approved, campaign details are not shown to you when logged in."
+      el: "Με εγκεκριμένο προφίλ, από την καρτέλα «Καμπάνιες» ή τη δημόσια σελίδα /campaigns βλέπετε ανοιχτές καμπάνιες από επαληθευμένα brands. Όλοι μπορούν να δουν τις ανοιχτές καμπάνιες· αίτηση κάνουν μόνο οι εγκεκριμένοι influencers. Η αίτηση περιλαμβάνει προτεινόμενη τιμή, links προηγούμενης δουλειάς (μόνο από social δίκτυα, π.χ. Instagram/TikTok/YouTube) και προαιρετικό μήνυμα. Αν δεν έχετε εγκριθεί ακόμα, εμφανίζεται ενημερωτικό μήνυμα.",
+      en: "With an approved profile, use the “Campaigns” tab or the public /en/campaigns page to see open campaigns from verified brands. Everyone can view open campaigns; only approved influencers can apply. An application includes a proposed rate, links to past work (social networks only, e.g. Instagram/TikTok/YouTube) and an optional message. If you are not approved yet, you’ll see an explanatory message."
     }
   },
   {
@@ -171,4 +182,3 @@ export const faqs: FAQItem[] = [
     }
   }
 ];
-

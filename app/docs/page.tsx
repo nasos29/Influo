@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
 import Footer from "../../components/Footer";
+import DocsToc, { type DocsTocGroup } from "@/components/DocsToc";
 import { FaChevronDown } from "react-icons/fa";
+import { NEW_BADGE_MAX_DAYS } from "@/lib/badges";
 
 type Lang = "el" | "en";
 
@@ -16,13 +18,168 @@ const t = {
     subtitle: "Για Influencers & Brands",
     back: "Επιστροφή",
     nav_home: "Αρχική",
+    back_top: "Πίσω στην κορυφή",
+    see_campaigns: "Δες τις ανοιχτές καμπάνιες",
+    manage_campaigns: "Διαχείριση καμπανιών",
   },
   en: {
     title: "User Guide",
     subtitle: "For Influencers & Brands",
     back: "Back",
     nav_home: "Home",
+    back_top: "Back to top",
+    see_campaigns: "See open campaigns",
+    manage_campaigns: "Manage campaigns",
   }
+};
+
+const TOC_GROUPS: DocsTocGroup[] = [
+  {
+    title: { el: "Για brands", en: "For brands" },
+    items: [
+      { id: "campaigns", label: { el: "Καμπάνιες", en: "Campaigns" } },
+      { id: "proposals", label: { el: "Προσφορές", en: "Proposals" } },
+      { id: "brand-tools", label: { el: "Εργαλεία brand", en: "Brand tools" } },
+    ],
+  },
+  {
+    title: { el: "Για influencers", en: "For influencers" },
+    items: [
+      { id: "badges", label: { el: "Badges", en: "Badges" } },
+      { id: "influencer-tools", label: { el: "Εργαλεία influencer", en: "Influencer tools" } },
+      { id: "counter", label: { el: "Αντιπροσφορά", en: "Counter-proposal" } },
+    ],
+  },
+  {
+    title: { el: "Γενικά", en: "General" },
+    items: [
+      { id: "profile", label: { el: "Προφίλ & εμπιστοσύνη", en: "Profile & trust" } },
+      { id: "agreement", label: { el: "Συμφωνία", en: "Agreement" } },
+      { id: "messages", label: { el: "Μηνύματα", en: "Messages" } },
+      { id: "reviews", label: { el: "Reviews", en: "Reviews" } },
+      { id: "tips", label: { el: "Συμβουλές", en: "Tips" } },
+      { id: "faq", label: { el: "FAQ", en: "FAQ" } },
+      { id: "support", label: { el: "Υποστήριξη", en: "Support" } },
+    ],
+  },
+];
+
+function IconBox({ children }: { children: ReactNode }) {
+  return (
+    <div className="w-10 h-10 shrink-0 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
+      {children}
+    </div>
+  );
+}
+
+function SectionHeading({
+  id,
+  icon,
+  children,
+}: {
+  id: string;
+  icon: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <h2
+      id={id}
+      className="scroll-mt-28 text-2xl md:text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3 tracking-tight"
+    >
+      <IconBox>{icon}</IconBox>
+      <span>{children}</span>
+    </h2>
+  );
+}
+
+function NumberedSteps({ steps }: { steps: string[] }) {
+  return (
+    <ol className="space-y-3 my-6">
+      {steps.map((step, i) => (
+        <li key={i} className="flex gap-3 items-start min-w-0 rounded-lg border border-slate-200 bg-slate-50/80 p-4">
+          <span className="shrink-0 w-8 h-8 rounded-full bg-slate-900 text-white text-sm font-semibold flex items-center justify-center" aria-hidden>
+            {i + 1}
+          </span>
+          <span className="pt-1 text-slate-700 text-sm md:text-base leading-relaxed min-w-0">{step}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function StatusPill({ label, tone, desc }: { label: string; tone: string; desc: string }) {
+  return (
+    <li className="flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-3 min-w-0">
+      <span className={`inline-flex w-fit shrink-0 items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${tone}`}>
+        {label}
+      </span>
+      <span className="text-sm text-slate-700 leading-relaxed min-w-0">{desc}</span>
+    </li>
+  );
+}
+
+const icons = {
+  badge: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+    </svg>
+  ),
+  profile: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+    </svg>
+  ),
+  proposals: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+  ),
+  campaigns: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.993 3.993 0 01-1.564-.317z" />
+    </svg>
+  ),
+  tools: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  ),
+  counter: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
+  agreement: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
+  messages: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+    </svg>
+  ),
+  reviews: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.364 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.364-1.118L2.98 9.72c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+    </svg>
+  ),
+  tips: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+    </svg>
+  ),
+  faq: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
+  support: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+    </svg>
+  ),
 };
 
 type FaqEntry = { q: Record<Lang, string>; a: Record<Lang, string> };
@@ -65,8 +222,8 @@ const FAQ_ITEMS: FaqEntry[] = [
       en: "How do I become a verified influencer?",
     },
     a: {
-      el: "Υποβάλλετε πλήρες προφίλ με αληθινά στοιχεία και συνδέσμους κοινωνικών δικτύων. Η ομάδα ελέγχει το αίτημα· μετά την έγκριση λαμβάνετε το σήμα επαλήθευσης και πρόσβαση σε λειτουργίες όπως οι ανοιχτές καμπάνιες.",
-      en: "Complete your profile with accurate info and social links. Our team reviews applications; once approved you get the verified badge and access to features such as open campaigns.",
+      el: "Υποβάλλετε πλήρες προφίλ με αληθινά στοιχεία και συνδέσμους κοινωνικών δικτύων. Η ομάδα ελέγχει το αίτημα· μετά την έγκριση είστε εγκεκριμένος influencer, εμφανίζεστε στον κατάλογο με ✓ «Στατιστικά ελεγμένα από το Influo» και μπορείτε να κάνετε αίτηση σε ανοιχτές καμπάνιες.",
+      en: "Complete your profile with accurate info and social links. Our team reviews applications; once approved you are an approved influencer, appear in the directory with the ✓ “Stats checked by Influo” mark, and can apply to open campaigns.",
     },
   },
   {
@@ -75,8 +232,8 @@ const FAQ_ITEMS: FaqEntry[] = [
       en: "What are campaigns and how do I apply as an influencer?",
     },
     a: {
-      el: "Οι καμπάνιες είναι briefs που δημοσιεύουν verified brands. Στο dashboard βλέπετε τις ανοιχτές καμπάνιες· μπορείτε να υποβάλετε αίτηση ενδιαφέροντος με προαιρετικό μήνυμα. Το brand ενημερώνει την κατάσταση (εκκρεμεί, shortlist, απόρριψη). Αν μπείτε σε shortlist, μπορείτε να υποβάλετε link παράδοσης (deliverable) και το brand να το εγκρίνει ή να ζητήσει αλλαγές.",
-      en: "Campaigns are briefs published by verified brands. In your dashboard you’ll see open campaigns; you can submit an interest application with an optional message. The brand updates status (pending, shortlisted, rejected). If shortlisted, you can submit a deliverable URL and the brand can approve it or request changes.",
+      el: "Οι καμπάνιες είναι briefs που δημοσιεύουν επαληθευμένα brands. Όλοι βλέπουν τις ανοιχτές καμπάνιες στη δημόσια σελίδα /campaigns· αίτηση κάνουν μόνο οι εγκεκριμένοι influencers, με προτεινόμενη τιμή, links προηγούμενης δουλειάς (μόνο από social δίκτυα, π.χ. Instagram/TikTok/YouTube) και προαιρετικό μήνυμα. Το brand ενημερώνει την κατάσταση (εκκρεμεί, shortlist, απόρριψη). Αν μπείτε σε shortlist, μπορείτε να υποβάλετε link παράδοσης (deliverable) και το brand να το εγκρίνει ή να ζητήσει αλλαγές.",
+      en: "Campaigns are briefs published by verified brands. Everyone can browse open campaigns on /en/campaigns; only approved influencers can apply, with a proposed rate, links to past work (social networks only, e.g. Instagram/TikTok/YouTube) and an optional message. The brand updates status (pending, shortlisted, rejected). If shortlisted, you can submit a deliverable URL and the brand can approve it or request changes.",
     },
   },
   {
@@ -95,8 +252,8 @@ const FAQ_ITEMS: FaqEntry[] = [
       en: "Is signing up and using Influo free?",
     },
     a: {
-      el: "Η εγγραφή και η βασική χρήση της πλατφόρμας (προφίλ, μηνύματα, προσφορές, καμπάνιες σύμφωνα με τους όρους) είναι διαθέσιμες χωρίς χρέωση από το Influo για τη σύνδεση brands και influencers. Ελέγξτε τους όρους χρήσης για εμπορικές λεπτομέρειες.",
-      en: "Signing up and core platform use (profile, messages, proposals, campaigns per our terms) is available without an Influo connection fee. See the Terms of Service for commercial details.",
+      el: "Η εγγραφή, η δημοσίευση καμπάνιας και η αίτηση είναι δωρεάν. Δεν παίρνουμε προμήθεια από τις συνεργασίες σας. Ελέγξτε τους όρους χρήσης για εμπορικές λεπτομέρειες.",
+      en: "Signing up, publishing a campaign, and applying are free, no commission. See the Terms of Service for commercial details.",
     },
   },
   {
@@ -177,6 +334,16 @@ const FAQ_ITEMS: FaqEntry[] = [
     a: {
       el: "Σημαίνει ότι η ομάδα έχει ελέγξει στοιχεία της επιχείρησης ώστε να εμφανίζονται δημόσια καμπάνιες και να υπάρχει εμπιστοσύνη για τους influencers. Μόνο verified brands δημοσιεύουν ανοιχτές καμπάνιες.",
       en: "It means our team has reviewed business details so public campaigns are shown and influencers can trust who they apply to. Only verified brands publish open campaigns.",
+    },
+  },
+  {
+    q: {
+      el: "Πόσο μένει ανοιχτή μια καμπάνια;",
+      en: "How long does a campaign stay open?",
+    },
+    a: {
+      el: "Κλείνει αυτόματα στην προθεσμία· χωρίς προθεσμία, 30 μέρες μετά το άνοιγμα. Η κάρτα δείχνει «Κλείνει αυτόματα σε N μέρες» ή «Λήγει σε…». 3 μέρες πριν το brand παίρνει υπενθύμιση· στο κλείσιμο ενημερώνονται brand και αιτούντες σε εκκρεμότητα. Οι ληγμένες δεν εμφανίζονται δημόσια. Δεν διαγράφονται — για ξανάνοιγμα: κατάσταση «Ανοιχτή» (νέο 30ήμερο)· αν η προθεσμία πέρασε, ορίστε νέα.",
+      en: "It closes on its deadline; with no deadline, 30 days after opening. The card shows “Closes automatically in N days” or “Ends in…”. Three days before, the brand gets a reminder; on close, brand and pending applicants are emailed. Expired campaigns leave the public list. They are not deleted — to reopen set status to Open (new 30-day window); if the deadline passed, set a new one.",
     },
   },
   {
@@ -280,42 +447,55 @@ export default function DocsPage() {
       </header>
 
       {/* Content */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 overflow-x-hidden">
         {/* Title */}
-        <div className="mb-8">
-          <Link href={lang === "en" ? "/en" : "/"} className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium mb-4">
+        <div className="mb-8" id="top">
+          <Link href={lang === "en" ? "/en" : "/"} className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium mb-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
             {txt.back}
           </Link>
-          <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-2">{txt.title}</h1>
+          <h1 className="text-3xl md:text-5xl font-bold text-slate-900 mb-2 tracking-tight">{txt.title}</h1>
           <p className="text-lg text-slate-600">{txt.subtitle}</p>
         </div>
 
-        {/* Documentation Content */}
-        <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-8 md:p-12 prose prose-slate max-w-none">
+        <div className="lg:hidden">
+          <DocsToc lang={lang} groups={TOC_GROUPS} variant="mobile" />
+        </div>
+
+        <div className="lg:grid lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-10 lg:items-start">
+          <div className="hidden lg:block">
+            <DocsToc lang={lang} groups={TOC_GROUPS} variant="desktop" />
+          </div>
+          {/* Documentation Content */}
+          <div className="min-w-0 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 sm:p-8 md:p-10">
           
+          {/* Campaigns first (brands) — then badges etc. keep reading order via TOC */}
           {/* Badges System */}
           <section className="mb-12">
-            <h2 className="text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3">
-              <span className="text-4xl">🏆</span>
-              {lang === 'el' ? 'Badges System' : 'Badges System'}
-            </h2>
-            <p className="text-slate-600 mb-6">
+            <SectionHeading id="badges" icon={icons.badge}>
+              {lang === 'el' ? 'Badges' : 'Badges'}
+            </SectionHeading>
+            <p className="text-slate-600 mb-4 max-w-prose">
               {lang === 'el' 
-                ? 'Το σύστημα badges μας αναγνωρίζει την ποιότητα και την απόδοση των influencers.'
-                : 'Our badge system recognizes the quality and performance of influencers.'}
+                ? 'Τα badges στις κάρτες αναγνωρίζουν την απόδοση των influencers (εμφανίζεται το υψηλότερης προτεραιότητας).'
+                : 'Card badges recognize influencer performance (the highest-priority badge is shown).'}
+            </p>
+            <p className="text-sm text-slate-600 mb-6 max-w-prose rounded-lg border border-slate-200 bg-slate-50 p-4">
+              {lang === 'el'
+                ? 'Το ✓ δίπλα στο avatar σημαίνει «Στατιστικά ελεγμένα από το Influo» — δεν είναι badge κάρτας και δεν εμφανίζεται ως «Επαληθευμένος».'
+                : 'The ✓ next to the avatar means “Stats checked by Influo” — it is not a card badge and is not labeled “Verified”.'}
             </p>
 
-            <h3 className="text-xl font-bold text-slate-900 mt-8 mb-4">
+            <h3 className="text-lg font-semibold text-slate-900 mt-8 mb-4">
               {lang === 'el' ? 'Τύποι Badges' : 'Badge Types'}
             </h3>
 
             {/* Badge Cards */}
             <div className="grid md:grid-cols-2 gap-4 my-6">
               {/* New Badge */}
-              <div className="border border-blue-200 rounded-xl p-4 bg-blue-50">
+              <div className="border border-blue-200 rounded-lg p-4 bg-blue-50">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-2xl">✨</span>
                   <h4 className="font-bold text-blue-900 m-0">
@@ -323,7 +503,7 @@ export default function DocsPage() {
                   </h4>
                 </div>
                 <p className="text-sm text-slate-700 mb-2">
-                  <strong>{lang === 'el' ? 'Πότε αποκτάται:' : 'When earned:'}</strong> {lang === 'el' ? 'Όταν το account είναι μικρότερο από 30 ημέρες' : 'When account is less than 30 days old'}
+                  <strong>{lang === 'el' ? 'Πότε αποκτάται:' : 'When earned:'}</strong> {lang === 'el' ? `Όταν το account είναι λιγότερο από ${NEW_BADGE_MAX_DAYS} ημέρες` : `When account is less than ${NEW_BADGE_MAX_DAYS} days old`}
                 </p>
                 <p className="text-sm text-slate-600">
                   {lang === 'el' ? 'Σημασία: Νέος influencer στην πλατφόρμα' : 'Meaning: New influencer on the platform'}
@@ -331,7 +511,7 @@ export default function DocsPage() {
               </div>
 
               {/* Rising Badge */}
-              <div className="border border-green-200 rounded-xl p-4 bg-green-50">
+              <div className="border border-green-200 rounded-lg p-4 bg-green-50">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-2xl">📈</span>
                   <h4 className="font-bold text-green-900 m-0">
@@ -346,24 +526,8 @@ export default function DocsPage() {
                 </p>
               </div>
 
-              {/* Verified Badge */}
-              <div className="border border-blue-300 rounded-xl p-4 bg-blue-100">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-2xl">✓</span>
-                  <h4 className="font-bold text-blue-900 m-0">
-                    {lang === 'el' ? 'Επαληθευμένος (Verified)' : 'Verified'}
-                  </h4>
-                </div>
-                <p className="text-sm text-slate-700 mb-2">
-                  <strong>{lang === 'el' ? 'Πότε αποκτάται:' : 'When earned:'}</strong> {lang === 'el' ? 'Μετά από manual verification από το admin team' : 'After manual verification by admin team'}
-                </p>
-                <p className="text-sm text-slate-600">
-                  {lang === 'el' ? 'Σημασία: Επαληθευμένη ταυτότητα και αξιοπιστία. Αυτό το badge μένει μόνιμα μαζί με το άλλο badge.' : 'Meaning: Verified identity and credibility. This badge stays permanently along with the other badge.'}
-                </p>
-              </div>
-
               {/* Top Performer Badge */}
-              <div className="border border-purple-300 rounded-xl p-4 bg-purple-100">
+              <div className="border border-purple-300 rounded-lg p-4 bg-purple-50 border-purple-200">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-2xl">🏆</span>
                   <h4 className="font-bold text-purple-900 m-0">Top Performer</h4>
@@ -377,7 +541,7 @@ export default function DocsPage() {
               </div>
 
               {/* Pro Badge */}
-              <div className="border border-amber-300 rounded-xl p-4 bg-amber-100">
+              <div className="border border-amber-300 rounded-lg p-4 bg-amber-50 border-amber-200">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-2xl">⭐</span>
                   <h4 className="font-bold text-amber-900 m-0">Pro</h4>
@@ -391,7 +555,7 @@ export default function DocsPage() {
               </div>
 
               {/* Elite Badge */}
-              <div className="border border-indigo-300 rounded-xl p-4 bg-indigo-100">
+              <div className="border border-indigo-300 rounded-lg p-4 bg-indigo-50 border-indigo-200">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-2xl">💎</span>
                   <h4 className="font-bold text-indigo-900 m-0">Elite</h4>
@@ -405,7 +569,7 @@ export default function DocsPage() {
               </div>
 
               {/* VIP Badge */}
-              <div className="border border-yellow-400 rounded-xl p-4 bg-gradient-to-r from-yellow-50 to-amber-50">
+              <div className="border border-yellow-400 rounded-lg p-4 bg-yellow-50">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-2xl">👑</span>
                   <h4 className="font-bold text-yellow-900 m-0">VIP</h4>
@@ -422,10 +586,9 @@ export default function DocsPage() {
 
           {/* Availability, trust, rate card, metrics */}
           <section className="mb-12 border-t border-slate-200 pt-12">
-            <h2 className="text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3">
-              <span className="text-4xl">📋</span>
+            <SectionHeading id="profile" icon={icons.profile}>
               {lang === 'el' ? 'Προφίλ, κατάλογος & εμπιστοσύνη' : 'Profile, directory & trust'}
-            </h2>
+            </SectionHeading>
             <p className="text-slate-600 mb-6">
               {lang === 'el'
                 ? 'Νέες λειτουργίες που βοηθούν brands να βρίσκουν διαθέσιμους creators και να αξιολογούν προφίλ με διαφάνεια.'
@@ -525,26 +688,29 @@ export default function DocsPage() {
 
           {/* Proposals Section */}
           <section className="mb-12 border-t border-slate-200 pt-12">
-            <h2 className="text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3">
-              <span className="text-4xl">💼</span>
-              {lang === 'el' ? 'Προσφορές (Proposals) - Για Brands' : 'Proposals - For Brands'}
-            </h2>
+            <SectionHeading id="proposals" icon={icons.proposals}>
+              {lang === 'el' ? 'Προσφορές — Για Brands' : 'Proposals — For Brands'}
+            </SectionHeading>
 
             <h3 className="text-xl font-bold text-slate-900 mt-6 mb-4">
               {lang === 'el' ? 'Πώς Δημιουργείτε Προσφορά' : 'How to Create a Proposal'}
             </h3>
 
-            <ol className="list-decimal list-inside space-y-4 text-slate-700 mb-6">
-              <li>
-                <strong>{lang === 'el' ? 'Αναζήτηση Influencer:' : 'Search Influencer:'}</strong> {lang === 'el' ? 'Μεταβείτε στο Κατάλογο Influencers, χρησιμοποιήστε τα φίλτρα, κάντε κλικ στον influencer' : 'Go to Influencer Directory, use filters, click on influencer'}
-              </li>
-              <li>
-                <strong>{lang === 'el' ? 'Στο Profile Page:' : 'On Profile Page:'}</strong> {lang === 'el' ? 'Κάντε κλικ στο "Συνεργασία", συμπληρώστε τη φόρμα (Υπηρεσία, Budget, Περιγραφή, Deadline)' : 'Click on "Collaborate", fill the form (Service, Budget, Description, Deadline)'}
-              </li>
-              <li>
-                <strong>{lang === 'el' ? 'Αποστολή:' : 'Send:'}</strong> {lang === 'el' ? 'Η προσφορά αποστέλλεται στον influencer, παίρνετε email notification' : 'Proposal is sent to influencer, you receive email notification'}
-              </li>
-            </ol>
+            <NumberedSteps
+              steps={
+                lang === 'el'
+                  ? [
+                      'Αναζήτηση influencer: Κατάλογος → φίλτρα → κλικ στο προφίλ.',
+                      'Στο προφίλ: «Συνεργασία» και φόρμα (υπηρεσία, budget, περιγραφή, deadline).',
+                      'Αποστολή: η προσφορά πάει στον influencer· λαμβάνετε email ειδοποίησης.',
+                    ]
+                  : [
+                      'Search influencer: Directory → filters → open profile.',
+                      'On the profile: Collaborate and fill the form (service, budget, description, deadline).',
+                      'Send: the proposal goes to the influencer; you get an email notification.',
+                    ]
+              }
+            />
 
             <div className="bg-green-50 border border-green-200 rounded-xl p-6">
               <h4 className="font-bold text-green-900 mb-3">
@@ -562,55 +728,75 @@ export default function DocsPage() {
 
           {/* Brand campaigns & applications */}
           <section className="mb-12 border-t border-slate-200 pt-12">
-            <h2 className="text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3">
-              <span className="text-4xl">📣</span>
-              {lang === 'el' ? 'Καμπάνιες με αιτήσεις (Brands)' : 'Campaign briefs & applications (Brands)'}
-            </h2>
-            <p className="text-slate-600 mb-6">
+            <SectionHeading id="campaigns" icon={icons.campaigns}>
+              {lang === 'el' ? 'Καμπάνιες με αιτήσεις' : 'Campaigns with applications'}
+            </SectionHeading>
+            <p className="text-slate-600 mb-4 max-w-prose">
               {lang === 'el'
-                ? 'Από το Brand Dashboard μπορείτε να δημοσιεύετε καμπάνιες (τίτλος, περιγραφή, budget, προθεσμία). Οι verified influencers βλέπουν τις ανοιχτές καμπάνιες στο δικό τους dashboard και υποβάλλουν αίτηση ενδιαφέροντος με προαιρετικό μήνυμα.'
-                : 'From the Brand Dashboard you can publish campaigns (title, description, budget, deadline). Verified influencers see open campaigns in their dashboard and submit an application with an optional message.'}
+                ? 'Από το Brand Dashboard δημοσιεύετε καμπάνιες (τίτλος, περιγραφή, budget, προθεσμία) — δωρεάν, χωρίς προμήθεια. Όλοι βλέπουν τις ανοιχτές καμπάνιες στη δημόσια σελίδα Καμπάνιες (/campaigns)· αίτηση κάνουν μόνο οι εγκεκριμένοι influencers.'
+                : 'From the Brand Dashboard you publish campaigns (title, description, budget, deadline) — free, no commission. Everyone can browse open campaigns on the public Campaigns page (/en/campaigns); only approved influencers can apply.'}
             </p>
-            <h3 className="text-xl font-bold text-slate-900 mt-6 mb-3">
+            <p className="text-slate-700 mb-6 max-w-prose">
+              {lang === 'el'
+                ? 'Η αίτηση περιλαμβάνει προτεινόμενη τιμή, links προηγούμενης δουλειάς (μόνο από social δίκτυα, π.χ. Instagram/TikTok/YouTube) και προαιρετικό μήνυμα.'
+                : 'An application includes a proposed rate, links to past work (social networks only, e.g. Instagram/TikTok/YouTube) and an optional message.'}
+            </p>
+
+            <h3 className="text-lg font-semibold text-slate-900 mt-8 mb-3">
+              {lang === 'el' ? 'Ροή αίτησης' : 'Application flow'}
+            </h3>
+            <NumberedSteps
+              steps={
+                lang === 'el'
+                  ? [
+                      'Το brand δημοσιεύει καμπάνια με κατάσταση «Ανοιχτή».',
+                      'Ο εγκεκριμένος influencer υποβάλλει αίτηση (τιμή, social links δουλειάς, προαιρετικό μήνυμα).',
+                      'Το brand ενημερώνει την κατάσταση και μπορεί να μιλήσει μέσω μηνυμάτων Influo.',
+                    ]
+                  : [
+                      'The brand publishes a campaign with status Open.',
+                      'An approved influencer applies (rate, social work links, optional message).',
+                      'The brand updates status and can message via Influo.',
+                    ]
+              }
+            />
+
+            <h3 className="text-lg font-semibold text-slate-900 mt-8 mb-3">
               {lang === 'el' ? 'Τι λαμβάνετε εσείς ως brand' : 'What you get as a brand'}
             </h3>
-            <p className="text-slate-700 mb-4">
+            <p className="text-slate-700 mb-4 max-w-prose">
               {lang === 'el'
-                ? 'Για κάθε καμπάνια βλέπετε λίστα με τις αιτήσεις ενδιαφέροντος. Μπορείτε να αλλάξετε την κατάσταση κάθε αίτησης από το μενού κατάστασης (δίπλα στον influencer).'
-                : 'For each campaign you see a list of interest applications. You can change each application’s status from the status menu (next to the influencer).'}
+                ? 'Για κάθε καμπάνια βλέπετε λίστα με τις αιτήσεις. Μπορείτε να αλλάξετε την κατάσταση κάθε αίτησης από το μενού κατάστασης (δίπλα στον influencer).'
+                : 'For each campaign you see a list of applications. You can change each application’s status from the status menu (next to the influencer).'}
             </p>
-            <div className="bg-teal-50 border border-teal-200 rounded-xl p-6 mb-6">
-              <h4 className="font-bold text-teal-900 mb-3">
-                {lang === 'el' ? 'Τι σημαίνει κάθε κατάσταση αίτησης' : 'What each application status means'}
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-5 mb-6">
+              <h4 className="font-semibold text-slate-900 mb-3">
+                {lang === 'el' ? 'Καταστάσεις αίτησης' : 'Application statuses'}
               </h4>
-              <ul className="space-y-3 text-slate-700 text-sm list-none pl-0">
-                <li>
-                  <strong className="text-slate-900">{lang === 'el' ? 'Εκκρεμεί' : 'Pending'}:</strong>{' '}
-                  {lang === 'el'
-                    ? 'Η αίτηση μόλις υποβλήθηκε· δεν έχετε ακόμη αποφασίσει. Ο influencer περιμένει την απάντησή σας.'
-                    : 'The application was just submitted; you have not decided yet. The influencer is waiting for your response.'}
-                </li>
-                <li>
-                  <strong className="text-slate-900">{lang === 'el' ? 'Σε λίστα (shortlist)' : 'Shortlisted'}:</strong>{' '}
-                  {lang === 'el'
-                    ? 'Έχετε επιλέξει αυτόν τον influencer για περαιτέρω συζήτηση ή συνεργασία — δείχνει θετικό ενδιαφέρον από μέρους σας.'
-                    : 'You have selected this influencer for further discussion or collaboration — it shows positive interest on your side.'}
-                </li>
-                <li>
-                  <strong className="text-slate-900">{lang === 'el' ? 'Απόρριψη' : 'Rejected'}:</strong>{' '}
-                  {lang === 'el'
-                    ? 'Η αίτηση δεν ταιριάζει στην καμπάνια. Ο influencer βλέπει ότι δεν προχωράτε μαζί του για αυτή τη θέση.'
-                    : 'The application does not fit this campaign. The influencer sees that you are not proceeding with them for this brief.'}
-                </li>
-                <li>
-                  <strong className="text-slate-900">{lang === 'el' ? 'Αποσύρθηκε' : 'Withdrawn'}:</strong>{' '}
-                  {lang === 'el'
-                    ? 'Ο influencer απέσυρε ο ίδιος την αίτηση — δεν απαιτείται δική σας ενέργεια.'
-                    : 'The influencer withdrew their application themselves — no action required from you.'}
-                </li>
+              <ul className="space-y-3 list-none pl-0 mb-0">
+                <StatusPill
+                  label={lang === 'el' ? 'Εκκρεμεί' : 'Pending'}
+                  tone="bg-amber-100 text-amber-900"
+                  desc={lang === 'el' ? 'Η αίτηση μόλις υποβλήθηκε· ο influencer περιμένει απάντηση.' : 'Just submitted; the influencer is waiting for your response.'}
+                />
+                <StatusPill
+                  label={lang === 'el' ? 'Σε λίστα' : 'Shortlisted'}
+                  tone="bg-emerald-100 text-emerald-800"
+                  desc={lang === 'el' ? 'Θετικό ενδιαφέρον για περαιτέρω συζήτηση ή συνεργασία.' : 'Positive interest for further discussion or collaboration.'}
+                />
+                <StatusPill
+                  label={lang === 'el' ? 'Απόρριψη' : 'Rejected'}
+                  tone="bg-rose-100 text-rose-800"
+                  desc={lang === 'el' ? 'Η αίτηση δεν προχωρά για αυτή την καμπάνια.' : 'The application will not proceed for this campaign.'}
+                />
+                <StatusPill
+                  label={lang === 'el' ? 'Αποσύρθηκε' : 'Withdrawn'}
+                  tone="bg-slate-200 text-slate-700"
+                  desc={lang === 'el' ? 'Ο influencer απέσυρε την αίτηση — χωρίς ενέργεια από εσάς.' : 'The influencer withdrew — no action needed from you.'}
+                />
               </ul>
             </div>
-            <ul className="list-disc list-inside space-y-2 text-slate-700 mb-6">
+            <ul className="list-disc list-inside space-y-2 text-slate-700 mb-6 max-w-prose">
               <li>
                 {lang === 'el'
                   ? 'Κουμπί για άμεσο μήνυμα στον influencer από την αίτηση.'
@@ -618,60 +804,86 @@ export default function DocsPage() {
               </li>
               <li>
                 {lang === 'el'
-                  ? 'Ειδοποίηση push (αν την έχετε ενεργοποιήσει) και email όταν υπάρχει νέα αίτηση, ώστε να μη χάνετε leads.'
-                  : 'Push notification (if enabled) and email when there is a new application, so you do not miss leads.'}
+                  ? 'Ειδοποίηση push (αν ενεργοποιημένη) και email όταν υπάρχει νέα αίτηση.'
+                  : 'Push (if enabled) and email when there is a new application.'}
               </li>
             </ul>
 
-            <h3 className="text-xl font-bold text-slate-900 mt-8 mb-3">
-              {lang === 'el' ? 'Παράδοση περιεχομένου (deliverables)' : 'Content deliverables'}
+            <h3 className="text-lg font-semibold text-slate-900 mt-8 mb-3">
+              {lang === 'el' ? 'Παράδοση περιεχομένου' : 'Content deliverables'}
             </h3>
-            <p className="text-slate-700 mb-4">
-              {lang === 'el'
-                ? 'Μετά το shortlist, η συνεργασία μπορεί να προχωρήσει μέσα στην πλατφόρμα:'
-                : 'After shortlist, the collaboration can continue on-platform:'}
-            </p>
-            <ol className="list-decimal list-inside space-y-3 text-slate-700 mb-6">
-              <li>
-                {lang === 'el'
-                  ? 'Brand: θέτει την αίτηση σε «Σε λίστα».'
-                  : 'Brand: sets the application to Shortlisted.'}
-              </li>
-              <li>
-                {lang === 'el'
-                  ? 'Influencer (Dashboard → Καμπάνιες → Οι αιτήσεις μου): υποβάλλει URL παράδοσης + προαιρετική σημείωση.'
-                  : 'Influencer (Dashboard → Campaigns → My applications): submits a deliverable URL + optional note.'}
-              </li>
-              <li>
-                {lang === 'el'
-                  ? 'Brand: βλέπει το link στις αιτήσεις και κάνει «Έγκριση» ή «Ζήτα αλλαγές» (με σχόλιο).'
-                  : 'Brand: sees the link on applications and chooses Approve or Request changes (with a note).'}
-              </li>
-              <li>
-                {lang === 'el'
-                  ? 'Αν ζητηθούν αλλαγές, ο influencer μπορεί να επανυποβάλει νέο link.'
-                  : 'If changes are requested, the influencer can resubmit a new link.'}
-              </li>
-            </ol>
+            <NumberedSteps
+              steps={
+                lang === 'el'
+                  ? [
+                      'Brand: θέτει την αίτηση σε «Σε λίστα».',
+                      'Influencer (Dashboard → Καμπάνιες → Οι αιτήσεις μου): υποβάλλει URL παράδοσης + προαιρετική σημείωση.',
+                      'Brand: εγκρίνει ή ζητά αλλαγές· ο influencer μπορεί να επανυποβάλει.',
+                    ]
+                  : [
+                      'Brand: sets the application to Shortlisted.',
+                      'Influencer (Dashboard → Campaigns → My applications): submits a deliverable URL + optional note.',
+                      'Brand: approves or requests changes; the influencer can resubmit.',
+                    ]
+              }
+            />
 
-            <div className="bg-teal-50 border border-teal-200 rounded-xl p-6">
-              <h4 className="font-bold text-teal-900 mb-2">
-                {lang === 'el' ? 'Σύνδεση με τον οδηγό' : 'Link to this guide'}
-              </h4>
-              <p className="text-slate-700 text-sm mb-0">
+            <h3 className="text-lg font-semibold text-slate-900 mt-8 mb-3">
+              {lang === 'el' ? 'Διάρκεια & κλείσιμο καμπάνιας' : 'Duration & campaign close'}
+            </h3>
+            <ul className="list-disc list-inside space-y-2 text-slate-700 mb-6 max-w-prose">
+              <li>
                 {lang === 'el'
-                  ? 'Μπορείτε να ανοίξετε απευθείας το tab «Καμπάνιες» στο Brand Dashboard με το σύνδεσμο /brand/dashboard?tab=campaigns (π.χ. από email ειδοποίησης).'
-                  : 'You can open the Campaigns tab directly with /brand/dashboard?tab=campaigns (e.g. from notification emails).'}
-              </p>
+                  ? 'Η καμπάνια κλείνει αυτόματα στην προθεσμία της. Αν δεν έχει προθεσμία, κλείνει 30 μέρες μετά το άνοιγμα. Η κάρτα δείχνει «Κλείνει αυτόματα σε N μέρες» ή «Λήγει σε…».'
+                  : 'The campaign closes automatically on its deadline. With no deadline, it closes 30 days after opening. The card shows “Closes automatically in N days” or “Ends in…”.'}
+              </li>
+              <li>
+                {lang === 'el'
+                  ? '3 μέρες πριν το κλείσιμο, το brand λαμβάνει υπενθύμιση με email. Όταν κλείσει, ενημερώνονται με email το brand και οι influencers που έχουν αίτηση σε εκκρεμότητα.'
+                  : 'Three days before close, the brand gets an email reminder. When it closes, the brand and influencers with a pending application are emailed.'}
+              </li>
+              <li>
+                {lang === 'el'
+                  ? 'Οι καμπάνιες που έχουν λήξει δεν εμφανίζονται στη δημόσια λίστα.'
+                  : 'Expired campaigns do not appear on the public list.'}
+              </li>
+              <li>
+                {lang === 'el'
+                  ? 'Οι καμπάνιες δεν διαγράφονται, μόνο κλείνουν. Για να την ξανανοίξει, το brand την επεξεργάζεται και βάζει κατάσταση «Ανοιχτή», οπότε ξεκινά νέο 30ήμερο. Αν η προθεσμία έχει περάσει, πρέπει να ορίσει νέα.'
+                  : 'Campaigns are not deleted — only closed. To reopen, the brand edits it and sets status to Open, starting a new 30-day window. If the deadline has passed, they must set a new one.'}
+              </li>
+            </ul>
+
+            <h3 className="text-lg font-semibold text-slate-900 mt-8 mb-3">
+              {lang === 'el' ? 'Κανόνες περιεχομένου' : 'Content rules'}
+            </h3>
+            <p className="text-slate-700 mb-6 max-w-prose">
+              {lang === 'el'
+                ? 'Στα κείμενα της καμπάνιας και στα μηνύματα των αιτήσεων δεν επιτρέπονται links, email και τηλέφωνα. Η επικοινωνία γίνεται με τα μηνύματα του Influo. Μόνο τα links δουλειάς από social δίκτυα επιτρέπονται στην αίτηση.'
+                : 'Campaign text and application messages may not include links, emails, or phone numbers. Communication happens through Influo messages. Only social-network work links are allowed on the application.'}
+            </p>
+
+            <div className="flex flex-col sm:flex-row flex-wrap gap-3 mt-8">
+              <Link
+                href={lang === 'en' ? '/en/campaigns' : '/campaigns'}
+                className="inline-flex justify-center px-5 py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+              >
+                {txt.see_campaigns}
+              </Link>
+              <Link
+                href="/brand/dashboard?tab=campaigns"
+                className="inline-flex justify-center px-5 py-2.5 rounded-lg bg-white hover:bg-slate-50 text-slate-900 text-sm font-semibold border border-slate-200 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+              >
+                {txt.manage_campaigns}
+              </Link>
             </div>
           </section>
 
           {/* Influencer tools */}
           <section className="mb-12 border-t border-slate-200 pt-12">
-            <h2 className="text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3">
-              <span className="text-4xl">🧰</span>
+            <SectionHeading id="influencer-tools" icon={icons.tools}>
               {lang === 'el' ? 'Εργαλεία Influencer' : 'Influencer tools'}
-            </h2>
+            </SectionHeading>
             <p className="text-slate-600 mb-6">
               {lang === 'el'
                 ? 'Μετά την έγκριση του προφίλ σας, ανοίξτε Dashboard → tab «Εργαλεία» (ή /dashboard?tab=tools). Εκεί έχετε ό,τι χρειάζεστε για να μοιραστείτε το Influo προφίλ σας με brands.'
@@ -746,10 +958,9 @@ export default function DocsPage() {
 
           {/* Brand tools */}
           <section className="mb-12 border-t border-slate-200 pt-12">
-            <h2 className="text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3">
-              <span className="text-4xl">🛠️</span>
+            <SectionHeading id="brand-tools" icon={icons.tools}>
               {lang === 'el' ? 'Εργαλεία Brand' : 'Brand tools'}
-            </h2>
+            </SectionHeading>
             <p className="text-slate-600 mb-6">
               {lang === 'el'
                 ? 'Στο Brand Dashboard → tab «Εργαλεία» (/brand/dashboard?tab=tools) έχετε βοηθήματα καμπάνιας. Πολλά δουλεύουν με τη shortlist («Οι influencers μου»). Με τα βέλη ↑ ↓ αλλάζετε τη σειρά των καρτών· «Επαναφορά σειράς» επαναφέρει την προεπιλογή. Checklist, ROI και snippets αποθηκεύονται στον browser σας για το συγκεκριμένο brand.'
@@ -843,33 +1054,33 @@ export default function DocsPage() {
 
           {/* Counter-Proposal Section */}
           <section className="mb-12 border-t border-slate-200 pt-12">
-            <h2 className="text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3">
-              <span className="text-4xl">💰</span>
-              {lang === 'el' ? 'Αντιπροσφορά (Counter-Proposal) - Για Influencers' : 'Counter-Proposal - For Influencers'}
-            </h2>
+            <SectionHeading id="counter" icon={icons.counter}>
+              {lang === 'el' ? 'Αντιπροσφορά — Για Influencers' : 'Counter-proposal — For Influencers'}
+            </SectionHeading>
 
             <h3 className="text-xl font-bold text-slate-900 mt-6 mb-4">
               {lang === 'el' ? 'Πώς Κάνετε Αντιπροσφορά' : 'How to Make Counter-Proposal'}
             </h3>
 
-            <ol className="list-decimal list-inside space-y-4 text-slate-700 mb-6">
-              <li>
-                <strong>{lang === 'el' ? 'Ελέγξτε την Προσφορά:' : 'Check Proposal:'}</strong> {lang === 'el' ? 'Dashboard → Proposals, εμφανίζονται όλες οι προσφορές' : 'Dashboard → Proposals, all proposals are displayed'}
-              </li>
-              <li>
-                <strong>{lang === 'el' ? 'Επιλογές:' : 'Options:'}</strong> {lang === 'el' ? 'Αποδοχή, Αντιπροσφορά, ή Μήνυμα' : 'Accept, Counter-propose, or Message'}
-              </li>
-              <li>
-                <strong>{lang === 'el' ? 'Αντιπροσφορά:' : 'Counter-Proposal:'}</strong> {lang === 'el' ? 'Κάντε κλικ στο "Αντιπροσφορά", συμπληρώστε νέο budget και μήνυμα, αποστολή' : 'Click "Counter-propose", fill new budget and message, send'}
-              </li>
-              <li>
-                <strong>{lang === 'el' ? 'Αποτέλεσμα:' : 'Result:'}</strong> {lang === 'el' ? 'Το brand θα δει την αντιπροσφορά, μπορεί να την αποδεχτεί ή απαρνηθεί' : 'Brand will see counter-proposal, can accept or reject'}
-              </li>
-            </ol>
+            <NumberedSteps
+              steps={
+                lang === 'el'
+                  ? [
+                      'Dashboard → Proposals: δείτε τις προσφορές.',
+                      'Επιλέξτε Αποδοχή, Αντιπροσφορά ή Μήνυμα.',
+                      'Στην αντιπροσφορά συμπληρώστε νέο budget και μήνυμα· το brand αποδέχεται ή απορρίπτει.',
+                    ]
+                  : [
+                      'Dashboard → Proposals: review offers.',
+                      'Choose Accept, Counter-propose, or Message.',
+                      'For a counter, set a new budget and message; the brand accepts or rejects.',
+                    ]
+              }
+            />
 
             <div className="bg-purple-50 border border-purple-200 rounded-xl p-6">
-              <h4 className="font-bold text-purple-900 mb-3">
-                {lang === 'el' ? '💡 Συμβουλές για Αντιπροσφορές' : '💡 Tips for Counter-Proposals'}
+              <h4 className="font-semibold text-purple-900 mb-3">
+                {lang === 'el' ? 'Συμβουλές για αντιπροσφορές' : 'Tips for counter-proposals'}
               </h4>
               <ul className="space-y-2 text-slate-700 list-disc list-inside">
                 <li>{lang === 'el' ? 'Ζητήστε δίκαιες τιμές βάσει του engagement rate και των followers σας' : 'Request fair prices based on your engagement rate and followers'}</li>
@@ -881,10 +1092,9 @@ export default function DocsPage() {
 
           {/* Agreement Section */}
           <section className="mb-12 border-t border-slate-200 pt-12">
-            <h2 className="text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3">
-              <span className="text-4xl">🤝</span>
-              {lang === 'el' ? 'Συμφωνία Συνεργασίας (Agreement)' : 'Collaboration Agreement'}
-            </h2>
+            <SectionHeading id="agreement" icon={icons.agreement}>
+              {lang === 'el' ? 'Συμφωνία συνεργασίας' : 'Collaboration agreement'}
+            </SectionHeading>
 
             <div className="grid md:grid-cols-2 gap-6 my-6">
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
@@ -911,7 +1121,7 @@ export default function DocsPage() {
             </div>
 
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-6">
-              <h4 className="font-bold text-amber-900 mb-2">⚠️ {lang === 'el' ? 'Σημαντικό' : 'Important'}</h4>
+              <h4 className="font-semibold text-amber-900 mb-2">{lang === 'el' ? 'Σημαντικό' : 'Important'}</h4>
               <p className="text-slate-700">
                 {lang === 'el' 
                   ? 'Και οι δύο πλευρές πρέπει να αποδεχτούν τους όρους. Μόνο τότε η συνεργασία προστίθεται στο Past Brands. Οι όροι προστατεύουν και τις δύο πλευρές.'
@@ -922,10 +1132,9 @@ export default function DocsPage() {
 
           {/* Messaging Section */}
           <section className="mb-12 border-t border-slate-200 pt-12">
-            <h2 className="text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3">
-              <span className="text-4xl">💬</span>
-              {lang === 'el' ? 'Σύστημα Μηνυμάτων' : 'Messaging System'}
-            </h2>
+            <SectionHeading id="messages" icon={icons.messages}>
+              {lang === 'el' ? 'Σύστημα μηνυμάτων' : 'Messaging system'}
+            </SectionHeading>
 
             <h3 className="text-xl font-bold text-slate-900 mt-6 mb-4">
               {lang === 'el' ? 'Πώς Στέλνετε Μήνυμα' : 'How to Send Message'}
@@ -952,10 +1161,9 @@ export default function DocsPage() {
 
           {/* Reviews Section */}
           <section className="mb-12 border-t border-slate-200 pt-12">
-            <h2 className="text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3">
-              <span className="text-4xl">⭐</span>
+            <SectionHeading id="reviews" icon={icons.reviews}>
               {lang === 'el' ? 'Reviews & Ratings' : 'Reviews & Ratings'}
-            </h2>
+            </SectionHeading>
 
             <div className="grid md:grid-cols-2 gap-6 my-6">
               <div className="bg-purple-50 border border-purple-200 rounded-xl p-6">
@@ -984,10 +1192,9 @@ export default function DocsPage() {
 
           {/* Tips Section */}
           <section className="mb-12 border-t border-slate-200 pt-12">
-            <h2 className="text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3">
-              <span className="text-4xl">💡</span>
-              {lang === 'el' ? 'Συμβουλές για Επιτυχία' : 'Tips for Success'}
-            </h2>
+            <SectionHeading id="tips" icon={icons.tips}>
+              {lang === 'el' ? 'Συμβουλές για επιτυχία' : 'Tips for success'}
+            </SectionHeading>
 
             <div className="grid md:grid-cols-2 gap-6">
               <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
@@ -1022,12 +1229,9 @@ export default function DocsPage() {
 
           {/* FAQ Section — accordion */}
           <section className="mb-12 border-t border-slate-200 pt-12">
-            <h2 className="text-3xl font-bold text-slate-900 mb-3 flex items-center gap-3">
-              <span className="text-4xl" aria-hidden>
-                🆘
-              </span>
-              {lang === "el" ? "Συχνές Ερωτήσεις (FAQ)" : "Frequently Asked Questions (FAQ)"}
-            </h2>
+            <SectionHeading id="faq" icon={icons.faq}>
+              {lang === "el" ? "Συχνές ερωτήσεις (FAQ)" : "Frequently asked questions (FAQ)"}
+            </SectionHeading>
             <p className="text-slate-600 text-sm mb-8 max-w-2xl">
               {lang === "el"
                 ? "Πατήστε μια ερώτηση για να δείτε την απάντηση. Όλες οι απαντήσεις είναι ενδεικτικές· για λεπτομέρειες ισχύουν οι όροι χρήσης και η πολιτική απορρήτου."
@@ -1076,22 +1280,41 @@ export default function DocsPage() {
 
           {/* Support Section */}
           <section className="border-t border-slate-200 pt-12">
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-8 text-center">
-              <h2 className="text-2xl font-bold text-slate-900 mb-4">📞 {lang === 'el' ? 'Support' : 'Support'}</h2>
+            <SectionHeading id="support" icon={icons.support}>
+              {lang === 'el' ? 'Υποστήριξη' : 'Support'}
+            </SectionHeading>
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-6 md:p-8 text-center max-w-prose mx-auto">
               <p className="text-slate-700 mb-4">
                 {lang === 'el' 
                   ? 'Για ερωτήσεις ή βοήθεια:'
                   : 'For questions or help:'}
               </p>
-              <p className="text-lg font-semibold text-blue-700 mb-2">support@influo.gr</p>
+              <p className="text-lg font-semibold text-blue-700 mb-2">
+                <a href="mailto:support@influo.gr" className="hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded">
+                  support@influo.gr
+                </a>
+              </p>
               <p className="text-sm text-slate-600">
                 {lang === 'el' 
-                  ? 'Support Hours: Δευτέρα-Παρασκευή, 10:00-18:00'
-                  : 'Support Hours: Monday-Friday, 10:00-18:00'}
+                  ? 'Ώρες: Δευτέρα–Παρασκευή, 10:00–18:00 (ώρα Ελλάδας)'
+                  : 'Hours: Monday–Friday, 10:00–18:00 (Greece time)'}
               </p>
             </div>
           </section>
 
+            <div className="mt-10 pt-6 border-t border-slate-200 flex justify-center">
+              <a
+                href="#top"
+                className="inline-flex items-center gap-2 text-sm font-semibold text-blue-700 hover:text-blue-800 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                </svg>
+                {txt.back_top}
+              </a>
+            </div>
+
+          </div>
         </div>
       </div>
 
