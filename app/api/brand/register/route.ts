@@ -76,9 +76,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: CONTACT_BLOCKED[lang], code: "contact_info_not_allowed" }, { status: 400 });
   }
 
-  const emailFromUser = (user.email || "").toLowerCase().trim();
-  const contactEmail = asString(body.contact_email).toLowerCase().trim() || emailFromUser;
-  if (!contactEmail || !contactEmail.includes("@")) {
+  // Always from Bearer token — never trust body.contact_email.
+  const contactEmail = (user.email || "").toLowerCase().trim();
+  if (!contactEmail) {
     return NextResponse.json(
       { error: lang === "el" ? "Το email είναι υποχρεωτικό." : "Email is required." },
       { status: 400 }

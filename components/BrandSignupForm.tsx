@@ -292,7 +292,6 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
         body: JSON.stringify({
           lang,
           brand_name: brandName.trim(),
-          contact_email: email.toLowerCase().trim(),
           contact_person: contactPerson.trim() || null,
           afm: afmClean || null,
           website: normalizedWebsite || null,
