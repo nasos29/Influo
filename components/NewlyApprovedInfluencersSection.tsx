@@ -113,10 +113,9 @@ function getPrimaryBadge(inf: NewlyApprovedInfluencer, lang: Lang): Badge | { ty
   }
   const engagementRate =
     Object.keys(engagementRatesObj).length > 0 ? engagementRatesObj : (inf.engagement_rate as Record<string, string> | string) || undefined;
-  const verified = inf.analytics_verified ?? inf.verified ?? false;
   const badges = getBadges(
     {
-      verified,
+      verified: inf.analytics_verified ?? inf.verified ?? false,
       followers: buildFollowers(inf.accounts),
       engagement_rate: engagementRate,
       total_reviews: inf.total_reviews ?? 0,
@@ -127,8 +126,8 @@ function getPrimaryBadge(inf: NewlyApprovedInfluencer, lang: Lang): Badge | { ty
     },
     lang
   );
-  const nonVerified = badges.find((b) => b.type !== "verified");
-  if (nonVerified) return nonVerified;
+  if (badges[0]) return badges[0];
+  // Section is “newly approved” — fall back to New when no achievement badge.
   return {
     type: "new",
     label: lang === "el" ? "Νέος" : "New",

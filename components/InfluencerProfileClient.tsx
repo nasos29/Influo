@@ -1573,8 +1573,20 @@ export default function InfluencerProfile(props: {
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
           {/* Top Section: Avatar, Name, Info */}
           <div className="p-6 md:p-8 flex flex-col md:flex-row items-center md:items-start gap-6 border-b border-slate-100">
-            <div className="relative w-40 h-40 rounded-full border-4 border-white shadow-lg overflow-hidden bg-slate-100 -mt-6 md:mb-0 flex-shrink-0">
-                <Avatar src={profile.avatar} alt={displayNameForLang(profile.name, lang)} size={160} className="w-full h-full" priority />
+            <div className="relative w-40 h-40 -mt-6 md:mb-0 flex-shrink-0">
+                <div className="relative w-40 h-40 rounded-full border-4 border-white shadow-lg overflow-hidden bg-slate-100">
+                  <Avatar src={profile.avatar} alt={displayNameForLang(profile.name, lang)} size={160} className="w-full h-full" priority />
+                </div>
+                {profile.verified && (
+                  <div
+                    className="absolute bottom-1 right-1 bg-blue-600 text-white p-1.5 rounded-full border-2 border-white shadow-sm"
+                    title={lang === "en" ? "Stats checked by Influo" : "Στατιστικά ελεγμένα από το Influo"}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                )}
             </div>
             <div className="flex-1 text-center md:text-left">
                 <h1 className="text-3xl font-bold text-slate-900 flex items-center justify-center md:justify-start gap-2">

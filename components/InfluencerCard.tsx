@@ -112,10 +112,10 @@ export default function InfluencerCard({
       
       {/* Header Background */}
       <div className="h-20 bg-slate-50 relative">
-        {/* Badges - Top Right */}
+        {/* Badges - Top Right (at most one achievement badge) */}
         {badges.length > 0 && (
           <div className="absolute top-2 right-2 flex flex-col gap-1.5 z-10">
-            {badges.slice(0, 2).map((badge, idx) => (
+            {badges.slice(0, 1).map((badge, idx) => (
               <span
                 key={idx}
                 className={getBadgeStyles(badge)}
@@ -162,7 +162,10 @@ export default function InfluencerCard({
             <Avatar src={avatar} alt={displayNameForLang(name, lang || 'el')} size={80} />
           </div>
           {verified && (
-            <div className="absolute bottom-0 left-14 bg-blue-600 text-white p-1 rounded-full border-2 border-white" title="Verified">
+            <div
+              className="absolute bottom-0 left-14 bg-blue-600 text-white p-1 rounded-full border-2 border-white"
+              title={lang === "en" ? "Stats checked by Influo" : "Στατιστικά ελεγμένα από το Influo"}
+            >
                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
             </div>
           )}
