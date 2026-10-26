@@ -268,21 +268,79 @@ export async function POST(request: NextRequest) {
   }
 }
 
-type AnnouncementReader = {
-  id: string;
-  name: string;
-  read_at: string;
-};
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100;
+const BODY_PREVIEW_MAX = 280;
+
+function parsePositiveInt(raw: string | null, fallback: number): number {
+  const n = Number.parseInt(String(raw || ''), 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+function escapeIlike(raw: string): string {
+  return raw.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_').replace(/,/g, ' ');
+}
+
+function truncateBody(body: string | null | undefined): string {
+  const t = String(body || '');
+  if (t.length <= BODY_PREVIEW_MAX) return t;
+  return `${t.slice(0, BODY_PREVIEW_MAX - 1)}…`;
+}
+
+function dayStartIso(dateYmd: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateYmd)) return null;
+  return `${dateYmd}T00:00:00.000Z`;
+}
+
+function dayEndIso(dateYmd: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateYmd)) return null;
+  return `${dateYmd}T23:59:59.999Z`;
+}
 
 export async function GET(request: NextRequest) {
   try {
     const denied = await rejectUnlessAdmin(request);
     if (denied) return denied;
 
-    const { data: announcements, error } = await supabaseAdmin
+    const url = new URL(request.url);
+    const page = parsePositiveInt(url.searchParams.get('page'), 1);
+    const pageSize = Math.min(
+      MAX_PAGE_SIZE,
+      parsePositiveInt(url.searchParams.get('pageSize'), DEFAULT_PAGE_SIZE)
+    );
+    const q = (url.searchParams.get('q') || '').trim();
+    const targetTypeRaw = (url.searchParams.get('target_type') || '').trim();
+    const targetType =
+      targetTypeRaw && isAnnouncementTargetType(targetTypeRaw) ? targetTypeRaw : '';
+    const fromRaw = (url.searchParams.get('from') || '').trim();
+    const toRaw = (url.searchParams.get('to') || '').trim();
+    const fromIso = fromRaw ? dayStartIso(fromRaw) : null;
+    const toIso = toRaw ? dayEndIso(toRaw) : null;
+
+    let listQuery = supabaseAdmin
       .from('announcements')
-      .select('id, title, body, created_at, target_type, target_influencer_id, target_brand_id')
-      .order('created_at', { ascending: false });
+      .select(
+        'id, title, body, created_at, target_type, target_influencer_id, target_brand_id',
+        { count: 'exact' }
+      )
+      .order('created_at', { ascending: false })
+      .range((page - 1) * pageSize, page * pageSize - 1);
+
+    if (targetType) {
+      listQuery = listQuery.eq('target_type', targetType);
+    }
+    if (fromIso) {
+      listQuery = listQuery.gte('created_at', fromIso);
+    }
+    if (toIso) {
+      listQuery = listQuery.lte('created_at', toIso);
+    }
+    if (q) {
+      const pattern = `%${escapeIlike(q)}%`;
+      listQuery = listQuery.or(`title.ilike.${pattern},body.ilike.${pattern}`);
+    }
+
+    const { data: announcements, error, count } = await listQuery;
 
     if (error) {
       console.error('[admin announcements GET]', error);
@@ -290,20 +348,40 @@ export async function GET(request: NextRequest) {
     }
 
     const rows = announcements || [];
+    const total = count ?? 0;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize) || 1);
+
     if (rows.length === 0) {
-      return NextResponse.json({ data: [] });
+      return NextResponse.json({
+        data: [],
+        page,
+        pageSize,
+        total,
+        totalPages,
+      });
     }
 
-    const [{ count: approvedInfluencerCount }, { count: brandTotalCount }] = await Promise.all([
-      supabaseAdmin
-        .from('influencers')
-        .select('*', { count: 'exact', head: true })
-        .eq('approved', true),
-      supabaseAdmin.from('brands').select('*', { count: 'exact', head: true }),
+    const needsInfluencerRecipients = rows.some(
+      (a) => a.target_type === 'all' || a.target_type === 'specific'
+    );
+    const needsBrandRecipients = rows.some(
+      (a) => a.target_type === 'all_brands' || a.target_type === 'specific_brand'
+    );
+
+    const [approvedInfluencerCountRes, brandTotalCountRes] = await Promise.all([
+      needsInfluencerRecipients
+        ? supabaseAdmin
+            .from('influencers')
+            .select('id', { count: 'exact', head: true })
+            .eq('approved', true)
+        : Promise.resolve({ count: 0 }),
+      needsBrandRecipients
+        ? supabaseAdmin.from('brands').select('id', { count: 'exact', head: true })
+        : Promise.resolve({ count: 0 }),
     ]);
 
-    const recipientAll = approvedInfluencerCount ?? 0;
-    const recipientAllBrands = brandTotalCount ?? 0;
+    const recipientAll = approvedInfluencerCountRes.count ?? 0;
+    const recipientAllBrands = brandTotalCountRes.count ?? 0;
 
     const influencerAnnIds = rows
       .filter((a) => a.target_type === 'all' || a.target_type === 'specific')
@@ -318,13 +396,19 @@ export async function GET(request: NextRequest) {
             .from('announcement_reads')
             .select('announcement_id, influencer_id, read_at')
             .in('announcement_id', influencerAnnIds)
-        : Promise.resolve({ data: [] as Array<{ announcement_id: string; influencer_id: string; read_at: string }>, error: null }),
+        : Promise.resolve({
+            data: [] as Array<{ announcement_id: string; influencer_id: string; read_at: string }>,
+            error: null,
+          }),
       brandAnnIds.length > 0
         ? supabaseAdmin
             .from('announcement_brand_reads')
             .select('announcement_id, brand_id, read_at')
             .in('announcement_id', brandAnnIds)
-        : Promise.resolve({ data: [] as Array<{ announcement_id: string; brand_id: string; read_at: string }>, error: null }),
+        : Promise.resolve({
+            data: [] as Array<{ announcement_id: string; brand_id: string; read_at: string }>,
+            error: null,
+          }),
     ]);
 
     if (infReadsRes.error) {
@@ -339,44 +423,19 @@ export async function GET(request: NextRequest) {
     const infReads = infReadsRes.data || [];
     const brandReads = brandReadsRes.data || [];
 
-    const authIds = Array.from(new Set(infReads.map((r) => String(r.influencer_id)).filter(Boolean)));
-    const brandIds = Array.from(new Set(brandReads.map((r) => String(r.brand_id)).filter(Boolean)));
-
-    // Also resolve names for specific targets even if unread (list display elsewhere).
-    for (const a of rows) {
-      if (a.target_type === 'specific' && a.target_influencer_id) {
-        authIds.push(String(a.target_influencer_id));
-      }
-      if (a.target_type === 'specific_brand' && a.target_brand_id) {
-        brandIds.push(String(a.target_brand_id));
-      }
-    }
-    const uniqueAuthIds = Array.from(new Set(authIds));
-    const uniqueBrandIds = Array.from(new Set(brandIds));
-
-    const nameByAuthId = new Map<string, string>();
+    const authIds = Array.from(
+      new Set(infReads.map((r) => String(r.influencer_id)).filter(Boolean))
+    );
     const approvedAuthIds = new Set<string>();
-    if (uniqueAuthIds.length > 0) {
+    if (authIds.length > 0) {
       const { data: infRows } = await supabaseAdmin
         .from('influencers')
-        .select('auth_user_id, display_name, approved')
-        .in('auth_user_id', uniqueAuthIds);
+        .select('auth_user_id')
+        .eq('approved', true)
+        .in('auth_user_id', authIds);
       for (const inf of infRows || []) {
         const key = String(inf.auth_user_id || '');
-        if (!key) continue;
-        nameByAuthId.set(key, String(inf.display_name || key));
-        if (inf.approved) approvedAuthIds.add(key);
-      }
-    }
-
-    const nameByBrandId = new Map<string, string>();
-    if (uniqueBrandIds.length > 0) {
-      const { data: brandRows } = await supabaseAdmin
-        .from('brands')
-        .select('id, brand_name')
-        .in('id', uniqueBrandIds);
-      for (const b of brandRows || []) {
-        nameByBrandId.set(String(b.id), String(b.brand_name || b.id));
+        if (key) approvedAuthIds.add(key);
       }
     }
 
@@ -396,70 +455,63 @@ export async function GET(request: NextRequest) {
       brandReadsByAnn.set(aid, list);
     }
 
+    // List payload: receipts for this page only — counts + specific read_at (no full reader names).
     const enriched = rows.map((a) => {
       let recipient_count = 0;
-      let readers: AnnouncementReader[] = [];
+      let read_count = 0;
       let read_at: string | null = null;
 
       if (a.target_type === 'specific') {
         recipient_count = 1;
         const target = a.target_influencer_id ? String(a.target_influencer_id) : '';
-        const match = (infReadsByAnn.get(String(a.id)) || []).find((r) => r.influencer_id === target);
+        const match = (infReadsByAnn.get(String(a.id)) || []).find(
+          (r) => r.influencer_id === target
+        );
         if (match) {
           read_at = match.read_at;
-          readers = [
-            {
-              id: target,
-              name: nameByAuthId.get(target) || target,
-              read_at: match.read_at,
-            },
-          ];
+          read_count = 1;
         }
       } else if (a.target_type === 'specific_brand') {
         recipient_count = 1;
         const target = a.target_brand_id ? String(a.target_brand_id) : '';
-        const match = (brandReadsByAnn.get(String(a.id)) || []).find((r) => r.brand_id === target);
+        const match = (brandReadsByAnn.get(String(a.id)) || []).find(
+          (r) => r.brand_id === target
+        );
         if (match) {
           read_at = match.read_at;
-          readers = [
-            {
-              id: target,
-              name: nameByBrandId.get(target) || target,
-              read_at: match.read_at,
-            },
-          ];
+          read_count = 1;
         }
       } else if (a.target_type === 'all') {
         recipient_count = recipientAll;
-        readers = (infReadsByAnn.get(String(a.id)) || [])
-          .filter((r) => approvedAuthIds.has(r.influencer_id))
-          .map((r) => ({
-            id: r.influencer_id,
-            name: nameByAuthId.get(r.influencer_id) || r.influencer_id,
-            read_at: r.read_at,
-          }))
-          .sort((x, y) => String(y.read_at).localeCompare(String(x.read_at)));
+        read_count = (infReadsByAnn.get(String(a.id)) || []).filter((r) =>
+          approvedAuthIds.has(r.influencer_id)
+        ).length;
       } else if (a.target_type === 'all_brands') {
         recipient_count = recipientAllBrands;
-        readers = (brandReadsByAnn.get(String(a.id)) || [])
-          .map((r) => ({
-            id: r.brand_id,
-            name: nameByBrandId.get(r.brand_id) || r.brand_id,
-            read_at: r.read_at,
-          }))
-          .sort((x, y) => String(y.read_at).localeCompare(String(x.read_at)));
+        read_count = (brandReadsByAnn.get(String(a.id)) || []).length;
       }
 
       return {
-        ...a,
-        read_count: readers.length,
+        id: a.id,
+        title: a.title,
+        body: truncateBody(a.body),
+        created_at: a.created_at,
+        target_type: a.target_type,
+        target_influencer_id: a.target_influencer_id,
+        target_brand_id: a.target_brand_id,
+        read_count,
         recipient_count,
         read_at,
-        readers,
       };
     });
 
-    return NextResponse.json({ data: enriched });
+    return NextResponse.json({
+      data: enriched,
+      page,
+      pageSize,
+      total,
+      totalPages,
+    });
   } catch (err: any) {
     console.error('[admin announcements GET]', err);
     return NextResponse.json({ error: err.message || 'Internal error' }, { status: 500 });
