@@ -1,9 +1,14 @@
 import type { Metadata } from "next";
 import { categoryLabel as labelForCategory } from "@/lib/categories";
+import { displayNameForLang } from "@/lib/greeklish";
 import { findPrivateFieldPaths } from "@/lib/publicInfluencer";
 import type { ProfileViewModel } from "@/lib/profileViewModel";
 import { publicProfilePath } from "@/lib/profileSlug";
 import { absoluteUrl, languageAlternates, SITE_NAME, SITE_URL } from "@/lib/site";
+
+function seoDisplayName(profile: ProfileViewModel): string {
+  return displayNameForLang(profile.name || "Influencer", "el") || "Influencer";
+}
 
 const PLATFORM_LABEL: Record<string, string> = {
   instagram: "Instagram",
@@ -87,12 +92,12 @@ function ogImage(profile: ProfileViewModel): string {
 export function profileTitle(profile: ProfileViewModel): string {
   const category = categoryLabel(profile.categories?.[0]);
   const city = cityOrGreece(profile.location);
-  const name = profile.name || "Influencer";
+  const name = seoDisplayName(profile);
   return `${name} – ${category} Influencer στην ${city} | Influo`;
 }
 
 export function profileDescription(profile: ProfileViewModel): string {
-  const name = profile.name || "Influencer";
+  const name = seoDisplayName(profile);
   const category = categoryLabel(profile.categories?.[0]).toLocaleLowerCase("el");
   const place = fromPlace(profile.location);
   const top = topFollowers(profile);
@@ -121,7 +126,7 @@ export function profileMetadata(profile: ProfileViewModel): Metadata {
       description,
       locale: "el_GR",
       siteName: SITE_NAME,
-      images: [{ url: image, alt: profile.name || "Influencer" }],
+      images: [{ url: image, alt: seoDisplayName(profile) }],
     },
     twitter: {
       card: "summary_large_image",
@@ -162,7 +167,7 @@ export function profileJsonLd(profile: ProfileViewModel): Record<string, unknown
   const top = topFollowers(profile);
   const person: Record<string, unknown> = {
     "@type": "Person",
-    name: profile.name,
+    name: seoDisplayName(profile),
   };
   if (profile.avatar) person.image = profile.avatar;
   const bio = publicBio(profile);

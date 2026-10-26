@@ -15,6 +15,7 @@ import { getStoredLanguage, setStoredLanguage, type Language } from "@/lib/langu
 import { getCachedImageUrl } from "@/lib/imageProxy";
 import FastImage from "@/components/FastImage";
 import { SITE_URL } from "@/lib/site";
+import { normalizeNameCase } from "@/lib/greeklish";
 
 type Lang = "el" | "en";
 
@@ -213,7 +214,7 @@ export default function Home({
               setUserType(result.profile.type);
               if (result.profile.type === 'influencer') {
                 setUserAvatar(result.profile.avatar_url);
-                setUserName(result.profile.display_name);
+                setUserName(normalizeNameCase(result.profile.display_name));
               } else if (result.profile.type === 'brand') {
                 setUserAvatar(result.profile.logo_url);
                 setUserName(result.profile.brand_name);
@@ -267,7 +268,7 @@ export default function Home({
               setUserType(result.profile.type);
               if (result.profile.type === 'influencer') {
                 setUserAvatar(result.profile.avatar_url);
-                setUserName(result.profile.display_name);
+                setUserName(normalizeNameCase(result.profile.display_name));
               } else if (result.profile.type === 'brand') {
                 setUserAvatar(result.profile.logo_url);
                 setUserName(result.profile.brand_name);

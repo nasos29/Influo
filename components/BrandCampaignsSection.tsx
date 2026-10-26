@@ -14,6 +14,7 @@ import { publicProfilePath } from "@/lib/profileSlug";
 import { mergeApplicantProfile } from "@/lib/applicantProfile";
 import { findContactInfo, filterWorkLinks } from "@/lib/contactFilter";
 import CampaignCard from "@/components/CampaignCard";
+import { displayNameForLang } from "@/lib/greeklish";
 
 const CONTACT_BLOCKED: { el: string; en: string } = {
   el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
@@ -659,7 +660,7 @@ export default function BrandCampaignsSection({
     if (status === "accepted") {
       onOpenInfluencerMessage?.({
         influencerId: app.influencer_id,
-        displayName: app.influencers?.display_name || "Influencer",
+        displayName: displayNameForLang(app.influencers?.display_name || "Influencer", lang),
         conversationId: body.conversationId || null,
       });
     }
@@ -858,9 +859,9 @@ export default function BrandCampaignsSection({
           <ul className="mt-3 space-y-2">
             {invites.map((match) => (
               <li key={match.id} className="bg-white rounded-lg border border-blue-100 p-3 flex flex-col sm:flex-row sm:items-center gap-3">
-                <CreatorPhoto src={match.avatar_url} name={match.display_name} className="w-12 h-12" rounded="rounded-full" />
+                <CreatorPhoto src={match.avatar_url} name={displayNameForLang(match.display_name, lang)} className="w-12 h-12" rounded="rounded-full" />
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium text-slate-900">{match.display_name}</p>
+                  <p className="font-medium text-slate-900">{displayNameForLang(match.display_name, lang)}</p>
                   <PlatformFollowers accounts={match.accounts} lang={lang} />
                   <p className="text-xs text-slate-600 mt-1 line-clamp-2">{match.reasons[0]}</p>
                 </div>
@@ -952,11 +953,11 @@ export default function BrandCampaignsSection({
                           return (
                             <article key={app.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
                               <div className="flex gap-3">
-                                <CreatorPhoto src={inf?.avatar_url} name={inf?.display_name || "Creator"} className="w-14 h-14" rounded="rounded-full" />
+                                <CreatorPhoto src={inf?.avatar_url} name={displayNameForLang(inf?.display_name || "Creator", lang)} className="w-14 h-14" rounded="rounded-full" />
                                 <div className="min-w-0 flex-1">
                                   <div className="flex flex-wrap items-center gap-2">
                                     <InfluencerPresenceDot influencerId={app.influencer_id} lang={lang} />
-                                    <p className="font-medium text-slate-900">{inf?.display_name || app.influencer_id}</p>
+                                    <p className="font-medium text-slate-900">{inf?.display_name ? displayNameForLang(inf.display_name, lang) : app.influencer_id}</p>
                                     <span className={`text-[11px] font-medium px-2.5 py-1 rounded-full ${appStatusChip}`}>{appStatusText}</span>
                                     <Link href={publicProfilePath(inf?.profile_slug, app.influencer_id)} className="text-xs text-blue-600 hover:underline">{x.profile}</Link>
                                   </div>
@@ -999,7 +1000,7 @@ export default function BrandCampaignsSection({
                                     <button type="button" onClick={() => updateAppStatus(app, "accepted")} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-medium">{x.accept}</button>
                                   </>
                                 )}
-                                <button type="button" onClick={() => onOpenInfluencerMessage?.({ influencerId: app.influencer_id, displayName: inf?.display_name || "Influencer" })} className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white font-medium">
+                                <button type="button" onClick={() => onOpenInfluencerMessage?.({ influencerId: app.influencer_id, displayName: displayNameForLang(inf?.display_name || "Influencer", lang) })} className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white font-medium">
                                   {t.btn_chat}
                                 </button>
                                 <span className="text-xs text-slate-500">{deliverableLabel(app.deliverable_status)}</span>
