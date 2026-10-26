@@ -9,14 +9,20 @@ import { prepareImageForStorage } from '@/lib/prepareImageForStorage';
 import { formatCategoryLabels, formatStoredCategories } from '@/lib/categories';
 import CategoryCheckboxList from '@/components/CategoryCheckboxList';
 import { clearLoggedOutMark } from '@/lib/authSession';
+import { BRAND_BIO_MAX, normalizeBrandBio } from '@/lib/brandProfile';
+import { findContactInfo } from '@/lib/contactFilter';
 
 type Lang = "el" | "en";
+
+const BIO_CONTACT_BLOCKED = {
+  el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα στο bio.",
+  en: "For your safety, links, emails and phone numbers aren't allowed in the bio.",
+} as const;
 
 const t = {
   el: {
     headerTitle: "Εγγραφή Επιχείρησης",
     headerDesc: "Δημιούργησε λογαριασμό για να συνεργαστείς με influencers",
-    smartFeature: "🤖 Έξυπνη Υπηρεσία Προτάσεων: Το AI μας προτείνει αυτόματα τους καλύτερους influencers για το brand σας. ΔΩΡΕΑΝ!",
     step1: "Βασικά Στοιχεία",
     step2: "Προφίλ & Κατηγορίες",
     brandNameLabel: "Όνομα Επιχείρησης",
@@ -35,6 +41,9 @@ const t = {
     logoRemove: "Αφαίρεση",
     websiteLabel: "Ιστοσελίδα (Προαιρετικό)",
     websitePlace: "example.com ή www.example.com",
+    bioLabel: "Λίγα λόγια για την επιχείρηση / το brand σας",
+    bioPlace: "Πείτε ποιοι είστε και τι ψάχνετε… (προαιρετικό)",
+    bioHint: "Έως 600 χαρακτήρες. Χωρίς τηλέφωνα, email ή links.",
     categoryLabel: "Κατηγορίες *",
     categoryDesc: "Επιλέξτε μία ή περισσότερες κατηγορίες",
     next: "Επόμενο →",
@@ -50,6 +59,7 @@ const t = {
     error_email_exists: "Αυτό το email χρησιμοποιείται ήδη",
     error_afm_invalid: "Το ΑΦΜ πρέπει να έχει 9 ψηφία",
     error_logo_size: "Το αρχείο είναι πολύ μεγάλο. Μέγιστο μέγεθος: 2MB",
+    error_bio_too_long: `Το bio μπορεί να έχει έως ${BRAND_BIO_MAX} χαρακτήρες.`,
     error_signup: "Σφάλμα κατά την εγγραφή",
     haveAccount: "Έχετε ήδη λογαριασμό; ",
     signIn: "Συνδεθείτε",
@@ -58,7 +68,6 @@ const t = {
   en: {
     headerTitle: "Company Registration",
     headerDesc: "Create an account to collaborate with influencers",
-    smartFeature: "🤖 Smart Recommendation Service: Our AI automatically suggests the best influencers for your brand. FREE!",
     step1: "Basic Info",
     step2: "Profile & Categories",
     brandNameLabel: "Company Name",
@@ -77,6 +86,9 @@ const t = {
     logoRemove: "Remove",
     websiteLabel: "Website (Optional)",
     websitePlace: "example.com or www.example.com",
+    bioLabel: "A few words about your business / brand",
+    bioPlace: "Tell creators who you are and what you look for… (optional)",
+    bioHint: "Up to 600 characters. No phones, emails, or links.",
     categoryLabel: "Categories *",
     categoryDesc: "Select one or more categories",
     next: "Next →",
@@ -92,6 +104,7 @@ const t = {
     error_email_exists: "This email is already in use",
     error_afm_invalid: "Tax ID must have 9 digits",
     error_logo_size: "File is too large. Maximum size: 2MB",
+    error_bio_too_long: `Bio can be at most ${BRAND_BIO_MAX} characters.`,
     error_signup: "Error during registration",
     haveAccount: "Already have an account? ",
     signIn: "Sign In",
@@ -123,6 +136,7 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
   const [password, setPassword] = useState("");
   const [afm, setAfm] = useState("");
   const [website, setWebsite] = useState("");
+  const [bio, setBio] = useState("");
   const [categories, setCategories] = useState<string[]>([]);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -169,6 +183,20 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
       }
       if (!storedCategories) {
         setMessage(txt.error_category);
+        setLoading(false);
+        return;
+      }
+
+      let normalizedBio: string | null = null;
+      try {
+        normalizedBio = normalizeBrandBio(bio);
+      } catch {
+        setMessage(txt.error_bio_too_long);
+        setLoading(false);
+        return;
+      }
+      if (normalizedBio && findContactInfo(normalizedBio)) {
+        setMessage(BIO_CONTACT_BLOCKED[lang]);
         setLoading(false);
         return;
       }
@@ -239,23 +267,6 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
         normalizedWebsite = normalizedWebsite.replace(/\/$/, '');
       }
 
-      const { error: brandError } = await supabase
-        .from('brands')
-        .insert({
-          id: authData.user.id,
-          brand_name: brandName.trim(),
-          contact_email: email.toLowerCase().trim(),
-          contact_person: contactPerson.trim() || null,
-          afm: afmClean || null,
-          website: normalizedWebsite || null,
-          industry: storedCategories,
-          logo_url: logoUrl,
-        });
-
-      if (brandError) {
-        throw brandError;
-      }
-
       const { data: { session }, error: signInError } = await supabase.auth.signInWithPassword({
         email: email.toLowerCase().trim(),
         password: password,
@@ -267,13 +278,42 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
         clearLoggedOutMark();
       }
 
-      const claimToken = session?.access_token || authData.session?.access_token;
-      if (claimToken) {
-        await fetch('/api/proposals/claim', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${claimToken}` },
-        }).catch(() => {});
+      const accessToken = session?.access_token || authData.session?.access_token;
+      if (!accessToken) {
+        throw new Error(txt.error_signup);
       }
+
+      const registerRes = await fetch('/api/brand/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          lang,
+          brand_name: brandName.trim(),
+          contact_email: email.toLowerCase().trim(),
+          contact_person: contactPerson.trim() || null,
+          afm: afmClean || null,
+          website: normalizedWebsite || null,
+          industry: storedCategories,
+          logo_url: logoUrl,
+          bio: normalizedBio,
+        }),
+      });
+      const registerBody = await registerRes.json().catch(() => ({}));
+      if (!registerRes.ok) {
+        throw new Error(
+          typeof registerBody.error === 'string' && registerBody.error
+            ? registerBody.error
+            : txt.error_signup
+        );
+      }
+
+      await fetch('/api/proposals/claim', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }).catch(() => {});
 
       setSuccess(true);
 
@@ -382,9 +422,6 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
         {step === 1 && (
           <div className="space-y-6">
             <h2 className="text-xl font-bold text-black border-b border-gray-200 pb-2">{txt.step1}</h2>
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-3 text-sm">
-              <p className="text-blue-900 font-medium">{txt.smartFeature}</p>
-            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -475,6 +512,24 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
                 placeholder={txt.websitePlace}
                 className={inputClass}
               />
+            </div>
+
+            <div>
+              <label className={labelClass}>{txt.bioLabel}</label>
+              <textarea
+                value={bio}
+                onChange={(e) => {
+                  setBio(e.target.value.slice(0, BRAND_BIO_MAX));
+                  setMessage("");
+                }}
+                rows={4}
+                maxLength={BRAND_BIO_MAX}
+                placeholder={txt.bioPlace}
+                className={`${inputClass} resize-y`}
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                {txt.bioHint} ({bio.length}/{BRAND_BIO_MAX})
+              </p>
             </div>
 
             <div>
