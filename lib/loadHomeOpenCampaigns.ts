@@ -19,24 +19,30 @@ const SELECT = `
   brands ( brand_name, logo_url, verified )
 `;
 
-/** Open campaigns for the home page (ISR-friendly). */
-export async function loadHomeOpenCampaigns(limit = 3): Promise<CampaignCardData[]> {
+/** Open public campaigns (ISR-friendly). Omit limit to return all matching rows. */
+export async function loadOpenCampaigns(limit?: number): Promise<CampaignCardData[]> {
   try {
     const nowIso = new Date().toISOString();
-    const { data, error } = await supabaseService()
+    let query = supabaseService()
       .from("brand_campaigns")
       .select(SELECT)
       .eq("status", "open")
       .or(`deadline.is.null,deadline.gt.${nowIso}`)
-      .order("created_at", { ascending: false })
-      .limit(limit);
+      .order("created_at", { ascending: false });
+    if (typeof limit === "number") query = query.limit(limit);
+    const { data, error } = await query;
     if (error) {
-      console.error("loadHomeOpenCampaigns", error);
+      console.error("loadOpenCampaigns", error);
       return [];
     }
     return (data as unknown as CampaignCardData[]) || [];
   } catch (error) {
-    console.error("loadHomeOpenCampaigns", error);
+    console.error("loadOpenCampaigns", error);
     return [];
   }
+}
+
+/** Open campaigns for the home page (ISR-friendly). */
+export async function loadHomeOpenCampaigns(limit = 3): Promise<CampaignCardData[]> {
+  return loadOpenCampaigns(limit);
 }
