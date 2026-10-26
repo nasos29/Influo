@@ -322,8 +322,8 @@ const FAQ_ITEMS: FaqEntry[] = [
       en: "How do I leave a review after a collaboration?",
     },
     a: {
-      el: "Μετά την ολοκλήρωση της συνεργασίας, ως brand μπορείτε να επισκεφθείτε το προφίλ του influencer, tab Reviews, και να υποβάλετε βαθμολογία και κείμενο. Τα reviews ενισχύουν την αξιοπιστία στην πλατφόρμα.",
-      en: "After completion, as a brand visit the influencer’s profile → Reviews and submit a rating and text. Reviews build trust on the platform.",
+      el: "Αξιολογεί μόνο brand που συνεργάστηκε μέσα από το Influo: είτε με αποδεκτή συμφωνία συνεργασίας σε προσφορά, είτε με εγκεκριμένη παράδοση σε καμπάνια. Συνδεθείτε ως brand, ανοίξτε το προφίλ του influencer → tab Reviews και υποβάλετε βαθμολογία και κείμενο.",
+      en: "Only a brand that collaborated through Influo can review: either via an accepted collaboration agreement on a proposal, or an approved campaign deliverable. Sign in as a brand, open the influencer’s profile → Reviews, and submit a rating and text.",
     },
   },
   {
@@ -1130,8 +1130,13 @@ export default function DocsPage() {
                 <h3 className="font-bold text-purple-900 mb-4">
                   {lang === 'el' ? 'Για Brands - Πώς Αφήνετε Review' : 'For Brands - How to Leave Review'}
                 </h3>
+                <p className="text-slate-700 text-sm mb-3">
+                  {lang === 'el'
+                    ? 'Αξιολογεί μόνο brand που συνεργάστηκε μέσα από το Influo (συμφωνία συνεργασίας ή εγκεκριμένη παράδοση σε καμπάνια).'
+                    : 'Only a brand that collaborated through Influo can review (collaboration agreement or approved campaign deliverable).'}
+                </p>
                 <ol className="list-decimal list-inside space-y-2 text-slate-700 text-sm">
-                  <li>{lang === 'el' ? 'Μετά την ολοκλήρωση, μεταβείτε στο profile του influencer' : 'After completion, go to influencer profile'}</li>
+                  <li>{lang === 'el' ? 'Συνδεθείτε ως brand και ανοίξτε το profile του influencer' : 'Sign in as a brand and open the influencer profile'}</li>
                   <li>{lang === 'el' ? 'Tab "Reviews" → "Αφήστε Review"' : 'Tab "Reviews" → "Leave Review"'}</li>
                   <li>{lang === 'el' ? 'Συμπληρώστε: Rating (1-5), Review Text, Project Type' : 'Fill: Rating (1-5), Review Text, Project Type'}</li>
                 </ol>
@@ -1181,7 +1186,7 @@ export default function DocsPage() {
                   <li>{lang === 'el' ? 'Χρησιμοποιήστε Εργαλεία: σύγκριση, budget, brief, checklist, UTM, brand kit' : 'Use Tools: compare, budget, brief, checklist, UTM, brand kit'}</li>
                   <li>{lang === 'el' ? 'Σαφείς Προσφορές / καμπάνιες: brief, budget, deadline, deliverables' : 'Clear Proposals / campaigns: brief, budget, deadline, deliverables'}</li>
                   <li>{lang === 'el' ? 'Επικοινωνία: απαντήστε εγκαίρως, χρησιμοποιήστε attachments για briefs' : 'Communication: reply promptly, use attachments for briefs'}</li>
-                  <li>{lang === 'el' ? 'Αξιολόγηση: αφήστε reviews μετά την ολοκλήρωση' : 'Evaluation: leave reviews after completion'}</li>
+                  <li>{lang === 'el' ? 'Αξιολόγηση: αφήστε reviews μετά συμφωνία ή εγκεκριμένη παράδοση καμπάνιας' : 'Evaluation: leave reviews after an agreement or approved campaign deliverable'}</li>
                 </ul>
               </div>
             </div>

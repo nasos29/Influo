@@ -78,8 +78,19 @@ export const faqs: FAQItem[] = [
       en: "How do I know if an influencer is trustworthy?"
     },
     answer: {
-      el: "Ελέγξτε: το ✓ «Στατιστικά ελεγμένα από το Influo», reviews από άλλα brands, completion rate, response time, και engagement rate. Οι εγκεκριμένοι influencers εμφανίζονται στον κατάλογο με ελεγμένα στοιχεία.",
-      en: "Check: the ✓ “Stats checked by Influo”, reviews from other brands, completion rate, response time, and engagement rate. Approved influencers appear in the directory with checked stats."
+      el: "Ελέγξτε: το ✓ «Στατιστικά ελεγμένα από το Influo», reviews από άλλα brands (μόνο από brands που συνεργάστηκαν μέσω Influo — συμφωνία ή εγκεκριμένη παράδοση καμπάνιας), completion rate, response time, και engagement rate. Οι εγκεκριμένοι influencers εμφανίζονται στον κατάλογο με ελεγμένα στοιχεία.",
+      en: "Check: the ✓ “Stats checked by Influo”, reviews from other brands (only brands that collaborated through Influo — agreement or approved campaign deliverable), completion rate, response time, and engagement rate. Approved influencers appear in the directory with checked stats."
+    }
+  },
+  {
+    category: { el: "Για Brands", en: "For Brands" },
+    question: {
+      el: "Πώς αφήνω αξιολόγηση σε influencer;",
+      en: "How do I leave a review for an influencer?"
+    },
+    answer: {
+      el: "Αξιολογεί μόνο brand που συνεργάστηκε μέσα από το Influo: είτε με αποδεκτή συμφωνία συνεργασίας σε προσφορά, είτε με εγκεκριμένη παράδοση σε καμπάνια. Συνδεθείτε ως brand, ανοίξτε το προφίλ του influencer → tab Αξιολογήσεις και υποβάλετε βαθμολογία (1-5) και κείμενο.",
+      en: "Only a brand that collaborated through Influo can review: either via an accepted collaboration agreement on a proposal, or an approved campaign deliverable. Sign in as a brand, open the influencer’s profile → Reviews tab, and submit a rating (1–5) and text."
     }
   },
   {
