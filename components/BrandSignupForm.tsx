@@ -260,13 +260,6 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
         }
       }
 
-      let normalizedWebsite = website.trim();
-      if (normalizedWebsite) {
-        normalizedWebsite = normalizedWebsite.replace(/^https?:\/\//i, '');
-        normalizedWebsite = normalizedWebsite.replace(/^www\./i, '');
-        normalizedWebsite = normalizedWebsite.replace(/\/$/, '');
-      }
-
       const { data: { session }, error: signInError } = await supabase.auth.signInWithPassword({
         email: email.toLowerCase().trim(),
         password: password,
@@ -294,7 +287,7 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
           brand_name: brandName.trim(),
           contact_person: contactPerson.trim() || null,
           afm: afmClean || null,
-          website: normalizedWebsite || null,
+          website: website.trim() || null,
           industry: storedCategories,
           logo_url: logoUrl,
           bio: normalizedBio,

@@ -19,6 +19,7 @@ import FastImage from "@/components/FastImage";
 import { SITE_URL } from "@/lib/site";
 import { normalizeNameCase } from "@/lib/greeklish";
 import type { HomeTrustStats } from "@/lib/loadHomeTrustStats";
+import { toPublicHttpsHref } from "@/lib/brandProfile";
 
 type Lang = "el" | "en";
 
@@ -864,9 +865,7 @@ export default function Home({
             <div className="flex animate-scroll gap-8 md:gap-12 lg:gap-16 items-center">
               {/* Verified Brands from Database */}
               {verifiedBrands.map((brand) => {
-                const websiteUrl = brand.website 
-                  ? (brand.website.startsWith('http') ? brand.website : `https://${brand.website}`)
-                  : null;
+                const websiteUrl = toPublicHttpsHref(brand.website);
                 
                 console.log('[Homepage] Rendering brand:', brand.brand_name, 'logo_url:', brand.logo_url);
                 
@@ -955,9 +954,7 @@ export default function Home({
               
               {/* Duplicate verified brands for seamless loop */}
               {verifiedBrands.map((brand) => {
-                const websiteUrl = brand.website 
-                  ? (brand.website.startsWith('http') ? brand.website : `https://${brand.website}`)
-                  : null;
+                const websiteUrl = toPublicHttpsHref(brand.website);
                 
                 return (
                   <a 

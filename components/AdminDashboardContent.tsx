@@ -33,7 +33,7 @@ import {
   writeStamp,
 } from "@/lib/dashboardBadges";
 import { filterWorkLinks } from "@/lib/contactFilter";
-import { BRAND_BIO_MAX } from "@/lib/brandProfile";
+import { BRAND_BIO_MAX, toPublicHttpsHref } from "@/lib/brandProfile";
 
 async function adminAuthHeaders(): Promise<Record<string, string>> {
   const { data: { session } } = await supabase.auth.getSession();
@@ -3950,9 +3950,9 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               {b.contact_person && (
                                 <span className="text-sm">{b.contact_person}</span>
                               )}
-                              {b.website && (
+                              {b.website && toPublicHttpsHref(b.website) && (
                                 <a 
-                                  href={b.website.startsWith('http') ? b.website : `https://${b.website}`}
+                                  href={toPublicHttpsHref(b.website)!}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-xs text-blue-600 hover:underline"

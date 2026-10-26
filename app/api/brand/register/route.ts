@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
 import { findContactInfo } from "@/lib/contactFilter";
 import { formatStoredCategories } from "@/lib/categories";
-import { BRAND_BIO_MAX, normalizeBrandBio } from "@/lib/brandProfile";
+import { BRAND_BIO_MAX, normalizeBrandBio, parseHttpsUrl } from "@/lib/brandProfile";
 
 const CONTACT_BLOCKED = {
   el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα στο bio.",
@@ -93,9 +93,19 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let website = asString(body.website).trim();
-  if (website) {
-    website = website.replace(/^https?:\/\//i, "").replace(/^www\./i, "").replace(/\/$/, "");
+  let website: string | null;
+  try {
+    website = parseHttpsUrl(asString(body.website), "website");
+  } catch {
+    return NextResponse.json(
+      {
+        error:
+          lang === "el"
+            ? "Η ιστοσελίδα πρέπει να είναι έγκυρο domain (π.χ. example.com)."
+            : "Website must be a valid domain (e.g. example.com).",
+      },
+      { status: 400 }
+    );
   }
 
   const contactPerson = asString(body.contact_person).trim() || null;
@@ -111,7 +121,7 @@ export async function POST(request: NextRequest) {
       contact_email: contactEmail,
       contact_person: contactPerson,
       afm: afmDigits || null,
-      website: website || null,
+      website,
       industry,
       logo_url,
       bio,
