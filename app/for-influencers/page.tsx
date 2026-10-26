@@ -35,8 +35,9 @@ const t = {
     feat_6_desc: "Υποβάλετε URL παράδοσης· το brand εγκρίνει ή ζητά αλλαγές στη ροή της καμπάνιας.",
     campaign_title: "Αιτήσεις σε καμπάνιες",
     campaign_desc:
-      "Verified brands δημοσιεύουν καμπάνιες με budget και brief. Από το dashboard κάνετε αίτηση ενδιαφέροντος — παράλληλα με τις κλασικές προσφορές.",
+      "Επαληθευμένα brands δημοσιεύουν καμπάνιες με budget και brief. Όλοι βλέπουν τις ανοιχτές καμπάνιες στη δημόσια σελίδα Καμπάνιες (/campaigns)· αίτηση κάνουν μόνο οι εγκεκριμένοι influencers, με προτεινόμενη τιμή, links προηγούμενης δουλειάς (μόνο social) και προαιρετικό μήνυμα.",
     campaign_cta: "Άνοιγμα καμπανιών",
+    campaign_cta_public: "Δες τις ανοιχτές καμπάνιες",
     campaign_cta_guest: "Εγγραφή για αιτήσεις",
     how_title: "Πώς λειτουργεί",
     how_desc: "Από την εγγραφή στην παράδοση σε τρία βήματα.",
@@ -87,8 +88,9 @@ const t = {
     feat_6_desc: "Submit a delivery URL; the brand approves or requests changes in-campaign.",
     campaign_title: "Apply to campaigns",
     campaign_desc:
-      "Verified brands post campaigns with budget and brief. Apply from your dashboard — alongside classic proposals.",
+      "Verified brands post campaigns with budget and brief. Everyone can browse open campaigns on the public Campaigns page (/en/campaigns); only approved influencers can apply, with a proposed rate, links to past work (social only) and an optional message.",
     campaign_cta: "Open campaigns",
+    campaign_cta_public: "See open campaigns",
     campaign_cta_guest: "Sign up to apply",
     how_title: "How it works",
     how_desc: "From signup to delivery in three steps.",
@@ -306,21 +308,29 @@ export default function ForInfluencersPage() {
               {txt.campaign_title}
             </h2>
             <p className="text-slate-600 leading-relaxed mb-6 max-w-lg">{txt.campaign_desc}</p>
-            {isLoggedIn ? (
+            <div className="flex flex-col sm:flex-row flex-wrap gap-3">
+              {isLoggedIn ? (
+                <Link
+                  href="/dashboard?tab=campaigns"
+                  className="inline-flex justify-center px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg transition-colors"
+                >
+                  {txt.campaign_cta}
+                </Link>
+              ) : (
+                <Link
+                  href={signupHref}
+                  className="inline-flex justify-center px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg transition-colors"
+                >
+                  {txt.campaign_cta_guest}
+                </Link>
+              )}
               <Link
-                href="/dashboard?tab=campaigns"
-                className="inline-flex px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg transition-colors"
+                href={lang === "en" ? "/en/campaigns" : "/campaigns"}
+                className="inline-flex justify-center px-6 py-3 bg-white hover:bg-slate-50 text-slate-900 font-semibold rounded-lg border border-slate-200 transition-colors"
               >
-                {txt.campaign_cta}
+                {txt.campaign_cta_public}
               </Link>
-            ) : (
-              <Link
-                href={signupHref}
-                className="inline-flex px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg transition-colors"
-              >
-                {txt.campaign_cta_guest}
-              </Link>
-            )}
+            </div>
           </div>
           <div className="relative aspect-[4/3] rounded-lg overflow-hidden bg-slate-200">
             <Image
