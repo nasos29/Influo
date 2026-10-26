@@ -33,6 +33,7 @@ import {
   writeStamp,
 } from "@/lib/dashboardBadges";
 import { filterWorkLinks } from "@/lib/contactFilter";
+import { BRAND_BIO_MAX } from "@/lib/brandProfile";
 
 async function adminAuthHeaders(): Promise<Record<string, string>> {
   const { data: { session } } = await supabase.auth.getSession();
@@ -171,6 +172,9 @@ interface Brand {
   logo_url: string | null;
   verified: boolean;
   created_at: string;
+  bio?: string | null;
+  instagram?: string | null;
+  city?: string | null;
 }
 
 interface AdminCampaignApplication {
@@ -448,6 +452,9 @@ const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClos
   const [brandName, setBrandName] = useState(brand.brand_name || '');
   const [contactPerson, setContactPerson] = useState(brand.contact_person || '');
   const [website, setWebsite] = useState(brand.website || '');
+  const [instagram, setInstagram] = useState(brand.instagram || '');
+  const [city, setCity] = useState(brand.city || '');
+  const [bio, setBio] = useState(brand.bio || '');
   const [categories, setCategories] = useState<string[]>(parseStoredCategories(brand.industry || ''));
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(brand.logo_url || null);
@@ -537,6 +544,9 @@ const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClos
       brand_name: brandName.trim(),
       contact_person: contactPerson.trim() || null,
       website: website.trim() || null,
+      instagram: instagram.trim() || null,
+      city: city.trim() || null,
+      bio: bio.trim() || null,
       industry: formatStoredCategories(categories) || null,
       logo_url: logoUrl,
     });
@@ -609,6 +619,40 @@ const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClos
             compact
           />
 
+          {/* Bio */}
+          <div>
+            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
+              {lang === 'el' ? 'Λίγα λόγια για την επιχείρηση / το brand' : 'A few words about the business / brand'}
+            </label>
+            <textarea
+              value={bio}
+              onChange={(e) => setBio(e.target.value.slice(0, BRAND_BIO_MAX))}
+              rows={4}
+              maxLength={BRAND_BIO_MAX}
+              placeholder={lang === 'el' ? 'Προαιρετική περιγραφή…' : 'Optional description…'}
+              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-y"
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              {lang === 'el'
+                ? `Έως ${BRAND_BIO_MAX} χαρακτήρες. Χωρίς τηλέφωνα, email ή links. (${bio.length}/${BRAND_BIO_MAX})`
+                : `Up to ${BRAND_BIO_MAX} characters. No phones, emails, or links. (${bio.length}/${BRAND_BIO_MAX})`}
+            </p>
+          </div>
+
+          {/* City */}
+          <div>
+            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
+              {lang === 'el' ? 'Πόλη' : 'City'}
+            </label>
+            <input
+              type="text"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              placeholder={lang === 'el' ? 'π.χ. Αθήνα' : 'e.g. Athens'}
+              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+            />
+          </div>
+
           {/* Website */}
           <div>
             <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
@@ -621,6 +665,26 @@ const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClos
               placeholder="https://example.com"
               className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
             />
+            <p className="text-xs text-slate-500 mt-1">
+              {lang === 'el' ? 'Μόνο έγκυρα https URLs.' : 'Valid https URLs only.'}
+            </p>
+          </div>
+
+          {/* Instagram */}
+          <div>
+            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
+              Instagram
+            </label>
+            <input
+              type="url"
+              value={instagram}
+              onChange={(e) => setInstagram(e.target.value)}
+              placeholder="https://www.instagram.com/yourbrand"
+              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              {lang === 'el' ? 'Μόνο https URLs του instagram.com.' : 'https instagram.com URLs only.'}
+            </p>
           </div>
 
           {/* Logo */}
@@ -2887,6 +2951,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         headers: { 'Content-Type': 'application/json', ...(await adminAuthHeaders()) },
         body: JSON.stringify({
           brandId: selectedBrand.id,
+          lang,
           ...updatedBrand
         })
       });
@@ -2897,9 +2962,10 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         throw new Error(result.error || 'Failed to update brand');
       }
 
-      // Update local state
+      // Update local state from server response (normalized URLs / bio)
+      const saved = (result.brand || updatedBrand) as Partial<Brand>;
       setBrands(prev => prev.map(b => 
-        b.id === selectedBrand.id ? { ...b, ...updatedBrand } : b
+        b.id === selectedBrand.id ? { ...b, ...saved } : b
       ));
 
       alert(lang === 'el' 

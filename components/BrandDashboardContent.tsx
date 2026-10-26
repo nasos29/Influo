@@ -34,6 +34,7 @@ import {
   type BrandShortlistItem,
 } from '@/lib/brandShortlist';
 import { openAgreementCount, openBrandAgreements } from '@/lib/brandAgreements';
+import { BRAND_BIO_MAX } from '@/lib/brandProfile';
 import {
   badgeAfterOpen,
   brandApplicationSeenKey,
@@ -223,6 +224,19 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt }: EditBra
   const [logoPreview, setLogoPreview] = useState<string | null>(brand.logo_url || null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
+  // Keep fields in sync with the latest brand row (incl. bio from signup / profile API).
+  useEffect(() => {
+    setBrandName(brand.brand_name || '');
+    setContactPerson(brand.contact_person || '');
+    setWebsite(brand.website || '');
+    setInstagram(brand.instagram || '');
+    setCity(brand.city || '');
+    setBio(brand.bio || '');
+    setCategories(parseStoredCategories(brand.industry || brand.category || ''));
+    setLogoFile(null);
+    setLogoPreview(brand.logo_url || null);
+  }, [brand]);
+
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -409,14 +423,14 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt }: EditBra
             </label>
             <textarea
               value={bio}
-              onChange={(e) => setBio(e.target.value.slice(0, 600))}
+              onChange={(e) => setBio(e.target.value.slice(0, BRAND_BIO_MAX))}
               rows={4}
-              maxLength={600}
+              maxLength={BRAND_BIO_MAX}
               placeholder={lang === 'el' ? 'Πείτε ποιοι είστε και τι ψάχνετε…' : 'Tell creators who you are and what you look for…'}
               className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-y"
             />
             <p className="text-xs text-slate-500 mt-1">
-              {txt.edit_bio_hint} ({bio.length}/600)
+              {txt.edit_bio_hint} ({bio.length}/{BRAND_BIO_MAX})
             </p>
           </div>
 
