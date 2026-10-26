@@ -7,7 +7,6 @@ import { isDefinitelyVideo, isDefinitelyImage, detectProvider, getIframelyEmbedU
 import VideoThumbnail from "./VideoThumbnail";
 import SocialEmbedCard from "./SocialEmbedCard";
 import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
-import { displayNameForLang } from "@/lib/greeklish";
 import { categoryLabel, formatCategoryLabels, formatStoredCategories, parseStoredCategories } from "@/lib/categories";
 import CategoryCheckboxList from "@/components/CategoryCheckboxList";
 import { checkAuditprHealth, fetchAuditprOverridesForAccounts, type AccountFetchResult } from "@/lib/socialRefresh";
@@ -3408,7 +3407,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                 <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200">
                                   <Image 
                                     src={getCachedImageUrl(u.avatar_url) ?? u.avatar_url} 
-                                    alt={displayNameForLang(u.display_name, lang)} 
+                                    alt={u.display_name} 
                                     width={40} 
                                     height={40} 
                                     className="object-cover w-full h-full"
@@ -3419,7 +3418,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                 <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200 flex items-center justify-center text-slate-400 text-xs">No Photo</div>
                               )}
                               <div>
-                                <div className="font-medium text-slate-900">{displayNameForLang(u.display_name, lang)}</div>
+                                <div className="font-medium text-slate-900">{u.display_name}</div>
                                 {u.created_at && (
                                   <div
                                     className="text-[10px] text-slate-400 mt-0.5 tabular-nums"

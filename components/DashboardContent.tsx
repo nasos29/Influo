@@ -29,6 +29,7 @@ import {
     readIdList,
     writeIdList,
 } from '@/lib/dashboardBadges';
+import { displayNameForLang } from '@/lib/greeklish';
 
 // --- LANGUAGES LIST ---
 const LANGUAGES = [
@@ -1244,7 +1245,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                 <div className="mb-8 flex flex-wrap items-start justify-between gap-3">
                     <div>
                     <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">
-                        Καλώς ήρθες, <span className="text-slate-900">{profile.display_name}</span>!
+                        Καλώς ήρθες, <span className="text-slate-900">{displayNameForLang(profile.display_name, 'el')}</span>!
                 </h1>
                     <p className="text-slate-600">Διαχείριση προφίλ και ρυθμίσεων</p>
                     </div>
