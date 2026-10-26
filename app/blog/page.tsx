@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
 import Footer from "../../components/Footer";
 import SiteHeader from "@/components/SiteHeader";
