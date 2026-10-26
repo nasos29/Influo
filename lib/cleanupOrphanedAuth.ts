@@ -29,11 +29,13 @@ async function findAuthUserByEmail(
     const match = users.find((u) => (u.email || "").toLowerCase().trim() === emailLower);
     if (match) return { user: match, error: null };
 
-    const nextPage = data?.nextPage ?? null;
-    if (nextPage == null || users.length === 0) {
+    // Prefer nextPage when present; otherwise keep going while the page is full
+    // (GoTrue link parsing for nextPage can break for page numbers ≥ 10).
+    if (users.length === 0 || users.length < LIST_PAGE_SIZE) {
       return { user: null, error: null };
     }
-    page = typeof nextPage === "number" ? nextPage : page + 1;
+    const nextPage = data?.nextPage;
+    page = typeof nextPage === "number" && nextPage > page ? nextPage : page + 1;
     if (page > 500) {
       return { user: null, error: "Auth user search exceeded page limit" };
     }
