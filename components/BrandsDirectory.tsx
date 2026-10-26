@@ -65,33 +65,37 @@ export default function BrandsDirectory({ lang = "el" }: { lang?: "el" | "en" })
     try {
       setLoading(true);
       console.log("[BrandsDirectory] Fetching verified brands...");
-      let { data, error } = await supabase
+      let rows: Brand[] | null = null;
+      const full = await supabase
         .from("brands")
         .select("id, brand_name, contact_person, website, industry, logo_url, verified, created_at, bio, city, instagram")
         .eq("verified", true)
         .order("created_at", { ascending: false });
 
-      if (error && /column|schema cache/i.test(error.message || "")) {
+      if (full.error && /column|schema cache/i.test(full.error.message || "")) {
         const fallback = await supabase
           .from("brands")
           .select("id, brand_name, contact_person, website, industry, logo_url, verified, created_at")
           .eq("verified", true)
           .order("created_at", { ascending: false });
-        data = fallback.data;
-        error = fallback.error;
+        if (fallback.error) {
+          console.error("[BrandsDirectory] Error fetching brands:", fallback.error);
+          throw fallback.error;
+        }
+        rows = (fallback.data || []) as Brand[];
+      } else if (full.error) {
+        console.error("[BrandsDirectory] Error fetching brands:", full.error);
+        throw full.error;
+      } else {
+        rows = (full.data || []) as Brand[];
       }
 
-      if (error) {
-        console.error("[BrandsDirectory] Error fetching brands:", error);
-        throw error;
+      console.log(`[BrandsDirectory] Fetched ${rows?.length || 0} verified brands`);
+      if (rows && rows.length > 0) {
+        console.log('[BrandsDirectory] First brand logo_url:', rows[0].logo_url);
+        console.log('[BrandsDirectory] Sample brands:', rows.map(b => ({ name: b.brand_name, logo_url: b.logo_url })));
       }
-
-      console.log(`[BrandsDirectory] Fetched ${data?.length || 0} verified brands`);
-      if (data && data.length > 0) {
-        console.log('[BrandsDirectory] First brand logo_url:', data[0].logo_url);
-        console.log('[BrandsDirectory] Sample brands:', data.map(b => ({ name: b.brand_name, logo_url: b.logo_url })));
-      }
-      setBrands(data || []);
+      setBrands(rows || []);
     } catch (error) {
       console.error("Error fetching brands:", error);
       setBrands([]);
