@@ -31,12 +31,127 @@ export function hasGreekChars(text: string): boolean {
 }
 
 /**
- * Transliterates Greek text to Greeklish (Latin)
- * If text has no Greek chars, returns as-is
+ * Transliterates Greek text to Greeklish (Latin), letter-by-letter.
+ * Used for profile slugs / URLs — do not change digraph behaviour here.
+ * If text has no Greek chars, returns as-is.
  */
 export function toGreeklish(text: string): string {
   if (!text || typeof text !== 'string') return text || '';
   return text.split('').map((char) => GREEK_TO_LATIN[char] ?? char).join('');
+}
+
+const DIALYTIKA_RE = /[ϊϋΐΰΪΫ]/u;
+
+/** Bare vowel/consonant for digraph matching (strips tonos + dialytika). */
+function bareGreek(ch: string): string {
+  const lo = ch.toLocaleLowerCase('el');
+  const strip: Record<string, string> = {
+    ά: 'α',
+    έ: 'ε',
+    ή: 'η',
+    ί: 'ι',
+    ό: 'ο',
+    ύ: 'υ',
+    ώ: 'ω',
+    ϊ: 'ι',
+    ϋ: 'υ',
+    ΐ: 'ι',
+    ΰ: 'υ',
+  };
+  return strip[lo] ?? lo;
+}
+
+function hasDialytika(ch: string): boolean {
+  return DIALYTIKA_RE.test(ch);
+}
+
+function isGreekChar(ch: string): boolean {
+  return /[\u0370-\u03FF]/.test(ch);
+}
+
+function isUpperGreekForm(ch: string): boolean {
+  return ch !== ch.toLocaleLowerCase('el');
+}
+
+function isNameWordStart(chars: string[], index: number): boolean {
+  if (index <= 0) return true;
+  const prev = chars[index - 1] ?? '';
+  return /[\s\-_/]/.test(prev);
+}
+
+/** αυ/ευ → f before unvoiced consonants. */
+const AV_EU_F_BEFORE = new Set(['θ', 'κ', 'ξ', 'π', 'σ', 'ς', 'τ', 'φ', 'χ', 'ψ']);
+
+function caseLatinDigraph(latin: string, firstUpper: boolean, allUpper: boolean): string {
+  if (!latin) return latin;
+  if (allUpper) return latin.toUpperCase();
+  if (firstUpper) return latin.charAt(0).toUpperCase() + latin.slice(1).toLowerCase();
+  return latin.toLowerCase();
+}
+
+/**
+ * Display-only Greek→Latin for names (digraph-aware).
+ * Do not use for slugs — keep {@link toGreeklish} for URLs.
+ */
+export function toGreeklishName(text: string): string {
+  if (!text || typeof text !== 'string') return text || '';
+  if (!hasGreekChars(text)) return text;
+
+  const chars = [...text];
+  let out = '';
+  let i = 0;
+
+  while (i < chars.length) {
+    const ch = chars[i]!;
+
+    if (!isGreekChar(ch)) {
+      out += ch;
+      i += 1;
+      continue;
+    }
+
+    const next = chars[i + 1];
+    const canDigraph =
+      !!next &&
+      isGreekChar(next) &&
+      !hasDialytika(ch) &&
+      !hasDialytika(next);
+
+    if (canDigraph) {
+      const b0 = bareGreek(ch);
+      const b1 = bareGreek(next!);
+      const pair = `${b0}${b1}`;
+      const firstUpper = isUpperGreekForm(ch);
+      const allUpper = firstUpper && isUpperGreekForm(next!);
+      const wordStart = isNameWordStart(chars, i);
+      const afterBare = chars[i + 2] && isGreekChar(chars[i + 2]!) ? bareGreek(chars[i + 2]!) : '';
+
+      let latin: string | null = null;
+      if (pair === 'ου') latin = 'ou';
+      else if (pair === 'αι') latin = 'ai';
+      else if (pair === 'ει') latin = 'ei';
+      else if (pair === 'οι') latin = 'oi';
+      else if (pair === 'αυ') latin = AV_EU_F_BEFORE.has(afterBare) ? 'af' : 'av';
+      else if (pair === 'ευ') latin = AV_EU_F_BEFORE.has(afterBare) ? 'ef' : 'ev';
+      else if (pair === 'μπ') latin = wordStart ? 'b' : 'mp';
+      else if (pair === 'ντ') latin = wordStart ? 'd' : 'nt';
+      else if (pair === 'γκ') latin = wordStart ? 'g' : 'gk';
+      else if (pair === 'γγ') latin = 'ng';
+      else if (pair === 'τσ') latin = 'ts';
+      else if (pair === 'τζ') latin = 'tz';
+
+      if (latin) {
+        out += caseLatinDigraph(latin, firstUpper, allUpper);
+        i += 2;
+        continue;
+      }
+    }
+
+    out += GREEK_TO_LATIN[ch] ?? ch;
+    i += 1;
+  }
+
+  return out;
 }
 
 const LETTER_RE = /\p{L}/u;
@@ -147,12 +262,13 @@ export function normalizeNameCase(name: string | null | undefined): string {
 }
 
 /**
- * Returns the appropriate display name: normalize case first, then Greeklish when lang is 'en'.
+ * Returns the appropriate display name: normalize case first, then digraph-aware
+ * Greeklish when lang is 'en' (not letter-by-letter {@link toGreeklish}, which is for slugs).
  */
 export function displayNameForLang(name: string | null | undefined, lang: 'el' | 'en'): string {
   const n = normalizeNameCase(name ?? '');
   if (lang === 'en' && hasGreekChars(n)) {
-    return toGreeklish(n);
+    return toGreeklishName(n);
   }
   return n;
 }
