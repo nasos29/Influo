@@ -10,6 +10,25 @@ import {
 
 const influencerColumns = [...INFLUENCER_BROWSER_COLUMNS, ...INFLUENCER_OWNER_COLUMNS].join(",");
 const brandColumns = [...BRAND_BROWSER_COLUMNS, ...BRAND_OWNER_COLUMNS].join(",");
+/** Pre-migration brands select (bio/website already exist; city/instagram may not). */
+const brandColumnsLegacy = [
+  ...BRAND_BROWSER_COLUMNS.filter((c) => c !== "city" && c !== "instagram"),
+  ...BRAND_OWNER_COLUMNS,
+].join(",");
+
+function isMissingColumnError(message: string | undefined): boolean {
+  return /column|schema cache|does not exist/i.test(message || "");
+}
+
+async function selectOwnBrand(admin: ReturnType<typeof supabaseService>, filter: {
+  column: string;
+  value: string;
+}) {
+  const full = await admin.from("brands").select(brandColumns).eq(filter.column, filter.value).maybeSingle();
+  if (!full.error) return full;
+  if (!isMissingColumnError(full.error.message)) return full;
+  return admin.from("brands").select(brandColumnsLegacy).eq(filter.column, filter.value).maybeSingle();
+}
 
 async function findOwnInfluencer(user: User) {
   const admin = supabaseService();
@@ -63,7 +82,7 @@ function withOwnerEmail<T extends BrandRow>(row: T, email: string): T {
 
 async function findOwnBrand(user: User) {
   const admin = supabaseService();
-  const byId = await admin.from("brands").select(brandColumns).eq("id", user.id).maybeSingle();
+  const byId = await selectOwnBrand(admin, { column: "id", value: user.id });
   if (byId.error) throw new Error(byId.error.message);
   const ownById = asBrandRow(byId.data);
   if (ownById) return withOwnerEmail(ownById, await privateBrandEmail(ownById.id));
@@ -74,7 +93,7 @@ async function findOwnBrand(user: User) {
   const priv = await admin.from("brand_private").select("brand_id, contact_email").ilike("contact_email", email).maybeSingle();
   if (priv.error) throw new Error(priv.error.message);
   if (priv.data?.brand_id) {
-    const row = await admin.from("brands").select(brandColumns).eq("id", priv.data.brand_id).maybeSingle();
+    const row = await selectOwnBrand(admin, { column: "id", value: String(priv.data.brand_id) });
     if (row.error) throw new Error(row.error.message);
     const matched = asBrandRow(row.data);
     if (matched) {
@@ -83,7 +102,12 @@ async function findOwnBrand(user: User) {
     }
   }
 
-  const byEmail = await admin.from("brands").select(brandColumns).ilike("contact_email", email).maybeSingle();
+  // contact_email may be denied/absent on brands; prefer brand_private path above.
+  const byEmailFull = await admin.from("brands").select(brandColumns).ilike("contact_email", email).maybeSingle();
+  const byEmail =
+    byEmailFull.error && isMissingColumnError(byEmailFull.error.message)
+      ? await admin.from("brands").select(brandColumnsLegacy).ilike("contact_email", email).maybeSingle()
+      : byEmailFull;
   if (byEmail.error) throw new Error(byEmail.error.message);
   const ownByEmail = asBrandRow(byEmail.data);
   if (!ownByEmail) return null;

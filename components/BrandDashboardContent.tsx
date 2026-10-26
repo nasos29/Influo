@@ -89,6 +89,10 @@ const t = {
     edit_contact_person: "Επικοινωνία",
     edit_afm: "ΑΦΜ",
     edit_website: "Ιστοσελίδα",
+    edit_instagram: "Instagram",
+    edit_city: "Πόλη",
+    edit_bio: "Bio / Περιγραφή",
+    edit_bio_hint: "Έως 600 χαρακτήρες. Χωρίς τηλέφωνα, email ή links.",
     edit_category: "Κατηγορία",
     edit_logo: "Λογότυπο",
     upload_logo: "Ανέβασμα Λογοτύπου",
@@ -150,6 +154,10 @@ const t = {
     edit_contact_person: "Contact Person",
     edit_afm: "Tax ID",
     edit_website: "Website",
+    edit_instagram: "Instagram",
+    edit_city: "City",
+    edit_bio: "Bio / About",
+    edit_bio_hint: "Up to 600 characters. No phones, emails, or links.",
     edit_category: "Category",
     edit_logo: "Logo",
     upload_logo: "Upload Logo",
@@ -207,6 +215,9 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt }: EditBra
   const [brandName, setBrandName] = useState(brand.brand_name || '');
   const [contactPerson, setContactPerson] = useState(brand.contact_person || '');
   const [website, setWebsite] = useState(brand.website || '');
+  const [instagram, setInstagram] = useState(brand.instagram || '');
+  const [city, setCity] = useState(brand.city || '');
+  const [bio, setBio] = useState(brand.bio || '');
   const [categories, setCategories] = useState<string[]>(parseStoredCategories(brand.industry || brand.category || ''));
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(brand.logo_url || null);
@@ -299,6 +310,9 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt }: EditBra
       brand_name: brandName.trim(),
       contact_person: contactPerson.trim() || null,
       website: website.trim() || null,
+      instagram: instagram.trim() || null,
+      city: city.trim() || null,
+      bio: bio.trim() || null,
       category: formatStoredCategories(categories) || null,
       logo_url: logoUrl,
     });
@@ -388,6 +402,38 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt }: EditBra
             compact
           />
 
+          {/* Bio */}
+          <div>
+            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
+              {txt.edit_bio}
+            </label>
+            <textarea
+              value={bio}
+              onChange={(e) => setBio(e.target.value.slice(0, 600))}
+              rows={4}
+              maxLength={600}
+              placeholder={lang === 'el' ? 'Πείτε ποιοι είστε και τι ψάχνετε…' : 'Tell creators who you are and what you look for…'}
+              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-y"
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              {txt.edit_bio_hint} ({bio.length}/600)
+            </p>
+          </div>
+
+          {/* City */}
+          <div>
+            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
+              {txt.edit_city}
+            </label>
+            <input
+              type="text"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              placeholder={lang === 'el' ? 'π.χ. Αθήνα' : 'e.g. Athens'}
+              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+            />
+          </div>
+
           {/* Website */}
           <div>
             <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
@@ -400,6 +446,26 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt }: EditBra
               placeholder="https://example.com"
               className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
             />
+            <p className="text-xs text-slate-500 mt-1">
+              {lang === 'el' ? 'Μόνο έγκυρα https URLs.' : 'Valid https URLs only.'}
+            </p>
+          </div>
+
+          {/* Instagram */}
+          <div>
+            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
+              {txt.edit_instagram}
+            </label>
+            <input
+              type="url"
+              value={instagram}
+              onChange={(e) => setInstagram(e.target.value)}
+              placeholder="https://www.instagram.com/yourbrand"
+              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              {lang === 'el' ? 'Μόνο https URLs του instagram.com.' : 'https instagram.com URLs only.'}
+            </p>
           </div>
 
           {/* Logo */}
@@ -1183,28 +1249,33 @@ export default function BrandDashboardContent() {
     
     setUpdating(true);
     try {
-      const { error } = await supabase
-        .from('brands')
-        .update({
+      const response = await sessionFetch('/api/brand/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lang,
           brand_name: updatedData.brand_name,
           contact_person: updatedData.contact_person || null,
           website: updatedData.website || null,
+          instagram: updatedData.instagram || null,
+          city: updatedData.city || null,
+          bio: updatedData.bio || null,
           industry: updatedData.category || null,
-          logo_url: updatedData.logo_url || null,
-          // Note: afm and contact_email should not be changed typically
-        })
-        .eq('id', brandData.id);
+          logo_url: updatedData.logo_url ?? null,
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result.error || txt.error_updating);
+      }
 
-      if (error) throw error;
-
-      // Reload brand data
       await loadData();
       setShowEditModal(false);
       
-      alert(lang === 'el' ? txt.profile_updated : txt.profile_updated);
+      alert(txt.profile_updated);
     } catch (err: any) {
       console.error('Error updating profile:', err);
-      alert(lang === 'el' ? txt.error_updating : txt.error_updating + ': ' + err.message);
+      alert(txt.error_updating + ': ' + (err?.message || ''));
     } finally {
       setUpdating(false);
     }

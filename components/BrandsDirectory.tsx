@@ -14,6 +14,9 @@ interface Brand {
   logo_url: string | null;
   verified: boolean;
   created_at: string;
+  bio?: string | null;
+  city?: string | null;
+  instagram?: string | null;
 }
 
 const t = {
@@ -62,11 +65,21 @@ export default function BrandsDirectory({ lang = "el" }: { lang?: "el" | "en" })
     try {
       setLoading(true);
       console.log("[BrandsDirectory] Fetching verified brands...");
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from("brands")
-        .select("id, brand_name, contact_person, website, industry, logo_url, verified, created_at")
+        .select("id, brand_name, contact_person, website, industry, logo_url, verified, created_at, bio, city, instagram")
         .eq("verified", true)
         .order("created_at", { ascending: false });
+
+      if (error && /column|schema cache/i.test(error.message || "")) {
+        const fallback = await supabase
+          .from("brands")
+          .select("id, brand_name, contact_person, website, industry, logo_url, verified, created_at")
+          .eq("verified", true)
+          .order("created_at", { ascending: false });
+        data = fallback.data;
+        error = fallback.error;
+      }
 
       if (error) {
         console.error("[BrandsDirectory] Error fetching brands:", error);

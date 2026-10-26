@@ -60,6 +60,9 @@ export const BRAND_BROWSER_COLUMNS = [
   "logo_url",
   "verified",
   "created_at",
+  "bio",
+  "city",
+  "instagram",
 ] as const;
 
 /** Owner-only. afm is not in brand_private; the server reads it for this account. */
