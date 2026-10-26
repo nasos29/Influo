@@ -323,6 +323,8 @@ const t = {
     ann_body: "Κείμενο",
     ann_to_all: "Όλοι οι influencers",
     ann_to_one: "Συγκεκριμένος influencer",
+    ann_to_all_brands: "Όλες οι επιχειρήσεις",
+    ann_to_one_brand: "Συγκεκριμένη επιχείρηση",
     ann_send: "Αποστολή ανακοινώσεως",
     ann_sent: "Απεστάλη",
     refresh_social: "Ανανέωση Social",
@@ -418,6 +420,8 @@ const t = {
     ann_body: "Content",
     ann_to_all: "All influencers",
     ann_to_one: "Specific influencer",
+    ann_to_all_brands: "All businesses",
+    ann_to_one_brand: "Specific business",
     ann_send: "Send announcement",
     ann_sent: "Sent",
     refresh_social: "Refresh Social",
@@ -1729,9 +1733,23 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   // Announcements (admin)
   const [announcementTitle, setAnnouncementTitle] = useState("");
   const [announcementBody, setAnnouncementBody] = useState("");
-  const [announcementTargetType, setAnnouncementTargetType] = useState<"all" | "specific">("all");
+  const [announcementTargetType, setAnnouncementTargetType] = useState<
+    "all" | "specific" | "all_brands" | "specific_brand"
+  >("all");
   const [announcementTargetInfluencerId, setAnnouncementTargetInfluencerId] = useState<string>("");
-  const [announcementsList, setAnnouncementsList] = useState<Array<{ id: string; title: string; body: string; created_at: string; target_type: string; target_influencer_id: string | null }>>([]);
+  const [announcementTargetBrandId, setAnnouncementTargetBrandId] = useState<string>("");
+  const [announcementBrandSearch, setAnnouncementBrandSearch] = useState("");
+  const [announcementsList, setAnnouncementsList] = useState<
+    Array<{
+      id: string;
+      title: string;
+      body: string;
+      created_at: string;
+      target_type: string;
+      target_influencer_id: string | null;
+      target_brand_id?: string | null;
+    }>
+  >([]);
   const [announcementsLoading, setAnnouncementsLoading] = useState(false);
   const [announcementSending, setAnnouncementSending] = useState(false);
 
@@ -1886,6 +1904,10 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       alert(lang === 'el' ? 'Επιλέξτε influencer για στόχευση.' : 'Select an influencer to target.');
       return;
     }
+    if (announcementTargetType === 'specific_brand' && !announcementTargetBrandId) {
+      alert(lang === 'el' ? 'Επιλέξτε επιχείρηση για στόχευση.' : 'Select a business to target.');
+      return;
+    }
     setAnnouncementSending(true);
     try {
       const res = await fetch('/api/admin/announcements', {
@@ -1895,7 +1917,10 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
           title: announcementTitle.trim(),
           content: announcementBody.trim(),
           target_type: announcementTargetType,
-          target_influencer_id: announcementTargetType === 'specific' ? announcementTargetInfluencerId : undefined,
+          target_influencer_id:
+            announcementTargetType === 'specific' ? announcementTargetInfluencerId : undefined,
+          target_brand_id:
+            announcementTargetType === 'specific_brand' ? announcementTargetBrandId : undefined,
         }),
       });
       const result = await res.json();
@@ -1903,6 +1928,8 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         setAnnouncementTitle('');
         setAnnouncementBody('');
         setAnnouncementTargetInfluencerId('');
+        setAnnouncementTargetBrandId('');
+        setAnnouncementBrandSearch('');
         setAnnouncementsList(prev => [result.data, ...prev]);
         alert(txt.ann_sent);
       } else {
@@ -1915,6 +1942,15 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       setAnnouncementSending(false);
     }
   };
+
+  const announcementBrandOptions = brands.filter((b) => {
+    const q = announcementBrandSearch.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      (b.brand_name || '').toLowerCase().includes(q) ||
+      (b.contact_email || '').toLowerCase().includes(q)
+    );
+  });
 
   const saveBlogPost = async (post: BlogPost) => {
     try {
@@ -4571,32 +4607,68 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     <span className="block text-sm font-medium text-slate-900 mb-2">
                       {lang === 'el' ? 'Στοχευμένοι παραλήπτες' : 'Recipients'}
                     </span>
-                    <div className="flex flex-wrap gap-4">
-                      <label className="inline-flex items-center gap-2 cursor-pointer text-slate-900">
-                        <input
-                          type="radio"
-                          name="target"
-                          checked={announcementTargetType === 'all'}
-                          onChange={() => { setAnnouncementTargetType('all'); setAnnouncementTargetInfluencerId(''); }}
-                          className="rounded border-slate-300"
-                        />
-                        <span>{txt.ann_to_all}</span>
-                      </label>
-                      <label className="inline-flex items-center gap-2 cursor-pointer text-slate-900">
-                        <input
-                          type="radio"
-                          name="target"
-                          checked={announcementTargetType === 'specific'}
-                          onChange={() => setAnnouncementTargetType('specific')}
-                          className="rounded border-slate-300"
-                        />
-                        <span>{txt.ann_to_one}</span>
-                      </label>
+                    <div className="flex flex-col gap-3">
+                      <div className="flex flex-wrap gap-4">
+                        <label className="inline-flex items-center gap-2 cursor-pointer text-slate-900">
+                          <input
+                            type="radio"
+                            name="target"
+                            checked={announcementTargetType === 'all'}
+                            onChange={() => {
+                              setAnnouncementTargetType('all');
+                              setAnnouncementTargetInfluencerId('');
+                              setAnnouncementTargetBrandId('');
+                            }}
+                            className="rounded border-slate-300"
+                          />
+                          <span>{txt.ann_to_all}</span>
+                        </label>
+                        <label className="inline-flex items-center gap-2 cursor-pointer text-slate-900">
+                          <input
+                            type="radio"
+                            name="target"
+                            checked={announcementTargetType === 'specific'}
+                            onChange={() => {
+                              setAnnouncementTargetType('specific');
+                              setAnnouncementTargetBrandId('');
+                            }}
+                            className="rounded border-slate-300"
+                          />
+                          <span>{txt.ann_to_one}</span>
+                        </label>
+                        <label className="inline-flex items-center gap-2 cursor-pointer text-slate-900">
+                          <input
+                            type="radio"
+                            name="target"
+                            checked={announcementTargetType === 'all_brands'}
+                            onChange={() => {
+                              setAnnouncementTargetType('all_brands');
+                              setAnnouncementTargetInfluencerId('');
+                              setAnnouncementTargetBrandId('');
+                            }}
+                            className="rounded border-slate-300"
+                          />
+                          <span>{txt.ann_to_all_brands}</span>
+                        </label>
+                        <label className="inline-flex items-center gap-2 cursor-pointer text-slate-900">
+                          <input
+                            type="radio"
+                            name="target"
+                            checked={announcementTargetType === 'specific_brand'}
+                            onChange={() => {
+                              setAnnouncementTargetType('specific_brand');
+                              setAnnouncementTargetInfluencerId('');
+                            }}
+                            className="rounded border-slate-300"
+                          />
+                          <span>{txt.ann_to_one_brand}</span>
+                        </label>
+                      </div>
                       {announcementTargetType === 'specific' && (
                         <select
                           value={announcementTargetInfluencerId}
                           onChange={(e) => setAnnouncementTargetInfluencerId(e.target.value)}
-                          className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[200px] text-slate-900 bg-white"
+                          className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[200px] max-w-xl text-slate-900 bg-white"
                           required={announcementTargetType === 'specific'}
                         >
                           <option value="">{lang === 'el' ? '— Επιλέξτε —' : '— Select —'}</option>
@@ -4610,6 +4682,35 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                             );
                           })}
                         </select>
+                      )}
+                      {announcementTargetType === 'specific_brand' && (
+                        <div className="flex flex-col sm:flex-row gap-2 max-w-xl">
+                          <input
+                            type="search"
+                            value={announcementBrandSearch}
+                            onChange={(e) => setAnnouncementBrandSearch(e.target.value)}
+                            placeholder={
+                              lang === 'el'
+                                ? 'Αναζήτηση επωνυμίας ή email…'
+                                : 'Search by name or email…'
+                            }
+                            className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white"
+                          />
+                          <select
+                            value={announcementTargetBrandId}
+                            onChange={(e) => setAnnouncementTargetBrandId(e.target.value)}
+                            className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[200px] text-slate-900 bg-white"
+                            required={announcementTargetType === 'specific_brand'}
+                          >
+                            <option value="">{lang === 'el' ? '— Επιλέξτε —' : '— Select —'}</option>
+                            {announcementBrandOptions.map((b) => (
+                              <option key={b.id} value={b.id}>
+                                {b.brand_name}
+                                {b.contact_email ? ` (${b.contact_email})` : ''}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -4649,6 +4750,17 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                             )}
                             {a.target_type === 'all' && (
                               <span className="ml-2">→ {txt.ann_to_all}</span>
+                            )}
+                            {a.target_type === 'all_brands' && (
+                              <span className="ml-2">→ {txt.ann_to_all_brands}</span>
+                            )}
+                            {a.target_type === 'specific_brand' && a.target_brand_id && (
+                              <span className="ml-2">
+                                → {txt.ann_to_one_brand}
+                                {brands.find((b) => b.id === a.target_brand_id) && (
+                                  <>: {brands.find((b) => b.id === a.target_brand_id)!.brand_name}</>
+                                )}
+                              </span>
                             )}
                           </div>
                         </div>

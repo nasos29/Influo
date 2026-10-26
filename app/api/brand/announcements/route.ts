@@ -1,0 +1,58 @@
+import { NextRequest, NextResponse } from "next/server";
+import { resolveBrandIdForUser } from "@/lib/brandProfile";
+import { supabaseService, userFromBearer } from "@/lib/apiAuth";
+
+export async function GET(request: NextRequest) {
+  try {
+    const user = await userFromBearer(request);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const admin = supabaseService();
+    const brandId = await resolveBrandIdForUser(admin, user);
+    if (!brandId) {
+      return NextResponse.json({ error: "Brand not found" }, { status: 404 });
+    }
+
+    const { data: announcements, error: annError } = await admin
+      .from("announcements")
+      .select("id, title, body, created_at, target_type")
+      .or(`target_type.eq.all_brands,target_brand_id.eq.${brandId}`)
+      .order("created_at", { ascending: false });
+
+    if (annError) {
+      console.error("[brand announcements GET]", annError);
+      return NextResponse.json({ error: annError.message }, { status: 500 });
+    }
+
+    const { data: reads } = await admin
+      .from("announcement_brand_reads")
+      .select("announcement_id, read_at, dismissed_at")
+      .eq("brand_id", brandId);
+
+    const readSet = new Set((reads || []).map((r: { announcement_id: string }) => r.announcement_id));
+    const readAtMap: Record<string, string> = {};
+    const dismissedSet = new Set<string>();
+    (reads || []).forEach(
+      (r: { announcement_id: string; read_at: string; dismissed_at: string | null }) => {
+        readAtMap[r.announcement_id] = r.read_at;
+        if (r.dismissed_at) dismissedSet.add(r.announcement_id);
+      }
+    );
+
+    const list = (announcements || [])
+      .filter((a: { id: string }) => !dismissedSet.has(a.id))
+      .map((a: { id: string; title: string; body: string; created_at: string; target_type: string }) => ({
+        ...a,
+        read: readSet.has(a.id),
+        read_at: readAtMap[a.id] || null,
+      }));
+
+    return NextResponse.json({ data: list });
+  } catch (err: unknown) {
+    console.error("[brand announcements GET]", err);
+    const message = err instanceof Error ? err.message : "Internal error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

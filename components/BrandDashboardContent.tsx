@@ -644,11 +644,18 @@ export default function BrandDashboardContent() {
       localStorage.setItem('brandDashboardStats', JSON.stringify(recommendationStats));
     }
   }, [recommendationStats]);
-  const [activeTab, setActiveTab] = useState<'recommendations' | 'campaigns' | 'proposals' | 'messages' | 'shortlist' | 'tools'>('recommendations');
+  const [activeTab, setActiveTab] = useState<
+    'recommendations' | 'campaigns' | 'proposals' | 'messages' | 'shortlist' | 'tools' | 'announcements'
+  >('recommendations');
   const [shortlist, setShortlist] = useState<BrandShortlistItem[]>([]);
   const [shortlistMissingTable, setShortlistMissingTable] = useState(false);
   const [shortlistBusyId, setShortlistBusyId] = useState<string | null>(null);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  const [announcementsList, setAnnouncementsList] = useState<
+    Array<{ id: string; title: string; body: string; created_at: string; read: boolean; read_at: string | null }>
+  >([]);
+  const [unreadAnnouncementsCount, setUnreadAnnouncementsCount] = useState(0);
+  const [announcementsLoading, setAnnouncementsLoading] = useState(false);
   const [pendingCampaignApplicationsCount, setPendingCampaignApplicationsCount] = useState(0);
   const [pendingApplicationIds, setPendingApplicationIds] = useState<string[]>([]);
   const [applicationsLoaded, setApplicationsLoaded] = useState(false);
@@ -675,7 +682,8 @@ export default function BrandDashboardContent() {
       tab === 'proposals' ||
       tab === 'recommendations' ||
       tab === 'shortlist' ||
-      tab === 'tools'
+      tab === 'tools' ||
+      tab === 'announcements'
     ) {
       setActiveTab(tab);
     }
@@ -709,6 +717,80 @@ export default function BrandDashboardContent() {
       };
     }
   }, [brandData?.contact_email]);
+
+  const loadUnreadAnnouncementsCount = async () => {
+    try {
+      const res = await sessionFetch("/api/brand/announcements/unread-count", { cache: "no-store" });
+      const data = await res.json().catch(() => ({ count: 0 }));
+      if (res.ok && typeof data.count === "number") {
+        setUnreadAnnouncementsCount(Math.max(0, data.count));
+      }
+    } catch (e) {
+      console.error("Error loading unread announcements count:", e);
+    }
+  };
+
+  useEffect(() => {
+    if (!brandData?.id) return;
+    const refresh = () => {
+      if (activeTab === "announcements") return;
+      void loadUnreadAnnouncementsCount();
+    };
+    refresh();
+    const interval = setInterval(() => {
+      if (document.hidden) return;
+      refresh();
+    }, 120000);
+    const onVisibility = () => {
+      if (!document.hidden) refresh();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", refresh);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [brandData?.id, activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== "announcements" || !brandData?.id) return;
+    let cancelled = false;
+    (async () => {
+      setAnnouncementsLoading(true);
+      try {
+        const res = await sessionFetch("/api/brand/announcements", { cache: "no-store" });
+        const data = await res.json().catch(() => ({ data: [] }));
+        if (!res.ok || cancelled) return;
+        const rows = (Array.isArray(data.data) ? data.data : []) as typeof announcementsList;
+        const unread = rows.filter((row) => !row.read);
+        setAnnouncementsList(rows);
+        setUnreadAnnouncementsCount(unread.length);
+        await Promise.all(
+          unread.map((row) =>
+            sessionFetch(`/api/brand/announcements/${row.id}/read`, { method: "POST" })
+          )
+        );
+        if (!cancelled && unread.length > 0) {
+          setAnnouncementsList((prev) =>
+            prev.map((x) =>
+              unread.some((u) => u.id === x.id)
+                ? { ...x, read: true, read_at: x.read_at || new Date().toISOString() }
+                : x
+            )
+          );
+          setUnreadAnnouncementsCount(0);
+        }
+      } catch (e) {
+        console.error("Error loading announcements:", e);
+      } finally {
+        if (!cancelled) setAnnouncementsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, brandData?.id]);
 
   const loadShortlist = async () => {
     try {
@@ -1305,7 +1387,9 @@ export default function BrandDashboardContent() {
     p => p.counter_proposal_status === 'pending' && p.counter_proposal_budget
   );
 
-  const openBrandTab = (tab: 'recommendations' | 'campaigns' | 'proposals' | 'messages' | 'shortlist' | 'tools') => {
+  const openBrandTab = (
+    tab: 'recommendations' | 'campaigns' | 'proposals' | 'messages' | 'shortlist' | 'tools' | 'announcements'
+  ) => {
     setActiveTab(tab);
     const url = tab === 'recommendations' ? '/brand/dashboard' : `/brand/dashboard?tab=${tab}`;
     router.replace(url, { scroll: false });
@@ -1576,6 +1660,25 @@ export default function BrandDashboardContent() {
                 {lang === 'el' ? 'Εργαλεία' : 'Tools'}
               </button>
               <button
+                onClick={() => openBrandTab('announcements')}
+                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors relative whitespace-nowrap ${
+                  activeTab === 'announcements'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {lang === 'el' ? 'Ανακοινώσεις' : 'Announcements'}
+                {unreadAnnouncementsCount > 0 && (
+                  <span className="absolute top-1.5 sm:top-2 right-0 sm:right-1 bg-red-500 text-white text-[10px] sm:text-xs font-bold rounded-full min-w-[16px] sm:min-w-[18px] h-[16px] sm:h-[18px] flex items-center justify-center px-1">
+                    {unreadAnnouncementsCount > 99
+                      ? '99+'
+                      : unreadAnnouncementsCount > 9
+                        ? '9+'
+                        : unreadAnnouncementsCount}
+                  </span>
+                )}
+              </button>
+              <button
                 onClick={() => setActiveTab('messages')}
                 className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors relative whitespace-nowrap ${
                   activeTab === 'messages'
@@ -1633,6 +1736,118 @@ export default function BrandDashboardContent() {
               onOpenCampaigns={() => openBrandTab("campaigns")}
               onOpenShortlist={() => openBrandTab("shortlist")}
             />
+          </div>
+        )}
+
+        {activeTab === 'announcements' && (
+          <div className="mb-12 space-y-4">
+            <h2 className="text-xl font-semibold text-slate-900">
+              {lang === 'el' ? 'Ανακοινώσεις' : 'Announcements'}
+            </h2>
+            {announcementsLoading ? (
+              <div className="text-center py-8 text-slate-500">
+                {lang === 'el' ? 'Φόρτωση...' : 'Loading...'}
+              </div>
+            ) : announcementsList.length === 0 ? (
+              <div className="text-center py-12 text-slate-500">
+                {lang === 'el' ? 'Δεν υπάρχουν ανακοινώσεις.' : 'No announcements yet.'}
+              </div>
+            ) : (
+              <ul className="space-y-3">
+                {announcementsList.map((a) => (
+                  <li
+                    key={a.id}
+                    className={`border rounded-lg p-4 transition-colors ${
+                      a.read
+                        ? 'bg-slate-50 border-slate-200'
+                        : 'bg-white border-blue-200 ring-1 ring-blue-100'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-slate-900 flex items-center gap-2">
+                          {a.title}
+                          {!a.read && (
+                            <span
+                              className="shrink-0 inline-flex items-center justify-center w-2.5 h-2.5 rounded-full bg-red-500"
+                              title={lang === 'el' ? 'Μη διαβασμένο' : 'Unread'}
+                            />
+                          )}
+                        </div>
+                        <p className="text-sm text-slate-600 mt-1 whitespace-pre-wrap">{a.body}</p>
+                        <p className="text-xs text-slate-500 mt-2">
+                          {new Date(a.created_at).toLocaleString(lang === 'el' ? 'el-GR' : 'en-GB', {
+                            dateStyle: 'medium',
+                            timeStyle: 'short',
+                          })}
+                          {a.read && a.read_at && (
+                            <span className="ml-2">
+                              ·{' '}
+                              {lang === 'el' ? 'Διαβάστηκε' : 'Read'}{' '}
+                              {new Date(a.read_at).toLocaleString(lang === 'el' ? 'el-GR' : 'en-GB', {
+                                dateStyle: 'short',
+                                timeStyle: 'short',
+                              })}
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <div className="shrink-0 flex flex-col sm:flex-row gap-2">
+                        {!a.read && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                const res = await sessionFetch(`/api/brand/announcements/${a.id}/read`, {
+                                  method: 'POST',
+                                });
+                                if (res.ok) {
+                                  setAnnouncementsList((prev) =>
+                                    prev.map((x) =>
+                                      x.id === a.id
+                                        ? { ...x, read: true, read_at: new Date().toISOString() }
+                                        : x
+                                    )
+                                  );
+                                  setUnreadAnnouncementsCount((prev) => Math.max(0, prev - 1));
+                                }
+                              } catch (e) {
+                                console.error('Error marking announcement as read:', e);
+                              }
+                            }}
+                            className="px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                          >
+                            {lang === 'el' ? 'Σήμανση ως διαβασμένο' : 'Mark as read'}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              const res = await sessionFetch(`/api/brand/announcements/${a.id}/dismiss`, {
+                                method: 'POST',
+                              });
+                              if (res.ok) {
+                                setAnnouncementsList((prev) => prev.filter((x) => x.id !== a.id));
+                                if (!a.read) {
+                                  setUnreadAnnouncementsCount((prev) => Math.max(0, prev - 1));
+                                }
+                              }
+                            } catch (e) {
+                              console.error('Error dismissing announcement:', e);
+                            }
+                          }}
+                          className="px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                          title={lang === 'el' ? 'Απόκρυψη από τη λίστα' : 'Hide from list'}
+                        >
+                          {lang === 'el' ? 'Διαγραφή' : 'Delete'}
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
 
