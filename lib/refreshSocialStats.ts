@@ -335,23 +335,28 @@ export async function doRefreshSocialStats(
           } else {
             const auditResult = await runAuditGemini(igTtAccounts, shared);
             if (auditResult && Array.isArray(auditResult.scoreBreakdown)) {
-              const nextAudit: AuditprAudit = {
-                scoreBreakdown: auditResult.scoreBreakdown,
-                scoreBreakdown_en: auditResult.scoreBreakdown_en,
-                whyWorkWithThem: auditResult.whyWorkWithThem,
-                whyWorkWithThem_en: auditResult.whyWorkWithThem_en,
-                positives: auditResult.positives,
-                positives_en: auditResult.positives_en,
-                negatives: auditResult.negatives,
-                negatives_en: auditResult.negatives_en,
-                brandSafe: auditResult.brandSafe,
-                niche: auditResult.niche,
-                niche_en: auditResult.niche_en,
-              };
-              if (!isAuditFallbackResult(auditResult)) {
-                nextAudit.input_fingerprint = fp;
+              // Fallback must not overwrite a usable existing audit; omit fingerprint only when writing fallback for retry.
+              if (isAuditFallbackResult(auditResult) && hasUsableAudit) {
+                errors.push('Audit: Gemini fallback, kept existing audit');
+              } else {
+                const nextAudit: AuditprAudit = {
+                  scoreBreakdown: auditResult.scoreBreakdown,
+                  scoreBreakdown_en: auditResult.scoreBreakdown_en,
+                  whyWorkWithThem: auditResult.whyWorkWithThem,
+                  whyWorkWithThem_en: auditResult.whyWorkWithThem_en,
+                  positives: auditResult.positives,
+                  positives_en: auditResult.positives_en,
+                  negatives: auditResult.negatives,
+                  negatives_en: auditResult.negatives_en,
+                  brandSafe: auditResult.brandSafe,
+                  niche: auditResult.niche,
+                  niche_en: auditResult.niche_en,
+                };
+                if (!isAuditFallbackResult(auditResult)) {
+                  nextAudit.input_fingerprint = fp;
+                }
+                updatePayload.auditpr_audit = nextAudit;
               }
-              updatePayload.auditpr_audit = nextAudit;
             }
           }
         }
