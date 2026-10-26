@@ -1748,10 +1748,15 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       target_type: string;
       target_influencer_id: string | null;
       target_brand_id?: string | null;
+      read_count?: number;
+      recipient_count?: number;
+      read_at?: string | null;
+      readers?: Array<{ id: string; name: string; read_at: string }>;
     }>
   >([]);
   const [announcementsLoading, setAnnouncementsLoading] = useState(false);
   const [announcementSending, setAnnouncementSending] = useState(false);
+  const [announcementReadersOpenId, setAnnouncementReadersOpenId] = useState<string | null>(null);
 
   const fetchConversations = async () => {
     try {
@@ -1930,7 +1935,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         setAnnouncementTargetInfluencerId('');
         setAnnouncementTargetBrandId('');
         setAnnouncementBrandSearch('');
-        setAnnouncementsList(prev => [result.data, ...prev]);
+        await fetchAnnouncements();
         alert(txt.ann_sent);
       } else {
         alert(result.error || (lang === 'el' ? 'Σφάλμα αποστολής' : 'Send failed'));
@@ -4733,7 +4738,16 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                   <p className="text-slate-600">{txt.no_data}</p>
                 ) : (
                   <ul className="space-y-3">
-                    {announcementsList.map((a) => (
+                    {announcementsList.map((a) => {
+                      const readCount = typeof a.read_count === 'number' ? a.read_count : 0;
+                      const recipientCount = typeof a.recipient_count === 'number' ? a.recipient_count : 0;
+                      const isSpecific =
+                        a.target_type === 'specific' || a.target_type === 'specific_brand';
+                      const isBroadcast =
+                        a.target_type === 'all' || a.target_type === 'all_brands';
+                      const readersOpen = announcementReadersOpenId === a.id;
+                      const readers = Array.isArray(a.readers) ? a.readers : [];
+                      return (
                       <li key={a.id} className="border border-slate-200 rounded-lg p-4 bg-slate-50 flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <div className="font-medium text-slate-900">{a.title}</div>
@@ -4763,6 +4777,67 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               </span>
                             )}
                           </div>
+                          <div className="mt-2 text-xs text-slate-800 space-y-1">
+                            {isBroadcast ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setAnnouncementReadersOpenId((prev) => (prev === a.id ? null : a.id))
+                                }
+                                className="inline-flex items-center gap-1 font-medium text-blue-700 hover:text-blue-900 hover:underline"
+                              >
+                                {lang === 'el'
+                                  ? `Διαβάστηκε ${readCount} / ${recipientCount}`
+                                  : `Read ${readCount} / ${recipientCount}`}
+                                <span aria-hidden>{readersOpen ? '▴' : '▾'}</span>
+                              </button>
+                            ) : (
+                              <div className="font-medium">
+                                {lang === 'el'
+                                  ? `Διαβάστηκε ${readCount} / ${recipientCount}`
+                                  : `Read ${readCount} / ${recipientCount}`}
+                              </div>
+                            )}
+                            {isSpecific && (
+                              <div className={a.read_at ? 'text-emerald-700' : 'text-slate-600'}>
+                                {a.read_at ? (
+                                  <>
+                                    ✓{' '}
+                                    {lang === 'el' ? 'Διαβάστηκε στις' : 'Read on'}{' '}
+                                    {new Date(a.read_at).toLocaleString(
+                                      lang === 'el' ? 'el-GR' : 'en-GB',
+                                      { dateStyle: 'short', timeStyle: 'short' }
+                                    )}
+                                  </>
+                                ) : (
+                                  lang === 'el' ? 'Δεν διαβάστηκε ακόμα' : 'Not read yet'
+                                )}
+                              </div>
+                            )}
+                            {isBroadcast && readersOpen && (
+                              <div className="mt-2 rounded-lg border border-slate-200 bg-white p-3 max-h-56 overflow-y-auto">
+                                {readers.length === 0 ? (
+                                  <p className="text-slate-500">
+                                    {lang === 'el' ? 'Κανείς δεν το διάβασε ακόμα.' : 'No one has read it yet.'}
+                                  </p>
+                                ) : (
+                                  <ul className="space-y-1.5">
+                                    {readers.map((r) => (
+                                      <li key={r.id} className="flex items-baseline justify-between gap-3">
+                                        <span className="font-medium text-slate-900 truncate">{r.name}</span>
+                                        <span className="shrink-0 text-slate-500">
+                                          {new Date(r.read_at).toLocaleString(
+                                            lang === 'el' ? 'el-GR' : 'en-GB',
+                                            { dateStyle: 'short', timeStyle: 'short' }
+                                          )}
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
                         <button
                           type="button"
@@ -4772,6 +4847,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               const res = await fetch(`/api/admin/announcements/${a.id}`, { method: 'DELETE', headers: await adminAuthHeaders() });
                               if (res.ok) {
                                 setAnnouncementsList(prev => prev.filter(x => x.id !== a.id));
+                                setAnnouncementReadersOpenId((prev) => (prev === a.id ? null : prev));
                               } else {
                                 const j = await res.json().catch(() => ({}));
                                 alert(j.error || 'Error');
@@ -4787,7 +4863,8 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                           {lang === 'el' ? 'Διαγραφή' : 'Delete'}
                         </button>
                       </li>
-                    ))}
+                      );
+                    })}
                   </ul>
                 )}
               </div>

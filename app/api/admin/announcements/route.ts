@@ -268,12 +268,18 @@ export async function POST(request: NextRequest) {
   }
 }
 
+type AnnouncementReader = {
+  id: string;
+  name: string;
+  read_at: string;
+};
+
 export async function GET(request: NextRequest) {
   try {
     const denied = await rejectUnlessAdmin(request);
     if (denied) return denied;
 
-    const { data, error } = await supabaseAdmin
+    const { data: announcements, error } = await supabaseAdmin
       .from('announcements')
       .select('id, title, body, created_at, target_type, target_influencer_id, target_brand_id')
       .order('created_at', { ascending: false });
@@ -282,7 +288,178 @@ export async function GET(request: NextRequest) {
       console.error('[admin announcements GET]', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    return NextResponse.json({ data: data || [] });
+
+    const rows = announcements || [];
+    if (rows.length === 0) {
+      return NextResponse.json({ data: [] });
+    }
+
+    const [{ count: approvedInfluencerCount }, { count: brandTotalCount }] = await Promise.all([
+      supabaseAdmin
+        .from('influencers')
+        .select('*', { count: 'exact', head: true })
+        .eq('approved', true),
+      supabaseAdmin.from('brands').select('*', { count: 'exact', head: true }),
+    ]);
+
+    const recipientAll = approvedInfluencerCount ?? 0;
+    const recipientAllBrands = brandTotalCount ?? 0;
+
+    const influencerAnnIds = rows
+      .filter((a) => a.target_type === 'all' || a.target_type === 'specific')
+      .map((a) => a.id);
+    const brandAnnIds = rows
+      .filter((a) => a.target_type === 'all_brands' || a.target_type === 'specific_brand')
+      .map((a) => a.id);
+
+    const [infReadsRes, brandReadsRes] = await Promise.all([
+      influencerAnnIds.length > 0
+        ? supabaseAdmin
+            .from('announcement_reads')
+            .select('announcement_id, influencer_id, read_at')
+            .in('announcement_id', influencerAnnIds)
+        : Promise.resolve({ data: [] as Array<{ announcement_id: string; influencer_id: string; read_at: string }>, error: null }),
+      brandAnnIds.length > 0
+        ? supabaseAdmin
+            .from('announcement_brand_reads')
+            .select('announcement_id, brand_id, read_at')
+            .in('announcement_id', brandAnnIds)
+        : Promise.resolve({ data: [] as Array<{ announcement_id: string; brand_id: string; read_at: string }>, error: null }),
+    ]);
+
+    if (infReadsRes.error) {
+      console.error('[admin announcements GET reads]', infReadsRes.error);
+      return NextResponse.json({ error: infReadsRes.error.message }, { status: 500 });
+    }
+    if (brandReadsRes.error) {
+      console.error('[admin announcements GET brand reads]', brandReadsRes.error);
+      return NextResponse.json({ error: brandReadsRes.error.message }, { status: 500 });
+    }
+
+    const infReads = infReadsRes.data || [];
+    const brandReads = brandReadsRes.data || [];
+
+    const authIds = Array.from(new Set(infReads.map((r) => String(r.influencer_id)).filter(Boolean)));
+    const brandIds = Array.from(new Set(brandReads.map((r) => String(r.brand_id)).filter(Boolean)));
+
+    // Also resolve names for specific targets even if unread (list display elsewhere).
+    for (const a of rows) {
+      if (a.target_type === 'specific' && a.target_influencer_id) {
+        authIds.push(String(a.target_influencer_id));
+      }
+      if (a.target_type === 'specific_brand' && a.target_brand_id) {
+        brandIds.push(String(a.target_brand_id));
+      }
+    }
+    const uniqueAuthIds = Array.from(new Set(authIds));
+    const uniqueBrandIds = Array.from(new Set(brandIds));
+
+    const nameByAuthId = new Map<string, string>();
+    const approvedAuthIds = new Set<string>();
+    if (uniqueAuthIds.length > 0) {
+      const { data: infRows } = await supabaseAdmin
+        .from('influencers')
+        .select('auth_user_id, display_name, approved')
+        .in('auth_user_id', uniqueAuthIds);
+      for (const inf of infRows || []) {
+        const key = String(inf.auth_user_id || '');
+        if (!key) continue;
+        nameByAuthId.set(key, String(inf.display_name || key));
+        if (inf.approved) approvedAuthIds.add(key);
+      }
+    }
+
+    const nameByBrandId = new Map<string, string>();
+    if (uniqueBrandIds.length > 0) {
+      const { data: brandRows } = await supabaseAdmin
+        .from('brands')
+        .select('id, brand_name')
+        .in('id', uniqueBrandIds);
+      for (const b of brandRows || []) {
+        nameByBrandId.set(String(b.id), String(b.brand_name || b.id));
+      }
+    }
+
+    const infReadsByAnn = new Map<string, Array<{ influencer_id: string; read_at: string }>>();
+    for (const r of infReads) {
+      const aid = String(r.announcement_id);
+      const list = infReadsByAnn.get(aid) || [];
+      list.push({ influencer_id: String(r.influencer_id), read_at: r.read_at });
+      infReadsByAnn.set(aid, list);
+    }
+
+    const brandReadsByAnn = new Map<string, Array<{ brand_id: string; read_at: string }>>();
+    for (const r of brandReads) {
+      const aid = String(r.announcement_id);
+      const list = brandReadsByAnn.get(aid) || [];
+      list.push({ brand_id: String(r.brand_id), read_at: r.read_at });
+      brandReadsByAnn.set(aid, list);
+    }
+
+    const enriched = rows.map((a) => {
+      let recipient_count = 0;
+      let readers: AnnouncementReader[] = [];
+      let read_at: string | null = null;
+
+      if (a.target_type === 'specific') {
+        recipient_count = 1;
+        const target = a.target_influencer_id ? String(a.target_influencer_id) : '';
+        const match = (infReadsByAnn.get(String(a.id)) || []).find((r) => r.influencer_id === target);
+        if (match) {
+          read_at = match.read_at;
+          readers = [
+            {
+              id: target,
+              name: nameByAuthId.get(target) || target,
+              read_at: match.read_at,
+            },
+          ];
+        }
+      } else if (a.target_type === 'specific_brand') {
+        recipient_count = 1;
+        const target = a.target_brand_id ? String(a.target_brand_id) : '';
+        const match = (brandReadsByAnn.get(String(a.id)) || []).find((r) => r.brand_id === target);
+        if (match) {
+          read_at = match.read_at;
+          readers = [
+            {
+              id: target,
+              name: nameByBrandId.get(target) || target,
+              read_at: match.read_at,
+            },
+          ];
+        }
+      } else if (a.target_type === 'all') {
+        recipient_count = recipientAll;
+        readers = (infReadsByAnn.get(String(a.id)) || [])
+          .filter((r) => approvedAuthIds.has(r.influencer_id))
+          .map((r) => ({
+            id: r.influencer_id,
+            name: nameByAuthId.get(r.influencer_id) || r.influencer_id,
+            read_at: r.read_at,
+          }))
+          .sort((x, y) => String(y.read_at).localeCompare(String(x.read_at)));
+      } else if (a.target_type === 'all_brands') {
+        recipient_count = recipientAllBrands;
+        readers = (brandReadsByAnn.get(String(a.id)) || [])
+          .map((r) => ({
+            id: r.brand_id,
+            name: nameByBrandId.get(r.brand_id) || r.brand_id,
+            read_at: r.read_at,
+          }))
+          .sort((x, y) => String(y.read_at).localeCompare(String(x.read_at)));
+      }
+
+      return {
+        ...a,
+        read_count: readers.length,
+        recipient_count,
+        read_at,
+        readers,
+      };
+    });
+
+    return NextResponse.json({ data: enriched });
   } catch (err: any) {
     console.error('[admin announcements GET]', err);
     return NextResponse.json({ error: err.message || 'Internal error' }, { status: 500 });
