@@ -15,6 +15,7 @@ import { mergeApplicantProfile } from "@/lib/applicantProfile";
 import { findContactInfo, filterWorkLinks } from "@/lib/contactFilter";
 import CampaignCard from "@/components/CampaignCard";
 import { displayNameForLang } from "@/lib/greeklish";
+import { normalizeDeadlineForOpen } from "@/lib/campaignLifecycle";
 
 const CONTACT_BLOCKED: { el: string; en: string } = {
   el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
@@ -139,6 +140,10 @@ const extra = langPack({
   deadline_auto_close: {
     el: "Αν δεν ορίσετε προθεσμία, η καμπάνια κλείνει αυτόματα σε 30 μέρες.",
     en: "If you do not set a deadline, the campaign closes automatically after 30 days.",
+  },
+  deadline_cleared_on_open: {
+    el: "Η παλιά προθεσμία είχε περάσει, οπότε η καμπάνια άνοιξε για 30 μέρες. Μπορείτε να ορίσετε νέα προθεσμία από την επεξεργασία.",
+    en: "The old deadline had passed, so the campaign reopened for 30 days. You can set a new deadline by editing it.",
   },
   contact_hint: {
     el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
@@ -293,6 +298,7 @@ export default function BrandCampaignsSection({
   const [invites, setInvites] = useState<InviteMatch[]>([]);
   const [inviteCampaignId, setInviteCampaignId] = useState<string | null>(null);
   const [invitingId, setInvitingId] = useState<string | null>(null);
+  const [deadlineClearedNotice, setDeadlineClearedNotice] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -516,7 +522,17 @@ export default function BrandCampaignsSection({
 
     setSaving(true);
     try {
-      const nowIso = new Date().toISOString();
+      const now = new Date();
+      const nowIso = now.toISOString();
+      let deadlineIso: string | null = form.deadline
+        ? new Date(`${form.deadline}T12:00:00`).toISOString()
+        : null;
+      let clearedPastDeadline = false;
+      if (form.status === "open") {
+        const normalized = normalizeDeadlineForOpen(deadlineIso, now);
+        deadlineIso = normalized.deadline;
+        clearedPastDeadline = normalized.clearedPastDeadline;
+      }
       const payload: Record<string, unknown> = {
         title: form.title.trim(),
         description: form.description.trim(),
@@ -524,7 +540,7 @@ export default function BrandCampaignsSection({
         category: normalizeCategoryToken(form.category) || form.category,
         deliverables: form.deliverables.trim() || null,
         status: form.status,
-        deadline: form.deadline ? new Date(`${form.deadline}T12:00:00`).toISOString() : null,
+        deadline: deadlineIso,
         starts_on: form.starts_on,
         location: form.location.trim() || null,
         min_followers: form.min_followers ? Math.max(0, parseInt(form.min_followers, 10) || 0) : null,
@@ -594,6 +610,7 @@ export default function BrandCampaignsSection({
       } else {
         toastSuccess(x.saved);
       }
+      setDeadlineClearedNotice(clearedPastDeadline);
       setEditing(null);
       await load();
       onApplicationsUpdated?.();
@@ -850,6 +867,25 @@ export default function BrandCampaignsSection({
             <button type="button" onClick={() => setEditing(null)} className="px-4 py-2 rounded-lg border border-slate-300 text-sm text-slate-700">{t.cancel}</button>
           </div>
         </form>
+      )}
+
+      {deadlineClearedNotice && (
+        <div
+          role="status"
+          className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex gap-3 items-start"
+        >
+          <p className="text-sm text-amber-950 flex-1 min-w-0 leading-relaxed">
+            {x.deadline_cleared_on_open}
+          </p>
+          <button
+            type="button"
+            onClick={() => setDeadlineClearedNotice(false)}
+            className="shrink-0 text-amber-800/80 hover:text-amber-950 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 rounded"
+            aria-label={lang === "el" ? "Κλείσιμο" : "Dismiss"}
+          >
+            ✕
+          </button>
+        </div>
       )}
 
       {invites.length > 0 && (

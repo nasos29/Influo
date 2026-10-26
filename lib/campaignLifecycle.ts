@@ -16,6 +16,23 @@ export function campaignClosesAt(c: CampaignCloseInput): Date {
 }
 
 /**
+ * When opening/reopening a campaign, a deadline at or before `now` would make
+ * the lifecycle cron close it immediately. Clear it so the default 30-day
+ * window from opened_at applies. Future deadlines are kept.
+ */
+export function normalizeDeadlineForOpen(
+  deadlineIso: string | null | undefined,
+  now: Date = new Date()
+): { deadline: string | null; clearedPastDeadline: boolean } {
+  if (!deadlineIso) return { deadline: null, clearedPastDeadline: false };
+  const at = new Date(deadlineIso);
+  if (Number.isNaN(at.getTime()) || at.getTime() <= now.getTime()) {
+    return { deadline: null, clearedPastDeadline: true };
+  }
+  return { deadline: deadlineIso, clearedPastDeadline: false };
+}
+
+/**
  * Whole days remaining until campaignClosesAt (ceil).
  * Negative when already past close; null when dates are insufficient.
  */
