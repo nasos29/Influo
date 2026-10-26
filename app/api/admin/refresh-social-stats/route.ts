@@ -1,6 +1,7 @@
 /**
  * Admin dashboard: refresh social stats (followers, engagement_rate, avg_likes) for one or all influencers.
- * Called from the admin UI button – no CRON_SECRET needed.
+ * Auth: admin Bearer session, or Authorization: Bearer ${CRON_SECRET}.
+ * Cron scraping uses /api/cron/refresh-social-stats; this route is for the admin UI (browser Auditpr overrides).
  *
  * GET: returns list of influencers due for refresh (id, display_name, accounts) so the browser can fetch from local Auditpr and then POST.
  * POST body: { influencerId?: string } – if omitted, refreshes all due (last_social_refresh_at > 15 days ago).
@@ -11,6 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { doRefreshSocialStats, type InstagramOverrides, type TikTokOverrides, type YouTubeOverrides } from '@/lib/refreshSocialStats';
+import { rejectUnlessAdmin } from '@/lib/apiAuth';
 
 /** Keep within Vercel Hobby limit (60s without Fluid). */
 export const maxDuration = 60;
@@ -22,8 +24,11 @@ const supabaseAdmin = createClient(
 );
 
 /** GET: list influencers due for refresh (for "refresh all" via local Auditpr in browser). */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+  const denied = await rejectUnlessAdmin(request, { allowCronSecret: true });
+  if (denied) return denied;
+
     const dueDaysAgo = new Date();
     dueDaysAgo.setDate(dueDaysAgo.getDate() - 15);
     const { data: influencers, error } = await supabaseAdmin
@@ -43,6 +48,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+  const denied = await rejectUnlessAdmin(request, { allowCronSecret: true });
+  if (denied) return denied;
+
     let influencerId: string | null = null;
     let instagramOverrides: InstagramOverrides | undefined;
     let tiktokOverrides: TikTokOverrides | undefined;

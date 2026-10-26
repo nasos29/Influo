@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { rejectUnlessAdmin } from "@/lib/apiAuth";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -74,6 +75,9 @@ function parseAndConvertLanguages(langString: string | null): string {
 
 export async function POST(request: Request) {
   try {
+  const denied = await rejectUnlessAdmin(request);
+  if (denied) return denied;
+
     // Fetch all influencers with languages
     const { data: influencers, error } = await supabaseAdmin
       .from('influencers')

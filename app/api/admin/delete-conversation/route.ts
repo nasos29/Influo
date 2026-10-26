@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { rejectUnlessAdmin } from "@/lib/apiAuth";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,6 +15,9 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: NextRequest) {
   try {
+  const denied = await rejectUnlessAdmin(req);
+  if (denied) return denied;
+
     const { conversationId } = await req.json();
 
     if (!conversationId) {

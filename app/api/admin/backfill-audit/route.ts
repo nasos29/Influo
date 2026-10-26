@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { rejectUnlessAdmin } from '@/lib/apiAuth';
 import {
   computeAuditFingerprint,
   runAuditGeminiStrict,
@@ -62,6 +63,9 @@ type AuditprAudit = {
 
 export async function POST(request: NextRequest) {
   try {
+  const denied = await rejectUnlessAdmin(request);
+  if (denied) return denied;
+
     const apiKey = (
       process.env.GEMINI_API_KEY ||
       process.env.GOOGLE_GENERATIVE_AI_API_KEY ||

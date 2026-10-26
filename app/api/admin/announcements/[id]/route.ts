@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { rejectUnlessAdmin } from '@/lib/apiAuth';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,10 +9,13 @@ const supabaseAdmin = createClient(
 );
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const denied = await rejectUnlessAdmin(request);
+    if (denied) return denied;
+
     const { id } = await params;
     if (!id) {
       return NextResponse.json({ error: 'Announcement id required' }, { status: 400 });

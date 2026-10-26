@@ -407,7 +407,7 @@ export default function InfluencerSignupForm() {
           // Προ-έλεγχος: Προσπαθούμε να καθαρίσουμε orphaned auth users (αν υπάρχουν)
           // Αυτό βοηθάει αν κάποιος διαγράφηκε από influencers αλλά όχι από auth
           try {
-              await fetch('/api/admin/cleanup-orphaned-auth', {
+              await fetch('/api/auth/cleanup-orphaned', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ email }),
@@ -433,7 +433,7 @@ export default function InfluencerSignupForm() {
               
               if (shouldCleanup) {
                   try {
-                      const cleanupResponse = await fetch('/api/admin/cleanup-orphaned-auth', {
+                      const cleanupResponse = await fetch('/api/auth/cleanup-orphaned', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ email }),
@@ -510,7 +510,7 @@ export default function InfluencerSignupForm() {
           ) {
               // Προσπαθούμε να καθαρίσουμε orphaned auth user
               try {
-                  const cleanupResponse = await fetch('/api/admin/cleanup-orphaned-auth', {
+                  const cleanupResponse = await fetch('/api/auth/cleanup-orphaned', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ email }),
@@ -647,7 +647,7 @@ export default function InfluencerSignupForm() {
       if (insertError) {
           // Auth user exists but profile insert failed — remove orphan so they can retry
           try {
-            await fetch('/api/admin/cleanup-orphaned-auth', {
+            await fetch('/api/auth/cleanup-orphaned', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ email }),

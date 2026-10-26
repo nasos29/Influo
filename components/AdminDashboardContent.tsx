@@ -1093,7 +1093,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
               try {
                 const auditRes = await fetch('/api/admin/refresh-audit', {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
+                  headers: { 'Content-Type': 'application/json', ...(await adminAuthHeaders()) },
                   body: JSON.stringify({ influencerId: user.id }),
                 });
                 const ct = auditRes.headers.get('content-type') ?? '';
@@ -1792,7 +1792,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const fetchAnnouncements = async () => {
     setAnnouncementsLoading(true);
     try {
-      const res = await fetch('/api/admin/announcements');
+      const res = await fetch('/api/admin/announcements', { headers: await adminAuthHeaders() });
       const data = await res.json();
       if (res.ok && Array.isArray(data.data)) {
         setAnnouncementsList(data.data);
@@ -1818,7 +1818,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     try {
       const res = await fetch('/api/admin/announcements', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await adminAuthHeaders()) },
         body: JSON.stringify({
           title: announcementTitle.trim(),
           content: announcementBody.trim(),
@@ -2457,7 +2457,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       if (idStr && user?.accounts?.length) {
         accountsToFetch = user.accounts;
       } else if (!idStr) {
-        const listRes = await fetch('/api/admin/refresh-social-stats', { method: 'GET' });
+        const listRes = await fetch('/api/admin/refresh-social-stats', { method: 'GET', headers: await adminAuthHeaders() });
         const listData = await listRes.json();
         const dueList = (listData.influencers ?? []) as { id: number; display_name: string; accounts: { platform?: string; username?: string }[] }[];
         if (!dueList.length) {
@@ -2536,7 +2536,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       if (youtubeOverrides && Object.keys(youtubeOverrides).length > 0) body.youtubeOverrides = youtubeOverrides;
       const res = await fetch('/api/admin/refresh-social-stats', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await adminAuthHeaders()) },
         body: JSON.stringify(body),
       });
       const raw = await res.text();
@@ -2608,7 +2608,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     try {
       const res = await fetch('/api/admin/refresh-audit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await adminAuthHeaders()) },
         body: JSON.stringify({ influencerId: idStr }),
       });
       const ct = res.headers.get('content-type') || '';
@@ -2657,7 +2657,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     try {
         const response = await fetch('/api/admin/delete-user', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...(await adminAuthHeaders()) },
             body: JSON.stringify({ 
               userId: id,
               adminEmail: adminEmail // Pass admin email for audit log
@@ -2800,7 +2800,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     try {
       const response = await fetch('/api/admin/delete-brand', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await adminAuthHeaders()) },
         body: JSON.stringify({ brandId }),
       });
 
@@ -2841,7 +2841,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     try {
       const response = await fetch('/api/admin/delete-conversation', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await adminAuthHeaders()) },
         body: JSON.stringify({ conversationId }),
       });
 
@@ -2971,7 +2971,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         } else {
           await fetch('/api/admin/delete-user', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...(await adminAuthHeaders()) },
             body: JSON.stringify({ 
               userId,
               adminEmail: adminEmail // Pass admin email for audit log
@@ -3292,7 +3292,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     try {
                       while (true) {
                         setBackfillProgress(lang === 'el' ? `${totalUpdated} ενημερώθηκαν μέχρι τώρα...` : `${totalUpdated} updated so far...`);
-                        const res = await fetch('/api/admin/backfill-audit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ limit, skip }) });
+                        const res = await fetch('/api/admin/backfill-audit', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(await adminAuthHeaders()) }, body: JSON.stringify({ limit, skip }) });
                         const contentType = res.headers.get('content-type') ?? '';
                         let data: { updated?: number; hasMore?: boolean; errors?: string[]; error?: string } = {};
                         if (contentType.includes('application/json')) {
@@ -4406,7 +4406,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                           onClick={async () => {
                             if (!confirm(lang === 'el' ? 'Διαγραφή ανακοίνωσης; Δεν μπορεί να αναιρεθεί.' : 'Delete this announcement? This cannot be undone.')) return;
                             try {
-                              const res = await fetch(`/api/admin/announcements/${a.id}`, { method: 'DELETE' });
+                              const res = await fetch(`/api/admin/announcements/${a.id}`, { method: 'DELETE', headers: await adminAuthHeaders() });
                               if (res.ok) {
                                 setAnnouncementsList(prev => prev.filter(x => x.id !== a.id));
                               } else {
