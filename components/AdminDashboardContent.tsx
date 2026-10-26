@@ -1619,8 +1619,16 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [isNewBlogPost, setIsNewBlogPost] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "verified" | "pending">("all");
   const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
+  const [influencersPage, setInfluencersPage] = useState(1);
+  const [influencersTotal, setInfluencersTotal] = useState(0);
+  const [influencersHasMore, setInfluencersHasMore] = useState(false);
+  const [influencersLoading, setInfluencersLoading] = useState(false);
+  const [influencersLoadingMore, setInfluencersLoadingMore] = useState(false);
+  const [pickerUsers, setPickerUsers] = useState<DbInfluencer[]>([]);
+  const [editDetailLoading, setEditDetailLoading] = useState(false);
   
   const [selectedUser, setSelectedUser] = useState<DbInfluencer | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -2021,30 +2029,118 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     };
   };
 
+  const PAGE_SIZE = 50;
+
+  const applyInfluencerCounts = (
+    counts: { total?: number; approved?: number; pending?: number; analyticsVerified?: number } | undefined,
+    pipeline: string
+  ) => {
+    if (!counts) return;
+    const total = counts.total ?? 0;
+    const approved = counts.approved ?? 0;
+    const pending = counts.pending ?? Math.max(0, total - approved);
+    const analyticsVerified = counts.analyticsVerified ?? 0;
+    setStats((prev) => ({
+      ...prev,
+      total,
+      verified: approved,
+      approved,
+      analyticsVerified,
+      pending,
+      pipeline: pipeline || prev.pipeline,
+      // Reach is not recomputed from full table (would require scanning all rows).
+      reach: prev.reach || "—",
+    }));
+  };
+
+  const fetchInfluencersPage = async (opts: {
+    page: number;
+    append?: boolean;
+    silent?: boolean;
+    q?: string;
+    status?: "all" | "verified" | "pending";
+  }) => {
+    const page = opts.page;
+    const append = !!opts.append;
+    const q = opts.q ?? debouncedSearch;
+    const status = opts.status ?? statusFilter;
+    if (append) setInfluencersLoadingMore(true);
+    else if (!opts.silent) setInfluencersLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(PAGE_SIZE),
+        status,
+        sort: "created_at",
+        order: "desc",
+      });
+      if (q.trim()) params.set("q", q.trim());
+      const res = await fetch(`/api/admin/influencers?${params}`, {
+        headers: await adminAuthHeaders(),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        console.error("Error fetching influencers:", body.error || res.statusText);
+        if (!append) setUsers([]);
+        return;
+      }
+      const rows = (Array.isArray(body.influencers) ? body.influencers : []) as DbInfluencer[];
+      setUsers((prev) => (append ? [...prev, ...rows] : rows));
+      setInfluencersPage(page);
+      setInfluencersTotal(typeof body.total === "number" ? body.total : rows.length);
+      setInfluencersHasMore(!!body.hasMore);
+      applyInfluencerCounts(body.counts, "");
+    } catch (error) {
+      console.error("Error fetching influencers:", error);
+      if (!append) setUsers([]);
+    } finally {
+      setInfluencersLoading(false);
+      setInfluencersLoadingMore(false);
+    }
+  };
+
+  const fetchPickerUsers = async () => {
+    try {
+      const res = await fetch("/api/admin/influencers?picker=1", {
+        headers: await adminAuthHeaders(),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok && Array.isArray(body.influencers)) {
+        setPickerUsers(body.influencers as DbInfluencer[]);
+      }
+    } catch (error) {
+      console.error("Error fetching influencer picker list:", error);
+    }
+  };
+
+  const openEditUser = async (row: DbInfluencer) => {
+    setSelectedUser(row);
+    setShowEditModal(true);
+    setEditDetailLoading(true);
+    try {
+      const res = await fetch(`/api/admin/influencers/${row.id}`, {
+        headers: await adminAuthHeaders(),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok && body.influencer) {
+        setSelectedUser(body.influencer as DbInfluencer);
+      }
+    } catch (error) {
+      console.error("Error loading influencer detail:", error);
+    } finally {
+      setEditDetailLoading(false);
+    }
+  };
+
   const fetchData = async (opts?: { silent?: boolean }) => {
     const silent = !!opts?.silent;
     if (!silent) setLoading(true);
     try {
-      // Only fetch from influencers table - brands should not appear here
-      const influencersResponse = await fetch('/api/admin/influencers', {
-        headers: await adminAuthHeaders(),
-      });
-      const influencersBody = await influencersResponse.json().catch(() => ({}));
-      const usersData = (influencersResponse.ok ? influencersBody.influencers : null) as DbInfluencer[] | null;
-      const influencersError = influencersResponse.ok
-        ? null
-        : { message: influencersBody.error || 'Failed to load influencers' };
-      
-      if (influencersError) {
-        console.error('Error fetching influencers:', influencersError);
-        setUsers([]);
-      } else if (usersData) {
-        console.log(`[Admin Dashboard] Fetched ${usersData.length} influencers`);
-        setUsers(usersData as any);
-      } else {
-        setUsers([]);
-      }
-      
+      await Promise.all([
+        fetchInfluencersPage({ page: 1, silent: true, q: debouncedSearch, status: statusFilter }),
+        fetchPickerUsers(),
+      ]);
+
       const proposalsResponse = await fetch('/api/admin/proposals', {
         headers: await adminAuthHeaders(),
       });
@@ -2058,42 +2154,19 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         console.error('Error fetching proposals:', proposalsError);
       }
 
-      if (usersData) {
-        const total = usersData.length;
-        const approved = usersData.filter((u) => u.approved).length;
-        const analyticsVerified = usersData.filter((u) => u.analytics_verified).length;
-      
-      const totalReachNum = usersData.reduce((acc, curr) => {
-         let val = 0;
-         if (curr.avg_likes) {
-             const clean = curr.avg_likes.toLowerCase().trim().replace(/,/g, '');
-             if (clean.endsWith('k')) val = parseFloat(clean) * 1000;
-             else if (clean.endsWith('m')) val = parseFloat(clean) * 1000000;
-             else val = parseFloat(clean);
-         }
-         return acc + (isNaN(val) ? 0 : val);
-      }, 0);
-      let formattedReach = totalReachNum > 1000000 ? (totalReachNum / 1000000).toFixed(1) + 'M' : (totalReachNum / 1000).toFixed(1) + 'k';
-
       let pipelineSum = 0;
       if (propData) {
-          setProposals(propData as any);
-          propData.forEach(p => {
-              const val = parseFloat(p.budget);
-              if (!isNaN(val)) pipelineSum += val;
-          });
-          setPendingProposalsCount(countUnseenPendingProposals(propData));
-      }
-
-        setStats({ 
-          total, 
-          verified: approved, // Keep for backward compatibility
-          approved,
-          analyticsVerified,
-          pending: total - approved, 
-          reach: formattedReach,
-          pipeline: pipelineSum.toLocaleString() + "€"
+        setProposals(propData as any);
+        propData.forEach(p => {
+          const val = parseFloat(p.budget);
+          if (!isNaN(val)) pipelineSum += val;
         });
+        setPendingProposalsCount(countUnseenPendingProposals(propData));
+        setStats((prev) => ({
+          ...prev,
+          pipeline: pipelineSum.toLocaleString() + "€",
+          reach: prev.reach || "—",
+        }));
       }
     } catch (error) {
       console.error('Error in fetchData:', error);
@@ -2101,7 +2174,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       if (!silent) setLoading(false);
     }
   };
-  
+
   const editModalOpenRef = useRef(false);
   useEffect(() => {
     editModalOpenRef.current = showEditModal || showBlogEditModal || showBrandEditModal;
@@ -2174,6 +2247,11 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   }, []);
 
   const adminSoftRefreshAtRef = useRef(0);
+  const activeTabRef = useRef(activeTab);
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
+
   useEffect(() => {
     const softRefresh = () => {
       if (document.hidden || editModalOpenRef.current) return;
@@ -2183,21 +2261,56 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       void fetchAdminCampaigns();
       void fetchBrands();
       void fetchConversations();
+      // Influencers: only current filter page 1 (cheap list columns), and only when tab visible/active.
+      if (activeTabRef.current === "influencers") {
+        void fetchInfluencersPage({
+          page: 1,
+          silent: true,
+          q: debouncedSearch,
+          status: statusFilter,
+        });
+      }
     };
     const onVisibility = () => {
-      if (!document.hidden) softRefresh();
+      if (document.hidden) return;
+      softRefresh();
     };
     document.addEventListener("visibilitychange", onVisibility);
     const interval = window.setInterval(() => {
       if (document.hidden || editModalOpenRef.current) return;
       void fetchAdminCampaigns();
+      if (activeTabRef.current === "influencers") {
+        // Always page 1 so soft reload stays small and consistent with filters.
+        void fetchInfluencersPage({
+          page: 1,
+          silent: true,
+          q: debouncedSearch,
+          status: statusFilter,
+        });
+      }
     }, 600000);
     return () => {
       document.removeEventListener("visibilitychange", onVisibility);
       window.clearInterval(interval);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [debouncedSearch, statusFilter, influencersPage]);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => window.clearTimeout(t);
+  }, [searchQuery]);
+
+  const influencersFilterBootRef = useRef(true);
+  useEffect(() => {
+    if (influencersFilterBootRef.current) {
+      influencersFilterBootRef.current = false;
+      return;
+    }
+    setSelectedUsers([]);
+    void fetchInfluencersPage({ page: 1, q: debouncedSearch, status: statusFilter });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, statusFilter]);
 
   useEffect(() => {
     if (activeTab !== "influencers") setSearchQuery("");
@@ -2337,7 +2450,8 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
             }
         }
         
-        fetchData();
+        void fetchInfluencersPage({ page: 1, silent: true });
+        void fetchPickerUsers();
         if (!currentStatus) {
                 // Approval email is sent by /api/admin/influencers/update.
                 fetch('/api/push/trigger-influencer-approved', {
@@ -2368,7 +2482,8 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     const data = await response.json();
     
     if (data.success) {
-        fetchData();
+        void fetchInfluencersPage({ page: 1, silent: true });
+        void fetchPickerUsers();
     }
     
     if(selectedUser?.id === id) {
@@ -2593,7 +2708,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         ? (lang === 'el' ? '\n\n📊 Κατέβηκε αρχείο Excel με αναλυτικά αποτελέσματα.' : '\n\n📊 Excel report downloaded with detailed results.')
         : '';
       alert(doneLabel + ': ' + data.refreshed + (summary ? '\n\n' + summary : '') + fetchNote + excelNote);
-      fetchData();
+      void fetchInfluencersPage({ page: 1, silent: true });
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : 'Error');
     } finally {
@@ -2628,7 +2743,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       if (data.auditpr_audit && selectedUser?.id === user.id) {
         setSelectedUser(prev => prev ? { ...prev, auditpr_audit: data.auditpr_audit } : null);
       }
-      fetchData();
+      void fetchInfluencersPage({ page: 1, silent: true });
       alert(lang === 'el' ? 'Η αξιολόγηση AI ανανεώθηκε.' : 'AI audit refreshed.');
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : 'Error');
@@ -2670,7 +2785,8 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
             throw new Error(result.error || 'Failed to delete user');
         }
 
-        fetchData();
+        void fetchInfluencersPage({ page: 1, silent: true });
+        void fetchPickerUsers();
         setSelectedUser(null);
         setSelectedUsers(selectedUsers.filter(uId => uId !== id));
         
@@ -2685,7 +2801,27 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   };
 
   const handleUserUpdate = (updatedUser: DbInfluencer) => {
-      setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === updatedUser.id
+            ? {
+                ...u,
+                display_name: updatedUser.display_name,
+                contact_email: updatedUser.contact_email,
+                avatar_url: updatedUser.avatar_url,
+                location: updatedUser.location,
+                category: updatedUser.category,
+                approved: updatedUser.approved,
+                analytics_verified: updatedUser.analytics_verified,
+                verified: updatedUser.verified,
+                accounts: updatedUser.accounts,
+                min_rate: updatedUser.min_rate,
+                auth_user_id: updatedUser.auth_user_id,
+              }
+            : u
+        )
+      );
+      void fetchPickerUsers();
       setShowEditModal(false);
       setSelectedUser(updatedUser);
   };
@@ -2980,32 +3116,60 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         }
       }
       setSelectedUsers([]);
-      fetchData();
+      void fetchInfluencersPage({ page: 1, silent: true });
+      void fetchPickerUsers();
       alert(lang === "el" ? "Ολοκληρώθηκε" : "Completed");
     } catch (error: any) {
       alert(`Error: ${error.message}`);
     }
   };
 
-  const exportData = () => {
-    const csv = [
-      ['Name', 'Email', 'Location', 'Status', 'Min Rate', 'Created'].join(','),
-      ...filteredUsers.map(u => [
-        u.display_name,
-        u.contact_email || '',
-        u.location || '',
-        (u.approved ? 'Approved' : 'Not Approved') + ' / ' + (u.analytics_verified ? 'Analytics Verified' : 'Not Verified'),
-        u.min_rate || '',
-        u.created_at
-      ].join(','))
-    ].join('\n');
+  const exportData = async () => {
+    try {
+      const rows: DbInfluencer[] = [];
+      let page = 1;
+      let hasMore = true;
+      while (hasMore) {
+        const params = new URLSearchParams({
+          page: String(page),
+          pageSize: String(PAGE_SIZE),
+          status: statusFilter,
+          sort: "created_at",
+          order: "desc",
+        });
+        if (debouncedSearch.trim()) params.set("q", debouncedSearch.trim());
+        const res = await fetch(`/api/admin/influencers?${params}`, {
+          headers: await adminAuthHeaders(),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.error || "Export failed");
+        const batch = (Array.isArray(body.influencers) ? body.influencers : []) as DbInfluencer[];
+        rows.push(...batch);
+        hasMore = !!body.hasMore;
+        page += 1;
+        if (page > 500) break;
+      }
+      const csv = [
+        ['Name', 'Email', 'Location', 'Status', 'Min Rate', 'Created'].join(','),
+        ...rows.map(u => [
+          u.display_name,
+          u.contact_email || '',
+          u.location || '',
+          (u.approved ? 'Approved' : 'Not Approved') + ' / ' + (u.analytics_verified ? 'Analytics Verified' : 'Not Verified'),
+          u.min_rate || '',
+          u.created_at
+        ].join(','))
+      ].join('\n');
 
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `influencers-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `influencers-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+    } catch (error: any) {
+      alert(error?.message || 'Export failed');
+    }
   };
 
   const pendingBrandCount = brands.filter((b) => !b.verified).length;
@@ -3026,18 +3190,8 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
     });
 
-  const filteredUsers = users.filter(u => {
-    const matchesSearch = !searchQuery || 
-      u.display_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.contact_email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.location?.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'all' || 
-      (statusFilter === 'verified' && u.approved) ||
-      (statusFilter === 'pending' && !u.approved);
-    
-    return matchesSearch && matchesStatus;
-  });
+  /** Server already applied search + status filters; `users` is the current loaded page(s). */
+  const filteredUsers = users;
 
   const toggleUserSelection = (id: number) => {
     setSelectedUsers(prev => 
@@ -3132,7 +3286,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     : "border-transparent text-slate-500 hover:text-slate-700"
                 }`}
               >
-                {txt.tab_inf} ({filteredUsers.length})
+                {txt.tab_inf} ({influencersTotal || filteredUsers.length})
               </button>
               <button
                 type="button"
@@ -3248,12 +3402,12 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
 
           {activeTab === "influencers" && (
             <>
-              {/* Search & Filters */}
+              {/* Search & Filters (server-side) */}
               <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row gap-3">
                 <div className="flex-1">
                   <input
                     type="text"
-                    placeholder={txt.search}
+                    placeholder={lang === "el" ? "Αναζήτηση ονόματος, email ή username…" : "Search name, email, or username…"}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -3261,12 +3415,12 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                 </div>
                 <select
                   value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as any)}
+                  onChange={(e) => setStatusFilter(e.target.value as "all" | "verified" | "pending")}
                   className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value="all">{txt.filter}: All</option>
-                  <option value="verified">Verified</option>
-                  <option value="pending">Pending</option>
+                  <option value="all">{txt.filter}: {lang === "el" ? "Όλοι" : "All"}</option>
+                  <option value="verified">{lang === "el" ? "Εγκεκριμένοι" : "Approved"}</option>
+                  <option value="pending">{lang === "el" ? "Εκκρεμείς" : "Pending"}</option>
                 </select>
                 <button
                   onClick={exportData}
@@ -3366,6 +3520,11 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
 
               {/* Table */}
               <div className="overflow-x-auto">
+                {influencersLoading && (
+                  <p className="px-4 py-3 text-sm text-slate-500 border-b border-slate-100">
+                    {lang === "el" ? "Φόρτωση…" : "Loading…"}
+                  </p>
+                )}
                 <table className="w-full">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
@@ -3483,7 +3642,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                             <div className="flex flex-col items-end gap-2">
                               <div className="flex items-center justify-end gap-2 flex-wrap">
                                 <button
-                                  onClick={() => { setSelectedUser(u); setShowEditModal(true); }}
+                                  onClick={() => { void openEditUser(u); }}
                                   className="px-2 py-1 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors"
                                 >
                                   {txt.edit}
@@ -3550,6 +3709,32 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     )}
                   </tbody>
                 </table>
+                <div className="px-4 py-3 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <p className="text-sm text-slate-500">
+                    {lang === "el"
+                      ? `Εμφάνιση ${filteredUsers.length} από ${influencersTotal}`
+                      : `Showing ${filteredUsers.length} of ${influencersTotal}`}
+                  </p>
+                  {influencersHasMore && (
+                    <button
+                      type="button"
+                      disabled={influencersLoadingMore}
+                      onClick={() =>
+                        void fetchInfluencersPage({
+                          page: influencersPage + 1,
+                          append: true,
+                          q: debouncedSearch,
+                          status: statusFilter,
+                        })
+                      }
+                      className="px-4 py-2 text-sm font-medium bg-slate-900 text-white rounded-lg hover:bg-slate-800 disabled:opacity-50"
+                    >
+                      {influencersLoadingMore
+                        ? (lang === "el" ? "Φόρτωση…" : "Loading…")
+                        : (lang === "el" ? "Φόρτωσε περισσότερα" : "Load more")}
+                    </button>
+                  )}
+                </div>
               </div>
             </>
           )}
@@ -3557,7 +3742,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
           {activeTab === "influencer_stats" && (
             <div className="p-4 sm:p-6 border-t border-slate-100">
               <AdminInfluencerStatsTab
-                influencers={users.map((u) => ({ id: u.id, display_name: u.display_name }))}
+                influencers={(pickerUsers.length ? pickerUsers : users).map((u) => ({ id: u.id, display_name: u.display_name }))}
                 lang={lang}
               />
             </div>
@@ -4349,7 +4534,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                           required={announcementTargetType === 'specific'}
                         >
                           <option value="">{lang === 'el' ? '— Επιλέξτε —' : '— Select —'}</option>
-                          {users.map((u) => {
+                          {(pickerUsers.length ? pickerUsers : users).map((u) => {
                             const uuid = u.auth_user_id || (typeof u.id === 'string' ? u.id : null);
                             return (
                               <option key={String(u.id)} value={uuid || ''} disabled={!uuid}>
@@ -4391,8 +4576,8 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                             {a.target_type === 'specific' && a.target_influencer_id && (
                               <span className="ml-2">
                                 → {lang === 'el' ? 'Σε συγκεκριμένο' : 'To specific'}
-                                {(users.find(u => u.auth_user_id === a.target_influencer_id) || users.find(u => String(u.id) === a.target_influencer_id)) && (
-                                  <>: {(users.find(u => u.auth_user_id === a.target_influencer_id) || users.find(u => String(u.id) === a.target_influencer_id))!.display_name}</>
+                                {((pickerUsers.length ? pickerUsers : users).find(u => u.auth_user_id === a.target_influencer_id) || (pickerUsers.length ? pickerUsers : users).find(u => String(u.id) === a.target_influencer_id)) && (
+                                  <>: {((pickerUsers.length ? pickerUsers : users).find(u => u.auth_user_id === a.target_influencer_id) || (pickerUsers.length ? pickerUsers : users).find(u => String(u.id) === a.target_influencer_id))!.display_name}</>
                                 )}
                               </span>
                             )}
@@ -4618,11 +4803,20 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       )}
 
       {showEditModal && selectedUser && (
-        <EditProfileModal
-          user={selectedUser}
-          onClose={() => setShowEditModal(false)}
-          onSave={handleUserUpdate}
-        />
+        <>
+          {editDetailLoading && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center pointer-events-none">
+              <span className="rounded-lg bg-slate-900/80 text-white text-sm px-3 py-2">
+                {lang === "el" ? "Φόρτωση προφίλ…" : "Loading profile…"}
+              </span>
+            </div>
+          )}
+          <EditProfileModal
+            user={selectedUser}
+            onClose={() => setShowEditModal(false)}
+            onSave={handleUserUpdate}
+          />
+        </>
       )}
 
       {/* Blog Post Edit Modal */}
