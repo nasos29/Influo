@@ -15,7 +15,6 @@ import { mergeApplicantProfile } from "@/lib/applicantProfile";
 import { findContactInfo, filterWorkLinks } from "@/lib/contactFilter";
 import CampaignCard from "@/components/CampaignCard";
 import { displayNameForLang } from "@/lib/greeklish";
-import { normalizeDeadlineForOpen } from "@/lib/campaignLifecycle";
 
 const CONTACT_BLOCKED: { el: string; en: string } = {
   el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
@@ -508,8 +507,6 @@ export default function BrandCampaignsSection({
       return;
     }
     const wasOpen = editing !== "new" && editing && "status" in editing && editing.status === "open";
-    const wasClosed =
-      editing !== "new" && editing && "status" in editing && editing.status === "closed";
     if (form.status === "open" && !wasOpen) {
       const ok = await askConfirm({
         title: x.publish_title,
@@ -522,76 +519,60 @@ export default function BrandCampaignsSection({
 
     setSaving(true);
     try {
-      const now = new Date();
-      const nowIso = now.toISOString();
-      let deadlineIso: string | null = form.deadline
-        ? new Date(`${form.deadline}T12:00:00`).toISOString()
-        : null;
-      let clearedPastDeadline = false;
-      if (form.status === "open") {
-        const normalized = normalizeDeadlineForOpen(deadlineIso, now);
-        deadlineIso = normalized.deadline;
-        clearedPastDeadline = normalized.clearedPastDeadline;
-      }
-      const payload: Record<string, unknown> = {
+      const shouldNotify = brandVerified && form.status === "open" && !wasOpen;
+      const saveBody: Record<string, unknown> = {
         title: form.title.trim(),
         description: form.description.trim(),
-        budget: Math.max(0, parseFloat(form.budget) || 0),
+        budget: form.budget,
         category: normalizeCategoryToken(form.category) || form.category,
-        deliverables: form.deliverables.trim() || null,
+        deliverables: form.deliverables.trim(),
         status: form.status,
-        deadline: deadlineIso,
+        deadline: form.deadline || null,
         starts_on: form.starts_on,
-        location: form.location.trim() || null,
-        min_followers: form.min_followers ? Math.max(0, parseInt(form.min_followers, 10) || 0) : null,
+        location: form.location.trim(),
+        min_followers: form.min_followers || null,
         platforms: form.platforms,
         compensation_type: form.compensation_type,
-        updated_at: nowIso,
       };
-      if (form.status === "open" && !wasOpen) {
-        payload.opened_at = nowIso;
-        payload.close_reminder_sent_at = null;
-        payload.closed_at = null;
-        payload.auto_closed = false;
+      if (editing !== "new" && editing && "id" in editing) {
+        saveBody.id = editing.id;
       }
-      if (form.status === "closed" && !wasClosed) {
-        payload.closed_at = nowIso;
-      }
-      const shouldNotify = brandVerified && payload.status === "open" && !wasOpen;
-      let campaignId: string | null = null;
-      const write = (body: Record<string, unknown>) => {
-        if (editing === "new") {
-          return supabase.from("brand_campaigns").insert({ brand_id: brandId, ...body }).select("id").single();
-        }
-        if (editing && "id" in editing) {
-          return supabase.from("brand_campaigns").update(body).eq("id", editing.id).eq("brand_id", brandId).select("id").single();
-        }
-        return { data: null, error: { message: "Nothing to save" } };
+
+      const res = await sessionFetch("/api/campaigns/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(saveBody),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        id?: string;
+        deadlineCleared?: boolean;
+        error?: string;
+        message?: { el?: string; en?: string } | string;
+        field?: string;
       };
-      let result = await write(payload);
-      if (result.error && /column|schema cache|compensation|platforms|starts_on|min_followers/i.test(result.error.message)) {
-        toastError(x.migration);
-        const fallback: Record<string, unknown> = {
-          title: payload.title,
-          description: payload.description,
-          budget: payload.budget,
-          category: payload.category,
-          deliverables: payload.deliverables,
-          deadline: payload.deadline,
-          status: payload.status,
-          updated_at: payload.updated_at,
-        };
-        if ("opened_at" in payload) fallback.opened_at = payload.opened_at;
-        if ("close_reminder_sent_at" in payload) fallback.close_reminder_sent_at = payload.close_reminder_sent_at;
-        if ("closed_at" in payload) fallback.closed_at = payload.closed_at;
-        if ("auto_closed" in payload) fallback.auto_closed = payload.auto_closed;
-        result = await write(fallback);
+
+      if (!res.ok) {
+        if (data.error === "contact_info_not_allowed") {
+          const blockedMsg =
+            (typeof data.message === "object" && data.message?.[lang]) || CONTACT_BLOCKED[lang];
+          if (data.field === "title" || data.field === "description" || data.field === "deliverables" || data.field === "location") {
+            setContactFieldErrors({ [data.field]: blockedMsg });
+          }
+          throw new Error(blockedMsg);
+        }
+        if (data.error === "open_locked" || /only_verified|policy|row-level/i.test(String(data.error || ""))) {
+          const msg =
+            (typeof data.message === "object" && data.message?.[lang]) || x.open_locked;
+          throw new Error(msg);
+        }
+        if (typeof data.message === "object" && data.message?.[lang]) {
+          throw new Error(data.message[lang]!);
+        }
+        throw new Error(typeof data.message === "string" ? data.message : data.error || "Error");
       }
-      if (result.error) {
-        const message = /only_verified|policy|row-level/i.test(result.error.message) ? x.open_locked : result.error.message;
-        throw new Error(message);
-      }
-      campaignId = result.data?.id || (editing && typeof editing !== "string" ? editing.id : null);
+
+      const campaignId = data.id || (editing && typeof editing !== "string" ? editing.id : null);
       if (shouldNotify && campaignId) {
         toastSuccess(x.published);
         const publishedId = campaignId;
@@ -610,7 +591,7 @@ export default function BrandCampaignsSection({
       } else {
         toastSuccess(x.saved);
       }
-      setDeadlineClearedNotice(clearedPastDeadline);
+      setDeadlineClearedNotice(!!data.deadlineCleared);
       setEditing(null);
       await load();
       onApplicationsUpdated?.();
