@@ -342,8 +342,8 @@ const FAQ_ITEMS: FaqEntry[] = [
       en: "How long does a campaign stay open?",
     },
     a: {
-      el: "Κλείνει αυτόματα στην προθεσμία· χωρίς προθεσμία, 30 μέρες μετά το άνοιγμα. Η κάρτα δείχνει «Κλείνει αυτόματα σε N μέρες» ή «Λήγει σε…». 3 μέρες πριν το brand παίρνει υπενθύμιση· στο κλείσιμο ενημερώνονται brand και αιτούντες σε εκκρεμότητα. Οι ληγμένες δεν εμφανίζονται δημόσια. Δεν διαγράφονται — για ξανάνοιγμα: κατάσταση «Ανοιχτή» (νέο 30ήμερο)· αν η προθεσμία πέρασε, ορίστε νέα.",
-      en: "It closes on its deadline; with no deadline, 30 days after opening. The card shows “Closes automatically in N days” or “Ends in…”. Three days before, the brand gets a reminder; on close, brand and pending applicants are emailed. Expired campaigns leave the public list. They are not deleted — to reopen set status to Open (new 30-day window); if the deadline passed, set a new one.",
+      el: "Κλείνει αυτόματα στην προθεσμία· χωρίς προθεσμία, 30 μέρες μετά το άνοιγμα. Η κάρτα δείχνει «Κλείνει αυτόματα σε N μέρες» ή «Λήγει σε…». 3 μέρες πριν το brand παίρνει υπενθύμιση· στο κλείσιμο ενημερώνονται brand και αιτούντες σε εκκρεμότητα. Οι ληγμένες δεν εμφανίζονται δημόσια. Δεν διαγράφονται — για ξανάνοιγμα: κατάσταση «Ανοιχτή» (νέο 30ήμερο)· αν η προθεσμία είχε περάσει, ανοίγει αυτόματα για 30 μέρες.",
+      en: "It closes on its deadline; with no deadline, 30 days after opening. The card shows “Closes automatically in N days” or “Ends in…”. Three days before, the brand gets a reminder; on close, brand and pending applicants are emailed. Expired campaigns leave the public list. They are not deleted — to reopen set status to Open (new 30-day window); if the deadline had passed, it opens automatically for 30 days.",
     },
   },
   {
@@ -849,8 +849,8 @@ export default function DocsPage() {
               </li>
               <li>
                 {lang === 'el'
-                  ? 'Οι καμπάνιες δεν διαγράφονται, μόνο κλείνουν. Για να την ξανανοίξει, το brand την επεξεργάζεται και βάζει κατάσταση «Ανοιχτή», οπότε ξεκινά νέο 30ήμερο. Αν η προθεσμία έχει περάσει, πρέπει να ορίσει νέα.'
-                  : 'Campaigns are not deleted — only closed. To reopen, the brand edits it and sets status to Open, starting a new 30-day window. If the deadline has passed, they must set a new one.'}
+                  ? 'Οι καμπάνιες δεν διαγράφονται, μόνο κλείνουν. Για να την ξανανοίξει, το brand την επεξεργάζεται και βάζει κατάσταση «Ανοιχτή», οπότε ξεκινά νέο 30ήμερο. Αν η προθεσμία είχε περάσει, ανοίγει αυτόματα για 30 μέρες.'
+                  : 'Campaigns are not deleted — only closed. To reopen, the brand edits it and sets status to Open, starting a new 30-day window. If the deadline had passed, it opens automatically for 30 days.'}
               </li>
             </ul>
 
