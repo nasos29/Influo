@@ -11,14 +11,15 @@ const copy = {
     brands_steps: [
       "Ψάξε στον κατάλογο ή δημοσίευσε καμπάνια δωρεάν",
       "Δες αιτήσεις με τιμές και links",
-      "Μίλα απευθείας με τον creator",
+      "Μιλήστε στα μηνύματα και κλείστε τη συνεργασία με συμφωνία μέσα στο Influo",
     ],
     influencers_steps: [
       "Φτιάξε προφίλ δωρεάν",
       "Εγκρίνεται και τα στατιστικά ελέγχονται από το Influo",
-      "Κάνε αίτηση σε καμπάνιες και λάβε προτάσεις",
+      "Κάνε αίτηση ή δέξου προτάσεις και κλείσε τη συνεργασία με συμφωνία",
     ],
     guide: "Δες τον πλήρη οδηγό",
+    agreement: "Πώς λειτουργεί η συμφωνία",
   },
   en: {
     title: "How it works",
@@ -28,14 +29,15 @@ const copy = {
     brands_steps: [
       "Browse the directory or post a campaign for free",
       "Review applications with rates and links",
-      "Message the creator directly",
+      "Chat in messages and seal the deal with an agreement on Influo",
     ],
     influencers_steps: [
       "Create a free profile",
       "Get approved — Influo checks your stats",
-      "Apply to campaigns and receive proposals",
+      "Apply or accept proposals and seal the deal with an agreement",
     ],
     guide: "See the full guide",
+    agreement: "How the agreement works",
   },
 } as const;
 
@@ -63,6 +65,7 @@ export default function HomeHowItWorks({ lang }: { lang: Lang }) {
   const txt = copy[lang];
   const brandsHref = lang === "en" ? "/en/for-brands" : "/for-brands";
   const influencersHref = lang === "en" ? "/en/for-influencers" : "/for-influencers";
+  const agreementHref = lang === "en" ? "/en/docs#agreement" : "/docs#agreement";
 
   return (
     <section
@@ -87,12 +90,20 @@ export default function HomeHowItWorks({ lang }: { lang: Lang }) {
               {txt.brands_title}
             </h3>
             <StepList steps={txt.brands_steps} />
-            <a
-              href={brandsHref}
-              className="inline-flex mt-8 text-sm font-semibold text-blue-700 hover:text-blue-800 hover:underline"
-            >
-              {txt.guide} →
-            </a>
+            <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-2">
+              <a
+                href={brandsHref}
+                className="inline-flex text-sm font-semibold text-blue-700 hover:text-blue-800 hover:underline"
+              >
+                {txt.guide} →
+              </a>
+              <a
+                href={agreementHref}
+                className="inline-flex text-sm font-medium text-slate-600 hover:text-slate-900 hover:underline"
+              >
+                {txt.agreement}
+              </a>
+            </div>
           </div>
 
           <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50/80 p-6 md:p-8">
@@ -100,12 +111,20 @@ export default function HomeHowItWorks({ lang }: { lang: Lang }) {
               {txt.influencers_title}
             </h3>
             <StepList steps={txt.influencers_steps} />
-            <a
-              href={influencersHref}
-              className="inline-flex mt-8 text-sm font-semibold text-blue-700 hover:text-blue-800 hover:underline"
-            >
-              {txt.guide} →
-            </a>
+            <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-2">
+              <a
+                href={influencersHref}
+                className="inline-flex text-sm font-semibold text-blue-700 hover:text-blue-800 hover:underline"
+              >
+                {txt.guide} →
+              </a>
+              <a
+                href={agreementHref}
+                className="inline-flex text-sm font-medium text-slate-600 hover:text-slate-900 hover:underline"
+              >
+                {txt.agreement}
+              </a>
+            </div>
           </div>
         </div>
       </div>
