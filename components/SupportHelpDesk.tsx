@@ -177,7 +177,7 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
     try {
       setLoadingUsers(true);
       // Load influencers
-      const infResponse = await fetch('/api/admin/influencers', { headers: await adminAuthHeaders() });
+      const infResponse = await fetch('/api/admin/influencers?picker=1', { headers: await adminAuthHeaders() });
       const infBody = await infResponse.json().catch(() => ({}));
       const infData = infResponse.ok ? infBody.influencers : null;
 
