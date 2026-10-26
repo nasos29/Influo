@@ -3,12 +3,12 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
+import { usePathname } from 'next/navigation';
+import SiteHeader from '@/components/SiteHeader';
+import { getStoredLanguage } from '@/lib/language';
 
 export default function ContactPage() {
   const pathname = usePathname();
-  const router = useRouter();
   const [lang, setLang] = useState<"el" | "en">(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
 
   useEffect(() => {
@@ -108,27 +108,7 @@ export default function ContactPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex justify-between items-center">
-          <Link href={lang === "en" ? "/en" : "/"} className="text-blue-600 hover:text-blue-700 font-medium text-sm flex items-center gap-2">
-            {txt.back}
-          </Link>
-          <button 
-            onClick={() => {
-              const newLang = lang === "el" ? "en" : "el";
-              setLang(newLang);
-              setStoredLanguage(newLang);
-              if (newLang === "en") router.push("/en/contact");
-              else router.push("/contact");
-            }} 
-            className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
-            aria-label="Toggle language"
-          >
-            {lang === "el" ? "EN" : "EL"}
-          </button>
-        </div>
-      </header>
+      <SiteHeader lang={lang} onLangChange={setLang} />
 
       {/* Content */}
       <main className="max-w-4xl mx-auto px-6 py-12">

@@ -4,8 +4,9 @@ import { useState, useEffect, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import Footer from "../../components/Footer";
-import { usePathname, useRouter } from "next/navigation";
-import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
+import SiteHeader from "@/components/SiteHeader";
+import { usePathname } from "next/navigation";
+import { getStoredLanguage } from "@/lib/language";
 import InfluencerSignupForm from "../../components/InfluencerSignupForm";
 import BrandSignupForm from "../../components/BrandSignupForm";
 import { supabase } from "@/lib/supabaseClient";
@@ -192,7 +193,6 @@ const icons = {
 
 export default function ForBrandsPage() {
   const pathname = usePathname();
-  const router = useRouter();
   const [lang, setLang] = useState<Lang>(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
   const txt = t[lang];
   const [showModal, setShowModal] = useState(false);
@@ -228,7 +228,6 @@ export default function ForBrandsPage() {
   };
 
   const directoryHref = lang === "en" ? "/en/directory" : "/directory";
-  const homeHref = lang === "en" ? "/en" : "/";
 
   const features = [
     { title: txt.feat_1_title, desc: txt.feat_1_desc, icon: icons.search },
@@ -269,30 +268,7 @@ export default function ForBrandsPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-slate-200">
-        <div className="max-w-6xl mx-auto flex justify-between items-center px-4 sm:px-6 py-4">
-          <Link href={homeHref} className="flex items-center">
-            <Image src="/logo.svg" alt="Influo" width={160} height={64} className="h-9 w-auto" priority />
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link href={homeHref} className="text-sm text-slate-600 hover:text-slate-900 transition-colors">
-              {txt.back}
-            </Link>
-            <button
-              type="button"
-              onClick={() => {
-                const newLang = lang === "el" ? "en" : "el";
-                setLang(newLang);
-                setStoredLanguage(newLang);
-                router.push(newLang === "en" ? "/en/for-brands" : "/for-brands");
-              }}
-              className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
-            >
-              {lang === "el" ? "EN" : "EL"}
-            </button>
-          </div>
-        </div>
-      </header>
+      <SiteHeader lang={lang} onLangChange={setLang} />
 
       {/* Hero */}
       <section className="relative border-b border-slate-100">

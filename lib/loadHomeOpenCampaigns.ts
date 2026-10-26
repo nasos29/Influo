@@ -19,6 +19,30 @@ const SELECT = `
   brands ( brand_name, logo_url, verified )
 `;
 
+async function loadApplicationsCounts(campaignIds: string[]): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  if (campaignIds.length === 0) return counts;
+  for (const id of campaignIds) counts.set(id, 0);
+
+  const { data, error } = await supabaseService()
+    .from("campaign_applications")
+    .select("campaign_id")
+    .in("campaign_id", campaignIds)
+    .neq("status", "withdrawn");
+
+  if (error) {
+    console.error("loadOpenCampaigns applications_count", error);
+    return counts;
+  }
+
+  for (const row of data || []) {
+    const id = row?.campaign_id != null ? String(row.campaign_id) : "";
+    if (!id) continue;
+    counts.set(id, (counts.get(id) || 0) + 1);
+  }
+  return counts;
+}
+
 /** Open public campaigns (ISR-friendly). Omit limit to return all matching rows. */
 export async function loadOpenCampaigns(limit?: number): Promise<CampaignCardData[]> {
   try {
@@ -35,10 +59,36 @@ export async function loadOpenCampaigns(limit?: number): Promise<CampaignCardDat
       console.error("loadOpenCampaigns", error);
       return [];
     }
-    return (data as unknown as CampaignCardData[]) || [];
+    const rows = (data as unknown as CampaignCardData[]) || [];
+    const ids = rows.map((r) => r.id).filter(Boolean);
+    const counts = await loadApplicationsCounts(ids);
+    return rows.map((row) => ({
+      ...row,
+      applications_count: counts.get(row.id) ?? 0,
+    }));
   } catch (error) {
     console.error("loadOpenCampaigns", error);
     return [];
+  }
+}
+
+/** Count non-withdrawn applications for one campaign (public — count only, no applicant rows). */
+export async function loadCampaignApplicationsCount(campaignId: string): Promise<number> {
+  if (!campaignId) return 0;
+  try {
+    const { count, error } = await supabaseService()
+      .from("campaign_applications")
+      .select("id", { count: "exact", head: true })
+      .eq("campaign_id", campaignId)
+      .neq("status", "withdrawn");
+    if (error) {
+      console.error("loadCampaignApplicationsCount", error);
+      return 0;
+    }
+    return count ?? 0;
+  } catch (error) {
+    console.error("loadCampaignApplicationsCount", error);
+    return 0;
   }
 }
 

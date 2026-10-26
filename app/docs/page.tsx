@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect, type ReactNode } from "react";
-import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
+import { usePathname } from "next/navigation";
+import { getStoredLanguage } from "@/lib/language";
 import Footer from "../../components/Footer";
+import SiteHeader from "@/components/SiteHeader";
 import DocsToc, { type DocsTocGroup } from "@/components/DocsToc";
 import { FaChevronDown } from "react-icons/fa";
 import { NEW_BADGE_MAX_DAYS } from "@/lib/badges";
@@ -400,7 +400,6 @@ const FAQ_ITEMS: FaqEntry[] = [
 
 export default function DocsPage() {
   const pathname = usePathname();
-  const router = useRouter();
   const [lang, setLang] = useState<Lang>(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
   const txt = t[lang];
@@ -411,51 +410,12 @@ export default function DocsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-200/50 shadow-sm">
-        <div className="max-w-7xl mx-auto flex justify-between items-center px-4 sm:px-6 py-4">
-          <Link href={lang === "en" ? "/en" : "/"} className="flex items-center gap-2" aria-label="Influo Home">
-            <Image 
-              src="/logo.svg" 
-              alt="Influo.gr Logo" 
-              width={160} 
-              height={64} 
-              className="h-10 w-auto"
-              priority
-            />
-          </Link>
-          
-          <nav className="flex items-center gap-6">
-            <Link href={lang === "en" ? "/en" : "/"} className="text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors">
-              {txt.nav_home}
-            </Link>
-            <button 
-              onClick={() => {
-                const newLang = lang === "el" ? "en" : "el";
-                setLang(newLang);
-                setStoredLanguage(newLang);
-                if (newLang === "en") router.push("/en/docs");
-                else router.push("/docs");
-              }}
-              className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
-              aria-label="Toggle language"
-            >
-              {lang === "el" ? "EN" : "EL"}
-            </button>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader lang={lang} onLangChange={setLang} />
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 overflow-x-hidden">
         {/* Title */}
         <div className="mb-8" id="top">
-          <Link href={lang === "en" ? "/en" : "/"} className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium mb-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            {txt.back}
-          </Link>
           <h1 className="text-3xl md:text-5xl font-bold text-slate-900 mb-2 tracking-tight">{txt.title}</h1>
           <p className="text-lg text-slate-600">{txt.subtitle}</p>
         </div>

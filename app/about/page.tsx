@@ -1,11 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import Link from "next/link";
-import Image from "next/image";
+import { usePathname } from "next/navigation";
 import Footer from "@/components/Footer";
-import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
+import SiteHeader from "@/components/SiteHeader";
+import { getStoredLanguage } from "@/lib/language";
 
 type Lang = "el" | "en";
 
@@ -98,7 +97,6 @@ const content = {
 
 export default function AboutPage() {
   const pathname = usePathname();
-  const router = useRouter();
   const [lang, setLang] = useState<Lang>(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
 
   useEffect(() => {
@@ -109,34 +107,7 @@ export default function AboutPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
-      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-200/50 shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex justify-between items-center">
-          <Link
-            href={lang === "en" ? "/en" : "/"}
-            className="text-blue-600 hover:text-blue-700 font-medium text-sm flex items-center gap-2"
-          >
-            ← {t.back}
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link href={lang === "en" ? "/en" : "/"} className="flex items-center gap-2" aria-label="Influo Home">
-              <Image src="/logo.svg" alt="Influo.gr" width={120} height={48} className="h-8 w-auto" />
-            </Link>
-            <button
-              onClick={() => {
-                const newLang = lang === "el" ? "en" : "el";
-                setLang(newLang);
-                setStoredLanguage(newLang);
-                if (newLang === "en") router.push("/en/about");
-                else router.push("/about");
-              }}
-              className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
-              aria-label="Toggle language"
-            >
-              {lang === "el" ? "EN" : "EL"}
-            </button>
-          </div>
-        </div>
-      </header>
+      <SiteHeader lang={lang} onLangChange={setLang} />
 
       <main className="flex-1 max-w-3xl mx-auto px-4 sm:px-6 py-12 md:py-16">
         <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-8">{t.title}</h1>

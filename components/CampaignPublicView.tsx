@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Footer from "@/components/Footer";
+import SiteHeader from "@/components/SiteHeader";
 import FastImage from "@/components/FastImage";
 import { campaignClosesMeta } from "@/components/CampaignCard";
 import { supabase } from "@/lib/supabaseClient";
@@ -16,6 +17,7 @@ import { getStoredLanguage } from "@/lib/language";
 import { campaignAudience, type CampaignAudience } from "@/lib/campaignAudience";
 import { formatFollowerCount } from "@/lib/platformStats";
 import { getCachedImageUrl } from "@/lib/imageProxy";
+import { campaignPublicBadgeLabel } from "@/lib/campaignPublicBadge";
 
 const CONTACT_BLOCKED = {
   el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
@@ -43,6 +45,7 @@ type Campaign = {
   platforms?: string[] | null;
   compensation_type?: string | null;
   status: string;
+  applications_count?: number | null;
   brands: { brand_name: string; logo_url: string | null } | { brand_name: string; logo_url: string | null }[] | null;
 };
 
@@ -66,9 +69,16 @@ const PLATFORM_LABEL: Record<string, { el: string; en: string }> = {
   facebook: { el: "Facebook", en: "Facebook" },
 };
 
-export default function CampaignPublicView({ id }: { id: string }) {
+export default function CampaignPublicView({
+  id,
+  applicationsCount = 0,
+}: {
+  id: string;
+  /** Non-withdrawn application count only — no applicant details. */
+  applicationsCount?: number;
+}) {
   const pathname = usePathname();
-  const lang = pathname?.startsWith("/en") || getStoredLanguage() === "en" ? "en" : "el";
+  const [lang, setLang] = useState<"el" | "en">(pathname?.startsWith("/en") ? "en" : getStoredLanguage() === "en" ? "en" : "el");
   const el = lang === "el";
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [missing, setMissing] = useState(false);
@@ -85,6 +95,10 @@ export default function CampaignPublicView({ id }: { id: string }) {
   const [messageError, setMessageError] = useState<string | null>(null);
   const [workLinksError, setWorkLinksError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    setLang(pathname?.startsWith("/en") ? "en" : getStoredLanguage() === "en" ? "en" : "el");
+  }, [pathname]);
 
   useEffect(() => {
     let cancelled = false;
@@ -266,6 +280,10 @@ export default function CampaignPublicView({ id }: { id: string }) {
       )
     : null;
   const locale = el ? "el-GR" : "en-GB";
+  const appsCount = campaign?.applications_count ?? applicationsCount;
+  const publicBadge = campaign
+    ? campaignPublicBadgeLabel(appsCount, campaign.opened_at, lang === "en" ? "en" : "el")
+    : null;
 
   const applyBlock = (
     <div className="space-y-3">
@@ -345,6 +363,7 @@ export default function CampaignPublicView({ id }: { id: string }) {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
+      <SiteHeader lang={lang === "en" ? "en" : "el"} onLangChange={setLang} />
       <main className="flex-1 max-w-5xl mx-auto px-4 py-10 w-full">
         <Link href={lang === "en" ? "/en/campaigns" : "/campaigns"} className="text-sm text-blue-600 hover:underline">
           {el ? "← Ανοιχτές καμπάνιες" : "← Open campaigns"}
@@ -366,7 +385,14 @@ export default function CampaignPublicView({ id }: { id: string }) {
         ) : (
           <div className="mt-6 grid gap-6 md:grid-cols-[minmax(0,1fr)_320px] md:items-start">
             <article className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-              <h1 className="text-3xl font-bold text-slate-900">{campaign.title}</h1>
+              <div className="flex flex-wrap items-start gap-3">
+                <h1 className="text-3xl font-bold text-slate-900 flex-1 min-w-0">{campaign.title}</h1>
+                {publicBadge ? (
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-blue-50 text-blue-800 text-sm font-medium shrink-0">
+                    {publicBadge}
+                  </span>
+                ) : null}
+              </div>
               <p className="text-slate-700 mt-4 whitespace-pre-wrap">{campaign.description}</p>
 
               {deliverables.length > 0 && (

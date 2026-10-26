@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import CampaignPublicView from "@/components/CampaignPublicView";
+import { loadCampaignApplicationsCount } from "@/lib/loadHomeOpenCampaigns";
 
 export const metadata: Metadata = {
   title: { absolute: "Καμπάνια | Influo" },
@@ -10,5 +11,6 @@ type Params = Promise<{ id: string }>;
 
 export default async function CampaignPage({ params }: { params: Params }) {
   const { id } = await params;
-  return <CampaignPublicView id={id} />;
+  const applicationsCount = await loadCampaignApplicationsCount(id);
+  return <CampaignPublicView id={id} applicationsCount={applicationsCount} />;
 }
