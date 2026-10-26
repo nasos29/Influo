@@ -123,6 +123,22 @@ export async function sendPushInfluencerAnnouncement(
   });
 }
 
+/** Brand announcement push (subscriptions keyed by brands.contact_email). */
+export async function sendPushBrandAnnouncement(
+  brandEmail: string,
+  title: string
+): Promise<{ sent: number; failed: number }> {
+  const email = String(brandEmail || '').trim().toLowerCase();
+  if (!email) return { sent: 0, failed: 0 };
+  const short = title.length > 72 ? `${title.slice(0, 69)}…` : title;
+  return sendPushToBrand(email, {
+    title: '📢 Νέα ανακοίνωση Influo',
+    body: `Υπάρχει νέα ανακοίνωση: ${short}`,
+    url: '/brand/dashboard?tab=announcements',
+    tag: `announcement-brand-${Date.now()}-${email.slice(0, 12)}`,
+  });
+}
+
 function clipPushText(s: string, max: number): string {
   const t = (s || '').trim();
   if (t.length <= max) return t;
