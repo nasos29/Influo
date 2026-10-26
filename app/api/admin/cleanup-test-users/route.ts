@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { rejectUnlessAdmin } from "@/lib/apiAuth";
 
 // Server-side Supabase client με service role key (Admin privileges)
 const supabaseAdmin = createClient(
@@ -15,6 +16,9 @@ const supabaseAdmin = createClient(
 
 export async function POST(request: NextRequest) {
   try {
+  const denied = await rejectUnlessAdmin(request);
+  if (denied) return denied;
+
     const { emails, adminEmail } = await request.json();
 
     if (!emails || !Array.isArray(emails)) {

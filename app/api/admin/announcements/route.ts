@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse, after } from 'next/server';
 import { Resend } from 'resend';
 import { sendPushInfluencerAnnouncement } from '@/lib/push';
+import { rejectUnlessAdmin } from '@/lib/apiAuth';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -141,6 +142,9 @@ async function notifyAnnouncementRecipients(
 
 export async function POST(request: NextRequest) {
   try {
+    const denied = await rejectUnlessAdmin(request);
+    if (denied) return denied;
+
     const body = await request.json();
     const { title, content, target_type, target_influencer_id } = body;
 
@@ -188,8 +192,11 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const denied = await rejectUnlessAdmin(request);
+    if (denied) return denied;
+
     const { data, error } = await supabaseAdmin
       .from('announcements')
       .select('id, title, body, created_at, target_type, target_influencer_id')

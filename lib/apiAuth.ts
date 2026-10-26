@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
+import { NextResponse } from "next/server";
 
 export function supabaseService(): SupabaseClient {
   return createClient(
@@ -36,6 +37,30 @@ export async function requireAdmin(request: Request): Promise<User | null> {
   if (!user) return null;
   if (!(await isAdminUser(user))) return null;
   return user;
+}
+
+/**
+ * Same gate as /api/admin/campaigns: 401 without user, 403 if not admin.
+ * When `allowCronSecret` is true, `Authorization: Bearer ${CRON_SECRET}` is also accepted.
+ * Returns a response to send, or null when the request is allowed.
+ */
+export async function rejectUnlessAdmin(
+  request: Request,
+  options?: { allowCronSecret?: boolean }
+): Promise<NextResponse | null> {
+  if (options?.allowCronSecret) {
+    const cronSecret = process.env.CRON_SECRET;
+    const auth = request.headers.get("authorization") || "";
+    if (cronSecret && auth === `Bearer ${cronSecret}`) return null;
+  }
+  const user = await userFromBearer(request);
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!(await isAdminUser(user))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  return null;
 }
 
 /** Same brand check the public profile uses before showing prices. */

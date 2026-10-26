@@ -1,6 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
+
+async function adminAuthHeaders(): Promise<Record<string, string>> {
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
+}
 
 type Run = {
   id: string;
@@ -37,7 +43,7 @@ export default function SocialRefreshLogsPanel({ lang }: { lang: "el" | "en" }) 
     setError("");
     try {
       const qs = runId ? `?runId=${encodeURIComponent(runId)}` : "";
-      const res = await fetch(`/api/admin/social-refresh-logs${qs}`);
+      const res = await fetch(`/api/admin/social-refresh-logs${qs}`, { headers: await adminAuthHeaders() });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to load logs");
       setRuns(data.runs ?? []);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { SOCIAL_REFRESH_LOG_RETENTION_DAYS } from '@/lib/socialRefreshLogs';
+import { rejectUnlessAdmin } from '@/lib/apiAuth';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -10,6 +11,9 @@ const supabaseAdmin = createClient(
 
 export async function GET(request: NextRequest) {
   try {
+  const denied = await rejectUnlessAdmin(request);
+  if (denied) return denied;
+
     const runId = request.nextUrl.searchParams.get('runId')?.trim() || '';
 
     const { data: runs, error: runsError } = await supabaseAdmin

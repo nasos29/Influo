@@ -78,7 +78,7 @@ export default function DashboardPage() {
         if (!orphanEmail) return;
         setClearingOrphan(true);
         try {
-            await fetch('/api/admin/cleanup-orphaned-auth', {
+            await fetch('/api/auth/cleanup-orphaned', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: orphanEmail }),
