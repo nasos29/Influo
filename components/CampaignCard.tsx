@@ -7,6 +7,7 @@ import { categoryLabel } from "@/lib/categories";
 import { campaignClosesAt, daysUntilCampaignCloses } from "@/lib/campaignLifecycle";
 import { formatFollowerCount } from "@/lib/platformStats";
 import { getCachedImageUrl } from "@/lib/imageProxy";
+import { campaignPublicBadgeLabel } from "@/lib/campaignPublicBadge";
 
 export type CampaignCardBrand = {
   brand_name?: string | null;
@@ -29,6 +30,8 @@ export type CampaignCardData = {
   min_followers?: number | null;
   location?: string | null;
   status?: string | null;
+  /** Non-withdrawn application count only — never applicant details. */
+  applications_count?: number | null;
   brands?: CampaignCardBrand | CampaignCardBrand[] | null;
 };
 
@@ -209,6 +212,7 @@ export default function CampaignCard({
   const logoSrc = brand?.logo_url ? getCachedImageUrl(brand.logo_url) ?? brand.logo_url : null;
   const locale = lang === "el" ? "el-GR" : "en-GB";
   const showBudget = Number(campaign.budget) > 0;
+  const publicBadge = campaignPublicBadgeLabel(campaign.applications_count, campaign.opened_at, lang);
 
   return (
     <article
@@ -296,6 +300,11 @@ export default function CampaignCard({
           <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
             {lang === "el" ? "Από" : "From"} {formatFollowerCount(campaign.min_followers)}{" "}
             {lang === "el" ? "ακόλουθοι" : "followers"}
+          </span>
+        ) : null}
+        {publicBadge ? (
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-blue-50 text-blue-800 font-medium">
+            {publicBadge}
           </span>
         ) : null}
       </div>

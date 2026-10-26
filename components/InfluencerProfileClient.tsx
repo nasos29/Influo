@@ -14,7 +14,8 @@ import VideoThumbnail from "@/components/VideoThumbnail";
 import SocialEmbedCard from "@/components/SocialEmbedCard";
 import { getBadges, getBadgeStyles } from "@/lib/badges";
 import Avatar from "@/components/Avatar";
-import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
+import SiteHeader from "@/components/SiteHeader";
+import { getStoredLanguage } from "@/lib/language";
 import { displayNameForLang } from "@/lib/greeklish";
 import { getVisitorId } from "@/lib/visitorId";
 import { trackOutboundSocialClick } from "@/lib/trackOutboundSocial";
@@ -1138,21 +1139,7 @@ export default function InfluencerProfile(props: {
 
   return (
     <div className="bg-white min-h-screen pb-20 font-sans relative text-slate-900">
-      
-      {/* LANG TOGGLE */}
-      <div className="fixed top-6 right-6 z-50">
-          <button 
-            onClick={() => {
-              const newLang = lang === "el" ? "en" : "el";
-              setLang(newLang);
-              setStoredLanguage(newLang);
-            }} 
-            className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors bg-white shadow-sm"
-            aria-label="Toggle language"
-          >
-            {lang === "el" ? "EN" : "EL"}
-          </button>
-      </div>
+      <SiteHeader lang={lang} onLangChange={setLang} />
 
       {/* PROPOSAL MODAL */}
       {showProposalModal && (
@@ -1556,17 +1543,6 @@ export default function InfluencerProfile(props: {
           </svg>
         </div>
         
-        {/* Back button */}
-        <div className="absolute top-6 left-6 z-20">
-          <a
-            href={isBrand ? "/brand/dashboard" : "/"}
-            className="text-white bg-white/20 backdrop-blur-md px-4 py-2 rounded-lg font-medium hover:bg-white/30 transition shadow-lg"
-          >
-            {isBrand
-              ? (lang === "el" ? "← Dashboard" : "← Dashboard")
-              : txt.back}
-          </a>
-        </div>
       </div>
 
       <div className="max-w-6xl mx-auto px-6 relative -mt-24 z-10">
