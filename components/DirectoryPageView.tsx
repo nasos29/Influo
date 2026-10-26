@@ -14,11 +14,13 @@ const t = {
   el: {
     title: "Κατάλογος Influencers",
     subtitle: "Ανακαλύψτε τους καλύτερους content creators",
+    stats_note: "Όλα τα προφίλ έχουν στατιστικά ελεγμένα από το Influo",
     back: "Επιστροφή",
   },
   en: {
     title: "Influencer Directory",
     subtitle: "Discover the best content creators",
+    stats_note: "All profiles have stats checked by Influo",
     back: "Back",
   }
 };
@@ -85,6 +87,14 @@ export default function DirectoryPageView({
             </Link>
             <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-2">{t[lang].title}</h1>
             <p className="text-lg text-slate-600">{t[lang].subtitle}</p>
+            <p className="mt-3 inline-flex items-center gap-1.5 text-sm text-slate-500">
+              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-white" aria-hidden>
+                <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                </svg>
+              </span>
+              {t[lang].stats_note}
+            </p>
           </div>
 
           <Directory lang={lang} initialInfluencers={initialInfluencers} />

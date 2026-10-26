@@ -22,6 +22,9 @@ interface InfluencerMetrics {
   min_rate?: string;
 }
 
+/** Days an account counts as “New”. */
+export const NEW_BADGE_MAX_DAYS = 14;
+
 // Helper για υπολογισμό followers
 const getMaxFollowers = (followers?: { [key: string]: number | undefined }): number => {
   if (!followers) return 0;
@@ -50,14 +53,6 @@ const parseEngagementRate = (rate?: string | { [key: string]: string }): number 
   }
   
   return 0;
-};
-
-// Helper για account age
-const getAccountAgeDays = (createdAt?: string): number => {
-  if (!createdAt) return 999; // Αν δεν υπάρχει, θεωρούμε ότι είναι παλιό account
-  const created = new Date(createdAt);
-  const now = new Date();
-  return Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
 };
 
 // Badge definitions
@@ -124,6 +119,11 @@ const BADGE_LABELS_EL: Record<BadgeType, string> = {
   vip: 'VIP',
 };
 
+/**
+ * Achievement badges for cards/profile. Does not include “verified” —
+ * that is shown only as the small ✓ on the avatar (stats checked by Influo).
+ * Returns at most one badge (highest priority), or [].
+ */
 export function getBadges(metrics: InfluencerMetrics, lang: 'el' | 'en' = 'el'): Badge[] {
   const badges: Badge[] = [];
   const maxFollowers = getMaxFollowers(metrics.followers);
@@ -134,15 +134,6 @@ export function getBadges(metrics: InfluencerMetrics, lang: 'el' | 'en' = 'el'):
   const totalReviews = metrics.total_reviews || 0;
   const avgRating = metrics.avg_rating || 0;
   const minRate = metrics.min_rate ? parseFloat(metrics.min_rate.replace(/[^0-9.]/g, '')) : 0;
-
-  // VERIFIED - Manual verification
-  if (metrics.verified) {
-    badges.push({
-      type: 'verified',
-      ...BADGE_DEFINITIONS.verified,
-      label: lang === 'el' ? BADGE_LABELS_EL.verified : BADGE_DEFINITIONS.verified.label,
-    });
-  }
 
   // TOP PERFORMER - High engagement rate (>5%) και followers > 10k
   if (engagementRate > 5 && maxFollowers > 10000) {
@@ -189,13 +180,12 @@ export function getBadges(metrics: InfluencerMetrics, lang: 'el' | 'en' = 'el'):
     });
   }
 
-  // NEW - Account < 30 days (μόνο αν δεν υπάρχει άλλο badge με μεγαλύτερο priority)
-  // Check if there are any high-priority badges (top_performer, pro, elite, vip)
-  const hasHighPriorityBadge = badges.some(b => 
+  // NEW - Account < 14 days (μόνο αν δεν υπάρχει άλλο badge με μεγαλύτερο priority)
+  const hasHighPriorityBadge = badges.some(b =>
     b.type === 'top_performer' || b.type === 'pro' || b.type === 'elite' || b.type === 'vip'
   );
-  
-  if (accountAgeDays < 30 && !hasHighPriorityBadge) {
+
+  if (accountAgeDays < NEW_BADGE_MAX_DAYS && !hasHighPriorityBadge) {
     badges.push({
       type: 'new',
       ...BADGE_DEFINITIONS.new,
@@ -203,30 +193,15 @@ export function getBadges(metrics: InfluencerMetrics, lang: 'el' | 'en' = 'el'):
     });
   }
 
-  // Sort by priority (highest first)
+  // Sort by priority (highest first); show at most one badge
   badges.sort((a, b) => b.priority - a.priority);
-
-  // Επαληθευμένος badge μένει πάντα αν υπάρχει
-  const verifiedBadge = badges.find(b => b.type === 'verified');
-  const otherBadges = badges.filter(b => b.type !== 'verified');
-  
-  // Return verified badge + μόνο το top άλλο badge (1 badge εκτός από verified)
-  const result: Badge[] = [];
-  if (verifiedBadge) {
-    result.push(verifiedBadge);
-  }
-  if (otherBadges.length > 0) {
-    result.push(otherBadges[0]); // Μόνο το πρώτο (υψηλότερο priority)
-  }
-  
-  return result;
+  return badges.length > 0 ? [badges[0]] : [];
 }
 
-// Export badge styling function
+/** Directory filter options — excludes “verified” (shown as avatar ✓ only). */
 export const BADGE_FILTER_TYPES: BadgeType[] = [
   'new',
   'rising',
-  'verified',
   'top_performer',
   'pro',
   'elite',
@@ -242,4 +217,3 @@ export function getBadgeFilterLabel(type: BadgeType, lang: 'el' | 'en' = 'el'): 
 export function getBadgeStyles(badge: Badge) {
   return `${badge.bgColor} ${badge.color} border px-2 py-1 rounded-full text-[10px] font-bold inline-flex items-center gap-1`;
 }
-
