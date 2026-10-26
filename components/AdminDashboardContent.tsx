@@ -1751,12 +1751,28 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       read_count?: number;
       recipient_count?: number;
       read_at?: string | null;
-      readers?: Array<{ id: string; name: string; read_at: string }>;
     }>
   >([]);
   const [announcementsLoading, setAnnouncementsLoading] = useState(false);
   const [announcementSending, setAnnouncementSending] = useState(false);
   const [announcementReadersOpenId, setAnnouncementReadersOpenId] = useState<string | null>(null);
+  const [announcementReadersById, setAnnouncementReadersById] = useState<
+    Record<string, Array<{ id: string; name: string; read_at: string }>>
+  >({});
+  const [announcementReadersLoadingId, setAnnouncementReadersLoadingId] = useState<string | null>(null);
+  const [announcementSearch, setAnnouncementSearch] = useState("");
+  const [announcementSearchDebounced, setAnnouncementSearchDebounced] = useState("");
+  const [announcementFilterTarget, setAnnouncementFilterTarget] = useState<
+    "" | "all" | "specific" | "all_brands" | "specific_brand"
+  >("");
+  const [announcementDateFrom, setAnnouncementDateFrom] = useState("");
+  const [announcementDateTo, setAnnouncementDateTo] = useState("");
+  const [announcementsPage, setAnnouncementsPage] = useState(1);
+  const [announcementsTotal, setAnnouncementsTotal] = useState(0);
+  const [announcementsTotalPages, setAnnouncementsTotalPages] = useState(1);
+  const [announcementSelectedIds, setAnnouncementSelectedIds] = useState<string[]>([]);
+  const [announcementBulkDeleting, setAnnouncementBulkDeleting] = useState(false);
+  const ANNOUNCEMENTS_PAGE_SIZE = 20;
 
   const fetchConversations = async () => {
     try {
@@ -1884,21 +1900,130 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     }
   };
 
-  const fetchAnnouncements = async () => {
+  const fetchAnnouncements = async (opts?: {
+    page?: number;
+    q?: string;
+    targetType?: "" | "all" | "specific" | "all_brands" | "specific_brand";
+    from?: string;
+    to?: string;
+  }) => {
+    const page = opts?.page ?? announcementsPage;
+    const q = opts?.q ?? announcementSearchDebounced;
+    const targetType = opts?.targetType ?? announcementFilterTarget;
+    const from = opts?.from ?? announcementDateFrom;
+    const to = opts?.to ?? announcementDateTo;
     setAnnouncementsLoading(true);
     try {
-      const res = await fetch('/api/admin/announcements', { headers: await adminAuthHeaders() });
+      const params = new URLSearchParams();
+      params.set('page', String(page));
+      params.set('pageSize', String(ANNOUNCEMENTS_PAGE_SIZE));
+      if (q.trim()) params.set('q', q.trim());
+      if (targetType) params.set('target_type', targetType);
+      if (from) params.set('from', from);
+      if (to) params.set('to', to);
+      const res = await fetch(`/api/admin/announcements?${params.toString()}`, {
+        headers: await adminAuthHeaders(),
+      });
       const data = await res.json();
       if (res.ok && Array.isArray(data.data)) {
         setAnnouncementsList(data.data);
+        setAnnouncementsTotal(typeof data.total === 'number' ? data.total : data.data.length);
+        setAnnouncementsTotalPages(
+          typeof data.totalPages === 'number' ? Math.max(1, data.totalPages) : 1
+        );
+        setAnnouncementsPage(typeof data.page === 'number' ? data.page : page);
+        setAnnouncementSelectedIds([]);
+        setAnnouncementReadersOpenId(null);
       } else {
         setAnnouncementsList([]);
+        setAnnouncementsTotal(0);
+        setAnnouncementsTotalPages(1);
       }
     } catch (e) {
       console.error('Error fetching announcements:', e);
       setAnnouncementsList([]);
+      setAnnouncementsTotal(0);
+      setAnnouncementsTotalPages(1);
     } finally {
       setAnnouncementsLoading(false);
+    }
+  };
+
+  const loadAnnouncementReaders = async (announcementId: string) => {
+    if (announcementReadersById[announcementId]) return;
+    setAnnouncementReadersLoadingId(announcementId);
+    try {
+      const res = await fetch(`/api/admin/announcements/${announcementId}/readers`, {
+        headers: await adminAuthHeaders(),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && Array.isArray(data.readers)) {
+        setAnnouncementReadersById((prev) => ({ ...prev, [announcementId]: data.readers }));
+      } else {
+        setAnnouncementReadersById((prev) => ({ ...prev, [announcementId]: [] }));
+      }
+    } catch (e) {
+      console.error('Error loading announcement readers:', e);
+      setAnnouncementReadersById((prev) => ({ ...prev, [announcementId]: [] }));
+    } finally {
+      setAnnouncementReadersLoadingId(null);
+    }
+  };
+
+  const toggleAnnouncementReaders = async (announcementId: string) => {
+    if (announcementReadersOpenId === announcementId) {
+      setAnnouncementReadersOpenId(null);
+      return;
+    }
+    setAnnouncementReadersOpenId(announcementId);
+    await loadAnnouncementReaders(announcementId);
+  };
+
+  const toggleAnnouncementSelected = (id: string) => {
+    setAnnouncementSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllAnnouncementsOnPage = () => {
+    const pageIds = announcementsList.map((a) => a.id);
+    const allSelected =
+      pageIds.length > 0 && pageIds.every((id) => announcementSelectedIds.includes(id));
+    setAnnouncementSelectedIds(allSelected ? [] : pageIds);
+  };
+
+  const bulkDeleteAnnouncements = async () => {
+    const ids = announcementSelectedIds;
+    if (ids.length === 0) return;
+    const confirmMsg =
+      lang === 'el'
+        ? `Διαγραφή ${ids.length} ανακοινώσεων; Δεν μπορεί να αναιρεθεί.`
+        : `Delete ${ids.length} announcements? This cannot be undone.`;
+    if (!confirm(confirmMsg)) return;
+    setAnnouncementBulkDeleting(true);
+    try {
+      const res = await fetch('/api/admin/announcements/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(await adminAuthHeaders()) },
+        body: JSON.stringify({ ids }),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(result.error || (lang === 'el' ? 'Σφάλμα διαγραφής' : 'Delete failed'));
+        return;
+      }
+      setAnnouncementSelectedIds([]);
+      setAnnouncementReadersById({});
+      const nextTotal = Math.max(0, announcementsTotal - ids.length);
+      const nextTotalPages = Math.max(1, Math.ceil(nextTotal / ANNOUNCEMENTS_PAGE_SIZE) || 1);
+      const nextPage = Math.min(announcementsPage, nextTotalPages);
+      setAnnouncementsPage(nextPage);
+      await fetchAnnouncements({ page: nextPage });
+    } catch (e) {
+      console.error('Bulk delete announcements error:', e);
+      alert(lang === 'el' ? 'Σφάλμα διαγραφής' : 'Delete failed');
+    } finally {
+      setAnnouncementBulkDeleting(false);
     }
   };
 
@@ -1935,7 +2060,9 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         setAnnouncementTargetInfluencerId('');
         setAnnouncementTargetBrandId('');
         setAnnouncementBrandSearch('');
-        await fetchAnnouncements();
+        setAnnouncementsPage(1);
+        setAnnouncementReadersById({});
+        await fetchAnnouncements({ page: 1 });
         alert(txt.ann_sent);
       } else {
         alert(result.error || (lang === 'el' ? 'Σφάλμα αποστολής' : 'Send failed'));
@@ -2347,9 +2474,34 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     fetchBrands();
     fetchAdminCampaigns();
     fetchBlogPosts();
-    fetchAnnouncements();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setAnnouncementSearchDebounced(announcementSearch), 300);
+    return () => window.clearTimeout(t);
+  }, [announcementSearch]);
+
+  useEffect(() => {
+    setAnnouncementsPage(1);
+  }, [announcementSearchDebounced, announcementFilterTarget, announcementDateFrom, announcementDateTo]);
+
+  useEffect(() => {
+    void fetchAnnouncements({
+      page: announcementsPage,
+      q: announcementSearchDebounced,
+      targetType: announcementFilterTarget,
+      from: announcementDateFrom,
+      to: announcementDateTo,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    announcementsPage,
+    announcementSearchDebounced,
+    announcementFilterTarget,
+    announcementDateFrom,
+    announcementDateTo,
+  ]);
 
   const adminSoftRefreshAtRef = useRef(0);
   const activeTabRef = useRef(activeTab);
@@ -4728,10 +4880,93 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                   </button>
                 </form>
               </div>
-              <div className="p-4 text-slate-900">
-                <h3 className="text-sm font-semibold text-slate-900 mb-3">
-                  {lang === 'el' ? 'Απεσταλμένες ανακοινώσεις' : 'Sent announcements'}
-                </h3>
+              <div className="p-4 text-slate-900 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <h3 className="text-sm font-semibold text-slate-900">
+                    {lang === 'el' ? 'Απεσταλμένες ανακοινώσεις' : 'Sent announcements'}
+                  </h3>
+                  <div className="text-xs text-slate-600">
+                    {lang === 'el'
+                      ? `${announcementsTotal} συνολικά`
+                      : `${announcementsTotal} total`}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                  <input
+                    type="search"
+                    value={announcementSearch}
+                    onChange={(e) => setAnnouncementSearch(e.target.value)}
+                    placeholder={
+                      lang === 'el' ? 'Αναζήτηση τίτλου ή κειμένου…' : 'Search title or body…'
+                    }
+                    className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white text-sm"
+                  />
+                  <select
+                    value={announcementFilterTarget}
+                    onChange={(e) =>
+                      setAnnouncementFilterTarget(
+                        e.target.value as "" | "all" | "specific" | "all_brands" | "specific_brand"
+                      )
+                    }
+                    className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white text-sm"
+                  >
+                    <option value="">
+                      {lang === 'el' ? 'Όλοι οι παραλήπτες' : 'All recipient types'}
+                    </option>
+                    <option value="all">{txt.ann_to_all}</option>
+                    <option value="specific">{txt.ann_to_one}</option>
+                    <option value="all_brands">{txt.ann_to_all_brands}</option>
+                    <option value="specific_brand">{txt.ann_to_one_brand}</option>
+                  </select>
+                  <input
+                    type="date"
+                    value={announcementDateFrom}
+                    onChange={(e) => setAnnouncementDateFrom(e.target.value)}
+                    className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white text-sm"
+                    aria-label={lang === 'el' ? 'Από ημερομηνία' : 'From date'}
+                    title={lang === 'el' ? 'Από' : 'From'}
+                  />
+                  <input
+                    type="date"
+                    value={announcementDateTo}
+                    onChange={(e) => setAnnouncementDateTo(e.target.value)}
+                    className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white text-sm"
+                    aria-label={lang === 'el' ? 'Έως ημερομηνία' : 'To date'}
+                    title={lang === 'el' ? 'Έως' : 'To'}
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="inline-flex items-center gap-2 text-sm text-slate-800 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={
+                        announcementsList.length > 0 &&
+                        announcementsList.every((a) => announcementSelectedIds.includes(a.id))
+                      }
+                      onChange={toggleSelectAllAnnouncementsOnPage}
+                      disabled={announcementsList.length === 0}
+                      className="rounded border-slate-300"
+                    />
+                    <span>
+                      {lang === 'el' ? 'Επιλογή όλων της σελίδας' : 'Select all on page'}
+                    </span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => void bulkDeleteAnnouncements()}
+                    disabled={announcementSelectedIds.length === 0 || announcementBulkDeleting}
+                    className="px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {announcementBulkDeleting
+                      ? '...'
+                      : lang === 'el'
+                        ? `Διαγραφή επιλεγμένων (${announcementSelectedIds.length})`
+                        : `Delete selected (${announcementSelectedIds.length})`}
+                  </button>
+                </div>
+
                 {announcementsLoading ? (
                   <p className="text-slate-600">{lang === 'el' ? 'Φόρτωση...' : 'Loading...'}</p>
                 ) : announcementsList.length === 0 ? (
@@ -4746,9 +4981,20 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                       const isBroadcast =
                         a.target_type === 'all' || a.target_type === 'all_brands';
                       const readersOpen = announcementReadersOpenId === a.id;
-                      const readers = Array.isArray(a.readers) ? a.readers : [];
+                      const readers = announcementReadersById[a.id] || [];
+                      const readersLoading = announcementReadersLoadingId === a.id;
+                      const selected = announcementSelectedIds.includes(a.id);
                       return (
                       <li key={a.id} className="border border-slate-200 rounded-lg p-4 bg-slate-50 flex items-start justify-between gap-3">
+                        <div className="shrink-0 pt-1">
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={() => toggleAnnouncementSelected(a.id)}
+                            className="rounded border-slate-300"
+                            aria-label={lang === 'el' ? 'Επιλογή ανακοίνωσης' : 'Select announcement'}
+                          />
+                        </div>
                         <div className="min-w-0 flex-1">
                           <div className="font-medium text-slate-900">{a.title}</div>
                           <div className="text-sm text-slate-800 mt-1 line-clamp-2">{a.body}</div>
@@ -4781,9 +5027,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                             {isBroadcast ? (
                               <button
                                 type="button"
-                                onClick={() =>
-                                  setAnnouncementReadersOpenId((prev) => (prev === a.id ? null : a.id))
-                                }
+                                onClick={() => void toggleAnnouncementReaders(a.id)}
                                 className="inline-flex items-center gap-1 font-medium text-blue-700 hover:text-blue-900 hover:underline"
                               >
                                 {lang === 'el'
@@ -4816,7 +5060,11 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                             )}
                             {isBroadcast && readersOpen && (
                               <div className="mt-2 rounded-lg border border-slate-200 bg-white p-3 max-h-56 overflow-y-auto">
-                                {readers.length === 0 ? (
+                                {readersLoading ? (
+                                  <p className="text-slate-500">
+                                    {lang === 'el' ? 'Φόρτωση…' : 'Loading…'}
+                                  </p>
+                                ) : readers.length === 0 ? (
                                   <p className="text-slate-500">
                                     {lang === 'el' ? 'Κανείς δεν το διάβασε ακόμα.' : 'No one has read it yet.'}
                                   </p>
@@ -4846,8 +5094,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                             try {
                               const res = await fetch(`/api/admin/announcements/${a.id}`, { method: 'DELETE', headers: await adminAuthHeaders() });
                               if (res.ok) {
-                                setAnnouncementsList(prev => prev.filter(x => x.id !== a.id));
+                                setAnnouncementSelectedIds((prev) => prev.filter((id) => id !== a.id));
                                 setAnnouncementReadersOpenId((prev) => (prev === a.id ? null : prev));
+                                const nextTotal = Math.max(0, announcementsTotal - 1);
+                                const nextTotalPages = Math.max(1, Math.ceil(nextTotal / ANNOUNCEMENTS_PAGE_SIZE) || 1);
+                                const nextPage = Math.min(announcementsPage, nextTotalPages);
+                                setAnnouncementsPage(nextPage);
+                                await fetchAnnouncements({ page: nextPage });
                               } else {
                                 const j = await res.json().catch(() => ({}));
                                 alert(j.error || 'Error');
@@ -4867,6 +5120,36 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     })}
                   </ul>
                 )}
+
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                  <div className="text-sm text-slate-700">
+                    {lang === 'el'
+                      ? `Σελίδα ${announcementsPage} από ${announcementsTotalPages}`
+                      : `Page ${announcementsPage} of ${announcementsTotalPages}`}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setAnnouncementsPage((p) => Math.max(1, p - 1))}
+                      disabled={announcementsPage <= 1 || announcementsLoading}
+                      className="px-3 py-1.5 text-sm font-medium border border-slate-300 rounded-lg text-slate-800 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {lang === 'el' ? 'Προηγούμενη' : 'Previous'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setAnnouncementsPage((p) => Math.min(announcementsTotalPages, p + 1))
+                      }
+                      disabled={
+                        announcementsPage >= announcementsTotalPages || announcementsLoading
+                      }
+                      className="px-3 py-1.5 text-sm font-medium border border-slate-300 rounded-lg text-slate-800 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {lang === 'el' ? 'Επόμενη' : 'Next'}
+                    </button>
+                  </div>
+                </div>
               </div>
             </>
           )}
