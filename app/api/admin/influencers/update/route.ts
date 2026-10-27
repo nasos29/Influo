@@ -12,9 +12,13 @@ const supabaseAdmin = createClient(
   { auth: { autoRefreshToken: false, persistSession: false } }
 );
 
+function jsonEq(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+}
+
 /**
  * Admin: update influencer row (bypasses RLS). Optionally syncs auth.users.email when contact_email changes.
- * POST { influencerId: string, updates: Record<string, unknown> }
+ * POST { influencerId: string, updates: Record<string, unknown>, clearBio?: boolean }
  */
 export async function POST(request: NextRequest) {
   try {
@@ -26,6 +30,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const influencerId = String(body?.influencerId ?? '').trim();
     const updates = body?.updates;
+    const clearBio = body?.clearBio === true;
 
     if (!influencerId || !updates || typeof updates !== 'object' || Array.isArray(updates)) {
       return NextResponse.json({ error: 'influencerId and updates object required' }, { status: 400 });
@@ -33,7 +38,7 @@ export async function POST(request: NextRequest) {
 
     const { data: existing, error: fetchErr } = await supabaseAdmin
       .from('influencers')
-      .select('id, contact_email, accounts, approved, display_name')
+      .select('*')
       .eq('id', influencerId)
       .maybeSingle();
 
@@ -51,6 +56,30 @@ export async function POST(request: NextRequest) {
       patch.contact_email = patch.contact_email.trim().toLowerCase();
     }
 
+    // Defensive: empty bio must not wipe an existing bio unless clearBio is explicit.
+    if ('bio' in patch) {
+      const incoming = patch.bio;
+      const incomingEmpty =
+        incoming == null || (typeof incoming === 'string' && !incoming.trim());
+      const existingBio = existing.bio;
+      const hasExistingBio =
+        typeof existingBio === 'string' && existingBio.trim().length > 0;
+      if (incomingEmpty && hasExistingBio && !clearBio) {
+        delete patch.bio;
+      }
+    }
+
+    // Drop no-op keys so profile_changes stays meaningful.
+    for (const key of Object.keys(patch)) {
+      if (jsonEq(patch[key], (existing as Record<string, unknown>)[key])) {
+        delete patch[key];
+      }
+    }
+
+    if (Object.keys(patch).length === 0) {
+      return NextResponse.json({ success: true, influencer: existing });
+    }
+
     const { data, error } = await supabaseAdmin
       .from('influencers')
       .update(patch)
@@ -63,9 +92,38 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // Audit trail for admin edits.
+    try {
+      const changedFields = Object.keys(patch);
+      const oldValues: Record<string, unknown> = {};
+      const newValues: Record<string, unknown> = {};
+      for (const field of changedFields) {
+        oldValues[field] = (existing as Record<string, unknown>)[field] ?? null;
+        newValues[field] =
+          data && field in data
+            ? (data as Record<string, unknown>)[field]
+            : patch[field] ?? null;
+      }
+      if (changedFields.length > 0) {
+        const { error: historyErr } = await supabaseAdmin.from('profile_changes').insert({
+          influencer_id: influencerId,
+          old_values: oldValues,
+          new_values: newValues,
+          changed_fields: changedFields,
+          reviewed_by_admin: true,
+          reviewed_at: new Date().toISOString(),
+        });
+        if (historyErr) {
+          console.warn('[admin/influencers/update] profile_changes:', historyErr.message);
+        }
+      }
+    } catch (historyCatch) {
+      console.warn('[admin/influencers/update] profile_changes insert failed', historyCatch);
+    }
+
     // Insert snapshot if accounts changed
-    const accountsChanged = 
-      (patch.accounts && JSON.stringify(patch.accounts) !== JSON.stringify(existing.accounts));
+    const accountsChanged =
+      patch.accounts && JSON.stringify(patch.accounts) !== JSON.stringify(existing.accounts);
     if (accountsChanged && data.accounts) {
       await insertFollowerSnapshot(supabaseAdmin, influencerId, data.accounts);
     }

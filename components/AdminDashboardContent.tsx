@@ -758,6 +758,16 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
     const [gender, setGender] = useState(initialGender);
     const [profileChanges, setProfileChanges] = useState<any[]>([]);
     const [loadingChanges, setLoadingChanges] = useState(false);
+    /** Fields that must not be overwritten unless the admin actually edited them. */
+    const [touchedSensitive, setTouchedSensitive] = useState({
+        bio: false,
+        bio_en: false,
+        videos: false,
+        languages: false,
+    });
+    const markSensitiveTouched = (field: keyof typeof touchedSensitive) => {
+        setTouchedSensitive((prev) => (prev[field] ? prev : { ...prev, [field]: true }));
+    };
     // Support multiple categories - parse comma-separated string or use single category
     const initialCategories = parseStoredCategories(user.category).length
         ? parseStoredCategories(user.category)
@@ -817,6 +827,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
     };
 
     const handleVideoChange = (i: number, value: string) => {
+        markSensitiveTouched("videos");
         const copy = [...videos];
         const oldUrl = copy[i];
         copy[i] = value;
@@ -1018,8 +1029,12 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
         return labels[field] || field;
     };
     
-    const addVideo = () => setVideos([...videos, ""]);
-    const removeVideo = (i: number) => { 
+    const addVideo = () => {
+        markSensitiveTouched("videos");
+        setVideos([...videos, ""]);
+    };
+    const removeVideo = (i: number) => {
+        markSensitiveTouched("videos");
         const videoUrl = videos[i];
         const copy = [...videos]; 
         copy.splice(i, 1);
@@ -1092,32 +1107,72 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
 
             // Store categories as comma-separated string for backward compatibility
             const categoryString = formatStoredCategories(categories) || "Lifestyle";
-            
-            const updateData: any = {
-                display_name: name,
-                contact_email: contactEmail.trim(),
-                bio: bio, 
-                bio_en: bioEn || null, // Store English bio
-                min_rate: minRate,
-                location: location,
-                birth_date: birthDate || null,
-                gender: normalizeGender(gender),
-                category: categoryString,
-                languages: selectedLanguages.map(code => {
-                    const lang = LANGUAGES.find(l => l.code === code);
-                    return lang ? lang.el : code;
-                }).join(", "), // Store as comma-separated string with Greek names
-                accounts: (accounts || []).filter((acc: { platform?: string }) => (acc.platform || '').toLowerCase() !== 'facebook'),
-                videos: videos.filter(v => v !== ""),
-                video_thumbnails: uploadedThumbnails,
-                audience_male_percent: parseInt(malePercent) || 0,
-                audience_female_percent: parseInt(femalePercent) || 0,
-                audience_top_age: topAge,
+            const nextLanguages = selectedLanguages.map(code => {
+                const langItem = LANGUAGES.find(l => l.code === code);
+                return langItem ? langItem.el : code;
+            }).join(", ");
+            const nextAccounts = (accounts || []).filter(
+                (acc: { platform?: string }) => (acc.platform || '').toLowerCase() !== 'facebook'
+            );
+            const nextVideos = videos.filter(v => v !== "");
+            const nextGender = normalizeGender(gender);
+            const nextMale = parseInt(malePercent) || 0;
+            const nextFemale = parseInt(femalePercent) || 0;
+            const nextBirth = birthDate || null;
+            const nextBioEn = bioEn || null;
+            const nextContactEmail = contactEmail.trim();
+
+            const jsonEq = (a: unknown, b: unknown) =>
+                JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+            const strEq = (a: unknown, b: unknown) => String(a ?? '') === String(b ?? '');
+
+            const updateData: Record<string, unknown> = {};
+            let clearBio = false;
+
+            const setIfChanged = (key: string, next: unknown, prev: unknown, asJson = false) => {
+                const changed = asJson ? !jsonEq(next, prev) : !strEq(next, prev);
+                if (changed) updateData[key] = next;
             };
 
-            // Only update avatar_url if we have a new URL
-            if (avatarUrl) {
+            setIfChanged('display_name', name, user.display_name);
+            setIfChanged('contact_email', nextContactEmail, user.contact_email || '');
+            setIfChanged('min_rate', minRate, user.min_rate || '');
+            setIfChanged('location', location, user.location || '');
+            setIfChanged('birth_date', nextBirth, user.birth_date || null);
+            setIfChanged('gender', nextGender, normalizeGender(user.gender));
+            setIfChanged('category', categoryString, user.category || '');
+            setIfChanged('accounts', nextAccounts, user.accounts || [], true);
+            setIfChanged('video_thumbnails', uploadedThumbnails, user.video_thumbnails || {}, true);
+            setIfChanged('audience_male_percent', nextMale, user.audience_male_percent ?? 0);
+            setIfChanged('audience_female_percent', nextFemale, user.audience_female_percent ?? 0);
+            setIfChanged('audience_top_age', topAge, user.audience_top_age || '');
+
+            // Never send bio / bio_en / videos / languages unless the admin touched them.
+            if (touchedSensitive.bio && !strEq(bio, user.bio || '')) {
+                updateData.bio = bio;
+                if (!(bio || '').trim() && (user.bio || '').trim()) {
+                    clearBio = true;
+                }
+            }
+            if (touchedSensitive.bio_en && !strEq(nextBioEn, user.bio_en || null)) {
+                updateData.bio_en = nextBioEn;
+            }
+            if (touchedSensitive.languages && !strEq(nextLanguages, user.languages || '')) {
+                updateData.languages = nextLanguages;
+            }
+            if (touchedSensitive.videos && !jsonEq(nextVideos, user.videos || [])) {
+                updateData.videos = nextVideos;
+            }
+
+            // Only update avatar_url if we have a new URL from upload
+            if (avatarFile && avatarUrl) {
                 updateData.avatar_url = avatarUrl;
+            }
+
+            if (Object.keys(updateData).length === 0) {
+                setLoading(false);
+                onClose();
+                return;
             }
 
             const saveRes = await fetch('/api/admin/influencers/update', {
@@ -1126,6 +1181,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                 body: JSON.stringify({
                     influencerId: String(user.id),
                     updates: updateData,
+                    ...(clearBio ? { clearBio: true } : {}),
                 }),
             });
             const saveJson = await saveRes.json().catch(() => ({}));
@@ -1155,8 +1211,8 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                 }
               );
             const bioOrCategoryChanged =
-              (user.bio ?? '') !== (bio ?? '') ||
-              (user.category ?? '') !== (categoryString ?? '');
+              (touchedSensitive.bio && (user.bio ?? '') !== (bio ?? '')) ||
+              ('category' in updateData);
             if (metricsChanged || bioOrCategoryChanged) {
               try {
                 const auditRes = await fetch('/api/admin/refresh-audit', {
@@ -1352,6 +1408,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                                             type="checkbox"
                                                             checked={isSelected}
                                                             onChange={(e) => {
+                                                                markSensitiveTouched("languages");
                                                                 if (e.target.checked) {
                                                                     setSelectedLanguages([...selectedLanguages, langItem.code]);
                                                                 } else {
@@ -1375,13 +1432,31 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                         {/* Bio - Greek */}
                         <div>
                             <label className="block text-sm font-semibold text-slate-900 mb-1">Bio (Ελληνικά)</label>
-                            <textarea value={bio} onChange={e => setBio(e.target.value)} rows={4} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900" placeholder="Βιογραφία στα Ελληνικά..." />
+                            <textarea
+                                value={bio}
+                                onChange={e => {
+                                    markSensitiveTouched("bio");
+                                    setBio(e.target.value);
+                                }}
+                                rows={4}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900"
+                                placeholder="Βιογραφία στα Ελληνικά..."
+                            />
                         </div>
 
                         {/* Bio - English */}
                         <div>
                             <label className="block text-sm font-semibold text-slate-900 mb-1">Bio (English / Αγγλικά)</label>
-                            <textarea value={bioEn} onChange={e => setBioEn(e.target.value)} rows={4} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900" placeholder="Biography in English..." />
+                            <textarea
+                                value={bioEn}
+                                onChange={e => {
+                                    markSensitiveTouched("bio_en");
+                                    setBioEn(e.target.value);
+                                }}
+                                rows={4}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900"
+                                placeholder="Biography in English..."
+                            />
                             <p className="text-xs text-slate-500 mt-1">Αυτή η βιογραφία θα εμφανίζεται όταν ο χρήστης επιλέξει Αγγλικά ως γλώσσα</p>
                         </div>
 
@@ -1697,7 +1772,8 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [influencersLoadingMore, setInfluencersLoadingMore] = useState(false);
   const [pickerUsers, setPickerUsers] = useState<DbInfluencer[]>([]);
   const [editDetailLoading, setEditDetailLoading] = useState(false);
-  
+  const [editDetailError, setEditDetailError] = useState<string | null>(null);
+
   const [selectedUser, setSelectedUser] = useState<DbInfluencer | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
@@ -2346,8 +2422,9 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   };
 
   const openEditUser = async (row: DbInfluencer) => {
-    setSelectedUser(row);
-    setShowEditModal(true);
+    setShowEditModal(false);
+    setSelectedUser(null);
+    setEditDetailError(null);
     setEditDetailLoading(true);
     try {
       const res = await fetch(`/api/admin/influencers/${row.id}`, {
@@ -2356,9 +2433,21 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       const body = await res.json().catch(() => ({}));
       if (res.ok && body.influencer) {
         setSelectedUser(body.influencer as DbInfluencer);
+        setShowEditModal(true);
+      } else {
+        setEditDetailError(
+          lang === "el"
+            ? "Αποτυχία φόρτωσης πλήρους προφίλ. Δοκιμάστε ξανά."
+            : "Failed to load full profile. Please try again."
+        );
       }
     } catch (error) {
       console.error("Error loading influencer detail:", error);
+      setEditDetailError(
+        lang === "el"
+          ? "Αποτυχία φόρτωσης πλήρους προφίλ. Δοκιμάστε ξανά."
+          : "Failed to load full profile. Please try again."
+      );
     } finally {
       setEditDetailLoading(false);
     }
@@ -5340,21 +5429,39 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         />
       )}
 
-      {showEditModal && selectedUser && (
-        <>
-          {editDetailLoading && (
-            <div className="fixed inset-0 z-[60] flex items-center justify-center pointer-events-none">
-              <span className="rounded-lg bg-slate-900/80 text-white text-sm px-3 py-2">
-                {lang === "el" ? "Φόρτωση προφίλ…" : "Loading profile…"}
-              </span>
-            </div>
-          )}
+      {editDetailLoading && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40">
+          <span className="rounded-lg bg-slate-900 text-white text-sm px-4 py-2.5 shadow-lg">
+            {lang === "el" ? "Φόρτωση προφίλ…" : "Loading profile…"}
+          </span>
+        </div>
+      )}
+
+      {editDetailError && !editDetailLoading && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-sm w-full p-5 space-y-4">
+            <p className="text-sm text-slate-800">{editDetailError}</p>
+            <button
+              type="button"
+              onClick={() => setEditDetailError(null)}
+              className="w-full px-3 py-2 text-sm font-medium rounded-lg bg-slate-900 text-white hover:bg-slate-800"
+            >
+              {lang === "el" ? "Κλείσιμο" : "Close"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showEditModal && selectedUser && !editDetailLoading && (
           <EditProfileModal
+            key={String(selectedUser.id) + (editDetailLoading ? "-l" : "-f")}
             user={selectedUser}
-            onClose={() => setShowEditModal(false)}
+            onClose={() => {
+              setShowEditModal(false);
+              setSelectedUser(null);
+            }}
             onSave={handleUserUpdate}
           />
-        </>
       )}
 
       {/* Blog Post Edit Modal */}
