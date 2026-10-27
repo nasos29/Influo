@@ -20,14 +20,54 @@ function isMissingColumnError(message: string | undefined): boolean {
   return /column|schema cache|does not exist/i.test(message || "");
 }
 
-async function selectOwnBrand(admin: ReturnType<typeof supabaseService>, filter: {
-  column: string;
-  value: string;
-}) {
+type BrandSelectResult = {
+  data: Record<string, unknown> | null;
+  error: { message: string } | null;
+  schema: "full" | "legacy";
+};
+
+async function selectOwnBrand(
+  admin: ReturnType<typeof supabaseService>,
+  filter: {
+    column: string;
+    value: string;
+  }
+): Promise<BrandSelectResult> {
   const full = await admin.from("brands").select(brandColumns).eq(filter.column, filter.value).maybeSingle();
-  if (!full.error) return full;
-  if (!isMissingColumnError(full.error.message)) return full;
-  return admin.from("brands").select(brandColumnsLegacy).eq(filter.column, filter.value).maybeSingle();
+  if (!full.error) {
+    return {
+      data: (full.data as Record<string, unknown> | null) ?? null,
+      error: null,
+      schema: "full",
+    };
+  }
+  if (!isMissingColumnError(full.error.message)) {
+    return {
+      data: null,
+      error: { message: full.error.message },
+      schema: "full",
+    };
+  }
+  const legacy = await admin
+    .from("brands")
+    .select(brandColumnsLegacy)
+    .eq(filter.column, filter.value)
+    .maybeSingle();
+  if (legacy.error) {
+    return {
+      data: null,
+      error: { message: legacy.error.message },
+      schema: "legacy",
+    };
+  }
+  const row = (legacy.data as Record<string, unknown> | null) ?? null;
+  if (row) {
+    // Ensure legacy payloads never expose city/instagram keys for client save guards.
+    delete row.city;
+    delete row.instagram;
+    row._profileSchema = "legacy";
+  }
+  return { data: row, error: null, schema: "legacy" };
 }
 
 async function findOwnInfluencer(user: User) {
@@ -80,12 +120,27 @@ function withOwnerEmail<T extends BrandRow>(row: T, email: string): T {
   return { ...row, contact_email: email };
 }
 
+function tagBrandSchema<T extends BrandRow>(
+  row: T,
+  schema: "full" | "legacy"
+): T & { _profileSchema?: "full" | "legacy" } {
+  if (schema === "legacy") {
+    const tagged = { ...row, _profileSchema: "legacy" as const };
+    delete (tagged as Record<string, unknown>).city;
+    delete (tagged as Record<string, unknown>).instagram;
+    return tagged;
+  }
+  return { ...row, _profileSchema: "full" };
+}
+
 async function findOwnBrand(user: User) {
   const admin = supabaseService();
   const byId = await selectOwnBrand(admin, { column: "id", value: user.id });
   if (byId.error) throw new Error(byId.error.message);
   const ownById = asBrandRow(byId.data);
-  if (ownById) return withOwnerEmail(ownById, await privateBrandEmail(ownById.id));
+  if (ownById) {
+    return tagBrandSchema(withOwnerEmail(ownById, await privateBrandEmail(ownById.id)), byId.schema);
+  }
 
   const email = user.email?.trim();
   if (!email) return null;
@@ -98,20 +153,27 @@ async function findOwnBrand(user: User) {
     const matched = asBrandRow(row.data);
     if (matched) {
       const privateEmail = typeof priv.data.contact_email === "string" ? priv.data.contact_email : "";
-      return withOwnerEmail(matched, privateEmail);
+      return tagBrandSchema(withOwnerEmail(matched, privateEmail), row.schema);
     }
   }
 
   // contact_email may be denied/absent on brands; prefer brand_private path above.
   const byEmailFull = await admin.from("brands").select(brandColumns).ilike("contact_email", email).maybeSingle();
-  const byEmail =
-    byEmailFull.error && isMissingColumnError(byEmailFull.error.message)
-      ? await admin.from("brands").select(brandColumnsLegacy).ilike("contact_email", email).maybeSingle()
-      : byEmailFull;
-  if (byEmail.error) throw new Error(byEmail.error.message);
-  const ownByEmail = asBrandRow(byEmail.data);
+  if (byEmailFull.error && isMissingColumnError(byEmailFull.error.message)) {
+    const byEmailLegacy = await admin
+      .from("brands")
+      .select(brandColumnsLegacy)
+      .ilike("contact_email", email)
+      .maybeSingle();
+    if (byEmailLegacy.error) throw new Error(byEmailLegacy.error.message);
+    const ownByEmail = asBrandRow(byEmailLegacy.data);
+    if (!ownByEmail) return null;
+    return tagBrandSchema(withOwnerEmail(ownByEmail, await privateBrandEmail(ownByEmail.id)), "legacy");
+  }
+  if (byEmailFull.error) throw new Error(byEmailFull.error.message);
+  const ownByEmail = asBrandRow(byEmailFull.data);
   if (!ownByEmail) return null;
-  return withOwnerEmail(ownByEmail, await privateBrandEmail(ownByEmail.id));
+  return tagBrandSchema(withOwnerEmail(ownByEmail, await privateBrandEmail(ownByEmail.id)), "full");
 }
 
 /** The signed-in user's own rows. Lookup by auth id, then auth_user_id, then email. */

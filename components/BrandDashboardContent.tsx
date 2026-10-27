@@ -224,6 +224,13 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt }: EditBra
   const [logoPreview, setLogoPreview] = useState<string | null>(brand.logo_url || null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
+  // Legacy /api/me/profile omits city/instagram until ADD_BRAND_BIO_PROFILE.sql is applied.
+  const hasCity =
+    brand?._profileSchema !== "legacy" && Object.prototype.hasOwnProperty.call(brand || {}, "city");
+  const hasInstagram =
+    brand?._profileSchema !== "legacy" &&
+    Object.prototype.hasOwnProperty.call(brand || {}, "instagram");
+
   // Keep fields in sync with the latest brand row (incl. bio from signup / profile API).
   useEffect(() => {
     setBrandName(brand.brand_name || '');
@@ -320,16 +327,48 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt }: EditBra
       }
     }
 
-    onSave({
-      brand_name: brandName.trim(),
-      contact_person: contactPerson.trim() || null,
-      website: website.trim() || null,
-      instagram: instagram.trim() || null,
-      city: city.trim() || null,
-      bio: bio.trim() || null,
-      category: formatStoredCategories(categories) || null,
-      logo_url: logoUrl,
-    });
+    const strEq = (a: unknown, b: unknown) => String(a ?? "") === String(b ?? "");
+    const nextName = brandName.trim();
+    const nextContact = contactPerson.trim() || null;
+    const nextWebsite = website.trim() || null;
+    const nextInstagram = instagram.trim() || null;
+    const nextCity = city.trim() || null;
+    const nextBio = bio.trim() || null;
+    const nextIndustry = formatStoredCategories(categories) || null;
+    const prevIndustry = formatStoredCategories(brand.industry || brand.category || "") || null;
+
+    const patch: Record<string, unknown> = {};
+    const clearFields: string[] = [];
+
+    if (!strEq(nextName, brand.brand_name || "")) patch.brand_name = nextName;
+    if (!strEq(nextContact, brand.contact_person || null)) patch.contact_person = nextContact;
+    if (!strEq(nextIndustry, prevIndustry)) patch.category = nextIndustry;
+    if (!strEq(logoUrl, brand.logo_url || null)) patch.logo_url = logoUrl;
+
+    if (!strEq(nextBio, brand.bio || null)) {
+      patch.bio = nextBio;
+      if (!nextBio && (brand.bio || "").trim()) clearFields.push("bio");
+    }
+    if (!strEq(nextWebsite, brand.website || null)) {
+      patch.website = nextWebsite;
+      if (!nextWebsite && (brand.website || "").trim()) clearFields.push("website");
+    }
+    if (hasInstagram && !strEq(nextInstagram, brand.instagram || null)) {
+      patch.instagram = nextInstagram;
+      if (!nextInstagram && (brand.instagram || "").trim()) clearFields.push("instagram");
+    }
+    if (hasCity && !strEq(nextCity, brand.city || null)) {
+      patch.city = nextCity;
+      if (!nextCity && (brand.city || "").trim()) clearFields.push("city");
+    }
+    if (clearFields.length) patch.clearFields = clearFields;
+
+    if (Object.keys(patch).filter((k) => k !== "clearFields").length === 0) {
+      onClose();
+      return;
+    }
+
+    onSave(patch);
   };
 
   return (
@@ -435,18 +474,20 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt }: EditBra
           </div>
 
           {/* City */}
-          <div>
-            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
-              {txt.edit_city}
-            </label>
-            <input
-              type="text"
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              placeholder={lang === 'el' ? 'π.χ. Αθήνα' : 'e.g. Athens'}
-              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-            />
-          </div>
+          {hasCity && (
+            <div>
+              <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
+                {txt.edit_city}
+              </label>
+              <input
+                type="text"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                placeholder={lang === 'el' ? 'π.χ. Αθήνα' : 'e.g. Athens'}
+                className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+              />
+            </div>
+          )}
 
           {/* Website */}
           <div>
@@ -465,22 +506,23 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt }: EditBra
             </p>
           </div>
 
-          {/* Instagram */}
-          <div>
-            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
-              {txt.edit_instagram}
-            </label>
-            <input
-              type="url"
-              value={instagram}
-              onChange={(e) => setInstagram(e.target.value)}
-              placeholder="https://www.instagram.com/yourbrand"
-              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-            />
-            <p className="text-xs text-slate-500 mt-1">
-              {lang === 'el' ? 'Μόνο https URLs του instagram.com.' : 'https instagram.com URLs only.'}
-            </p>
-          </div>
+          {hasInstagram && (
+            <div>
+              <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
+                {txt.edit_instagram}
+              </label>
+              <input
+                type="url"
+                value={instagram}
+                onChange={(e) => setInstagram(e.target.value)}
+                placeholder="https://www.instagram.com/yourbrand"
+                className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                {lang === 'el' ? 'Μόνο https URLs του instagram.com.' : 'https instagram.com URLs only.'}
+              </p>
+            </div>
+          )}
 
           {/* Logo */}
           <div>
@@ -1345,20 +1387,25 @@ export default function BrandDashboardContent() {
     
     setUpdating(true);
     try {
+      const payload: Record<string, unknown> = { lang };
+      if (updatedData.brand_name !== undefined) payload.brand_name = updatedData.brand_name;
+      if (updatedData.contact_person !== undefined) {
+        payload.contact_person = updatedData.contact_person || null;
+      }
+      if (updatedData.website !== undefined) payload.website = updatedData.website || null;
+      if (updatedData.instagram !== undefined) payload.instagram = updatedData.instagram || null;
+      if (updatedData.city !== undefined) payload.city = updatedData.city || null;
+      if (updatedData.bio !== undefined) payload.bio = updatedData.bio || null;
+      if (updatedData.category !== undefined) payload.industry = updatedData.category || null;
+      if (updatedData.logo_url !== undefined) payload.logo_url = updatedData.logo_url ?? null;
+      if (Array.isArray(updatedData.clearFields) && updatedData.clearFields.length > 0) {
+        payload.clearFields = updatedData.clearFields;
+      }
+
       const response = await sessionFetch('/api/brand/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          lang,
-          brand_name: updatedData.brand_name,
-          contact_person: updatedData.contact_person || null,
-          website: updatedData.website || null,
-          instagram: updatedData.instagram || null,
-          city: updatedData.city || null,
-          bio: updatedData.bio || null,
-          industry: updatedData.category || null,
-          logo_url: updatedData.logo_url ?? null,
-        }),
+        body: JSON.stringify(payload),
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {

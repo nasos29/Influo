@@ -4,8 +4,10 @@ import { findContactInfo } from "@/lib/contactFilter";
 import { formatStoredCategories } from "@/lib/categories";
 import {
   BRAND_BIO_MAX,
+  applyClearableBrandFieldGuards,
   normalizeBrandBio,
   normalizeBrandCity,
+  parseClearFields,
   parseHttpsUrl,
 } from "@/lib/brandProfile";
 
@@ -44,8 +46,27 @@ export async function POST(request: NextRequest) {
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     const lang = langOf(body);
     const brandId = asString(body.brandId || body.brand_id).trim();
+    const clearFields = parseClearFields(body.clearFields);
     if (!brandId) {
       return NextResponse.json({ error: "brandId is required" }, { status: 400 });
+    }
+
+    const admin = supabaseService();
+    const { data: existing, error: existingErr } = await admin
+      .from("brands")
+      .select("id, brand_name, contact_person, website, industry, logo_url, bio, instagram, city")
+      .eq("id", brandId)
+      .maybeSingle();
+
+    if (existingErr) {
+      console.error("Error loading brand for update:", existingErr);
+      return NextResponse.json(
+        { error: existingErr.message || "Failed to load brand" },
+        { status: 500 }
+      );
+    }
+    if (!existing) {
+      return NextResponse.json({ error: "Brand not found" }, { status: 404 });
     }
 
     const updateData: Record<string, string | null> = {};
@@ -151,11 +172,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    applyClearableBrandFieldGuards(updateData, existing as Record<string, unknown>, clearFields);
+
     if (Object.keys(updateData).length === 0) {
-      return NextResponse.json({ error: "No fields to update" }, { status: 400 });
+      return NextResponse.json({ success: true, brand: existing });
     }
 
-    const { data, error } = await supabaseService()
+    const { data, error } = await admin
       .from("brands")
       .update(updateData)
       .eq("id", brandId)

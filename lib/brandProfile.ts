@@ -158,3 +158,44 @@ export function normalizeBrandCity(raw: string): string | null {
   if (city.length > 120) throw new Error("city_too_long");
   return city;
 }
+
+/** Nullable profile fields that empty payloads must not wipe without clearFields. */
+export const CLEARABLE_BRAND_FIELDS = ["bio", "website", "instagram", "city"] as const;
+export type ClearableBrandField = (typeof CLEARABLE_BRAND_FIELDS)[number];
+
+export function parseClearFields(raw: unknown): ClearableBrandField[] {
+  if (!Array.isArray(raw)) return [];
+  const allowed = new Set<string>(CLEARABLE_BRAND_FIELDS);
+  const out: ClearableBrandField[] = [];
+  for (const item of raw) {
+    const key = String(item || "").trim();
+    if (allowed.has(key) && !out.includes(key as ClearableBrandField)) {
+      out.push(key as ClearableBrandField);
+    }
+  }
+  return out;
+}
+
+/**
+ * Drop empty bio/website/instagram/city updates when the DB already has a value,
+ * unless the field is listed in clearFields.
+ */
+export function applyClearableBrandFieldGuards(
+  updateData: Record<string, string | null>,
+  existing: Record<string, unknown> | null | undefined,
+  clearFields: readonly string[]
+): void {
+  const clear = new Set(clearFields);
+  for (const field of CLEARABLE_BRAND_FIELDS) {
+    if (!(field in updateData)) continue;
+    const incoming = updateData[field];
+    const incomingEmpty =
+      incoming == null || (typeof incoming === "string" && !incoming.trim());
+    const existingVal = existing ? existing[field] : undefined;
+    const hasExisting =
+      typeof existingVal === "string" && existingVal.trim().length > 0;
+    if (incomingEmpty && hasExisting && !clear.has(field)) {
+      delete updateData[field];
+    }
+  }
+}
