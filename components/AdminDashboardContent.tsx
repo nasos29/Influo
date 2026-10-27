@@ -452,7 +452,7 @@ const t = {
 };
 
 // Edit Brand Modal Component
-const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClose: () => void, onSave: (updatedBrand: Partial<Brand>) => Promise<void>, lang: "el" | "en" }) => {
+const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClose: () => void, onSave: (updatedBrand: Partial<Brand> & { clearFields?: string[] }) => Promise<void>, lang: "el" | "en" }) => {
   const [brandName, setBrandName] = useState(brand.brand_name || '');
   const [contactPerson, setContactPerson] = useState(brand.contact_person || '');
   const [website, setWebsite] = useState(brand.website || '');
@@ -544,16 +544,50 @@ const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClos
       }
     }
 
-    await onSave({
-      brand_name: brandName.trim(),
-      contact_person: contactPerson.trim() || null,
-      website: website.trim() || null,
-      instagram: instagram.trim() || null,
-      city: city.trim() || null,
-      bio: bio.trim() || null,
-      industry: formatStoredCategories(categories) || null,
-      logo_url: logoUrl,
-    });
+    const strEq = (a: unknown, b: unknown) => String(a ?? "") === String(b ?? "");
+    const nextName = brandName.trim();
+    const nextContact = contactPerson.trim() || null;
+    const nextWebsite = website.trim() || null;
+    const nextInstagram = instagram.trim() || null;
+    const nextCity = city.trim() || null;
+    const nextBio = bio.trim() || null;
+    const nextIndustry = formatStoredCategories(categories) || null;
+    const hasCity = Object.prototype.hasOwnProperty.call(brand, "city");
+    const hasInstagram = Object.prototype.hasOwnProperty.call(brand, "instagram");
+
+    const patch: Partial<Brand> & { clearFields?: string[] } = {};
+    const clearFields: string[] = [];
+
+    if (!strEq(nextName, brand.brand_name || "")) patch.brand_name = nextName;
+    if (!strEq(nextContact, brand.contact_person || null)) patch.contact_person = nextContact;
+    if (!strEq(nextIndustry, brand.industry || null)) patch.industry = nextIndustry;
+    if (!strEq(logoUrl, brand.logo_url || null)) patch.logo_url = logoUrl;
+
+    if (!strEq(nextBio, brand.bio || null)) {
+      patch.bio = nextBio;
+      if (!nextBio && (brand.bio || "").trim()) clearFields.push("bio");
+    }
+    if (!strEq(nextWebsite, brand.website || null)) {
+      patch.website = nextWebsite;
+      if (!nextWebsite && (brand.website || "").trim()) clearFields.push("website");
+    }
+    if (hasInstagram && !strEq(nextInstagram, brand.instagram || null)) {
+      patch.instagram = nextInstagram;
+      if (!nextInstagram && (brand.instagram || "").trim()) clearFields.push("instagram");
+    }
+    if (hasCity && !strEq(nextCity, brand.city || null)) {
+      patch.city = nextCity;
+      if (!nextCity && (brand.city || "").trim()) clearFields.push("city");
+    }
+    if (clearFields.length) patch.clearFields = clearFields;
+
+    if (Object.keys(patch).filter((k) => k !== "clearFields").length === 0) {
+      setSaving(false);
+      onClose();
+      return;
+    }
+
+    await onSave(patch);
     
     setSaving(false);
   };
@@ -3223,18 +3257,20 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     }
   };
 
-  const handleUpdateBrand = async (updatedBrand: Partial<Brand>) => {
+  const handleUpdateBrand = async (updatedBrand: Partial<Brand> & { clearFields?: string[] }) => {
     if (!selectedBrand) return;
     
     setUpdatingBrand(selectedBrand.id);
     try {
+      const { clearFields, ...fields } = updatedBrand;
       const response = await fetch('/api/admin/brands/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(await adminAuthHeaders()) },
         body: JSON.stringify({
           brandId: selectedBrand.id,
           lang,
-          ...updatedBrand
+          ...fields,
+          ...(clearFields?.length ? { clearFields } : {}),
         })
       });
 
@@ -3245,7 +3281,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       }
 
       // Update local state from server response (normalized URLs / bio)
-      const saved = (result.brand || updatedBrand) as Partial<Brand>;
+      const saved = (result.brand || fields) as Partial<Brand>;
       setBrands(prev => prev.map(b => 
         b.id === selectedBrand.id ? { ...b, ...saved } : b
       ));
