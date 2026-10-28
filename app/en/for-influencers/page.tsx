@@ -1,5 +1,1 @@
-import ForInfluencersPage from "../../for-influencers/page";
-
-export default function EnForInfluencersPage() {
-  return <ForInfluencersPage />;
-}
+export { default, revalidate } from "../../for-influencers/page";
