@@ -310,22 +310,6 @@ const t = {
     min_rate_cta_login: "Σύνδεση",
     min_rate_cta_signup: "Εγγραφή επιχείρησης",
     min_rate_cta_suffix: "για να δείτε την τιμή",
-    cpm: "Εκτιμώμενο CPM",
-    cpm_desc: "Κόστος ανά 1.000 προβολές, με βάση την ελάχιστη χρέωση",
-    stats_updated: "Τελευταία ενημέρωση στατιστικών",
-    tip_engagement: "Μέσο ποσοστό αλληλεπίδρασης ανά ανάρτηση σε σχέση με τους ακόλουθους.",
-    tip_followers: "Συνολικοί ακόλουθοι ανά πλατφόρμα.",
-    tip_likes: "Μέσος αριθμός likes ανά ανάρτηση.",
-    tip_growth: "Μεταβολή ακολούθων τις τελευταίες 15 ημέρες.",
-    tip_collabs: "Αριθμός ολοκληρωμένων συνεργασιών με brands.",
-    tip_platforms: "Πόσες πλατφόρμες έχει δηλώσει ο δημιουργός.",
-    tip_status: "Αν ο δημιουργός είναι διαθέσιμος για νέες συνεργασίες.",
-    tip_response: "Μέσος χρόνος πρώτης απάντησης σε μηνύματα brands (ώρες).",
-    tip_completion: "Ποσοστό προτάσεων που ολοκληρώθηκαν επιτυχώς.",
-    tip_min_rate: "Η χαμηλότερη δηλωμένη χρέωση για συνεργασία.",
-    tip_cpm: "Εκτιμώμενο κόστος ανά 1.000 προβολές με βάση την ελάχιστη χρέωση.",
-    tip_rating: "Μέση βαθμολογία από αξιολογήσεις brands.",
-    tip_aria: "Τι σημαίνει",
     modal_title: "Συνεργασία με",
     modal_sub: "Στείλε την πρότασή σου. Θα ειδοποιηθούν άμεσα.",
     modal_srv: "Επιλογή Υπηρεσίας",
@@ -420,22 +404,6 @@ const t = {
     min_rate_cta_login: "Login",
     min_rate_cta_signup: "Register your company",
     min_rate_cta_suffix: "to see the price",
-    cpm: "Est. CPM",
-    cpm_desc: "Cost per 1,000 views, based on minimum rate",
-    stats_updated: "Last stats update",
-    tip_engagement: "Average interaction rate per post relative to followers.",
-    tip_followers: "Total followers per platform.",
-    tip_likes: "Average likes per post.",
-    tip_growth: "Follower change over the last 15 days.",
-    tip_collabs: "Number of completed brand collaborations.",
-    tip_platforms: "How many platforms the creator has linked.",
-    tip_status: "Whether the creator is available for new collaborations.",
-    tip_response: "Average time to first reply to brand messages (hours).",
-    tip_completion: "Share of proposals completed successfully.",
-    tip_min_rate: "The lowest listed rate for a collaboration.",
-    tip_cpm: "Estimated cost per 1,000 views based on the minimum rate.",
-    tip_rating: "Average rating from brand reviews.",
-    tip_aria: "What this means",
     modal_title: "Work with",
     modal_sub: "Send a proposal. We'll notify them instantly.",
     modal_srv: "Select Service",
@@ -470,6 +438,83 @@ const t = {
   }
 };
 
+/** Stats-tab extras kept as per-key {el,en} to avoid Sonar new-code duplication in t.el/t.en. */
+const STATS_UI_COPY = {
+  cpm: { el: "Εκτιμώμενο CPM", en: "Est. CPM" },
+  cpm_desc: {
+    el: "Κόστος ανά 1.000 προβολές, με βάση την ελάχιστη χρέωση",
+    en: "Cost per 1,000 views, based on minimum rate",
+  },
+  stats_updated: { el: "Τελευταία ενημέρωση στατιστικών", en: "Last stats update" },
+  tip_engagement: {
+    el: "Μέσο ποσοστό αλληλεπίδρασης ανά ανάρτηση σε σχέση με τους ακόλουθους.",
+    en: "Average interaction rate per post relative to followers.",
+  },
+  tip_followers: {
+    el: "Συνολικοί ακόλουθοι ανά πλατφόρμα.",
+    en: "Total followers per platform.",
+  },
+  tip_likes: { el: "Μέσος αριθμός likes ανά ανάρτηση.", en: "Average likes per post." },
+  tip_growth: {
+    el: "Μεταβολή ακολούθων τις τελευταίες 15 ημέρες.",
+    en: "Follower change over the last 15 days.",
+  },
+  tip_collabs: {
+    el: "Αριθμός ολοκληρωμένων συνεργασιών με brands.",
+    en: "Number of completed brand collaborations.",
+  },
+  tip_platforms: {
+    el: "Πόσες πλατφόρμες έχει δηλώσει ο δημιουργός.",
+    en: "How many platforms the creator has linked.",
+  },
+  tip_status: {
+    el: "Αν ο δημιουργός είναι διαθέσιμος για νέες συνεργασίες.",
+    en: "Whether the creator is available for new collaborations.",
+  },
+  tip_response: {
+    el: "Μέσος χρόνος πρώτης απάντησης σε μηνύματα brands (ώρες).",
+    en: "Average time to first reply to brand messages (hours).",
+  },
+  tip_completion: {
+    el: "Ποσοστό προτάσεων που ολοκληρώθηκαν επιτυχώς.",
+    en: "Share of proposals completed successfully.",
+  },
+  tip_min_rate: {
+    el: "Η χαμηλότερη δηλωμένη χρέωση για συνεργασία.",
+    en: "The lowest listed rate for a collaboration.",
+  },
+  tip_cpm: {
+    el: "Εκτιμώμενο κόστος ανά 1.000 προβολές με βάση την ελάχιστη χρέωση.",
+    en: "Estimated cost per 1,000 views based on the minimum rate.",
+  },
+  tip_rating: {
+    el: "Μέση βαθμολογία από αξιολογήσεις brands.",
+    en: "Average rating from brand reviews.",
+  },
+  tip_aria: { el: "Τι σημαίνει", en: "What this means" },
+} as const;
+
+function statsUiFor(lang: "el" | "en") {
+  return {
+    cpm: STATS_UI_COPY.cpm[lang],
+    cpm_desc: STATS_UI_COPY.cpm_desc[lang],
+    stats_updated: STATS_UI_COPY.stats_updated[lang],
+    tip_engagement: STATS_UI_COPY.tip_engagement[lang],
+    tip_followers: STATS_UI_COPY.tip_followers[lang],
+    tip_likes: STATS_UI_COPY.tip_likes[lang],
+    tip_growth: STATS_UI_COPY.tip_growth[lang],
+    tip_collabs: STATS_UI_COPY.tip_collabs[lang],
+    tip_platforms: STATS_UI_COPY.tip_platforms[lang],
+    tip_status: STATS_UI_COPY.tip_status[lang],
+    tip_response: STATS_UI_COPY.tip_response[lang],
+    tip_completion: STATS_UI_COPY.tip_completion[lang],
+    tip_min_rate: STATS_UI_COPY.tip_min_rate[lang],
+    tip_cpm: STATS_UI_COPY.tip_cpm[lang],
+    tip_rating: STATS_UI_COPY.tip_rating[lang],
+    tip_aria: STATS_UI_COPY.tip_aria[lang],
+  };
+}
+
 export default function InfluencerProfile(props: {
   params: Params;
   initialProfile?: ProfileViewModel | null;
@@ -482,7 +527,7 @@ export default function InfluencerProfile(props: {
   const router = useRouter();
   
   const [lang, setLang] = useState<"el" | "en">("el"); // Default to Greek, will be updated in useEffect
-  const txt = t[lang];
+  const txt = { ...t[lang], ...statsUiFor(lang) };
 
   const [activeTab, setActiveTab] = useState("overview");
   const [profile, setProfile] = useState<ProInfluencer | null>((props.initialProfile as ProInfluencer | null) ?? null);
