@@ -913,23 +913,17 @@ export default function InfluencerProfile(props: {
         avg_likes: Object.keys(avgLikesObj).length > 0 ? avgLikesObj : (data.avg_likes || undefined), // Store as object per platform, fallback to legacy string
         accounts: Array.isArray(data.accounts) ? data.accounts : [],
         audience_data: (() => {
-          const maleRaw = data.audience_male_percent;
-          const femaleRaw = data.audience_female_percent;
-          const male =
-            maleRaw == null || maleRaw === ""
-              ? null
-              : Number.isFinite(Number(maleRaw))
-                ? Number(maleRaw)
-                : null;
-          const female =
-            femaleRaw == null || femaleRaw === ""
-              ? null
-              : Number.isFinite(Number(femaleRaw))
-                ? Number(femaleRaw)
-                : null;
+          const parseGenderPct = (raw: unknown): number | null => {
+            if (raw == null || raw === "") return null;
+            const n = Number(raw);
+            return Number.isFinite(n) ? n : null;
+          };
+          const male = parseGenderPct(data.audience_male_percent);
+          const female = parseGenderPct(data.audience_female_percent);
+          const bothMissing = male == null && female == null;
           return {
-            male: male == null && female == null ? null : male,
-            female: male == null && female == null ? null : female,
+            male: bothMissing ? null : male,
+            female: bothMissing ? null : female,
             top_age: data.audience_top_age || "?",
           };
         })(),

@@ -21,10 +21,9 @@ const PLATFORMS: Array<{ key: string; label: { el: string; en: string }; color: 
   { key: "facebook", label: { el: "Facebook", en: "Facebook" }, color: "#2563eb" },
 ];
 
-function metricForPlatform(
-  raw: string | { [key: string]: string } | number | null | undefined,
-  key: string
-): string | number | null {
+type PlatformMetricRaw = string | { [key: string]: string } | number | null | undefined;
+
+function metricForPlatform(raw: PlatformMetricRaw, key: string): string | number | null {
   if (raw == null) return null;
   if (typeof raw === "number") return raw;
   if (typeof raw === "object") {

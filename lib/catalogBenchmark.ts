@@ -86,7 +86,7 @@ export function median(values: number[]): number | null {
 }
 
 export function isUsablePeerEr(er: number, erFlagged?: boolean): boolean {
-  if (!(er > 0) || !(er <= ER_OUTLIER_MAX)) return false;
+  if (er <= 0 || er > ER_OUTLIER_MAX) return false;
   if (erFlagged) return false;
   return true;
 }
@@ -96,9 +96,9 @@ export function peerFromAccounts(
   accounts: Account[] | null | undefined
 ): BenchmarkPeer | null {
   const followers = totalFollowersFromAccounts(accounts);
-  if (!(followers > 0)) return null;
+  if (followers <= 0) return null;
   const er = engagementFromAccounts(accounts);
-  if (!(er > 0)) return null;
+  if (er <= 0) return null;
   return {
     id: String(id),
     followers,
@@ -111,9 +111,43 @@ export function peerFromAccounts(
  * Percentile = % of comparison set with ER strictly below `thisEr` (0–100).
  */
 export function erPercentile(thisEr: number, comparisonErs: number[]): number | null {
-  if (!(thisEr > 0) || !comparisonErs.length) return null;
+  if (thisEr <= 0 || !comparisonErs.length) return null;
   const below = comparisonErs.filter((er) => er < thisEr).length;
   return Math.round((below / comparisonErs.length) * 1000) / 10;
+}
+
+function normalizePeers(
+  peers: BenchmarkPeer[] | Array<{ id: string; accounts: Account[] | null | undefined }>
+): BenchmarkPeer[] {
+  const normalized: BenchmarkPeer[] = [];
+  for (const row of peers) {
+    if ("er" in row && typeof (row as BenchmarkPeer).er === "number") {
+      normalized.push(row as BenchmarkPeer);
+      continue;
+    }
+    const built = peerFromAccounts(
+      String((row as { id: string }).id),
+      (row as { accounts: Account[] | null | undefined }).accounts
+    );
+    if (built) normalized.push(built);
+  }
+  return normalized;
+}
+
+function collectPeerErs(
+  normalized: BenchmarkPeer[],
+  selfId: string,
+  bucket: SizeBucket
+): { catalogErs: number[]; peerErs: number[] } {
+  const catalogErs: number[] = [];
+  const peerErs: number[] = [];
+  for (const row of normalized) {
+    if (row.id === selfId) continue;
+    if (!isUsablePeerEr(row.er, row.erFlagged)) continue;
+    catalogErs.push(row.er);
+    if (sizeBucket(row.followers) === bucket) peerErs.push(row.er);
+  }
+  return { catalogErs, peerErs };
 }
 
 export function buildCatalogBenchmark(
@@ -127,37 +161,14 @@ export function buildCatalogBenchmark(
   const thisErFlagged = selfPeer?.erFlagged === true;
   const bucket = sizeBucket(thisFollowers);
 
-  const normalized: BenchmarkPeer[] = [];
-  for (const row of peers) {
-    if ("er" in row && typeof (row as BenchmarkPeer).er === "number") {
-      normalized.push(row as BenchmarkPeer);
-    } else {
-      const built = peerFromAccounts(
-        String((row as { id: string }).id),
-        (row as { accounts: Account[] | null | undefined }).accounts
-      );
-      if (built) normalized.push(built);
-    }
-  }
-
-  const catalogErs: number[] = [];
-  const peerErs: number[] = [];
-
-  for (const row of normalized) {
-    if (row.id === selfId) continue;
-    if (!isUsablePeerEr(row.er, row.erFlagged)) continue;
-    catalogErs.push(row.er);
-    if (sizeBucket(row.followers) === bucket) {
-      peerErs.push(row.er);
-    }
-  }
-
+  const { catalogErs, peerErs } = collectPeerErs(normalizePeers(peers), selfId, bucket);
   const peerAvgEr = median(peerErs);
   const catalogAvgEr = median(catalogErs);
   const usePeers = peerErs.length >= 5;
   const compareSet = usePeers ? peerErs : catalogErs;
   const compare = usePeers ? peerAvgEr : catalogAvgEr;
-  const delta = thisEr != null && compare != null ? Math.round((thisEr - compare) * 10) / 10 : null;
+  const delta =
+    thisEr != null && compare != null ? Math.round((thisEr - compare) * 10) / 10 : null;
   const percentile =
     thisEr != null && !thisErFlagged ? erPercentile(thisEr, compareSet) : null;
 

@@ -57,6 +57,12 @@ function fmt(n: number): string {
   return Math.round(n).toLocaleString();
 }
 
+function deltaToneClass(delta: number): string {
+  if (delta > 0) return "text-emerald-600";
+  if (delta < 0) return "text-amber-600";
+  return "text-slate-500";
+}
+
 export default function StatsInsightsPanel({
   lang,
   influencerId,
@@ -84,18 +90,20 @@ export default function StatsInsightsPanel({
   }, [influencerId]);
 
   const bucket = bench ? BUCKET_LABELS[bench.bucket] : null;
-  const compareEr =
-    bench && bench.peerCount >= 5 ? bench.peerAvgEr : bench?.catalogAvgEr ?? null;
-  const compareLabel =
-    bench && bench.peerCount >= 5
-      ? el
-        ? `${bench.peerCount} creators ${bucket?.range} στο Influo`
-        : `${bench.peerCount} creators ${bucket?.range} on Influo`
-      : bench
-        ? INSIGHT_COPY.wholeCatalog[lang]
-        : "";
+  let compareEr: number | null = null;
+  if (bench) {
+    compareEr = bench.peerCount >= 5 ? bench.peerAvgEr : bench.catalogAvgEr;
+  }
+  let compareLabel = "";
+  if (bench && bench.peerCount >= 5) {
+    compareLabel = el
+      ? `${bench.peerCount} creators ${bucket?.range} στο Influo`
+      : `${bench.peerCount} creators ${bucket?.range} on Influo`;
+  } else if (bench) {
+    compareLabel = INSIGHT_COPY.wholeCatalog[lang];
+  }
   const maxEr = Math.max(bench?.thisEr || 0, compareEr || 0, 1);
-  const bucketWord = bucket ? bucket[lang] : el ? "creators" : "creators";
+  const bucketWord = bucket ? bucket[lang] : "creators";
 
   return (
     <div className="grid md:grid-cols-2 gap-8">
@@ -164,10 +172,11 @@ export default function StatsInsightsPanel({
                 <div className="mb-1 inline-flex items-center rounded-md bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800 ring-1 ring-amber-200">
                   {INSIGHT_COPY.erFlagged[lang]}
                 </div>
-              ) : bench.delta != null ? (
+              ) : null}
+              {!bench.thisErFlagged && bench.delta != null ? (
                 <div
                   className={`mb-1 text-sm font-semibold ${
-                    bench.delta > 0 ? "text-emerald-600" : bench.delta < 0 ? "text-amber-600" : "text-slate-500"
+                    deltaToneClass(bench.delta)
                   }`}
                 >
                   {bench.delta > 0 ? "+" : ""}
@@ -175,7 +184,7 @@ export default function StatsInsightsPanel({
                 </div>
               ) : null}
             </div>
-            {bench.thisErFlagged ? null : bench.percentile != null ? (
+            {!bench.thisErFlagged && bench.percentile != null ? (
               <p className="mt-2 text-sm font-medium text-slate-700">
                 {INSIGHT_COPY.percentile[lang](bench.percentile, bucketWord)}
               </p>
