@@ -1,5 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { resolveYouTubeVideoId } from "@/lib/videoThumbnailYoutube";
+import {
+  extractOgImageFromHtml,
+  extractTikTokCoverFromHtml,
+  isGenericLogoThumbnail,
+} from "@/lib/videoThumbnailExtract";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -7,52 +13,55 @@ const supabaseAdmin = createClient(
   { auth: { persistSession: false, autoRefreshToken: false } }
 );
 
-const CACHE_DAYS = 365; // Max TTL to minimize Iframely API hits
+const CACHE_DAYS_DEFAULT = 365;
+const BROWSER_UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+const FACEBOOK_UA = "facebookexternalhit/1.1";
 
-/** Save thumbnail to DB cache (if table exists). */
-async function saveThumbnailCache(originalUrl: string, thumbnailUrl: string | null, platform: string) {
-  if (!thumbnailUrl) return;
+function stripUrlNoise(url: string): string {
+  return url.split("?")[0].split("#")[0].trim();
+}
+
+function cacheTtlMs(platform: string): number {
+  if (platform === "tiktok" || platform === "instagram") {
+    return 24 * 60 * 60 * 1000;
+  }
+  return CACHE_DAYS_DEFAULT * 24 * 60 * 60 * 1000;
+}
+
+/** Save thumbnail to DB cache (if table exists). Upsert overwrites logo / stale entries. */
+async function saveThumbnailCache(
+  originalUrl: string,
+  thumbnailUrl: string | null,
+  platform: string
+) {
+  if (!thumbnailUrl || isGenericLogoThumbnail(thumbnailUrl)) return;
   try {
-    const expiresAt = new Date();
-    // TikTok CDN signed URLs expire; keep short TTL so we re-fetch via oEmbed.
-    const days = platform === 'tiktok' ? 7 : CACHE_DAYS;
-    expiresAt.setDate(expiresAt.getDate() + days);
-    await supabaseAdmin.from('video_thumbnail_cache').upsert(
+    const expiresAt = new Date(Date.now() + cacheTtlMs(platform));
+    await supabaseAdmin.from("video_thumbnail_cache").upsert(
       {
         original_url: originalUrl,
         thumbnail_url: thumbnailUrl,
-        platform: platform,
+        platform,
         cached_at: new Date().toISOString(),
         expires_at: expiresAt.toISOString(),
       },
-      { onConflict: 'original_url' }
+      { onConflict: "original_url" }
     );
   } catch {
     // Table might not exist
   }
 }
 
-async function isThumbnailReachable(thumbnailUrl: string): Promise<boolean> {
-  try {
-    const controller = new AbortController();
-    const t = setTimeout(() => controller.abort(), 5000);
-    const res = await fetch(thumbnailUrl, {
-      method: 'GET',
-      signal: controller.signal,
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; InfluoBot/1.0)' },
-      redirect: 'follow',
-    });
-    clearTimeout(t);
-    if (!res.ok) return false;
-    const ct = (res.headers.get('content-type') || '').toLowerCase();
-    return ct.startsWith('image/');
-  } catch {
-    return false;
-  }
+function jsonThumb(thumbnail: string | null, platform: string, extra?: Record<string, unknown>) {
+  const res = NextResponse.json({ thumbnail, platform, ...extra });
+  const maxAge = platform === "tiktok" || platform === "instagram" ? 86400 : 31536000;
+  res.headers.set("Cache-Control", `public, max-age=${maxAge}, s-maxage=${maxAge}`);
+  return res;
 }
 
-/** Normalize any TikTok URL that contains /video|photo/{id} → oEmbed-friendly video URL. */
-function tikTokOEmbedUrlFromAny(url: string): string | null {
+/** Normalize any TikTok URL that contains /video|photo/{id} → canonical video URL. */
+function tikTokCanonicalFromAny(url: string): string | null {
   const id = url.match(/\/(?:video|photo)\/(\d+)/)?.[1];
   if (!id) return null;
   const withUser = url.match(/tiktok\.com\/@([\w.-]+)\/(?:video|photo)\/(\d+)/i);
@@ -61,32 +70,31 @@ function tikTokOEmbedUrlFromAny(url: string): string | null {
 }
 
 /**
- * Resolve vm/vt.tiktok.com → canonical video URL for oEmbed.
- * Short links often 302 to /@/photo/{id} (slideshow) — oEmbed needs /video/{id}.
+ * Resolve vm/vt.tiktok.com → full /@user/video/ID (manual redirects, 5s timeout).
  */
 async function resolveTikTokUrl(url: string): Promise<string> {
-  const clean = url.split('?')[0].split('#')[0].trim();
-  const already = tikTokOEmbedUrlFromAny(clean);
+  const clean = stripUrlNoise(url);
+  const already = tikTokCanonicalFromAny(clean);
   if (already) return already;
   if (!/(vm|vt)\.tiktok\.com/i.test(clean)) return clean;
   try {
     let current = clean;
     for (let hop = 0; hop < 5; hop++) {
       const res = await fetch(current, {
-        method: 'GET',
-        redirect: 'manual',
-        signal: AbortSignal.timeout(4000),
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+        method: "GET",
+        redirect: "manual",
+        signal: AbortSignal.timeout(5000),
+        headers: { "User-Agent": BROWSER_UA },
       });
       try {
         await res.body?.cancel?.();
       } catch {
         /* ignore */
       }
-      const loc = res.headers.get('location');
+      const loc = res.headers.get("location");
       if (!(res.status >= 300 && res.status < 400) || !loc) break;
       current = new URL(loc, current).href;
-      const resolved = tikTokOEmbedUrlFromAny(current);
+      const resolved = tikTokCanonicalFromAny(current);
       if (resolved) return resolved;
     }
     return clean;
@@ -95,444 +103,156 @@ async function resolveTikTokUrl(url: string): Promise<string> {
   }
 }
 
-/** Official TikTok oEmbed — reliable thumbnail for short + full URLs. */
-async function tikTokThumbnailViaOEmbed(url: string): Promise<string | null> {
-  const resolved = await resolveTikTokUrl(url);
-  const candidates = Array.from(new Set([resolved, url.split('?')[0].split('#')[0].trim()]));
-  for (const candidate of candidates) {
-    try {
-      const res = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(candidate)}`, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-      });
-      if (!res.ok) continue;
-      const data = (await res.json()) as { thumbnail_url?: string };
-      if (!data.thumbnail_url) continue;
-      if (await isThumbnailReachable(data.thumbnail_url)) return data.thumbnail_url;
-      return data.thumbnail_url;
-    } catch {
-      // try next
-    }
+async function tikTokThumbnailViaOEmbed(resolvedUrl: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://www.tiktok.com/oembed?url=${encodeURIComponent(resolvedUrl)}`,
+      { headers: { "User-Agent": BROWSER_UA }, signal: AbortSignal.timeout(8000) }
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as { thumbnail_url?: string };
+    const thumb = data.thumbnail_url ? String(data.thumbnail_url) : null;
+    if (!thumb || isGenericLogoThumbnail(thumb)) return null;
+    return thumb;
+  } catch {
+    return null;
   }
-  return null;
 }
 
-// Get video thumbnail for various platforms
-export async function GET(req: NextRequest) {
-  const searchParams = req.nextUrl.searchParams;
-  const url = searchParams.get('url');
+async function tikTokThumbnailFromPage(resolvedUrl: string): Promise<string | null> {
+  try {
+    const pageResponse = await fetch(resolvedUrl, {
+      headers: {
+        "User-Agent": BROWSER_UA,
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+      redirect: "follow",
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!pageResponse.ok) return null;
+    const html = await pageResponse.text();
+    return extractTikTokCoverFromHtml(html) || extractOgImageFromHtml(html);
+  } catch {
+    return null;
+  }
+}
 
+async function resolveTikTokThumbnail(url: string): Promise<string | null> {
+  const resolved = await resolveTikTokUrl(url);
+  const oembed = await tikTokThumbnailViaOEmbed(resolved);
+  if (oembed) return oembed;
+  return tikTokThumbnailFromPage(resolved);
+}
+
+async function resolveInstagramThumbnail(url: string): Promise<string | null> {
+  const cleanUrl = stripUrlNoise(url);
+  try {
+    const pageResponse = await fetch(cleanUrl, {
+      headers: {
+        "User-Agent": FACEBOOK_UA,
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+      redirect: "follow",
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!pageResponse.ok) return null;
+    const html = await pageResponse.text();
+    return extractOgImageFromHtml(html);
+  } catch {
+    return null;
+  }
+}
+
+async function readCache(cleanUrl: string): Promise<{ thumbnail: string; platform: string } | null> {
+  try {
+    const { data: cached, error: cacheError } = await supabaseAdmin
+      .from("video_thumbnail_cache")
+      .select("thumbnail_url, platform, expires_at")
+      .eq("original_url", cleanUrl)
+      .single();
+    if (cacheError || !cached?.thumbnail_url) return null;
+    const expiresAt = new Date(cached.expires_at);
+    if (!(expiresAt > new Date())) {
+      await supabaseAdmin.from("video_thumbnail_cache").delete().eq("original_url", cleanUrl);
+      return null;
+    }
+    const thumb = String(cached.thumbnail_url);
+    // Cached generic logos are useless — ignore and re-fetch (upsert will overwrite).
+    if (isGenericLogoThumbnail(thumb)) return null;
+    return { thumbnail: thumb, platform: (cached.platform as string) || "unknown" };
+  } catch {
+    return null;
+  }
+}
+
+export async function GET(req: NextRequest) {
+  const url = req.nextUrl.searchParams.get("url");
   if (!url) {
-    return NextResponse.json({ error: 'URL parameter is required' }, { status: 400 });
+    return NextResponse.json({ error: "URL parameter is required" }, { status: 400 });
   }
 
-  const cleanUrl = url.split('?')[0].split('#')[0].trim();
+  const cleanUrl = stripUrlNoise(url);
 
   try {
-    // 1. Check DB cache first (λιγότερες κλήσεις Iframely)
-    try {
-      const { data: cached, error: cacheError } = await supabaseAdmin
-        .from('video_thumbnail_cache')
-        .select('thumbnail_url, platform, expires_at')
-        .eq('original_url', cleanUrl)
-        .single();
-      if (!cacheError && cached && cached.thumbnail_url) {
-        const expiresAt = new Date(cached.expires_at);
-        if (expiresAt > new Date()) {
-          const thumb = cached.thumbnail_url as string;
-          const isTikTokCdn = /tiktokcdn/i.test(thumb);
-          // Signed TikTok CDN URLs die; don't serve a dead cache forever.
-          if (isTikTokCdn && !(await isThumbnailReachable(thumb))) {
-            await supabaseAdmin.from('video_thumbnail_cache').delete().eq('original_url', cleanUrl);
-          } else {
-            const res = NextResponse.json({
-              thumbnail: thumb,
-              platform: cached.platform || 'unknown',
-            });
-            res.headers.set('Cache-Control', 'public, max-age=86400, s-maxage=86400');
-            return res;
-          }
-        } else {
-          await supabaseAdmin.from('video_thumbnail_cache').delete().eq('original_url', cleanUrl);
-        }
-      }
-    } catch {
-      // Table might not exist
+    const cached = await readCache(cleanUrl);
+    if (cached) {
+      return jsonThumb(cached.thumbnail, cached.platform);
     }
 
-    // YouTube - direct thumbnail URL (no Iframely, no cache needed)
-    const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
-    const youtubeMatch = url.match(youtubeRegex);
-    if (youtubeMatch) {
-      return NextResponse.json({ 
-        thumbnail: `https://img.youtube.com/vi/${youtubeMatch[1]}/maxresdefault.jpg`,
-        platform: 'youtube'
-      });
+    const ytId = resolveYouTubeVideoId(url);
+    if (ytId) {
+      return jsonThumb(`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`, "youtube");
     }
 
-    // Instagram Reels/Posts
-    const instagramRegex = /instagram\.com\/(?:p|reel)\/([A-Za-z0-9_-]+)/;
-    const instagramMatch = url.match(instagramRegex);
+    const instagramMatch = url.match(/instagram\.com\/(?:p|reel|tv)\/([A-Za-z0-9_-]+)/i);
     if (instagramMatch) {
-      const postId = instagramMatch[1];
-      const cleanUrl = url.split('?')[0];
-      
-      try {
-        // Method 1: Try Iframely API (best option with API key)
-        const iframelyApiKey = process.env.IFRAMELY_API_KEY || process.env.NEXT_PUBLIC_IFRAMELY_API_KEY;
-        if (iframelyApiKey) {
-          try {
-            const iframelyUrl = `https://iframe.ly/api/iframely?url=${encodeURIComponent(cleanUrl)}&api_key=${iframelyApiKey}`;
-            const iframelyResponse = await fetch(iframelyUrl, {
-              headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'Accept': 'application/json'
-              }
-            });
-            
-            if (iframelyResponse.ok) {
-              const iframelyData = await iframelyResponse.json();
-              
-              // Iframely returns thumbnail in various formats - check all possible locations
-              let thumbnailUrl = null;
-              
-              // Method 1: Direct thumbnail field
-              if (iframelyData.thumbnail) {
-                thumbnailUrl = iframelyData.thumbnail;
-              }
-              // Method 2: thumbnail_url field
-              else if (iframelyData.thumbnail_url) {
-                thumbnailUrl = iframelyData.thumbnail_url;
-              }
-              // Method 3: meta.thumbnail
-              else if (iframelyData.meta?.thumbnail) {
-                thumbnailUrl = iframelyData.meta.thumbnail;
-              }
-              // Method 4: links.thumbnail array (first item)
-              else if (iframelyData.links?.thumbnail && Array.isArray(iframelyData.links.thumbnail) && iframelyData.links.thumbnail.length > 0) {
-                thumbnailUrl = iframelyData.links.thumbnail[0].href || iframelyData.links.thumbnail[0];
-              }
-              // Method 5: links.icon (sometimes thumbnail is here)
-              else if (iframelyData.links?.icon && Array.isArray(iframelyData.links.icon) && iframelyData.links.icon.length > 0) {
-                const icon = iframelyData.links.icon[0];
-                thumbnailUrl = icon.href || icon;
-              }
-              // Method 6: Check for image in links
-              else if (iframelyData.links?.image && Array.isArray(iframelyData.links.image) && iframelyData.links.image.length > 0) {
-                thumbnailUrl = iframelyData.links.image[0].href || iframelyData.links.image[0];
-              }
-              
-              if (thumbnailUrl) {
-                console.log('Instagram thumbnail found via Iframely:', thumbnailUrl);
-                
-                // Check if the thumbnail URL is from Instagram CDN (might be blocked)
-                const isCDNUrl = thumbnailUrl.includes('cdninstagram.com') || thumbnailUrl.includes('scontent.cdninstagram.com');
-                
-                // If it's a CDN URL, try to find alternative thumbnail sources from Iframely
-                if (isCDNUrl) {
-                  // Try to find alternative image sources that might not be CDN
-                  let alternativeUrl = null;
-                  
-                  // Check links.image for alternatives
-                  if (iframelyData.links?.image && Array.isArray(iframelyData.links.image)) {
-                    for (const img of iframelyData.links.image) {
-                      const imgUrl = img.href || img;
-                      if (imgUrl && !imgUrl.includes('cdninstagram.com') && !imgUrl.includes('scontent.cdninstagram.com')) {
-                        alternativeUrl = imgUrl;
-                        break;
-                      }
-                    }
-                  }
-                  
-                  // If we found an alternative, use it; otherwise use the CDN URL (will be proxied)
-                  if (alternativeUrl) {
-                    console.log('Using alternative thumbnail URL (non-CDN):', alternativeUrl);
-                    thumbnailUrl = alternativeUrl;
-                  } else {
-                    console.log('Using CDN thumbnail URL (will be proxied):', thumbnailUrl);
-                  }
-                }
-                
-                await saveThumbnailCache(cleanUrl, thumbnailUrl, 'instagram');
-                const res = NextResponse.json({ 
-                  thumbnail: thumbnailUrl,
-                  platform: 'instagram',
-                  isCDN: isCDNUrl
-                });
-                res.headers.set('Cache-Control', 'public, max-age=31536000, s-maxage=31536000');
-                return res;
-              } else {
-                // Log for debugging - check what Iframely actually returned
-                console.log('Iframely response for Instagram (no thumbnail found):', JSON.stringify(iframelyData, null, 2));
-                console.log('Iframely links structure:', JSON.stringify(iframelyData.links, null, 2));
-                console.log('Iframely meta structure:', JSON.stringify(iframelyData.meta, null, 2));
-              }
-            } else {
-              const errorText = await iframelyResponse.text();
-              console.log('Iframely API error for Instagram:', iframelyResponse.status, errorText);
-            }
-          } catch (e) {
-            console.log('Iframely API failed, trying other methods...', e);
-          }
-        }
-
-        // Method 2: Try Instagram oEmbed API (works for public posts)
-        try {
-          const oembedUrl = `https://api.instagram.com/oembed?url=${encodeURIComponent(cleanUrl)}`;
-          const response = await fetch(oembedUrl, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Accept': 'application/json'
-            }
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            if (data.thumbnail_url) {
-              await saveThumbnailCache(cleanUrl, data.thumbnail_url, 'instagram');
-              const res = NextResponse.json({ thumbnail: data.thumbnail_url, platform: 'instagram' });
-              res.headers.set('Cache-Control', 'public, max-age=31536000, s-maxage=31536000');
-              return res;
-            }
-          }
-        } catch (e) {
-          console.log('oEmbed failed, trying other methods...');
-        }
-
-        // Method 2: Try to fetch the page and extract og:image meta tag
-        try {
-          const pageResponse = await fetch(cleanUrl, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-              'Accept-Language': 'en-US,en;q=0.9',
-              'Accept-Encoding': 'gzip, deflate, br',
-            },
-            redirect: 'follow'
-          });
-          
-          if (pageResponse.ok) {
-            const html = await pageResponse.text();
-            // Extract og:image from meta tags - try multiple patterns
-            const patterns = [
-              /property=["']og:image["'][^>]*content=["']([^"']+)["']/i,
-              /content=["']([^"']+)["'][^>]*property=["']og:image["']/i,
-              /<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i,
-              /<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i,
-            ];
-            
-            for (const pattern of patterns) {
-              const match = html.match(pattern);
-              if (match && match[1]) {
-                const imageUrl = match[1].trim();
-                if (imageUrl && (imageUrl.startsWith('http') || imageUrl.startsWith('//'))) {
-                  const fullImageUrl = imageUrl.startsWith('//') ? `https:${imageUrl}` : imageUrl;
-                  await saveThumbnailCache(cleanUrl, fullImageUrl, 'instagram');
-                  const res = NextResponse.json({ thumbnail: fullImageUrl, platform: 'instagram' });
-                  res.headers.set('Cache-Control', 'public, max-age=31536000, s-maxage=31536000');
-                  return res;
-                }
-              }
-            }
-          }
-        } catch (e) {
-          console.log('Page fetch failed, trying CDN patterns...');
-        }
-
-        // Method 3: Try Instagram CDN patterns (may work for some posts)
-        // Instagram sometimes uses these patterns for media
-        const cdnPatterns = [
-          `https://scontent.cdninstagram.com/v/t51.2885-15/${postId}_n.jpg`,
-          `https://www.instagram.com/p/${postId}/media/?size=l`,
-        ];
-        
-        // Return first pattern as potential thumbnail (frontend will validate)
-        // Note: These may not always work due to Instagram's restrictions
-        return NextResponse.json({ 
-          thumbnail: null, // Will use placeholder
-          platform: 'instagram',
-          fallback: true,
-          embed_url: `https://www.instagram.com/p/${postId}/embed/`
-        });
-      } catch (error) {
-        console.error('Instagram thumbnail error:', error);
-        return NextResponse.json({ 
-          thumbnail: null,
-          platform: 'instagram',
-          fallback: true
-        });
+      const thumb = await resolveInstagramThumbnail(url);
+      if (thumb) {
+        await saveThumbnailCache(cleanUrl, thumb, "instagram");
+        return jsonThumb(thumb, "instagram");
       }
+      return jsonThumb(null, "instagram", { fallback: true });
     }
 
-    // TikTok - support both full URLs and short URLs (vm.tiktok.com, vt.tiktok.com)
-    const tiktokRegex = /tiktok\.com\/@[\w.-]+\/video\/\d+/i;
-    const tiktokShortRegex = /(vm|vt)\.tiktok\.com\/[\w-]+\/?/i;
-    const tiktokMatch = url.match(tiktokRegex);
-    const tiktokShortMatch = url.match(tiktokShortRegex);
-    if (tiktokMatch || tiktokShortMatch || url.includes('tiktok.com')) {
-      const cleanUrl = url.split('?')[0].split('#')[0]; // Remove query parameters and hash
-      
-      try {
-        // 1) Official oEmbed (works for short links after resolve) — preferred over Iframely
-        const oembedThumb = await tikTokThumbnailViaOEmbed(cleanUrl);
-        if (oembedThumb) {
-          await saveThumbnailCache(cleanUrl, oembedThumb, 'tiktok');
-          const res = NextResponse.json({ thumbnail: oembedThumb, platform: 'tiktok' });
-          res.headers.set('Cache-Control', 'public, max-age=86400, s-maxage=86400');
-          return res;
-        }
+    const isTikTok =
+      /tiktok\.com\/@[\w.-]+\/video\/\d+/i.test(url) ||
+      /(vm|vt)\.tiktok\.com\/[\w-]+\/?/i.test(url) ||
+      /tiktok\.com\/.*\/(?:video|photo)\/\d+/i.test(url) ||
+      url.toLowerCase().includes("tiktok.com");
 
-        // 2) Iframely fallback
-        const iframelyApiKey = process.env.IFRAMELY_API_KEY || process.env.NEXT_PUBLIC_IFRAMELY_API_KEY;
-        if (iframelyApiKey) {
-          try {
-            const iframelyUrl = `https://iframe.ly/api/iframely?url=${encodeURIComponent(cleanUrl)}&api_key=${iframelyApiKey}`;
-            const iframelyResponse = await fetch(iframelyUrl, {
-              headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'Accept': 'application/json'
-              }
-            });
-            
-            if (iframelyResponse.ok) {
-              const iframelyData = await iframelyResponse.json();
-              
-              // Iframely returns thumbnail in various formats - check all possible locations
-              let thumbnailUrl = null;
-              
-              // Method 1: Direct thumbnail field
-              if (iframelyData.thumbnail) {
-                thumbnailUrl = iframelyData.thumbnail;
-              }
-              // Method 2: thumbnail_url field
-              else if (iframelyData.thumbnail_url) {
-                thumbnailUrl = iframelyData.thumbnail_url;
-              }
-              // Method 3: meta.thumbnail
-              else if (iframelyData.meta?.thumbnail) {
-                thumbnailUrl = iframelyData.meta.thumbnail;
-              }
-              // Method 4: links.thumbnail array (first item)
-              else if (iframelyData.links?.thumbnail && Array.isArray(iframelyData.links.thumbnail) && iframelyData.links.thumbnail.length > 0) {
-                thumbnailUrl = iframelyData.links.thumbnail[0].href || iframelyData.links.thumbnail[0];
-              }
-              // Method 5: links.icon (sometimes thumbnail is here)
-              else if (iframelyData.links?.icon && Array.isArray(iframelyData.links.icon) && iframelyData.links.icon.length > 0) {
-                const icon = iframelyData.links.icon[0];
-                thumbnailUrl = icon.href || icon;
-              }
-              // Method 6: Check for image in links
-              else if (iframelyData.links?.image && Array.isArray(iframelyData.links.image) && iframelyData.links.image.length > 0) {
-                thumbnailUrl = iframelyData.links.image[0].href || iframelyData.links.image[0];
-              }
-              
-              if (thumbnailUrl) {
-                console.log('TikTok thumbnail found via Iframely:', thumbnailUrl);
-                await saveThumbnailCache(cleanUrl, thumbnailUrl, 'tiktok');
-                const res = NextResponse.json({ thumbnail: thumbnailUrl, platform: 'tiktok' });
-                res.headers.set('Cache-Control', 'public, max-age=86400, s-maxage=86400');
-                return res;
-              } else {
-                // Log full response for debugging
-                console.log('Iframely response for TikTok (no thumbnail found):', JSON.stringify(iframelyData, null, 2));
-                console.log('Iframely links structure:', JSON.stringify(iframelyData.links, null, 2));
-              }
-            } else {
-              const errorText = await iframelyResponse.text();
-              console.log('Iframely API error for TikTok:', iframelyResponse.status, errorText);
-            }
-          } catch (e) {
-            console.log('Iframely API failed for TikTok, trying other methods...', e);
-          }
-        }
-
-        // Fallback: Try to fetch the page and extract og:image meta tag
-        try {
-          const pageResponse = await fetch(cleanUrl, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-              'Accept-Language': 'en-US,en;q=0.9',
-              'Accept-Encoding': 'gzip, deflate, br',
-            },
-            redirect: 'follow'
-          });
-          
-          if (pageResponse.ok) {
-            const html = await pageResponse.text();
-            // Extract og:image from meta tags
-            const patterns = [
-              /property=["']og:image["'][^>]*content=["']([^"']+)["']/i,
-              /content=["']([^"']+)["'][^>]*property=["']og:image["']/i,
-              /<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i,
-              /<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i,
-            ];
-            
-            for (const pattern of patterns) {
-              const match = html.match(pattern);
-              if (match && match[1]) {
-                const imageUrl = match[1].trim();
-                if (imageUrl && (imageUrl.startsWith('http') || imageUrl.startsWith('//'))) {
-                  const fullImageUrl = imageUrl.startsWith('//') ? `https:${imageUrl}` : imageUrl;
-                  await saveThumbnailCache(cleanUrl, fullImageUrl, 'tiktok');
-                  const res = NextResponse.json({ thumbnail: fullImageUrl, platform: 'tiktok' });
-                  res.headers.set('Cache-Control', 'public, max-age=86400, s-maxage=86400');
-                  return res;
-                }
-              }
-            }
-          }
-        } catch (e) {
-          console.log('Page fetch failed for TikTok...');
-        }
-        
-        // If all methods fail, return null (will show placeholder)
-        return NextResponse.json({ 
-          thumbnail: null,
-          platform: 'tiktok',
-          fallback: true
-        });
-      } catch (error) {
-        console.error('TikTok thumbnail error:', error);
-        return NextResponse.json({ 
-          thumbnail: null,
-          platform: 'tiktok',
-          fallback: true
-        });
+    if (isTikTok) {
+      const thumb = await resolveTikTokThumbnail(url);
+      if (thumb && !isGenericLogoThumbnail(thumb)) {
+        await saveThumbnailCache(cleanUrl, thumb, "tiktok");
+        return jsonThumb(thumb, "tiktok");
       }
+      return jsonThumb(null, "tiktok", { fallback: true });
     }
 
-    // Vimeo
-    const vimeoRegex = /vimeo\.com\/(\d+)/;
-    const vimeoMatch = url.match(vimeoRegex);
+    const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
     if (vimeoMatch) {
       try {
-        const vimeoResponse = await fetch(`https://vumbnail.com/${vimeoMatch[1]}.json`);
+        const vimeoResponse = await fetch(`https://vumbnail.com/${vimeoMatch[1]}.json`, {
+          signal: AbortSignal.timeout(8000),
+        });
         if (vimeoResponse.ok) {
-          const vimeoData = await vimeoResponse.json();
+          const vimeoData = (await vimeoResponse.json()) as { thumbnail_url?: string };
           if (vimeoData.thumbnail_url) {
-            await saveThumbnailCache(cleanUrl, vimeoData.thumbnail_url, 'vimeo');
-            const res = NextResponse.json({ thumbnail: vimeoData.thumbnail_url, platform: 'vimeo' });
-            res.headers.set('Cache-Control', 'public, max-age=31536000, s-maxage=31536000');
-            return res;
+            await saveThumbnailCache(cleanUrl, vimeoData.thumbnail_url, "vimeo");
+            return jsonThumb(vimeoData.thumbnail_url, "vimeo");
           }
         }
-      } catch (error) {
-        console.error('Vimeo thumbnail error:', error);
+      } catch {
+        /* ignore */
       }
     }
 
-    // If no match or error, return null
-    return NextResponse.json({ 
-      thumbnail: null,
-      platform: 'unknown'
-    });
-
-  } catch (error: any) {
-    console.error('Thumbnail fetch error:', error);
-    return NextResponse.json({ 
-      error: error.message,
-      thumbnail: null
-    }, { status: 500 });
+    return jsonThumb(null, "unknown");
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("Thumbnail fetch error:", error);
+    return NextResponse.json({ error: message, thumbnail: null }, { status: 500 });
   }
 }
-

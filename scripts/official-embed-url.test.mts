@@ -62,7 +62,16 @@ test("buildOfficialEmbedUrl: YouTube with optional autoplay", () => {
     buildOfficialEmbedUrl("https://www.youtube.com/shorts/abcdefghijk"),
     "https://www.youtube.com/embed/abcdefghijk?rel=0&modestbranding=1&playsinline=1"
   );
+  assert.equal(
+    buildOfficialEmbedUrl("https://m.youtube.com/shorts/AbCdEfGhIjK"),
+    "https://www.youtube.com/embed/AbCdEfGhIjK?rel=0&modestbranding=1&playsinline=1"
+  );
+  assert.equal(
+    buildOfficialEmbedUrl("https://youtu.be/dQw4w9WgXcQ?si=shareToken"),
+    "https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1&playsinline=1"
+  );
   assert.equal(resolveYouTubeVideoId("https://youtu.be/dQw4w9WgXcQ"), "dQw4w9WgXcQ");
+  assert.equal(resolveYouTubeVideoId("https://m.youtube.com/watch?v=dQw4w9WgXcQ"), "dQw4w9WgXcQ");
 });
 
 test("buildOfficialEmbedUrl: TikTok returns null (needs API resolve)", () => {

@@ -2,14 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getVideoThumbnail } from "@/lib/videoThumbnail";
-
-function isCdnThumbnail(url: string): boolean {
-  return /cdninstagram\.com|scontent\.cdninstagram\.com|tiktokcdn|ibytedtos\.com/i.test(url);
-}
-
-function proxyUrl(imageUrl: string): string {
-  return `/api/thumbnail-proxy?url=${encodeURIComponent(imageUrl)}`;
-}
+import {
+  isCdnThumbnailUrl,
+  thumbnailProxySrc,
+  toDisplayThumbnailSrc,
+} from "@/lib/videoThumbnailExtract";
 
 async function fetchApiThumbnail(apiOrOriginalUrl: string): Promise<string | null> {
   const apiUrl = apiOrOriginalUrl.startsWith("/api/video-thumbnail")
@@ -22,22 +19,24 @@ async function fetchApiThumbnail(apiOrOriginalUrl: string): Promise<string | nul
 }
 
 /**
- * Resolve a displayable thumbnail URL for a social video, matching VideoThumbnail's flow:
- * YouTube direct → Instagram/TikTok via /api/video-thumbnail → optional CDN proxy once on error.
+ * Resolve a displayable thumbnail URL for a social video:
+ * YouTube direct → Instagram/TikTok via /api/video-thumbnail →
+ * CDN hosts (tiktokcdn / cdninstagram / fbcdn) served via /api/thumbnail-proxy.
  */
 export async function resolveVideoThumbnailSrc(originalUrl: string): Promise<string | null> {
   if (!originalUrl) return null;
   const tip = getVideoThumbnail(originalUrl);
   if (!tip) return null;
   if (!tip.startsWith("/api/")) return tip;
-  return fetchApiThumbnail(tip);
+  const raw = await fetchApiThumbnail(tip);
+  return toDisplayThumbnailSrc(raw);
 }
 
 export type LazyVideoThumbnailState = {
-  /** Image src to render (direct CDN or proxy). Null → use gradient fallback. */
+  /** Image src to render (direct or proxied). Null → use gradient fallback. */
   src: string | null;
   loading: boolean;
-  /** Call from <img onError>. Tries /api/thumbnail-proxy once for CDN URLs. */
+  /** Call from <img onError>. One extra proxy attempt if somehow still a raw CDN URL. */
   onImgError: () => void;
 };
 
@@ -68,6 +67,9 @@ export function useLazyVideoThumbnail(
       .then((resolved) => {
         if (cancelled) return;
         rawSrcRef.current = resolved;
+        if (resolved?.startsWith("/api/thumbnail-proxy")) {
+          proxiedRef.current = true;
+        }
         setSrc(resolved);
         setLoading(false);
       })
@@ -83,10 +85,17 @@ export function useLazyVideoThumbnail(
   }, [originalUrl, enabled]);
 
   const onImgError = useCallback(() => {
-    const raw = rawSrcRef.current;
-    if (raw && !proxiedRef.current && isCdnThumbnail(raw)) {
+    const current = rawSrcRef.current;
+    if (
+      current &&
+      !proxiedRef.current &&
+      !current.startsWith("/api/thumbnail-proxy") &&
+      isCdnThumbnailUrl(current)
+    ) {
       proxiedRef.current = true;
-      setSrc(proxyUrl(raw));
+      const proxied = thumbnailProxySrc(current);
+      rawSrcRef.current = proxied;
+      setSrc(proxied);
       return;
     }
     setSrc(null);
