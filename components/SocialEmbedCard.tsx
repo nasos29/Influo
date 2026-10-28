@@ -194,14 +194,14 @@ export default function SocialEmbedCard({
         return;
       }
 
-      // TikTok: official player/v1 for one-click play (muted so autoplay works).
+      // TikTok: official player/v1 after user click — unmuted (gesture unlocks audio).
       let videoId = extractTikTokVideoId(originalUrl);
       if (!videoId) {
         const embedOrResolved = await fetchTikTokEmbedUrl(originalUrl);
         videoId = extractTikTokVideoId(embedOrResolved);
       }
       if (!videoId) throw new Error("Missing TikTok video id");
-      setIframeSrc(buildTikTokPlayerUrl(videoId, { muted: true }));
+      setIframeSrc(buildTikTokPlayerUrl(videoId, { muted: false }));
       setLoading(false);
     } catch {
       setError(true);
@@ -312,7 +312,11 @@ export default function SocialEmbedCard({
               className={`absolute top-0 left-0 z-[5] h-full w-full border-0 ${
                 isInstagram && !iframeLoaded ? "opacity-0" : "opacity-100"
               }`}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allow={
+                provider === "tiktok"
+                  ? "autoplay; encrypted-media; fullscreen; picture-in-picture"
+                  : "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              }
               allowFullScreen
               referrerPolicy="strict-origin-when-cross-origin"
               onLoad={() => {
