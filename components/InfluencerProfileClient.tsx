@@ -1757,12 +1757,13 @@ export default function InfluencerProfile(props: {
                 {/* Categories — link to directory filtered by category */}
                 {profile.categories && profile.categories.length > 0 && (
                   <div className="flex flex-wrap justify-center md:justify-start gap-2 mt-3">
-                    {profile.categories.map((cat, i) => {
+                    {profile.categories.map((cat) => {
                       const translatedCat = categoryTranslations[cat]?.[lang] || cat;
-                      const href = `${lang === "en" ? "/en/directory" : "/directory"}?category=${encodeURIComponent(cat)}`;
+                      const directoryBase = lang === "en" ? "/en/directory" : "/directory";
+                      const href = `${directoryBase}?category=${encodeURIComponent(cat)}`;
                       return (
                         <Link
-                          key={i}
+                          key={cat}
                           href={href}
                           className="text-xs uppercase font-semibold bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full border border-blue-200 hover:bg-blue-100 hover:border-blue-300 transition"
                         >

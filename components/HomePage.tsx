@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import Directory, { type Influencer } from "@/components/Directory";
@@ -766,8 +766,9 @@ export default function Home({
               <h3 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">{txt.dir_title}</h3>
             <p className="text-slate-600 max-w-2xl mx-auto">{txt.dir_desc}</p>
           </div>
-          {/* Περνάμε τη γλώσσα στο Directory */}
-          <Directory lang={lang} initialInfluencers={initialInfluencers} /> 
+          <Suspense fallback={<div className="h-40 rounded-2xl bg-slate-50 animate-pulse" aria-hidden />}>
+            <Directory lang={lang} initialInfluencers={initialInfluencers} />
+          </Suspense>
         </div>
       </section>
 

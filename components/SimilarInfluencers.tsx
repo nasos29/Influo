@@ -41,11 +41,10 @@ export default function SimilarInfluencers({
   const cats = parseStoredCategories(categories);
   const catsKey = cats.join(",");
   const primaryCategory = cats[0] || null;
+  const directoryBase = lang === "en" ? "/en/directory" : "/directory";
   const directoryHref = primaryCategory
-    ? `${lang === "en" ? "/en/directory" : "/directory"}?category=${encodeURIComponent(primaryCategory)}`
-    : lang === "en"
-      ? "/en/directory"
-      : "/directory";
+    ? `${directoryBase}?category=${encodeURIComponent(primaryCategory)}`
+    : directoryBase;
 
   useEffect(() => {
     const node = rootRef.current;
@@ -67,7 +66,7 @@ export default function SimilarInfluencers({
     if (!near || !catsKey || !influencerId) return;
     const currentCats = catsKey.split(",").filter(Boolean);
     let cancelled = false;
-    (async () => {
+    void (async () => {
       try {
         const { data, error } = await supabase
           .from("influencers")
