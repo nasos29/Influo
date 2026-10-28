@@ -5,6 +5,11 @@ import { supabase } from "@/lib/supabaseClient";
 import Image from "next/image";
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 import { detectProvider, getVideoEmbedApiUrl, isDefinitelyImage, isEmbeddableVideoUrl } from "@/lib/videoThumbnail";
+import {
+  FACEBOOK_VIDEO_LINK_ERROR,
+  cleanVideoLink,
+  prepareVideosForSave,
+} from "@/lib/videoLinks";
 import { prepareImageForStorage } from "@/lib/prepareImageForStorage";
 import { normalizeGender } from "@/lib/gender";
 import { languagesCodesToStored } from "@/lib/languages";
@@ -302,7 +307,33 @@ export default function InfluencerSignupForm() {
     setStep(3);
   };
 
-  const handleVideoChange = (i: number, val: string) => { const copy = [...videos]; copy[i] = val; setVideos(copy); };
+  const [videoLinkError, setVideoLinkError] = useState<string | null>(null);
+  const handleVideoChange = (i: number, val: string) => {
+    setVideoLinkError(null);
+    const copy = [...videos];
+    copy[i] = val;
+    setVideos(copy);
+  };
+  const handleVideoBlur = (i: number) => {
+    const raw = videos[i] || "";
+    if (!raw.trim()) return;
+    const cleaned = cleanVideoLink(raw);
+    if (!cleaned.ok) {
+      if (cleaned.reason === "facebook") {
+        setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR[lang]);
+        const copy = [...videos];
+        copy[i] = "";
+        setVideos(copy);
+      }
+      return;
+    }
+    setVideoLinkError(null);
+    if (cleaned.url !== raw) {
+      const copy = [...videos];
+      copy[i] = cleaned.url;
+      setVideos(copy);
+    }
+  };
   const addVideo = () => setVideos([...videos, ""]);
   const removeVideo = (i: number) => { const copy = [...videos]; copy.splice(i, 1); setVideos(copy); };
 
@@ -623,6 +654,14 @@ export default function InfluencerSignupForm() {
         .filter(acc => acc.platform !== 'Facebook')
         .map(acc => ({ ...acc, username: normalizeUsername(acc.username) }));
 
+      const preparedVideos = prepareVideosForSave(videos);
+      if (!preparedVideos.ok) {
+        setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR[lang]);
+        setMessage(FACEBOOK_VIDEO_LINK_ERROR[lang]);
+        setLoading(false);
+        return;
+      }
+
       const rateCardPayload = {
         ...(priceStory.trim() ? { story: priceStory.trim() } : {}),
         ...(pricePost.trim() ? { post: pricePost.trim() } : {}),
@@ -643,7 +682,7 @@ export default function InfluencerSignupForm() {
           contact_email: email,
           bio, 
           accounts: socialAccounts, 
-          videos: videos.filter(v => v !== ""),
+          videos: preparedVideos.videos,
           avatar_url: avatarUrl,
           insights_urls: insightUrls,
           audience_male_percent: parseInt(malePercent) || 0,
@@ -1066,9 +1105,16 @@ export default function InfluencerSignupForm() {
                           !!vid.trim() && !!provider && !isImage && !isEmbeddableVideoUrl(vid);
 
                         return (
-                            <div key={i} className="space-y-2">
+                            <div key={`signup-video-${i}-${vid.slice(0, 24)}`} className="space-y-2">
                                 <div className="flex gap-3">
-                            <input type="text" className={inputClass} value={vid} onChange={(e) => handleVideoChange(i, e.target.value)} placeholder="https://..." />
+                            <input
+                              type="text"
+                              className={inputClass}
+                              value={vid}
+                              onChange={(e) => handleVideoChange(i, e.target.value)}
+                              onBlur={() => handleVideoBlur(i)}
+                              placeholder="https://..."
+                            />
                             {videos.length > 1 && <button onClick={() => removeVideo(i)} className="text-red-500 font-bold px-2 hover:bg-red-50 rounded">✕</button>}
                         </div>
                                 {isProfileNotVideo && (
@@ -1090,6 +1136,11 @@ export default function InfluencerSignupForm() {
                             </div>
                         );
                     })}
+                    {videoLinkError ? (
+                      <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                        {videoLinkError}
+                      </p>
+                    ) : null}
                     <button onClick={addVideo} className="text-blue-600 text-sm font-bold hover:underline">{txt.addVideo}</button>
                 </div>
 

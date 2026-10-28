@@ -10,6 +10,7 @@ import {
   birthDateLangFromRequest,
   validateBirthDate,
 } from '@/lib/validateBirthDate';
+import { FACEBOOK_VIDEO_LINK_ERROR, prepareVideosForSave } from '@/lib/videoLinks';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -95,6 +96,18 @@ export async function POST(request: NextRequest) {
         }
         patch.birth_date = birthCheck.normalized;
       }
+    }
+
+    if ('videos' in patch) {
+      const prepared = prepareVideosForSave(patch.videos);
+      if (!prepared.ok) {
+        const lang = birthDateLangFromRequest(request);
+        return NextResponse.json(
+          { error: FACEBOOK_VIDEO_LINK_ERROR[lang] },
+          { status: 400 }
+        );
+      }
+      patch.videos = prepared.videos;
     }
 
     if (Object.keys(patch).length === 0) {
