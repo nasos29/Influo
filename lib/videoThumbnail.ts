@@ -63,7 +63,51 @@ export function extractVideoId(url: string): string | null {
   const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
   const youtubeMatch = url.match(youtubeRegex);
   if (youtubeMatch) return youtubeMatch[1];
-  
+
+  return null;
+}
+
+/** Resolve YouTube watch/shorts/youtu.be → 11-char video id. */
+export function resolveYouTubeVideoId(url: string): string | null {
+  const clean = String(url || "").trim();
+  if (!clean) return null;
+  const patterns = [
+    /(?:youtube\.com\/(?:watch\?(?:[^#]*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/i,
+    /[?&]v=([A-Za-z0-9_-]{11})/i,
+  ];
+  for (const re of patterns) {
+    const m = clean.match(re);
+    if (m?.[1]) return m[1];
+  }
+  return extractVideoId(clean);
+}
+
+/**
+ * Deterministic official embed URL for Instagram / YouTube (no API call).
+ * TikTok short links need /api/video-embed resolution — returns null.
+ */
+export function buildOfficialEmbedUrl(
+  originalUrl: string,
+  opts?: { autoplay?: boolean }
+): string | null {
+  if (!originalUrl) return null;
+  const provider = detectProvider(originalUrl);
+  if (provider === "instagram") {
+    const ig = originalUrl.match(/instagram\.com\/(reel|p|tv)\/([A-Za-z0-9_-]+)/i);
+    if (!ig?.[1] || !ig?.[2]) return null;
+    return `https://www.instagram.com/${ig[1].toLowerCase()}/${ig[2]}/embed`;
+  }
+  if (provider === "youtube") {
+    const id = resolveYouTubeVideoId(originalUrl);
+    if (!id) return null;
+    const params = new URLSearchParams({
+      rel: "0",
+      modestbranding: "1",
+      playsinline: "1",
+    });
+    if (opts?.autoplay) params.set("autoplay", "1");
+    return `https://www.youtube.com/embed/${id}?${params.toString()}`;
+  }
   return null;
 }
 
@@ -88,37 +132,13 @@ export function detectProvider(url: string): "instagram" | "tiktok" | "youtube" 
   return null;
 }
 
-// Helper to generate Iframely embed URL
-// Iframely format: https://iframe.ly/api/iframe?url={original_url}
-// Or with API key: https://iframe.ly/api/iframe?url={original_url}&api_key={api_key}
-// This function now returns a cached embed URL via API endpoint when available
-export function getIframelyEmbedUrl(originalUrl: string, apiKey?: string): string {
-  if (!originalUrl) return '';
-  
-  // On client-side, use the cached API endpoint
-  if (typeof window !== 'undefined') {
-    // Return API endpoint that will check cache first
-    return `/api/video-embed?url=${encodeURIComponent(originalUrl)}`;
-  }
-  
-  // Server-side: generate direct Iframely URL (will be cached by API endpoint when called)
-  const baseUrl = 'https://iframe.ly/api/iframe';
-  const params = new URLSearchParams({
-    url: originalUrl,
-  });
-  
-  // Use provided API key, or try to get from environment variable
-  // Fallback to default API key if not provided
-  let iframelyApiKey = apiKey;
-  
-  if (!iframelyApiKey) {
-    // Server-side: use server env var or fallback
-    iframelyApiKey = process.env.IFRAMELY_API_KEY || process.env.NEXT_PUBLIC_IFRAMELY_API_KEY;
-  }
-  
-  if (iframelyApiKey) {
-    params.append('api_key', iframelyApiKey);
-  }
-  
-  return `${baseUrl}?${params.toString()}`;
+/**
+ * Preferred embed source for a social URL.
+ * Instagram/YouTube → official embed (deterministic). TikTok → /api/video-embed (needs resolve/cache).
+ */
+export function getIframelyEmbedUrl(originalUrl: string, _apiKey?: string): string {
+  if (!originalUrl) return "";
+  const official = buildOfficialEmbedUrl(originalUrl, { autoplay: false });
+  if (official) return official;
+  return `/api/video-embed?url=${encodeURIComponent(originalUrl)}`;
 }

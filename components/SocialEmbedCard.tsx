@@ -1,144 +1,187 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { buildOfficialEmbedUrl } from "@/lib/videoThumbnail";
+
+type Provider = "instagram" | "tiktok" | "youtube";
 
 interface SocialEmbedCardProps {
-  provider: "instagram" | "tiktok" | "youtube";
-  embedUrl: string;
+  provider: Provider;
+  originalUrl: string;
+  lang?: "el" | "en";
+  /** @deprecated Prefer originalUrl; kept for call-site compatibility. */
+  embedUrl?: string;
   thumbnailUrl?: string;
   width?: number;
   height?: number;
-  originalUrl?: string;
+}
+
+const COPY = {
+  play: { el: "Προβολή βίντεο", en: "Play video" },
+  open: { el: "Άνοιγμα στο", en: "Open on" },
+  loading: { el: "Φόρτωση", en: "Loading" },
+  error: { el: "Αποτυχία φόρτωσης", en: "Failed to load" },
+  retry: { el: "Δοκιμή ξανά", en: "Try again" },
+} as const;
+
+const NAMES: Record<Provider, string> = {
+  instagram: "Instagram",
+  tiktok: "TikTok",
+  youtube: "YouTube",
+};
+
+const COLORS: Record<Provider, string> = {
+  instagram: "from-purple-600 to-pink-600",
+  tiktok: "from-black to-gray-900",
+  youtube: "from-red-600 to-red-700",
+};
+
+const DEFAULT_DIMENSIONS: Record<Provider, { width: number; height: number }> = {
+  instagram: { width: 400, height: 500 },
+  tiktok: { width: 400, height: 600 },
+  youtube: { width: 560, height: 315 },
+};
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchTikTokEmbed(originalUrl: string): Promise<string> {
+  const apiUrl = `/api/video-embed?url=${encodeURIComponent(originalUrl)}`;
+  const attempt = async () => {
+    const res = await fetch(apiUrl);
+    if (res.status === 429 || res.status >= 500) {
+      const err = new Error(`HTTP ${res.status}`);
+      (err as Error & { retryable?: boolean }).retryable = true;
+      throw err;
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = (await res.json()) as { embed_url?: string };
+    if (!data.embed_url) throw new Error("Missing embed_url");
+    return String(data.embed_url);
+  };
+
+  try {
+    return await attempt();
+  } catch (err) {
+    if ((err as { retryable?: boolean })?.retryable) {
+      await sleep(1500);
+      return attempt();
+    }
+    throw err;
+  }
 }
 
 /**
- * Show the official platform embed directly.
- * A custom Play overlay + native player Play = double-click; we avoid that.
+ * Click-to-load social embed facade — iframes mount only after user click
+ * to avoid Instagram/TikTok rate limits from simultaneous embeds.
  */
 export default function SocialEmbedCard({
   provider,
-  embedUrl,
+  originalUrl,
+  lang = "el",
   width,
   height,
-  originalUrl,
 }: SocialEmbedCardProps) {
-  const defaultDimensions = {
-    instagram: { width: 400, height: 500 },
-    tiktok: { width: 400, height: 600 },
-    youtube: { width: 560, height: 315 },
-  };
+  const finalWidth = width || DEFAULT_DIMENSIONS[provider].width;
+  const finalHeight = height || DEFAULT_DIMENSIONS[provider].height;
+  const uiLang = lang === "en" ? "en" : "el";
 
-  const finalWidth = width || defaultDimensions[provider]?.width || 400;
-  const finalHeight = height || defaultDimensions[provider]?.height || 500;
-  const isProxy = embedUrl.startsWith("/api/video-embed");
-
-  const [forUrl, setForUrl] = useState(embedUrl);
-  const [fetchedEmbed, setFetchedEmbed] = useState<string | null>(null);
-  const [loading, setLoading] = useState(isProxy);
+  const [activated, setActivated] = useState(false);
+  const [iframeSrc, setIframeSrc] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
-  if (forUrl !== embedUrl) {
-    setForUrl(embedUrl);
-    setFetchedEmbed(null);
-    setLoading(embedUrl.startsWith("/api/video-embed"));
+
+  const openHref = originalUrl || "#";
+
+  const activate = useCallback(async () => {
+    if (loading || iframeSrc) return;
     setError(false);
-  }
-  const finalEmbedUrl = isProxy ? fetchedEmbed : embedUrl;
-
-  const names = { instagram: "Instagram", tiktok: "TikTok", youtube: "YouTube" };
-  const colors = {
-    instagram: "from-purple-600 to-pink-600",
-    tiktok: "from-black to-gray-900",
-    youtube: "from-red-600 to-red-700",
-  };
-
-  const getOriginalUrl = () => {
-    if (originalUrl) return originalUrl;
+    setActivated(true);
+    setLoading(true);
     try {
-      const url = new URL(embedUrl.startsWith("http") ? embedUrl : `https://dummy.local${embedUrl}`);
-      const urlParam = url.searchParams.get("url");
-      if (urlParam) return decodeURIComponent(urlParam);
+      const official = buildOfficialEmbedUrl(originalUrl, { autoplay: true });
+      if (official) {
+        setIframeSrc(official);
+        setLoading(false);
+        return;
+      }
+      const fetched = await fetchTikTokEmbed(originalUrl);
+      setIframeSrc(fetched);
+      setLoading(false);
     } catch {
-      /* ignore */
+      setError(true);
+      setLoading(false);
     }
-    return originalUrl || "#";
-  };
-
-  useEffect(() => {
-    if (!embedUrl.startsWith("/api/video-embed")) return;
-    let cancelled = false;
-    fetch(embedUrl)
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then((data) => {
-        if (cancelled) return;
-        if (data.embed_url) {
-          setFetchedEmbed(String(data.embed_url));
-          setLoading(false);
-        } else {
-          setError(true);
-          setLoading(false);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setError(true);
-          setLoading(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [embedUrl]);
-
-  if (error) {
-    return (
-      <div className="bg-white rounded-xl border border-slate-200 shadow-md overflow-hidden">
-        <div
-          className={`bg-gradient-to-br ${colors[provider]} flex flex-col items-center justify-center p-8 min-h-[300px]`}
-        >
-          <p className="text-white text-sm font-semibold mb-4">{names[provider]}</p>
-          <a
-            href={getOriginalUrl()}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="bg-white text-slate-900 px-6 py-3 rounded-lg font-semibold text-sm hover:bg-slate-100 transition-colors shadow-lg"
-          >
-            View on {names[provider]}
-          </a>
-        </div>
-      </div>
-    );
-  }
+  }, [iframeSrc, loading, originalUrl]);
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-md overflow-hidden w-full max-w-full">
-      <div
-        className="relative w-full bg-slate-100"
-        style={{ aspectRatio: `${finalWidth} / ${finalHeight}`, minHeight: 300 }}
-      >
-        {loading && (
-          <div
-            className={`absolute inset-0 z-10 bg-gradient-to-br ${colors[provider]} flex flex-col items-center justify-center`}
-          >
-            <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin mb-2" />
-            <span className="text-white text-xs font-medium">Loading {names[provider]}…</span>
-          </div>
-        )}
-        {finalEmbedUrl && (
-          <iframe
-            src={finalEmbedUrl}
-            title={`${names[provider]} video`}
-            className="absolute top-0 left-0 w-full h-full border-0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-            loading="lazy"
-            referrerPolicy="strict-origin-when-cross-origin"
-            onError={() => setError(true)}
-          />
-        )}
+    <div className="w-full max-w-full">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-md overflow-hidden w-full max-w-full">
+        <div
+          className="relative w-full bg-slate-100"
+          style={{ aspectRatio: `${finalWidth} / ${finalHeight}`, minHeight: 300 }}
+        >
+          {!activated || error ? (
+            <button
+              type="button"
+              onClick={() => {
+                void activate();
+              }}
+              className={`absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-gradient-to-br ${COLORS[provider]} text-white transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80`}
+              aria-label={COPY.play[uiLang]}
+            >
+              <span className="text-sm font-semibold tracking-wide uppercase opacity-90">
+                {NAMES[provider]}
+              </span>
+              <span className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg">
+                <svg viewBox="0 0 24 24" className="ml-1 h-8 w-8 fill-current" aria-hidden>
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              </span>
+              <span className="text-base font-bold">
+                {error ? COPY.retry[uiLang] : COPY.play[uiLang]}
+              </span>
+              {error ? (
+                <span className="text-xs font-medium text-white/80">{COPY.error[uiLang]}</span>
+              ) : null}
+            </button>
+          ) : null}
+
+          {activated && loading ? (
+            <div
+              className={`absolute inset-0 z-10 flex flex-col items-center justify-center bg-gradient-to-br ${COLORS[provider]}`}
+            >
+              <div className="mb-2 h-8 w-8 animate-spin rounded-full border-4 border-white border-t-transparent" />
+              <span className="text-xs font-medium text-white">
+                {COPY.loading[uiLang]} {NAMES[provider]}…
+              </span>
+            </div>
+          ) : null}
+
+          {iframeSrc ? (
+            <iframe
+              src={iframeSrc}
+              title={`${NAMES[provider]} video`}
+              className="absolute top-0 left-0 h-full w-full border-0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
+              onError={() => setError(true)}
+            />
+          ) : null}
+        </div>
       </div>
+      <p className="mt-2 text-center text-xs text-slate-500">
+        <a
+          href={openHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-blue-600 underline-offset-2 hover:underline"
+        >
+          {COPY.open[uiLang]} {NAMES[provider]}
+        </a>
+      </p>
     </div>
   );
 }
