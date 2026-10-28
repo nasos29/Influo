@@ -15,7 +15,6 @@ import HomeHowItWorks from "@/components/HomeHowItWorks";
 import { supabase } from "@/lib/supabaseClient";
 import { getStoredLanguage, setStoredLanguage, type Language } from "@/lib/language";
 import { getCachedImageUrl } from "@/lib/imageProxy";
-import FastImage from "@/components/FastImage";
 import { SITE_URL } from "@/lib/site";
 import { normalizeNameCase } from "@/lib/greeklish";
 import type { HomeTrustStats } from "@/lib/loadHomeTrustStats";
@@ -25,6 +24,28 @@ type Lang = "el" | "en";
 
 const HERO_INFLUENCER_IMAGE = "/hero-influencer-left.png";
 const HERO_BRAND_COLLAB_IMAGE = "/hero-brand-collab-right.png";
+
+const DUMMY_BRANDS = [
+  { name: "Nike", domain: "nike.com", url: "https://www.nike.com" },
+  { name: "Apple", domain: "apple.com", url: "https://www.apple.com" },
+  { name: "KORRES", domain: "korres.com", url: "https://www.korres.com" },
+  { name: "Skroutz", domain: "skroutz.gr", url: "https://www.skroutz.gr" },
+  { name: "Samsung", domain: "samsung.com", url: "https://www.samsung.com" },
+  { name: "L'Oréal", domain: "loreal.com", url: "https://www.loreal.com" },
+  { name: "Zara", domain: "zara.com", url: "https://www.zara.com" },
+  { name: "Microsoft", domain: "microsoft.com", url: "https://www.microsoft.com" },
+  { name: "Vodafone", domain: "vodafone.gr", url: "https://www.vodafone.gr" },
+  { name: "Adidas", domain: "adidas.com", url: "https://www.adidas.com" },
+  { name: "Google", domain: "google.com", url: "https://www.google.com" },
+  { name: "Cosmote", domain: "cosmote.gr", url: "https://www.cosmote.gr" },
+] as const;
+
+type SlideLogo = {
+  key: string;
+  name: string;
+  href: string;
+  src: string | null;
+};
 
 const t = {
   el: {
@@ -164,6 +185,7 @@ export default function Home({
   const [lang, setLang] = useState<Lang>(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [verifiedBrands, setVerifiedBrands] = useState<VerifiedBrand[]>([]);
+  const [brandsReady, setBrandsReady] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userType, setUserType] = useState<'influencer' | 'brand' | null>(null);
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
@@ -329,6 +351,8 @@ export default function Home({
         }
       } catch (err) {
         console.error('Error in fetchVerifiedBrands:', err);
+      } finally {
+        setBrandsReady(true);
       }
     };
 
@@ -861,183 +885,71 @@ export default function Home({
             <div className="absolute left-0 top-0 bottom-0 w-32 md:w-48 lg:w-64 bg-gradient-to-r from-white via-white/80 to-transparent z-10 pointer-events-none"></div>
             {/* Right gradient fade */}
             <div className="absolute right-0 top-0 bottom-0 w-32 md:w-48 lg:w-64 bg-gradient-to-l from-white via-white/80 to-transparent z-10 pointer-events-none"></div>
-            
-            <div className="flex animate-scroll gap-8 md:gap-12 lg:gap-16 items-center">
-              {/* Verified Brands from Database */}
-              {verifiedBrands.map((brand) => {
-                const websiteUrl = toPublicHttpsHref(brand.website);
-                
-                console.log('[Homepage] Rendering brand:', brand.brand_name, 'logo_url:', brand.logo_url);
-                
-                return (
-                  <a 
-                    key={brand.id}
-                    href={websiteUrl || '#'}
-                    target="_blank"
-                    rel="nofollow noopener noreferrer"
-                    className="flex-shrink-0 flex items-center justify-center h-12 md:h-16 lg:h-20 opacity-60 hover:opacity-100 transition-opacity duration-300"
-                  >
-                    {brand.logo_url ? (
-                      <FastImage
-                        src={getCachedImageUrl(brand.logo_url) ?? brand.logo_url}
-                        alt={brand.brand_name}
-                        width={260}
-                        height={80}
-                        className="h-full w-auto max-w-[180px] md:max-w-[220px] lg:max-w-[260px] object-contain filter grayscale hover:grayscale-0 transition-all duration-300"
-                        quality={75}
-                        onError={(e) => {
-                          const target = e.currentTarget as HTMLImageElement;
-                          target.style.display = "none";
-                          const parent = target.parentElement;
-                          if (parent && !parent.querySelector(".text-fallback")) {
-                            const textFallback = document.createElement("div");
-                            textFallback.className =
-                              "text-fallback font-semibold text-sm md:text-base lg:text-lg text-slate-400 whitespace-nowrap";
-                            textFallback.textContent = brand.brand_name;
-                            parent.appendChild(textFallback);
-                          }
-                        }}
-                      />
-                    ) : (
-                      <div className="font-semibold text-sm md:text-base lg:text-lg text-slate-400 whitespace-nowrap">
-                        {brand.brand_name}
-                      </div>
-                    )}
-                  </a>
-                );
-              })}
-              
-              {/* Dummy Data Brands - Always show */}
-              {[
-                { name: 'Nike', domain: 'nike.com', url: 'https://www.nike.com' },
-                { name: 'Apple', domain: 'apple.com', url: 'https://www.apple.com' },
-                { name: 'KORRES', domain: 'korres.com', url: 'https://www.korres.com' },
-                { name: 'Skroutz', domain: 'skroutz.gr', url: 'https://www.skroutz.gr' },
-                { name: 'Samsung', domain: 'samsung.com', url: 'https://www.samsung.com' },
-                { name: "L'Oréal", domain: 'loreal.com', url: 'https://www.loreal.com' },
-                { name: 'Zara', domain: 'zara.com', url: 'https://www.zara.com' },
-                { name: 'Microsoft', domain: 'microsoft.com', url: 'https://www.microsoft.com' },
-                { name: 'Vodafone', domain: 'vodafone.gr', url: 'https://www.vodafone.gr' },
-                { name: 'Adidas', domain: 'adidas.com', url: 'https://www.adidas.com' },
-                { name: 'Google', domain: 'google.com', url: 'https://www.google.com' },
-                { name: 'Cosmote', domain: 'cosmote.gr', url: 'https://www.cosmote.gr' }
-              ].map((brand, idx) => {
-                const brandfetchUrl = `https://cdn.brandfetch.io/${brand.domain}?c=1idGP6EnrL-eVdz6PLO`;
-                return (
-                  <a 
-                    key={`dummy-${idx}`}
-                    href={brand.url}
-                    target="_blank"
-                    rel="nofollow noopener noreferrer"
-                    className="flex-shrink-0 flex items-center justify-center h-12 md:h-16 lg:h-20 opacity-60 hover:opacity-100 transition-opacity duration-300"
-                  >
-                    <img 
-                      src={brandfetchUrl}
-                      alt={brand.name}
-                      className="h-full w-auto max-w-[180px] md:max-w-[220px] lg:max-w-[260px] object-contain filter grayscale hover:grayscale-0 transition-all duration-300"
-                      loading="lazy"
-                      onError={(e) => {
-                        // Fallback to text if image fails to load
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                        if (!target.nextElementSibling) {
-                          const textFallback = document.createElement('div');
-                          textFallback.className = 'font-semibold text-sm md:text-base lg:text-lg text-slate-400 whitespace-nowrap';
-                          textFallback.textContent = brand.name;
-                          target.parentElement?.appendChild(textFallback);
-                        }
-                      }}
-                    />
-                  </a>
-                );
-              })}
-              
-              {/* Duplicate verified brands for seamless loop */}
-              {verifiedBrands.map((brand) => {
-                const websiteUrl = toPublicHttpsHref(brand.website);
-                
-                return (
-                  <a 
-                    key={`dup-verified-${brand.id}`}
-                    href={websiteUrl || '#'}
-                    target="_blank"
-                    rel="nofollow noopener noreferrer"
-                    className="flex-shrink-0 flex items-center justify-center h-12 md:h-16 lg:h-20 opacity-60 hover:opacity-100 transition-opacity duration-300"
-                  >
-                    {brand.logo_url ? (
-                      <FastImage
-                        src={getCachedImageUrl(brand.logo_url) ?? brand.logo_url}
-                        alt={brand.brand_name}
-                        width={260}
-                        height={80}
-                        className="h-full w-auto max-w-[180px] md:max-w-[220px] lg:max-w-[260px] object-contain filter grayscale hover:grayscale-0 transition-all duration-300"
-                        quality={75}
-                        onError={(e) => {
-                          const target = e.currentTarget as HTMLImageElement;
-                          target.style.display = "none";
-                          const parent = target.parentElement;
-                          if (parent && !parent.querySelector(".text-fallback")) {
-                            const textFallback = document.createElement("div");
-                            textFallback.className =
-                              "text-fallback font-semibold text-sm md:text-base lg:text-lg text-slate-400 whitespace-nowrap";
-                            textFallback.textContent = brand.brand_name;
-                            parent.appendChild(textFallback);
-                          }
-                        }}
-                      />
-                    ) : (
-                      <div className="font-semibold text-sm md:text-base lg:text-lg text-slate-400 whitespace-nowrap">
-                        {brand.brand_name}
-                      </div>
-                    )}
-                  </a>
-                );
-              })}
-              
-              {/* Duplicate dummy data for seamless loop */}
-              {[
-                { name: 'Nike', domain: 'nike.com', url: 'https://www.nike.com' },
-                { name: 'Apple', domain: 'apple.com', url: 'https://www.apple.com' },
-                { name: 'Skroutz', domain: 'skroutz.gr', url: 'https://www.skroutz.gr' },
-                { name: 'Samsung', domain: 'samsung.com', url: 'https://www.samsung.com' },
-                { name: 'Zara', domain: 'zara.com', url: 'https://www.zara.com' },
-                { name: 'Microsoft', domain: 'microsoft.com', url: 'https://www.microsoft.com' },
-                { name: 'Vodafone', domain: 'vodafone.gr', url: 'https://www.vodafone.gr' },
-                { name: 'Adidas', domain: 'adidas.com', url: 'https://www.adidas.com' },
-                { name: 'Google', domain: 'google.com', url: 'https://www.google.com' },
-                { name: 'Cosmote', domain: 'cosmote.gr', url: 'https://www.cosmote.gr' }
-              ].map((brand, idx) => {
-                const brandfetchUrl = `https://cdn.brandfetch.io/${brand.domain}?c=1idGP6EnrL-eVdz6PLO`;
-                return (
-                  <a 
-                    key={`dup-${idx}`}
-                    href={brand.url}
-                    target="_blank"
-                    rel="nofollow noopener noreferrer"
-                    className="flex-shrink-0 flex items-center justify-center h-12 md:h-16 lg:h-20 opacity-60 hover:opacity-100 transition-opacity duration-300"
-                  >
-                    <img 
-                      src={brandfetchUrl}
-                      alt={brand.name}
-                      className="h-full w-auto max-w-[180px] md:max-w-[220px] lg:max-w-[260px] object-contain filter grayscale hover:grayscale-0 transition-all duration-300"
-                      loading="lazy"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                        const parent = target.parentElement;
-                        if (parent && !parent.querySelector('.text-fallback')) {
-                          const textFallback = document.createElement('div');
-                          textFallback.className = 'text-fallback font-semibold text-sm md:text-base lg:text-lg text-slate-400 whitespace-nowrap';
-                          textFallback.textContent = brand.name;
-                          parent.appendChild(textFallback);
-                        }
-                      }}
-                    />
-                  </a>
-                );
-              })}
 
-            </div>
+            {(() => {
+              const dummyLogos: SlideLogo[] = DUMMY_BRANDS.map((brand) => ({
+                key: `dummy-${brand.domain}`,
+                name: brand.name,
+                href: brand.url,
+                src: `https://cdn.brandfetch.io/${brand.domain}?c=1idGP6EnrL-eVdz6PLO`,
+              }));
+              const verifiedLogos: SlideLogo[] = brandsReady
+                ? verifiedBrands.map((brand) => ({
+                    key: `verified-${brand.id}`,
+                    name: brand.brand_name,
+                    href: toPublicHttpsHref(brand.website) || "#",
+                    src: brand.logo_url
+                      ? getCachedImageUrl(brand.logo_url) ?? brand.logo_url
+                      : null,
+                  }))
+                : [];
+              // Until fetch settles, show dummy only (no scroll). Then identical halves for -50% loop.
+              const logos = brandsReady ? [...verifiedLogos, ...dummyLogos] : dummyLogos;
+              const track = brandsReady ? [...logos, ...logos] : logos;
+
+              return (
+                <div
+                  key={brandsReady ? "brands-ready" : "brands-pending"}
+                  className={`flex items-center ${brandsReady ? "animate-scroll" : ""}`}
+                >
+                  {track.map((logo, idx) => (
+                    <a
+                      key={`${logo.key}-${idx}`}
+                      href={logo.href}
+                      target="_blank"
+                      rel="nofollow noopener noreferrer"
+                      className="flex h-12 w-[140px] shrink-0 items-center justify-center pr-8 opacity-60 grayscale transition-opacity duration-300 hover:opacity-100 md:h-16 md:w-[180px] md:pr-12 lg:h-20 lg:w-[200px] lg:pr-16"
+                    >
+                      {logo.src ? (
+                        <img
+                          src={logo.src}
+                          alt={logo.name}
+                          className="h-full w-full object-contain"
+                          loading="eager"
+                          decoding="async"
+                          onError={(e) => {
+                            const target = e.currentTarget as HTMLImageElement;
+                            target.style.display = "none";
+                            const parent = target.parentElement;
+                            if (parent && !parent.querySelector(".text-fallback")) {
+                              const textFallback = document.createElement("div");
+                              textFallback.className =
+                                "text-fallback font-semibold text-sm md:text-base lg:text-lg text-slate-400 whitespace-nowrap";
+                              textFallback.textContent = logo.name;
+                              parent.appendChild(textFallback);
+                            }
+                          }}
+                        />
+                      ) : (
+                        <div className="font-semibold text-sm md:text-base lg:text-lg text-slate-400 whitespace-nowrap">
+                          {logo.name}
+                        </div>
+                      )}
+                    </a>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         </div>
       </section>
