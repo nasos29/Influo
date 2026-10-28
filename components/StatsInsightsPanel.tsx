@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import InfoTooltip from "@/components/InfoTooltip";
 import { buildPlatformMix } from "@/lib/platformMix";
 import { BUCKET_LABELS, type CatalogBenchmark } from "@/lib/catalogBenchmark";
 
@@ -11,6 +12,24 @@ type Props = {
   engagementRate?: string | { [key: string]: string } | null;
   avgLikes?: string | { [key: string]: string } | number | null;
 };
+
+const TIP_ARIA = { el: "Τι σημαίνει", en: "What this means" } as const;
+
+const INSIGHT_HINTS = {
+  platformMix: {
+    el: "Πού είναι το κοινό, με ER και μέσο likes.",
+    en: "Where the audience is, with ER and avg likes.",
+  },
+  catalogCompare: {
+    el: "Engagement rate απέναντι σε creators ίδιου μεγέθους στο Influo.",
+    en: "Engagement rate versus same-size creators on Influo.",
+  },
+} as const;
+
+const INSIGHT_TITLES = {
+  platformMix: { el: "Mix πλατφορμών", en: "Platform mix" },
+  catalogCompare: { el: "Σύγκριση καταλόγου", en: "Catalog comparison" },
+} as const;
 
 function fmt(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
@@ -61,12 +80,12 @@ export default function StatsInsightsPanel({
   return (
     <div className="grid md:grid-cols-2 gap-8">
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
-        <h3 className="text-lg font-bold text-slate-900">
-          {el ? "Mix πλατφορμών" : "Platform mix"}
+        <h3 className="flex items-start gap-1 text-lg font-bold text-slate-900">
+          <span className="leading-tight break-words">{INSIGHT_TITLES.platformMix[lang]}</span>
+          <span className="mt-1 shrink-0">
+            <InfoTooltip text={INSIGHT_HINTS.platformMix[lang]} ariaLabel={TIP_ARIA[lang]} />
+          </span>
         </h3>
-        <p className="text-sm text-slate-500 mt-1">
-          {el ? "Πού είναι το κοινό, με ER και μέσο likes." : "Where the audience is, with ER and avg likes."}
-        </p>
         {mix.length === 0 ? (
           <p className="text-sm text-slate-400 mt-6">{el ? "Δεν υπάρχουν followers ανά πλατφόρμα." : "No per-platform followers yet."}</p>
         ) : (
@@ -96,14 +115,12 @@ export default function StatsInsightsPanel({
       </section>
 
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
-        <h3 className="text-lg font-bold text-slate-900">
-          {el ? "Σύγκριση καταλόγου" : "Catalog comparison"}
+        <h3 className="flex items-start gap-1 text-lg font-bold text-slate-900">
+          <span className="leading-tight break-words">{INSIGHT_TITLES.catalogCompare[lang]}</span>
+          <span className="mt-1 shrink-0">
+            <InfoTooltip text={INSIGHT_HINTS.catalogCompare[lang]} ariaLabel={TIP_ARIA[lang]} />
+          </span>
         </h3>
-        <p className="text-sm text-slate-500 mt-1">
-          {el
-            ? "Engagement rate απέναντι σε creators ίδιου μεγέθους στο Influo."
-            : "Engagement rate versus same-size creators on Influo."}
-        </p>
         {!bench || bench.thisEr == null ? (
           <p className="text-sm text-slate-400 mt-6">
             {el ? "Χρειάζεται engagement rate για τη σύγκριση." : "Engagement rate is needed for comparison."}

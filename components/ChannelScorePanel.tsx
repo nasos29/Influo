@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import InfoTooltip from "@/components/InfoTooltip";
 import {
   AXIS_LABELS,
   COOP_HINT,
@@ -34,6 +35,43 @@ const ORDER: ChannelAxisId[] = [
   "creationPublish",
 ];
 
+const TIP_ARIA = { el: "Τι σημαίνει", en: "What this means" } as const;
+
+const SCORE_HINTS = {
+  title: {
+    el: "Influo score από ανάπτυξη, engagement, ποιότητα, δείγματα δουλειάς και πληρότητα & επαλήθευση.",
+    en: "Influo score from growth, engagement, quality, portfolio and verification & completeness.",
+  },
+  cost: {
+    el: "Εκτιμώμενο κόστος ανά 1.000 followers με βάση την ελάχιστη χρέωση.",
+    en: "Estimated cost per 1,000 followers based on the minimum rate.",
+  },
+  integration: {
+    el: "Ενδεικτικό εύρος τιμής για συνεργασία από το rate card ή την ελάχιστη χρέωση.",
+    en: "Indicative collaboration price range from the rate card or minimum rate.",
+  },
+  followersGrowth: {
+    el: "Πόσο αυξάνονται οι ακόλουθοι στο παράθυρο ανάπτυξης.",
+    en: "How much followers grew over the growth window.",
+  },
+  audienceCredibility: {
+    el: "Πληρότητα προφίλ και σήματα επαλήθευσης (avatar, bio, verified, brand safe).",
+    en: "Profile completeness and verification signals (avatar, bio, verified, brand safe).",
+  },
+  engagementRate: {
+    el: "Πόσο υψηλό είναι το engagement σε σχέση με το μέγεθος του κοινού.",
+    en: "How strong engagement is relative to audience size.",
+  },
+  channelQuality: {
+    el: "Συνολική ποιότητα καναλιού από likes, ER και συνέπεια δεικτών.",
+    en: "Overall channel quality from likes, ER, and metric consistency.",
+  },
+  creationPublish: {
+    el: "Πόσα δείγματα δουλειάς και πλατφόρμες έχει δηλώσει ο δημιουργός.",
+    en: "How much portfolio content and how many platforms the creator has linked.",
+  },
+} as const;
+
 function polar(cx: number, cy: number, r: number, i: number, n: number) {
   const angle = -Math.PI / 2 + (i * 2 * Math.PI) / n;
   return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
@@ -50,6 +88,27 @@ function Dots({ score }: { score: number }) {
         />
       ))}
     </span>
+  );
+}
+
+function TitleWithTip({
+  title,
+  tip,
+  ariaLabel,
+  className,
+}: {
+  title: string;
+  tip: string;
+  ariaLabel: string;
+  className: string;
+}) {
+  return (
+    <div className={`flex items-start gap-1 ${className}`}>
+      <span className="leading-tight break-words">{title}</span>
+      <span className="mt-px shrink-0">
+        <InfoTooltip text={tip} ariaLabel={ariaLabel} />
+      </span>
+    </div>
   );
 }
 
@@ -90,18 +149,17 @@ export default function ChannelScorePanel({
   const showIntegrationRange =
     integrationFrom != null && integrationTo != null && integrationTo > integrationFrom;
   const showIntegrationFromOnly = integrationFrom != null && !showIntegrationRange;
+  const tipAria = TIP_ARIA[lang];
 
   return (
     <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
       <div className="px-5 sm:px-8 py-5 border-b border-slate-100">
-        <h2 className="text-lg font-bold text-slate-900">
-          {el ? "Ανάλυση καναλιού" : "Channel analysis"}
-        </h2>
-        <p className="text-sm text-slate-500 mt-1">
-          {el
-            ? "Influo score από ανάπτυξη, engagement, ποιότητα, δείγματα δουλειάς και πληρότητα & επαλήθευση."
-            : "Influo score from growth, engagement, quality, portfolio and verification & completeness."}
-        </p>
+        <TitleWithTip
+          title={el ? "Ανάλυση καναλιού" : "Channel analysis"}
+          tip={SCORE_HINTS.title[lang]}
+          ariaLabel={tipAria}
+          className="text-lg font-bold text-slate-900"
+        />
       </div>
 
       <div className="grid lg:grid-cols-[1.15fr_0.85fr] gap-6 px-5 sm:px-8 py-6">
@@ -150,7 +208,12 @@ export default function ChannelScorePanel({
             const score = byId[id] || 0;
             return (
               <div key={id} className="flex items-center gap-3 text-sm">
-                <span className="flex-1 text-slate-700">{AXIS_LABELS[id][lang]}</span>
+                <span className="flex min-w-0 flex-1 items-start gap-1 text-slate-700">
+                  <span className="leading-tight break-words">{AXIS_LABELS[id][lang]}</span>
+                  <span className="mt-px shrink-0">
+                    <InfoTooltip text={SCORE_HINTS[id][lang]} ariaLabel={tipAria} />
+                  </span>
+                </span>
                 <Dots score={score} />
                 <span className={`w-24 text-right text-xs font-semibold ${qualityColor(score)}`}>
                   {qualityLabel(score, lang)}
@@ -163,21 +226,24 @@ export default function ChannelScorePanel({
 
       <div className="grid sm:grid-cols-3 gap-3 px-5 sm:px-8 pb-6">
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            {COOP_LABELS[lang]}
-          </div>
+          <TitleWithTip
+            title={COOP_LABELS[lang]}
+            tip={COOP_HINT[lang]}
+            ariaLabel={tipAria}
+            className="text-xs font-semibold uppercase tracking-wide text-slate-500"
+          />
           <div className="mt-1 text-2xl font-extrabold text-blue-700 tabular-nums">{coopPotential.toFixed(1)}/10</div>
           <div className={`text-xs font-medium mt-1 ${qualityColor(coopPotential / 2)}`}>
             {qualityLabel(coopPotential / 2, lang)}
           </div>
-          <p className="mt-2 text-[11px] leading-snug text-slate-500" title={COOP_HINT[lang]}>
-            {COOP_HINT[lang]}
-          </p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            {el ? "Κόστος / 1k followers" : "Cost / 1k followers"}
-          </div>
+          <TitleWithTip
+            title={el ? "Κόστος / 1k followers" : "Cost / 1k followers"}
+            tip={SCORE_HINTS.cost[lang]}
+            ariaLabel={tipAria}
+            className="text-xs font-semibold uppercase tracking-wide text-slate-500"
+          />
           {costPer1k != null && isBrand ? (
             <div className="mt-1 text-2xl font-extrabold text-slate-900 tabular-nums">{costPer1k}€</div>
           ) : costLocked ? (
@@ -195,9 +261,12 @@ export default function ChannelScorePanel({
           )}
         </div>
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            {el ? "Integration" : "Integration"}
-          </div>
+          <TitleWithTip
+            title={el ? "Integration" : "Integration"}
+            tip={SCORE_HINTS.integration[lang]}
+            ariaLabel={tipAria}
+            className="text-xs font-semibold uppercase tracking-wide text-slate-500"
+          />
           {showIntegrationRange && isBrand ? (
             <div className="mt-1 text-lg font-extrabold text-slate-900 tabular-nums">
               {money(integrationFrom!)} – {money(integrationTo!)}
