@@ -34,6 +34,12 @@ import {
 } from "@/lib/dashboardBadges";
 import { filterWorkLinks } from "@/lib/contactFilter";
 import { BRAND_BIO_MAX, toPublicHttpsHref } from "@/lib/brandProfile";
+import {
+  BIRTH_DATE_MIN,
+  athensTodayYmd,
+  birthDateErrorText,
+  validateBirthDate,
+} from "@/lib/validateBirthDate";
 
 async function adminAuthHeaders(): Promise<Record<string, string>> {
   const { data: { session } } = await supabase.auth.getSession();
@@ -1173,6 +1179,16 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
             setIfChanged('min_rate', minRate, user.min_rate || '');
             setIfChanged('location', location, user.location || '');
             setIfChanged('birth_date', nextBirth, user.birth_date || null);
+            if ('birth_date' in updateData && updateData.birth_date != null && String(updateData.birth_date).trim() !== '') {
+                const birthCheck = validateBirthDate(updateData.birth_date);
+                if (!birthCheck.ok) {
+                    const uiLang = getStoredLanguage() === 'en' ? 'en' : 'el';
+                    alert(birthDateErrorText(birthCheck, uiLang));
+                    setLoading(false);
+                    return;
+                }
+                updateData.birth_date = birthCheck.normalized;
+            }
             setIfChanged('gender', nextGender, normalizeGender(user.gender));
             setIfChanged('category', categoryString, user.category || '');
             setIfChanged('accounts', nextAccounts, user.accounts || [], true);
@@ -1403,7 +1419,14 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                 </div>
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-900 mb-1">Ημερομηνία Γέννησης</label>
-                                    <input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" />
+                                    <input
+                                        type="date"
+                                        value={birthDate}
+                                        onChange={e => setBirthDate(e.target.value)}
+                                        min={BIRTH_DATE_MIN}
+                                        max={athensTodayYmd()}
+                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900"
+                                    />
                                     <p className="text-xs text-slate-500 mt-1">Η ηλικία υπολογίζεται από αυτή την ημερομηνία</p>
                                 </div>
                                 <div>

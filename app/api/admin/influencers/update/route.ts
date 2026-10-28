@@ -5,6 +5,11 @@ import { insertFollowerSnapshot } from '@/lib/parseFollowers';
 import { requireAdmin } from '@/lib/apiAuth';
 import { ensureProfileSlug } from '@/lib/profileSlugAssign';
 import { escapeHtml, sendTransactional } from '@/lib/transactionalEmail';
+import {
+  birthDateErrorText,
+  birthDateLangFromRequest,
+  validateBirthDate,
+} from '@/lib/validateBirthDate';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -73,6 +78,22 @@ export async function POST(request: NextRequest) {
     for (const key of Object.keys(patch)) {
       if (jsonEq(patch[key], (existing as Record<string, unknown>)[key])) {
         delete patch[key];
+      }
+    }
+
+    // Validate only when birth_date is newly sent/changed (legacy invalid values keep saving other fields).
+    if ('birth_date' in patch) {
+      const incoming = patch.birth_date;
+      if (incoming != null && String(incoming).trim() !== '') {
+        const birthCheck = validateBirthDate(incoming);
+        if (!birthCheck.ok) {
+          const lang = birthDateLangFromRequest(request);
+          return NextResponse.json(
+            { error: birthDateErrorText(birthCheck, lang) },
+            { status: 400 }
+          );
+        }
+        patch.birth_date = birthCheck.normalized;
       }
     }
 

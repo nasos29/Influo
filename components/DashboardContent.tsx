@@ -30,6 +30,12 @@ import {
     writeIdList,
 } from '@/lib/dashboardBadges';
 import { displayNameForLang } from '@/lib/greeklish';
+import {
+    BIRTH_DATE_MIN,
+    athensTodayYmd,
+    birthDateErrorText,
+    validateBirthDate,
+} from '@/lib/validateBirthDate';
 
 // --- LANGUAGES LIST ---
 const LANGUAGES = [
@@ -258,6 +264,18 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                 throw new Error(current.reason === "missing" ? "Failed to fetch current profile" : current.message);
             }
             const currentData = current.profile as unknown as InfluencerData;
+
+            // Only validate when the user actually changes birth_date (legacy invalid values stay).
+            const prevBirth = String(currentData.birth_date || '').slice(0, 10);
+            const nextBirth = (birthDate || '').trim();
+            if (nextBirth && nextBirth !== prevBirth) {
+                const birthCheck = validateBirthDate(nextBirth);
+                if (!birthCheck.ok) {
+                    alert(birthDateErrorText(birthCheck, 'el'));
+                    setLoading(false);
+                    return;
+                }
+            }
 
             let avatarUrl = user.avatar_url || null;
 
@@ -568,7 +586,14 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                             </div>
                             <div>
                                 <label className="block text-sm font-semibold text-slate-900 mb-1">Ημερομηνία Γέννησης</label>
-                                <input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" />
+                                <input
+                                    type="date"
+                                    value={birthDate}
+                                    onChange={e => setBirthDate(e.target.value)}
+                                    min={BIRTH_DATE_MIN}
+                                    max={athensTodayYmd()}
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900"
+                                />
                             </div>
                             <CategoryCheckboxList
                                 lang="el"
