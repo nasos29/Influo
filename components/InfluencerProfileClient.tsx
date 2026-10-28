@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState, use, Suspense, useRef, useCallback, type ReactNode } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { heroGradientForCategory } from "@/lib/heroTheme";
 import { Influencer } from "@/components/Directory"; 
 import { supabase } from "@/lib/supabaseClient";
 import { sessionFetch } from "@/lib/sessionFetch";
@@ -1667,21 +1667,22 @@ export default function InfluencerProfile(props: {
         </div>
       )}
 
-      {/* PROFESSIONAL HERO HEADER */}
-      <div className="relative w-full h-64 md:h-80 bg-slate-900 overflow-hidden">
-        {/* Real collaboration image - happy young people, influencers, business collaboration */}
-        <Image 
-          src="https://images.unsplash.com/photo-1559136555-9303baea8ebd?auto=format&fit=crop&w=2000&q=80" 
-          alt={lang === "el" ? "Συνεργασία influencer και brand" : "Influencer and brand collaboration"} 
-          fill 
-          className="object-cover opacity-75" 
-          priority
+      {/* PROFESSIONAL HERO HEADER — category-tinted CSS gradient (no stock photo) */}
+      <div
+        className={`relative w-full h-64 md:h-80 overflow-hidden ${heroGradientForCategory(profile.categories)}`}
+      >
+        {/* Soft dot pattern (CSS only) */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-10"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.9) 1px, transparent 0)",
+            backgroundSize: "22px 22px",
+          }}
+          aria-hidden
         />
-        
-        {/* Subtle overlay for better text readability */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/50 to-slate-900/30"></div>
-        
-        {/* Network circles visualization overlay - showing connections like in chemistry */}
+
+        {/* Network circles visualization overlay */}
         <div className="absolute inset-0 z-10 opacity-30">
           <svg width="100%" height="100%" viewBox="0 0 1200 400" preserveAspectRatio="xMidYMid slice" className="absolute inset-0">
             <defs>
