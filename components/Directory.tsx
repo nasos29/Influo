@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../lib/supabaseClient";
 import InfluencerCard from "./InfluencerCard";
 import { getBadges, BADGE_FILTER_TYPES, getBadgeFilterLabel, type BadgeType } from "../lib/badges";
@@ -16,6 +17,13 @@ import {
   DIRECTORY_BUDGET_CAPS,
 } from "@/lib/publicInfluencer";
 import { resolveCompletionRate } from "@/lib/completionRate";
+
+const CATEGORY_KEYS = new Set<string>(CATEGORIES);
+
+function categoryFromSearchParam(raw: string | null): string {
+  if (!raw) return "All";
+  return CATEGORY_KEYS.has(raw) ? raw : "All";
+}
 
 export interface Influencer {
   id: string | number;
@@ -244,12 +252,17 @@ export default function Directory({
   const [influencers, setInfluencers] = useState<Influencer[]>(initialInfluencers);
   const txt = t[lang];
   const isMountedRef = useRef(true);
+  const router = useRouter();
+  const pathname = usePathname() || "/directory";
+  const searchParams = useSearchParams();
 
   // FILTERS
   const [searchQuery, setSearchQuery] = useState("");
   const [locationQuery, setLocationQuery] = useState("");
   const [platformFilter, setPlatformFilter] = useState("All");
-  const [categoryFilter, setCategoryFilter] = useState("All");
+  const [categoryFilter, setCategoryFilter] = useState(() =>
+    categoryFromSearchParam(searchParams.get("category"))
+  );
   const [genderFilter, setGenderFilter] = useState("All");
   const [showAdvanced, setShowAdvanced] = useState(false);
   
@@ -482,9 +495,39 @@ export default function Directory({
     return searchMatch && locationMatch && platformMatch && categoryMatch && genderMatch && followerMatch && budgetMatch && engageMatch && languageMatch && ratingMatch && ageMatch && badgeMatch && availabilityMatch;
   });
 
+  const replaceCategoryInUrl = useCallback(
+    (nextCategory: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (!nextCategory || nextCategory === "All") params.delete("category");
+      else params.set("category", nextCategory);
+      const qs = params.toString();
+      const next = qs ? `${pathname}?${qs}` : pathname;
+      const currentQs = searchParams.toString();
+      const current = currentQs ? `${pathname}?${currentQs}` : pathname;
+      if (next !== current) {
+        router.replace(next, { scroll: false });
+      }
+    },
+    [pathname, router, searchParams]
+  );
+
+  const setCategoryFilterAndUrl = useCallback(
+    (value: string) => {
+      setCategoryFilter(value);
+      replaceCategoryInUrl(value);
+    },
+    [replaceCategoryInUrl]
+  );
+
+  // Keep select in sync when landing via shared ?category= URL / browser back.
+  useEffect(() => {
+    const fromUrl = categoryFromSearchParam(searchParams.get("category"));
+    setCategoryFilter((prev) => (prev === fromUrl ? prev : fromUrl));
+  }, [searchParams]);
+
   const clearFilters = () => {
     setSearchQuery(""); setLocationQuery(""); setPlatformFilter("All");
-    setCategoryFilter("All"); setGenderFilter("All"); setFollowerRange("All");
+    setCategoryFilterAndUrl("All"); setGenderFilter("All"); setFollowerRange("All");
     setBudgetMax("All"); setMinEngagement("All"); setLanguageFilter("All"); setMinRating("All");
     setAgeMin(""); setAgeMax(""); setBadgeFilter("All");
     setAvailabilityFilter("available");
@@ -516,7 +559,7 @@ export default function Directory({
                 </select>
             </div>
             <div className="md:col-span-4">
-                <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-sm font-medium">
+                <select value={categoryFilter} onChange={(e) => setCategoryFilterAndUrl(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-sm font-medium">
                     <option value="All">{txt.catAll}</option>
                     {CATEGORIES.map(cat => (
                         <option key={cat} value={cat}>
