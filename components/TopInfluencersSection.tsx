@@ -311,7 +311,7 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
                           influencerId: inf.id,
                           eventType: "profile_click",
                           visitorId: getVisitorId(),
-                          metadata: { source: "top_influencers" },
+                          metadata: { source: "top10" },
                         }),
                         keepalive: true
                       }).catch(() => {});

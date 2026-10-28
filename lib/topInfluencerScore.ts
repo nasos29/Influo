@@ -1,11 +1,12 @@
 /**
- * Top-10 composite score:
- *   45% brand activity
- *   27% channel analysis (influoScore from buildChannelScore)
- *   13% reach (followers + avg views)
- *   10% reviews (avg_rating × review volume)
- *   5% badges (same badge system as profiles)
- * Catalog comparison is intentionally excluded.
+ * Top-10 composite score (weights sum to 1):
+ *   35% demand (unique brand/device activity, log1p-normalized)
+ *   25% channel quality (influoScore / computeChannelScore100)
+ *   15% collaborations & reviews
+ *   10% reach (log)
+ *   10% response (avg reply time + recent activity; else neutral 50)
+ *   5% profile completeness
+ * Trust penalty ×0.35 applied after blend when hard ER issues on main account.
  */
 
 import { buildChannelScore } from '@/lib/channelScore';
@@ -59,14 +60,34 @@ export type TopScoreInfluencer = {
   audience_top_age?: string | null;
   audience_male_percent?: number | null;
   audience_female_percent?: number | null;
+  avatar_url?: string | null;
+  bio?: string | null;
+  category?: string | null;
+  location?: string | null;
+  avg_response_time?: number | string | null;
+  completion_rate?: number | string | null;
+  last_social_refresh_at?: string | null;
+  approved_at?: string | null;
+  approved?: boolean | null;
 };
 
 /** Relative weights for the final blend (sum = 1). */
-export const TOP_ACTIVITY_WEIGHT = 0.45;
-export const TOP_CHANNEL_WEIGHT = 0.27;
-export const TOP_REACH_WEIGHT = 0.13;
-export const TOP_REVIEW_WEIGHT = 0.1;
-export const TOP_BADGE_WEIGHT = 0.05;
+export const TOP_DEMAND_WEIGHT = 0.35;
+export const TOP_CHANNEL_WEIGHT = 0.25;
+export const TOP_COLLAB_WEIGHT = 0.15;
+export const TOP_REACH_WEIGHT = 0.1;
+export const TOP_RESPONSE_WEIGHT = 0.1;
+export const TOP_PROFILE_WEIGHT = 0.05;
+
+/** @deprecated use TOP_DEMAND_WEIGHT */
+export const TOP_ACTIVITY_WEIGHT = TOP_DEMAND_WEIGHT;
+/** @deprecated badge axis replaced by profile completeness */
+export const TOP_BADGE_WEIGHT = TOP_PROFILE_WEIGHT;
+/** @deprecated use TOP_COLLAB_WEIGHT */
+export const TOP_REVIEW_WEIGHT = TOP_COLLAB_WEIGHT;
+
+/** Mild rotation: incumbents in top_influencers_snapshot lose 5%. */
+export const TOP_INCUMBENT_PENALTY_MULT = 0.95;
 
 /** Points per badge type (aligned with badge priority). */
 const BADGE_POINTS: Record<BadgeType, number> = {
@@ -112,6 +133,31 @@ export function trustedErPercent(acc: TopScoreAccount): number | null {
 
 function platformKey(platform: string | null | undefined): string {
   return String(platform || '').trim().toLowerCase() || 'other';
+}
+
+function hasPricedOffer(inf: TopScoreInfluencer): boolean {
+  if (inf.min_rate && String(inf.min_rate).replace(/[^0-9.]/g, '').length > 0) {
+    const n = parseFloat(String(inf.min_rate).replace(/[^0-9.]/g, ''));
+    if (Number.isFinite(n) && n > 0) return true;
+  }
+  const rc = inf.rate_card;
+  if (!rc || typeof rc !== 'object') return false;
+  return Object.values(rc).some((v) => {
+    if (v == null || v === '') return false;
+    const n = parseFloat(String(v).replace(/[^0-9.]/g, ''));
+    return Number.isFinite(n) && n > 0;
+  });
+}
+
+/**
+ * Entry gate for homepage Top 10: approved + avatar + non-empty bio +
+ * at least one IG/TikTok/YouTube username.
+ */
+export function isEligibleForTop10(inf: TopScoreInfluencer): boolean {
+  if (inf.approved === false) return false;
+  if (!(inf.avatar_url || '').trim()) return false;
+  if (!(inf.bio || '').trim()) return false;
+  return socialAccounts(inf.accounts).length >= 1;
 }
 
 /**
@@ -213,8 +259,74 @@ export function computeReviewScore(inf: TopScoreInfluencer): number {
 }
 
 /**
+ * Collaborations & reviews (0–100): review score blended with completion_rate /
+ * completed campaign count when available.
+ */
+export function computeCollabScore(
+  inf: TopScoreInfluencer,
+  completedCampaigns: number = 0
+): number {
+  const review = computeReviewScore(inf);
+  const completionRaw = Number(inf.completion_rate);
+  const hasCompletion = Number.isFinite(completionRaw) && completionRaw >= 0;
+  const camps = Math.max(0, Number(completedCampaigns) || 0);
+
+  if (!hasCompletion && camps <= 0) return review;
+
+  const campPart = hasCompletion
+    ? clamp01(completionRaw / 100) * 100
+    : logNorm(camps, 10) * 100;
+
+  return Math.round((review * 0.65 + campPart * 0.35) * 10) / 10;
+}
+
+/**
+ * Response axis 0–100: avg_response_time (hours) + recent activity.
+ * Missing data → neutral 50 so the axis does not punish incomplete profiles.
+ */
+export function computeResponseScore(inf: TopScoreInfluencer, now = Date.now()): number {
+  const hours = Number(inf.avg_response_time);
+  const hasResponse = Number.isFinite(hours) && hours > 0;
+
+  let responsePart: number | null = null;
+  if (hasResponse) {
+    // Faster is better: ~1h high, ~24h mid, ~72h+ low
+    responsePart = clamp01(1 - Math.log1p(hours) / Math.log1p(72)) * 100;
+  }
+
+  let activityPart: number | null = null;
+  const lastAt = inf.last_social_refresh_at || inf.approved_at || null;
+  if (lastAt) {
+    const t = new Date(lastAt).getTime();
+    if (Number.isFinite(t)) {
+      const days = Math.max(0, (now - t) / (1000 * 60 * 60 * 24));
+      activityPart = clamp01(1 - Math.log1p(days) / Math.log1p(90)) * 100;
+    }
+  }
+
+  if (responsePart == null && activityPart == null) return 50;
+  if (responsePart == null) return Math.round(activityPart! * 10) / 10;
+  if (activityPart == null) return Math.round(responsePart * 10) / 10;
+  return Math.round((responsePart * 0.6 + activityPart * 0.4) * 10) / 10;
+}
+
+/**
+ * Profile completeness 0–100: photo, bio, social, categories, city, prices.
+ */
+export function computeProfileCompletenessScore(inf: TopScoreInfluencer): number {
+  let points = 0;
+  if ((inf.avatar_url || '').trim()) points += 1;
+  if ((inf.bio || '').trim()) points += 1;
+  if (socialAccounts(inf.accounts).length > 0) points += 1;
+  if ((inf.category || '').trim()) points += 1;
+  if ((inf.location || '').trim()) points += 1;
+  if (hasPricedOffer(inf)) points += 1;
+  return Math.round((points / 6) * 1000) / 10;
+}
+
+/**
  * Badges 0–100 using the same getBadges() rules as the profile UI.
- * Small ranking signal — verified / pro / elite / vip help a bit.
+ * Kept for callers / tests; no longer a Top 10 blend axis.
  */
 export function computeBadgeScore(inf: TopScoreInfluencer): number {
   const accounts = socialAccounts(inf.accounts);
@@ -262,11 +374,12 @@ export function computeBadgeScore(inf: TopScoreInfluencer): number {
 export function computeStatsScore(inf: TopScoreInfluencer, growthPct: number | null = null): number {
   const channel = computeChannelScore100(inf, growthPct);
   const reach = computeReachScore(inf);
-  const reviews = computeReviewScore(inf);
-  const badges = computeBadgeScore(inf);
-  return Math.round((channel * 0.5 + reach * 0.28 + reviews * 0.14 + badges * 0.08) * 10) / 10;
+  const collab = computeCollabScore(inf);
+  const profile = computeProfileCompletenessScore(inf);
+  return Math.round((channel * 0.5 + reach * 0.28 + collab * 0.14 + profile * 0.08) * 10) / 10;
 }
 
+/** Linear max-normalize to 0–100 (legacy). Prefer normalizeScoresLog1p for demand. */
 export function normalizeScores(raw: Record<string, number>): Record<string, number> {
   const vals = Object.values(raw);
   if (!vals.length) return {};
@@ -281,20 +394,64 @@ export function normalizeScores(raw: Record<string, number>): Record<string, num
   return out;
 }
 
+/** log1p(x)/log1p(max) → 0–100 so leaders don't crush the mid pack linearly. */
+export function normalizeScoresLog1p(raw: Record<string, number>): Record<string, number> {
+  const vals = Object.values(raw);
+  if (!vals.length) return {};
+  const max = Math.max(...vals);
+  if (!(max > 0)) {
+    return Object.fromEntries(Object.keys(raw).map((id) => [id, 0]));
+  }
+  const denom = Math.log1p(max);
+  const out: Record<string, number> = {};
+  for (const [id, v] of Object.entries(raw)) {
+    const n = Math.max(0, Number(v) || 0);
+    out[id] = Math.round((Math.log1p(n) / denom) * 1000) / 10;
+  }
+  return out;
+}
+
+export type TopBlendParts = {
+  demand: number;
+  channel: number;
+  collab: number;
+  reach: number;
+  response: number;
+  profile: number;
+};
+
 export function blendTopScore(
-  activityNorm: number,
-  channelScore: number,
-  reachScore: number,
+  demandOrParts: number | TopBlendParts,
+  channelScore?: number,
+  reachScore?: number,
   reviewScore: number = 12,
-  badgeScore: number = 14
+  badgeOrProfileScore: number = 50,
+  responseScore: number = 50
 ): number {
+  let parts: TopBlendParts;
+  if (typeof demandOrParts === 'object' && demandOrParts != null) {
+    parts = demandOrParts;
+  } else {
+    // Legacy positional: (activity, channel, reach, review, badge)
+    // Map review→collab, badge→profile; response defaults to neutral 50.
+    parts = {
+      demand: Number(demandOrParts) || 0,
+      channel: Number(channelScore) || 0,
+      reach: Number(reachScore) || 0,
+      collab: Number(reviewScore) || 0,
+      profile: Number(badgeOrProfileScore) || 0,
+      response: Number(responseScore) || 50,
+    };
+  }
+
   return (
     Math.round(
-      (clamp01(activityNorm / 100) * TOP_ACTIVITY_WEIGHT +
-        clamp01(channelScore / 100) * TOP_CHANNEL_WEIGHT +
-        clamp01(reachScore / 100) * TOP_REACH_WEIGHT +
-        clamp01(reviewScore / 100) * TOP_REVIEW_WEIGHT +
-        clamp01(badgeScore / 100) * TOP_BADGE_WEIGHT) *
+      (clamp01(parts.demand / 100) * TOP_DEMAND_WEIGHT +
+        clamp01(parts.channel / 100) * TOP_CHANNEL_WEIGHT +
+        clamp01(parts.collab / 100) * TOP_COLLAB_WEIGHT +
+        clamp01(parts.reach / 100) * TOP_REACH_WEIGHT +
+        clamp01(parts.response / 100) * TOP_RESPONSE_WEIGHT +
+        clamp01(parts.profile / 100) * TOP_PROFILE_WEIGHT) *
         1000
     ) / 10
   );
@@ -316,6 +473,12 @@ export function hasTopTrustIssue(inf: TopScoreInfluencer): boolean {
 export function applyTopTrustPenalty(composite: number, inf: TopScoreInfluencer): number {
   if (!hasTopTrustIssue(inf)) return composite;
   return Math.round(Math.max(0, composite * TOP_TRUST_PENALTY_MULT) * 10) / 10;
+}
+
+/** Apply mild rotation demotion for recent Top 10 incumbents. */
+export function applyIncumbentPenalty(composite: number, isIncumbent: boolean): number {
+  if (!isIncumbent) return composite;
+  return Math.round(Math.max(0, composite * TOP_INCUMBENT_PENALTY_MULT) * 10) / 10;
 }
 
 /**
