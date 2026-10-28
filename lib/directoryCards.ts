@@ -3,6 +3,7 @@ import { normalizeGender } from "@/lib/gender";
 import { loadInfluencerRows } from "@/lib/loadPublicInfluencers";
 import { parseFollowerString } from "@/lib/parseFollowers";
 import { parseStoredCategories } from "@/lib/categories";
+import { resolveCompletionRate } from "@/lib/completionRate";
 import {
   DIRECTORY_QUERY_COLUMNS,
   findPrivateFieldPaths,
@@ -57,7 +58,10 @@ export function mapDirectoryCard(row: Record<string, unknown>): Influencer {
     avg_rating: typeof row.avg_rating === "number" ? row.avg_rating : 0,
     total_reviews: typeof row.total_reviews === "number" ? row.total_reviews : 0,
     avg_response_time: typeof row.avg_response_time === "number" ? row.avg_response_time : null,
-    completion_rate: typeof row.completion_rate === "number" ? row.completion_rate : null,
+    completion_rate: resolveCompletionRate(row.completion_rate, {
+      totalReviews: typeof row.total_reviews === "number" ? row.total_reviews : 0,
+      requireCollabEvidence: true,
+    }),
     past_brands: Array.isArray(row.past_brands) ? row.past_brands : typeof row.past_brands === "number" ? row.past_brands : 0,
     created_at: typeof row.created_at === "string" ? row.created_at : undefined,
     age: typeof row.age === "number" ? row.age : null,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { resolveCompletionRate } from "@/lib/completionRate";
 
 const NOTE_MAX = 280;
 
@@ -67,6 +68,7 @@ export async function GET(request: NextRequest) {
       accounts?: Array<{ followers?: string; engagement_rate?: string }> | null;
       avg_response_time?: number | null;
       completion_rate?: number | null;
+      total_reviews?: number | null;
     }
   >();
   if (ids.length) {
@@ -74,7 +76,7 @@ export async function GET(request: NextRequest) {
     const full = await supabaseAdmin
       .from("influencers")
       .select(
-        "id, display_name, avatar_url, category, min_rate, approved, profile_slug, accounts, avg_response_time, completion_rate"
+        "id, display_name, avatar_url, category, min_rate, approved, profile_slug, accounts, avg_response_time, completion_rate, total_reviews"
       )
       .in("id", ids);
     if (full.error && /column/i.test(full.error.message)) {
@@ -121,10 +123,10 @@ export async function GET(request: NextRequest) {
         typeof inf?.avg_response_time === "number" && inf.avg_response_time > 0
           ? inf.avg_response_time
           : null,
-      completionRate:
-        typeof inf?.completion_rate === "number" && inf.completion_rate > 0
-          ? inf.completion_rate
-          : null,
+      completionRate: resolveCompletionRate(inf?.completion_rate, {
+        totalReviews: inf?.total_reviews,
+        requireCollabEvidence: true,
+      }),
     };
   });
 

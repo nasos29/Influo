@@ -72,13 +72,14 @@ export async function refreshInfluencerTrustMetrics(
     computeCompletionRate(supabase, influencerId),
   ]);
 
-  const patch: Record<string, number | null> = {};
+  // Always persist completion_rate (including null) so a leftover DB default
+  // of 100 cannot survive after a creator still has no proposals.
+  const patch: Record<string, number | null> = {
+    completion_rate,
+  };
   if (avg_response_time != null) patch.avg_response_time = avg_response_time;
-  if (completion_rate != null) patch.completion_rate = completion_rate;
 
-  if (Object.keys(patch).length > 0) {
-    await supabase.from('influencers').update(patch).eq('id', influencerId);
-  }
+  await supabase.from('influencers').update(patch).eq('id', influencerId);
 
   return { avg_response_time, completion_rate };
 }

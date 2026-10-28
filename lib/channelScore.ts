@@ -1,3 +1,4 @@
+import { resolveCompletionRate } from "@/lib/completionRate";
 import { parseFollowerString } from "@/lib/parseFollowers";
 
 export type ChannelAxisId =
@@ -154,7 +155,11 @@ export function buildChannelScore(input: ChannelScoreInput) {
   if (er >= 2) coop += 1;
   if (er >= 4) coop += 0.4;
   if (input.contentCount >= 3) coop += 0.6;
-  if ((input.completionRate || 0) >= 80) coop += 0.6;
+  const usableCompletion = resolveCompletionRate(input.completionRate, {
+    totalReviews: input.reviewCount,
+    requireCollabEvidence: true,
+  });
+  if ((usableCompletion || 0) >= 80) coop += 0.6;
   if ((input.reviewCount || 0) > 0) coop += 0.4;
   const coopPotential = round1(clamp(coop, 0, 10));
 

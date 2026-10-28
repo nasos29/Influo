@@ -28,6 +28,7 @@ import ChannelScorePanel from "@/components/ChannelScorePanel";
 import FollowerGrowthChart from "@/components/FollowerGrowthChart";
 import StatsInsightsPanel from "@/components/StatsInsightsPanel";
 import { buildChannelScore } from "@/lib/channelScore";
+import { resolveCompletionRate } from "@/lib/completionRate";
 import { loadOwnBrand, loadOwnProfiles } from "@/lib/ownProfile";
 import { creatorHasHardErOnMainAccount, displayErFlag, erFlagHint, erFlagLabel } from "@/lib/engagementFlags";
 import type { FollowerGrowthPoint } from "@/lib/followerGrowth";
@@ -690,7 +691,14 @@ export default function InfluencerProfile(props: {
     let calculatedCompletionRate: number | undefined;
     let computedResponseHours: number | null = null;
     if (data && !error) {
-      if (typeof data.completion_rate === "number") calculatedCompletionRate = data.completion_rate;
+      // Ignore null / fake leftover 100 with no collab evidence (reviews/campaigns).
+      {
+        const usable = resolveCompletionRate(data.completion_rate, {
+          totalReviews: data.total_reviews,
+          requireCollabEvidence: true,
+        });
+        if (usable != null) calculatedCompletionRate = usable;
+      }
       const { computeAvgResponseHours } = await import('@/lib/influencerMetrics');
       const responseH = await computeAvgResponseHours(supabase, String(id));
       computedResponseHours = responseH;
@@ -2057,17 +2065,18 @@ export default function InfluencerProfile(props: {
                       </MetricIcon>
                     }
                   >
-                    <p
-                      className={`text-2xl font-semibold tracking-tight tabular-nums ${
-                        profile.calculatedCompletionRate !== undefined
-                          ? "text-slate-900"
-                          : "text-slate-300"
-                      }`}
-                    >
-                      {profile.calculatedCompletionRate !== undefined
-                        ? `${profile.calculatedCompletionRate}%`
-                        : "—"}
-                    </p>
+                    {profile.calculatedCompletionRate !== undefined ? (
+                      <p className="text-2xl font-semibold tracking-tight tabular-nums text-slate-900">
+                        {profile.calculatedCompletionRate}%
+                      </p>
+                    ) : (
+                      <div>
+                        <p className="text-2xl font-semibold tracking-tight text-slate-300">—</p>
+                        <p className="mt-0.5 text-xs text-slate-400">
+                          {lang === "el" ? "Καμία συνεργασία ακόμα" : "No collaborations yet"}
+                        </p>
+                      </div>
+                    )}
                   </ProfileStatCard>
 
                   <ProfileStatCard

@@ -10,6 +10,7 @@
  */
 
 import { buildChannelScore } from '@/lib/channelScore';
+import { resolveCompletionRate } from '@/lib/completionRate';
 import { creatorHasHardErOnMainAccount, displayErFlag, isHardErFlag, parseErPercent } from '@/lib/engagementFlags';
 import { FOLLOWER_GROWTH_WINDOW_DAYS } from '@/lib/followerGrowth';
 import { parseFollowerString, totalFollowersFromAccounts } from '@/lib/parseFollowers';
@@ -261,15 +262,21 @@ export function computeReviewScore(inf: TopScoreInfluencer): number {
 /**
  * Collaborations & reviews (0–100): review score blended with completion_rate /
  * completed campaign count when available.
+ * Ignores completion_rate when null, or when there are 0 reviews and 0 completed
+ * campaigns (guards against a leftover DB default of 100).
  */
 export function computeCollabScore(
   inf: TopScoreInfluencer,
   completedCampaigns: number = 0
 ): number {
   const review = computeReviewScore(inf);
-  const completionRaw = Number(inf.completion_rate);
-  const hasCompletion = Number.isFinite(completionRaw) && completionRaw >= 0;
   const camps = Math.max(0, Number(completedCampaigns) || 0);
+  const completionRaw = resolveCompletionRate(inf.completion_rate, {
+    totalReviews: inf.total_reviews,
+    completedCampaigns: camps,
+    requireCollabEvidence: true,
+  });
+  const hasCompletion = completionRaw != null;
 
   if (!hasCompletion && camps <= 0) return review;
 
