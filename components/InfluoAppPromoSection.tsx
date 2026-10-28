@@ -1,68 +1,119 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
-import { FaApple, FaGooglePlay } from "react-icons/fa";
+import { QRCodeSVG } from "qrcode.react";
 import { buildAppInstallUrl, resolvePublicBaseUrl } from "@/lib/pwaAppUrl";
 
 type Lang = "el" | "en";
 
-/**
- * Hand + product handset — both read clearly as phones (promo-style). Swap URLs anytime.
- */
-const PHONE_IMG_BACK =
-  "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=520&h=960&q=85";
-const PHONE_IMG_FRONT =
-  "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=520&h=960&q=85";
-
 const copy: Record<
   Lang,
-  { headline: string; sub: string; scan: string; android: string; ios: string; phoneAlt: string }
+  {
+    headline: string;
+    sub: string;
+    bullets: [string, string, string];
+    install: string;
+    platforms: string;
+    scan: string;
+    campaignTitle: string;
+    campaignBadge: string;
+    notif: string;
+  }
 > = {
   el: {
-    headline:
-      "Το Influo στο κινητό σου — πιο γρήγορη πρόσβαση σε καμπάνιες, μηνύματα και προφίλ από την επιτραπέζια εμπειρία.",
-    sub: "Σκάναρε το QR ή επίλεξε την πλατφόρμα σου για να εγκαταστήσεις την εφαρμογή (PWA) στην αρχική οθόνη — χωρίς Play Store ή App Store.",
-    scan: "ΣΚΑΝΑΡΕΤΕ ΓΙΑ ΝΑ ΕΓΚΑΤΑΣΤΗΣΕΤΕ ΤΟ APP",
-    android: "Για Android",
-    ios: "Για iPhone / iPad",
-    phoneAlt: "Κινητό με εφαρμογή",
+    headline: "Το Influo στο κινητό σου",
+    sub: "Καμπάνιες, μηνύματα και προφίλ — πάντα μαζί σου.",
+    bullets: [
+      "Ειδοποιήσεις για νέα μηνύματα & καμπάνιες",
+      "Εγκατάσταση σε 10 δευτερόλεπτα",
+      "Χωρίς App Store / Play Store",
+    ],
+    install: "Εγκατάσταση εφαρμογής",
+    platforms: "Android & iPhone · δωρεάν",
+    scan: "Σκάναρε με την κάμερα του κινητού",
+    campaignTitle: "Summer Glow Campaign",
+    campaignBadge: "5 αιτήσεις",
+    notif: "Νέο μήνυμα από brand",
   },
   en: {
-    headline:
-      "Influo on your phone — faster access to campaigns, messages, and profiles than on desktop.",
-    sub: "Scan the QR or pick your platform to install the app (PWA) on your home screen — no Play Store or App Store required.",
-    scan: "SCAN TO INSTALL THE APP",
-    android: "For Android",
-    ios: "For iPhone / iPad",
-    phoneAlt: "Smartphone in hand",
+    headline: "Influo on your phone",
+    sub: "Campaigns, messages and your profile — always with you.",
+    bullets: [
+      "Alerts for new messages & campaigns",
+      "Install in 10 seconds",
+      "No App Store / Play Store",
+    ],
+    install: "Install the app",
+    platforms: "Android & iPhone · free",
+    scan: "Scan with your phone camera",
+    campaignTitle: "Summer Glow Campaign",
+    campaignBadge: "5 applications",
+    notif: "New message from a brand",
   },
 };
 
-/** Slim device frame; object-contain keeps the full handset visible from the photo. */
-function PhonePhoto({
-  src,
-  alt,
-  tilt,
-  className,
-}: {
-  src: string;
-  alt: string;
-  tilt: "left" | "right";
-  className?: string;
-}) {
-  const rotate = tilt === "left" ? "-rotate-[8deg]" : "rotate-[8deg]";
+function InfluoPhoneMockup({ lang, className }: { lang: Lang; className?: string }) {
+  const t = copy[lang];
   return (
     <div
-      className={`relative shrink-0 rounded-[2.35rem] border-[6px] border-slate-900 bg-slate-950 p-1 shadow-2xl ring-1 ring-black/40 ${rotate} ${className ?? ""}`}
-      style={{
-        boxShadow: "0 24px 50px -12px rgba(0,0,0,0.55)",
-        width: "clamp(84px, 17vw, 112px)",
-        aspectRatio: "10 / 20",
-      }}
+      className={`relative shrink-0 overflow-hidden rounded-[2.5rem] border-[5px] border-slate-950 bg-slate-950 shadow-2xl ring-1 ring-white/10 md:-rotate-6 ${className ?? ""}`}
+      style={{ boxShadow: "0 28px 60px -16px rgba(0,0,0,0.55)" }}
+      aria-hidden
     >
-      <div className="relative h-full w-full overflow-hidden rounded-[1.85rem] bg-slate-950">
-        <Image src={src} alt={alt} fill className="object-contain object-center" sizes="112px" />
+      {/* Notch */}
+      <div className="absolute left-1/2 top-2 z-20 h-5 w-24 -translate-x-1/2 rounded-full bg-black" />
+
+      {/* Screen */}
+      <div className="relative flex h-full flex-col overflow-hidden rounded-[2rem] bg-gradient-to-b from-slate-50 to-white">
+        {/* Mini header */}
+        <div className="flex items-center gap-2 border-b border-slate-100 px-3 pb-2.5 pt-8">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.svg" alt="" className="h-5 w-auto" />
+          <span className="text-[10px] font-semibold tracking-wide text-slate-500">Influo</span>
+        </div>
+
+        <div className="flex flex-1 flex-col gap-2.5 p-3">
+          {/* Campaign card */}
+          <div className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
+            <p className="text-[11px] font-bold leading-snug text-slate-900 line-clamp-2">
+              {t.campaignTitle}
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[9px] font-semibold text-white">
+                €1.200
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-blue-600 px-2 py-0.5 text-[9px] font-semibold text-white">
+                <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+                {t.campaignBadge}
+              </span>
+            </div>
+          </div>
+
+          {/* Notification */}
+          <div className="flex items-start gap-2 rounded-xl border border-indigo-100 bg-indigo-50/80 px-2.5 py-2">
+            <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white">
+              B
+            </span>
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold text-indigo-950">{t.notif}</p>
+              <p className="mt-0.5 text-[9px] text-indigo-700/80">
+                {lang === "el" ? "Μόλις τώρα" : "Just now"}
+              </p>
+            </div>
+          </div>
+
+          {/* Soft filler rows */}
+          <div className="mt-auto space-y-1.5 opacity-60">
+            <div className="h-2 w-4/5 rounded bg-slate-200" />
+            <div className="h-2 w-3/5 rounded bg-slate-200" />
+            <div className="h-2 w-2/3 rounded bg-slate-200" />
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -75,109 +126,91 @@ export default function InfluoAppPromoSection({ lang }: { lang: Lang }) {
   useEffect(() => {
     const h = window.location.hostname;
     if (h === "localhost" || h === "127.0.0.1") return;
-    setBaseOrigin(window.location.origin);
+    const origin = window.location.origin;
+    const id = window.setTimeout(() => setBaseOrigin(origin), 0);
+    return () => window.clearTimeout(id);
   }, []);
 
   const installUrl = useMemo(
     () => buildAppInstallUrl(baseOrigin, lang, "utm_source=footer_qr"),
     [baseOrigin, lang]
   );
-  const qrSrc = useMemo(
-    () =>
-      `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=4&color=312e81&bgcolor=ffffff&data=${encodeURIComponent(installUrl)}`,
-    [installUrl]
-  );
 
   return (
     <section
       id="influo-app"
-      className="relative w-full overflow-x-clip overflow-y-visible border-t border-slate-200 bg-white pb-0 pt-10 sm:pt-12 md:pt-14"
+      className="relative w-full overflow-hidden border-t border-slate-800"
       aria-labelledby="influo-app-heading"
     >
-      <div className="relative mx-auto max-w-7xl px-4 sm:px-6">
-        <div className="relative isolate overflow-visible rounded-t-2xl shadow-xl ring-1 ring-slate-900/10 md:rounded-t-3xl">
-          <div
-            className="pointer-events-none absolute inset-0 overflow-hidden rounded-t-2xl md:rounded-t-3xl"
-            aria-hidden
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700" />
-            <div className="absolute -right-12 top-0 h-44 w-44 rounded-full bg-white/15 blur-3xl md:-right-16 md:h-56 md:w-56" />
-            <div className="absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-purple-400/25 blur-3xl md:h-48 md:w-48" />
+      <div
+        className="relative bg-gradient-to-br from-slate-900 via-indigo-950 to-indigo-800"
+        style={{
+          backgroundImage:
+            "radial-gradient(ellipse 70% 60% at 85% 20%, rgba(99,102,241,0.28), transparent 55%), linear-gradient(to bottom right, #0f172a, #1e1b4b, #3730a3)",
+        }}
+      >
+        <div className="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-8 px-6 py-10 md:grid-cols-[auto_1fr_auto] md:gap-10 md:px-10 md:py-12">
+          {/* Phone — last on mobile, first on md+ */}
+          <div className="order-2 flex justify-center md:order-1 md:justify-start">
+            <InfluoPhoneMockup
+              lang={lang}
+              className="h-[320px] w-[160px] md:h-[440px] md:w-[220px]"
+            />
           </div>
 
-          {/* Flex: phones + copy grouped (tight gap), CTAs on the right — like reference band */}
-          <div className="relative z-10 flex flex-col gap-5 px-4 pb-4 pt-4 sm:px-5 sm:pb-5 sm:pt-5 md:flex-row md:items-start md:gap-3 md:px-5 md:pb-5 md:pt-4 lg:gap-4 lg:px-7 lg:pb-6 lg:pt-5">
-            {/* Phones + headline: in-flow on mobile (no absolute overlap / clipping); row from md */}
-            <div className="relative z-10 flex w-full flex-col items-center gap-4 md:max-w-[min(100%,52rem)] md:flex-1 md:flex-row md:items-start md:justify-start md:gap-3 lg:gap-4">
-              <div className="relative flex w-full shrink-0 justify-center md:w-auto md:justify-start">
-                <div className="relative z-10 flex items-end justify-center md:z-30 md:translate-y-[10%] lg:-translate-y-[6%]">
-                  <div className="flex items-end">
-                    <PhonePhoto src={PHONE_IMG_BACK} alt={t.phoneAlt} tilt="left" className="opacity-95" />
-                    <PhonePhoto
-                      src={PHONE_IMG_FRONT}
-                      alt={t.phoneAlt}
-                      tilt="right"
-                      className="-ml-10 sm:-ml-11 md:-ml-12 lg:-ml-14"
-                    />
-                  </div>
-                </div>
-              </div>
+          {/* Copy + CTA */}
+          <div className="order-1 text-center md:order-2 md:text-left">
+            <h2
+              id="influo-app-heading"
+              className="text-2xl font-bold tracking-tight text-white sm:text-3xl"
+            >
+              {t.headline}
+            </h2>
+            <p className="mt-2 text-sm text-indigo-100/90 sm:text-base">{t.sub}</p>
 
-              <div className="relative z-20 w-full min-w-0 flex-1 text-center md:z-10 md:pt-1 md:text-left">
-                <h2
-                  id="influo-app-heading"
-                  className="text-lg font-bold leading-snug tracking-tight text-white sm:text-xl md:text-[1.15rem] md:leading-snug lg:text-xl xl:text-2xl"
-                >
-                  {t.headline}
-                </h2>
-                <p className="mt-1.5 text-[11px] leading-relaxed text-indigo-100/95 sm:text-xs md:mt-2 md:text-[13px] md:leading-relaxed lg:text-sm">
-                  {t.sub}
-                </p>
-              </div>
+            <ul className="mt-5 inline-flex flex-col items-start gap-2 text-left text-sm text-indigo-50/95">
+              {t.bullets.map((item) => (
+                <li key={item} className="flex items-start gap-2">
+                  <span className="mt-0.5 text-emerald-400" aria-hidden>
+                    ✓
+                  </span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+
+            <div className="mt-6 flex flex-col items-center gap-1.5 md:items-start">
+              <a
+                href={installUrl}
+                className="inline-flex items-center justify-center rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-indigo-50"
+              >
+                {t.install}
+              </a>
+              <p className="text-xs text-indigo-200/80">{t.platforms}</p>
             </div>
+          </div>
 
-            <div className="relative z-10 flex w-full shrink-0 flex-col items-center gap-2.5 md:w-[200px] md:items-end md:gap-2.5 lg:w-[220px]">
-              <div className="flex w-full max-w-[260px] flex-col gap-1.5 md:max-w-none md:items-stretch">
-                <a
-                  href={installUrl}
-                  className="flex items-center gap-2.5 rounded-xl border border-white/25 bg-black/20 px-3 py-2 text-white backdrop-blur-sm transition hover:bg-black/30"
-                >
-                  <FaGooglePlay className="h-6 w-6 shrink-0 text-white sm:h-7 sm:w-7" aria-hidden />
-                  <div className="text-left leading-tight">
-                    <span className="block text-[10px] font-semibold uppercase tracking-wide text-white/80">
-                      {lang === "el" ? "Εγκατάσταση" : "Install"}
-                    </span>
-                    <span className="text-sm font-bold">{t.android}</span>
-                  </div>
-                </a>
-                <a
-                  href={installUrl}
-                  className="flex items-center gap-2.5 rounded-xl border border-white/25 bg-black/20 px-3 py-2 text-white backdrop-blur-sm transition hover:bg-black/30"
-                >
-                  <FaApple className="h-6 w-6 shrink-0 text-white sm:h-7 sm:w-7" aria-hidden />
-                  <div className="text-left leading-tight">
-                    <span className="block text-[10px] font-semibold uppercase tracking-wide text-white/80">
-                      {lang === "el" ? "Εγκατάσταση" : "Install"}
-                    </span>
-                    <span className="text-sm font-bold">{t.ios}</span>
-                  </div>
-                </a>
-              </div>
-
-              <div className="flex w-full max-w-[280px] flex-row items-center justify-center gap-2.5 md:max-w-none md:justify-end">
-                <a
-                  href={installUrl}
-                  className="rounded-md border-[3px] border-white bg-white p-0.5 shadow-md transition hover:opacity-95"
-                  aria-label={lang === "el" ? "Σύνδεσμος εγκατάστασης app" : "Install app link"}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={qrSrc} alt={lang === "el" ? "QR για εγκατάσταση της εφαρμογής Influo" : "QR code to install the Influo app"} width={96} height={96} className="h-[80px] w-[80px] sm:h-[88px] sm:w-[88px] md:h-[96px] md:w-[96px]" />
-                </a>
-                <p className="max-w-[108px] text-left text-[9px] font-bold uppercase leading-snug tracking-wide text-white sm:max-w-[118px] sm:text-[10px] md:max-w-[140px] md:text-xs">
-                  {t.scan}
-                </p>
-              </div>
+          {/* QR — desktop only */}
+          <div className="order-3 hidden shrink-0 flex-col items-center gap-2.5 md:flex">
+            <div className="aspect-square shrink-0 rounded-xl bg-white p-2 shadow-lg">
+              <QRCodeSVG
+                value={installUrl}
+                size={132}
+                level="M"
+                fgColor="#1e1b4b"
+                bgColor="#ffffff"
+                title={lang === "el" ? "QR για εγκατάσταση της εφαρμογής Influo" : "QR code to install the Influo app"}
+                imageSettings={{
+                  src: "/logo-icon.svg",
+                  height: 28,
+                  width: 28,
+                  excavate: true,
+                }}
+              />
             </div>
+            <p className="max-w-[140px] text-center text-xs font-medium leading-snug text-indigo-100/90">
+              {t.scan}
+            </p>
           </div>
         </div>
       </div>
