@@ -40,6 +40,8 @@ import {
   birthDateErrorText,
   validateBirthDate,
 } from "@/lib/validateBirthDate";
+import { MAX_ANNOUNCEMENT_SPECIFIC_RECIPIENTS } from "@/lib/announcementTargets";
+import AnnouncementRecipientMultiSelect from "@/components/AnnouncementRecipientMultiSelect";
 
 async function adminAuthHeaders(): Promise<Record<string, string>> {
   const { data: { session } } = await supabase.auth.getSession();
@@ -98,6 +100,7 @@ const LANGUAGES = [
 interface DbInfluencer {
   id: number;
   auth_user_id?: string | null; // UUID from auth.users(id) for announcements targeting
+  profile_slug?: string | null;
   created_at: string;
   display_name: string;
   gender: string;
@@ -1869,9 +1872,8 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [announcementTargetType, setAnnouncementTargetType] = useState<
     "all" | "specific" | "all_brands" | "specific_brand"
   >("all");
-  const [announcementTargetInfluencerId, setAnnouncementTargetInfluencerId] = useState<string>("");
-  const [announcementTargetBrandId, setAnnouncementTargetBrandId] = useState<string>("");
-  const [announcementBrandSearch, setAnnouncementBrandSearch] = useState("");
+  const [announcementTargetInfluencerIds, setAnnouncementTargetInfluencerIds] = useState<string[]>([]);
+  const [announcementTargetBrandIds, setAnnouncementTargetBrandIds] = useState<string[]>([]);
   const [announcementsList, setAnnouncementsList] = useState<
     Array<{
       id: string;
@@ -2163,12 +2165,25 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const sendAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!announcementTitle.trim() || !announcementBody.trim()) return;
-    if (announcementTargetType === 'specific' && !announcementTargetInfluencerId) {
-      alert(lang === 'el' ? 'Επιλέξτε influencer για στόχευση.' : 'Select an influencer to target.');
+    if (announcementTargetType === 'specific' && announcementTargetInfluencerIds.length === 0) {
+      alert(lang === 'el' ? 'Επιλέξτε τουλάχιστον έναν influencer.' : 'Select at least one influencer.');
       return;
     }
-    if (announcementTargetType === 'specific_brand' && !announcementTargetBrandId) {
-      alert(lang === 'el' ? 'Επιλέξτε επιχείρηση για στόχευση.' : 'Select a business to target.');
+    if (announcementTargetType === 'specific_brand' && announcementTargetBrandIds.length === 0) {
+      alert(lang === 'el' ? 'Επιλέξτε τουλάχιστον μία επιχείρηση.' : 'Select at least one business.');
+      return;
+    }
+    if (
+      (announcementTargetType === 'specific' &&
+        announcementTargetInfluencerIds.length > MAX_ANNOUNCEMENT_SPECIFIC_RECIPIENTS) ||
+      (announcementTargetType === 'specific_brand' &&
+        announcementTargetBrandIds.length > MAX_ANNOUNCEMENT_SPECIFIC_RECIPIENTS)
+    ) {
+      alert(
+        lang === 'el'
+          ? `Μέχρι ${MAX_ANNOUNCEMENT_SPECIFIC_RECIPIENTS} παραλήπτες ανά αποστολή.`
+          : `At most ${MAX_ANNOUNCEMENT_SPECIFIC_RECIPIENTS} recipients per send.`
+      );
       return;
     }
     setAnnouncementSending(true);
@@ -2180,42 +2195,69 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
           title: announcementTitle.trim(),
           content: announcementBody.trim(),
           target_type: announcementTargetType,
-          target_influencer_id:
-            announcementTargetType === 'specific' ? announcementTargetInfluencerId : undefined,
-          target_brand_id:
-            announcementTargetType === 'specific_brand' ? announcementTargetBrandId : undefined,
+          target_influencer_ids:
+            announcementTargetType === 'specific' ? announcementTargetInfluencerIds : undefined,
+          target_brand_ids:
+            announcementTargetType === 'specific_brand' ? announcementTargetBrandIds : undefined,
         }),
       });
       const result = await res.json();
       if (res.ok && result.data) {
         setAnnouncementTitle('');
         setAnnouncementBody('');
-        setAnnouncementTargetInfluencerId('');
-        setAnnouncementTargetBrandId('');
-        setAnnouncementBrandSearch('');
+        setAnnouncementTargetInfluencerIds([]);
+        setAnnouncementTargetBrandIds([]);
         setAnnouncementsPage(1);
         setAnnouncementReadersById({});
         await fetchAnnouncements({ page: 1 });
-        alert(txt.ann_sent);
+        const n = typeof result.count === 'number' ? result.count : Array.isArray(result.data) ? result.data.length : 1;
+        alert(
+          n > 1
+            ? (lang === 'el' ? `Απεστάλη σε ${n} παραλήπτες.` : `Sent to ${n} recipients.`)
+            : txt.ann_sent
+        );
       } else {
         alert(result.error || (lang === 'el' ? 'Σφάλμα αποστολής' : 'Send failed'));
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Send announcement error:', err);
-      alert(err.message || (lang === 'el' ? 'Σφάλμα αποστολής' : 'Send failed'));
+      const message = err instanceof Error ? err.message : '';
+      alert(message || (lang === 'el' ? 'Σφάλμα αποστολής' : 'Send failed'));
     } finally {
       setAnnouncementSending(false);
     }
   };
 
-  const announcementBrandOptions = brands.filter((b) => {
-    const q = announcementBrandSearch.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      (b.brand_name || '').toLowerCase().includes(q) ||
-      (b.contact_email || '').toLowerCase().includes(q)
-    );
+  const announcementInfluencerOptions = (pickerUsers.length ? pickerUsers : users).map((u) => {
+    const uuid = u.auth_user_id || (typeof u.id === 'string' ? u.id : '');
+    const slug = u.profile_slug || '';
+    const email = u.contact_email || '';
+    const name = u.display_name || '';
+    return {
+      id: uuid || '',
+      label: `${name}${email ? ` (${email})` : ''}`,
+      searchText: `${name} ${slug} ${email}`.toLowerCase(),
+      disabled: !uuid,
+      disabledReason: !uuid ? (lang === 'el' ? '(χωρίς auth)' : '(no auth)') : undefined,
+    };
   });
+
+  const announcementBrandMultiOptions = brands.map((b) => {
+    const name = b.brand_name || '';
+    const email = b.contact_email || '';
+    return {
+      id: String(b.id),
+      label: `${name}${email ? ` (${email})` : ''}`,
+      searchText: `${name} ${email}`.toLowerCase(),
+    };
+  });
+
+  const announcementSendCount =
+    announcementTargetType === 'specific'
+      ? announcementTargetInfluencerIds.length
+      : announcementTargetType === 'specific_brand'
+        ? announcementTargetBrandIds.length
+        : null;
 
   const saveBlogPost = async (post: BlogPost) => {
     try {
@@ -4921,8 +4963,8 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                             checked={announcementTargetType === 'all'}
                             onChange={() => {
                               setAnnouncementTargetType('all');
-                              setAnnouncementTargetInfluencerId('');
-                              setAnnouncementTargetBrandId('');
+                              setAnnouncementTargetInfluencerIds([]);
+                              setAnnouncementTargetBrandIds([]);
                             }}
                             className="rounded border-slate-300"
                           />
@@ -4935,7 +4977,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                             checked={announcementTargetType === 'specific'}
                             onChange={() => {
                               setAnnouncementTargetType('specific');
-                              setAnnouncementTargetBrandId('');
+                              setAnnouncementTargetBrandIds([]);
                             }}
                             className="rounded border-slate-300"
                           />
@@ -4948,8 +4990,8 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                             checked={announcementTargetType === 'all_brands'}
                             onChange={() => {
                               setAnnouncementTargetType('all_brands');
-                              setAnnouncementTargetInfluencerId('');
-                              setAnnouncementTargetBrandId('');
+                              setAnnouncementTargetInfluencerIds([]);
+                              setAnnouncementTargetBrandIds([]);
                             }}
                             className="rounded border-slate-300"
                           />
@@ -4962,7 +5004,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                             checked={announcementTargetType === 'specific_brand'}
                             onChange={() => {
                               setAnnouncementTargetType('specific_brand');
-                              setAnnouncementTargetInfluencerId('');
+                              setAnnouncementTargetInfluencerIds([]);
                             }}
                             className="rounded border-slate-300"
                           />
@@ -4970,61 +5012,48 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                         </label>
                       </div>
                       {announcementTargetType === 'specific' && (
-                        <select
-                          value={announcementTargetInfluencerId}
-                          onChange={(e) => setAnnouncementTargetInfluencerId(e.target.value)}
-                          className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[200px] max-w-xl text-slate-900 bg-white"
-                          required={announcementTargetType === 'specific'}
-                        >
-                          <option value="">{lang === 'el' ? '— Επιλέξτε —' : '— Select —'}</option>
-                          {(pickerUsers.length ? pickerUsers : users).map((u) => {
-                            const uuid = u.auth_user_id || (typeof u.id === 'string' ? u.id : null);
-                            return (
-                              <option key={String(u.id)} value={uuid || ''} disabled={!uuid}>
-                                {u.display_name} {u.contact_email ? `(${u.contact_email})` : ''}
-                                {!uuid ? ` ${lang === 'el' ? '(χωρίς auth)' : '(no auth)'}` : ''}
-                              </option>
-                            );
-                          })}
-                        </select>
+                        <AnnouncementRecipientMultiSelect
+                          lang={lang}
+                          options={announcementInfluencerOptions}
+                          selectedIds={announcementTargetInfluencerIds}
+                          onChange={setAnnouncementTargetInfluencerIds}
+                          searchPlaceholder={
+                            lang === 'el'
+                              ? 'Αναζήτηση ονόματος, slug ή email…'
+                              : 'Search name, slug or email…'
+                          }
+                        />
                       )}
                       {announcementTargetType === 'specific_brand' && (
-                        <div className="flex flex-col sm:flex-row gap-2 max-w-xl">
-                          <input
-                            type="search"
-                            value={announcementBrandSearch}
-                            onChange={(e) => setAnnouncementBrandSearch(e.target.value)}
-                            placeholder={
-                              lang === 'el'
-                                ? 'Αναζήτηση επωνυμίας ή email…'
-                                : 'Search by name or email…'
-                            }
-                            className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white"
-                          />
-                          <select
-                            value={announcementTargetBrandId}
-                            onChange={(e) => setAnnouncementTargetBrandId(e.target.value)}
-                            className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[200px] text-slate-900 bg-white"
-                            required={announcementTargetType === 'specific_brand'}
-                          >
-                            <option value="">{lang === 'el' ? '— Επιλέξτε —' : '— Select —'}</option>
-                            {announcementBrandOptions.map((b) => (
-                              <option key={b.id} value={b.id}>
-                                {b.brand_name}
-                                {b.contact_email ? ` (${b.contact_email})` : ''}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                        <AnnouncementRecipientMultiSelect
+                          lang={lang}
+                          options={announcementBrandMultiOptions}
+                          selectedIds={announcementTargetBrandIds}
+                          onChange={setAnnouncementTargetBrandIds}
+                          searchPlaceholder={
+                            lang === 'el'
+                              ? 'Αναζήτηση επωνυμίας ή email…'
+                              : 'Search by name or email…'
+                          }
+                        />
                       )}
                     </div>
                   </div>
                   <button
                     type="submit"
-                    disabled={announcementSending}
+                    disabled={
+                      announcementSending ||
+                      (announcementSendCount != null && announcementSendCount === 0)
+                    }
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {announcementSending ? '...' : txt.ann_send}
+                    {announcementSending
+                      ? '...'
+                      : announcementSendCount != null
+                        ? lang === 'el'
+                          ? `Αποστολή σε ${announcementSendCount}`
+                          : `Send to ${announcementSendCount}`
+                        : txt.ann_send}
                   </button>
                 </form>
               </div>
