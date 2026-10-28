@@ -1,5 +1,1 @@
-import ForBrandsPage from "../../for-brands/page";
-
-export default function EnForBrandsPage() {
-  return <ForBrandsPage />;
-}
+export { default, revalidate } from "../../for-brands/page";
