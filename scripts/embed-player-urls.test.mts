@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   buildTikTokPlayerUrl,
   extractTikTokVideoId,
+  isTikTokShortLink,
 } from "../lib/tikTokPlayer.ts";
 import {
   extractInstagramShortcode,
@@ -31,6 +32,9 @@ test("extractTikTokVideoId from watch / photo / embed / player URLs", () => {
     "7123456789012345678"
   );
   assert.equal(extractTikTokVideoId("https://vm.tiktok.com/ZMabcdef/"), null);
+  assert.equal(extractTikTokVideoId("https://www.tiktok.com/t/ZTabcdefg/"), null);
+  assert.equal(isTikTokShortLink("https://www.tiktok.com/t/ZTabcdefg/"), true);
+  assert.equal(isTikTokShortLink("https://vt.tiktok.com/ZSabcdef/"), true);
 });
 
 test("buildTikTokPlayerUrl creates muted player/v1 by default", () => {
@@ -63,7 +67,17 @@ test("isValidInstagramShortcode and extractInstagramShortcode", () => {
     extractInstagramShortcode("https://www.instagram.com/tv/TvId55/"),
     "TvId55"
   );
+  assert.equal(
+    extractInstagramShortcode("https://www.instagram.com/some_user/reel/AbC123xyz/"),
+    "AbC123xyz"
+  );
+  assert.equal(
+    extractInstagramShortcode("https://www.instagram.com/brand.name/p/PostId99/"),
+    "PostId99"
+  );
   assert.equal(extractInstagramShortcode("https://www.instagram.com/p/ab/"), null);
+  assert.equal(extractInstagramShortcode("https://www.instagram.com/stories/user/1/"), null);
+  assert.equal(extractInstagramShortcode("https://www.instagram.com/s/aGlnaA/"), null);
 
   assert.equal(
     instagramThumbnailProxySrc("AbC123xyz"),

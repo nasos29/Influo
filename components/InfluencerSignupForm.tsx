@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import Image from "next/image";
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
-import { detectProvider, getIframelyEmbedUrl, isDefinitelyImage } from "@/lib/videoThumbnail";
+import { detectProvider, getVideoEmbedApiUrl, isDefinitelyImage, isEmbeddableVideoUrl } from "@/lib/videoThumbnail";
 import { prepareImageForStorage } from "@/lib/prepareImageForStorage";
 import { normalizeGender } from "@/lib/gender";
 import { languagesCodesToStored } from "@/lib/languages";
@@ -88,6 +88,7 @@ const t = {
     uploadInsightsBtn: "Ανέβασμα Screenshots",
     videoLabel: "Video Highlights (Links)",
     videoDesc: "Επικόλλησε links από TikTok, Reels ή YouTube. Μπορείτε επίσης να προσθέσετε links φωτογραφιών από δουλειές σας.",
+    videoProfileWarn: "Αυτό είναι link προφίλ, όχι video. Βάλε link από συγκεκριμένο reel/video/post.",
     addVideo: "+ Προσθήκη Video Link / Φωτογραφίας",
     rateLabel: "Ελάχιστη Χρέωση / Budget (€)",
     pricingLabel: "Τιμές Ανά Υπηρεσία",
@@ -161,6 +162,7 @@ const t = {
     uploadInsightsBtn: "Upload Screenshots",
     videoLabel: "Best Video Highlights (Links)",
     videoDesc: "Paste links from TikTok, Reels, or YouTube. You can also add photo links from your work.",
+    videoProfileWarn: "This is a profile link, not a video. Paste a link to a specific reel/video/post.",
     addVideo: "+ Add Video Link / Photo",
     rateLabel: "Minimum Rate / Budget (€)",
     pricingLabel: "Pricing Per Service",
@@ -1058,17 +1060,24 @@ export default function InfluencerSignupForm() {
                     <p className="text-xs text-gray-500 mb-2">{txt.videoDesc}</p>
                     {videos.map((vid, i) => {
                         const provider = detectProvider(vid);
-                        const embedUrl = provider ? getIframelyEmbedUrl(vid) : null;
+                        const embedUrl = provider ? getVideoEmbedApiUrl(vid) : null;
                         const isImage = isDefinitelyImage(vid);
-                        
+                        const isProfileNotVideo =
+                          !!vid.trim() && !!provider && !isImage && !isEmbeddableVideoUrl(vid);
+
                         return (
                             <div key={i} className="space-y-2">
                                 <div className="flex gap-3">
                             <input type="text" className={inputClass} value={vid} onChange={(e) => handleVideoChange(i, e.target.value)} placeholder="https://..." />
                             {videos.length > 1 && <button onClick={() => removeVideo(i)} className="text-red-500 font-bold px-2 hover:bg-red-50 rounded">✕</button>}
                         </div>
+                                {isProfileNotVideo && (
+                                  <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                                    {txt.videoProfileWarn}
+                                  </p>
+                                )}
                                 {/* Preview with SocialEmbedCard for social media videos */}
-                                {vid && provider && embedUrl && !isImage && (
+                                {vid && provider && embedUrl && !isImage && isEmbeddableVideoUrl(vid) && (
                                     <div className="mt-2 w-full max-w-lg">
                                         <SocialEmbedCard
                                             provider={provider}

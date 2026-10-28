@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { sessionFetch } from '@/lib/sessionFetch';
 import Image from 'next/image';
-import { getVideoThumbnail, isVideoUrl, isDefinitelyVideo, isDefinitelyImage } from '@/lib/videoThumbnail';
+import { getVideoThumbnail, isVideoUrl, isDefinitelyVideo, isDefinitelyImage, detectProvider, isEmbeddableVideoUrl } from '@/lib/videoThumbnail';
 import VideoThumbnail from './VideoThumbnail';
 import Messaging from './Messaging';
 import Analytics from './Analytics';
@@ -770,8 +770,17 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                             {videos.map((video, i) => {
                                 const isVideo = isDefinitelyVideo(video);
                                 const isImage = isDefinitelyImage(video);
-                                const isInstagramPost = video && /instagram\.com\/p\//i.test(video);
-                                
+                                const isInstagramPost = video && /instagram\.com\/(?:[A-Za-z0-9._]+\/)?p\//i.test(video);
+                                const videoProfileWarn = {
+                                  el: "Αυτό είναι link προφίλ, όχι video. Βάλε link από συγκεκριμένο reel/video/post.",
+                                  en: "This is a profile link, not a video. Paste a link to a specific reel/video/post.",
+                                };
+                                const isProfileNotVideo =
+                                  !!video?.trim() &&
+                                  !!detectProvider(video) &&
+                                  !isImage &&
+                                  !isEmbeddableVideoUrl(video);
+
                                 return (
                                     <div key={i} className="flex gap-3 items-start">
                                         <div className="flex-1">
@@ -782,7 +791,12 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" 
                                                 placeholder="https://youtube.com/... ή https://image.com/..." 
                                             />
-                                            {video && (
+                                            {isProfileNotVideo && (
+                                              <p className="mt-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                                                {videoProfileWarn.el}
+                                              </p>
+                                            )}
+                                            {video && isEmbeddableVideoUrl(video) && (
                                                 <div className="mt-2 relative w-full h-32 rounded-lg overflow-hidden border border-slate-200 bg-slate-100">
                                                     <VideoThumbnail 
                                                         url={video}
@@ -797,6 +811,16 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                                             </div>
                                                         </div>
                                                     )}
+                                                </div>
+                                            )}
+                                            {video && isImage && (
+                                                <div className="mt-2 relative w-full h-32 rounded-lg overflow-hidden border border-slate-200 bg-slate-100">
+                                                    <VideoThumbnail
+                                                        url={video}
+                                                        alt="Video/Photo thumbnail"
+                                                        fill
+                                                        className="object-contain"
+                                                    />
                                                 </div>
                                             )}
                                         </div>

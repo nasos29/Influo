@@ -70,13 +70,14 @@ function tikTokCanonicalFromAny(url: string): string | null {
 }
 
 /**
- * Resolve vm/vt.tiktok.com → full /@user/video/ID (manual redirects, 5s timeout).
+ * Resolve vm/vt.tiktok.com and tiktok.com/t/{code} → full /@user/video/ID
+ * (manual redirects, 5s timeout).
  */
 async function resolveTikTokUrl(url: string): Promise<string> {
   const clean = stripUrlNoise(url);
   const already = tikTokCanonicalFromAny(clean);
   if (already) return already;
-  if (!/(vm|vt)\.tiktok\.com/i.test(clean)) return clean;
+  if (!/(vm|vt)\.tiktok\.com\/[\w-]+|tiktok\.com\/t\/[\w-]+/i.test(clean)) return clean;
   try {
     let current = clean;
     for (let hop = 0; hop < 5; hop++) {
@@ -206,7 +207,9 @@ export async function GET(req: NextRequest) {
       return jsonThumb(`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`, "youtube");
     }
 
-    const instagramMatch = url.match(/instagram\.com\/(?:p|reel|tv)\/([A-Za-z0-9_-]+)/i);
+    const instagramMatch = url.match(
+      /instagram\.com\/(?:(?:[A-Za-z0-9._]+)\/)?(p|reel|tv)\/([A-Za-z0-9_-]+)/i
+    );
     if (instagramMatch) {
       const thumb = await resolveInstagramThumbnail(url);
       if (thumb) {
@@ -217,8 +220,9 @@ export async function GET(req: NextRequest) {
     }
 
     const isTikTok =
-      /tiktok\.com\/@[\w.-]+\/video\/\d+/i.test(url) ||
+      /tiktok\.com\/@[\w.-]+\/(?:video|photo)\/\d+/i.test(url) ||
       /(vm|vt)\.tiktok\.com\/[\w-]+\/?/i.test(url) ||
+      /tiktok\.com\/t\/[\w-]+/i.test(url) ||
       /tiktok\.com\/.*\/(?:video|photo)\/\d+/i.test(url) ||
       url.toLowerCase().includes("tiktok.com");
 

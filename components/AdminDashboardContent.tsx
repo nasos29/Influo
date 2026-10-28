@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient"; 
 import Image from "next/image";
-import { isDefinitelyVideo, isDefinitelyImage, detectProvider, getIframelyEmbedUrl } from "@/lib/videoThumbnail";
+import { isDefinitelyVideo, isDefinitelyImage, detectProvider, getVideoEmbedApiUrl, isEmbeddableVideoUrl } from "@/lib/videoThumbnail";
 import VideoThumbnail from "./VideoThumbnail";
 import SocialEmbedCard from "./SocialEmbedCard";
 import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
@@ -1627,6 +1627,11 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                             </div>
                                             <button type="button" onClick={() => removeVideo(i)} className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">✕</button>
                                         </div>
+                                        {video && detectProvider(video) && !isDefinitelyImage(video) && !isEmbeddableVideoUrl(video) && (
+                                          <p className="mt-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                                            {{ el: "Αυτό είναι link προφίλ, όχι video. Βάλε link από συγκεκριμένο reel/video/post.", en: "This is a profile link, not a video. Paste a link to a specific reel/video/post." }.el}
+                                          </p>
+                                        )}
                                         {video && (
                                             <>
                                                 {/* Thumbnail Input Section */}
@@ -1704,11 +1709,11 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                                 {/* Video/Photo Preview */}
                                                 {(() => {
                                                     const provider = detectProvider(video);
-                                                    const embedUrl = provider ? getIframelyEmbedUrl(video) : null;
+                                                    const embedUrl = provider ? getVideoEmbedApiUrl(video) : null;
                                                     const thumbnailUrl = thumbnailPreviews[video] || thumbnailUrlString || undefined;
                                                     
                                                     // Use SocialEmbedCard for social media videos
-                                                    if (provider && embedUrl && !isImage) {
+                                                    if (provider && embedUrl && !isImage && isEmbeddableVideoUrl(video)) {
                                                         return (
                                                             <div className="mt-2 w-full max-w-lg">
                                                                 <SocialEmbedCard
@@ -1719,6 +1724,11 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                                                 />
                                                             </div>
                                                         );
+                                                    }
+
+                                                    // Profile/channel/stories links: warning only, no broken preview card
+                                                    if (provider && !isImage && !isEmbeddableVideoUrl(video)) {
+                                                      return null;
                                                     }
                                                     
                                                     // Use VideoThumbnail for images or non-social media URLs
