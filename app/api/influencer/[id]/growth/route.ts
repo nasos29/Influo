@@ -24,18 +24,35 @@ export async function GET(
       return NextResponse.json({ error: 'id required' }, { status: 400 });
     }
 
-    const { data: influencer, error: infErr } = await supabaseAdmin
-      .from('influencers')
-      .select('id, accounts')
-      .eq('id', id)
-      .maybeSingle();
-
-    if (infErr || !influencer) {
-      return NextResponse.json({ error: 'Influencer not found' }, { status: 404 });
+    let influencer: { id: string; accounts?: unknown; last_social_refresh_at?: string | null } | null =
+      null;
+    {
+      const full = await supabaseAdmin
+        .from('influencers')
+        .select('id, accounts, last_social_refresh_at')
+        .eq('id', id)
+        .maybeSingle();
+      if (full.error && /last_social_refresh_at|column/i.test(full.error.message)) {
+        const bare = await supabaseAdmin
+          .from('influencers')
+          .select('id, accounts')
+          .eq('id', id)
+          .maybeSingle();
+        if (bare.error || !bare.data) {
+          return NextResponse.json({ error: 'Influencer not found' }, { status: 404 });
+        }
+        influencer = bare.data;
+      } else if (full.error || !full.data) {
+        return NextResponse.json({ error: 'Influencer not found' }, { status: 404 });
+      } else {
+        influencer = full.data;
+      }
     }
 
     const accounts = (influencer.accounts as Array<{ followers?: string | number | null }>) ?? [];
     const currentTotal = totalFollowersFromAccounts(accounts);
+    const lastSocialRefreshAt =
+      typeof influencer.last_social_refresh_at === 'string' ? influencer.last_social_refresh_at : null;
 
     const { data: snapshots, error: snapErr } = await supabaseAdmin
       .from('influencer_follower_snapshots')
@@ -51,6 +68,7 @@ export async function GET(
         growth: null,
         growthPct: null,
         series: [],
+        statsUpdatedAt: lastSocialRefreshAt ?? undefined,
         message: 'Snapshots table not set up',
       });
     }
@@ -86,6 +104,10 @@ export async function GET(
     }
 
     const series = buildFollowerGrowthSeries(rows, currentTotal);
+    const latestSnapshotAt =
+      typeof snapshots?.[0]?.snapshot_at === 'string' ? snapshots[0].snapshot_at : null;
+    // Prefer the social-refresh stamp; fall back to newest follower snapshot.
+    const statsUpdatedAt = lastSocialRefreshAt || latestSnapshotAt || null;
 
     return NextResponse.json({
       currentTotal,
@@ -93,6 +115,7 @@ export async function GET(
       growth: growth ?? undefined,
       growthPct: growthPct ?? undefined,
       series,
+      statsUpdatedAt: statsUpdatedAt ?? undefined,
     });
   } catch (err) {
     console.error('[influencer growth]', err);
