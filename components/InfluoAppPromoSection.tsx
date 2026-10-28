@@ -149,9 +149,9 @@ export default function InfluoAppPromoSection({ lang }: { lang: Lang }) {
             "radial-gradient(ellipse 70% 60% at 85% 20%, rgba(99,102,241,0.28), transparent 55%), linear-gradient(to bottom right, #0f172a, #1e1b4b, #3730a3)",
         }}
       >
-        <div className="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-8 px-6 py-10 md:grid-cols-[auto_1fr_auto] md:gap-10 md:px-10 md:py-12">
+        <div className="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-8 px-6 py-10 md:grid-cols-[1fr_auto_1fr] md:gap-12 md:px-10 md:py-12 lg:gap-16">
           {/* Phone — last on mobile, first on md+ */}
-          <div className="order-2 flex justify-center md:order-1 md:justify-start">
+          <div className="order-2 flex justify-center md:order-1 md:justify-self-end">
             <InfluoPhoneMockup
               lang={lang}
               className="h-[320px] w-[160px] md:h-[440px] md:w-[220px]"
@@ -159,7 +159,7 @@ export default function InfluoAppPromoSection({ lang }: { lang: Lang }) {
           </div>
 
           {/* Copy + CTA */}
-          <div className="order-1 text-center md:order-2 md:text-left">
+          <div className="order-1 w-full text-center md:order-2 md:max-w-md md:text-left lg:max-w-lg">
             <h2
               id="influo-app-heading"
               className="text-2xl font-bold tracking-tight text-white sm:text-3xl"
@@ -191,7 +191,7 @@ export default function InfluoAppPromoSection({ lang }: { lang: Lang }) {
           </div>
 
           {/* QR — desktop only */}
-          <div className="order-3 hidden shrink-0 flex-col items-center gap-2.5 md:flex">
+          <div className="order-3 hidden shrink-0 flex-col items-center gap-2.5 md:flex md:justify-self-start">
             <div className="aspect-square shrink-0 rounded-xl bg-white p-2 shadow-lg">
               <QRCodeSVG
                 value={installUrl}
