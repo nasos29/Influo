@@ -15,6 +15,7 @@ import {
   budgetTierMatches,
   DIRECTORY_BUDGET_CAPS,
 } from "@/lib/publicInfluencer";
+import { resolveCompletionRate } from "@/lib/completionRate";
 
 export interface Influencer {
   id: string | number;
@@ -359,7 +360,10 @@ export default function Directory({
               avg_rating: inf.avg_rating || 0,
               total_reviews: inf.total_reviews || 0,
               avg_response_time: inf.avg_response_time ?? null,
-              completion_rate: inf.completion_rate ?? null,
+              completion_rate: resolveCompletionRate(inf.completion_rate, {
+                totalReviews: inf.total_reviews,
+                requireCollabEvidence: true,
+              }),
               past_brands: inf.past_brands || 0,
               created_at: inf.created_at,
               age: typeof inf.age === "number" ? inf.age : null,

@@ -1,5 +1,6 @@
 import { normalizeGender, type GenderValue } from "@/lib/gender";
 import { parseStoredCategories } from "@/lib/categories";
+import { resolveCompletionRate } from "@/lib/completionRate";
 import { parseFollowerString } from "@/lib/parseFollowers";
 import { toPublicProfile } from "@/lib/publicInfluencer";
 
@@ -146,7 +147,13 @@ export function viewModelFromPublicRow(row: Record<string, unknown>): ProfileVie
     avg_rating: typeof data.avg_rating === "number" ? data.avg_rating : 0,
     total_reviews: typeof data.total_reviews === "number" ? data.total_reviews : 0,
     avg_response_time: typeof data.avg_response_time === "number" ? data.avg_response_time : undefined,
-    completion_rate: typeof data.completion_rate === "number" ? data.completion_rate : undefined,
+    completion_rate: (() => {
+      const usable = resolveCompletionRate(data.completion_rate, {
+        totalReviews: typeof data.total_reviews === "number" ? data.total_reviews : 0,
+        requireCollabEvidence: true,
+      });
+      return usable == null ? undefined : usable;
+    })(),
     availability_status: typeof data.availability_status === "string" ? data.availability_status : "available",
     skills: asStringArray(data.skills),
     certifications: asStringArray(data.certifications),

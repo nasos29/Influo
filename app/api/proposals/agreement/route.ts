@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseService } from "@/lib/apiAuth";
+import { refreshInfluencerTrustMetrics } from "@/lib/influencerMetrics";
 import {
   brandHasAccount,
   guardProposalAction,
@@ -71,6 +72,8 @@ export async function POST(request: Request) {
     const completed = influencerAccepted && brandAccepted && !proposal.brand_added_to_past_brands;
 
     if (completed) {
+      // Mutual agreement acceptance → proposal is fully completed (not merely accepted).
+      updateData.status = "completed";
       updateData.agreement_accepted_at = new Date().toISOString();
       const current = await supabaseService()
         .from("influencers")
@@ -124,6 +127,7 @@ export async function POST(request: Request) {
             brandName,
           }),
           notifyOther,
+          refreshInfluencerTrustMetrics(supabaseService(), String(proposal.influencer_id)),
         ]);
         return;
       }

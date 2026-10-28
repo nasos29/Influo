@@ -21,6 +21,7 @@ import {
   type ToolSectionId,
 } from "@/lib/brandToolsStorage";
 import { toPublicHttpsHref } from "@/lib/brandProfile";
+import { COMPLETION_NONE_SUBTITLE, formatCompletionRateDisplay } from "@/lib/completionRate";
 
 type Props = {
   lang: "el" | "en";
@@ -380,7 +381,9 @@ export default function BrandToolsPanel({
         s.engagementRate != null ? String(s.engagementRate) : "",
         rate != null ? String(rate) : "",
         s.avgResponseTime != null ? String(s.avgResponseTime) : "",
-        s.completionRate != null ? String(s.completionRate) : "",
+        s.completionRate != null
+          ? String(s.completionRate)
+          : COMPLETION_NONE_SUBTITLE[el ? "el" : "en"],
         s.note || "",
         `https://www.influo.gr${path}`,
       ].map((c) => escapeCsv(c));
@@ -628,8 +631,15 @@ export default function BrandToolsPanel({
                             ],
                             [
                               "Completion",
-                              (s: BrandShortlistItem) =>
-                                s.completionRate != null ? `${s.completionRate}%` : "—",
+                              (s: BrandShortlistItem) => {
+                                const shown = formatCompletionRateDisplay(
+                                  s.completionRate,
+                                  el ? "el" : "en"
+                                );
+                                return shown.subtitle
+                                  ? `${shown.primary} (${shown.subtitle})`
+                                  : shown.primary;
+                              },
                             ],
                           ] as const
                         ).map(([label, fn]) => (
