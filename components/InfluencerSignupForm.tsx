@@ -22,6 +22,7 @@ import {
   athensTodayYmd,
   validateBirthDate,
 } from "@/lib/validateBirthDate";
+import { normalizeYouTubeUsernameForSave } from "@/lib/youtubeHandle";
 
 type Account = { platform: string; username: string; followers: string; engagement_rate?: string; avg_likes?: string };
 type Lang = "el" | "en";
@@ -652,7 +653,14 @@ export default function InfluencerSignupForm() {
       
       const socialAccounts = accounts
         .filter(acc => acc.platform !== 'Facebook')
-        .map(acc => ({ ...acc, username: normalizeUsername(acc.username) }));
+        .map(acc => {
+          const platform = String(acc.platform || "").toLowerCase();
+          const username =
+            platform === "youtube"
+              ? normalizeYouTubeUsernameForSave(acc.username)
+              : normalizeUsername(acc.username);
+          return { ...acc, username };
+        });
 
       const preparedVideos = prepareVideosForSave(videos);
       if (!preparedVideos.ok) {

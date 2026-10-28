@@ -44,6 +44,8 @@ type AccountRow = {
   er_penalty_percent?: number | null;
   penalty_percent?: number | null;
   top_posts?: TopPost[];
+  channel_id?: string;
+  channel_handle?: string;
 };
 
 function isSocialMetrics(x: SocialMetrics | { error: string }): x is SocialMetrics {
@@ -249,6 +251,11 @@ export async function doRefreshSocialStats(
           is_private: flagged.is_private === true,
           // Only overwrite top_posts when Auditpr included them (preserve prior otherwise).
           ...(flagged.top_posts !== undefined ? { top_posts: flagged.top_posts } : {}),
+          // YouTube channel identity — keep prior when Auditpr omitted the keys.
+          ...(flagged.channel_id !== undefined ? { channel_id: flagged.channel_id } : {}),
+          ...(flagged.channel_handle !== undefined
+            ? { channel_handle: flagged.channel_handle }
+            : {}),
         };
         if (fetchedViaAuditpr && !firstRefreshedForAudit) {
           firstRefreshedForAudit = { platform: platformLower, username: username.replace(/^@+/, '').trim() };

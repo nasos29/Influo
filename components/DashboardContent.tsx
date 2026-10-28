@@ -35,6 +35,7 @@ import {
     writeIdList,
 } from '@/lib/dashboardBadges';
 import { displayNameForLang } from '@/lib/greeklish';
+import { normalizeYouTubeUsernameForSave } from '@/lib/youtubeHandle';
 import {
     BIRTH_DATE_MIN,
     athensTodayYmd,
@@ -221,6 +222,9 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                 'quality_penalty_percent',
                 'er_penalty_percent',
                 'penalty_percent',
+                'channel_id',
+                'channel_handle',
+                'top_posts',
             ]) {
                 const val = oldRec[key];
                 if (val !== undefined && val !== null && val !== '') merged[key] = val;
@@ -333,9 +337,17 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
             
             const validGender = normalizeGender(gender);
             
-            const filteredAccounts = accounts.filter(
-                (acc) => acc.username && acc.platform && acc.platform !== 'Facebook'
-            );
+            const filteredAccounts = accounts
+                .filter(
+                    (acc) => acc.username && acc.platform && acc.platform !== 'Facebook'
+                )
+                .map((acc) => {
+                    if (String(acc.platform || '').toLowerCase() !== 'youtube') return acc;
+                    return {
+                        ...acc,
+                        username: normalizeYouTubeUsernameForSave(acc.username),
+                    };
+                });
             const accountsForSave = mergeAccountsPreservingMetrics(
                 filteredAccounts,
                 (currentData.accounts || []) as Account[]

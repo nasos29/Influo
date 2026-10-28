@@ -5,6 +5,7 @@ import { findPrivateFieldPaths } from "@/lib/publicInfluencer";
 import type { ProfileViewModel } from "@/lib/profileViewModel";
 import { publicProfilePath } from "@/lib/profileSlug";
 import { absoluteUrl, languageAlternates, SITE_NAME, SITE_URL } from "@/lib/site";
+import { youtubeChannelUrl, type YoutubeAccountLike } from "@/lib/youtubeHandle";
 
 function seoDisplayName(profile: ProfileViewModel): string {
   return displayNameForLang(profile.name || "Influencer", "el") || "Influencer";
@@ -137,16 +138,31 @@ export function profileMetadata(profile: ProfileViewModel): Metadata {
   };
 }
 
-function socialProfileUrl(platform: string, username: string): string | null {
+function accountForPlatform(
+  profile: ProfileViewModel,
+  platform: string
+): YoutubeAccountLike | undefined {
+  const key = platform.toLowerCase();
+  const row = (profile.accounts || []).find(
+    (acc) => String(acc?.platform || "").toLowerCase() === key
+  );
+  if (!row || typeof row !== "object") return undefined;
+  return row as YoutubeAccountLike;
+}
+
+function socialProfileUrl(
+  platform: string,
+  username: string,
+  account?: YoutubeAccountLike
+): string | null {
+  const key = platform.toLowerCase();
+  if (key === "youtube") {
+    return youtubeChannelUrl(account || { username });
+  }
   const handle = username.trim().replace(/^@/, "");
   if (!handle || handle.includes("@") || /\s/.test(handle)) return null;
-  const key = platform.toLowerCase();
   if (key === "instagram") return `https://www.instagram.com/${handle}/`;
   if (key === "tiktok") return `https://www.tiktok.com/@${handle}`;
-  if (key === "youtube") {
-    if (handle.startsWith("http")) return handle;
-    return `https://www.youtube.com/@${handle}`;
-  }
   if (key === "twitter" || key === "x") return `https://twitter.com/${handle}`;
   return null;
 }
@@ -162,7 +178,9 @@ function publicBio(profile: ProfileViewModel): string {
 export function profileJsonLd(profile: ProfileViewModel): Record<string, unknown> {
   const url = profileCanonical(profile);
   const sameAs = Object.entries(profile.socials || {})
-    .map(([platform, username]) => socialProfileUrl(platform, username))
+    .map(([platform, username]) =>
+      socialProfileUrl(platform, username, accountForPlatform(profile, platform))
+    )
     .filter((item): item is string => !!item);
   const top = topFollowers(profile);
   const person: Record<string, unknown> = {

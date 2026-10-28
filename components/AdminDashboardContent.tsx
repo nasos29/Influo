@@ -46,6 +46,7 @@ import {
   validateBirthDate,
 } from "@/lib/validateBirthDate";
 import { MAX_ANNOUNCEMENT_SPECIFIC_RECIPIENTS } from "@/lib/announcementTargets";
+import { normalizeYouTubeUsernameForSave } from "@/lib/youtubeHandle";
 import AnnouncementRecipientMultiSelect from "@/components/AnnouncementRecipientMultiSelect";
 
 async function adminAuthHeaders(): Promise<Record<string, string>> {
@@ -1196,9 +1197,18 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                 const langItem = LANGUAGES.find(l => l.code === code);
                 return langItem ? langItem.el : code;
             }).join(", ");
-            const nextAccounts = (accounts || []).filter(
-                (acc: { platform?: string }) => (acc.platform || '').toLowerCase() !== 'facebook'
-            );
+            const nextAccounts = (accounts || [])
+                .filter(
+                    (acc: { platform?: string }) => (acc.platform || '').toLowerCase() !== 'facebook'
+                )
+                .map((acc: { platform?: string; username?: string; [key: string]: unknown }) => {
+                    if (String(acc.platform || '').toLowerCase() !== 'youtube') return acc;
+                    const username = String(acc.username || '');
+                    return {
+                        ...acc,
+                        username: normalizeYouTubeUsernameForSave(username),
+                    };
+                });
             const preparedVideos = prepareVideosForSave(videos);
             if (!preparedVideos.ok) {
                 setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR.el);
