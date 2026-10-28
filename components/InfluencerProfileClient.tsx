@@ -29,7 +29,7 @@ import FollowerGrowthChart from "@/components/FollowerGrowthChart";
 import InfoTooltip from "@/components/InfoTooltip";
 import StatsInsightsPanel from "@/components/StatsInsightsPanel";
 import { buildChannelScore } from "@/lib/channelScore";
-import { bestAvgViews, estimateCpm, formatCpmEuro } from "@/lib/cpm";
+import { averageAvgViews, estimateCpm, formatCpmEuro } from "@/lib/cpm";
 import { resolveCompletionRate } from "@/lib/completionRate";
 import { loadOwnBrand, loadOwnProfiles } from "@/lib/ownProfile";
 import { creatorHasHardErOnMainAccount, displayErFlag, erFlagHint, erFlagLabel } from "@/lib/engagementFlags";
@@ -1924,7 +1924,7 @@ export default function InfluencerProfile(props: {
                 </div>
               );
 
-              const avgViewsForCpm = bestAvgViews(profile.accounts);
+              const avgViewsForCpm = averageAvgViews(profile.accounts);
               const cpmValue = estimateCpm(profile.min_rate, avgViewsForCpm);
               const showCpmCard =
                 !!(profile.has_min_rate || profile.min_rate) && avgViewsForCpm >= 100;

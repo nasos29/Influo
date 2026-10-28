@@ -1,7 +1,7 @@
 // node --experimental-strip-types --import ./scripts/resolve-ts-imports.mjs --test scripts/cpm.test.mts
 import assert from "node:assert/strict";
 import test from "node:test";
-import { bestAvgViews, estimateCpm, formatCpmEuro } from "../lib/cpm.ts";
+import { averageAvgViews, estimateCpm, formatCpmEuro } from "../lib/cpm.ts";
 
 test("estimateCpm: min_rate / avg_views * 1000 with 2-decimal rounding", () => {
   assert.equal(estimateCpm("100", 10000), 10);
@@ -20,16 +20,24 @@ test("estimateCpm: missing rate or views < 100 → null", () => {
   assert.equal(estimateCpm("100", null), null);
 });
 
-test("bestAvgViews picks the highest parsed account views", () => {
-  assert.equal(bestAvgViews(null), 0);
-  assert.equal(bestAvgViews([]), 0);
+test("averageAvgViews averages positive parsed views and ignores 0/null", () => {
+  assert.equal(averageAvgViews(null), 0);
+  assert.equal(averageAvgViews([]), 0);
   assert.equal(
-    bestAvgViews([
+    averageAvgViews([
+      { avg_views: "800" },
+      { avg_views: "1200" },
+    ]),
+    1000
+  );
+  assert.equal(
+    averageAvgViews([
       { avg_views: "800" },
       { avg_views: "12k" },
       { avg_views: null },
+      { avg_views: 0 },
       { avg_views: "2.5k" },
     ]),
-    12000
+    (800 + 12000 + 2500) / 3
   );
 });

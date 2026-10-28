@@ -59,7 +59,7 @@ export default function InfoTooltip({
         <span
           id={tipId}
           role="tooltip"
-          className="absolute left-1/2 top-full z-40 mt-1.5 w-48 -translate-x-1/2 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-left text-[11px] font-normal normal-case tracking-normal text-slate-600 shadow-lg sm:w-56"
+          className="absolute left-1/2 top-full z-40 mt-1.5 w-44 -translate-x-1/2 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-left text-[10px] font-normal leading-snug normal-case tracking-normal text-slate-600 shadow-lg"
         >
           {text}
         </span>
