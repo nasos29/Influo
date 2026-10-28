@@ -14,6 +14,35 @@ const supabaseAdmin = createClient(
   { auth: { autoRefreshToken: false, persistSession: false } }
 );
 
+type InfluencerGrowthRow = {
+  id: string;
+  accounts?: unknown;
+  last_social_refresh_at?: string | null;
+};
+
+async function loadInfluencerForGrowth(
+  id: string
+): Promise<{ ok: true; data: InfluencerGrowthRow } | { ok: false; status: number }> {
+  const full = await supabaseAdmin
+    .from('influencers')
+    .select('id, accounts, last_social_refresh_at')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (full.error && /last_social_refresh_at|column/i.test(full.error.message)) {
+    const bare = await supabaseAdmin
+      .from('influencers')
+      .select('id, accounts')
+      .eq('id', id)
+      .maybeSingle();
+    if (bare.error || !bare.data) return { ok: false, status: 404 };
+    return { ok: true, data: bare.data };
+  }
+
+  if (full.error || !full.data) return { ok: false, status: 404 };
+  return { ok: true, data: full.data };
+}
+
 export async function GET(
   _request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -24,30 +53,11 @@ export async function GET(
       return NextResponse.json({ error: 'id required' }, { status: 400 });
     }
 
-    let influencer: { id: string; accounts?: unknown; last_social_refresh_at?: string | null } | null =
-      null;
-    {
-      const full = await supabaseAdmin
-        .from('influencers')
-        .select('id, accounts, last_social_refresh_at')
-        .eq('id', id)
-        .maybeSingle();
-      if (full.error && /last_social_refresh_at|column/i.test(full.error.message)) {
-        const bare = await supabaseAdmin
-          .from('influencers')
-          .select('id, accounts')
-          .eq('id', id)
-          .maybeSingle();
-        if (bare.error || !bare.data) {
-          return NextResponse.json({ error: 'Influencer not found' }, { status: 404 });
-        }
-        influencer = bare.data;
-      } else if (full.error || !full.data) {
-        return NextResponse.json({ error: 'Influencer not found' }, { status: 404 });
-      } else {
-        influencer = full.data;
-      }
+    const loaded = await loadInfluencerForGrowth(id);
+    if (!loaded.ok) {
+      return NextResponse.json({ error: 'Influencer not found' }, { status: loaded.status });
     }
+    const influencer = loaded.data;
 
     const accounts = (influencer.accounts as Array<{ followers?: string | number | null }>) ?? [];
     const currentTotal = totalFollowersFromAccounts(accounts);
