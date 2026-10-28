@@ -1713,9 +1713,9 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                                             <div className="mt-2 w-full max-w-lg">
                                                                 <SocialEmbedCard
                                                                     provider={provider}
-                                                                    embedUrl={embedUrl}
-                                                                    thumbnailUrl={thumbnailUrl}
                                                                     originalUrl={video}
+                                                                    embedUrl={embedUrl}
+                                                                    lang="el"
                                                                 />
                                                             </div>
                                                         );

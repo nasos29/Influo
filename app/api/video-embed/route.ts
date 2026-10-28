@@ -78,23 +78,18 @@ function isOfficialTikTokEmbed(embedUrl: string): boolean {
   return /tiktok\.com\/embed\/v2\/\d+/i.test(embedUrl);
 }
 
-/** Resolve YouTube watch/shorts/youtu.be → 11-char video id. */
-function resolveYouTubeVideoId(url: string): string | null {
-  const clean = url.trim();
-  const patterns = [
-    /(?:youtube\.com\/(?:watch\?(?:[^#]*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/i,
-    /[?&]v=([A-Za-z0-9_-]{11})/i,
-  ];
-  for (const re of patterns) {
-    const m = clean.match(re);
-    if (m?.[1]) return m[1];
-  }
-  return null;
-}
-
 function isStaleIframelyCache(embedUrl: string): boolean {
   // Old caches pointed at Iframely proxy frames which often need a 2nd play click.
   return /iframe\.ly|frame=1/i.test(embedUrl);
+}
+
+const JSON_CACHE_CONTROL = "public, s-maxage=86400, stale-while-revalidate=604800";
+
+function jsonWithCache(body: Record<string, unknown>, init?: { status?: number }) {
+  return NextResponse.json(body, {
+    status: init?.status,
+    headers: { "Cache-Control": JSON_CACHE_CONTROL },
+  });
 }
 
 /**
@@ -114,6 +109,7 @@ export async function GET(req: NextRequest) {
 
     const provider = detectProvider(originalUrl);
 
+    // Instagram / YouTube embeds are built client-side (deterministic) — no DB cache writes.
     // TikTok: serve cached official embed first (short-link resolve often stalls on Vercel).
     if (provider === 'tiktok' && !frameMode) {
       try {
@@ -127,7 +123,7 @@ export async function GET(req: NextRequest) {
           isOfficialTikTokEmbed(String(cachedTt.embed_url)) &&
           new Date(cachedTt.expires_at) > new Date()
         ) {
-          return NextResponse.json({
+          return jsonWithCache({
             embed_url: cachedTt.embed_url,
             provider: 'tiktok',
             cached: true,
@@ -157,67 +153,9 @@ export async function GET(req: NextRequest) {
         } catch {
           /* cache optional */
         }
-        return NextResponse.json({
+        return jsonWithCache({
           embed_url: embedUrl,
           provider: 'tiktok',
-          cached: false,
-        });
-      }
-    }
-
-    // YouTube: official embed (native poster + one Play).
-    if (provider === 'youtube' && !frameMode) {
-      const videoId = resolveYouTubeVideoId(originalUrl);
-      if (videoId) {
-        const embedUrl = `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&playsinline=1`;
-        try {
-          const expiresAt = new Date();
-          expiresAt.setDate(expiresAt.getDate() + 30);
-          await supabaseAdmin.from('video_embed_cache').upsert(
-            {
-              original_url: originalUrl,
-              embed_url: embedUrl,
-              provider: 'youtube',
-              cached_at: new Date().toISOString(),
-              expires_at: expiresAt.toISOString(),
-            },
-            { onConflict: 'original_url' }
-          );
-        } catch {
-          /* cache optional */
-        }
-        return NextResponse.json({
-          embed_url: embedUrl,
-          provider: 'youtube',
-          cached: false,
-        });
-      }
-    }
-
-    // Instagram: official embed (skip Iframely double-play / black frames).
-    if (provider === 'instagram' && !frameMode) {
-      const ig = originalUrl.match(/instagram\.com\/(reel|p|tv)\/([A-Za-z0-9_-]+)/i);
-      if (ig) {
-        const embedUrl = `https://www.instagram.com/${ig[1].toLowerCase()}/${ig[2]}/embed`;
-        try {
-          const expiresAt = new Date();
-          expiresAt.setDate(expiresAt.getDate() + 30);
-          await supabaseAdmin.from('video_embed_cache').upsert(
-            {
-              original_url: originalUrl,
-              embed_url: embedUrl,
-              provider: 'instagram',
-              cached_at: new Date().toISOString(),
-              expires_at: expiresAt.toISOString(),
-            },
-            { onConflict: 'original_url' }
-          );
-        } catch {
-          /* cache optional */
-        }
-        return NextResponse.json({
-          embed_url: embedUrl,
-          provider: 'instagram',
           cached: false,
         });
       }
@@ -274,17 +212,12 @@ export async function GET(req: NextRequest) {
             cached.provider === 'instagram') &&
           isStaleIframelyCache(String(cached.embed_url || ''));
         if (expiresAt > new Date() && !staleIframely) {
-          const res = NextResponse.json({
+          return jsonWithCache({
             embed_url: cached.embed_url,
             provider: cached.provider,
             cached: true,
             cached_at: cached.cached_at,
           });
-          res.headers.set(
-            'Cache-Control',
-            `public, max-age=${EMBED_CACHE_SECONDS}, s-maxage=${EMBED_CACHE_SECONDS}`
-          );
-          return res;
         }
       }
     } catch (dbError) {
@@ -331,20 +264,15 @@ export async function GET(req: NextRequest) {
       console.log('Cache save failed (table might not exist):', dbError);
     }
 
-    const res = NextResponse.json({
+    return jsonWithCache({
       embed_url: embedUrl,
       provider,
       cached: false,
     });
-    res.headers.set(
-      'Cache-Control',
-      `public, max-age=${EMBED_CACHE_SECONDS}, s-maxage=${EMBED_CACHE_SECONDS}`
-    );
-    return res;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in video-embed:', error);
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }
     );
   }

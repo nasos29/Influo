@@ -1072,8 +1072,9 @@ export default function InfluencerSignupForm() {
                                     <div className="mt-2 w-full max-w-lg">
                                         <SocialEmbedCard
                                             provider={provider}
-                                            embedUrl={embedUrl}
                                             originalUrl={vid}
+                                            embedUrl={embedUrl}
+                                            lang={lang}
                                         />
                                     </div>
                                 )}
