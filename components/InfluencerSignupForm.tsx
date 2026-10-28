@@ -12,6 +12,11 @@ import { formatStoredCategories } from "@/lib/categories";
 import CategoryCheckboxList from "./CategoryCheckboxList";
 import SocialEmbedCard from "./SocialEmbedCard";
 import { clearLoggedOutMark } from "@/lib/authSession";
+import {
+  BIRTH_DATE_MIN,
+  athensTodayYmd,
+  validateBirthDate,
+} from "@/lib/validateBirthDate";
 
 type Account = { platform: string; username: string; followers: string; engagement_rate?: string; avg_likes?: string };
 type Lang = "el" | "en";
@@ -55,6 +60,8 @@ const t = {
     birthDatePlace: "π.χ. 1995-01-15",
     birthDateRequired: "Παρακαλώ συμπληρώστε την ημερομηνία γέννησής σας.",
     birthDateInvalid: "Η ημερομηνία γέννησης δεν είναι έγκυρη.",
+    birthDateOutOfRange: "Η ημερομηνία γέννησης πρέπει να είναι μεταξύ 1930 και σήμερα.",
+    birthDateTooYoung: "Πρέπει να είσαι τουλάχιστον 15 ετών για να εγγραφείς στο Influo.",
     emailLabel: "Email Επικοινωνίας",
     passLabel: "Κωδικός (τουλάχιστον 6 χαρακτήρες)", 
     passShow: "Εμφάνιση",
@@ -126,6 +133,8 @@ const t = {
     birthDatePlace: "e.g. 1995-01-15",
     birthDateRequired: "Please enter your date of birth.",
     birthDateInvalid: "The date of birth is not valid.",
+    birthDateOutOfRange: "Date of birth must be between 1930 and today.",
+    birthDateTooYoung: "You must be at least 15 years old to sign up to Influo.",
     emailLabel: "Contact Email",
     passLabel: "Password (min 6 characters)", 
     passShow: "Show",
@@ -374,8 +383,13 @@ export default function InfluencerSignupForm() {
           if (!birthDate.trim()) {
               throw new Error(txt.birthDateRequired);
           }
-          if (isNaN(new Date(birthDate).getTime())) {
-              throw new Error(txt.birthDateInvalid);
+          {
+              const birthCheck = validateBirthDate(birthDate);
+              if (!birthCheck.ok) {
+                  if (birthCheck.code === "out_of_range") throw new Error(txt.birthDateOutOfRange);
+                  if (birthCheck.code === "too_young") throw new Error(txt.birthDateTooYoung);
+                  throw new Error(txt.birthDateInvalid);
+              }
           }
 
           if (password.length < 6) {
@@ -449,7 +463,7 @@ export default function InfluencerSignupForm() {
               }
           }
           
-          const errorMessage = err.message.includes("ήδη καταχωρημένο") || err.message.includes("already registered") || err.message.includes("6 χαρακτήρες") || err.message.includes("βιογραφικό") || err.message.includes("biography") || err.message.includes("ημερομηνία γέννησης") || err.message.includes("date of birth") || err.message.includes("Date of birth") ? err.message : (lang === "el" ? "Σφάλμα: " : "Error: ") + err.message;
+          const errorMessage = err.message.includes("ήδη καταχωρημένο") || err.message.includes("already registered") || err.message.includes("6 χαρακτήρες") || err.message.includes("βιογραφικό") || err.message.includes("biography") || err.message.includes("ημερομηνία γέννησης") || err.message.includes("date of birth") || err.message.includes("Date of birth") || err.message.includes("τουλάχιστον 15") || err.message.includes("at least 15") || err.message.includes("μεταξύ 1930") || err.message.includes("between 1930") ? err.message : (lang === "el" ? "Σφάλμα: " : "Error: ") + err.message;
           setMessage(errorMessage); 
       } finally {
           setLoading(false);
@@ -488,10 +502,14 @@ export default function InfluencerSignupForm() {
           setStep(1);
           throw new Error(txt.birthDateRequired);
       }
-      if (isNaN(new Date(birthDate).getTime())) {
+      const birthCheck = validateBirthDate(birthDate);
+      if (!birthCheck.ok) {
           setStep(1);
+          if (birthCheck.code === "out_of_range") throw new Error(txt.birthDateOutOfRange);
+          if (birthCheck.code === "too_young") throw new Error(txt.birthDateTooYoung);
           throw new Error(txt.birthDateInvalid);
       }
+      const normalizedBirthDate = birthCheck.normalized;
       
       // 1. Auth: Δημιουργία Χρήστη (Sign Up)
       let authData: any;
@@ -617,7 +635,7 @@ export default function InfluencerSignupForm() {
           gender: validGender, 
           category: formatStoredCategories(categories) || null,
           location,
-          birth_date: birthDate,
+          birth_date: normalizedBirthDate,
           languages: languagesCodesToStored(selectedLanguages),
           min_rate: minRate,
           contact_email: email,
@@ -799,7 +817,8 @@ export default function InfluencerSignupForm() {
                       onChange={(e) => setBirthDate(e.target.value)}
                       placeholder={txt.birthDatePlace}
                       required
-                      max={new Date().toISOString().slice(0, 10)}
+                      min={BIRTH_DATE_MIN}
+                      max={athensTodayYmd()}
                     />
                 </div>
 
