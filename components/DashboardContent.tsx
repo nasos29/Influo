@@ -8,6 +8,11 @@ import { supabase } from '@/lib/supabaseClient';
 import { sessionFetch } from '@/lib/sessionFetch';
 import Image from 'next/image';
 import { getVideoThumbnail, isVideoUrl, isDefinitelyVideo, isDefinitelyImage, detectProvider, isEmbeddableVideoUrl } from '@/lib/videoThumbnail';
+import {
+    FACEBOOK_VIDEO_LINK_ERROR,
+    cleanVideoLink,
+    prepareVideosForSave,
+} from '@/lib/videoLinks';
 import VideoThumbnail from './VideoThumbnail';
 import Messaging from './Messaging';
 import Analytics from './Analytics';
@@ -232,10 +237,32 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
         }
     };
 
+    const [videoLinkError, setVideoLinkError] = useState<string | null>(null);
     const handleVideoChange = (i: number, value: string) => {
+        setVideoLinkError(null);
         const copy = [...videos];
         copy[i] = value;
         setVideos(copy);
+    };
+    const handleVideoBlur = (i: number) => {
+        const raw = videos[i] || '';
+        if (!raw.trim()) return;
+        const cleaned = cleanVideoLink(raw);
+        if (!cleaned.ok) {
+            if (cleaned.reason === 'facebook') {
+                setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR.el);
+                const copy = [...videos];
+                copy[i] = '';
+                setVideos(copy);
+            }
+            return;
+        }
+        setVideoLinkError(null);
+        if (cleaned.url !== raw) {
+            const copy = [...videos];
+            copy[i] = cleaned.url;
+            setVideos(copy);
+        }
     };
     const addVideo = () => setVideos([...videos, ""]);
     const removeVideo = (i: number) => {
@@ -314,6 +341,14 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                 (currentData.accounts || []) as Account[]
             );
 
+            const preparedVideos = prepareVideosForSave(videos);
+            if (!preparedVideos.ok) {
+                setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR.el);
+                alert(FACEBOOK_VIDEO_LINK_ERROR.el);
+                setLoading(false);
+                return;
+            }
+
             const newValues: any = {
                 display_name: name, 
                 bio: bio, 
@@ -324,7 +359,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                 languages: languagesString,
                 gender: validGender,
                 accounts: accountsForSave,
-                videos: videos.filter(v => v !== ""),
+                videos: preparedVideos.videos,
                 audience_male_percent: malePercent ? parseInt(malePercent) : null,
                 audience_female_percent: femalePercent ? parseInt(femalePercent) : null,
                 audience_top_age: topAge || null,
@@ -788,7 +823,8 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                             <input 
                                                 type="url" 
                                                 value={video} 
-                                                onChange={e => handleVideoChange(i, e.target.value)} 
+                                                onChange={e => handleVideoChange(i, e.target.value)}
+                                                onBlur={() => handleVideoBlur(i)}
                                                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" 
                                                 placeholder="https://youtube.com/... ή https://image.com/..." 
                                             />
@@ -831,6 +867,11 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                     </div>
                                 );
                             })}
+                            {videoLinkError ? (
+                              <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                                {videoLinkError}
+                              </p>
+                            ) : null}
                             <button type="button" onClick={addVideo} className="text-sm text-blue-600 hover:text-blue-700 font-medium">+ Προσθήκη Video Link / Φωτογραφίας</button>
                         </div>
                     </div>

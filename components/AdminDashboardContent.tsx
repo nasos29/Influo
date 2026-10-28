@@ -4,6 +4,11 @@ import { Fragment, useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient"; 
 import Image from "next/image";
 import { isDefinitelyVideo, isDefinitelyImage, detectProvider, getVideoEmbedApiUrl, isEmbeddableVideoUrl } from "@/lib/videoThumbnail";
+import {
+  FACEBOOK_VIDEO_LINK_ERROR,
+  cleanVideoLink,
+  prepareVideosForSave,
+} from "@/lib/videoLinks";
 import VideoThumbnail from "./VideoThumbnail";
 import SocialEmbedCard from "./SocialEmbedCard";
 import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
@@ -869,8 +874,10 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
         setAccounts(copy); 
     };
 
+    const [videoLinkError, setVideoLinkError] = useState<string | null>(null);
     const handleVideoChange = (i: number, value: string) => {
         markSensitiveTouched("videos");
+        setVideoLinkError(null);
         const copy = [...videos];
         const oldUrl = copy[i];
         copy[i] = value;
@@ -885,6 +892,41 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                 setVideoThumbnails({ ...newThumbnails, [value]: videoThumbnails[value] });
             } else {
                 setVideoThumbnails(newThumbnails);
+            }
+        }
+    };
+    const handleVideoBlur = (i: number) => {
+        const raw = videos[i] || "";
+        if (!raw.trim()) return;
+        const cleaned = cleanVideoLink(raw);
+        if (!cleaned.ok) {
+            if (cleaned.reason === "facebook") {
+                setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR.el);
+                markSensitiveTouched("videos");
+                const copy = [...videos];
+                const oldUrl = copy[i];
+                copy[i] = "";
+                setVideos(copy);
+                if (oldUrl && videoThumbnails[oldUrl]) {
+                    const newThumbnails = { ...videoThumbnails };
+                    delete newThumbnails[oldUrl];
+                    setVideoThumbnails(newThumbnails);
+                }
+            }
+            return;
+        }
+        setVideoLinkError(null);
+        if (cleaned.url !== raw) {
+            markSensitiveTouched("videos");
+            const copy = [...videos];
+            const oldUrl = copy[i];
+            copy[i] = cleaned.url;
+            setVideos(copy);
+            if (oldUrl && oldUrl !== cleaned.url && videoThumbnails[oldUrl]) {
+                const newThumbnails = { ...videoThumbnails };
+                const prev = newThumbnails[oldUrl];
+                delete newThumbnails[oldUrl];
+                setVideoThumbnails({ ...newThumbnails, [cleaned.url]: prev });
             }
         }
     };
@@ -1157,7 +1199,14 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
             const nextAccounts = (accounts || []).filter(
                 (acc: { platform?: string }) => (acc.platform || '').toLowerCase() !== 'facebook'
             );
-            const nextVideos = videos.filter(v => v !== "");
+            const preparedVideos = prepareVideosForSave(videos);
+            if (!preparedVideos.ok) {
+                setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR.el);
+                alert(FACEBOOK_VIDEO_LINK_ERROR.el);
+                setLoading(false);
+                return;
+            }
+            const nextVideos = preparedVideos.videos;
             const nextGender = normalizeGender(gender);
             const nextMale = parseInt(malePercent) || 0;
             const nextFemale = parseInt(femalePercent) || 0;
@@ -1624,7 +1673,14 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                         <div className="flex gap-2 items-end">
                                             <div className="flex-1">
                                                 <label className="block text-xs font-semibold text-slate-700 mb-1">Video/Photo URL</label>
-                                                <input type="url" value={video} onChange={e => handleVideoChange(i, e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" placeholder="https://..." />
+                                                <input
+                                                  type="url"
+                                                  value={video}
+                                                  onChange={e => handleVideoChange(i, e.target.value)}
+                                                  onBlur={() => handleVideoBlur(i)}
+                                                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
+                                                  placeholder="https://..."
+                                                />
                                             </div>
                                             <button type="button" onClick={() => removeVideo(i)} className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">✕</button>
                                         </div>
@@ -1757,6 +1813,11 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                     </div>
                                 );
                             })}
+                            {videoLinkError ? (
+                              <p className="mt-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                                {videoLinkError}
+                              </p>
+                            ) : null}
                             <button type="button" onClick={addVideo} className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm">+ Προσθήκη Video Link / Φωτογραφίας</button>
                         </div>
 

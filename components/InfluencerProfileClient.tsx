@@ -18,6 +18,7 @@ import { sessionFetch } from "@/lib/sessionFetch";
 import { presenceOnline } from "@/lib/presenceStatus";
 import { counterpartyInfluencerPresence } from "@/lib/presenceIdentity";
 import { getVideoThumbnail, isDefinitelyVideo, isDefinitelyImage, detectProvider, getVideoEmbedApiUrl, isEmbeddableVideoUrl } from "@/lib/videoThumbnail";
+import { isFacebookVideoUrl } from "@/lib/videoLinks";
 import VideoThumbnail from "@/components/VideoThumbnail";
 import SocialEmbedCard from "@/components/SocialEmbedCard";
 import { getBadges, getBadgeStyles } from "@/lib/badges";
@@ -2552,6 +2553,8 @@ export default function InfluencerProfile(props: {
                                 .map((vid) => String(vid || "").trim())
                                 .filter((vid) => {
                                   if (!vid) return false;
+                                  // Legacy Facebook links are not embeddable — hide without DB change.
+                                  if (isFacebookVideoUrl(vid)) return false;
                                   if (isDefinitelyImage(vid)) return true;
                                   if (isEmbeddableVideoUrl(vid)) return true;
                                   // Skip profile/channel/stories links that are not embeddable videos.
