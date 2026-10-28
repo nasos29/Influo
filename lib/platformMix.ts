@@ -9,6 +9,8 @@ export type PlatformMixRow = {
   pct: number;
   er: number | null;
   likes: number | null;
+  /** Average views for the platform when > 0. */
+  avgViews: number | null;
 };
 
 const PLATFORMS: Array<{ key: string; label: { el: string; en: string }; color: string }> = [
@@ -19,10 +21,9 @@ const PLATFORMS: Array<{ key: string; label: { el: string; en: string }; color: 
   { key: "facebook", label: { el: "Facebook", en: "Facebook" }, color: "#2563eb" },
 ];
 
-function metricForPlatform(
-  raw: string | { [key: string]: string } | number | null | undefined,
-  key: string
-): string | number | null {
+type PlatformMetricRaw = string | { [key: string]: string } | number | null | undefined;
+
+function metricForPlatform(raw: PlatformMetricRaw, key: string): string | number | null {
   if (raw == null) return null;
   if (typeof raw === "number") return raw;
   if (typeof raw === "object") {
@@ -32,10 +33,28 @@ function metricForPlatform(
   return raw;
 }
 
+function avgViewsForPlatform(
+  accounts: Array<{ platform?: string | null; avg_views?: string | number | null }> | null | undefined,
+  key: string
+): number | null {
+  if (!Array.isArray(accounts)) return null;
+  let best = 0;
+  for (const acc of accounts) {
+    const platform = String(acc?.platform || "")
+      .toLowerCase()
+      .trim();
+    if (platform !== key) continue;
+    const v = parseFollowerString(acc?.avg_views);
+    if (v > best) best = v;
+  }
+  return best > 0 ? best : null;
+}
+
 export function buildPlatformMix(
   followers: { [key: string]: number | undefined } | null | undefined,
   engagementRate?: string | { [key: string]: string } | null,
-  avgLikes?: string | { [key: string]: string } | number | null
+  avgLikes?: string | { [key: string]: string } | number | null,
+  accounts?: Array<{ platform?: string | null; avg_views?: string | number | null }> | null
 ): PlatformMixRow[] {
   const total = Object.values(followers || {}).reduce(
     (sum: number, n) => sum + (typeof n === "number" && n > 0 ? n : 0),
@@ -56,6 +75,7 @@ export function buildPlatformMix(
       pct: Math.round((count / total) * 1000) / 10,
       er: er > 0 ? er : null,
       likes: likes > 0 ? likes : null,
+      avgViews: avgViewsForPlatform(accounts, p.key),
     };
   }).filter((row): row is PlatformMixRow => row != null);
 }
