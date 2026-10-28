@@ -57,8 +57,8 @@ export function parseYouTubeChannelFromUrl(
 
 /**
  * Public channel URL, preferred order:
- * 1) channel_handle → /@handle
- * 2) channel_id → /channel/<id>
+ * 1) channel_id → /channel/<id> (stable; handles can redirect to stale 404 URLs)
+ * 2) channel_handle → /@handle
  * 3) username (add @ if needed; parse full URLs / UC ids)
  */
 export function youtubeChannelUrl(
@@ -66,11 +66,11 @@ export function youtubeChannelUrl(
 ): string | null {
   if (!account) return null;
 
-  const fromHandle = stripAt(String(account.channel_handle || ""));
-  if (fromHandle) return `https://www.youtube.com/@${fromHandle}`;
-
   const fromId = String(account.channel_id || "").trim();
   if (fromId) return `https://www.youtube.com/channel/${fromId}`;
+
+  const fromHandle = stripAt(String(account.channel_handle || ""));
+  if (fromHandle) return `https://www.youtube.com/@${fromHandle}`;
 
   const username = String(account.username || "").trim();
   if (!username) return null;
