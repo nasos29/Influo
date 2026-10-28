@@ -10,10 +10,10 @@ import { Info } from "lucide-react";
 export default function InfoTooltip({
   text,
   ariaLabel,
-}: {
+}: Readonly<{
   text: string;
   ariaLabel: string;
-}) {
+}>) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLSpanElement>(null);
   const tipId = useId();

@@ -9,14 +9,14 @@ export function estimateCpm(
   minRate: string | number | null | undefined,
   avgViews: string | number | null | undefined
 ): number | null {
-  const rate =
-    typeof minRate === "number"
-      ? Number.isFinite(minRate) && minRate > 0
-        ? minRate
-        : null
-      : parseMoney(minRate ?? null);
+  let rate: number | null = null;
+  if (typeof minRate === "number") {
+    rate = Number.isFinite(minRate) && minRate > 0 ? minRate : null;
+  } else {
+    rate = parseMoney(minRate ?? null);
+  }
   const views = parseFollowerString(avgViews);
-  if (rate == null || !(views >= 100)) return null;
+  if (rate == null || views < 100) return null;
   return Math.round((rate / views) * 1000 * 100) / 100;
 }
 
