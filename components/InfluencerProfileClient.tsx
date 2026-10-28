@@ -26,8 +26,10 @@ import BrandSaveInfluencerButton from "@/components/BrandSaveInfluencerButton";
 import { addBrandShortlist, fetchBrandShortlist, removeBrandShortlist } from "@/lib/brandShortlist";
 import ChannelScorePanel from "@/components/ChannelScorePanel";
 import FollowerGrowthChart from "@/components/FollowerGrowthChart";
+import InfoTooltip from "@/components/InfoTooltip";
 import StatsInsightsPanel from "@/components/StatsInsightsPanel";
 import { buildChannelScore } from "@/lib/channelScore";
+import { bestAvgViews, estimateCpm, formatCpmEuro } from "@/lib/cpm";
 import { resolveCompletionRate } from "@/lib/completionRate";
 import { loadOwnBrand, loadOwnProfiles } from "@/lib/ownProfile";
 import { creatorHasHardErOnMainAccount, displayErFlag, erFlagHint, erFlagLabel } from "@/lib/engagementFlags";
@@ -138,8 +140,21 @@ const MetricIcon = ({
   </span>
 );
 
+function formatStatsUpdatedAt(iso: string, lang: "el" | "en"): string {
+  const date = new Date(iso);
+  if (!Number.isFinite(date.getTime())) return "";
+  return new Intl.DateTimeFormat(lang === "el" ? "el-GR" : "en-GB", {
+    timeZone: "Europe/Athens",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
 function ProfileStatCard({
   label,
+  tip,
+  tipAria,
   icon,
   children,
   accent = false,
@@ -147,6 +162,8 @@ function ProfileStatCard({
   valueCentered = false,
 }: {
   label: string;
+  tip?: string;
+  tipAria?: string;
   icon: ReactNode;
   children: ReactNode;
   accent?: boolean;
@@ -166,8 +183,9 @@ function ProfileStatCard({
     >
       <div className="mb-3 flex items-center gap-2.5">
         {icon}
-        <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-          {label}
+        <span className="flex min-w-0 items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+          <span className="truncate">{label}</span>
+          {tip ? <InfoTooltip text={tip} ariaLabel={tipAria || label} /> : null}
         </span>
       </div>
       <div
@@ -292,6 +310,22 @@ const t = {
     min_rate_cta_login: "Σύνδεση",
     min_rate_cta_signup: "Εγγραφή επιχείρησης",
     min_rate_cta_suffix: "για να δείτε την τιμή",
+    cpm: "Εκτιμώμενο CPM",
+    cpm_desc: "Κόστος ανά 1.000 προβολές, με βάση την ελάχιστη χρέωση",
+    stats_updated: "Τελευταία ενημέρωση στατιστικών",
+    tip_engagement: "Μέσο ποσοστό αλληλεπίδρασης ανά ανάρτηση σε σχέση με τους ακόλουθους.",
+    tip_followers: "Συνολικοί ακόλουθοι ανά πλατφόρμα.",
+    tip_likes: "Μέσος αριθμός likes ανά ανάρτηση.",
+    tip_growth: "Μεταβολή ακολούθων τις τελευταίες 15 ημέρες.",
+    tip_collabs: "Αριθμός ολοκληρωμένων συνεργασιών με brands.",
+    tip_platforms: "Πόσες πλατφόρμες έχει δηλώσει ο δημιουργός.",
+    tip_status: "Αν ο δημιουργός είναι διαθέσιμος για νέες συνεργασίες.",
+    tip_response: "Μέσος χρόνος πρώτης απάντησης σε μηνύματα brands (ώρες).",
+    tip_completion: "Ποσοστό προτάσεων που ολοκληρώθηκαν επιτυχώς.",
+    tip_min_rate: "Η χαμηλότερη δηλωμένη χρέωση για συνεργασία.",
+    tip_cpm: "Εκτιμώμενο κόστος ανά 1.000 προβολές με βάση την ελάχιστη χρέωση.",
+    tip_rating: "Μέση βαθμολογία από αξιολογήσεις brands.",
+    tip_aria: "Τι σημαίνει",
     modal_title: "Συνεργασία με",
     modal_sub: "Στείλε την πρότασή σου. Θα ειδοποιηθούν άμεσα.",
     modal_srv: "Επιλογή Υπηρεσίας",
@@ -386,6 +420,22 @@ const t = {
     min_rate_cta_login: "Login",
     min_rate_cta_signup: "Register your company",
     min_rate_cta_suffix: "to see the price",
+    cpm: "Est. CPM",
+    cpm_desc: "Cost per 1,000 views, based on minimum rate",
+    stats_updated: "Last stats update",
+    tip_engagement: "Average interaction rate per post relative to followers.",
+    tip_followers: "Total followers per platform.",
+    tip_likes: "Average likes per post.",
+    tip_growth: "Follower change over the last 15 days.",
+    tip_collabs: "Number of completed brand collaborations.",
+    tip_platforms: "How many platforms the creator has linked.",
+    tip_status: "Whether the creator is available for new collaborations.",
+    tip_response: "Average time to first reply to brand messages (hours).",
+    tip_completion: "Share of proposals completed successfully.",
+    tip_min_rate: "The lowest listed rate for a collaboration.",
+    tip_cpm: "Estimated cost per 1,000 views based on the minimum rate.",
+    tip_rating: "Average rating from brand reviews.",
+    tip_aria: "What this means",
     modal_title: "Work with",
     modal_sub: "Send a proposal. We'll notify them instantly.",
     modal_srv: "Select Service",
@@ -482,6 +532,7 @@ export default function InfluencerProfile(props: {
   const [shortlistBusy, setShortlistBusy] = useState(false);
   const [growth30d, setGrowth30d] = useState<{ growth: number; growthPct: number | null } | null>(null);
   const [growthSeries, setGrowthSeries] = useState<FollowerGrowthPoint[]>([]);
+  const [statsUpdatedAt, setStatsUpdatedAt] = useState<string | null>(null);
 
   // Brand-only requests wait until /api/me/profile confirms a brand row.
   useEffect(() => {
@@ -928,21 +979,35 @@ export default function InfluencerProfile(props: {
     if (!id || !profile) {
       setGrowth30d(null);
       setGrowthSeries([]);
+      setStatsUpdatedAt(null);
       return;
     }
     fetch(`/api/influencer/${id}/growth`)
       .then((r) => r.json())
-      .then((data: { growth?: number; growthPct?: number; series?: FollowerGrowthPoint[] }) => {
-        setGrowthSeries(Array.isArray(data.series) ? data.series : []);
-        if (data.growth != null) {
-          setGrowth30d({ growth: data.growth, growthPct: data.growthPct ?? null });
-        } else {
-          setGrowth30d(null);
+      .then(
+        (data: {
+          growth?: number;
+          growthPct?: number;
+          series?: FollowerGrowthPoint[];
+          statsUpdatedAt?: string;
+        }) => {
+          setGrowthSeries(Array.isArray(data.series) ? data.series : []);
+          if (data.growth != null) {
+            setGrowth30d({ growth: data.growth, growthPct: data.growthPct ?? null });
+          } else {
+            setGrowth30d(null);
+          }
+          setStatsUpdatedAt(
+            typeof data.statsUpdatedAt === "string" && data.statsUpdatedAt.trim()
+              ? data.statsUpdatedAt
+              : null
+          );
         }
-      })
+      )
       .catch(() => {
         setGrowth30d(null);
         setGrowthSeries([]);
+        setStatsUpdatedAt(null);
       });
   }, [id, profile?.id]);
 
@@ -1814,10 +1879,21 @@ export default function InfluencerProfile(props: {
                 </div>
               );
 
+              const avgViewsForCpm = bestAvgViews(profile.accounts);
+              const cpmValue = estimateCpm(profile.min_rate, avgViewsForCpm);
+              const showCpmCard =
+                !!(profile.has_min_rate || profile.min_rate) && avgViewsForCpm >= 100;
+              const statsUpdatedLabel = statsUpdatedAt
+                ? formatStatsUpdatedAt(statsUpdatedAt, lang)
+                : "";
+
               return (
+                <>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                   <ProfileStatCard
                     label={lang === "el" ? "Αλληλεπίδραση" : "Engagement"}
+                    tip={txt.tip_engagement}
+                    tipAria={txt.tip_aria}
                     icon={
                       <MetricIcon className="bg-blue-50 text-blue-600 ring-blue-100">
                         <path d="M3 3v18h18" />
@@ -1876,6 +1952,8 @@ export default function InfluencerProfile(props: {
 
                   <ProfileStatCard
                     label={lang === "el" ? "Ακόλουθοι" : "Followers"}
+                    tip={txt.tip_followers}
+                    tipAria={txt.tip_aria}
                     icon={
                       <MetricIcon className="bg-sky-50 text-sky-700 ring-sky-100">
                         <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
@@ -1909,6 +1987,8 @@ export default function InfluencerProfile(props: {
 
                   <ProfileStatCard
                     label={lang === "el" ? "Μ.Ο. Likes" : "Avg Likes"}
+                    tip={txt.tip_likes}
+                    tipAria={txt.tip_aria}
                     icon={
                       <MetricIcon className="bg-rose-50 text-rose-500 ring-rose-100">
                         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
@@ -1938,6 +2018,8 @@ export default function InfluencerProfile(props: {
 
                   <ProfileStatCard
                     label={txt.stat_growth_30d}
+                    tip={txt.tip_growth}
+                    tipAria={txt.tip_aria}
                     valueCentered
                     icon={
                       <MetricIcon
@@ -1981,6 +2063,8 @@ export default function InfluencerProfile(props: {
                   {(profile.past_brands?.length || 0) > 0 ? (
                     <ProfileStatCard
                       label={txt.collabs}
+                      tip={txt.tip_collabs}
+                      tipAria={txt.tip_aria}
                       valueCentered
                       icon={
                         <MetricIcon className="bg-indigo-50 text-indigo-600 ring-indigo-100">
@@ -1998,6 +2082,8 @@ export default function InfluencerProfile(props: {
                   ) : (
                     <ProfileStatCard
                       label={txt.platforms}
+                      tip={txt.tip_platforms}
+                      tipAria={txt.tip_aria}
                       valueCentered
                       icon={
                         <MetricIcon className="bg-slate-100 text-slate-600 ring-slate-200/80">
@@ -2014,6 +2100,8 @@ export default function InfluencerProfile(props: {
 
                   <ProfileStatCard
                     label={lang === "el" ? "Κατάσταση" : "Status"}
+                    tip={txt.tip_status}
+                    tipAria={txt.tip_aria}
                     valueCentered
                     icon={
                       <MetricIcon className="bg-slate-100 text-slate-600 ring-slate-200/80">
@@ -2034,6 +2122,8 @@ export default function InfluencerProfile(props: {
 
                   <ProfileStatCard
                     label={txt.stat_response}
+                    tip={txt.tip_response}
+                    tipAria={txt.tip_aria}
                     valueCentered
                     icon={
                       <MetricIcon className="bg-teal-50 text-teal-600 ring-teal-100">
@@ -2054,6 +2144,8 @@ export default function InfluencerProfile(props: {
 
                   <ProfileStatCard
                     label={txt.stat_completion}
+                    tip={txt.tip_completion}
+                    tipAria={txt.tip_aria}
                     valueCentered
                     icon={
                       <MetricIcon className="bg-emerald-50 text-emerald-600 ring-emerald-100">
@@ -2079,6 +2171,8 @@ export default function InfluencerProfile(props: {
                   {(profile.has_min_rate || profile.min_rate) && (
                     <ProfileStatCard
                       label={txt.min_rate}
+                      tip={txt.tip_min_rate}
+                      tipAria={txt.tip_aria}
                       accent
                       icon={
                         <MetricIcon className="bg-blue-100 text-blue-700 ring-blue-200/70">
@@ -2120,8 +2214,58 @@ export default function InfluencerProfile(props: {
                     </ProfileStatCard>
                   )}
 
+                  {showCpmCard && (
+                    <ProfileStatCard
+                      label={txt.cpm}
+                      tip={txt.tip_cpm}
+                      tipAria={txt.tip_aria}
+                      accent
+                      icon={
+                        <MetricIcon className="bg-violet-100 text-violet-700 ring-violet-200/70">
+                          <path d="M12 1v22" />
+                          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                          <path d="M3 12h3" />
+                          <path d="M18 12h3" />
+                        </MetricIcon>
+                      }
+                    >
+                      {isBrand && profile.min_rate && cpmValue != null ? (
+                        <div>
+                          <p className="text-2xl font-semibold tracking-tight text-violet-700 tabular-nums">
+                            {formatCpmEuro(cpmValue)}
+                          </p>
+                          <p className="mt-0.5 text-xs text-violet-700/80">{txt.cpm_desc}</p>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="select-none text-2xl font-semibold tracking-tight text-violet-700 blur-md tabular-nums">
+                            ••••
+                          </p>
+                          <p className="mt-1 text-xs leading-snug text-slate-600">
+                            <Link
+                              href="/login"
+                              className="font-medium text-blue-600 underline-offset-2 hover:underline"
+                            >
+                              {txt.min_rate_cta_login}
+                            </Link>
+                            {lang === "el" ? " ή " : " or "}
+                            <Link
+                              href="/brand/signup"
+                              className="font-medium text-blue-600 underline-offset-2 hover:underline"
+                            >
+                              {txt.min_rate_cta_signup}
+                            </Link>{" "}
+                            {txt.min_rate_cta_suffix}
+                          </p>
+                        </div>
+                      )}
+                    </ProfileStatCard>
+                  )}
+
                   <ProfileStatCard
                     label={txt.stat_rating}
+                    tip={txt.tip_rating}
+                    tipAria={txt.tip_aria}
                     valueCentered
                     icon={
                       <MetricIcon className="bg-amber-50 text-amber-600 ring-amber-100">
@@ -2148,6 +2292,12 @@ export default function InfluencerProfile(props: {
                     )}
                   </ProfileStatCard>
                 </div>
+                {statsUpdatedLabel ? (
+                  <p className="mt-3 text-xs text-slate-500">
+                    {txt.stats_updated}: {statsUpdatedLabel}
+                  </p>
+                ) : null}
+                </>
               );
             })()}
           </div>
