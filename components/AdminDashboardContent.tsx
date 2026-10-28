@@ -1606,7 +1606,8 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                             {videos.map((video, i) => {
                                 const isVideo = isDefinitelyVideo(video);
                                 const isImage = isDefinitelyImage(video);
-                                const isInstagramPost = video && /instagram\.com\/p\//i.test(video);
+                                const isInstagramPost = video && /instagram\.com\/(?:[A-Za-z0-9._]+\/)?p\//i.test(video);
+                                const isTikTokPhoto = video && /tiktok\.com\/[^?\s]*\/photo\/\d+/i.test(video);
                                 
                                 // Helper to get thumbnail URL string from string or object
                                 const getThumbnailUrl = (thumb: string | { url: string; width?: number; height?: number; type?: string } | undefined): string => {
@@ -1741,7 +1742,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                                         fill
                                                         className={isImage ? "object-contain" : "object-cover"}
                                                     />
-                                                    {isVideo && !isInstagramPost && (
+                                                    {isVideo && !isInstagramPost && !isTikTokPhoto && (
                                                         <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
                                                             <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center">
                                                                 <span className="text-xl text-slate-900 ml-1">▶</span>

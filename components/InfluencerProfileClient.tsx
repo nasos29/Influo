@@ -2559,6 +2559,7 @@ export default function InfluencerProfile(props: {
                                         const isImage = isDefinitelyImage(vid);
                                         // For Instagram posts (p/), we can't be sure if it's video or photo, so don't show play button
                                         const isInstagramPost = /instagram\.com\/(?:[A-Za-z0-9._]+\/)?p\//i.test(vid);
+                                        const isTikTokPhoto = /tiktok\.com\/[^?\s]*\/photo\/\d+/i.test(vid);
 
                                         // Component to load image and adapt container to natural dimensions
                                         const AdaptiveImage = ({ imageUrl, alt }: { imageUrl: string; alt: string }) => {
@@ -2663,7 +2664,7 @@ export default function InfluencerProfile(props: {
                                                         className="object-cover"
                                                     />
                                                 )}
-                                                {isVideo && !isInstagramPost && (
+                                                {isVideo && !isInstagramPost && !isTikTokPhoto && (
                                                     <div className="absolute top-0 left-0 right-0 bottom-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition-colors pointer-events-none z-10">
                                                         <div className="w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                                                             <span className="text-sm text-slate-900 ml-0.5">▶</span>
@@ -2671,7 +2672,13 @@ export default function InfluencerProfile(props: {
                                                     </div>
                                                 )}
                                                 <div className="absolute bottom-0 left-0 right-0 w-full p-3 bg-gradient-to-t from-black/80 to-transparent text-white text-sm font-medium pointer-events-none z-10">
-                                                    {isVideo ? `Video ${i + 1}` : isImage ? `Photo ${i + 1}` : isInstagramPost ? `Instagram Post ${i + 1}` : `Highlight ${i + 1}`}
+                                                    {isTikTokPhoto || (isImage && !isVideo)
+                                                      ? `Photo ${i + 1}`
+                                                      : isVideo
+                                                        ? `Video ${i + 1}`
+                                                        : isInstagramPost
+                                                          ? `Instagram Post ${i + 1}`
+                                                          : `Highlight ${i + 1}`}
                                                 </div>
                                             </a>
                                         );
