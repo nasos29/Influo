@@ -771,6 +771,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                 const isVideo = isDefinitelyVideo(video);
                                 const isImage = isDefinitelyImage(video);
                                 const isInstagramPost = video && /instagram\.com\/(?:[A-Za-z0-9._]+\/)?p\//i.test(video);
+                                const isTikTokPhoto = video && /tiktok\.com\/[^?\s]*\/photo\/\d+/i.test(video);
                                 const videoProfileWarn = {
                                   el: "Αυτό είναι link προφίλ, όχι video. Βάλε link από συγκεκριμένο reel/video/post.",
                                   en: "This is a profile link, not a video. Paste a link to a specific reel/video/post.",
@@ -804,7 +805,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                                         fill
                                                         className={isImage ? "object-contain" : "object-cover"}
                                                     />
-                                                    {isVideo && !isInstagramPost && (
+                                                    {isVideo && !isInstagramPost && !isTikTokPhoto && (
                                                         <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
                                                             <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center">
                                                                 <span className="text-xl ml-1">▶</span>

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getVideoThumbnail } from "@/lib/videoThumbnail";
 import {
+  extractInstagramMedia,
   extractInstagramShortcode,
   instagramThumbnailProxySrc,
 } from "@/lib/instagramShortcode";
@@ -14,58 +15,119 @@ import {
 
 const RETRY_DELAY_MS = 2500;
 
+export type MediaType = "video" | "image";
+
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function fetchApiThumbnail(apiOrOriginalUrl: string): Promise<string | null> {
+type ThumbApiResult = { thumbnail: string | null; mediaType?: MediaType };
+
+async function fetchApiThumbnailResult(apiOrOriginalUrl: string): Promise<ThumbApiResult> {
   const apiUrl = apiOrOriginalUrl.startsWith("/api/video-thumbnail")
     ? apiOrOriginalUrl
     : `/api/video-thumbnail?url=${encodeURIComponent(apiOrOriginalUrl)}`;
   const res = await fetch(apiUrl);
-  if (!res.ok) return null;
-  const data = (await res.json()) as { thumbnail?: string };
-  return data.thumbnail ? String(data.thumbnail) : null;
+  if (!res.ok) return { thumbnail: null };
+  const data = (await res.json()) as { thumbnail?: string; mediaType?: string };
+  const mediaType =
+    data.mediaType === "video" || data.mediaType === "image"
+      ? data.mediaType
+      : undefined;
+  return {
+    thumbnail: data.thumbnail ? String(data.thumbnail) : null,
+    mediaType,
+  };
 }
+
+/** Infer mediaType without a network round-trip when the URL is unambiguous. */
+export function inferMediaTypeFromUrl(originalUrl: string): MediaType | undefined {
+  if (!originalUrl) return undefined;
+  if (/\/photo\/\d+/i.test(originalUrl)) return "image";
+  if (/tiktok\.com\/.*\/video\/\d+/i.test(originalUrl)) return "video";
+  const ig = extractInstagramMedia(originalUrl);
+  if (ig?.kind === "reel" || ig?.kind === "tv") return "video";
+  if (/youtube\.com|youtu\.be/i.test(originalUrl)) return "video";
+  return undefined;
+}
+
+export type ResolvedThumbnail = {
+  src: string | null;
+  mediaType?: MediaType;
+};
 
 /**
- * Resolve a displayable thumbnail URL for a social video:
- * Instagram → always /api/thumbnail-proxy?ig={shortcode}
- * YouTube direct → TikTok via /api/video-thumbnail → CDN via thumbnail-proxy.
+ * Resolve a displayable thumbnail URL (+ mediaType when known):
+ * Instagram cover → /api/thumbnail-proxy?ig=…; mediaType from /api/video-thumbnail
+ * (reel/tv → video without embed fetch; /p/ may detect Graph* type).
  */
-export async function resolveVideoThumbnailSrc(originalUrl: string): Promise<string | null> {
-  if (!originalUrl) return null;
+export async function resolveVideoThumbnail(
+  originalUrl: string
+): Promise<ResolvedThumbnail> {
+  if (!originalUrl) return { src: null };
 
+  const inferred = inferMediaTypeFromUrl(originalUrl);
   const igCode = extractInstagramShortcode(originalUrl);
+  const tip = getVideoThumbnail(originalUrl);
+
   if (igCode) {
-    return instagramThumbnailProxySrc(igCode);
+    // Cover via stable proxy; mediaType from /api/video-thumbnail (cached 24h).
+    const api = tip?.startsWith("/api/")
+      ? tip
+      : `/api/video-thumbnail?url=${encodeURIComponent(originalUrl)}`;
+    if (inferred === "video") {
+      // reel/tv — known video; warm cache without blocking cover paint
+      void fetchApiThumbnailResult(api).catch(() => null);
+      return { src: instagramThumbnailProxySrc(igCode), mediaType: "video" };
+    }
+    try {
+      const result = await fetchApiThumbnailResult(api);
+      return {
+        src: instagramThumbnailProxySrc(igCode),
+        mediaType: result.mediaType ?? inferred,
+      };
+    } catch {
+      return { src: instagramThumbnailProxySrc(igCode), mediaType: inferred };
+    }
   }
 
-  const tip = getVideoThumbnail(originalUrl);
-  if (!tip) return null;
-  if (!tip.startsWith("/api/")) return tip;
-  const raw = await fetchApiThumbnail(tip);
-  return toDisplayThumbnailSrc(raw);
+  if (!tip) return { src: null, mediaType: inferred };
+  if (!tip.startsWith("/api/")) {
+    return { src: tip, mediaType: inferred ?? "video" };
+  }
+
+  const result = await fetchApiThumbnailResult(tip);
+  return {
+    src: toDisplayThumbnailSrc(result.thumbnail),
+    mediaType: result.mediaType ?? inferred,
+  };
 }
 
-async function resolveWithOneRetry(originalUrl: string): Promise<string | null> {
+/** @deprecated Prefer resolveVideoThumbnail */
+export async function resolveVideoThumbnailSrc(originalUrl: string): Promise<string | null> {
+  const { src } = await resolveVideoThumbnail(originalUrl);
+  return src;
+}
+
+async function resolveWithOneRetry(originalUrl: string): Promise<ResolvedThumbnail> {
   try {
-    const first = await resolveVideoThumbnailSrc(originalUrl);
-    if (first) return first;
+    const first = await resolveVideoThumbnail(originalUrl);
+    if (first.src) return first;
   } catch {
     /* retry below */
   }
   await sleep(RETRY_DELAY_MS);
   try {
-    return await resolveVideoThumbnailSrc(originalUrl);
+    return await resolveVideoThumbnail(originalUrl);
   } catch {
-    return null;
+    return { src: null };
   }
 }
 
 export type LazyVideoThumbnailState = {
   /** Image src to render (direct or proxied). Null → use gradient fallback. */
   src: string | null;
+  mediaType?: MediaType;
   loading: boolean;
   /** Call from <img onError>. Proxy once for CDN, else one delayed re-resolve. */
   onImgError: () => void;
@@ -80,6 +142,7 @@ export function useLazyVideoThumbnail(
   enabled: boolean
 ): LazyVideoThumbnailState {
   const [src, setSrc] = useState<string | null>(null);
+  const [mediaType, setMediaType] = useState<MediaType | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const rawSrcRef = useRef<string | null>(null);
   const proxiedRef = useRef(false);
@@ -90,6 +153,7 @@ export function useLazyVideoThumbnail(
     proxiedRef.current = false;
     delayedRetryUsedRef.current = false;
     setSrc(null);
+    setMediaType(inferMediaTypeFromUrl(originalUrl));
     if (!enabled || !originalUrl) {
       setLoading(false);
       return;
@@ -100,11 +164,12 @@ export function useLazyVideoThumbnail(
     void resolveWithOneRetry(originalUrl)
       .then((resolved) => {
         if (cancelled) return;
-        rawSrcRef.current = resolved;
-        if (resolved?.startsWith("/api/thumbnail-proxy")) {
+        rawSrcRef.current = resolved.src;
+        if (resolved.src?.startsWith("/api/thumbnail-proxy")) {
           proxiedRef.current = true;
         }
-        setSrc(resolved);
+        setSrc(resolved.src);
+        setMediaType(resolved.mediaType ?? inferMediaTypeFromUrl(originalUrl));
         setLoading(false);
       })
       .catch(() => {
@@ -138,12 +203,15 @@ export function useLazyVideoThumbnail(
       setLoading(true);
       void (async () => {
         await sleep(RETRY_DELAY_MS);
-        const resolved = await resolveVideoThumbnailSrc(originalUrl).catch(() => null);
-        rawSrcRef.current = resolved;
-        if (resolved?.startsWith("/api/thumbnail-proxy")) {
+        const resolved = await resolveVideoThumbnail(originalUrl).catch(
+          (): ResolvedThumbnail => ({ src: null })
+        );
+        rawSrcRef.current = resolved.src;
+        if (resolved.src?.startsWith("/api/thumbnail-proxy")) {
           proxiedRef.current = true;
         }
-        setSrc(resolved);
+        setSrc(resolved.src);
+        if (resolved.mediaType) setMediaType(resolved.mediaType);
         setLoading(false);
       })();
       return;
@@ -152,7 +220,7 @@ export function useLazyVideoThumbnail(
     setSrc(null);
   }, [originalUrl]);
 
-  return { src, loading, onImgError };
+  return { src, mediaType, loading, onImgError };
 }
 
 /** @deprecated Prefer useLazyVideoThumbnail — kept for older call sites. */
@@ -166,8 +234,8 @@ export function useVideoThumbnail(url: string | null): string | null {
     }
     let cancelled = false;
     void resolveWithOneRetry(url)
-      .then((src) => {
-        if (!cancelled) setThumbnail(src);
+      .then((resolved) => {
+        if (!cancelled) setThumbnail(resolved.src);
       })
       .catch(() => {
         if (!cancelled) setThumbnail(null);

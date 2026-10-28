@@ -27,6 +27,7 @@ interface SocialEmbedCardProps {
 
 const COPY = {
   play: { el: "Προβολή βίντεο", en: "Play video" },
+  viewPhoto: { el: "Προβολή φωτογραφίας", en: "View photo" },
   loading: { el: "Φόρτωση", en: "Loading" },
   error: { el: "Αποτυχία φόρτωσης", en: "Failed to load" },
   retry: { el: "Δοκιμή ξανά", en: "Try again" },
@@ -108,10 +109,11 @@ export default function SocialEmbedCard({
   const [error, setError] = useState(false);
   const igSlotHeldRef = useRef(false);
 
-  const { src: thumbSrc, onImgError } = useLazyVideoThumbnail(
+  const { src: thumbSrc, mediaType, onImgError } = useLazyVideoThumbnail(
     originalUrl,
     nearViewport && (isInstagram ? !iframeLoaded : !activated)
   );
+  const isPhotoMedia = mediaType === "image";
 
   useEffect(() => {
     const node = rootRef.current;
@@ -249,18 +251,36 @@ export default function SocialEmbedCard({
                 void activateClickToLoad();
               }}
               className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-gradient-to-t from-black/70 via-black/25 to-black/10 text-white transition hover:from-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
-              aria-label={COPY.play[uiLang]}
+              aria-label={
+                error
+                  ? COPY.retry[uiLang]
+                  : isPhotoMedia
+                    ? COPY.viewPhoto[uiLang]
+                    : COPY.play[uiLang]
+              }
             >
               <span className="text-sm font-semibold tracking-wide uppercase opacity-95 drop-shadow">
                 {NAMES[provider]}
               </span>
-              <span className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg">
-                <svg viewBox="0 0 24 24" className="ml-1 h-8 w-8 fill-current" aria-hidden>
-                  <path d="M8 5v14l11-7z" />
-                </svg>
-              </span>
+              {isPhotoMedia ? (
+                <span className="absolute top-3 right-3 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-black/55 text-white shadow-sm backdrop-blur-sm">
+                  <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden>
+                    <path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5zm3 2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm-1 11 3.5-4.5 2.5 3 3.5-4.5L19 18H6z" />
+                  </svg>
+                </span>
+              ) : (
+                <span className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg">
+                  <svg viewBox="0 0 24 24" className="ml-1 h-8 w-8 fill-current" aria-hidden>
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                </span>
+              )}
               <span className="text-base font-bold drop-shadow">
-                {error ? COPY.retry[uiLang] : COPY.play[uiLang]}
+                {error
+                  ? COPY.retry[uiLang]
+                  : isPhotoMedia
+                    ? COPY.viewPhoto[uiLang]
+                    : COPY.play[uiLang]}
               </span>
               {error ? (
                 <span className="text-xs font-medium text-white/85">{COPY.error[uiLang]}</span>

@@ -6,6 +6,11 @@ import {
   extractTikTokCoverFromHtml,
   isGenericLogoThumbnail,
 } from "@/lib/videoThumbnailExtract";
+import { isValidInstagramShortcode } from "@/lib/instagramShortcode";
+import {
+  parseInstagramMediaTypeFromEmbedHtml,
+  type InstagramMediaType,
+} from "@/lib/instagramMediaType";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,6 +23,8 @@ const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 const FACEBOOK_UA = "facebookexternalhit/1.1";
 
+export type MediaType = "video" | "image";
+
 function stripUrlNoise(url: string): string {
   return url.split("?")[0].split("#")[0].trim();
 }
@@ -29,11 +36,36 @@ function cacheTtlMs(platform: string): number {
   return CACHE_DAYS_DEFAULT * 24 * 60 * 60 * 1000;
 }
 
-/** Save thumbnail to DB cache (if table exists). Upsert overwrites logo / stale entries. */
+/** Encode mediaType into thumbnail_url without a DB schema change. */
+function encodeCachedPayload(thumbnailUrl: string, mediaType?: MediaType): string {
+  if (!mediaType) return thumbnailUrl;
+  return JSON.stringify({ url: thumbnailUrl, mediaType });
+}
+
+function decodeCachedPayload(raw: string): { thumbnail: string; mediaType?: MediaType } {
+  const trimmed = String(raw || "").trim();
+  if (trimmed.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(trimmed) as { url?: unknown; mediaType?: unknown };
+      if (typeof parsed?.url === "string" && parsed.url) {
+        const mt = parsed.mediaType === "video" || parsed.mediaType === "image"
+          ? (parsed.mediaType as MediaType)
+          : undefined;
+        return { thumbnail: parsed.url, mediaType: mt };
+      }
+    } catch {
+      /* plain URL */
+    }
+  }
+  return { thumbnail: trimmed };
+}
+
+/** Save thumbnail (+ optional mediaType) to DB cache. Upsert overwrites logo / stale entries. */
 async function saveThumbnailCache(
   originalUrl: string,
   thumbnailUrl: string | null,
-  platform: string
+  platform: string,
+  mediaType?: MediaType
 ) {
   if (!thumbnailUrl || isGenericLogoThumbnail(thumbnailUrl)) return;
   try {
@@ -41,7 +73,7 @@ async function saveThumbnailCache(
     await supabaseAdmin.from("video_thumbnail_cache").upsert(
       {
         original_url: originalUrl,
-        thumbnail_url: thumbnailUrl,
+        thumbnail_url: encodeCachedPayload(thumbnailUrl, mediaType),
         platform,
         cached_at: new Date().toISOString(),
         expires_at: expiresAt.toISOString(),
@@ -53,24 +85,41 @@ async function saveThumbnailCache(
   }
 }
 
-function jsonThumb(thumbnail: string | null, platform: string, extra?: Record<string, unknown>) {
+function jsonThumb(
+  thumbnail: string | null,
+  platform: string,
+  extra?: Record<string, unknown>
+) {
   const res = NextResponse.json({ thumbnail, platform, ...extra });
   const maxAge = platform === "tiktok" || platform === "instagram" ? 86400 : 31536000;
   res.headers.set("Cache-Control", `public, max-age=${maxAge}, s-maxage=${maxAge}`);
   return res;
 }
 
-/** Normalize any TikTok URL that contains /video|photo/{id} → canonical video URL. */
+/**
+ * Normalize TikTok URL that contains /video|photo/{id}.
+ * Preserves /photo/ (do not rewrite to /video/).
+ */
 function tikTokCanonicalFromAny(url: string): string | null {
-  const id = url.match(/\/(?:video|photo)\/(\d+)/)?.[1];
-  if (!id) return null;
-  const withUser = url.match(/tiktok\.com\/@([\w.-]+)\/(?:video|photo)\/(\d+)/i);
-  if (withUser?.[1]) return `https://www.tiktok.com/@${withUser[1]}/video/${withUser[2]}`;
-  return `https://www.tiktok.com/video/${id}`;
+  const withUser = url.match(/tiktok\.com\/@([\w.-]+)\/(video|photo)\/(\d+)/i);
+  if (withUser?.[1] && withUser[2] && withUser[3]) {
+    return `https://www.tiktok.com/@${withUser[1]}/${withUser[2].toLowerCase()}/${withUser[3]}`;
+  }
+  const bare = url.match(/tiktok\.com\/(video|photo)\/(\d+)/i);
+  if (bare?.[1] && bare[2]) {
+    return `https://www.tiktok.com/${bare[1].toLowerCase()}/${bare[2]}`;
+  }
+  return null;
+}
+
+function tikTokMediaTypeFromUrl(url: string): MediaType | undefined {
+  if (/\/photo\/\d+/i.test(url)) return "image";
+  if (/\/video\/\d+/i.test(url)) return "video";
+  return undefined;
 }
 
 /**
- * Resolve vm/vt.tiktok.com and tiktok.com/t/{code} → full /@user/video/ID
+ * Resolve vm/vt.tiktok.com and tiktok.com/t/{code} → full /@user/video|photo/ID
  * (manual redirects, 5s timeout).
  */
 async function resolveTikTokUrl(url: string): Promise<string> {
@@ -139,11 +188,17 @@ async function tikTokThumbnailFromPage(resolvedUrl: string): Promise<string | nu
   }
 }
 
-async function resolveTikTokThumbnail(url: string): Promise<string | null> {
+async function resolveTikTokThumbnail(url: string): Promise<{
+  thumbnail: string | null;
+  resolvedUrl: string;
+  mediaType?: MediaType;
+}> {
   const resolved = await resolveTikTokUrl(url);
+  const mediaType = tikTokMediaTypeFromUrl(resolved) ?? tikTokMediaTypeFromUrl(url);
   const oembed = await tikTokThumbnailViaOEmbed(resolved);
-  if (oembed) return oembed;
-  return tikTokThumbnailFromPage(resolved);
+  if (oembed) return { thumbnail: oembed, resolvedUrl: resolved, mediaType };
+  const page = await tikTokThumbnailFromPage(resolved);
+  return { thumbnail: page, resolvedUrl: resolved, mediaType };
 }
 
 async function resolveInstagramThumbnail(url: string): Promise<string | null> {
@@ -166,7 +221,37 @@ async function resolveInstagramThumbnail(url: string): Promise<string | null> {
   }
 }
 
-async function readCache(cleanUrl: string): Promise<{ thumbnail: string; platform: string } | null> {
+/**
+ * Fetch Instagram embed captioned page and read GraphQL __typename.
+ * Uses a normal browser UA (not the Facebook crawler).
+ */
+async function detectInstagramMediaType(
+  shortcode: string
+): Promise<InstagramMediaType | undefined> {
+  const code = String(shortcode || "").trim();
+  if (!isValidInstagramShortcode(code)) return undefined;
+  try {
+    const embedUrl = `https://www.instagram.com/p/${code}/embed/captioned/`;
+    const res = await fetch(embedUrl, {
+      headers: {
+        "User-Agent": BROWSER_UA,
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+      redirect: "follow",
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return undefined;
+    const html = await res.text();
+    return parseInstagramMediaTypeFromEmbedHtml(html);
+  } catch {
+    return undefined;
+  }
+}
+
+async function readCache(
+  cleanUrl: string
+): Promise<{ thumbnail: string; platform: string; mediaType?: MediaType } | null> {
   try {
     const { data: cached, error: cacheError } = await supabaseAdmin
       .from("video_thumbnail_cache")
@@ -179,10 +264,14 @@ async function readCache(cleanUrl: string): Promise<{ thumbnail: string; platfor
       await supabaseAdmin.from("video_thumbnail_cache").delete().eq("original_url", cleanUrl);
       return null;
     }
-    const thumb = String(cached.thumbnail_url);
+    const decoded = decodeCachedPayload(String(cached.thumbnail_url));
     // Cached generic logos are useless — ignore and re-fetch (upsert will overwrite).
-    if (isGenericLogoThumbnail(thumb)) return null;
-    return { thumbnail: thumb, platform: (cached.platform as string) || "unknown" };
+    if (isGenericLogoThumbnail(decoded.thumbnail)) return null;
+    return {
+      thumbnail: decoded.thumbnail,
+      platform: (cached.platform as string) || "unknown",
+      mediaType: decoded.mediaType,
+    };
   } catch {
     return null;
   }
@@ -199,24 +288,42 @@ export async function GET(req: NextRequest) {
   try {
     const cached = await readCache(cleanUrl);
     if (cached) {
-      return jsonThumb(cached.thumbnail, cached.platform);
+      return jsonThumb(cached.thumbnail, cached.platform, {
+        ...(cached.mediaType ? { mediaType: cached.mediaType } : {}),
+      });
     }
 
     const ytId = resolveYouTubeVideoId(url);
     if (ytId) {
-      return jsonThumb(`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`, "youtube");
+      return jsonThumb(`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`, "youtube", {
+        mediaType: "video",
+      });
     }
 
     const instagramMatch = url.match(
       /instagram\.com\/(?:(?:[A-Za-z0-9._]+)\/)?(p|reel|tv)\/([A-Za-z0-9_-]+)/i
     );
     if (instagramMatch) {
+      const kind = (instagramMatch[1] || "").toLowerCase();
+      const code = instagramMatch[2] || "";
+      let mediaType: MediaType | undefined;
+      if (kind === "reel" || kind === "tv") {
+        mediaType = "video";
+      } else if (kind === "p" && code) {
+        mediaType = await detectInstagramMediaType(code);
+      }
+
       const thumb = await resolveInstagramThumbnail(url);
       if (thumb) {
-        await saveThumbnailCache(cleanUrl, thumb, "instagram");
-        return jsonThumb(thumb, "instagram");
+        await saveThumbnailCache(cleanUrl, thumb, "instagram", mediaType);
+        return jsonThumb(thumb, "instagram", {
+          ...(mediaType ? { mediaType } : {}),
+        });
       }
-      return jsonThumb(null, "instagram", { fallback: true });
+      return jsonThumb(null, "instagram", {
+        fallback: true,
+        ...(mediaType ? { mediaType } : {}),
+      });
     }
 
     const isTikTok =
@@ -227,12 +334,17 @@ export async function GET(req: NextRequest) {
       url.toLowerCase().includes("tiktok.com");
 
     if (isTikTok) {
-      const thumb = await resolveTikTokThumbnail(url);
+      const { thumbnail: thumb, mediaType } = await resolveTikTokThumbnail(url);
       if (thumb && !isGenericLogoThumbnail(thumb)) {
-        await saveThumbnailCache(cleanUrl, thumb, "tiktok");
-        return jsonThumb(thumb, "tiktok");
+        await saveThumbnailCache(cleanUrl, thumb, "tiktok", mediaType);
+        return jsonThumb(thumb, "tiktok", {
+          ...(mediaType ? { mediaType } : {}),
+        });
       }
-      return jsonThumb(null, "tiktok", { fallback: true });
+      return jsonThumb(null, "tiktok", {
+        fallback: true,
+        ...(mediaType ? { mediaType } : {}),
+      });
     }
 
     const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
@@ -244,8 +356,8 @@ export async function GET(req: NextRequest) {
         if (vimeoResponse.ok) {
           const vimeoData = (await vimeoResponse.json()) as { thumbnail_url?: string };
           if (vimeoData.thumbnail_url) {
-            await saveThumbnailCache(cleanUrl, vimeoData.thumbnail_url, "vimeo");
-            return jsonThumb(vimeoData.thumbnail_url, "vimeo");
+            await saveThumbnailCache(cleanUrl, vimeoData.thumbnail_url, "vimeo", "video");
+            return jsonThumb(vimeoData.thumbnail_url, "vimeo", { mediaType: "video" });
           }
         }
       } catch {
