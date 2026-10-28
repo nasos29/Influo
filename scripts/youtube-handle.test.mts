@@ -8,20 +8,19 @@ import {
   youtubeUsernameForAuditpr,
 } from "../lib/youtubeHandle.ts";
 
-test("youtubeChannelUrl prefers channel_handle then channel_id then username", () => {
+test("youtubeChannelUrl prefers channel_id then channel_handle then username", () => {
   assert.equal(
     youtubeChannelUrl({
       username: "oldname",
       channel_handle: "MyHandle",
       channel_id: "UCxxxxxxxxxxxxxxxxxxxxxx",
     }),
-    "https://www.youtube.com/@MyHandle"
+    "https://www.youtube.com/channel/UCxxxxxxxxxxxxxxxxxxxxxx"
   );
   assert.equal(
     youtubeChannelUrl({
       username: "oldname",
       channel_handle: "@WithAt",
-      channel_id: "UCxxxxxxxxxxxxxxxxxxxxxx",
     }),
     "https://www.youtube.com/@WithAt"
   );
