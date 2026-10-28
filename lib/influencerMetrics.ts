@@ -45,7 +45,37 @@ export async function computeAvgResponseHours(
   return Math.max(1, Math.round(avg));
 }
 
-/** Completion % from proposals; null when none. */
+/**
+ * Final proposal outcomes that count toward completion_rate.
+ * In-progress statuses (pending, accepted) are excluded from both
+ * numerator and denominator.
+ */
+export const PROPOSAL_TERMINAL_STATUSES = new Set([
+  'completed',
+  'rejected',
+  'cancelled',
+  'canceled',
+  'declined',
+]);
+
+/**
+ * Pure completion % from proposal status strings.
+ * Numerator: status === 'completed' only.
+ * Denominator: terminal statuses only.
+ * No terminal rows → null (UI shows "—").
+ */
+export function completionRateFromStatuses(
+  statuses: Array<string | null | undefined>
+): number | null {
+  const terminal = statuses
+    .map((s) => String(s || '').trim().toLowerCase())
+    .filter((s) => PROPOSAL_TERMINAL_STATUSES.has(s));
+  if (!terminal.length) return null;
+  const done = terminal.filter((s) => s === 'completed').length;
+  return Math.round((done / terminal.length) * 100);
+}
+
+/** Completion % from proposals with a final outcome; null when none. */
 export async function computeCompletionRate(
   supabase: SupabaseClient,
   influencerId: string
@@ -56,10 +86,7 @@ export async function computeCompletionRate(
     .eq('influencer_id', influencerId);
 
   if (!proposals?.length) return null;
-  const done = proposals.filter((p) =>
-    ['completed', 'accepted'].includes(String(p.status || ''))
-  ).length;
-  return Math.round((done / proposals.length) * 100);
+  return completionRateFromStatuses(proposals.map((p) => p.status));
 }
 
 /** Recompute and persist trust metrics on influencers row. */

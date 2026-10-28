@@ -13,4 +13,4 @@ WHERE id NOT IN (
 );
 
 COMMENT ON COLUMN influencers.completion_rate IS
-  'Share of proposals that are accepted/completed (0–100). NULL when the creator has no proposals yet.';
+  'Share of terminal proposals that are completed (0–100). Numerator = status completed only; denominator = completed/rejected/cancelled/declined. NULL when there is no terminal proposal yet.';

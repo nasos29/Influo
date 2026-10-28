@@ -9,6 +9,7 @@ import {
 import { buildChannelScore } from "../lib/channelScore.ts";
 import { computeCollabScore, computeReviewScore, type TopScoreInfluencer } from "../lib/topInfluencerScore.ts";
 import {
+  completionRateFromStatuses,
   computeCompletionRate,
   refreshInfluencerTrustMetrics,
 } from "../lib/influencerMetrics.ts";
@@ -85,6 +86,23 @@ test("buildChannelScore does not boost coop from fake completion 100 with 0 revi
   assert.ok(real.coopPotential > without.coopPotential);
 });
 
+test("completionRateFromStatuses: no terminal outcomes → null", () => {
+  assert.equal(completionRateFromStatuses([]), null);
+  assert.equal(completionRateFromStatuses(["pending", "accepted"]), null);
+  assert.equal(completionRateFromStatuses(["accepted"]), null);
+});
+
+test("completionRateFromStatuses: 1 completed + 1 rejected → 50", () => {
+  assert.equal(completionRateFromStatuses(["completed", "rejected"]), 50);
+  assert.equal(completionRateFromStatuses(["COMPLETED", "Rejected", "pending", "accepted"]), 50);
+});
+
+test("completionRateFromStatuses: completed only among terminals → 100", () => {
+  assert.equal(completionRateFromStatuses(["completed", "pending"]), 100);
+  assert.equal(completionRateFromStatuses(["completed", "cancelled"]), 50);
+  assert.equal(completionRateFromStatuses(["completed", "declined", "canceled"]), 33);
+});
+
 test("computeCompletionRate returns null when influencer has no proposals", async () => {
   const supabase = {
     from() {
@@ -100,6 +118,32 @@ test("computeCompletionRate returns null when influencer has no proposals", asyn
   };
   const rate = await computeCompletionRate(supabase as never, "inf-1");
   assert.equal(rate, null);
+});
+
+test("computeCompletionRate: accepted-only proposals → null; completed+rejected → 50", async () => {
+  const makeSb = (rows: Array<{ status: string }>) => ({
+    from() {
+      return {
+        select() {
+          return this;
+        },
+        eq() {
+          return Promise.resolve({ data: rows, error: null });
+        },
+      };
+    },
+  });
+  assert.equal(
+    await computeCompletionRate(makeSb([{ status: "accepted" }, { status: "pending" }]) as never, "inf-1"),
+    null
+  );
+  assert.equal(
+    await computeCompletionRate(
+      makeSb([{ status: "completed" }, { status: "rejected" }, { status: "accepted" }]) as never,
+      "inf-1"
+    ),
+    50
+  );
 });
 
 test("refreshInfluencerTrustMetrics writes completion_rate null explicitly", async () => {
