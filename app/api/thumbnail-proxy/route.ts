@@ -1,23 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const ALLOWED_HOST_SUFFIXES = [
-  "cdninstagram.com",
-  "fbcdn.net",
-  "instagram.com",
-  "tiktokcdn.com",
-  "tiktokcdn-us.com",
-  "ibytedtos.com",
-  "img.youtube.com",
-  "i.ytimg.com",
-] as const;
+import { isAllowedThumbnailHost } from "@/lib/thumbnailProxyHosts";
 
 const CACHE_CONTROL =
   "public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800";
-
-function isAllowedThumbnailHost(hostname: string): boolean {
-  const h = hostname.toLowerCase();
-  return ALLOWED_HOST_SUFFIXES.some((d) => h === d || h.endsWith(`.${d}`));
-}
 
 function imageResponse(buffer: ArrayBuffer, contentType: string) {
   return new NextResponse(buffer, {

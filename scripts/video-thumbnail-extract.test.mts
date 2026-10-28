@@ -9,7 +9,16 @@ import {
   isGenericLogoThumbnail,
   toDisplayThumbnailSrc,
 } from "../lib/videoThumbnailExtract.ts";
+import { isAllowedThumbnailHost } from "../lib/thumbnailProxyHosts.ts";
 import { getVideoThumbnail, resolveYouTubeVideoId } from "../lib/videoThumbnail.ts";
+
+test("isAllowedThumbnailHost accepts EU TikTok CDN, rejects lookalike attacker hosts", () => {
+  assert.equal(isAllowedThumbnailHost("p19-common-sign.tiktokcdn-eu.com"), true);
+  assert.equal(isAllowedThumbnailHost("tiktokcdn-eu.com"), true);
+  assert.equal(isAllowedThumbnailHost("sf16-website-login.neutral.ttwstatic.com"), true);
+  assert.equal(isAllowedThumbnailHost("evil-tiktokcdn-eu.com.attacker.net"), false);
+  assert.equal(isAllowedThumbnailHost("not-tiktokcdn-eu.com"), false);
+});
 
 test("isGenericLogoThumbnail rejects tiktok-logo, /static/images/, logo.png", () => {
   assert.equal(

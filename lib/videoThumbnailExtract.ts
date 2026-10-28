@@ -68,7 +68,7 @@ export function extractOgImageFromHtml(html: string): string | null {
 
 /** Hosts that browsers often block for hotlinking — route via /api/thumbnail-proxy. */
 export function isCdnThumbnailUrl(url: string): boolean {
-  return /tiktokcdn|cdninstagram|fbcdn|scontent\.|ibytedtos\.com/i.test(url);
+  return /tiktokcdn|ttwstatic\.com|cdninstagram|fbcdn|scontent\.|ibytedtos\.com/i.test(url);
 }
 
 export function thumbnailProxySrc(imageUrl: string): string {
