@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { buildOfficialEmbedUrl } from "@/lib/videoThumbnail";
+import { useLazyVideoThumbnail } from "@/lib/useVideoThumbnail";
 
 type Provider = "instagram" | "tiktok" | "youtube";
 
@@ -73,8 +74,8 @@ async function fetchTikTokEmbed(originalUrl: string): Promise<string> {
 }
 
 /**
- * Click-to-load social embed facade — iframes mount only after user click
- * to avoid Instagram/TikTok rate limits from simultaneous embeds.
+ * Click-to-load social embed facade — iframes mount only after user click.
+ * Thumbnail loads lazily when the card nears the viewport.
  */
 export default function SocialEmbedCard({
   provider,
@@ -86,11 +87,34 @@ export default function SocialEmbedCard({
   const finalWidth = width || DEFAULT_DIMENSIONS[provider].width;
   const finalHeight = height || DEFAULT_DIMENSIONS[provider].height;
   const uiLang = lang === "en" ? "en" : "el";
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [nearViewport, setNearViewport] = useState(false);
 
   const [activated, setActivated] = useState(false);
   const [iframeSrc, setIframeSrc] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+
+  const { src: thumbSrc, onImgError } = useLazyVideoThumbnail(
+    originalUrl,
+    nearViewport && !activated
+  );
+
+  useEffect(() => {
+    const node = rootRef.current;
+    if (!node || nearViewport) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setNearViewport(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "200px", threshold: 0.01 }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [nearViewport]);
 
   const openHref = originalUrl || "#";
 
@@ -115,23 +139,44 @@ export default function SocialEmbedCard({
     }
   }, [iframeSrc, loading, originalUrl]);
 
+  const showFacade = !activated || error;
+
   return (
-    <div className="w-full max-w-full">
+    <div className="w-full max-w-full" ref={rootRef}>
       <div className="bg-white rounded-xl border border-slate-200 shadow-md overflow-hidden w-full max-w-full">
         <div
           className="relative w-full bg-slate-100"
           style={{ aspectRatio: `${finalWidth} / ${finalHeight}`, minHeight: 300 }}
         >
-          {!activated || error ? (
+          {/* Always keep platform gradient under the thumb so we never flash plain black. */}
+          <div
+            className={`absolute inset-0 bg-gradient-to-br ${COLORS[provider]}`}
+            aria-hidden
+          />
+
+          {showFacade && thumbSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element -- CDN/proxy URLs; lazy facade only
+            <img
+              src={thumbSrc}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              referrerPolicy="no-referrer"
+              className="absolute inset-0 h-full w-full object-cover"
+              onError={onImgError}
+            />
+          ) : null}
+
+          {showFacade ? (
             <button
               type="button"
               onClick={() => {
                 void activate();
               }}
-              className={`absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-gradient-to-br ${COLORS[provider]} text-white transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80`}
+              className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-gradient-to-t from-black/70 via-black/25 to-black/10 text-white transition hover:from-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
               aria-label={COPY.play[uiLang]}
             >
-              <span className="text-sm font-semibold tracking-wide uppercase opacity-90">
+              <span className="text-sm font-semibold tracking-wide uppercase opacity-95 drop-shadow">
                 {NAMES[provider]}
               </span>
               <span className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg">
@@ -139,11 +184,11 @@ export default function SocialEmbedCard({
                   <path d="M8 5v14l11-7z" />
                 </svg>
               </span>
-              <span className="text-base font-bold">
+              <span className="text-base font-bold drop-shadow">
                 {error ? COPY.retry[uiLang] : COPY.play[uiLang]}
               </span>
               {error ? (
-                <span className="text-xs font-medium text-white/80">{COPY.error[uiLang]}</span>
+                <span className="text-xs font-medium text-white/85">{COPY.error[uiLang]}</span>
               ) : null}
             </button>
           ) : null}
@@ -163,7 +208,7 @@ export default function SocialEmbedCard({
             <iframe
               src={iframeSrc}
               title={`${NAMES[provider]} video`}
-              className="absolute top-0 left-0 h-full w-full border-0"
+              className="absolute top-0 left-0 z-[5] h-full w-full border-0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen
               referrerPolicy="strict-origin-when-cross-origin"

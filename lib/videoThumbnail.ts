@@ -7,14 +7,13 @@ export function getVideoThumbnail(url: string): string | null {
   const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
   const youtubeMatch = url.match(youtubeRegex);
   if (youtubeMatch) {
-    return `https://img.youtube.com/vi/${youtubeMatch[1]}/maxresdefault.jpg`;
+    // hqdefault is more reliable than maxresdefault (often 404).
+    return `https://img.youtube.com/vi/${youtubeMatch[1]}/hqdefault.jpg`;
   }
 
-  // Instagram Reels/Posts - use API endpoint for server-side fetching
-  // Client-side will call the API to get thumbnail
-  const instagramRegex = /instagram\.com\/(?:p|reel)\/([A-Za-z0-9_-]+)/;
+  // Instagram Reels/Posts/TV - API endpoint for server-side thumbnail fetch
+  const instagramRegex = /instagram\.com\/(?:p|reel|tv)\/([A-Za-z0-9_-]+)/;
   if (instagramRegex.test(url)) {
-    // Return a placeholder URL that the component can use to fetch from API
     return `/api/video-thumbnail?url=${encodeURIComponent(url)}`;
   }
 
