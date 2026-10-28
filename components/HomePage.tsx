@@ -19,6 +19,7 @@ import { SITE_URL } from "@/lib/site";
 import { normalizeNameCase } from "@/lib/greeklish";
 import type { HomeTrustStats } from "@/lib/loadHomeTrustStats";
 import { toPublicHttpsHref } from "@/lib/brandProfile";
+import { shuffle } from "@/lib/similarInfluencers";
 
 type Lang = "el" | "en";
 
@@ -46,6 +47,15 @@ type SlideLogo = {
   href: string;
   src: string | null;
 };
+
+const DUMMY_LOGOS: SlideLogo[] = DUMMY_BRANDS.map((brand) => ({
+  key: `dummy-${brand.domain}`,
+  name: brand.name,
+  href: brand.url,
+  src: `https://cdn.brandfetch.io/${brand.domain}?c=1idGP6EnrL-eVdz6PLO`,
+}));
+
+const BRAND_SLIDE_LIMIT = 12;
 
 const t = {
   el: {
@@ -186,6 +196,8 @@ export default function Home({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [verifiedBrands, setVerifiedBrands] = useState<VerifiedBrand[]>([]);
   const [brandsReady, setBrandsReady] = useState(false);
+  /** Null until client pick after verified fetch — avoids SSR/hydration shuffle mismatch. */
+  const [brandSlideLogos, setBrandSlideLogos] = useState<SlideLogo[] | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userType, setUserType] = useState<'influencer' | 'brand' | null>(null);
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
@@ -346,7 +358,6 @@ export default function Home({
         }
 
         if (data && data.length > 0) {
-          console.log('[Homepage] Fetched verified brands:', data);
           setVerifiedBrands(data as VerifiedBrand[]);
         }
       } catch (err) {
@@ -358,6 +369,21 @@ export default function Home({
 
     fetchVerifiedBrands();
   }, []);
+
+  // Pick ≤12 logos after mount (crypto Fisher–Yates), then the track duplicates for the loop.
+  useEffect(() => {
+    if (!brandsReady) return;
+    const verifiedLogos: SlideLogo[] = verifiedBrands.map((brand) => ({
+      key: `verified-${brand.id}`,
+      name: brand.brand_name,
+      href: toPublicHttpsHref(brand.website) || "#",
+      src: brand.logo_url
+        ? getCachedImageUrl(brand.logo_url) ?? brand.logo_url
+        : null,
+    }));
+    const picked = shuffle([...verifiedLogos, ...DUMMY_LOGOS]).slice(0, BRAND_SLIDE_LIMIT);
+    setBrandSlideLogos(picked);
+  }, [brandsReady, verifiedBrands]);
 
   return (
     <>
@@ -888,30 +914,15 @@ export default function Home({
             <div className="absolute right-0 top-0 bottom-0 w-32 md:w-48 lg:w-64 bg-gradient-to-l from-white via-white/80 to-transparent z-10 pointer-events-none"></div>
 
             {(() => {
-              const dummyLogos: SlideLogo[] = DUMMY_BRANDS.map((brand) => ({
-                key: `dummy-${brand.domain}`,
-                name: brand.name,
-                href: brand.url,
-                src: `https://cdn.brandfetch.io/${brand.domain}?c=1idGP6EnrL-eVdz6PLO`,
-              }));
-              const verifiedLogos: SlideLogo[] = brandsReady
-                ? verifiedBrands.map((brand) => ({
-                    key: `verified-${brand.id}`,
-                    name: brand.brand_name,
-                    href: toPublicHttpsHref(brand.website) || "#",
-                    src: brand.logo_url
-                      ? getCachedImageUrl(brand.logo_url) ?? brand.logo_url
-                      : null,
-                  }))
-                : [];
-              // Until fetch settles, show dummy only (no scroll). Then identical halves for -50% loop.
-              const logos = brandsReady ? [...verifiedLogos, ...dummyLogos] : dummyLogos;
-              const track = brandsReady ? [...logos, ...logos] : logos;
+              // Until client pick settles, show dummy only (no scroll). Then identical halves for -50% loop.
+              const logos = brandSlideLogos ?? DUMMY_LOGOS;
+              const ready = brandSlideLogos != null;
+              const track = ready ? [...logos, ...logos] : logos;
 
               return (
                 <div
-                  key={brandsReady ? "brands-ready" : "brands-pending"}
-                  className={`flex items-center ${brandsReady ? "animate-scroll" : ""}`}
+                  key={ready ? "brands-ready" : "brands-pending"}
+                  className={`flex items-center ${ready ? "animate-scroll" : ""}`}
                 >
                   {track.map((logo, idx) => (
                     <a
