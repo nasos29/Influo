@@ -303,10 +303,10 @@ select option:focus {
 /* Slideshow animation */
 @keyframes scroll {
   0% {
-    transform: translateX(0);
+    transform: translate3d(0, 0, 0);
   }
   100% {
-    transform: translateX(-50%);
+    transform: translate3d(-50%, 0, 0);
   }
 }
 
@@ -315,6 +315,8 @@ select option:focus {
   display: flex;
   width: max-content;
   will-change: transform;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
 }
 
 @media (min-width: 768px) {
@@ -323,6 +325,14 @@ select option:focus {
   }
 }
 
-.animate-scroll:hover {
-  animation-play-state: paused;
+@media (hover: hover) {
+  .animate-scroll:hover {
+    animation-play-state: paused;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-scroll {
+    animation: none;
+  }
 }
