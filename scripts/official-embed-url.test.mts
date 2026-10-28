@@ -4,8 +4,35 @@ import test from "node:test";
 import {
   buildOfficialEmbedUrl,
   getIframelyEmbedUrl,
+  getVideoThumbnail,
   resolveYouTubeVideoId,
 } from "../lib/videoThumbnail.ts";
+
+test("getVideoThumbnail: YouTube uses hqdefault (not maxresdefault)", () => {
+  assert.equal(
+    getVideoThumbnail("https://www.youtube.com/watch?v=dQw4w9WgXcQ"),
+    "https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
+  );
+  assert.equal(
+    getVideoThumbnail("https://youtu.be/dQw4w9WgXcQ"),
+    "https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
+  );
+});
+
+test("getVideoThumbnail: Instagram/TikTok return video-thumbnail API path", () => {
+  assert.match(
+    getVideoThumbnail("https://www.instagram.com/reel/AbC123xyz/") || "",
+    /^\/api\/video-thumbnail\?url=/
+  );
+  assert.match(
+    getVideoThumbnail("https://www.instagram.com/tv/TvId55/") || "",
+    /^\/api\/video-thumbnail\?url=/
+  );
+  assert.match(
+    getVideoThumbnail("https://www.tiktok.com/@user/video/7123456789012345678") || "",
+    /^\/api\/video-thumbnail\?url=/
+  );
+});
 
 test("buildOfficialEmbedUrl: Instagram reel/p/tv", () => {
   assert.equal(
