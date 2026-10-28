@@ -3,6 +3,8 @@
 import Link from "next/link";
 import {
   AXIS_LABELS,
+  COOP_HINT,
+  COOP_LABELS,
   qualityColor,
   qualityLabel,
   type ChannelAxis,
@@ -21,7 +23,6 @@ type Props = {
   costPer1k: number | null;
   integrationFrom: number | null;
   integrationTo: number | null;
-  integrationIsEstimate: boolean;
   minRateLabel?: string | null;
 };
 
@@ -63,11 +64,10 @@ export default function ChannelScorePanel({
   costPer1k,
   integrationFrom,
   integrationTo,
-  integrationIsEstimate,
 }: Props) {
   const el = lang === "el";
   const byId = Object.fromEntries(axes.map((a) => [a.id, a.score])) as Record<ChannelAxisId, number>;
-  // Extra horizontal room so side labels (Δημιουργία / Αξιοπιστία) are not clipped.
+  // Extra horizontal room so side labels are not clipped.
   const vbW = 300;
   const vbH = 260;
   const cx = vbW / 2;
@@ -87,6 +87,10 @@ export default function ChannelScorePanel({
     return "middle";
   };
 
+  const showIntegrationRange =
+    integrationFrom != null && integrationTo != null && integrationTo > integrationFrom;
+  const showIntegrationFromOnly = integrationFrom != null && !showIntegrationRange;
+
   return (
     <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
       <div className="px-5 sm:px-8 py-5 border-b border-slate-100">
@@ -95,8 +99,8 @@ export default function ChannelScorePanel({
         </h2>
         <p className="text-sm text-slate-500 mt-1">
           {el
-            ? "Influo score από ανάπτυξη, engagement, ποιότητα, δημοσίευση και αξιοπιστία κοινού."
-            : "Influo score from growth, engagement, quality, publishing and audience credibility."}
+            ? "Influo score από ανάπτυξη, engagement, ποιότητα, δείγματα δουλειάς και πληρότητα & επαλήθευση."
+            : "Influo score from growth, engagement, quality, portfolio and verification & completeness."}
         </p>
       </div>
 
@@ -160,12 +164,15 @@ export default function ChannelScorePanel({
       <div className="grid sm:grid-cols-3 gap-3 px-5 sm:px-8 pb-6">
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
           <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            {el ? "Δυνατότητα συνεργασίας" : "Coop. potential"}
+            {COOP_LABELS[lang]}
           </div>
           <div className="mt-1 text-2xl font-extrabold text-blue-700 tabular-nums">{coopPotential.toFixed(1)}/10</div>
           <div className={`text-xs font-medium mt-1 ${qualityColor(coopPotential / 2)}`}>
             {qualityLabel(coopPotential / 2, lang)}
           </div>
+          <p className="mt-2 text-[11px] leading-snug text-slate-500" title={COOP_HINT[lang]}>
+            {COOP_HINT[lang]}
+          </p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
           <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -191,15 +198,14 @@ export default function ChannelScorePanel({
           <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
             {el ? "Integration" : "Integration"}
           </div>
-          {integrationFrom != null && integrationTo != null && isBrand ? (
-            <>
-              <div className="mt-1 text-lg font-extrabold text-slate-900 tabular-nums">
-                {money(integrationFrom)} – {money(integrationTo)}
-              </div>
-              {integrationIsEstimate && (
-                <p className="text-[11px] text-slate-500 mt-1">{el ? "Εκτίμηση" : "Estimate"}</p>
-              )}
-            </>
+          {showIntegrationRange && isBrand ? (
+            <div className="mt-1 text-lg font-extrabold text-slate-900 tabular-nums">
+              {money(integrationFrom!)} – {money(integrationTo!)}
+            </div>
+          ) : showIntegrationFromOnly && isBrand ? (
+            <div className="mt-1 text-lg font-extrabold text-slate-900 tabular-nums">
+              {el ? `Από ${money(integrationFrom!)}` : `From ${money(integrationFrom!)}`}
+            </div>
           ) : integrationLocked ? (
             <>
               <div className="mt-1 text-lg font-extrabold text-slate-900 blur-md select-none">••••</div>
