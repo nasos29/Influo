@@ -11,6 +11,30 @@ export type SimilarInfluencerRow = {
   verified?: boolean | null;
 };
 
+/**
+ * Escape special characters for a PostgREST `.or()` filter value
+ * (commas / parens split clauses; % is an ilike wildcard).
+ */
+export function escapePostgrestOrValue(value: string): string {
+  return String(value || "")
+    .replace(/\\/g, "\\\\")
+    .replace(/%/g, "\\%")
+    .replace(/,/g, "\\,")
+    .replace(/\(/g, "\\(")
+    .replace(/\)/g, "\\)");
+}
+
+/** Build `category.ilike.%X%,category.ilike.%Y%` for supabase `.or(...)`. */
+export function categoryIlikeOrFilter(categories: string[]): string | null {
+  const parts: string[] = [];
+  for (const raw of categories) {
+    const cat = String(raw || "").trim();
+    if (!cat) continue;
+    parts.push(`category.ilike.%${escapePostgrestOrValue(cat)}%`);
+  }
+  return parts.length ? parts.join(",") : null;
+}
+
 /** Best-effort follower total from a scalar or per-platform map. */
 export function followerTotalFromField(followers: unknown): number {
   if (typeof followers === "number" && Number.isFinite(followers)) {

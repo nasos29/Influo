@@ -2623,7 +2623,7 @@ export default function InfluencerProfile(props: {
                                         // Use SocialEmbedCard for social media videos (click-to-load)
                                         if (provider && embedUrl && !isImage) {
                                             return (
-                                                <div key={i} className="w-full">
+                                                <div key={vid} className="w-full">
                                                     <SocialEmbedCard
                                                         provider={provider}
                                                         originalUrl={vid}
@@ -2637,7 +2637,7 @@ export default function InfluencerProfile(props: {
                                         // Use VideoThumbnail for images or non-social media URLs
                                         return (
                                             <a 
-                                                key={i} 
+                                                key={vid} 
                                                 href={vid} 
                                                 target="_blank" 
                                                 rel="noopener noreferrer" 

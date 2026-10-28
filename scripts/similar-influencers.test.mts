@@ -2,10 +2,30 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  categoryIlikeOrFilter,
+  escapePostgrestOrValue,
   followerTotalFromField,
   pickSimilarInfluencers,
   sharedCategoryCount,
 } from "../lib/similarInfluencers.ts";
+
+test("escapePostgrestOrValue escapes %, commas, and parentheses", () => {
+  assert.equal(escapePostgrestOrValue("Beauty%"), "Beauty\\%");
+  assert.equal(escapePostgrestOrValue("A,B"), "A\\,B");
+  assert.equal(escapePostgrestOrValue("Foo (Bar)"), "Foo \\(Bar\\)");
+});
+
+test("categoryIlikeOrFilter builds or-clause with ilike per category", () => {
+  assert.equal(
+    categoryIlikeOrFilter(["Beauty & Makeup", "Travel"]),
+    "category.ilike.%Beauty & Makeup%,category.ilike.%Travel%"
+  );
+  assert.equal(categoryIlikeOrFilter(["", "  "]), null);
+  assert.equal(
+    categoryIlikeOrFilter(["Food (Demo)"]),
+    "category.ilike.%Food \\(Demo\\)%"
+  );
+});
 
 test("followerTotalFromField handles number, string, and map", () => {
   assert.equal(followerTotalFromField(12000), 12000);

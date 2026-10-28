@@ -8,6 +8,7 @@ import { categoryTranslations, parseStoredCategories } from "@/lib/categories";
 import { publicProfilePath } from "@/lib/profileSlug";
 import { displayNameForLang } from "@/lib/greeklish";
 import {
+  categoryIlikeOrFilter,
   followerTotalFromField,
   pickSimilarInfluencers,
   type SimilarInfluencerRow,
@@ -23,6 +24,12 @@ function formatFollowers(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
   return String(Math.round(n));
+}
+
+function directoryHrefFor(lang: "el" | "en", primaryCategory: string | null): string {
+  const base = lang === "en" ? "/en/directory" : "/directory";
+  if (!primaryCategory) return base;
+  return `${base}?category=${encodeURIComponent(primaryCategory)}`;
 }
 
 export default function SimilarInfluencers({
@@ -41,10 +48,7 @@ export default function SimilarInfluencers({
   const cats = parseStoredCategories(categories);
   const catsKey = cats.join(",");
   const primaryCategory = cats[0] || null;
-  const directoryBase = lang === "en" ? "/en/directory" : "/directory";
-  const directoryHref = primaryCategory
-    ? `${directoryBase}?category=${encodeURIComponent(primaryCategory)}`
-    : directoryBase;
+  const directoryHref = directoryHrefFor(lang, primaryCategory);
 
   useEffect(() => {
     const node = rootRef.current;
@@ -65,6 +69,9 @@ export default function SimilarInfluencers({
   useEffect(() => {
     if (!near || !catsKey || !influencerId) return;
     const currentCats = catsKey.split(",").filter(Boolean);
+    const orFilter = categoryIlikeOrFilter(currentCats);
+    if (!orFilter) return;
+
     let cancelled = false;
     void (async () => {
       try {
@@ -75,6 +82,7 @@ export default function SimilarInfluencers({
           )
           .eq("approved", true)
           .neq("id", influencerId)
+          .or(orFilter)
           .limit(40);
         if (cancelled) return;
         if (error || !data) {
