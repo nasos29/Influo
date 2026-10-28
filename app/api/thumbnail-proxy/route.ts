@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAllowedThumbnailHost } from "@/lib/thumbnailProxyHosts";
+import { isValidInstagramShortcode } from "@/lib/instagramShortcode";
 
 const CACHE_CONTROL =
   "public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800";
+const FETCH_TIMEOUT_MS = 8000;
 
 function imageResponse(buffer: ArrayBuffer, contentType: string) {
   return new NextResponse(buffer, {
@@ -28,19 +30,48 @@ async function fetchImage(imageUrl: string, withReferer: boolean) {
   return fetch(imageUrl, {
     headers,
     redirect: "follow",
-    signal: AbortSignal.timeout(10000),
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
 }
 
-/** Proxy CDN thumbnails (Instagram / TikTok / YouTube) — allowlisted hosts only. */
+async function fetchInstagramMediaByShortcode(shortcode: string) {
+  const mediaUrl = `https://www.instagram.com/p/${shortcode}/media/?size=l`;
+  return fetch(mediaUrl, {
+    headers: {
+      "User-Agent": "curl/8.5.0",
+      Accept: "image/*,*/*;q=0.8",
+    },
+    redirect: "follow",
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
+}
+
+/** Proxy CDN thumbnails — allowlisted hosts, or Instagram shortcode via ?ig=. */
 export async function GET(req: NextRequest) {
+  const ig = req.nextUrl.searchParams.get("ig");
   const imageUrl = req.nextUrl.searchParams.get("url");
 
-  if (!imageUrl) {
-    return NextResponse.json({ error: "URL parameter is required" }, { status: 400 });
-  }
-
   try {
+    if (ig) {
+      if (!isValidInstagramShortcode(ig)) {
+        return NextResponse.json({ error: "Invalid ig shortcode" }, { status: 400 });
+      }
+      const mediaRes = await fetchInstagramMediaByShortcode(ig);
+      if (!mediaRes.ok) {
+        return NextResponse.json(
+          { error: `Failed to fetch Instagram media: ${mediaRes.status}` },
+          { status: mediaRes.status }
+        );
+      }
+      const imageBuffer = await mediaRes.arrayBuffer();
+      const contentType = mediaRes.headers.get("content-type") || "image/jpeg";
+      return imageResponse(imageBuffer, contentType);
+    }
+
+    if (!imageUrl) {
+      return NextResponse.json({ error: "URL parameter is required" }, { status: 400 });
+    }
+
     let urlObj: URL;
     try {
       urlObj = new URL(imageUrl);

@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getVideoThumbnail } from "@/lib/videoThumbnail";
 import {
+  extractInstagramShortcode,
+  instagramThumbnailProxySrc,
+} from "@/lib/instagramShortcode";
+import {
   isCdnThumbnailUrl,
   thumbnailProxySrc,
   toDisplayThumbnailSrc,
@@ -20,11 +24,17 @@ async function fetchApiThumbnail(apiOrOriginalUrl: string): Promise<string | nul
 
 /**
  * Resolve a displayable thumbnail URL for a social video:
- * YouTube direct → Instagram/TikTok via /api/video-thumbnail →
- * CDN hosts (tiktokcdn / cdninstagram / fbcdn) served via /api/thumbnail-proxy.
+ * Instagram → always /api/thumbnail-proxy?ig={shortcode}
+ * YouTube direct → TikTok via /api/video-thumbnail → CDN via thumbnail-proxy.
  */
 export async function resolveVideoThumbnailSrc(originalUrl: string): Promise<string | null> {
   if (!originalUrl) return null;
+
+  const igCode = extractInstagramShortcode(originalUrl);
+  if (igCode) {
+    return instagramThumbnailProxySrc(igCode);
+  }
+
   const tip = getVideoThumbnail(originalUrl);
   if (!tip) return null;
   if (!tip.startsWith("/api/")) return tip;
