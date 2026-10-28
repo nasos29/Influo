@@ -174,18 +174,22 @@ function ProfileStatCard({
   return (
     <div
       className={[
-        "group relative flex min-h-[116px] flex-col rounded-2xl border p-4 transition-all duration-200",
+        "group relative flex h-full min-h-[116px] flex-col rounded-2xl border p-4 transition-all duration-200",
         accent
           ? "border-blue-200/80 bg-gradient-to-br from-blue-50/90 via-white to-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:border-blue-300 hover:shadow-[0_8px_24px_rgba(37,99,235,0.08)]"
           : "border-slate-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:border-slate-300 hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]",
         className,
       ].join(" ")}
     >
-      <div className="mb-3 flex items-center gap-2.5">
-        {icon}
-        <span className="flex min-w-0 items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-          <span className="truncate">{label}</span>
-          {tip ? <InfoTooltip text={tip} ariaLabel={tipAria || label} /> : null}
+      <div className="mb-3 flex items-start gap-2.5">
+        <span className="shrink-0">{icon}</span>
+        <span className="flex min-w-0 items-start gap-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+          <span className="leading-tight break-words">{label}</span>
+          {tip ? (
+            <span className="mt-px shrink-0">
+              <InfoTooltip text={tip} ariaLabel={tipAria || label} />
+            </span>
+          ) : null}
         </span>
       </div>
       <div
