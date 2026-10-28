@@ -17,6 +17,9 @@ export type SimilarInfluencerRow = {
   verified?: boolean | null;
 };
 
+/** Returns a float in [0, 1). Injected in tests for determinism. */
+export type RandomFn = () => number;
+
 /**
  * Escape special characters for a PostgREST `.or()` filter value
  * (commas / parens split clauses; % is an ilike wildcard).
@@ -58,30 +61,47 @@ export function sharedCategoryCount(currentCats: string[], otherCategory: unknow
   return parseStoredCategories(otherCategory).filter((c) => wanted.has(c)).length;
 }
 
+/** Uniform [0, 1) via crypto.getRandomValues (avoids Math.random Sonar hotspot). */
+function cryptoUnitRandom(): number {
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  return buf[0]! / 0x1_0000_0000;
+}
+
+/**
+ * Fisher–Yates shuffle. Uses crypto by default; pass `random` in tests.
+ * Returns a new array (does not mutate input).
+ */
+export function shuffle<T>(items: readonly T[], random: RandomFn = cryptoUnitRandom): T[] {
+  const arr = items.slice();
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    const tmp = arr[i]!;
+    arr[i] = arr[j]!;
+    arr[j] = tmp;
+  }
+  return arr;
+}
+
 /**
  * Pick up to `limit` similar creators: share ≥1 category, exclude self,
- * sort by shared categories desc then followers (from accounts) desc.
+ * then Fisher–Yates shuffle (call from client useEffect only).
  */
 export function pickSimilarInfluencers(
   currentId: string,
   currentCategories: string[],
   rows: SimilarInfluencerRow[],
-  limit = 6
+  limit = 6,
+  random?: RandomFn
 ): SimilarInfluencerRow[] {
   const self = String(currentId || "");
   const cats = currentCategories.filter(Boolean);
   if (!self || !cats.length || !rows.length) return [];
 
-  return rows
-    .filter((row) => {
-      if (!row?.id || String(row.id) === self) return false;
-      return sharedCategoryCount(cats, row.category) > 0;
-    })
-    .sort((a, b) => {
-      const shareDiff =
-        sharedCategoryCount(cats, b.category) - sharedCategoryCount(cats, a.category);
-      if (shareDiff !== 0) return shareDiff;
-      return followerTotalFromAccounts(b.accounts) - followerTotalFromAccounts(a.accounts);
-    })
-    .slice(0, limit);
+  const filtered = rows.filter((row) => {
+    if (!row?.id || String(row.id) === self) return false;
+    return sharedCategoryCount(cats, row.category) > 0;
+  });
+
+  return shuffle(filtered, random ?? cryptoUnitRandom).slice(0, Math.max(0, limit));
 }

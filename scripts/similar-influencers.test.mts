@@ -7,6 +7,8 @@ import {
   followerTotalFromAccounts,
   pickSimilarInfluencers,
   sharedCategoryCount,
+  shuffle,
+  type SimilarInfluencerRow,
 } from "../lib/similarInfluencers.ts";
 
 test("escapePostgrestOrValue escapes %, commas, and parentheses", () => {
@@ -46,8 +48,20 @@ test("sharedCategoryCount counts overlaps after parse", () => {
   assert.equal(sharedCategoryCount(["Travel"], "Food & Drink"), 0);
 });
 
-test("pickSimilarInfluencers ranks by shared cats then account followers", () => {
-  const rows = [
+test("shuffle is deterministic with injected random and preserves membership", () => {
+  const seq = [0.9, 0.1, 0.5, 0.2, 0.8];
+  let i = 0;
+  const random = () => seq[i++ % seq.length]!;
+  const input = ["a", "b", "c", "d"];
+  const once = shuffle(input, random);
+  assert.equal(once.length, 4);
+  assert.deepEqual([...once].sort(), ["a", "b", "c", "d"]);
+  assert.notDeepEqual(once, input); // shuffled (not same order for this seq)
+  assert.deepEqual(input, ["a", "b", "c", "d"]); // input untouched
+});
+
+function sampleRows(): SimilarInfluencerRow[] {
+  return [
     {
       id: "a",
       display_name: "A",
@@ -84,10 +98,63 @@ test("pickSimilarInfluencers ranks by shared cats then account followers", () =>
       accounts: [{ followers: 80000 }],
       verified: false,
     },
+    {
+      id: "d",
+      display_name: "D",
+      profile_slug: "d",
+      avatar_url: null,
+      category: "Food & Drink",
+      accounts: [{ followers: 300 }],
+      verified: false,
+    },
+    {
+      id: "e",
+      display_name: "E",
+      profile_slug: "e",
+      avatar_url: null,
+      category: "Travel",
+      accounts: [{ followers: 50 }],
+      verified: false,
+    },
+    {
+      id: "f",
+      display_name: "F",
+      profile_slug: "f",
+      avatar_url: null,
+      category: "Travel,Beauty & Makeup",
+      accounts: [{ followers: 10 }],
+      verified: false,
+    },
   ];
-  const picked = pickSimilarInfluencers("self", ["Travel", "Food & Drink"], rows, 6);
+}
+
+test("pickSimilarInfluencers excludes self, requires shared category, respects limit", () => {
+  const cats = ["Travel", "Food & Drink"];
+  const rows = sampleRows();
+  // Always pick index 0 in Fisher–Yates → stable reverse-ish order for asserts on set membership
+  const random = () => 0;
+  const picked = pickSimilarInfluencers("self", cats, rows, 3, random);
+
+  assert.ok(picked.length <= 3);
+  assert.equal(picked.length, 3);
+  assert.ok(!picked.some((r) => r.id === "self"));
+  assert.ok(!picked.some((r) => r.id === "c")); // Gaming only — no shared cat
+  for (const row of picked) {
+    assert.ok(
+      sharedCategoryCount(cats, row.category) > 0,
+      `${row.id} must share a category`
+    );
+  }
+
+  const allEligible = pickSimilarInfluencers("self", cats, rows, 99, random);
   assert.deepEqual(
-    picked.map((r) => r.id),
-    ["b", "a"]
+    allEligible.map((r) => r.id).sort(),
+    ["a", "b", "d", "e", "f"]
   );
+});
+
+test("pickSimilarInfluencers returns empty without categories or rows", () => {
+  assert.deepEqual(pickSimilarInfluencers("self", [], sampleRows(), 6), []);
+  assert.deepEqual(pickSimilarInfluencers("self", ["Travel"], [], 6), []);
+  assert.deepEqual(pickSimilarInfluencers("", ["Travel"], sampleRows(), 6), []);
 });
