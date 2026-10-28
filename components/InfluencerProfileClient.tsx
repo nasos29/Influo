@@ -254,9 +254,13 @@ function scoreChannelFromProfile(
   });
 }
 
+const BACK_TO_DIRECTORY = {
+  el: "Πίσω στον κατάλογο",
+  en: "Back to directory",
+} as const;
+
 const t = {
   el: {
-    back: "Πίσω στον κατάλογο",
     contact: "Συνεργασία",
     contact_btn: "Ζήτησε Προσφορά",
     verified: "Επαληθευμένος",
@@ -350,7 +354,6 @@ const t = {
     positives_none: "Δεν υπάρχουν ξεχωριστά σημεία σε αυτή την ενότητα."
   },
   en: {
-    back: "Back to directory",
     contact: "Contact for Work",
     contact_btn: "Request Custom Quote",
     verified: "Verified",
@@ -1321,7 +1324,7 @@ export default function InfluencerProfile(props: {
           className="inline-flex items-center gap-1.5 text-sm text-slate-600 hover:text-blue-600 transition-colors"
         >
           <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
-          <span>{txt.back}</span>
+          <span>{BACK_TO_DIRECTORY[lang]}</span>
         </button>
       </div>
 
