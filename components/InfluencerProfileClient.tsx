@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, use, Suspense, useRef, type ReactNode } from "react";
+import { useEffect, useState, use, Suspense, useRef, useCallback, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { Influencer } from "@/components/Directory"; 
 import { supabase } from "@/lib/supabaseClient";
 import { sessionFetch } from "@/lib/sessionFetch";
@@ -253,9 +254,13 @@ function scoreChannelFromProfile(
   });
 }
 
+const BACK_TO_DIRECTORY = {
+  el: "Πίσω στον κατάλογο",
+  en: "Back to directory",
+} as const;
+
 const t = {
   el: {
-    back: "← Επιστροφή",
     contact: "Συνεργασία",
     contact_btn: "Ζήτησε Προσφορά",
     verified: "Επαληθευμένος",
@@ -349,7 +354,6 @@ const t = {
     positives_none: "Δεν υπάρχουν ξεχωριστά σημεία σε αυτή την ενότητα."
   },
   en: {
-    back: "← Back",
     contact: "Contact for Work",
     contact_btn: "Request Custom Quote",
     verified: "Verified",
@@ -1287,12 +1291,42 @@ export default function InfluencerProfile(props: {
     }
   };
 
+  const goBackToDirectory = useCallback(() => {
+    try {
+      const ref = typeof document !== "undefined" ? document.referrer : "";
+      if (ref) {
+        const u = new URL(ref);
+        if (
+          u.origin === window.location.origin &&
+          u.pathname.includes("/directory")
+        ) {
+          router.back();
+          return;
+        }
+      }
+    } catch {
+      /* ignore bad referrer */
+    }
+    router.push(lang === "en" ? "/en/directory" : "/directory");
+  }, [lang, router]);
+
   if (loading) return <div className="min-h-screen flex items-center justify-center text-slate-500">Loading Profile...</div>;
   if (!profile) return <div className="min-h-screen flex items-center justify-center text-slate-500">Influencer not found.</div>;
 
   return (
     <div className="bg-white min-h-screen pb-20 font-sans relative text-slate-900">
       <SiteHeader lang={lang} onLangChange={setLang} />
+
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-3 pb-2">
+        <button
+          type="button"
+          onClick={goBackToDirectory}
+          className="inline-flex items-center gap-1.5 text-sm text-slate-600 hover:text-blue-600 transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
+          <span>{BACK_TO_DIRECTORY[lang]}</span>
+        </button>
+      </div>
 
       {/* PROPOSAL MODAL */}
       {showProposalModal && (
