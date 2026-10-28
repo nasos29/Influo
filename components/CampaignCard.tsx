@@ -213,6 +213,11 @@ export default function CampaignCard({
   const locale = lang === "el" ? "el-GR" : "en-GB";
   const showBudget = Number(campaign.budget) > 0;
   const publicBadge = campaignPublicBadgeLabel(campaign.applications_count, campaign.opened_at, lang);
+  const appsCount =
+    typeof campaign.applications_count === "number" && campaign.applications_count > 0
+      ? campaign.applications_count
+      : 0;
+  const isApplicationsBadge = appsCount >= 3;
 
   return (
     <article
@@ -257,14 +262,42 @@ export default function CampaignCard({
         </div>
       )}
 
-      <h3 className="mt-3 text-xl font-bold text-slate-900 leading-snug">
-        <Link
-          href={link}
-          className="text-inherit after:absolute after:inset-0 after:z-0 after:rounded-2xl after:content-[''] focus-visible:outline-none group-hover:text-blue-700"
-        >
-          {campaign.title}
-        </Link>
-      </h3>
+      <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
+        <h3 className="min-w-0 flex-1 text-xl font-bold text-slate-900 leading-snug">
+          <Link
+            href={link}
+            className="text-inherit after:absolute after:inset-0 after:z-0 after:rounded-2xl after:content-[''] focus-visible:outline-none group-hover:text-blue-700"
+          >
+            {campaign.title}
+          </Link>
+        </h3>
+        {publicBadge ? (
+          <span
+            className={`relative z-10 pointer-events-none inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold ${
+              isApplicationsBadge
+                ? "bg-blue-600 text-white"
+                : "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+            }`}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              className="h-4 w-4 shrink-0"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+            {publicBadge}
+          </span>
+        ) : null}
+      </div>
 
       <div className="mt-3 flex flex-wrap gap-2 text-xs">
         {showBudget && (
@@ -300,11 +333,6 @@ export default function CampaignCard({
           <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
             {lang === "el" ? "Από" : "From"} {formatFollowerCount(campaign.min_followers)}{" "}
             {lang === "el" ? "ακόλουθοι" : "followers"}
-          </span>
-        ) : null}
-        {publicBadge ? (
-          <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-blue-50 text-blue-800 font-medium">
-            {publicBadge}
           </span>
         ) : null}
       </div>
