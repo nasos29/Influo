@@ -3,6 +3,7 @@
  */
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { getPastBrandsByInfluencerIds } from '@/lib/pastBrands';
 import {
   alignFollowerSnapshotToCurrent,
   totalFollowersFromAccounts,
@@ -451,6 +452,10 @@ export async function computeTopInfluencers(
   if (rows.length === 0) return [];
 
   const realIds = rows.map((r) => String(r.id));
+  const pastById = await getPastBrandsByInfluencerIds(realIds, sb);
+  for (const inf of rows) {
+    inf.past_brands = pastById.get(String(inf.id)) || [];
+  }
   const snapshotsById = await loadSnapshotsByInfluencer(sb, realIds);
   const completedById = await loadCompletedCampaignCounts(sb, realIds);
   const incumbents = await loadIncumbentIds(sb);

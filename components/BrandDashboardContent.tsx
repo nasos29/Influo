@@ -1129,11 +1129,12 @@ export default function BrandDashboardContent() {
       
       if (error) throw error;
 
+      const ids = (influencersData || []).map((inf: { id: string }) => inf.id).filter(Boolean);
       const priceById: Record<string, string | null> = {};
+      const pastById: Record<string, string[]> = {};
       try {
         const { data: sessionData } = await supabase.auth.getSession();
         const token = sessionData.session?.access_token;
-        const ids = (influencersData || []).map((inf: { id: string }) => inf.id).filter(Boolean);
         if (token && ids.length) {
           const priceRes = await fetch(
             `/api/influencers/commercial?ids=${encodeURIComponent(ids.join(","))}`,
@@ -1158,6 +1159,27 @@ export default function BrandDashboardContent() {
         }
       } catch (priceErr) {
         console.error("[Brand Dashboard] price lookup failed", priceErr);
+      }
+
+      try {
+        if (ids.length) {
+          const pastRes = await fetch(
+            `/api/influencers/past-brands?ids=${encodeURIComponent(ids.join(","))}`
+          );
+          if (pastRes.ok) {
+            const pastBody = await pastRes.json();
+            const payload = pastBody?.data;
+            if (payload && typeof payload === "object") {
+              for (const [id, brands] of Object.entries(payload)) {
+                pastById[id] = Array.isArray(brands)
+                  ? brands.filter((b): b is string => typeof b === "string")
+                  : [];
+              }
+            }
+          }
+        }
+      } catch (pastErr) {
+        console.error("[Brand Dashboard] past brands lookup failed", pastErr);
       }
       
       // Debug: Log fetched influencers
@@ -1234,7 +1256,7 @@ export default function BrandDashboardContent() {
           gender: inf.gender,
           avg_rating: inf.avg_rating,
           total_reviews: inf.total_reviews || 0,
-          past_brands: inf.total_reviews || 0,
+          past_brands: pastById[inf.id] || [],
           verified: inf.analytics_verified || inf.verified || false,
           accounts: inf.accounts,
           avatar_url: inf.avatar_url,

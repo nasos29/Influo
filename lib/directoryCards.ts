@@ -1,6 +1,7 @@
 import type { Influencer } from "@/components/Directory";
 import { normalizeGender } from "@/lib/gender";
 import { loadInfluencerRows } from "@/lib/loadPublicInfluencers";
+import { getPastBrandsByInfluencerIds } from "@/lib/pastBrands";
 import { parseFollowerString } from "@/lib/parseFollowers";
 import { parseStoredCategories } from "@/lib/categories";
 import { resolveCompletionRate } from "@/lib/completionRate";
@@ -72,7 +73,14 @@ export function mapDirectoryCard(row: Record<string, unknown>): Influencer {
 export async function loadPublicDirectoryCards(limit = 24): Promise<Influencer[]> {
   try {
     const rows = await loadInfluencerRows(DIRECTORY_QUERY_COLUMNS, { newestFirst: true, limit });
-    const cards = rows.map((row) => mapDirectoryCard(toPublicDirectoryCard(row)));
+    const pastById = await getPastBrandsByInfluencerIds(rows.map((row) => String(row.id ?? "")));
+    const cards = rows.map((row) => {
+      const pub = {
+        ...toPublicDirectoryCard(row),
+        past_brands: pastById.get(String(row.id ?? "")) || [],
+      };
+      return mapDirectoryCard(pub);
+    });
     for (const card of cards) {
       const leaks = findPrivateFieldPaths(card);
       if (leaks.length) {

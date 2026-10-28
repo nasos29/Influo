@@ -143,7 +143,8 @@ export function viewModelFromPublicRow(row: Record<string, unknown>): ProfileVie
       top_age: typeof data.audience_top_age === "string" ? data.audience_top_age : "?",
     },
     rate_card_flags: flags,
-    past_brands: asStringArray(data.past_brands),
+    // Collaborations come from completed proposals (attached by loaders), not a DB column.
+    past_brands: asStringArray(row.past_brands),
     avg_rating: typeof data.avg_rating === "number" ? data.avg_rating : 0,
     total_reviews: typeof data.total_reviews === "number" ? data.total_reviews : 0,
     avg_response_time: typeof data.avg_response_time === "number" ? data.avg_response_time : undefined,
