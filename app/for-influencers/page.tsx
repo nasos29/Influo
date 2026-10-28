@@ -242,12 +242,20 @@ export default function ForInfluencersPage() {
       <section className="relative border-b border-slate-100">
         <div className="absolute inset-0 bg-slate-950">
           <Image
-            src="https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=1600&q=80"
-            alt={lang === "en" ? "Influencer creating content for social media" : "Influencer δημιουργεί περιεχόμενο για social media"}
+            src="https://images.unsplash.com/photo-1758873268911-86716215d7ff?w=1600&q=80"
+            alt={
+              lang === "en"
+                ? "Young creators taking a smiling selfie"
+                : "Νέοι creators βγάζουν selfie χαμογελώντας"
+            }
             fill
-            className="object-cover opacity-40"
+            className="object-cover object-[70%_center] opacity-70"
             priority
             sizes="100vw"
+          />
+          <div
+            className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-950/70 to-transparent md:from-slate-950/90 md:via-slate-950/60 md:to-transparent"
+            aria-hidden
           />
         </div>
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-20 md:py-28">
