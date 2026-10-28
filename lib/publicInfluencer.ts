@@ -6,6 +6,8 @@
  * copied here. Callers must not spread the raw database row into a response.
  */
 
+import { sanitizeTopPosts } from "@/lib/topPosts";
+
 export const DIRECTORY_CARD_COLUMNS = [
   "id",
   "display_name",
@@ -67,6 +69,7 @@ const ACCOUNT_KEYS = [
   "quality_penalty_percent",
   "er_penalty_percent",
   "penalty_percent",
+  "top_posts",
 ] as const;
 
 const AUDIT_KEYS = [
@@ -262,7 +265,12 @@ function sanitizeAccounts(raw: unknown): Array<Record<string, unknown>> {
     const src = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
     const acc: Record<string, unknown> = {};
     for (const key of ACCOUNT_KEYS) {
-      if (src[key] !== undefined) acc[key] = src[key];
+      if (src[key] === undefined) continue;
+      if (key === "top_posts") {
+        acc.top_posts = sanitizeTopPosts(src.top_posts);
+        continue;
+      }
+      acc[key] = src[key];
     }
     return acc;
   });
