@@ -99,6 +99,7 @@ export default function SimilarInfluencers({
           id: String(row.id),
           accounts: Array.isArray(row.accounts) ? row.accounts : [],
         }));
+        // Shuffle only here (client useEffect) — avoids SSR/hydration mismatch.
         setItems(pickSimilarInfluencers(influencerId, currentCats, rows, 6));
       } catch (err) {
         console.warn("[SimilarInfluencers] unexpected error:", err);
