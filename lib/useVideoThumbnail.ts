@@ -105,9 +105,13 @@ export function useVideoThumbnail(url: string | null): string | null {
       return;
     }
     let cancelled = false;
-    resolveVideoThumbnailSrc(url).then((src) => {
-      if (!cancelled) setThumbnail(src);
-    });
+    resolveVideoThumbnailSrc(url)
+      .then((src) => {
+        if (!cancelled) setThumbnail(src);
+      })
+      .catch(() => {
+        if (!cancelled) setThumbnail(null);
+      });
     return () => {
       cancelled = true;
     };
