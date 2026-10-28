@@ -27,22 +27,21 @@ test("resolveCompletionRate returns null when proposalCount is 0", () => {
   assert.equal(resolveCompletionRate(80, { proposalCount: 2 }), 80);
 });
 
-test("resolveCompletionRate ignores fake 100 when no reviews and no completed campaigns", () => {
+test("resolveCompletionRate keeps completed rate even with zero reviews", () => {
+  assert.equal(resolveCompletionRate(100, { totalReviews: 0, completedCampaigns: 0 }), 100);
+  assert.equal(resolveCompletionRate(50), 50);
+  // Opt-in legacy guard still works when explicitly enabled.
   assert.equal(
-    resolveCompletionRate(100, { totalReviews: 0, completedCampaigns: 0 }),
+    resolveCompletionRate(100, {
+      totalReviews: 0,
+      completedCampaigns: 0,
+      requireCollabEvidence: true,
+    }),
     null
-  );
-  assert.equal(
-    resolveCompletionRate(100, { totalReviews: 1, completedCampaigns: 0 }),
-    100
-  );
-  assert.equal(
-    resolveCompletionRate(100, { totalReviews: 0, completedCampaigns: 2 }),
-    100
   );
 });
 
-test("formatCompletionRateDisplay shows dash + subtitle when missing", () => {
+test("formatCompletionRateDisplay: null → dash subtitle; completed rate → percent", () => {
   const el = formatCompletionRateDisplay(null, "el");
   assert.equal(el.primary, "—");
   assert.equal(el.subtitle, COMPLETION_NONE_SUBTITLE.el);
@@ -52,26 +51,29 @@ test("formatCompletionRateDisplay shows dash + subtitle when missing", () => {
   const ok = formatCompletionRateDisplay(75, "en");
   assert.equal(ok.primary, "75%");
   assert.equal(ok.subtitle, null);
+  const completedNoReviews = formatCompletionRateDisplay(100, "el");
+  assert.equal(completedNoReviews.primary, "100%");
+  assert.equal(completedNoReviews.subtitle, null);
 });
 
-test("computeCollabScore ignores completion_rate 100 with zero reviews and zero campaigns", () => {
+test("computeCollabScore uses completion_rate even with zero reviews", () => {
   const bare: TopScoreInfluencer = {
     id: "1",
     completion_rate: 100,
     total_reviews: 0,
     avg_rating: 0,
   };
-  const withReviews: TopScoreInfluencer = {
+  const noRate: TopScoreInfluencer = {
     id: "2",
-    completion_rate: 100,
-    total_reviews: 3,
-    avg_rating: 5,
+    completion_rate: null,
+    total_reviews: 0,
+    avg_rating: 0,
   };
-  assert.equal(computeCollabScore(bare, 0), computeReviewScore(bare));
-  assert.ok(computeCollabScore(withReviews, 0) > computeReviewScore(withReviews));
+  assert.ok(computeCollabScore(bare, 0) > computeReviewScore(bare));
+  assert.equal(computeCollabScore(noRate, 0), computeReviewScore(noRate));
 });
 
-test("buildChannelScore does not boost coop from fake completion 100 with 0 reviews", () => {
+test("buildChannelScore boosts coop from completion 100 even with 0 reviews", () => {
   const base = {
     followersTotal: 10000,
     contentCount: 0,
@@ -79,11 +81,8 @@ test("buildChannelScore does not boost coop from fake completion 100 with 0 revi
     reviewCount: 0,
   };
   const without = buildChannelScore({ ...base, completionRate: null });
-  const fake100 = buildChannelScore({ ...base, completionRate: 100 });
-  assert.equal(fake100.coopPotential, without.coopPotential);
-
-  const real = buildChannelScore({ ...base, reviewCount: 2, completionRate: 100 });
-  assert.ok(real.coopPotential > without.coopPotential);
+  const withRate = buildChannelScore({ ...base, completionRate: 100 });
+  assert.ok(withRate.coopPotential > without.coopPotential);
 });
 
 test("completionRateFromStatuses: no terminal outcomes → null", () => {
