@@ -3,6 +3,7 @@ import { NextRequest, NextResponse, after } from 'next/server';
 import { Resend } from 'resend';
 import { sendPushBrandAnnouncement, sendPushInfluencerAnnouncement } from '@/lib/push';
 import { rejectUnlessAdmin } from '@/lib/apiAuth';
+import { parseSpecificTargetIds } from '@/lib/announcementTargets';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -199,13 +200,117 @@ function isAnnouncementTargetType(value: unknown): value is AnnouncementTargetTy
   return typeof value === 'string' && (ANNOUNCEMENT_TARGET_TYPES as readonly string[]).includes(value);
 }
 
+async function resolveInfluencerAuthIds(rawIds: string[]): Promise<
+  | { ok: true; authIds: string[] }
+  | { ok: false; error: string }
+> {
+  if (rawIds.length === 0) return { ok: true, authIds: [] };
+
+  const { data: byAuth, error: authErr } = await supabaseAdmin
+    .from('influencers')
+    .select('auth_user_id')
+    .in('auth_user_id', rawIds);
+  if (authErr) {
+    return { ok: false, error: authErr.message };
+  }
+
+  const authFound = new Set<string>();
+  for (const row of byAuth || []) {
+    const id = row.auth_user_id != null ? String(row.auth_user_id) : '';
+    if (id) authFound.add(id);
+  }
+
+  const missing = rawIds.filter((id) => !authFound.has(id));
+  const pkToAuth = new Map<string, string>();
+  if (missing.length > 0) {
+    // Fallback: some clients may still send influencers.id
+    const { data: byPk, error: pkErr } = await supabaseAdmin
+      .from('influencers')
+      .select('id, auth_user_id')
+      .in('id', missing);
+    if (pkErr) {
+      return { ok: false, error: pkErr.message };
+    }
+    for (const row of byPk || []) {
+      const pk = String(row.id);
+      const auth = row.auth_user_id != null ? String(row.auth_user_id) : '';
+      if (auth) pkToAuth.set(pk, auth);
+    }
+  }
+
+  const authIds: string[] = [];
+  const seen = new Set<string>();
+  const stillMissing: string[] = [];
+  for (const raw of rawIds) {
+    const auth = authFound.has(raw) ? raw : pkToAuth.get(raw);
+    if (!auth) {
+      stillMissing.push(raw);
+      continue;
+    }
+    if (!seen.has(auth)) {
+      seen.add(auth);
+      authIds.push(auth);
+    }
+  }
+
+  if (stillMissing.length > 0) {
+    return {
+      ok: false,
+      error: `Unknown influencer id(s): ${stillMissing.slice(0, 5).join(', ')}${
+        stillMissing.length > 5 ? '…' : ''
+      }`,
+    };
+  }
+
+  return { ok: true, authIds };
+}
+
+async function resolveBrandIds(rawIds: string[]): Promise<
+  | { ok: true; brandIds: string[] }
+  | { ok: false; error: string }
+> {
+  if (rawIds.length === 0) return { ok: true, brandIds: [] };
+
+  const { data, error } = await supabaseAdmin.from('brands').select('id').in('id', rawIds);
+  if (error) return { ok: false, error: error.message };
+
+  const found = new Set((data || []).map((r) => String(r.id)));
+  const missing = rawIds.filter((id) => !found.has(id));
+  if (missing.length > 0) {
+    return {
+      ok: false,
+      error: `Unknown brand id(s): ${missing.slice(0, 5).join(', ')}${
+        missing.length > 5 ? '…' : ''
+      }`,
+    };
+  }
+
+  const brandIds: string[] = [];
+  const seen = new Set<string>();
+  for (const id of rawIds) {
+    if (!seen.has(id)) {
+      seen.add(id);
+      brandIds.push(id);
+    }
+  }
+  return { ok: true, brandIds };
+}
+
 export async function POST(request: NextRequest) {
   try {
     const denied = await rejectUnlessAdmin(request);
     if (denied) return denied;
 
     const body = await request.json();
-    const { title, content, target_type, target_influencer_id, target_brand_id } = body;
+    const {
+      title,
+      content,
+      target_type,
+      target_influencer_id,
+      target_influencer_ids,
+      target_brand_id,
+      target_brand_ids,
+    } = body;
 
     if (!title || !content || !target_type) {
       return NextResponse.json(
@@ -222,49 +327,138 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    if (target_type === 'specific' && !target_influencer_id) {
-      return NextResponse.json(
-        { error: 'target_influencer_id required when target_type is specific' },
-        { status: 400 }
-      );
-    }
-    if (target_type === 'specific_brand' && !target_brand_id) {
-      return NextResponse.json(
-        { error: 'target_brand_id required when target_type is specific_brand' },
-        { status: 400 }
-      );
+
+    const selectCols =
+      'id, title, created_at, target_type, target_influencer_id, target_brand_id';
+
+    if (target_type === 'all' || target_type === 'all_brands') {
+      const insertRow = {
+        title,
+        body: content,
+        target_type,
+        target_influencer_id: null,
+        target_brand_id: null,
+      };
+      const { data, error } = await supabaseAdmin
+        .from('announcements')
+        .insert(insertRow)
+        .select(selectCols)
+        .single();
+
+      if (error) {
+        console.error('[admin announcements]', error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+
+      const rows = data ? [data] : [];
+      after(() => {
+        if (target_type === 'all') {
+          return notifyInfluencerRecipients(title, 'all');
+        }
+        return notifyBrandRecipients(title, 'all_brands');
+      });
+
+      return NextResponse.json({ data: rows, count: rows.length });
     }
 
-    const insertRow = {
+    if (target_type === 'specific') {
+      const parsed = parseSpecificTargetIds({
+        singular: target_influencer_id,
+        plural: target_influencer_ids,
+        required: true,
+        kind: 'influencer',
+      });
+      if (!parsed.ok) {
+        return NextResponse.json({ error: parsed.error }, { status: 400 });
+      }
+
+      const resolved = await resolveInfluencerAuthIds(parsed.ids);
+      if (!resolved.ok) {
+        return NextResponse.json({ error: resolved.error }, { status: 400 });
+      }
+      if (resolved.authIds.length === 0) {
+        return NextResponse.json(
+          { error: 'target_influencer_id or target_influencer_ids required when target_type is specific' },
+          { status: 400 }
+        );
+      }
+
+      const insertRows = resolved.authIds.map((authId) => ({
+        title,
+        body: content,
+        target_type: 'specific' as const,
+        target_influencer_id: authId,
+        target_brand_id: null,
+      }));
+
+      const { data, error } = await supabaseAdmin
+        .from('announcements')
+        .insert(insertRows)
+        .select(selectCols);
+
+      if (error) {
+        console.error('[admin announcements]', error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+
+      const rows = data || [];
+      const notifyIds = resolved.authIds;
+      after(() =>
+        Promise.allSettled(
+          notifyIds.map((id) => notifyInfluencerRecipients(title, 'specific', id))
+        )
+      );
+
+      return NextResponse.json({ data: rows, count: rows.length });
+    }
+
+    // specific_brand
+    const parsed = parseSpecificTargetIds({
+      singular: target_brand_id,
+      plural: target_brand_ids,
+      required: true,
+      kind: 'brand',
+    });
+    if (!parsed.ok) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
+    }
+
+    const resolved = await resolveBrandIds(parsed.ids);
+    if (!resolved.ok) {
+      return NextResponse.json({ error: resolved.error }, { status: 400 });
+    }
+
+    const insertRows = resolved.brandIds.map((brandId) => ({
       title,
       body: content,
-      target_type,
-      target_influencer_id: target_type === 'specific' ? target_influencer_id : null,
-      target_brand_id: target_type === 'specific_brand' ? target_brand_id : null,
-    };
+      target_type: 'specific_brand' as const,
+      target_influencer_id: null,
+      target_brand_id: brandId,
+    }));
 
     const { data, error } = await supabaseAdmin
       .from('announcements')
-      .insert(insertRow)
-      .select('id, title, created_at, target_type, target_influencer_id, target_brand_id')
-      .single();
+      .insert(insertRows)
+      .select(selectCols);
 
     if (error) {
       console.error('[admin announcements]', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    after(() => {
-      if (target_type === 'all' || target_type === 'specific') {
-        return notifyInfluencerRecipients(title, target_type, target_influencer_id);
-      }
-      return notifyBrandRecipients(title, target_type, target_brand_id);
-    });
+    const rows = data || [];
+    const notifyIds = resolved.brandIds;
+    after(() =>
+      Promise.allSettled(
+        notifyIds.map((id) => notifyBrandRecipients(title, 'specific_brand', id))
+      )
+    );
 
-    return NextResponse.json({ data });
-  } catch (err: any) {
+    return NextResponse.json({ data: rows, count: rows.length });
+  } catch (err: unknown) {
     console.error('[admin announcements]', err);
-    return NextResponse.json({ error: err.message || 'Internal error' }, { status: 500 });
+    const message = err instanceof Error ? err.message : 'Internal error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -512,8 +706,9 @@ export async function GET(request: NextRequest) {
       total,
       totalPages,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[admin announcements GET]', err);
-    return NextResponse.json({ error: err.message || 'Internal error' }, { status: 500 });
+    const message = err instanceof Error ? err.message : 'Internal error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

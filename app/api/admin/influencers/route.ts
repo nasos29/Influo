@@ -19,7 +19,13 @@ const LIST_COLUMNS = [
   "min_rate",
 ].join(",");
 
-const PICKER_COLUMNS = ["id", "display_name", "contact_email", "auth_user_id"].join(",");
+const PICKER_COLUMNS = [
+  "id",
+  "display_name",
+  "contact_email",
+  "auth_user_id",
+  "profile_slug",
+].join(",");
 
 const DEFAULT_PAGE_SIZE = 50;
 const MAX_PAGE_SIZE = 100;
@@ -70,10 +76,17 @@ export async function GET(request: NextRequest) {
     if (picker) {
       const influencers: Record<string, unknown>[] = [];
       const pageSize = 1000;
+      let pickerCols = PICKER_COLUMNS;
+      const probe = await admin.from("influencers").select(pickerCols).limit(1);
+      if (probe.error && /profile_slug|column/i.test(probe.error.message)) {
+        pickerCols = ["id", "display_name", "contact_email", "auth_user_id"].join(",");
+      } else if (probe.error) {
+        return NextResponse.json({ error: probe.error.message }, { status: 500 });
+      }
       for (let from = 0; ; from += pageSize) {
         const { data, error } = await admin
           .from("influencers")
-          .select(PICKER_COLUMNS)
+          .select(pickerCols)
           .order("display_name", { ascending: true })
           .range(from, from + pageSize - 1);
         if (error) {
