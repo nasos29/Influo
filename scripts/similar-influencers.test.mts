@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   categoryIlikeOrFilter,
   escapePostgrestOrValue,
-  followerTotalFromField,
+  followerTotalFromAccounts,
   pickSimilarInfluencers,
   sharedCategoryCount,
 } from "../lib/similarInfluencers.ts";
@@ -27,11 +27,18 @@ test("categoryIlikeOrFilter builds or-clause with ilike per category", () => {
   );
 });
 
-test("followerTotalFromField handles number, string, and map", () => {
-  assert.equal(followerTotalFromField(12000), 12000);
-  assert.equal(followerTotalFromField("1.5k"), 1500);
-  assert.equal(followerTotalFromField({ instagram: "10k", tiktok: 2000 }), 12000);
-  assert.equal(followerTotalFromField(null), 0);
+test("followerTotalFromAccounts sums parseFollowerString per account", () => {
+  assert.equal(
+    followerTotalFromAccounts([
+      { platform: "instagram", followers: "10k" },
+      { platform: "tiktok", followers: 2000 },
+    ]),
+    12000
+  );
+  assert.equal(followerTotalFromAccounts([{ followers: "1.5k" }]), 1500);
+  assert.equal(followerTotalFromAccounts(null), 0);
+  assert.equal(followerTotalFromAccounts([]), 0);
+  assert.equal(followerTotalFromAccounts("nope"), 0);
 });
 
 test("sharedCategoryCount counts overlaps after parse", () => {
@@ -39,7 +46,7 @@ test("sharedCategoryCount counts overlaps after parse", () => {
   assert.equal(sharedCategoryCount(["Travel"], "Food & Drink"), 0);
 });
 
-test("pickSimilarInfluencers ranks by shared cats then followers", () => {
+test("pickSimilarInfluencers ranks by shared cats then account followers", () => {
   const rows = [
     {
       id: "a",
@@ -47,7 +54,7 @@ test("pickSimilarInfluencers ranks by shared cats then followers", () => {
       profile_slug: "a",
       avatar_url: null,
       category: "Travel",
-      followers: 1000,
+      accounts: [{ followers: 1000 }],
       verified: false,
     },
     {
@@ -56,7 +63,7 @@ test("pickSimilarInfluencers ranks by shared cats then followers", () => {
       profile_slug: "b",
       avatar_url: null,
       category: "Travel,Food & Drink",
-      followers: 500,
+      accounts: [{ followers: 500 }],
       verified: true,
     },
     {
@@ -65,7 +72,7 @@ test("pickSimilarInfluencers ranks by shared cats then followers", () => {
       profile_slug: "self",
       avatar_url: null,
       category: "Travel,Food & Drink",
-      followers: 99999,
+      accounts: [{ followers: 99999 }],
       verified: true,
     },
     {
@@ -74,7 +81,7 @@ test("pickSimilarInfluencers ranks by shared cats then followers", () => {
       profile_slug: "c",
       avatar_url: null,
       category: "Gaming & Esports",
-      followers: 80000,
+      accounts: [{ followers: 80000 }],
       verified: false,
     },
   ];

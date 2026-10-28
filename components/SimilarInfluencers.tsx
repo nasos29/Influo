@@ -9,7 +9,7 @@ import { publicProfilePath } from "@/lib/profileSlug";
 import { displayNameForLang } from "@/lib/greeklish";
 import {
   categoryIlikeOrFilter,
-  followerTotalFromField,
+  followerTotalFromAccounts,
   pickSimilarInfluencers,
   type SimilarInfluencerRow,
 } from "@/lib/similarInfluencers";
@@ -78,23 +78,30 @@ export default function SimilarInfluencers({
         const { data, error } = await supabase
           .from("influencers")
           .select(
-            "id, display_name, profile_slug, avatar_url, category, followers, verified"
+            "id, display_name, profile_slug, avatar_url, category, verified, accounts"
           )
           .eq("approved", true)
           .neq("id", influencerId)
           .or(orFilter)
           .limit(40);
         if (cancelled) return;
-        if (error || !data) {
+        if (error) {
+          console.warn("[SimilarInfluencers] query failed:", error.message || error);
+          setItems([]);
+          return;
+        }
+        if (!data) {
           setItems([]);
           return;
         }
         const rows = (data as SimilarInfluencerRow[]).map((row) => ({
           ...row,
           id: String(row.id),
+          accounts: Array.isArray(row.accounts) ? row.accounts : [],
         }));
         setItems(pickSimilarInfluencers(influencerId, currentCats, rows, 6));
-      } catch {
+      } catch (err) {
+        console.warn("[SimilarInfluencers] unexpected error:", err);
         if (!cancelled) setItems([]);
       }
     })();
@@ -126,7 +133,7 @@ export default function SimilarInfluencers({
                 (rowCats[0] && categoryTranslations[rowCats[0]]?.[lang]) ||
                 rowCats[0] ||
                 "";
-              const followers = followerTotalFromField(row.followers);
+              const followers = followerTotalFromAccounts(row.accounts);
               return (
                 <Link
                   key={row.id}

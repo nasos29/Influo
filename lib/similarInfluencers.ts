@@ -1,5 +1,11 @@
 import { parseStoredCategories } from "@/lib/categories";
-import { parseFollowerString } from "@/lib/parseFollowers";
+import { totalFollowersFromAccounts } from "@/lib/parseFollowers";
+
+export type SimilarAccount = {
+  platform?: string;
+  username?: string;
+  followers?: string | number | null;
+};
 
 export type SimilarInfluencerRow = {
   id: string;
@@ -7,7 +13,7 @@ export type SimilarInfluencerRow = {
   profile_slug: string | null;
   avatar_url: string | null;
   category: string | null;
-  followers: unknown;
+  accounts?: SimilarAccount[] | null;
   verified?: boolean | null;
 };
 
@@ -35,22 +41,15 @@ export function categoryIlikeOrFilter(categories: string[]): string | null {
   return parts.length ? parts.join(",") : null;
 }
 
-/** Best-effort follower total from a scalar or per-platform map. */
-export function followerTotalFromField(followers: unknown): number {
-  if (typeof followers === "number" && Number.isFinite(followers)) {
-    return Math.max(0, followers);
-  }
-  if (typeof followers === "string") {
-    return parseFollowerString(followers);
-  }
-  if (followers && typeof followers === "object" && !Array.isArray(followers)) {
-    let sum = 0;
-    for (const value of Object.values(followers as Record<string, unknown>)) {
-      sum += parseFollowerString(value as string | number | null | undefined);
-    }
-    return sum;
-  }
-  return 0;
+/**
+ * Sum followers from `accounts` the same way Directory does
+ * (`parseFollowerString(acc.followers)` per account).
+ */
+export function followerTotalFromAccounts(accounts: unknown): number {
+  if (!Array.isArray(accounts)) return 0;
+  return totalFollowersFromAccounts(
+    accounts as { followers?: string | number | null }[]
+  );
 }
 
 export function sharedCategoryCount(currentCats: string[], otherCategory: unknown): number {
@@ -61,7 +60,7 @@ export function sharedCategoryCount(currentCats: string[], otherCategory: unknow
 
 /**
  * Pick up to `limit` similar creators: share ≥1 category, exclude self,
- * sort by shared categories desc then followers desc.
+ * sort by shared categories desc then followers (from accounts) desc.
  */
 export function pickSimilarInfluencers(
   currentId: string,
@@ -82,7 +81,7 @@ export function pickSimilarInfluencers(
       const shareDiff =
         sharedCategoryCount(cats, b.category) - sharedCategoryCount(cats, a.category);
       if (shareDiff !== 0) return shareDiff;
-      return followerTotalFromField(b.followers) - followerTotalFromField(a.followers);
+      return followerTotalFromAccounts(b.accounts) - followerTotalFromAccounts(a.accounts);
     })
     .slice(0, limit);
 }
