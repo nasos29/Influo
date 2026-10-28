@@ -220,10 +220,20 @@ export function parseMoney(raw?: string | null): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+function scoreReachBonus(followersTotal: number, erFlagged?: boolean): number {
+  // Max 1 — only when ER is not hard-flagged.
+  if (erFlagged) return 0;
+  const n = Number(followersTotal) || 0;
+  if (n >= 100_000) return 1;
+  if (n >= 20_000) return 0.6;
+  if (n >= 5_000) return 0.3;
+  return 0;
+}
+
 function scoreCollaborationReadiness(input: ChannelScoreInput): number {
-  // Response (max 2)
+  // Response (max 2) — unknown → neutral 1.0 (not a penalty)
   const hours = input.avgResponseHours;
-  let responsePart = 0.4;
+  let responsePart = 1.0;
   if (hours != null && Number.isFinite(hours) && hours > 0) {
     if (hours <= 6) responsePart = 2;
     else if (hours <= 24) responsePart = 1.5;
@@ -236,10 +246,10 @@ function scoreCollaborationReadiness(input: ChannelScoreInput): number {
   const completionPart =
     usableCompletion == null ? 0.75 : round1(1.5 * (usableCompletion / 100));
 
-  // Reviews (max 1.5)
+  // Reviews (max 1.5) — none → neutral 0.75 (not a penalty)
   const reviews = Math.max(0, Number(input.reviewCount) || 0);
   const rating = Number(input.avgRating);
-  let reviewPart = 0;
+  let reviewPart = 0.75;
   if (reviews > 0 && Number.isFinite(rating) && rating > 0) {
     if (rating >= 4.5) reviewPart = 1.5;
     else if (rating >= 4) reviewPart = 1.1;
@@ -271,8 +281,17 @@ function scoreCollaborationReadiness(input: ChannelScoreInput): number {
   if (input.verified) verifyPart += 1;
   if (input.brandSafe) verifyPart += 0.5;
 
+  // Reach bonus (max 1) — followers bands, skipped when ER flagged
+  const reachPart = scoreReachBonus(input.followersTotal, input.erFlagged);
+
   const total =
-    responsePart + completionPart + reviewPart + pricePart + profilePart + verifyPart;
+    responsePart +
+    completionPart +
+    reviewPart +
+    pricePart +
+    profilePart +
+    verifyPart +
+    reachPart;
   return round1(Math.min(10, Math.max(0, total)));
 }
 
@@ -332,8 +351,8 @@ export const COOP_LABELS = {
 } as const;
 
 export const COOP_HINT = {
-  el: "Πόσο έτοιμο είναι το προφίλ για συνεργασία: απόκριση, ολοκληρώσεις, αξιολογήσεις, τιμές, πληρότητα.",
-  en: "How ready the profile is to collaborate: response, completions, reviews, pricing, completeness.",
+  el: "Πόσο έτοιμο είναι το προφίλ για συνεργασία: απόκριση, ολοκληρώσεις, αξιολογήσεις, τιμές, πληρότητα, απήχηση.",
+  en: "How ready the profile is to collaborate: response, completions, reviews, pricing, completeness, reach.",
 } as const;
 
 export const GROWTH_MISSING_HINT = {

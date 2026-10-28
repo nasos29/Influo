@@ -27,7 +27,6 @@ interface SocialEmbedCardProps {
 
 const COPY = {
   play: { el: "Προβολή βίντεο", en: "Play video" },
-  open: { el: "Άνοιγμα στο", en: "Open on" },
   loading: { el: "Φόρτωση", en: "Loading" },
   error: { el: "Αποτυχία φόρτωσης", en: "Failed to load" },
   retry: { el: "Δοκιμή ξανά", en: "Try again" },
@@ -172,8 +171,6 @@ export default function SocialEmbedCard({
     };
   }, [isInstagram, nearViewport, iframeSrc, error, originalUrl]);
 
-  const openHref = originalUrl || "#";
-
   const releaseIgSlotIfHeld = useCallback(() => {
     if (igSlotHeldRef.current) {
       igSlotHeldRef.current = false;
@@ -283,16 +280,8 @@ export default function SocialEmbedCard({
           ) : null}
 
           {isInstagram && error ? (
-            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-black/40 text-white">
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 text-white">
               <span className="text-sm font-medium">{COPY.error[uiLang]}</span>
-              <a
-                href={openHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs underline"
-              >
-                {COPY.open[uiLang]} Instagram
-              </a>
             </div>
           ) : null}
 
@@ -319,16 +308,6 @@ export default function SocialEmbedCard({
           ) : null}
         </div>
       </div>
-      <p className="mt-2 text-center text-xs text-slate-500">
-        <a
-          href={openHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="font-medium text-blue-600 underline-offset-2 hover:underline"
-        >
-          {COPY.open[uiLang]} {NAMES[provider]}
-        </a>
-      </p>
     </div>
   );
 }

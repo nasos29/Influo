@@ -102,9 +102,49 @@ test("collaboration readiness is low when profile is empty", () => {
     platformCount: 0,
     reviewCount: 0,
   });
-  // Neutral response 0.4 + neutral completion 0.75 = 1.15
-  assert.equal(empty.coopPotential, 1.2);
-  assert.ok(empty.coopPotential < 2);
+  // Neutral response 1.0 + completion 0.75 + reviews 0.75 = 2.5
+  assert.equal(empty.coopPotential, 2.5);
+  assert.ok(empty.coopPotential <= 3);
+});
+
+test("collaboration readiness: strong reach without reviews/response still ≥ 6", () => {
+  const strong = buildChannelScore({
+    followersTotal: 200_000,
+    contentCount: 5,
+    platformCount: 1,
+    verified: false,
+    hasAvatar: true,
+    hasBio: true,
+    reviewCount: 0,
+    avgResponseHours: null,
+    minRate: "200",
+    rateCard: { story: "100", post: "300" },
+    erFlagged: false,
+  });
+  assert.ok(strong.coopPotential >= 6);
+
+  const blank = buildChannelScore({
+    followersTotal: 0,
+    contentCount: 0,
+    platformCount: 0,
+  });
+  assert.ok(blank.coopPotential <= 3);
+});
+
+test("reach bonus skipped when ER flagged", () => {
+  const clean = buildChannelScore({
+    followersTotal: 200_000,
+    contentCount: 0,
+    platformCount: 1,
+    erFlagged: false,
+  });
+  const flagged = buildChannelScore({
+    followersTotal: 200_000,
+    contentCount: 0,
+    platformCount: 1,
+    erFlagged: true,
+  });
+  assert.ok(clean.coopPotential > flagged.coopPotential);
 });
 
 test("integration shows From (no ×2.2) when only min_rate exists", () => {
