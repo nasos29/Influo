@@ -45,7 +45,8 @@ async function resolveTikTokVideoId(url: string): Promise<string | null> {
   const clean = url.split('?')[0].split('#')[0].trim();
   const direct = tikTokIdFromUrl(clean);
   if (direct) return direct;
-  if (!/(vm|vt)\.tiktok\.com/i.test(clean)) return null;
+  // vm/vt short domains and tiktok.com/t/{code} need redirect resolve.
+  if (!/(vm|vt)\.tiktok\.com\/[\w-]+|tiktok\.com\/t\/[\w-]+/i.test(clean)) return null;
   try {
     let current = clean;
     for (let hop = 0; hop < 5; hop++) {

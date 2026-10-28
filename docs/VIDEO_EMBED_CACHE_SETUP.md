@@ -2,13 +2,12 @@
 
 ## Overview
 
-This system caches embed URLs from Iframely API to reduce API calls and improve performance. When a video URL (Instagram, TikTok, YouTube) is requested, the system first checks the cache. If found and not expired, it returns the cached embed URL. Otherwise, it fetches from Iframely and caches the result.
+This system caches resolved embed URLs for social video links to reduce upstream API calls and improve performance. When a video URL (Instagram, TikTok, YouTube) is requested, the system first checks the cache. If found and not expired, it returns the cached embed URL. Otherwise, it resolves the embed and caches the result.
 
 ## Benefits
 
-- **Reduced API Calls**: Each video URL is only fetched from Iframely once every 7 days
-- **Faster Load Times**: Cached embeds load instantly without waiting for Iframely API
-- **Cost Savings**: Reduces Iframely API usage and potential rate limiting
+- **Reduced API Calls**: Each video URL is only resolved once every 7 days (or longer for stable providers)
+- **Faster Load Times**: Cached embeds load instantly without waiting for upstream services
 - **Better Performance**: Less network latency for repeated video views
 
 ## Database Setup
@@ -39,20 +38,20 @@ CREATE INDEX IF NOT EXISTS idx_video_embed_cache_provider ON video_embed_cache(p
 
 ## How It Works
 
-1. **Client Request**: When `SocialEmbedCard` component loads, it calls `getIframelyEmbedUrl()` which returns `/api/video-embed?url={originalUrl}`
+1. **Client Request**: When `SocialEmbedCard` loads, it uses `getVideoEmbedApiUrl()` which returns an official Instagram/YouTube embed URL when possible, or `/api/video-embed?url={originalUrl}` for TikTok (and short-link resolve).
 
 2. **API Endpoint**: The `/api/video-embed` endpoint:
    - Checks the `video_embed_cache` table for existing cache
-   - If found and not expired (< 7 days), returns cached embed URL
-   - If not found or expired, fetches from Iframely API
-   - Caches the result in database with 7-day expiration
+   - If found and not expired, returns cached embed URL
+   - If not found or expired, resolves the embed (official player / short-link redirect)
+   - Caches the result in the database
    - Returns the embed URL
 
-3. **Component**: `SocialEmbedCard` receives the API endpoint URL, fetches the cached embed URL, and displays it in an iframe
+3. **Component**: `SocialEmbedCard` displays a click-to-load facade; the iframe loads only after the user taps play.
 
 ## Cache Expiration
 
-- **Default**: 30 days (DB) – fewer Iframely API calls
+- **Default**: 30 days (DB)
 - **Response headers**: `Cache-Control: public, max-age=604800, s-maxage=604800` (7 days) so Cloudflare/CDN can cache at edge
 - **Automatic Cleanup**: Expired entries are deleted when accessed
 - **Manual Cleanup**: Run `cleanup_expired_embed_cache()` function to clean up all expired entries
@@ -61,13 +60,13 @@ CREATE INDEX IF NOT EXISTS idx_video_embed_cache_provider ON video_embed_cache(p
 
 ### GET `/api/video-embed?url={originalUrl}`
 
-Returns cached or fresh embed URL from Iframely.
+Returns cached or freshly resolved embed URL.
 
 **Response:**
 ```json
 {
-  "embed_url": "https://iframe.ly/api/iframe?url=...&api_key=...",
-  "provider": "instagram",
+  "embed_url": "https://www.tiktok.com/player/v1/7123...?autoplay=1&muted=1",
+  "provider": "tiktok",
   "cached": true,
   "cached_at": "2024-01-01T00:00:00Z"
 }
@@ -77,7 +76,7 @@ Returns cached or fresh embed URL from Iframely.
 
 The cache is automatically used when:
 - `SocialEmbedCard` component is rendered
-- `getIframelyEmbedUrl()` is called (client-side returns API endpoint)
+- `getVideoEmbedApiUrl()` routes TikTok (and unresolved short links) through `/api/video-embed`
 - Any component uses the embed URL helper function
 
 No code changes needed - the cache is transparent to existing code.
@@ -105,8 +104,7 @@ SELECT cleanup_expired_embed_cache();
 ### Cache not working
 
 1. **Check table exists**: Run the SQL setup script
-2. **Check API key**: Ensure `IFRAMELY_API_KEY` is set in environment variables
-3. **Check logs**: Look for errors in server logs when fetching from Iframely
+2. **Check logs**: Look for errors in server logs when resolving embeds
 
 ### Cache not updating
 
@@ -119,19 +117,13 @@ SELECT cleanup_expired_embed_cache();
 ### Performance
 
 - Cache lookups are fast (indexed on `original_url`)
-- Iframely API calls only happen on cache miss
-- **Cloudflare**: Το `/api/video-embed` στέλνει `Cache-Control` ώστε το Cloudflare να κρατά απάντηση στο edge (λιγότερα hits στο origin). Στο Cloudflare Dashboard → Caching → Cache Rules μπορείς να βάλεις rule: αν URL path είναι `/api/video-embed*`, Cache Level = Standard, Edge TTL = 7 days.
-
-### Cloudflare – λιγότερες κλήσεις Iframely
-
-1. **Cache at edge**: Το API ήδη στέλνει `Cache-Control: public, max-age=604800, s-maxage=604800`. Αν το site περνά από Cloudflare, το Cloudflare θα κρατά την απάντηση στο edge και δεν θα χτυπά το origin (ούτε τη DB) για κάθε request.
-2. **Cache Rule (προαιρετικό)**: Δημιούργησε Rule για path `/api/video-embed*` με Edge TTL 7 days ώστε να είσαι σίγουρος ότι cache-άρεται.
-3. **Άλλες ιδέες**: (α) Client-side: αν το ίδιο video φορτώνει σε πολλές σελίδες, μπορεί να προστεθεί in-memory cache (Map) για το session.
+- Upstream resolve calls only happen on cache miss
+- **Cloudflare**: `/api/video-embed` sends `Cache-Control` so Cloudflare can keep the response at the edge. Optional Cache Rule: path `/api/video-embed*` → Cache Level = Standard, Edge TTL = 7 days.
 
 ### Thumbnail cache (video-thumbnail API)
 
-Το `/api/video-thumbnail?url=...` χρησιμοποιεί πλέον **DB cache** ώστε να μην καλείται το Iframely κάθε φορά:
+`/api/video-thumbnail?url=...` uses a **DB cache** so thumbnails are not re-fetched every time:
 
-1. **Πίνακας**: `video_thumbnail_cache` (original_url, thumbnail_url, platform, expires_at). Δημιουργία: τρέξε στο Supabase το `docs/ADD_VIDEO_THUMBNAIL_CACHE.sql`.
-2. **Ροή**: (1) Έλεγχος cache με το normalized URL. Αν υπάρχει και δεν έχει λήξει (30 ημέρες), επιστροφή cached thumbnail + `Cache-Control`. (2) Αλλιώς κλήση Iframely/oEmbed/κλπ, αποθήκευση στο cache, επιστροφή με `Cache-Control`.
-3. **Λήξη**: 30 ημέρες (όπως και το embed cache). Λιγότερες κλήσεις στο Iframely.
+1. **Table**: `video_thumbnail_cache` (original_url, thumbnail_url, platform, expires_at). Create with `docs/ADD_VIDEO_THUMBNAIL_CACHE.sql`.
+2. **Flow**: (1) Check cache by normalized URL. If present and not expired, return cached thumbnail + `Cache-Control`. (2) Otherwise resolve via oEmbed/page OG image, store in cache, return with `Cache-Control`.
+3. **TTL**: shorter for Instagram/TikTok (1 day), longer for stable providers.

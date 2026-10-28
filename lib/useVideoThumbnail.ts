@@ -12,6 +12,12 @@ import {
   toDisplayThumbnailSrc,
 } from "@/lib/videoThumbnailExtract";
 
+const RETRY_DELAY_MS = 2500;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function fetchApiThumbnail(apiOrOriginalUrl: string): Promise<string | null> {
   const apiUrl = apiOrOriginalUrl.startsWith("/api/video-thumbnail")
     ? apiOrOriginalUrl
@@ -42,16 +48,32 @@ export async function resolveVideoThumbnailSrc(originalUrl: string): Promise<str
   return toDisplayThumbnailSrc(raw);
 }
 
+async function resolveWithOneRetry(originalUrl: string): Promise<string | null> {
+  try {
+    const first = await resolveVideoThumbnailSrc(originalUrl);
+    if (first) return first;
+  } catch {
+    /* retry below */
+  }
+  await sleep(RETRY_DELAY_MS);
+  try {
+    return await resolveVideoThumbnailSrc(originalUrl);
+  } catch {
+    return null;
+  }
+}
+
 export type LazyVideoThumbnailState = {
   /** Image src to render (direct or proxied). Null → use gradient fallback. */
   src: string | null;
   loading: boolean;
-  /** Call from <img onError>. One extra proxy attempt if somehow still a raw CDN URL. */
+  /** Call from <img onError>. Proxy once for CDN, else one delayed re-resolve. */
   onImgError: () => void;
 };
 
 /**
  * Lazy thumbnail: fetch only when `enabled` (e.g. IntersectionObserver near viewport).
+ * Empty API / fetch failure → one retry after ~2.5s before gradient fallback.
  */
 export function useLazyVideoThumbnail(
   originalUrl: string,
@@ -61,10 +83,12 @@ export function useLazyVideoThumbnail(
   const [loading, setLoading] = useState(false);
   const rawSrcRef = useRef<string | null>(null);
   const proxiedRef = useRef(false);
+  const delayedRetryUsedRef = useRef(false);
 
   useEffect(() => {
     rawSrcRef.current = null;
     proxiedRef.current = false;
+    delayedRetryUsedRef.current = false;
     setSrc(null);
     if (!enabled || !originalUrl) {
       setLoading(false);
@@ -73,7 +97,7 @@ export function useLazyVideoThumbnail(
 
     let cancelled = false;
     setLoading(true);
-    resolveVideoThumbnailSrc(originalUrl)
+    void resolveWithOneRetry(originalUrl)
       .then((resolved) => {
         if (cancelled) return;
         rawSrcRef.current = resolved;
@@ -108,8 +132,25 @@ export function useLazyVideoThumbnail(
       setSrc(proxied);
       return;
     }
+
+    if (!delayedRetryUsedRef.current && originalUrl) {
+      delayedRetryUsedRef.current = true;
+      setLoading(true);
+      void (async () => {
+        await sleep(RETRY_DELAY_MS);
+        const resolved = await resolveVideoThumbnailSrc(originalUrl).catch(() => null);
+        rawSrcRef.current = resolved;
+        if (resolved?.startsWith("/api/thumbnail-proxy")) {
+          proxiedRef.current = true;
+        }
+        setSrc(resolved);
+        setLoading(false);
+      })();
+      return;
+    }
+
     setSrc(null);
-  }, []);
+  }, [originalUrl]);
 
   return { src, loading, onImgError };
 }
@@ -124,7 +165,7 @@ export function useVideoThumbnail(url: string | null): string | null {
       return;
     }
     let cancelled = false;
-    resolveVideoThumbnailSrc(url)
+    void resolveWithOneRetry(url)
       .then((src) => {
         if (!cancelled) setThumbnail(src);
       })

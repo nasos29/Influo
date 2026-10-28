@@ -1,3 +1,9 @@
+/** Short links that need redirect resolve (vm/vt and /t/). */
+export function isTikTokShortLink(url: string): boolean {
+  if (!url) return false;
+  return /(vm|vt)\.tiktok\.com\/[\w-]+/i.test(url) || /tiktok\.com\/t\/[\w-]+/i.test(url);
+}
+
 /** Extract numeric TikTok video id from watch / photo / embed / player URLs. */
 export function extractTikTokVideoId(url: string): string | null {
   if (!url) return null;

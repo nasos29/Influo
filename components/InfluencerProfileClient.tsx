@@ -11,7 +11,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { sessionFetch } from "@/lib/sessionFetch";
 import { presenceOnline } from "@/lib/presenceStatus";
 import { counterpartyInfluencerPresence } from "@/lib/presenceIdentity";
-import { getVideoThumbnail, isVideoUrl, isDefinitelyVideo, isDefinitelyImage, detectProvider, getIframelyEmbedUrl } from "@/lib/videoThumbnail";
+import { getVideoThumbnail, isDefinitelyVideo, isDefinitelyImage, detectProvider, getVideoEmbedApiUrl, isEmbeddableVideoUrl } from "@/lib/videoThumbnail";
 import VideoThumbnail from "@/components/VideoThumbnail";
 import SocialEmbedCard from "@/components/SocialEmbedCard";
 import { getBadges, getBadgeStyles } from "@/lib/badges";
@@ -2539,29 +2539,38 @@ export default function InfluencerProfile(props: {
                                     </div>
                             </div>
                         )}
-                         <div>
-                            <h3 className="text-lg font-bold text-slate-900 mb-4">{txt.portfolio}</h3>
-                            {profile.videos && profile.videos.some((vid) => String(vid || "").trim()) ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    {profile.videos.filter((vid) => String(vid || "").trim()).map((vid, i) => {
+                         {(() => {
+                              const portfolioItems = (profile.videos || [])
+                                .map((vid) => String(vid || "").trim())
+                                .filter((vid) => {
+                                  if (!vid) return false;
+                                  if (isDefinitelyImage(vid)) return true;
+                                  if (isEmbeddableVideoUrl(vid)) return true;
+                                  // Skip profile/channel/stories links that are not embeddable videos.
+                                  return !detectProvider(vid);
+                                });
+                              if (!portfolioItems.length) return null;
+                              return (
+                                <div>
+                                  <h3 className="text-lg font-bold text-slate-900 mb-4">{txt.portfolio}</h3>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {portfolioItems.map((vid, i) => {
                                         const isVideo = isDefinitelyVideo(vid);
                                         const isImage = isDefinitelyImage(vid);
                                         // For Instagram posts (p/), we can't be sure if it's video or photo, so don't show play button
-                                        const isInstagramPost = /instagram\.com\/p\//i.test(vid);
-                                        
+                                        const isInstagramPost = /instagram\.com\/(?:[A-Za-z0-9._]+\/)?p\//i.test(vid);
+
                                         // Component to load image and adapt container to natural dimensions
                                         const AdaptiveImage = ({ imageUrl, alt }: { imageUrl: string; alt: string }) => {
                                             const [imgSrc, setImgSrc] = useState<string | null>(null);
                                             const [error, setError] = useState(false);
-                                            
+
                                             useEffect(() => {
-                                                // For direct image URLs, use them directly
                                                 if (isDefinitelyImage(imageUrl)) {
                                                     setImgSrc(imageUrl);
                                                     return;
                                                 }
-                                                
-                                                // For Instagram/TikTok URLs, fetch thumbnail
+
                                                 const fetchThumbnail = async () => {
                                                     try {
                                                         const thumbnail = getVideoThumbnail(imageUrl);
@@ -2582,15 +2591,14 @@ export default function InfluencerProfile(props: {
                                                         setError(true);
                                                     }
                                                 };
-                                                
+
                                                 fetchThumbnail();
                                             }, [imageUrl]);
-                                            
+
                                             if (error || !imgSrc) {
-                                                // Fallback to VideoThumbnail component
                                                 return (
                                                     <div className="relative w-full flex items-center justify-center p-4 min-h-[200px]">
-                                                        <VideoThumbnail 
+                                                        <VideoThumbnail
                                                             url={imageUrl}
                                                             alt={alt}
                                                             fill={false}
@@ -2601,10 +2609,10 @@ export default function InfluencerProfile(props: {
                                                     </div>
                                                 );
                                             }
-                                            
+
                                             return (
                                                 <div className="w-full flex items-center justify-center p-4">
-                                                        <img 
+                                                    <img
                                                         src={imgSrc}
                                                         alt={alt}
                                                         className="max-w-full max-h-[600px] w-auto h-auto object-contain rounded"
@@ -2616,11 +2624,10 @@ export default function InfluencerProfile(props: {
                                                 </div>
                                             );
                                         };
-                                        
+
                                         const provider = detectProvider(vid);
-                                        const embedUrl = provider ? getIframelyEmbedUrl(vid) : null;
-                                        
-                                        // Use SocialEmbedCard for social media videos (click-to-load)
+                                        const embedUrl = provider ? getVideoEmbedApiUrl(vid) : null;
+
                                         if (provider && embedUrl && !isImage) {
                                             return (
                                                 <div key={vid} className="w-full">
@@ -2633,26 +2640,25 @@ export default function InfluencerProfile(props: {
                                                 </div>
                                             );
                                         }
-                                        
-                                        // Use VideoThumbnail for images or non-social media URLs
+
                                         return (
-                                            <a 
-                                                key={vid} 
-                                                href={vid} 
-                                                target="_blank" 
-                                                rel="noopener noreferrer" 
+                                            <a
+                                                key={vid}
+                                                href={vid}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
                                                 className={`group relative rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-shadow bg-slate-100 ${
-                                                    isImage 
-                                                        ? 'flex flex-col items-center justify-center w-full' 
+                                                    isImage
+                                                        ? 'flex flex-col items-center justify-center w-full'
                                                         : 'w-full sm:w-[calc(50%-0.5rem)] lg:w-[calc(33.333%-0.67rem)] aspect-square'
                                                 }`}
                                             >
                                                 {isImage ? (
-                                                    <AdaptiveImage imageUrl={vid} alt={`Portfolio item ${i+1}`} />
+                                                    <AdaptiveImage imageUrl={vid} alt={`Portfolio item ${i + 1}`} />
                                                 ) : (
-                                                    <VideoThumbnail 
+                                                    <VideoThumbnail
                                                         url={vid}
-                                                        alt={`Portfolio item ${i+1}`}
+                                                        alt={`Portfolio item ${i + 1}`}
                                                         fill
                                                         className="object-cover"
                                                     />
@@ -2665,16 +2671,15 @@ export default function InfluencerProfile(props: {
                                                     </div>
                                                 )}
                                                 <div className="absolute bottom-0 left-0 right-0 w-full p-3 bg-gradient-to-t from-black/80 to-transparent text-white text-sm font-medium pointer-events-none z-10">
-                                                    {isVideo ? `Video ${i+1}` : isImage ? `Photo ${i+1}` : isInstagramPost ? `Instagram Post ${i+1}` : `Highlight ${i+1}`}
+                                                    {isVideo ? `Video ${i + 1}` : isImage ? `Photo ${i + 1}` : isInstagramPost ? `Instagram Post ${i + 1}` : `Highlight ${i + 1}`}
                                                 </div>
                                             </a>
                                         );
                                     })}
+                                  </div>
                                 </div>
-                            ) : (
-                                <div className="p-8 border-2 border-dashed border-slate-200 rounded-xl text-center text-slate-400">{txt.no_vid}</div>
-                            )}
-                        </div>
+                              );
+                            })()}
                     </>
                 )}
                 {activeTab === "audience" && (

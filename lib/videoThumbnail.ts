@@ -1,13 +1,20 @@
 // Helper functions for video thumbnail generation
 import { resolveYouTubeVideoId as resolveYtId } from "./videoThumbnailYoutube";
+import { extractInstagramMedia } from "./instagramShortcode";
+import { extractTikTokVideoId, isTikTokShortLink } from "./tikTokPlayer";
 
 export { resolveYouTubeVideoId } from "./videoThumbnailYoutube";
-export { buildTikTokPlayerUrl, extractTikTokVideoId } from "./tikTokPlayer";
+export { buildTikTokPlayerUrl, extractTikTokVideoId, isTikTokShortLink } from "./tikTokPlayer";
 export {
+  extractInstagramMedia,
   extractInstagramShortcode,
   isValidInstagramShortcode,
   instagramThumbnailProxySrc,
 } from "./instagramShortcode";
+
+const IG_MEDIA_RE =
+  /instagram\.com\/(?:(?:[A-Za-z0-9._]+)\/)?(p|reel|tv)\/([A-Za-z0-9_-]+)/i;
+const TT_VIDEO_RE = /tiktok\.com\/@[\w.-]+\/(?:video|photo)\/\d+/i;
 
 export function getVideoThumbnail(url: string): string | null {
   if (!url) return null;
@@ -18,35 +25,45 @@ export function getVideoThumbnail(url: string): string | null {
     return `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
   }
 
-  // Instagram Reels/Posts/TV - API endpoint for server-side thumbnail fetch
-  const instagramRegex = /instagram\.com\/(?:p|reel|tv)\/([A-Za-z0-9_-]+)/i;
-  if (instagramRegex.test(url)) {
+  // Instagram Reels/Posts/TV (optional username segment)
+  if (IG_MEDIA_RE.test(url)) {
     return `/api/video-thumbnail?url=${encodeURIComponent(url)}`;
   }
 
-  // TikTok - full + short URLs
-  const tiktokRegex = /tiktok\.com\/@[\w.-]+\/video\/\d+/i;
-  const tiktokShortRegex = /(vm|vt)\.tiktok\.com\/[\w-]+\/?/i;
-
-  if (tiktokRegex.test(url) || tiktokShortRegex.test(url)) {
+  // TikTok - full + short URLs (vm/vt + /t/)
+  if (TT_VIDEO_RE.test(url) || isTikTokShortLink(url)) {
     return `/api/video-thumbnail?url=${encodeURIComponent(url)}`;
   }
 
   return null;
 }
 
+/**
+ * True when the URL is a specific social video/post that can be embedded
+ * (not a profile, channel, stories/highlights, etc.).
+ */
+export function isEmbeddableVideoUrl(url: string): boolean {
+  if (!url?.trim()) return false;
+  const clean = url.trim();
+
+  if (resolveYtId(clean)) return true;
+  if (extractInstagramMedia(clean)) return true;
+  if (TT_VIDEO_RE.test(clean)) return true;
+  if (isTikTokShortLink(clean)) return true;
+  // Already-resolved numeric TikTok paths without @user
+  if (/tiktok\.com\/(?:video|photo)\/\d+/i.test(clean)) return true;
+  if (extractTikTokVideoId(clean) && /tiktok\.com\/(?:embed|player)\//i.test(clean)) {
+    return true;
+  }
+  return false;
+}
+
 export function isVideoUrl(url: string): boolean {
-  if (!url) return false;
-  return /youtube\.com|youtu\.be|tiktok\.com|(vm|vt)\.tiktok\.com|instagram\.com\/reel\//i.test(
-    url.toLowerCase()
-  );
+  return isEmbeddableVideoUrl(url);
 }
 
 export function isDefinitelyVideo(url: string): boolean {
-  if (!url) return false;
-  return /youtube\.com|youtu\.be|tiktok\.com|(vm|vt)\.tiktok\.com|instagram\.com\/reel\//i.test(
-    url.toLowerCase()
-  );
+  return isEmbeddableVideoUrl(url);
 }
 
 export function isDefinitelyImage(url: string): boolean {
@@ -72,9 +89,9 @@ export function buildOfficialEmbedUrl(
   if (!originalUrl) return null;
   const provider = detectProvider(originalUrl);
   if (provider === "instagram") {
-    const ig = originalUrl.match(/instagram\.com\/(reel|p|tv)\/([A-Za-z0-9_-]+)/i);
-    if (!ig?.[1] || !ig?.[2]) return null;
-    return `https://www.instagram.com/${ig[1].toLowerCase()}/${ig[2]}/embed`;
+    const ig = extractInstagramMedia(originalUrl);
+    if (!ig) return null;
+    return `https://www.instagram.com/${ig.kind}/${ig.code}/embed`;
   }
   if (provider === "youtube") {
     const id = resolveYtId(originalUrl);
@@ -118,7 +135,7 @@ export function detectProvider(url: string): "instagram" | "tiktok" | "youtube" 
  * Preferred embed source for a social URL.
  * Instagram/YouTube → official embed (deterministic). TikTok → /api/video-embed.
  */
-export function getIframelyEmbedUrl(originalUrl: string, _apiKey?: string): string {
+export function getVideoEmbedApiUrl(originalUrl: string): string {
   if (!originalUrl) return "";
   const official = buildOfficialEmbedUrl(originalUrl, { autoplay: false });
   if (official) return official;
