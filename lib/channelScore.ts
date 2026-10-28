@@ -27,8 +27,14 @@ export type ChannelScoreInput = {
   growthPct?: number | null;
   minRate?: string | null;
   rateCard?: { story?: string; post?: string; reel?: string; facebook?: string; youtube?: string } | null;
-  /** When the exact amount is withheld, still count "has a price" toward coop score. */
+  /** When the exact amount is withheld, still count "has a price" toward readiness. */
   hasPricedMinRate?: boolean;
+  /** Hard ER flag on main account — engagement axis stays neutral, no ER bonuses. */
+  erFlagged?: boolean;
+  avgResponseHours?: number | null;
+  avgRating?: number | null;
+  hasAvatar?: boolean;
+  hasBio?: boolean;
 };
 
 function clamp(n: number, min = 0, max = 5): number {
@@ -62,6 +68,28 @@ function parseLikes(avgLikes: ChannelScoreInput["avgLikes"]): number {
   return parseFollowerString(avgLikes);
 }
 
+/**
+ * Size-scaled “excellent” ER % thresholds:
+ * <10k → 8, 10k–100k → 5, 100k–500k → 3, >500k → 2.
+ */
+export function excellentErThreshold(followersTotal: number): number {
+  const f = Math.max(0, Number(followersTotal) || 0);
+  if (f < 10_000) return 8;
+  if (f < 100_000) return 5;
+  if (f <= 500_000) return 3;
+  return 2;
+}
+
+/** Excellent / good / average ER cutoffs for a follower band. */
+export function erBandThresholds(followersTotal: number): { excellent: number; good: number; average: number } {
+  const excellent = excellentErThreshold(followersTotal);
+  return {
+    excellent,
+    good: round1(excellent * 0.6),
+    average: round1(excellent * 0.3),
+  };
+}
+
 export function qualityLabel(score: number, lang: "el" | "en"): string {
   if (score >= 4.2) return lang === "el" ? "Εξαιρετικό" : "Excellent";
   if (score >= 3.2) return lang === "el" ? "Καλό" : "Good";
@@ -85,12 +113,14 @@ function scoreFollowersGrowth(growthPct: number | null | undefined): number {
   return 4.8;
 }
 
-function scoreEngagement(er: number): number {
+function scoreEngagement(er: number, followersTotal: number, erFlagged?: boolean): number {
+  if (erFlagged) return 2.5;
   if (er <= 0) return 1.8;
-  if (er < 1) return 2.4;
-  if (er < 2.5) return 3.3;
-  if (er < 5) return 4.2;
-  return 4.8;
+  const { excellent, good, average } = erBandThresholds(followersTotal);
+  if (er >= excellent) return 4.8;
+  if (er >= good) return 4.0;
+  if (er >= average) return 3.0;
+  return 2.2;
 }
 
 function scoreCreation(contentCount: number, platformCount: number): number {
@@ -103,19 +133,32 @@ function scoreCreation(contentCount: number, platformCount: number): number {
   return clamp(s);
 }
 
-function scoreChannelQuality(input: ChannelScoreInput, er: number, likes: number): number {
-  let s = 2;
-  if (input.verified) s += 0.8;
-  if (input.brandSafe) s += 0.6;
-  if (input.platformCount >= 2) s += 0.4;
-  if (er >= 2) s += 0.5;
-  if (er >= 4) s += 0.3;
+/** Like/followers ratio bands mirror ER % / 100 for the same follower size. */
+function likeRatioThresholds(followersTotal: number): { excellent: number; good: number; average: number } {
+  const er = erBandThresholds(followersTotal);
+  return {
+    excellent: er.excellent / 100,
+    good: er.good / 100,
+    average: er.average / 100,
+  };
+}
+
+function scoreChannelQuality(input: ChannelScoreInput, likes: number): number {
+  let s = 2.2;
+  if (input.brandSafe) s += 0.7;
+  if (input.platformCount >= 2) s += 0.5;
+  if (input.platformCount >= 3) s += 0.3;
+
   const followers = input.followersTotal || 0;
   if (followers > 0 && likes > 0) {
     const ratio = likes / followers;
-    if (ratio >= 0.02) s += 0.5;
-    else if (ratio >= 0.008) s += 0.3;
+    const bands = likeRatioThresholds(followers);
+    if (ratio >= bands.excellent) s += 1.2;
+    else if (ratio >= bands.good) s += 0.8;
+    else if (ratio >= bands.average) s += 0.4;
   }
+
+  if (input.erFlagged) s -= 1;
   return clamp(s);
 }
 
@@ -136,6 +179,62 @@ export function parseMoney(raw?: string | null): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+function scoreCollaborationReadiness(input: ChannelScoreInput): number {
+  // Response (max 2)
+  const hours = input.avgResponseHours;
+  let responsePart = 0.4;
+  if (hours != null && Number.isFinite(hours) && hours > 0) {
+    if (hours <= 6) responsePart = 2;
+    else if (hours <= 24) responsePart = 1.5;
+    else if (hours <= 72) responsePart = 0.8;
+    else responsePart = 0.4;
+  }
+
+  // Completion (max 1.5)
+  const usableCompletion = resolveCompletionRate(input.completionRate);
+  const completionPart =
+    usableCompletion == null ? 0.75 : round1(1.5 * (usableCompletion / 100));
+
+  // Reviews (max 1.5)
+  const reviews = Math.max(0, Number(input.reviewCount) || 0);
+  const rating = Number(input.avgRating);
+  let reviewPart = 0;
+  if (reviews > 0 && Number.isFinite(rating) && rating > 0) {
+    if (rating >= 4.5) reviewPart = 1.5;
+    else if (rating >= 4) reviewPart = 1.1;
+    else if (rating >= 3) reviewPart = 0.6;
+    else reviewPart = 0.3;
+  }
+
+  // Prices (max 1.5)
+  const cardRates = [
+    parseMoney(input.rateCard?.story),
+    parseMoney(input.rateCard?.post),
+    parseMoney(input.rateCard?.reel),
+    parseMoney(input.rateCard?.facebook),
+    parseMoney(input.rateCard?.youtube),
+  ].filter((n): n is number => n != null);
+  let pricePart = 0;
+  if (parseMoney(input.minRate) != null || input.hasPricedMinRate) pricePart += 1;
+  if (cardRates.length >= 2) pricePart += 0.5;
+
+  // Profile completeness (max 2)
+  let profilePart = 0;
+  if (input.hasAvatar) profilePart += 0.5;
+  if (input.hasBio) profilePart += 0.5;
+  if ((input.contentCount || 0) >= 3) profilePart += 0.5;
+  if (input.hasAudience) profilePart += 0.5;
+
+  // Verification (max 1.5)
+  let verifyPart = 0;
+  if (input.verified) verifyPart += 1;
+  if (input.brandSafe) verifyPart += 0.5;
+
+  const total =
+    responsePart + completionPart + reviewPart + pricePart + profilePart + verifyPart;
+  return round1(Math.min(10, Math.max(0, total)));
+}
+
 export function buildChannelScore(input: ChannelScoreInput) {
   const er = parseEngagementPercent(input.engagementRate);
   const likes = parseLikes(input.avgLikes);
@@ -143,22 +242,15 @@ export function buildChannelScore(input: ChannelScoreInput) {
     { id: "followersGrowth", score: round1(scoreFollowersGrowth(input.growthPct)) },
     { id: "creationPublish", score: round1(scoreCreation(input.contentCount, input.platformCount)) },
     { id: "audienceCredibility", score: round1(scoreAudience(input)) },
-    { id: "engagementRate", score: round1(scoreEngagement(er)) },
-    { id: "channelQuality", score: round1(scoreChannelQuality(input, er, likes)) },
+    {
+      id: "engagementRate",
+      score: round1(scoreEngagement(er, input.followersTotal, input.erFlagged)),
+    },
+    { id: "channelQuality", score: round1(scoreChannelQuality(input, likes)) },
   ];
   const influoScore = round1(axes.reduce((a, x) => a + x.score, 0) / axes.length);
 
-  let coop = 3.2;
-  if (input.verified) coop += 1.4;
-  if (input.brandSafe) coop += 0.9;
-  if (parseMoney(input.minRate) != null || input.hasPricedMinRate) coop += 0.7;
-  if (er >= 2) coop += 1;
-  if (er >= 4) coop += 0.4;
-  if (input.contentCount >= 3) coop += 0.6;
-  const usableCompletion = resolveCompletionRate(input.completionRate);
-  if ((usableCompletion || 0) >= 80) coop += 0.6;
-  if ((input.reviewCount || 0) > 0) coop += 0.4;
-  const coopPotential = round1(clamp(coop, 0, 10));
+  const coopPotential = scoreCollaborationReadiness(input);
 
   const minRate = parseMoney(input.minRate);
   const cardRates = [
@@ -170,11 +262,8 @@ export function buildChannelScore(input: ChannelScoreInput) {
   ].filter((n): n is number => n != null);
   const allRates = [...cardRates, ...(minRate != null ? [minRate] : [])];
   const integrationFrom = allRates.length ? Math.min(...allRates) : null;
-  const integrationTo = cardRates.length
-    ? Math.max(...allRates)
-    : minRate != null
-      ? Math.round(minRate * 2.2)
-      : null;
+  // Only show a range when a rate card provides an upper bound — never invent ×2.2 from min_rate alone.
+  const integrationTo = cardRates.length ? Math.max(...allRates) : null;
   const followersK = input.followersTotal > 0 ? input.followersTotal / 1000 : 0;
   const costPer1k = minRate != null && followersK >= 0.2 ? round1(minRate / followersK) : null;
 
@@ -186,14 +275,23 @@ export function buildChannelScore(input: ChannelScoreInput) {
     costPer1k,
     integrationFrom,
     integrationTo,
-    integrationIsEstimate: cardRates.length === 0 && minRate != null,
   };
 }
 
 export const AXIS_LABELS: Record<ChannelAxisId, { el: string; en: string }> = {
   followersGrowth: { el: "Αύξηση followers", en: "Followers growth" },
-  creationPublish: { el: "Δημιουργία & δημοσίευση", en: "Creation & publish" },
+  creationPublish: { el: "Δείγματα δουλειάς", en: "Portfolio" },
   channelQuality: { el: "Ποιότητα καναλιού", en: "Channel quality" },
   engagementRate: { el: "Engagement rate", en: "Engagement rate" },
-  audienceCredibility: { el: "Αξιοπιστία κοινού", en: "Audience credibility" },
+  audienceCredibility: { el: "Πληρότητα & επαλήθευση", en: "Verification & completeness" },
 };
+
+export const COOP_LABELS = {
+  el: "Ετοιμότητα για συνεργασία",
+  en: "Collaboration readiness",
+} as const;
+
+export const COOP_HINT = {
+  el: "Πόσο έτοιμο είναι το προφίλ για συνεργασία: απόκριση, ολοκληρώσεις, αξιολογήσεις, τιμές, πληρότητα.",
+  en: "How ready the profile is to collaborate: response, completions, reviews, pricing, completeness.",
+} as const;

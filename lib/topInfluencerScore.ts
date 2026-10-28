@@ -188,6 +188,8 @@ export function computeChannelScore100(
     !!(inf.audience_top_age && inf.audience_top_age !== '?') ||
     (inf.audience_male_percent != null && inf.audience_female_percent != null);
 
+  const responseHours = Number(inf.avg_response_time);
+  const rating = Number(inf.avg_rating);
   const { influoScore } = buildChannelScore({
     followersTotal,
     engagementRate: Object.keys(engagementRate).length ? engagementRate : null,
@@ -198,10 +200,15 @@ export function computeChannelScore100(
     brandSafe: inf.auditpr_audit?.brandSafe === true,
     hasAudience,
     reviewCount: Number(inf.total_reviews) || 0,
-    completionRate: null,
+    completionRate: resolveCompletionRate(inf.completion_rate),
     growthPct,
     minRate: inf.min_rate ?? null,
     rateCard: inf.rate_card ?? null,
+    erFlagged: creatorHasHardErOnMainAccount(accounts),
+    avgResponseHours: Number.isFinite(responseHours) && responseHours > 0 ? responseHours : null,
+    avgRating: Number.isFinite(rating) && rating > 0 ? rating : null,
+    hasAvatar: !!(inf.avatar_url || '').trim(),
+    hasBio: !!(inf.bio || '').trim(),
   });
 
   // influoScore is 0–5 on the profile radar.

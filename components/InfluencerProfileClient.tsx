@@ -217,6 +217,15 @@ function scoreChannelFromProfile(
     minRate: revealPrices ? profile.min_rate : undefined,
     rateCard: revealPrices ? profile.rate_card : undefined,
     hasPricedMinRate: !!profile.has_priced_min_rate,
+    erFlagged: creatorHasHardErOnMainAccount(profile.accounts),
+    avgResponseHours:
+      profile.avg_response_time != null && Number.isFinite(profile.avg_response_time)
+        ? profile.avg_response_time
+        : null,
+    avgRating:
+      profile.avg_rating != null && Number.isFinite(profile.avg_rating) ? profile.avg_rating : null,
+    hasAvatar: !!(profile.avatar && String(profile.avatar).trim()),
+    hasBio: !!(profile.bio && String(profile.bio).trim()),
   });
 }
 
