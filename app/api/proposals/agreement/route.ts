@@ -72,23 +72,11 @@ export async function POST(request: Request) {
     const completed = influencerAccepted && brandAccepted && !proposal.brand_added_to_past_brands;
 
     if (completed) {
-      // Mutual agreement acceptance → proposal is fully completed (not merely accepted).
+      // Mutual agreement → completed. Collaborations are derived from
+      // proposals (status=completed); there is no influencers.past_brands column.
       updateData.status = "completed";
       updateData.agreement_accepted_at = new Date().toISOString();
-      const current = await supabaseService()
-        .from("influencers")
-        .select("past_brands")
-        .eq("id", proposal.influencer_id)
-        .maybeSingle();
-      const past = Array.isArray(current.data?.past_brands) ? current.data.past_brands : [];
-      const brandName = proposal.brand_name || "";
-      if (brandName && !past.includes(brandName)) {
-        await supabaseService()
-          .from("influencers")
-          .update({ past_brands: [...past, brandName] })
-          .eq("id", proposal.influencer_id);
-        updateData.brand_added_to_past_brands = true;
-      }
+      updateData.brand_added_to_past_brands = true;
     }
 
     const { error } = await supabaseService().from("proposals").update(updateData).eq("id", proposal.id);

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { loadInfluencerRows } from "@/lib/loadPublicInfluencers";
+import { getPastBrandsForInfluencer } from "@/lib/pastBrands";
 import { PROFILE_QUERY_COLUMNS, toPublicProfile } from "@/lib/publicInfluencer";
 
 export async function GET(
@@ -14,7 +15,8 @@ export async function GET(
     const row = rows[0];
     if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    return NextResponse.json({ data: toPublicProfile(row) });
+    const past_brands = await getPastBrandsForInfluencer(String(row.id ?? id));
+    return NextResponse.json({ data: { ...toPublicProfile(row), past_brands } });
   } catch (err: unknown) {
     console.error("[API /api/influencers/public/:id]", err);
     const message = err instanceof Error ? err.message : "Internal server error";

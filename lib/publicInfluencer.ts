@@ -23,7 +23,6 @@ export const DIRECTORY_CARD_COLUMNS = [
   "engagement_rate",
   "avg_rating",
   "total_reviews",
-  "past_brands",
   "created_at",
   "availability_status",
   "profile_slug",

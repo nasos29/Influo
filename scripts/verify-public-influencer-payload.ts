@@ -87,7 +87,6 @@ const row = {
   approval_notes: "internal note",
   analytics_verification_notes: "staff only",
   created_at: "2024-01-01T00:00:00Z",
-  past_brands: 2,
   total_reviews: 3,
   avg_rating: 4.5,
   availability_status: "available",
@@ -106,6 +105,8 @@ for (const payload of [toPublicDirectoryCard(row), toPublicNewlyApproved(row), t
   assert.equal(json.includes("internal note"), false);
   assert.equal(json.includes("sekret"), false);
   assert.equal(payload.price_tier, "2000");
+  // past_brands is not a DB column; loaders attach it after toPublic*.
+  assert.equal("past_brands" in payload, false);
 }
 
 const profile = toPublicProfile(row);

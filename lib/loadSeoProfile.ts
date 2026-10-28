@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { loadInfluencerRows } from "@/lib/loadPublicInfluencers";
+import { getPastBrandsForInfluencer } from "@/lib/pastBrands";
 import { viewModelFromPublicRow, type ProfileViewModel } from "@/lib/profileViewModel";
 import { findPrivateFieldPaths, SEO_PROFILE_COLUMNS } from "@/lib/publicInfluencer";
 
@@ -15,7 +16,8 @@ async function loadOne(filter: { id?: string; slug?: string }): Promise<SeoProfi
   const rows = await loadInfluencerRows(SEO_PROFILE_COLUMNS, filter);
   const row = rows[0];
   if (!row?.id) return null;
-  const view = viewModelFromPublicRow(row);
+  const past_brands = await getPastBrandsForInfluencer(String(row.id));
+  const view = viewModelFromPublicRow({ ...row, past_brands });
   const leaks = findPrivateFieldPaths(view);
   if (leaks.length) {
     throw new Error(`Public profile payload contained private fields: ${leaks.join(", ")}`);
