@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import Directory, { type Influencer } from "@/components/Directory";
 import Footer from "@/components/Footer";
 import SiteHeader from "@/components/SiteHeader";
@@ -54,7 +54,9 @@ export default function DirectoryPageView({
             </p>
           </div>
 
-          <Directory lang={lang} initialInfluencers={initialInfluencers} />
+          <Suspense fallback={<div className="h-40 rounded-2xl bg-white/60 animate-pulse" aria-hidden />}>
+            <Directory lang={lang} initialInfluencers={initialInfluencers} />
+          </Suspense>
         </div>
       </main>
 

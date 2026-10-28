@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { heroGradientForCategory } from "@/lib/heroTheme";
+import SimilarInfluencers from "@/components/SimilarInfluencers";
 import { Influencer } from "@/components/Directory"; 
 import { supabase } from "@/lib/supabaseClient";
 import { sessionFetch } from "@/lib/sessionFetch";
@@ -1317,17 +1318,6 @@ export default function InfluencerProfile(props: {
     <div className="bg-white min-h-screen pb-20 font-sans relative text-slate-900">
       <SiteHeader lang={lang} onLangChange={setLang} />
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-3 pb-2">
-        <button
-          type="button"
-          onClick={goBackToDirectory}
-          className="inline-flex items-center gap-1.5 text-sm text-slate-600 hover:text-blue-600 transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
-          <span>{BACK_TO_DIRECTORY[lang]}</span>
-        </button>
-      </div>
-
       {/* PROPOSAL MODAL */}
       {showProposalModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -1682,8 +1672,18 @@ export default function InfluencerProfile(props: {
           aria-hidden
         />
 
+        {/* Back to directory — bottom-left on desktop; top-left on mobile to clear overlapping avatar */}
+        <button
+          type="button"
+          onClick={goBackToDirectory}
+          className="absolute z-20 left-4 sm:left-6 top-4 md:top-auto md:bottom-4 inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sm text-white backdrop-blur hover:bg-white/20 transition"
+        >
+          <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
+          <span>{BACK_TO_DIRECTORY[lang]}</span>
+        </button>
+
         {/* Network circles visualization overlay */}
-        <div className="absolute inset-0 z-10 opacity-30">
+        <div className="pointer-events-none absolute inset-0 z-10 opacity-30">
           <svg width="100%" height="100%" viewBox="0 0 1200 400" preserveAspectRatio="xMidYMid slice" className="absolute inset-0">
             <defs>
               <linearGradient id="circleGradient" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -1754,15 +1754,21 @@ export default function InfluencerProfile(props: {
                         </span>
                     )}
                 </div>
-                {/* Categories */}
+                {/* Categories — link to directory filtered by category */}
                 {profile.categories && profile.categories.length > 0 && (
                   <div className="flex flex-wrap justify-center md:justify-start gap-2 mt-3">
-                    {profile.categories.map((cat, i) => {
+                    {profile.categories.map((cat) => {
                       const translatedCat = categoryTranslations[cat]?.[lang] || cat;
+                      const directoryBase = lang === "en" ? "/en/directory" : "/directory";
+                      const href = `${directoryBase}?category=${encodeURIComponent(cat)}`;
                       return (
-                        <span key={i} className="text-xs uppercase font-semibold bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full border border-blue-200">
+                        <Link
+                          key={cat}
+                          href={href}
+                          className="text-xs uppercase font-semibold bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full border border-blue-200 hover:bg-blue-100 hover:border-blue-300 transition"
+                        >
                           {translatedCat}
-                        </span>
+                        </Link>
                       );
                     })}
                   </div>
@@ -2617,7 +2623,7 @@ export default function InfluencerProfile(props: {
                                         // Use SocialEmbedCard for social media videos (click-to-load)
                                         if (provider && embedUrl && !isImage) {
                                             return (
-                                                <div key={i} className="w-full">
+                                                <div key={vid} className="w-full">
                                                     <SocialEmbedCard
                                                         provider={provider}
                                                         originalUrl={vid}
@@ -2631,7 +2637,7 @@ export default function InfluencerProfile(props: {
                                         // Use VideoThumbnail for images or non-social media URLs
                                         return (
                                             <a 
-                                                key={i} 
+                                                key={vid} 
                                                 href={vid} 
                                                 target="_blank" 
                                                 rel="noopener noreferrer" 
@@ -3015,6 +3021,12 @@ export default function InfluencerProfile(props: {
           </div>
         </div>
       )}
+
+      <SimilarInfluencers
+        influencerId={String(id)}
+        categories={profile.categories || []}
+        lang={lang}
+      />
     </div>
   );
 }
