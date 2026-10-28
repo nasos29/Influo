@@ -1808,26 +1808,6 @@ export default function InfluencerProfile(props: {
               return (
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                   <ProfileStatCard
-                    label={lang === "el" ? "Κατάσταση" : "Status"}
-                    valueCentered
-                    icon={
-                      <MetricIcon className="bg-slate-100 text-slate-600 ring-slate-200/80">
-                        <rect x="3" y="4" width="18" height="18" rx="2" />
-                        <path d="M16 2v4" />
-                        <path d="M8 2v4" />
-                        <path d="M3 10h18" />
-                      </MetricIcon>
-                    }
-                  >
-                    <span
-                      className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${availabilityTone}`}
-                    >
-                      <span className={`h-1.5 w-1.5 rounded-full ${availabilityDot}`} />
-                      {availabilityLabel}
-                    </span>
-                  </ProfileStatCard>
-
-                  <ProfileStatCard
                     label={lang === "el" ? "Αλληλεπίδραση" : "Engagement"}
                     icon={
                       <MetricIcon className="bg-blue-50 text-blue-600 ring-blue-100">
@@ -2024,31 +2004,23 @@ export default function InfluencerProfile(props: {
                   )}
 
                   <ProfileStatCard
-                    label={txt.stat_rating}
+                    label={lang === "el" ? "Κατάσταση" : "Status"}
                     valueCentered
                     icon={
-                      <MetricIcon className="bg-amber-50 text-amber-600 ring-amber-100">
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                      <MetricIcon className="bg-slate-100 text-slate-600 ring-slate-200/80">
+                        <rect x="3" y="4" width="18" height="18" rx="2" />
+                        <path d="M16 2v4" />
+                        <path d="M8 2v4" />
+                        <path d="M3 10h18" />
                       </MetricIcon>
                     }
                   >
-                    {hasReviews ? (
-                      <div>
-                        <p className="text-2xl font-semibold tracking-tight text-slate-900 tabular-nums">
-                          {profile.avg_rating!.toFixed(1)}
-                        </p>
-                        <p className="mt-0.5 text-xs text-slate-500">
-                          {profile.total_reviews} {txt.stat_reviews}
-                        </p>
-                      </div>
-                    ) : (
-                      <div>
-                        <p className="text-2xl font-semibold tracking-tight text-slate-300">—</p>
-                        <p className="mt-0.5 text-xs text-slate-400">
-                          {lang === "el" ? "Δεν υπάρχουν αξιολογήσεις" : "No reviews yet"}
-                        </p>
-                      </div>
-                    )}
+                    <span
+                      className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${availabilityTone}`}
+                    >
+                      <span className={`h-1.5 w-1.5 rounded-full ${availabilityDot}`} />
+                      {availabilityLabel}
+                    </span>
                   </ProfileStatCard>
 
                   <ProfileStatCard
@@ -2138,6 +2110,34 @@ export default function InfluencerProfile(props: {
                       )}
                     </ProfileStatCard>
                   )}
+
+                  <ProfileStatCard
+                    label={txt.stat_rating}
+                    valueCentered
+                    icon={
+                      <MetricIcon className="bg-amber-50 text-amber-600 ring-amber-100">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                      </MetricIcon>
+                    }
+                  >
+                    {hasReviews ? (
+                      <div>
+                        <p className="text-2xl font-semibold tracking-tight text-slate-900 tabular-nums">
+                          {profile.avg_rating!.toFixed(1)}
+                        </p>
+                        <p className="mt-0.5 text-xs text-slate-500">
+                          {profile.total_reviews} {txt.stat_reviews}
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-2xl font-semibold tracking-tight text-slate-300">—</p>
+                        <p className="mt-0.5 text-xs text-slate-400">
+                          {lang === "el" ? "Δεν υπάρχουν αξιολογήσεις" : "No reviews yet"}
+                        </p>
+                      </div>
+                    )}
+                  </ProfileStatCard>
                 </div>
               );
             })()}
