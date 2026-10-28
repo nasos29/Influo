@@ -1,8 +1,8 @@
 /**
  * completion_rate helpers.
- * DB historically defaulted the column to 100, which looked like a perfect
- * completion rate with zero collaborations. Callers must treat null as
- * "no data" and ignore rates when there is no collab evidence.
+ * Stored value is null when the creator has no terminal proposals yet
+ * (after docs/FIX_COMPLETION_RATE_DEFAULT.sql). Callers treat null as
+ * "no data" (UI shows "—"); any finite non-negative rate is used as-is.
  */
 
 export const COMPLETION_NONE_SUBTITLE = {
@@ -18,8 +18,8 @@ export type ResolveCompletionRateOptions = {
   totalReviews?: number | null;
   completedCampaigns?: number | null;
   /**
-   * When true (default), ignore the rate if totalReviews=0 and
-   * completedCampaigns=0 — guards against leftover DB default 100.
+   * Optional legacy guard: when true, ignore the rate if totalReviews=0 and
+   * completedCampaigns=0. Default false — DB null already means "no rate".
    * Only applies when at least one evidence field was provided.
    */
   requireCollabEvidence?: boolean;
@@ -27,8 +27,9 @@ export type ResolveCompletionRateOptions = {
 
 /**
  * Normalize a stored completion_rate for display or scoring.
- * Returns null when absent, when there are no proposals, or when the
- * no-evidence guard applies.
+ * Returns null when absent/invalid, or when proposalCount is explicitly 0.
+ * Non-null rates are kept even without reviews (completed collab can exist
+ * before a brand leaves a rating).
  */
 export function resolveCompletionRate(
   completionRate: unknown,
@@ -43,7 +44,7 @@ export function resolveCompletionRate(
     return null;
   }
 
-  const requireEvidence = options?.requireCollabEvidence !== false;
+  const requireEvidence = options?.requireCollabEvidence === true;
   const evidenceProvided =
     options?.totalReviews !== undefined || options?.completedCampaigns !== undefined;
   if (requireEvidence && evidenceProvided) {

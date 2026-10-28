@@ -123,10 +123,7 @@ export async function GET(request: NextRequest) {
         typeof inf?.avg_response_time === "number" && inf.avg_response_time > 0
           ? inf.avg_response_time
           : null,
-      completionRate: resolveCompletionRate(inf?.completion_rate, {
-        totalReviews: inf?.total_reviews,
-        requireCollabEvidence: true,
-      }),
+      completionRate: resolveCompletionRate(inf?.completion_rate),
     };
   });
 

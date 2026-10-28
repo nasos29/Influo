@@ -148,10 +148,7 @@ export function viewModelFromPublicRow(row: Record<string, unknown>): ProfileVie
     total_reviews: typeof data.total_reviews === "number" ? data.total_reviews : 0,
     avg_response_time: typeof data.avg_response_time === "number" ? data.avg_response_time : undefined,
     completion_rate: (() => {
-      const usable = resolveCompletionRate(data.completion_rate, {
-        totalReviews: typeof data.total_reviews === "number" ? data.total_reviews : 0,
-        requireCollabEvidence: true,
-      });
+      const usable = resolveCompletionRate(data.completion_rate);
       return usable == null ? undefined : usable;
     })(),
     availability_status: typeof data.availability_status === "string" ? data.availability_status : "available",

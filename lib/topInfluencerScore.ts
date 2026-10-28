@@ -261,9 +261,7 @@ export function computeReviewScore(inf: TopScoreInfluencer): number {
 
 /**
  * Collaborations & reviews (0–100): review score blended with completion_rate /
- * completed campaign count when available.
- * Ignores completion_rate when null, or when there are 0 reviews and 0 completed
- * campaigns (guards against a leftover DB default of 100).
+ * completed campaign count when available. Ignores completion_rate when null.
  */
 export function computeCollabScore(
   inf: TopScoreInfluencer,
@@ -271,11 +269,7 @@ export function computeCollabScore(
 ): number {
   const review = computeReviewScore(inf);
   const camps = Math.max(0, Number(completedCampaigns) || 0);
-  const completionRaw = resolveCompletionRate(inf.completion_rate, {
-    totalReviews: inf.total_reviews,
-    completedCampaigns: camps,
-    requireCollabEvidence: true,
-  });
+  const completionRaw = resolveCompletionRate(inf.completion_rate);
   const hasCompletion = completionRaw != null;
 
   if (!hasCompletion && camps <= 0) return review;

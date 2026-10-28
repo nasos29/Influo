@@ -691,12 +691,8 @@ export default function InfluencerProfile(props: {
     let calculatedCompletionRate: number | undefined;
     let computedResponseHours: number | null = null;
     if (data && !error) {
-      // Ignore null / fake leftover 100 with no collab evidence (reviews/campaigns).
       {
-        const usable = resolveCompletionRate(data.completion_rate, {
-          totalReviews: data.total_reviews,
-          requireCollabEvidence: true,
-        });
+        const usable = resolveCompletionRate(data.completion_rate);
         if (usable != null) calculatedCompletionRate = usable;
       }
       const { computeAvgResponseHours } = await import('@/lib/influencerMetrics');
