@@ -26,16 +26,22 @@ export function formatCpmEuro(cpm: number): string {
 }
 
 /**
- * Best (highest) avg_views across social accounts — used for profile CPM.
+ * Mean avg_views across social accounts that have avg_views > 0.
+ * Used for profile CPM; callers hide the card when the result is < 100.
  */
-export function bestAvgViews(
+export function averageAvgViews(
   accounts: Array<{ avg_views?: string | number | null } | null | undefined> | null | undefined
 ): number {
   if (!Array.isArray(accounts)) return 0;
-  let best = 0;
+  let sum = 0;
+  let count = 0;
   for (const acc of accounts) {
     const v = parseFollowerString(acc?.avg_views);
-    if (v > best) best = v;
+    if (v > 0) {
+      sum += v;
+      count += 1;
+    }
   }
-  return best;
+  if (count === 0) return 0;
+  return sum / count;
 }
