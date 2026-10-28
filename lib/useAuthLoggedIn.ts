@@ -9,7 +9,7 @@ export function useAuthLoggedIn(): boolean {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    void (async () => {
       const {
         data: { session },
       } = await supabase.auth.getSession();

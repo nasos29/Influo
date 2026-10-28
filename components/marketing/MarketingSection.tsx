@@ -2,15 +2,17 @@ import type { ReactNode } from "react";
 
 type Tone = "white" | "slate";
 
+type Props = Readonly<{
+  tone?: Tone;
+  children: ReactNode;
+  className?: string;
+}>;
+
 export default function MarketingSection({
   tone = "white",
   children,
   className = "",
-}: {
-  tone?: Tone;
-  children: ReactNode;
-  className?: string;
-}) {
+}: Props) {
   const bg = tone === "slate" ? "bg-slate-50" : "bg-white";
   return (
     <section

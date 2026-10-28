@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
   BarChart3,
   Briefcase,
@@ -32,207 +31,218 @@ import MarketingSection from "@/components/marketing/MarketingSection";
 import SectionHeading from "@/components/marketing/SectionHeading";
 import StatsStrip from "@/components/marketing/StatsStrip";
 import TrustStrip from "@/components/marketing/TrustStrip";
-import { getStoredLanguage } from "@/lib/language";
+import { resolveCopy, type Bilingual } from "@/lib/bilingual";
 import {
   marketingStatItems,
   type PlatformMarketingStats,
 } from "@/lib/loadPlatformMarketingStats";
 import { useAuthLoggedIn } from "@/lib/useAuthLoggedIn";
+import { useMarketingLang } from "@/lib/useMarketingLang";
 
-type Lang = "el" | "en";
-
-const t = {
-  el: {
-    title: "Influo",
-    headline: "Βρείτε τους σωστούς influencers για το brand σας.",
-    hero_desc:
-      "Αναζήτηση, AI προτάσεις, καμπάνιες με αιτήσεις και έγκριση deliverables — όλα σε μία πλατφόρμα.",
-    cta_primary: "Εγγραφή ως Brand",
-    cta_secondary: "Κατάλογος",
-    stat_influencers: "εγκεκριμένοι influencers",
-    stat_brands: "verified brands",
-    stat_campaigns: "ανοιχτές καμπάνιες",
-    analytics_title: "Analytics που εμπιστεύεστε",
-    analytics_desc: "Τα στατιστικά ενημερώνονται αυτόματα από τα social.",
-    an_1_title: "Ποιότητα κοινού & ύποπτοι followers",
-    an_1_desc: "Δείτε ενδείξεις ποιότητας κοινού και ύποπτων followers πριν συνεργαστείτε.",
-    an_2_title: "Πραγματικό engagement ανά πλατφόρμα",
-    an_2_desc: "Engagement rate και μέσοι likes ανά Instagram, TikTok και YouTube.",
-    an_3_title: "Ανάπτυξη 15 ημερών",
-    an_3_desc: "Παρακολουθήστε την πρόσφατη ανάπτυξη followers στο προφίλ.",
-    an_4_title: "Εκτιμώμενο CPM",
-    an_4_desc: "Εκτίμηση κόστους ανά χίλιες εμφανίσεις για καλύτερο budgeting.",
-    an_5_title: "Κορυφαία posts",
-    an_5_desc: "Δείτε τα top posts του creator απευθείας στο προφίλ.",
-    an_6_title: "Στρατηγική αξιολόγηση & Brand Safe",
-    an_6_desc: "Αξιολόγηση συνεργασίας και brand-safe σήματα πριν την πρόταση.",
-    an_7_title: "Δημογραφικά κοινού",
-    an_7_desc: "Φύλο και ηλικιακές ομάδες κοινού όπου είναι διαθέσιμα.",
-    tools_title: "Εργαλεία για την ομάδα σας",
-    tools_desc: "Όλα όσα χρειάζεστε για shortlist, brief και μέτρηση αποτελεσμάτων.",
-    tool_1_title: "Σύγκριση creators",
-    tool_1_desc: "Συγκρίνετε influencers δίπλα-δίπλα πριν αποφασίσετε.",
-    tool_2_title: "Budget estimator",
-    tool_2_desc: "Υπολογίστε εύρος budget για τη συνεργασία σας.",
-    tool_3_title: "Export shortlist",
-    tool_3_desc: "Εξαγωγή shortlist σε CSV ή PDF για την ομάδα σας.",
-    tool_4_title: "Campaign brief",
-    tool_4_desc: "Οργανώστε brief καμπάνιας με ξεκάθαρα deliverables.",
-    tool_5_title: "UTM builder",
-    tool_5_desc: "Φτιάξτε UTM links για σωστό tracking.",
-    tool_6_title: "ROI / αποτελέσματα",
-    tool_6_desc: "Καταγράψτε αποτελέσματα και ROI ανά συνεργασία.",
-    tool_7_title: "Brand kit",
-    tool_7_desc: "Μοιραστείτε στοιχεία brand με creators εύκολα.",
-    tool_8_title: "Έτοιμα μηνύματα",
-    tool_8_desc: "Snippets για γρήγορη επικοινωνία με influencers.",
-    features_title: "Ό,τι χρειάζεται το brand σας",
-    features_desc: "Από την εύρεση μέχρι την παράδοση, χωρίς να αλλάζετε εργαλεία.",
-    feat_1_title: "Αναζήτηση & φίλτρα",
-    feat_1_desc: "Κατηγορία, engagement, budget και διαθεσιμότητα — βρείτε creators που ταιριάζουν.",
-    feat_2_title: "Διαχείριση συνεργασιών",
-    feat_2_desc: "Προσφορές, συνομιλίες και καμπάνιες από ένα dashboard.",
-    feat_3_title: "Μηνύματα & αρχεία",
-    feat_3_desc: "Άμεση συνομιλία με creators και αποστολή attachments.",
-    feat_4_title: "Rate cards",
-    feat_4_desc: "Δείτε τιμές ανά format πριν στείλετε πρόταση.",
-    feat_5_title: "Deliverables",
-    feat_5_desc: "Οι creators υποβάλλουν URL· εσείς εγκρίνετε ή ζητάτε αλλαγές.",
-    campaign_title: "Καμπάνιες με αιτήσεις",
-    campaign_desc:
-      "Ανεβάστε τίτλο, περιγραφή και budget — δωρεάν, χωρίς προμήθεια. Οι εγκεκριμένοι influencers κάνουν αίτηση ενδιαφέροντος· εσείς διαχειρίζεστε τις αιτήσεις.",
-    campaign_cta: "Δημιουργία καμπάνιας",
-    campaign_cta_guest: "Εγγραφή για καμπάνιες",
-    ai_badge: "Περιλαμβάνεται",
-    ai_title: "AI προτάσεις",
-    ai_desc:
-      "Το σύστημα προτείνει influencers με match scores βάσει κατηγορίας, engagement και προφίλ brand — χωρίς επιπλέον κόστος.",
-    ai_cta: "Ξεκινήστε",
-    how_title: "Πώς λειτουργεί",
-    how_desc: "Από την εγγραφή στην παράδοση σε τέσσερα βήματα.",
-    step_1_title: "Εγγραφή brand",
-    step_1_desc: "Λογαριασμός επιχείρησης και πρόσβαση στον κατάλογο.",
-    step_2_title: "Αναζήτηση ή AI",
-    step_2_desc: "Φίλτρα καταλόγου ή αυτόματες προτάσεις με match score.",
-    step_3_title: "Πρόταση ή καμπάνια",
-    step_3_desc: "Στείλτε προσφορά ή δημοσιεύστε καμπάνια για αιτήσεις.",
-    step_4_title: "Έγκριση & κλείσιμο",
-    step_4_desc: "Μηνύματα, deliverables και ολοκλήρωση συνεργασίας.",
-    trust_title: "Γιατί Influo",
-    trust_1: "Δωρεάν, χωρίς προμήθεια",
-    trust_2: "Επαληθευμένα προφίλ",
-    trust_3: "Πραγματικά δεδομένα από τα social",
-    cta_section_title: "Ξεκινήστε σήμερα",
-    cta_section_desc: "Δημιουργήστε λογαριασμό brand και ανοίξτε τον κατάλογο.",
-    cta_button: "Εγγραφή ως Brand",
-    signup_influencer: "Είμαι Influencer",
-    signup_brand: "Έχω Επιχείρηση",
-    close: "Κλείσιμο",
+const COPY = {
+  title: { el: "Influo", en: "Influo" },
+  headline: {
+    el: "Βρείτε τους σωστούς influencers για το brand σας.",
+    en: "Find the right influencers for your brand.",
   },
-  en: {
-    title: "Influo",
-    headline: "Find the right influencers for your brand.",
-    hero_desc:
-      "Search, AI recommendations, campaign applications, and deliverable approval — in one platform.",
-    cta_primary: "Sign up as Brand",
-    cta_secondary: "Directory",
-    stat_influencers: "approved influencers",
-    stat_brands: "verified brands",
-    stat_campaigns: "open campaigns",
-    analytics_title: "Analytics you can trust",
-    analytics_desc: "Stats refresh automatically from social platforms.",
-    an_1_title: "Audience quality & suspicious followers",
-    an_1_desc: "See audience-quality signals and suspicious-follower flags before you collaborate.",
-    an_2_title: "Real engagement by platform",
-    an_2_desc: "Engagement rate and average likes across Instagram, TikTok, and YouTube.",
-    an_3_title: "15-day growth",
-    an_3_desc: "Track recent follower growth on the profile.",
-    an_4_title: "Estimated CPM",
-    an_4_desc: "Estimate cost per thousand impressions for clearer budgeting.",
-    an_5_title: "Top posts",
-    an_5_desc: "Browse a creator’s top posts directly on the profile.",
-    an_6_title: "Strategic review & Brand Safe",
-    an_6_desc: "Collaboration review and brand-safe signals before you send an offer.",
-    an_7_title: "Audience demographics",
-    an_7_desc: "Gender and age groups when available.",
-    tools_title: "Tools for your team",
-    tools_desc: "Everything you need for shortlists, briefs, and results tracking.",
-    tool_1_title: "Compare creators",
-    tool_1_desc: "Compare influencers side by side before you decide.",
-    tool_2_title: "Budget estimator",
-    tool_2_desc: "Estimate a budget range for your collaboration.",
-    tool_3_title: "Export shortlist",
-    tool_3_desc: "Export your shortlist as CSV or PDF for the team.",
-    tool_4_title: "Campaign brief",
-    tool_4_desc: "Organize a campaign brief with clear deliverables.",
-    tool_5_title: "UTM builder",
-    tool_5_desc: "Build UTM links for proper tracking.",
-    tool_6_title: "ROI / results",
-    tool_6_desc: "Log results and ROI per collaboration.",
-    tool_7_title: "Brand kit",
-    tool_7_desc: "Share brand assets with creators easily.",
-    tool_8_title: "Message snippets",
-    tool_8_desc: "Ready-made snippets for faster outreach.",
-    features_title: "Everything your brand needs",
-    features_desc: "From discovery to delivery without switching tools.",
-    feat_1_title: "Search & filters",
-    feat_1_desc: "Category, engagement, budget, and availability — find matching creators.",
-    feat_2_title: "Collaboration hub",
-    feat_2_desc: "Offers, conversations, and campaigns from one dashboard.",
-    feat_3_title: "Messages & files",
-    feat_3_desc: "Chat with creators and send attachments.",
-    feat_4_title: "Rate cards",
-    feat_4_desc: "See pricing by format before you send a proposal.",
-    feat_5_title: "Deliverables",
-    feat_5_desc: "Creators submit a URL; you approve or request changes.",
-    campaign_title: "Campaigns with applications",
-    campaign_desc:
-      "Publish title, description, and budget — free, no commission. Approved influencers apply; you manage applications.",
-    campaign_cta: "Create a campaign",
-    campaign_cta_guest: "Sign up for campaigns",
-    ai_badge: "Included",
-    ai_title: "AI recommendations",
-    ai_desc:
-      "Get influencer suggestions with match scores based on category, engagement, and your brand profile — at no extra cost.",
-    ai_cta: "Get started",
-    how_title: "How it works",
-    how_desc: "From signup to delivery in four steps.",
-    step_1_title: "Brand signup",
-    step_1_desc: "Company account and directory access.",
-    step_2_title: "Search or AI",
-    step_2_desc: "Directory filters or automatic suggestions with match scores.",
-    step_3_title: "Proposal or campaign",
-    step_3_desc: "Send an offer or publish a campaign for applications.",
-    step_4_title: "Approve & close",
-    step_4_desc: "Messages, deliverables, and completed collaboration.",
-    trust_title: "Why Influo",
-    trust_1: "Free, no commission",
-    trust_2: "Verified profiles",
-    trust_3: "Real data from social",
-    cta_section_title: "Start today",
-    cta_section_desc: "Create a brand account and open the directory.",
-    cta_button: "Sign up as Brand",
-    signup_influencer: "I'm an Influencer",
-    signup_brand: "I have a Business",
-    close: "Close",
+  hero_desc: {
+    el: "Αναζήτηση, AI προτάσεις, καμπάνιες με αιτήσεις και έγκριση deliverables — όλα σε μία πλατφόρμα.",
+    en: "Search, AI recommendations, campaign applications, and deliverable approval — in one platform.",
   },
-};
+  cta_primary: { el: "Εγγραφή ως Brand", en: "Sign up as Brand" },
+  cta_secondary: { el: "Κατάλογος", en: "Directory" },
+  stat_influencers: { el: "εγκεκριμένοι influencers", en: "approved influencers" },
+  stat_brands: { el: "verified brands", en: "verified brands" },
+  stat_campaigns: { el: "ανοιχτές καμπάνιες", en: "open campaigns" },
+  analytics_title: { el: "Analytics που εμπιστεύεστε", en: "Analytics you can trust" },
+  analytics_desc: {
+    el: "Τα στατιστικά ενημερώνονται αυτόματα από τα social.",
+    en: "Stats refresh automatically from social platforms.",
+  },
+  an_1_title: {
+    el: "Ποιότητα κοινού & ύποπτοι followers",
+    en: "Audience quality & suspicious followers",
+  },
+  an_1_desc: {
+    el: "Δείτε ενδείξεις ποιότητας κοινού και ύποπτων followers πριν συνεργαστείτε.",
+    en: "See audience-quality signals and suspicious-follower flags before you collaborate.",
+  },
+  an_2_title: {
+    el: "Πραγματικό engagement ανά πλατφόρμα",
+    en: "Real engagement by platform",
+  },
+  an_2_desc: {
+    el: "Engagement rate και μέσοι likes ανά Instagram, TikTok και YouTube.",
+    en: "Engagement rate and average likes across Instagram, TikTok, and YouTube.",
+  },
+  an_3_title: { el: "Ανάπτυξη 15 ημερών", en: "15-day growth" },
+  an_3_desc: {
+    el: "Παρακολουθήστε την πρόσφατη ανάπτυξη followers στο προφίλ.",
+    en: "Track recent follower growth on the profile.",
+  },
+  an_4_title: { el: "Εκτιμώμενο CPM", en: "Estimated CPM" },
+  an_4_desc: {
+    el: "Εκτίμηση κόστους ανά χίλιες εμφανίσεις για καλύτερο budgeting.",
+    en: "Estimate cost per thousand impressions for clearer budgeting.",
+  },
+  an_5_title: { el: "Κορυφαία posts", en: "Top posts" },
+  an_5_desc: {
+    el: "Δείτε τα top posts του creator απευθείας στο προφίλ.",
+    en: "Browse a creator’s top posts directly on the profile.",
+  },
+  an_6_title: {
+    el: "Στρατηγική αξιολόγηση & Brand Safe",
+    en: "Strategic review & Brand Safe",
+  },
+  an_6_desc: {
+    el: "Αξιολόγηση συνεργασίας και brand-safe σήματα πριν την πρόταση.",
+    en: "Collaboration review and brand-safe signals before you send an offer.",
+  },
+  an_7_title: { el: "Δημογραφικά κοινού", en: "Audience demographics" },
+  an_7_desc: {
+    el: "Φύλο και ηλικιακές ομάδες κοινού όπου είναι διαθέσιμα.",
+    en: "Gender and age groups when available.",
+  },
+  tools_title: { el: "Εργαλεία για την ομάδα σας", en: "Tools for your team" },
+  tools_desc: {
+    el: "Όλα όσα χρειάζεστε για shortlist, brief και μέτρηση αποτελεσμάτων.",
+    en: "Everything you need for shortlists, briefs, and results tracking.",
+  },
+  tool_1_title: { el: "Σύγκριση creators", en: "Compare creators" },
+  tool_1_desc: {
+    el: "Συγκρίνετε influencers δίπλα-δίπλα πριν αποφασίσετε.",
+    en: "Compare influencers side by side before you decide.",
+  },
+  tool_2_title: { el: "Budget estimator", en: "Budget estimator" },
+  tool_2_desc: {
+    el: "Υπολογίστε εύρος budget για τη συνεργασία σας.",
+    en: "Estimate a budget range for your collaboration.",
+  },
+  tool_3_title: { el: "Export shortlist", en: "Export shortlist" },
+  tool_3_desc: {
+    el: "Εξαγωγή shortlist σε CSV ή PDF για την ομάδα σας.",
+    en: "Export your shortlist as CSV or PDF for the team.",
+  },
+  tool_4_title: { el: "Campaign brief", en: "Campaign brief" },
+  tool_4_desc: {
+    el: "Οργανώστε brief καμπάνιας με ξεκάθαρα deliverables.",
+    en: "Organize a campaign brief with clear deliverables.",
+  },
+  tool_5_title: { el: "UTM builder", en: "UTM builder" },
+  tool_5_desc: {
+    el: "Φτιάξτε UTM links για σωστό tracking.",
+    en: "Build UTM links for proper tracking.",
+  },
+  tool_6_title: { el: "ROI / αποτελέσματα", en: "ROI / results" },
+  tool_6_desc: {
+    el: "Καταγράψτε αποτελέσματα και ROI ανά συνεργασία.",
+    en: "Log results and ROI per collaboration.",
+  },
+  tool_7_title: { el: "Brand kit", en: "Brand kit" },
+  tool_7_desc: {
+    el: "Μοιραστείτε στοιχεία brand με creators εύκολα.",
+    en: "Share brand assets with creators easily.",
+  },
+  tool_8_title: { el: "Έτοιμα μηνύματα", en: "Message snippets" },
+  tool_8_desc: {
+    el: "Snippets για γρήγορη επικοινωνία με influencers.",
+    en: "Ready-made snippets for faster outreach.",
+  },
+  features_title: {
+    el: "Ό,τι χρειάζεται το brand σας",
+    en: "Everything your brand needs",
+  },
+  features_desc: {
+    el: "Από την εύρεση μέχρι την παράδοση, χωρίς να αλλάζετε εργαλεία.",
+    en: "From discovery to delivery without switching tools.",
+  },
+  feat_1_title: { el: "Αναζήτηση & φίλτρα", en: "Search & filters" },
+  feat_1_desc: {
+    el: "Κατηγορία, engagement, budget και διαθεσιμότητα — βρείτε creators που ταιριάζουν.",
+    en: "Category, engagement, budget, and availability — find matching creators.",
+  },
+  feat_2_title: { el: "Διαχείριση συνεργασιών", en: "Collaboration hub" },
+  feat_2_desc: {
+    el: "Προσφορές, συνομιλίες και καμπάνιες από ένα dashboard.",
+    en: "Offers, conversations, and campaigns from one dashboard.",
+  },
+  feat_3_title: { el: "Μηνύματα & αρχεία", en: "Messages & files" },
+  feat_3_desc: {
+    el: "Άμεση συνομιλία με creators και αποστολή attachments.",
+    en: "Chat with creators and send attachments.",
+  },
+  feat_4_title: { el: "Rate cards", en: "Rate cards" },
+  feat_4_desc: {
+    el: "Δείτε τιμές ανά format πριν στείλετε πρόταση.",
+    en: "See pricing by format before you send a proposal.",
+  },
+  feat_5_title: { el: "Deliverables", en: "Deliverables" },
+  feat_5_desc: {
+    el: "Οι creators υποβάλλουν URL· εσείς εγκρίνετε ή ζητάτε αλλαγές.",
+    en: "Creators submit a URL; you approve or request changes.",
+  },
+  campaign_title: { el: "Καμπάνιες με αιτήσεις", en: "Campaigns with applications" },
+  campaign_desc: {
+    el: "Ανεβάστε τίτλο, περιγραφή και budget — δωρεάν, χωρίς προμήθεια. Οι εγκεκριμένοι influencers κάνουν αίτηση ενδιαφέροντος· εσείς διαχειρίζεστε τις αιτήσεις.",
+    en: "Publish title, description, and budget — free, no commission. Approved influencers apply; you manage applications.",
+  },
+  campaign_cta: { el: "Δημιουργία καμπάνιας", en: "Create a campaign" },
+  campaign_cta_guest: { el: "Εγγραφή για καμπάνιες", en: "Sign up for campaigns" },
+  ai_badge: { el: "Περιλαμβάνεται", en: "Included" },
+  ai_title: { el: "AI προτάσεις", en: "AI recommendations" },
+  ai_desc: {
+    el: "Το σύστημα προτείνει influencers με match scores βάσει κατηγορίας, engagement και προφίλ brand — χωρίς επιπλέον κόστος.",
+    en: "Get influencer suggestions with match scores based on category, engagement, and your brand profile — at no extra cost.",
+  },
+  ai_cta: { el: "Ξεκινήστε", en: "Get started" },
+  how_title: { el: "Πώς λειτουργεί", en: "How it works" },
+  how_desc: {
+    el: "Από την εγγραφή στην παράδοση σε τέσσερα βήματα.",
+    en: "From signup to delivery in four steps.",
+  },
+  step_1_title: { el: "Εγγραφή brand", en: "Brand signup" },
+  step_1_desc: {
+    el: "Λογαριασμός επιχείρησης και πρόσβαση στον κατάλογο.",
+    en: "Company account and directory access.",
+  },
+  step_2_title: { el: "Αναζήτηση ή AI", en: "Search or AI" },
+  step_2_desc: {
+    el: "Φίλτρα καταλόγου ή αυτόματες προτάσεις με match score.",
+    en: "Directory filters or automatic suggestions with match scores.",
+  },
+  step_3_title: { el: "Πρόταση ή καμπάνια", en: "Proposal or campaign" },
+  step_3_desc: {
+    el: "Στείλτε προσφορά ή δημοσιεύστε καμπάνια για αιτήσεις.",
+    en: "Send an offer or publish a campaign for applications.",
+  },
+  step_4_title: { el: "Έγκριση & κλείσιμο", en: "Approve & close" },
+  step_4_desc: {
+    el: "Μηνύματα, deliverables και ολοκλήρωση συνεργασίας.",
+    en: "Messages, deliverables, and completed collaboration.",
+  },
+  trust_title: { el: "Γιατί Influo", en: "Why Influo" },
+  trust_1: { el: "Δωρεάν, χωρίς προμήθεια", en: "Free, no commission" },
+  trust_2: { el: "Επαληθευμένα προφίλ", en: "Verified profiles" },
+  trust_3: { el: "Πραγματικά δεδομένα από τα social", en: "Real data from social" },
+  cta_section_title: { el: "Ξεκινήστε σήμερα", en: "Start today" },
+  cta_section_desc: {
+    el: "Δημιουργήστε λογαριασμό brand και ανοίξτε τον κατάλογο.",
+    en: "Create a brand account and open the directory.",
+  },
+  cta_button: { el: "Εγγραφή ως Brand", en: "Sign up as Brand" },
+  signup_influencer: { el: "Είμαι Influencer", en: "I'm an Influencer" },
+  signup_brand: { el: "Έχω Επιχείρηση", en: "I have a Business" },
+  close: { el: "Κλείσιμο", en: "Close" },
+} as const satisfies Record<string, Bilingual>;
 
-export default function ForBrandsPage({
-  stats,
-}: {
-  stats: PlatformMarketingStats;
-}) {
-  const pathname = usePathname();
-  const [lang, setLang] = useState<Lang>(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
-  const txt = t[lang];
+type Props = Readonly<{ stats: PlatformMarketingStats }>;
+
+export default function ForBrandsPage({ stats }: Props) {
+  const [lang, setLang] = useMarketingLang();
+  const txt = resolveCopy(lang, COPY);
   const [showModal, setShowModal] = useState(false);
   const [signupType, setSignupType] = useState<"influencer" | "brand">("brand");
   const isLoggedIn = useAuthLoggedIn();
-
-  useEffect(() => {
-    setLang(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
-  }, [pathname]);
 
   const openBrandModal = () => {
     setSignupType("brand");
@@ -250,7 +260,6 @@ export default function ForBrandsPage({
     <div className="min-h-screen bg-white">
       <SiteHeader lang={lang} onLangChange={setLang} />
 
-      {/* Hero — keep as-is */}
       <section className="relative border-b border-slate-100">
         <div className="absolute inset-0 bg-slate-950">
           <Image
@@ -262,23 +271,23 @@ export default function ForBrandsPage({
             sizes="100vw"
           />
         </div>
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-20 md:py-28">
-          <p className="text-sm font-semibold tracking-wide text-blue-300 mb-3">{txt.title}</p>
-          <h1 className="text-4xl md:text-5xl font-bold text-white tracking-tight max-w-2xl mb-4">
+        <div className="relative mx-auto max-w-6xl px-4 py-20 sm:px-6 md:py-28">
+          <p className="mb-3 text-sm font-semibold tracking-wide text-blue-300">{txt.title}</p>
+          <h1 className="mb-4 max-w-2xl text-4xl font-bold tracking-tight text-white md:text-5xl">
             {txt.headline}
           </h1>
-          <p className="text-lg text-slate-200 max-w-xl mb-8 leading-relaxed">{txt.hero_desc}</p>
-          <div className="flex flex-col sm:flex-row gap-3">
+          <p className="mb-8 max-w-xl text-lg leading-relaxed text-slate-200">{txt.hero_desc}</p>
+          <div className="flex flex-col gap-3 sm:flex-row">
             <button
               type="button"
               onClick={openBrandModal}
-              className="inline-flex justify-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+              className="inline-flex justify-center rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-blue-700"
             >
               {txt.cta_primary}
             </button>
             <Link
               href={directoryHref}
-              className="inline-flex justify-center px-6 py-3 bg-white/10 hover:bg-white/15 text-white font-semibold rounded-lg border border-white/20 transition-colors text-center"
+              className="inline-flex justify-center rounded-lg border border-white/20 bg-white/10 px-6 py-3 text-center font-semibold text-white transition-colors hover:bg-white/15"
             >
               {txt.cta_secondary}
             </Link>
@@ -421,12 +430,20 @@ export default function ForBrandsPage({
 
       <Footer lang={lang} />
 
-      {showModal && (
+      {showModal ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 p-4 backdrop-blur-sm"
-          onClick={() => setShowModal(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label={txt.cta_primary}
         >
-          <div className="relative w-full max-w-5xl" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm"
+            aria-label={txt.close}
+            onClick={() => setShowModal(false)}
+          />
+          <div className="relative z-10 w-full max-w-5xl">
             <div className="mb-4 flex gap-2 rounded-lg bg-slate-800 p-1.5">
               <button
                 type="button"
@@ -464,7 +481,7 @@ export default function ForBrandsPage({
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

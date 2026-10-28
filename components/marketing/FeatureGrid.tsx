@@ -1,11 +1,11 @@
 import type { LucideIcon } from "lucide-react";
 import SectionHeading from "@/components/marketing/SectionHeading";
 
-export type FeatureItem = {
+export type FeatureItem = Readonly<{
   title: string;
   desc: string;
   icon: LucideIcon;
-};
+}>;
 
 const COL_CLASS = {
   2: "sm:grid-cols-2",
@@ -13,17 +13,19 @@ const COL_CLASS = {
   4: "sm:grid-cols-2 lg:grid-cols-4",
 } as const;
 
+type Props = Readonly<{
+  title: string;
+  description?: string;
+  items: readonly FeatureItem[];
+  columns?: 2 | 3 | 4;
+}>;
+
 export default function FeatureGrid({
   title,
   description,
   items,
   columns = 3,
-}: {
-  title: string;
-  description?: string;
-  items: FeatureItem[];
-  columns?: 2 | 3 | 4;
-}) {
+}: Props) {
   return (
     <>
       <SectionHeading title={title} description={description} />

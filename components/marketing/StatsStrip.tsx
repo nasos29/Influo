@@ -1,10 +1,12 @@
-export type StatItem = {
+export type StatItem = Readonly<{
   key: string;
   value: number;
   label: string;
-};
+}>;
 
-export default function StatsStrip({ items }: { items: StatItem[] }) {
+type Props = Readonly<{ items: readonly StatItem[] }>;
+
+export default function StatsStrip({ items }: Props) {
   if (!items.length) return null;
 
   return (

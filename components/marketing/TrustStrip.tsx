@@ -1,6 +1,8 @@
 import { CheckCircle2 } from "lucide-react";
 
-export default function TrustStrip({ items }: { items: string[] }) {
+type Props = Readonly<{ items: readonly string[] }>;
+
+export default function TrustStrip({ items }: Props) {
   if (!items.length) return null;
 
   return (
