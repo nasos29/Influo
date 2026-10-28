@@ -2,6 +2,12 @@
 import { resolveYouTubeVideoId as resolveYtId } from "./videoThumbnailYoutube";
 
 export { resolveYouTubeVideoId } from "./videoThumbnailYoutube";
+export { buildTikTokPlayerUrl, extractTikTokVideoId } from "./tikTokPlayer";
+export {
+  extractInstagramShortcode,
+  isValidInstagramShortcode,
+  instagramThumbnailProxySrc,
+} from "./instagramShortcode";
 
 export function getVideoThumbnail(url: string): string | null {
   if (!url) return null;
