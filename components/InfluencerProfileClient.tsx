@@ -1,11 +1,17 @@
 "use client";
 
 import { useEffect, useState, use, Suspense, useRef, useCallback, type ReactNode } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { heroGradientForCategory } from "@/lib/heroTheme";
 import SimilarInfluencers from "@/components/SimilarInfluencers";
+
+const TopPosts = dynamic(() => import("@/components/TopPosts"), {
+  ssr: false,
+  loading: () => null,
+});
 import { Influencer } from "@/components/Directory"; 
 import { supabase } from "@/lib/supabaseClient";
 import { sessionFetch } from "@/lib/sessionFetch";
@@ -63,6 +69,7 @@ type ProfileAccount = {
   quality_penalty_percent?: number | string | null;
   er_penalty_percent?: number | string | null;
   penalty_percent?: number | string | null;
+  top_posts?: unknown;
 };
 
 interface ProInfluencer extends Influencer {
@@ -2438,6 +2445,7 @@ export default function InfluencerProfile(props: {
                   avgLikes={profile.avg_likes}
                   accounts={profile.accounts}
                 />
+                <TopPosts accounts={profile.accounts} lang={lang} />
               </div>
             )}
             <div className="lg:col-span-2 space-y-8">

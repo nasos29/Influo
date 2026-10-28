@@ -13,6 +13,7 @@ import {
   isUsableSocialMetrics,
   type SocialMetrics,
 } from '@/lib/socialRefresh';
+import type { TopPost } from '@/lib/topPosts';
 import { applyErFlags, type ErFlagReason, type PenaltyPercentField } from '@/lib/engagementFlags';
 import {
   AUDIT_FALLBACK_MESSAGE,
@@ -42,6 +43,7 @@ type AccountRow = {
   quality_penalty_percent?: number | null;
   er_penalty_percent?: number | null;
   penalty_percent?: number | null;
+  top_posts?: TopPost[];
 };
 
 function isSocialMetrics(x: SocialMetrics | { error: string }): x is SocialMetrics {
@@ -83,6 +85,7 @@ export type SocialMetricOverride = {
   quality_penalty_percent?: number;
   er_penalty_percent?: number;
   penalty_percent?: number;
+  top_posts?: TopPost[];
 };
 /** Instagram metrics keyed by username (without @). Used when frontend fetches from local Auditpr. */
 export type InstagramOverrides = Record<string, SocialMetricOverride>;
@@ -244,6 +247,8 @@ export async function doRefreshSocialStats(
           ...penaltyStored,
           // Keep true when Auditpr reports private even if session can still read posts.
           is_private: flagged.is_private === true,
+          // Only overwrite top_posts when Auditpr included them (preserve prior otherwise).
+          ...(flagged.top_posts !== undefined ? { top_posts: flagged.top_posts } : {}),
         };
         if (fetchedViaAuditpr && !firstRefreshedForAudit) {
           firstRefreshedForAudit = { platform: platformLower, username: username.replace(/^@+/, '').trim() };

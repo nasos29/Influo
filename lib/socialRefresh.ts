@@ -4,6 +4,7 @@
  */
 
 import { applyErFlags, copyAuditprErExtras, type ErFlagReason } from '@/lib/engagementFlags';
+import { sanitizeTopPosts, type TopPost } from '@/lib/topPosts';
 
 export type SocialMetrics = {
   followers: string;
@@ -28,6 +29,8 @@ export type SocialMetrics = {
    * or set true on private scrape errors in refreshSocialStats.
    */
   is_private?: boolean;
+  /** Present only when Auditpr returned `top_posts` (even if empty after sanitize). */
+  top_posts?: TopPost[];
 };
 
 /** True when Auditpr / scrape error indicates a private/locked profile. */
@@ -99,18 +102,20 @@ function metricsFromAuditprData(
   if (followers === 0 && avg_likes === 0 && posts === 0) {
     return { error: `Λάθος username: το προφίλ @${username} δεν υπάρχει.` };
   }
-  return applyErFlags(
-    {
-      followers: formatFollowers(followers),
-      engagement_rate,
-      avg_likes: String(avg_likes),
-      posts_count: posts,
-      avg_views,
-      is_private: data.is_private === true || data.private === true,
-      ...copyAuditprErExtras(data),
-    },
-    platform
-  );
+  const metrics: SocialMetrics = {
+    followers: formatFollowers(followers),
+    engagement_rate,
+    avg_likes: String(avg_likes),
+    posts_count: posts,
+    avg_views,
+    is_private: data.is_private === true || data.private === true,
+    ...copyAuditprErExtras(data),
+  };
+  // Only set when Auditpr included top_posts — omit key so refresh keeps prior posts.
+  if (Object.hasOwn(data, 'top_posts')) {
+    metrics.top_posts = sanitizeTopPosts(data.top_posts);
+  }
+  return applyErFlags(metrics, platform);
 }
 
 export function isUsableSocialMetrics(x: SocialMetrics | { error: string }): x is SocialMetrics {
