@@ -96,12 +96,12 @@ function TitleWithTip({
   tip,
   ariaLabel,
   className,
-}: {
+}: Readonly<{
   title: string;
   tip: string;
   ariaLabel: string;
   className: string;
-}) {
+}>) {
   return (
     <div className={`flex items-start gap-1 ${className}`}>
       <span className="leading-tight break-words">{title}</span>
@@ -262,7 +262,7 @@ export default function ChannelScorePanel({
         </div>
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
           <TitleWithTip
-            title={el ? "Integration" : "Integration"}
+            title="Integration"
             tip={SCORE_HINTS.integration[lang]}
             ariaLabel={tipAria}
             className="text-xs font-semibold uppercase tracking-wide text-slate-500"
