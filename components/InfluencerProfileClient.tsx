@@ -1808,6 +1808,26 @@ export default function InfluencerProfile(props: {
               return (
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                   <ProfileStatCard
+                    label={lang === "el" ? "Κατάσταση" : "Status"}
+                    valueCentered
+                    icon={
+                      <MetricIcon className="bg-slate-100 text-slate-600 ring-slate-200/80">
+                        <rect x="3" y="4" width="18" height="18" rx="2" />
+                        <path d="M16 2v4" />
+                        <path d="M8 2v4" />
+                        <path d="M3 10h18" />
+                      </MetricIcon>
+                    }
+                  >
+                    <span
+                      className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${availabilityTone}`}
+                    >
+                      <span className={`h-1.5 w-1.5 rounded-full ${availabilityDot}`} />
+                      {availabilityLabel}
+                    </span>
+                  </ProfileStatCard>
+
+                  <ProfileStatCard
                     label={lang === "el" ? "Αλληλεπίδραση" : "Engagement"}
                     icon={
                       <MetricIcon className="bg-blue-50 text-blue-600 ring-blue-100">
@@ -2073,26 +2093,6 @@ export default function InfluencerProfile(props: {
                         </p>
                       </div>
                     )}
-                  </ProfileStatCard>
-
-                  <ProfileStatCard
-                    label={lang === "el" ? "Κατάσταση" : "Status"}
-                    valueCentered
-                    icon={
-                      <MetricIcon className="bg-slate-100 text-slate-600 ring-slate-200/80">
-                        <rect x="3" y="4" width="18" height="18" rx="2" />
-                        <path d="M16 2v4" />
-                        <path d="M8 2v4" />
-                        <path d="M3 10h18" />
-                      </MetricIcon>
-                    }
-                  >
-                    <span
-                      className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${availabilityTone}`}
-                    >
-                      <span className={`h-1.5 w-1.5 rounded-full ${availabilityDot}`} />
-                      {availabilityLabel}
-                    </span>
                   </ProfileStatCard>
 
                   {(profile.has_min_rate || profile.min_rate) && (
