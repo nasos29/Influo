@@ -70,6 +70,8 @@ const ACCOUNT_KEYS = [
   "er_penalty_percent",
   "penalty_percent",
   "top_posts",
+  "channel_id",
+  "channel_handle",
 ] as const;
 
 const AUDIT_KEYS = [

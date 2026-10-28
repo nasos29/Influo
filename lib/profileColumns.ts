@@ -18,7 +18,7 @@ export const INFLUENCER_BROWSER_COLUMNS = [
   "audience_male_percent",
   "audience_female_percent",
   "audience_top_age",
-  // Nested top_posts (AuditPro) travel inside accounts JSON — no extra column.
+  // Nested top_posts / channel_id / channel_handle (Auditpr) travel inside accounts JSON — no extra column.
   "accounts",
   "avatar_url",
   "verified",

@@ -19,6 +19,7 @@ import { presenceOnline } from "@/lib/presenceStatus";
 import { counterpartyInfluencerPresence } from "@/lib/presenceIdentity";
 import { getVideoThumbnail, isDefinitelyVideo, isDefinitelyImage, detectProvider, getVideoEmbedApiUrl, isEmbeddableVideoUrl } from "@/lib/videoThumbnail";
 import { isFacebookVideoUrl } from "@/lib/videoLinks";
+import { youtubeChannelUrl } from "@/lib/youtubeHandle";
 import VideoThumbnail from "@/components/VideoThumbnail";
 import SocialEmbedCard from "@/components/SocialEmbedCard";
 import { getBadges, getBadgeStyles } from "@/lib/badges";
@@ -2935,9 +2936,21 @@ export default function InfluencerProfile(props: {
                             .filter(([plat]) => plat.toLowerCase() !== 'facebook')
                             .map(([plat, user]) => {
                             const u = (user || '').trim();
-                            const href = plat.toLowerCase() === 'tiktok'
-                              ? `https://tiktok.com/${u.startsWith('@') ? u : `@${u}`}`
-                              : `https://${plat}.com/${u}`;
+                            const platKey = plat.toLowerCase();
+                            let href: string;
+                            if (platKey === 'youtube') {
+                              const ytAcc = (profile.accounts || []).find(
+                                (a: { platform?: string }) =>
+                                  String(a?.platform || '').toLowerCase() === 'youtube'
+                              );
+                              href =
+                                youtubeChannelUrl(ytAcc || { username: u }) ||
+                                `https://www.youtube.com/@${u.replace(/^@+/, '')}`;
+                            } else if (platKey === 'tiktok') {
+                              href = `https://tiktok.com/${u.startsWith('@') ? u : `@${u}`}`;
+                            } else {
+                              href = `https://${plat}.com/${u}`;
+                            }
                             return (
                             <a
                               key={plat}

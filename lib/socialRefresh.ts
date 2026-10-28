@@ -5,6 +5,7 @@
 
 import { applyErFlags, copyAuditprErExtras, type ErFlagReason } from '@/lib/engagementFlags';
 import { sanitizeTopPosts, type TopPost } from '@/lib/topPosts';
+import { youtubeUsernameForAuditpr } from '@/lib/youtubeHandle';
 
 export type SocialMetrics = {
   followers: string;
@@ -31,6 +32,10 @@ export type SocialMetrics = {
   is_private?: boolean;
   /** Present only when Auditpr returned `top_posts` (even if empty after sanitize). */
   top_posts?: TopPost[];
+  /** YouTube only — set when Auditpr returned the key (refresh keeps prior if omitted). */
+  channel_id?: string;
+  /** YouTube only — set when Auditpr returned the key (refresh keeps prior if omitted). */
+  channel_handle?: string;
 };
 
 /** True when Auditpr / scrape error indicates a private/locked profile. */
@@ -115,6 +120,17 @@ function metricsFromAuditprData(
   if (Object.hasOwn(data, 'top_posts')) {
     metrics.top_posts = sanitizeTopPosts(data.top_posts);
   }
+  // YouTube channel identity — omit keys when absent so refresh keeps prior values.
+  if (platform === 'youtube') {
+    if (Object.hasOwn(data, 'channel_id')) {
+      const id = String(data.channel_id ?? '').trim();
+      if (id) metrics.channel_id = id;
+    }
+    if (Object.hasOwn(data, 'channel_handle')) {
+      const handle = String(data.channel_handle ?? '').trim().replace(/^@+/, '');
+      if (handle) metrics.channel_handle = handle;
+    }
+  }
   return applyErFlags(metrics, platform);
 }
 
@@ -165,7 +181,7 @@ export async function fetchYouTubeFromAuditpr(
   baseUrl: string,
   username: string
 ): Promise<SocialMetrics | { error: string }> {
-  const u = username.replace(/^@+/, '').trim();
+  const u = youtubeUsernameForAuditpr(username);
   if (!u) return { error: 'Username required' };
     const url = `${baseUrl.replace(/\/$/, '')}/metrics/youtube/${encodeURIComponent(u)}?for_import=true`;
     try {
