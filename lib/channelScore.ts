@@ -10,11 +10,14 @@ export type ChannelAxisId =
 
 export type ChannelAxis = {
   id: ChannelAxisId;
-  score: number;
+  /** Null when the axis cannot be scored yet (e.g. missing growth window). */
+  score: number | null;
 };
 
 export type ChannelScoreInput = {
   followersTotal: number;
+  /** Per-platform follower counts — used for weighted ER. */
+  followersByPlatform?: { [key: string]: number | undefined } | null;
   engagementRate?: string | { [key: string]: string } | null;
   avgLikes?: string | { [key: string]: string } | number | null;
   contentCount: number;
@@ -55,6 +58,33 @@ export function parseEngagementPercent(rate?: string | { [key: string]: string }
     return vals.reduce((a, b) => a + b, 0) / vals.length;
   }
   return parseFloat(String(rate).replace("%", "").replace(",", ".")) || 0;
+}
+
+/**
+ * Follower-weighted ER: Σ(ER×followers) / Σfollowers for platforms with ER>0 and followers>0.
+ * When `erByPlatform` is a legacy string, falls back to parseEngagementPercent.
+ */
+export function weightedEngagementPercent(
+  followersByPlatform: { [key: string]: number | undefined } | null | undefined,
+  erByPlatform: string | { [key: string]: string | number | undefined } | null | undefined
+): number {
+  if (erByPlatform == null) return 0;
+  if (typeof erByPlatform === "string") {
+    return round1(parseEngagementPercent(erByPlatform));
+  }
+
+  let weighted = 0;
+  let totalFollowers = 0;
+  for (const [key, rawEr] of Object.entries(erByPlatform)) {
+    const followers = Number(followersByPlatform?.[key]) || 0;
+    const er = parseEngagementPercent(rawEr != null ? String(rawEr) : null);
+    if (followers > 0 && er > 0) {
+      weighted += er * followers;
+      totalFollowers += followers;
+    }
+  }
+  if (totalFollowers <= 0) return 0;
+  return round1(weighted / totalFollowers);
 }
 
 function parseLikes(avgLikes: ChannelScoreInput["avgLikes"]): number {
@@ -104,8 +134,9 @@ export function qualityColor(score: number): string {
   return "text-slate-500";
 }
 
-function scoreFollowersGrowth(growthPct: number | null | undefined): number {
-  if (growthPct == null || !Number.isFinite(growthPct)) return 2.5;
+/** Returns null when growthPct is missing — axis is excluded from influoScore. */
+export function scoreFollowersGrowth(growthPct: number | null | undefined): number | null {
+  if (growthPct == null || !Number.isFinite(growthPct)) return null;
   if (growthPct < -5) return 1.2;
   if (growthPct < 0) return 2.2;
   if (growthPct < 1.5) return 3.2;
@@ -123,14 +154,19 @@ function scoreEngagement(er: number, followersTotal: number, erFlagged?: boolean
   return 2.2;
 }
 
-function scoreCreation(contentCount: number, platformCount: number): number {
-  let s = 1.6;
-  if (contentCount >= 1) s += 0.7;
-  if (contentCount >= 3) s += 0.7;
-  if (contentCount >= 6) s += 0.7;
-  if (contentCount >= 10) s += 0.5;
-  if (platformCount >= 2) s += 0.5;
-  return clamp(s);
+/**
+ * Portfolio samples only — no platform-count bonus (platforms count in channelQuality).
+ * 0 → 0; 1 → 1.5; 3 → 2.5; 6 → 3.5; 10 → 4.5; 15+ → 5.
+ */
+export function scoreCreation(contentCount: number): number {
+  const n = Math.max(0, Number(contentCount) || 0);
+  if (n <= 0) return 0;
+  if (n >= 15) return 5;
+  if (n >= 10) return 4.5;
+  if (n >= 6) return 3.5;
+  if (n >= 3) return 2.5;
+  if (n >= 1) return 1.5;
+  return 0;
 }
 
 /** Like/followers ratio bands mirror ER % / 100 for the same follower size. */
@@ -162,12 +198,17 @@ function scoreChannelQuality(input: ChannelScoreInput, likes: number): number {
   return clamp(s);
 }
 
-function scoreAudience(input: ChannelScoreInput): number {
-  let s = 2.1;
-  if (input.verified) s += 1.1;
-  if (input.brandSafe) s += 0.7;
+/**
+ * Completeness & verification: base 1.5 + avatar/bio/age/brandSafe/reviews/verified.
+ */
+export function scoreAudience(input: ChannelScoreInput): number {
+  let s = 1.5;
+  if (input.hasAvatar) s += 0.8;
+  if (input.hasBio) s += 0.6;
   if (input.hasAudience) s += 0.6;
-  if ((input.reviewCount || 0) > 0) s += 0.3;
+  if (input.brandSafe) s += 0.5;
+  if ((input.reviewCount || 0) > 0) s += 0.5;
+  if (input.verified) s += 0.5;
   return clamp(s);
 }
 
@@ -236,11 +277,12 @@ function scoreCollaborationReadiness(input: ChannelScoreInput): number {
 }
 
 export function buildChannelScore(input: ChannelScoreInput) {
-  const er = parseEngagementPercent(input.engagementRate);
+  const er = weightedEngagementPercent(input.followersByPlatform, input.engagementRate);
   const likes = parseLikes(input.avgLikes);
+  const growthScore = scoreFollowersGrowth(input.growthPct);
   const axes: ChannelAxis[] = [
-    { id: "followersGrowth", score: round1(scoreFollowersGrowth(input.growthPct)) },
-    { id: "creationPublish", score: round1(scoreCreation(input.contentCount, input.platformCount)) },
+    { id: "followersGrowth", score: growthScore == null ? null : round1(growthScore) },
+    { id: "creationPublish", score: round1(scoreCreation(input.contentCount)) },
     { id: "audienceCredibility", score: round1(scoreAudience(input)) },
     {
       id: "engagementRate",
@@ -248,7 +290,8 @@ export function buildChannelScore(input: ChannelScoreInput) {
     },
     { id: "channelQuality", score: round1(scoreChannelQuality(input, likes)) },
   ];
-  const influoScore = round1(axes.reduce((a, x) => a + x.score, 0) / axes.length);
+  const scored = axes.map((a) => a.score).filter((s): s is number => s != null);
+  const influoScore = scored.length ? round1(scored.reduce((a, x) => a + x, 0) / scored.length) : 0;
 
   const coopPotential = scoreCollaborationReadiness(input);
 
@@ -264,15 +307,12 @@ export function buildChannelScore(input: ChannelScoreInput) {
   const integrationFrom = allRates.length ? Math.min(...allRates) : null;
   // Only show a range when a rate card provides an upper bound — never invent ×2.2 from min_rate alone.
   const integrationTo = cardRates.length ? Math.max(...allRates) : null;
-  const followersK = input.followersTotal > 0 ? input.followersTotal / 1000 : 0;
-  const costPer1k = minRate != null && followersK >= 0.2 ? round1(minRate / followersK) : null;
 
   return {
     axes,
     influoScore,
     coopPotential,
     engagementPercent: round1(er),
-    costPer1k,
     integrationFrom,
     integrationTo,
   };
@@ -294,4 +334,9 @@ export const COOP_LABELS = {
 export const COOP_HINT = {
   el: "Πόσο έτοιμο είναι το προφίλ για συνεργασία: απόκριση, ολοκληρώσεις, αξιολογήσεις, τιμές, πληρότητα.",
   en: "How ready the profile is to collaborate: response, completions, reviews, pricing, completeness.",
+} as const;
+
+export const GROWTH_MISSING_HINT = {
+  el: "Χρειάζονται μετρήσεις τουλάχιστον 7 ημερών",
+  en: "Needs at least 7 days of measurements",
 } as const;

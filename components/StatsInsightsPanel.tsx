@@ -11,14 +11,15 @@ type Props = {
   followers: { [key: string]: number | undefined };
   engagementRate?: string | { [key: string]: string } | null;
   avgLikes?: string | { [key: string]: string } | number | null;
+  accounts?: Array<{ platform?: string | null; avg_views?: string | number | null }> | null;
 };
 
 const TIP_ARIA = { el: "Τι σημαίνει", en: "What this means" } as const;
 
 const INSIGHT_HINTS = {
   platformMix: {
-    el: "Πού είναι το κοινό, με ER και μέσο likes.",
-    en: "Where the audience is, with ER and avg likes.",
+    el: "Πού είναι το κοινό, με ER, μέσο likes και προβολές.",
+    en: "Where the audience is, with ER, avg likes and views.",
   },
   catalogCompare: {
     el: "Engagement rate απέναντι σε creators ίδιου μεγέθους στο Influo.",
@@ -29,6 +30,25 @@ const INSIGHT_HINTS = {
 const INSIGHT_TITLES = {
   platformMix: { el: "Mix πλατφορμών", en: "Platform mix" },
   catalogCompare: { el: "Σύγκριση καταλόγου", en: "Catalog comparison" },
+} as const;
+
+const INSIGHT_COPY = {
+  wholeCatalog: {
+    el: "σε όλο τον κατάλογο (όλα τα μεγέθη)",
+    en: "whole catalog (all sizes)",
+  },
+  percentile: {
+    el: (x: number, bucket: string) => `Καλύτερο από το ${x}% των ${bucket} creators`,
+    en: (x: number, bucket: string) => `Better than ${x}% of ${bucket} creators`,
+  },
+  erFlagged: {
+    el: "Ακραίο ER – υπό έλεγχο",
+    en: "Unusual ER – under review",
+  },
+  avgViews: { el: "Μ.Ο. προβολές", en: "Avg views" },
+  avgLikes: { el: "Μ.Ο. likes", en: "Avg likes" },
+  vsMedian: { el: "vs διάμεσο", en: "vs median" },
+  medianLabel: { el: "Διάμεσος", en: "Catalog median" },
 } as const;
 
 function fmt(n: number): string {
@@ -43,11 +63,12 @@ export default function StatsInsightsPanel({
   followers,
   engagementRate,
   avgLikes,
+  accounts,
 }: Props) {
   const el = lang === "el";
   const mix = useMemo(
-    () => buildPlatformMix(followers, engagementRate, avgLikes),
-    [followers, engagementRate, avgLikes]
+    () => buildPlatformMix(followers, engagementRate, avgLikes, accounts),
+    [followers, engagementRate, avgLikes, accounts]
   );
   const [bench, setBench] = useState<CatalogBenchmark | null>(null);
 
@@ -71,11 +92,10 @@ export default function StatsInsightsPanel({
         ? `${bench.peerCount} creators ${bucket?.range} στο Influo`
         : `${bench.peerCount} creators ${bucket?.range} on Influo`
       : bench
-        ? el
-          ? `${bench.catalogCount} creators στον κατάλογο`
-          : `${bench.catalogCount} creators in the catalog`
+        ? INSIGHT_COPY.wholeCatalog[lang]
         : "";
   const maxEr = Math.max(bench?.thisEr || 0, compareEr || 0, 1);
+  const bucketWord = bucket ? bucket[lang] : el ? "creators" : "creators";
 
   return (
     <div className="grid md:grid-cols-2 gap-8">
@@ -87,7 +107,9 @@ export default function StatsInsightsPanel({
           </span>
         </h3>
         {mix.length === 0 ? (
-          <p className="text-sm text-slate-400 mt-6">{el ? "Δεν υπάρχουν followers ανά πλατφόρμα." : "No per-platform followers yet."}</p>
+          <p className="text-sm text-slate-400 mt-6">
+            {el ? "Δεν υπάρχουν followers ανά πλατφόρμα." : "No per-platform followers yet."}
+          </p>
         ) : (
           <div className="mt-5 space-y-4">
             {mix.map((row) => (
@@ -106,7 +128,14 @@ export default function StatsInsightsPanel({
                 </div>
                 <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
                   <span>ER {row.er != null ? `${row.er.toFixed(1)}%` : "—"}</span>
-                  <span>{el ? "Μ.Ο. likes" : "Avg likes"} {row.likes != null ? fmt(row.likes) : "—"}</span>
+                  <span>
+                    {INSIGHT_COPY.avgLikes[lang]} {row.likes != null ? fmt(row.likes) : "—"}
+                  </span>
+                  {row.avgViews != null ? (
+                    <span>
+                      {INSIGHT_COPY.avgViews[lang]} {fmt(row.avgViews)}
+                    </span>
+                  ) : null}
                 </div>
               </div>
             ))}
@@ -127,19 +156,30 @@ export default function StatsInsightsPanel({
           </p>
         ) : (
           <div className="mt-5">
-            <div className="flex items-end gap-3">
-              <div className="text-4xl font-extrabold text-slate-900 tabular-nums">{bench.thisEr.toFixed(1)}%</div>
-              {bench.delta != null && (
+            <div className="flex items-end gap-3 flex-wrap">
+              <div className="text-4xl font-extrabold text-slate-900 tabular-nums">
+                {bench.thisEr.toFixed(1)}%
+              </div>
+              {bench.thisErFlagged ? (
+                <div className="mb-1 inline-flex items-center rounded-md bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800 ring-1 ring-amber-200">
+                  {INSIGHT_COPY.erFlagged[lang]}
+                </div>
+              ) : bench.delta != null ? (
                 <div
                   className={`mb-1 text-sm font-semibold ${
                     bench.delta > 0 ? "text-emerald-600" : bench.delta < 0 ? "text-amber-600" : "text-slate-500"
                   }`}
                 >
                   {bench.delta > 0 ? "+" : ""}
-                  {bench.delta.toFixed(1)}pp {el ? "vs μέσο όρο" : "vs average"}
+                  {bench.delta.toFixed(1)}pp {INSIGHT_COPY.vsMedian[lang]}
                 </div>
-              )}
+              ) : null}
             </div>
+            {bench.thisErFlagged ? null : bench.percentile != null ? (
+              <p className="mt-2 text-sm font-medium text-slate-700">
+                {INSIGHT_COPY.percentile[lang](bench.percentile, bucketWord)}
+              </p>
+            ) : null}
             {bucket && (
               <p className="text-xs text-slate-500 mt-1">
                 {bucket[lang]} {bucket.range} · {compareLabel}
@@ -161,13 +201,15 @@ export default function StatsInsightsPanel({
               </div>
               <div>
                 <div className="flex justify-between text-xs font-medium text-slate-600 mb-1">
-                  <span>{el ? "Μέσος όρος" : "Catalog average"}</span>
+                  <span>{INSIGHT_COPY.medianLabel[lang]}</span>
                   <span>{compareEr != null ? `${compareEr.toFixed(1)}%` : "—"}</span>
                 </div>
                 <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden">
                   <div
                     className="h-full rounded-full bg-slate-400"
-                    style={{ width: `${compareEr != null ? Math.min(100, (compareEr / maxEr) * 100) : 0}%` }}
+                    style={{
+                      width: `${compareEr != null ? Math.min(100, (compareEr / maxEr) * 100) : 0}%`,
+                    }}
                   />
                 </div>
               </div>

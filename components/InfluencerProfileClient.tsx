@@ -28,6 +28,7 @@ import ChannelScorePanel from "@/components/ChannelScorePanel";
 import FollowerGrowthChart from "@/components/FollowerGrowthChart";
 import InfoTooltip from "@/components/InfoTooltip";
 import StatsInsightsPanel from "@/components/StatsInsightsPanel";
+import { isValidAgeRange } from "@/lib/audience";
 import { buildChannelScore } from "@/lib/channelScore";
 import { averageAvgViews, estimateCpm, formatCpmEuro } from "@/lib/cpm";
 import { resolveCompletionRate } from "@/lib/completionRate";
@@ -72,7 +73,7 @@ interface ProInfluencer extends Influencer {
   engagement_rate?: string | { [key: string]: string }; // Can be per-platform object or legacy string
   avg_likes?: string | { [key: string]: string }; // Can be per-platform object or legacy string
   accounts?: ProfileAccount[];
-  audience_data?: { male: number; female: number; top_age: string };
+  audience_data?: { male: number | null; female: number | null; top_age: string };
   rate_card?: { story?: string; post?: string; reel?: string; facebook?: string; youtube?: string };
   past_brands?: string[];
   avg_rating?: number;
@@ -226,13 +227,14 @@ function scoreChannelFromProfile(
   const contentCount = Array.isArray(profile.videos) ? profile.videos.filter(Boolean).length : 0;
   return buildChannelScore({
     followersTotal,
+    followersByPlatform: profile.followers || {},
     engagementRate: profile.engagement_rate,
     avgLikes: profile.avg_likes,
     contentCount,
     platformCount,
     verified: !!profile.verified,
     brandSafe: !!profile.auditpr_audit?.brandSafe,
-    hasAudience: !!(profile.audience_data?.top_age && profile.audience_data.top_age !== "?"),
+    hasAudience: isValidAgeRange(profile.audience_data?.top_age),
     reviewCount: profile.total_reviews || 0,
     completionRate: profile.calculatedCompletionRate,
     growthPct,
@@ -910,11 +912,27 @@ export default function InfluencerProfile(props: {
         engagement_rate: Object.keys(engagementRatesObj).length > 0 ? engagementRatesObj : (data.engagement_rate || undefined), // Store as object per platform, fallback to legacy string
         avg_likes: Object.keys(avgLikesObj).length > 0 ? avgLikesObj : (data.avg_likes || undefined), // Store as object per platform, fallback to legacy string
         accounts: Array.isArray(data.accounts) ? data.accounts : [],
-        audience_data: {
-          male: data.audience_male_percent || 50,
-          female: data.audience_female_percent || 50,
-          top_age: data.audience_top_age || "?"
-        },
+        audience_data: (() => {
+          const maleRaw = data.audience_male_percent;
+          const femaleRaw = data.audience_female_percent;
+          const male =
+            maleRaw == null || maleRaw === ""
+              ? null
+              : Number.isFinite(Number(maleRaw))
+                ? Number(maleRaw)
+                : null;
+          const female =
+            femaleRaw == null || femaleRaw === ""
+              ? null
+              : Number.isFinite(Number(femaleRaw))
+                ? Number(femaleRaw)
+                : null;
+          return {
+            male: male == null && female == null ? null : male,
+            female: male == null && female == null ? null : female,
+            top_age: data.audience_top_age || "?",
+          };
+        })(),
         rate_card_flags: data.rate_card_flags || {},
         past_brands: data.past_brands || [],
         avg_rating: data.avg_rating || 0,
@@ -2369,7 +2387,6 @@ export default function InfluencerProfile(props: {
                 <ChannelScorePanel
                   lang={lang}
                   isBrand={isBrand}
-                  costLocked={!isBrand && !!profile.has_priced_min_rate}
                   integrationLocked={
                     !isBrand &&
                     (!!profile.has_priced_min_rate ||
@@ -2384,6 +2401,7 @@ export default function InfluencerProfile(props: {
                   followers={profile.followers || {}}
                   engagementRate={profile.engagement_rate}
                   avgLikes={profile.avg_likes}
+                  accounts={profile.accounts}
                 />
               </div>
             )}
@@ -2636,16 +2654,18 @@ export default function InfluencerProfile(props: {
                         <h2 className="text-xl font-bold text-slate-900 mb-6">{txt.aud_gen}</h2>
                         
                         {/* Gender Chart using CSS */}
+                        {profile.audience_data?.female != null || profile.audience_data?.male != null ? (
                         <div className="mb-8">
                             <div className="flex justify-between mb-2 font-medium text-slate-700">
-                                <span>{txt.female} ({profile.audience_data?.female}%)</span>
-                                <span>{txt.male} ({profile.audience_data?.male}%)</span>
+                                <span>{txt.female} ({profile.audience_data?.female ?? "—"}%)</span>
+                                <span>{txt.male} ({profile.audience_data?.male ?? "—"}%)</span>
                             </div>
                             <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden flex">
-                                <div style={{ width: `${profile.audience_data?.female}%` }} className="bg-pink-400 h-full"></div>
-                                <div style={{ width: `${profile.audience_data?.male}%` }} className="bg-blue-400 h-full"></div>
+                                <div style={{ width: `${profile.audience_data?.female ?? 0}%` }} className="bg-pink-400 h-full"></div>
+                                <div style={{ width: `${profile.audience_data?.male ?? 0}%` }} className="bg-blue-400 h-full"></div>
                             </div>
                         </div>
+                        ) : null}
 
                         {/* Age Group */}
                         <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">

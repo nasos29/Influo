@@ -6,6 +6,7 @@ import {
   AXIS_LABELS,
   COOP_HINT,
   COOP_LABELS,
+  GROWTH_MISSING_HINT,
   qualityColor,
   qualityLabel,
   type ChannelAxis,
@@ -16,12 +17,10 @@ type Props = {
   lang: "el" | "en";
   isBrand: boolean;
   /** Logged-out visitors: show the price lock without putting the amount in the page. */
-  costLocked?: boolean;
   integrationLocked?: boolean;
   axes: ChannelAxis[];
   influoScore: number;
   coopPotential: number;
-  costPer1k: number | null;
   integrationFrom: number | null;
   integrationTo: number | null;
   minRateLabel?: string | null;
@@ -41,10 +40,6 @@ const SCORE_HINTS = {
   title: {
     el: "Influo score από ανάπτυξη, engagement, ποιότητα, δείγματα δουλειάς και πληρότητα & επαλήθευση.",
     en: "Influo score from growth, engagement, quality, portfolio and verification & completeness.",
-  },
-  cost: {
-    el: "Εκτιμώμενο κόστος ανά 1.000 followers με βάση την ελάχιστη χρέωση.",
-    en: "Estimated cost per 1,000 followers based on the minimum rate.",
   },
   integration: {
     el: "Ενδεικτικό εύρος τιμής για συνεργασία από το rate card ή την ελάχιστη χρέωση.",
@@ -67,8 +62,8 @@ const SCORE_HINTS = {
     en: "Overall channel quality from likes, ER, and metric consistency.",
   },
   creationPublish: {
-    el: "Πόσα δείγματα δουλειάς και πλατφόρμες έχει δηλώσει ο δημιουργός.",
-    en: "How much portfolio content and how many platforms the creator has linked.",
+    el: "Πόσα δείγματα δουλειάς έχει ανεβάσει ο δημιουργός στο προφίλ.",
+    en: "How many portfolio samples the creator has uploaded on the profile.",
   },
 } as const;
 
@@ -115,17 +110,18 @@ function TitleWithTip({
 export default function ChannelScorePanel({
   lang,
   isBrand,
-  costLocked = false,
   integrationLocked = false,
   axes,
   influoScore,
   coopPotential,
-  costPer1k,
   integrationFrom,
   integrationTo,
 }: Props) {
   const el = lang === "el";
-  const byId = Object.fromEntries(axes.map((a) => [a.id, a.score])) as Record<ChannelAxisId, number>;
+  const byId = Object.fromEntries(axes.map((a) => [a.id, a.score])) as Record<
+    ChannelAxisId,
+    number | null
+  >;
   // Extra horizontal room so side labels are not clipped.
   const vbW = 300;
   const vbH = 260;
@@ -135,8 +131,12 @@ export default function ChannelScorePanel({
   const labelR = maxR + 30;
   const n = ORDER.length;
   const rings = [0.25, 0.5, 0.75, 1];
-  const valuePts = ORDER.map((id, i) => polar(cx, cy, (Math.max(0, byId[id] || 0) / 5) * maxR, i, n));
-  const valuePath = valuePts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ") + " Z";
+  const valuePts = ORDER.map((id, i) =>
+    polar(cx, cy, (Math.max(0, byId[id] ?? 0) / 5) * maxR, i, n)
+  );
+  const valuePath =
+    valuePts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ") +
+    " Z";
   const labelPts = ORDER.map((id, i) => ({ id, ...polar(cx, cy, labelR, i, n) }));
 
   const money = (n: number) => `${Math.round(n).toLocaleString(el ? "el-GR" : "en-US")}€`;
@@ -172,17 +172,30 @@ export default function ChannelScorePanel({
             </div>
           </div>
           <div className="w-full max-w-[320px] min-w-0 overflow-visible px-1">
-            <svg viewBox={`0 0 ${vbW} ${vbH}`} className="w-full h-auto overflow-visible" role="img" aria-label={el ? "Ραντάρ βαθμολογίας" : "Score radar"}>
+            <svg
+              viewBox={`0 0 ${vbW} ${vbH}`}
+              className="w-full h-auto overflow-visible"
+              role="img"
+              aria-label={el ? "Ραντάρ βαθμολογίας" : "Score radar"}
+            >
               {rings.map((t) => {
                 const pts = ORDER.map((_, i) => polar(cx, cy, maxR * t, i, n));
-                const d = pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ") + " Z";
+                const d =
+                  pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ") +
+                  " Z";
                 return <path key={t} d={d} fill="none" stroke="#e2e8f0" strokeWidth="1" />;
               })}
               {ORDER.map((_, i) => {
                 const p = polar(cx, cy, maxR, i, n);
                 return <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="#e2e8f0" strokeWidth="1" />;
               })}
-              <path d={valuePath} fill="rgba(37,99,235,0.18)" stroke="#2563eb" strokeWidth="2" strokeLinejoin="round" />
+              <path
+                d={valuePath}
+                fill="rgba(37,99,235,0.18)"
+                stroke="#2563eb"
+                strokeWidth="2"
+                strokeLinejoin="round"
+              />
               {valuePts.map((p, i) => (
                 <circle key={i} cx={p.x} cy={p.y} r="3.2" fill="#2563eb" />
               ))}
@@ -205,26 +218,37 @@ export default function ChannelScorePanel({
 
         <div className="space-y-2.5 w-full">
           {ORDER.map((id) => {
-            const score = byId[id] || 0;
+            const score = byId[id];
+            const missing = score == null;
+            const tip =
+              id === "followersGrowth" && missing
+                ? GROWTH_MISSING_HINT[lang]
+                : SCORE_HINTS[id][lang];
             return (
               <div key={id} className="flex items-center gap-3 text-sm">
                 <span className="flex min-w-0 flex-1 items-start gap-1 text-slate-700">
                   <span className="leading-tight break-words">{AXIS_LABELS[id][lang]}</span>
                   <span className="mt-px shrink-0">
-                    <InfoTooltip text={SCORE_HINTS[id][lang]} ariaLabel={tipAria} />
+                    <InfoTooltip text={tip} ariaLabel={tipAria} />
                   </span>
                 </span>
-                <Dots score={score} />
-                <span className={`w-24 text-right text-xs font-semibold ${qualityColor(score)}`}>
-                  {qualityLabel(score, lang)}
-                </span>
+                {missing ? (
+                  <span className="w-24 text-right text-xs font-semibold text-slate-400">—</span>
+                ) : (
+                  <>
+                    <Dots score={score} />
+                    <span className={`w-24 text-right text-xs font-semibold ${qualityColor(score)}`}>
+                      {qualityLabel(score, lang)}
+                    </span>
+                  </>
+                )}
               </div>
             );
           })}
         </div>
       </div>
 
-      <div className="grid sm:grid-cols-3 gap-3 px-5 sm:px-8 pb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 px-5 sm:px-8 pb-6">
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
           <TitleWithTip
             title={COOP_LABELS[lang]}
@@ -232,33 +256,12 @@ export default function ChannelScorePanel({
             ariaLabel={tipAria}
             className="text-xs font-semibold uppercase tracking-wide text-slate-500"
           />
-          <div className="mt-1 text-2xl font-extrabold text-blue-700 tabular-nums">{coopPotential.toFixed(1)}/10</div>
+          <div className="mt-1 text-2xl font-extrabold text-blue-700 tabular-nums">
+            {coopPotential.toFixed(1)}/10
+          </div>
           <div className={`text-xs font-medium mt-1 ${qualityColor(coopPotential / 2)}`}>
             {qualityLabel(coopPotential / 2, lang)}
           </div>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <TitleWithTip
-            title={el ? "Κόστος / 1k followers" : "Cost / 1k followers"}
-            tip={SCORE_HINTS.cost[lang]}
-            ariaLabel={tipAria}
-            className="text-xs font-semibold uppercase tracking-wide text-slate-500"
-          />
-          {costPer1k != null && isBrand ? (
-            <div className="mt-1 text-2xl font-extrabold text-slate-900 tabular-nums">{costPer1k}€</div>
-          ) : costLocked ? (
-            <>
-              <div className="mt-1 text-2xl font-extrabold text-slate-900 blur-md select-none">••••</div>
-              <p className="text-[11px] text-slate-500 mt-1 leading-snug">
-                <Link href="/login" className="text-blue-600 underline hover:text-blue-800">
-                  {el ? "Σύνδεση" : "Login"}
-                </Link>
-                {el ? " επιχείρησης για να δείτε την τιμή." : " as a brand to see the price."}
-              </p>
-            </>
-          ) : (
-            <div className="mt-1 text-lg font-bold text-slate-400">—</div>
-          )}
         </div>
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
           <TitleWithTip

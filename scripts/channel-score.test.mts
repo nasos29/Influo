@@ -6,10 +6,13 @@ import {
   buildChannelScore,
   erBandThresholds,
   excellentErThreshold,
+  scoreCreation,
+  scoreFollowersGrowth,
 } from "../lib/channelScore.ts";
 
-function axis(score: ReturnType<typeof buildChannelScore>, id: string): number {
-  return score.axes.find((a) => a.id === id)?.score ?? -1;
+function axis(score: ReturnType<typeof buildChannelScore>, id: string): number | null {
+  const found = score.axes.find((a) => a.id === id);
+  return found ? found.score : -1;
 }
 
 test("excellent ER thresholds scale with follower size", () => {
@@ -131,4 +134,80 @@ test("axis labels renamed for portfolio and verification", () => {
   assert.equal(AXIS_LABELS.creationPublish.en, "Portfolio");
   assert.equal(AXIS_LABELS.audienceCredibility.el, "Πληρότητα & επαλήθευση");
   assert.equal(AXIS_LABELS.audienceCredibility.en, "Verification & completeness");
+});
+
+test("scoreCreation tiers start at 0 and ignore platforms", () => {
+  assert.equal(scoreCreation(0), 0);
+  assert.equal(scoreCreation(1), 1.5);
+  assert.equal(scoreCreation(2), 1.5);
+  assert.equal(scoreCreation(3), 2.5);
+  assert.equal(scoreCreation(6), 3.5);
+  assert.equal(scoreCreation(10), 4.5);
+  assert.equal(scoreCreation(15), 5);
+  assert.equal(scoreCreation(40), 5);
+  const withPlatforms = buildChannelScore({
+    followersTotal: 5_000,
+    contentCount: 0,
+    platformCount: 5,
+  });
+  assert.equal(axis(withPlatforms, "creationPublish"), 0);
+});
+
+test("scoreAudience uses avatar/bio/age more than rare verified", () => {
+  const bare = buildChannelScore({
+    followersTotal: 5_000,
+    contentCount: 0,
+    platformCount: 1,
+  });
+  const filled = buildChannelScore({
+    followersTotal: 5_000,
+    contentCount: 0,
+    platformCount: 1,
+    hasAvatar: true,
+    hasBio: true,
+    hasAudience: true,
+    brandSafe: true,
+    reviewCount: 1,
+    verified: true,
+  });
+  assert.equal(axis(bare, "audienceCredibility"), 1.5);
+  assert.equal(axis(filled, "audienceCredibility"), 5);
+});
+
+test("growthPct null excludes followersGrowth from influoScore", () => {
+  assert.equal(scoreFollowersGrowth(null), null);
+  const missing = buildChannelScore({
+    followersTotal: 5_000,
+    contentCount: 0,
+    platformCount: 1,
+    growthPct: null,
+  });
+  assert.equal(axis(missing, "followersGrowth"), null);
+  const scoredAxes = missing.axes.filter((a) => a.score != null);
+  assert.equal(scoredAxes.length, 4);
+  const expected =
+    Math.round(
+      (scoredAxes.reduce((sum, a) => sum + (a.score as number), 0) / scoredAxes.length) * 10
+    ) / 10;
+  assert.equal(missing.influoScore, expected);
+
+  const withGrowth = buildChannelScore({
+    followersTotal: 5_000,
+    contentCount: 0,
+    platformCount: 1,
+    growthPct: 2,
+  });
+  assert.ok(axis(withGrowth, "followersGrowth") != null);
+  assert.equal("costPer1k" in missing, false);
+});
+
+test("buildChannelScore uses weighted ER across platforms", () => {
+  const weighted = buildChannelScore({
+    followersTotal: 4000,
+    followersByPlatform: { instagram: 1000, tiktok: 3000 },
+    engagementRate: { instagram: "10%", tiktok: "2%" },
+    contentCount: 0,
+    platformCount: 2,
+  });
+  assert.equal(weighted.engagementPercent, 4);
 });

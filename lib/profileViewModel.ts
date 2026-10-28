@@ -26,7 +26,7 @@ export type ProfileViewModel = {
   engagement_rate?: string | Record<string, string>;
   avg_likes?: string | Record<string, string>;
   accounts: Array<Record<string, unknown>>;
-  audience_data: { male: number; female: number; top_age: string };
+  audience_data: { male: number | null; female: number | null; top_age: string };
   rate_card_flags: {
     story?: boolean;
     post?: boolean;
@@ -137,11 +137,16 @@ export function viewModelFromPublicRow(row: Record<string, unknown>): ProfileVie
         ? data.avg_likes
         : undefined,
     accounts,
-    audience_data: {
-      male: typeof data.audience_male_percent === "number" ? data.audience_male_percent : 50,
-      female: typeof data.audience_female_percent === "number" ? data.audience_female_percent : 50,
-      top_age: typeof data.audience_top_age === "string" ? data.audience_top_age : "?",
-    },
+    audience_data: (() => {
+      const male = typeof data.audience_male_percent === "number" ? data.audience_male_percent : null;
+      const female =
+        typeof data.audience_female_percent === "number" ? data.audience_female_percent : null;
+      return {
+        male: male == null && female == null ? null : male,
+        female: male == null && female == null ? null : female,
+        top_age: typeof data.audience_top_age === "string" ? data.audience_top_age : "?",
+      };
+    })(),
     rate_card_flags: flags,
     // Collaborations come from completed proposals (attached by loaders), not a DB column.
     past_brands: asStringArray(row.past_brands),
