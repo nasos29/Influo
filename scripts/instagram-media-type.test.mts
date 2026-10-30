@@ -71,3 +71,16 @@ test("parseInstagramMediaTypeFromEmbedHtml: missing/unknown → undefined", () =
     undefined
   );
 });
+
+test("parseInstagramEmbedKindFromHtml: EmbeddedMediaImage / EmbedSidecar without typename", () => {
+  assert.equal(
+    parseInstagramEmbedKindFromHtml(
+      `<div class="Embed"><img class="EmbeddedMediaImage" src="https://example.com/a.jpg" /></div>`
+    ),
+    "image"
+  );
+  assert.equal(
+    parseInstagramEmbedKindFromHtml(`<div class="Embed EmbedSidecar"></div>`),
+    "carousel"
+  );
+});

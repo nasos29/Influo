@@ -6,6 +6,8 @@ import type { InstagramEmbedKind } from "@/lib/instagramMediaType";
 
 const DAY_SEC = 86400;
 const META_CACHE_DAYS = 1;
+/** Bump when meta payload shape changes (e.g. images[]). */
+const META_CACHE_PREFIX = "ig-meta:v2:";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,13 +20,21 @@ function stripUrlNoise(url: string): string {
 }
 
 function metaCacheKey(cleanUrl: string): string {
-  return `ig-meta:${cleanUrl}`;
+  return `${META_CACHE_PREFIX}${cleanUrl}`;
 }
 
-type MetaPayload = { mediaType: InstagramEmbedKind; poster: string | null };
+type MetaPayload = {
+  mediaType: InstagramEmbedKind;
+  poster: string | null;
+  images: string[];
+};
 
 function encodeMeta(meta: MetaPayload): string {
-  return JSON.stringify({ mediaType: meta.mediaType, poster: meta.poster });
+  return JSON.stringify({
+    mediaType: meta.mediaType,
+    poster: meta.poster,
+    images: meta.images,
+  });
 }
 
 function decodeMeta(raw: string): MetaPayload | null {
@@ -32,6 +42,7 @@ function decodeMeta(raw: string): MetaPayload | null {
     const parsed = JSON.parse(String(raw || "")) as {
       mediaType?: unknown;
       poster?: unknown;
+      images?: unknown;
     };
     const mt = parsed.mediaType;
     if (mt !== "video" && mt !== "image" && mt !== "carousel") return null;
@@ -39,7 +50,14 @@ function decodeMeta(raw: string): MetaPayload | null {
       typeof parsed.poster === "string" && parsed.poster.startsWith("http")
         ? parsed.poster
         : null;
-    return { mediaType: mt, poster };
+    const images = Array.isArray(parsed.images)
+      ? parsed.images
+          .filter((u): u is string => typeof u === "string" && u.startsWith("http"))
+          .slice(0, 10)
+      : [];
+    // Stale carousel cache without children — force refresh for images[].
+    if (mt === "carousel" && images.length === 0) return null;
+    return { mediaType: mt, poster, images };
   } catch {
     return null;
   }
@@ -93,8 +111,8 @@ function jsonMeta(body: Record<string, unknown>, cacheable: boolean) {
 
 /**
  * Resolve Instagram media for in-page play / photo display.
- * - Default: { videoUrl, poster, mediaType } — videoUrl is short-lived (no store cache).
- * - ?meta=1: { mediaType, poster } only — cached 1 day (DB + CDN s-maxage).
+ * - Default: { videoUrl, poster, mediaType, images } — videoUrl is short-lived (no store cache).
+ * - ?meta=1: { mediaType, poster, images } only — cached 1 day (DB + CDN s-maxage).
  */
 export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get("url");
@@ -102,14 +120,23 @@ export async function GET(req: NextRequest) {
 
   if (!url) {
     return jsonMeta(
-      { error: "URL parameter is required", videoUrl: null, mediaType: null, poster: null },
+      {
+        error: "URL parameter is required",
+        videoUrl: null,
+        mediaType: null,
+        poster: null,
+        images: [],
+      },
       false
     );
   }
 
   const code = extractInstagramShortcode(url);
   if (!code || !isValidInstagramShortcode(code)) {
-    return jsonMeta({ videoUrl: null, poster: null, mediaType: null }, metaOnly);
+    return jsonMeta(
+      { videoUrl: null, poster: null, mediaType: null, images: [] },
+      metaOnly
+    );
   }
 
   const cleanUrl = stripUrlNoise(url);
@@ -119,7 +146,12 @@ export async function GET(req: NextRequest) {
       const cached = await readMetaCache(cleanUrl);
       if (cached) {
         return jsonMeta(
-          { mediaType: cached.mediaType, poster: cached.poster, videoUrl: null },
+          {
+            mediaType: cached.mediaType,
+            poster: cached.poster,
+            images: cached.images,
+            videoUrl: null,
+          },
           true
         );
       }
@@ -128,13 +160,17 @@ export async function GET(req: NextRequest) {
     const resolved = await resolveInstagramEmbedVideo(url);
     const mediaType = resolved.mediaType;
     const poster = resolved.poster;
+    const images = resolved.images ?? [];
 
     if (mediaType) {
-      void saveMetaCache(cleanUrl, { mediaType, poster });
+      void saveMetaCache(cleanUrl, { mediaType, poster, images });
     }
 
     if (metaOnly) {
-      return jsonMeta({ mediaType, poster, videoUrl: null }, !!mediaType);
+      return jsonMeta(
+        { mediaType, poster, images, videoUrl: null },
+        !!mediaType
+      );
     }
 
     return jsonMeta(
@@ -142,11 +178,15 @@ export async function GET(req: NextRequest) {
         videoUrl: resolved.videoUrl,
         poster,
         mediaType,
+        images,
       },
       false
     );
   } catch (e) {
     console.error("[instagram-video]", e);
-    return jsonMeta({ videoUrl: null, poster: null, mediaType: null }, false);
+    return jsonMeta(
+      { videoUrl: null, poster: null, mediaType: null, images: [] },
+      false
+    );
   }
 }

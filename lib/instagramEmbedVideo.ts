@@ -12,6 +12,7 @@ import {
   parseInstagramEmbedKindFromHtml,
   type InstagramEmbedKind,
 } from "@/lib/instagramMediaType";
+import { extractOgImageFromHtml } from "@/lib/videoThumbnailExtract";
 
 const CRAWLER_UA =
   "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)";
@@ -107,7 +108,52 @@ export function extractPosterFromEmbedHtml(html: string): string | null {
     }
   }
 
+  const og = extractOgImageFromHtml(html);
+  if (og) return og;
+
   return null;
+}
+
+const MAX_SIDECAR_IMAGES = 10;
+
+/**
+ * GraphSidecar child posters from edge_sidecar_to_children (display_url; video → poster).
+ * Max 10 unique http(s) URLs.
+ */
+export function extractSidecarImagesFromEmbedHtml(html: string): string[] {
+  if (!html) return [];
+  const marker = "edge_sidecar_to_children";
+  // Prefer content after the marker so parent GraphSidecar display_url is excluded.
+  const start = html.indexOf(marker);
+  if (start < 0) return [];
+  const slice = html.slice(start, start + 80_000);
+  const urls: string[] = [];
+  const seen = new Set<string>();
+
+  const push = (raw: string) => {
+    const url = decodeIgEscapedUrl(raw);
+    if (!url.startsWith("http") || url.length >= 4000) return;
+    if (url.includes("display_resources")) return;
+    if (seen.has(url)) return;
+    seen.add(url);
+    urls.push(url);
+  };
+
+  const plainRe = /"display_url"\s*:\s*"(https:[^"]+)"/g;
+  let m: RegExpExecArray | null;
+  while ((m = plainRe.exec(slice)) !== null && urls.length < MAX_SIDECAR_IMAGES) {
+    push(m[1]);
+  }
+
+  if (urls.length === 0) {
+    const escRe =
+      /\\"display_url\\"\s*:\s*\\"(https:(?:\\[\\/u]|[^"\\])*)\\"/g;
+    while ((m = escRe.exec(slice)) !== null && urls.length < MAX_SIDECAR_IMAGES) {
+      push(m[1]);
+    }
+  }
+
+  return urls.slice(0, MAX_SIDECAR_IMAGES);
 }
 
 /** oEmbed thumbnail when embed HTML has no poster (login/error walls). */
@@ -148,6 +194,8 @@ export type InstagramEmbedResolve = {
   videoUrl: string | null;
   poster: string | null;
   mediaType: InstagramEmbedKind | null;
+  /** Sidecar child posters (display_url); empty when not a multi-image carousel. */
+  images: string[];
   /** True when the media is a video (GraphVideo / is_video). */
   isVideo: boolean;
   /** True when we successfully fetched embed HTML from at least one UA. */
@@ -155,6 +203,25 @@ export type InstagramEmbedResolve = {
   /** Technical failure (timeout / 5xx / blocked) — caller may treat as unchecked. */
   technicalFailure?: boolean;
 };
+
+function emptyResolve(
+  partial: Partial<InstagramEmbedResolve> = {}
+): InstagramEmbedResolve {
+  return {
+    videoUrl: null,
+    poster: null,
+    mediaType: null,
+    images: [],
+    isVideo: false,
+    fetched: false,
+    ...partial,
+  };
+}
+
+function imagesForHtml(html: string, kind: InstagramEmbedKind | null): string[] {
+  if (kind !== "carousel" || !html) return [];
+  return extractSidecarImagesFromEmbedHtml(html);
+}
 
 function embedCaptionedUrl(urlOrCode: string, code: string): string {
   const media = extractInstagramMedia(urlOrCode);
@@ -197,13 +264,7 @@ export async function resolveInstagramEmbedVideo(
     extractInstagramShortcode(urlOrCode) ||
     (isValidInstagramShortcode(urlOrCode) ? urlOrCode : null);
   if (!code || !isValidInstagramShortcode(code)) {
-    return {
-      videoUrl: null,
-      poster: null,
-      mediaType: null,
-      isVideo: false,
-      fetched: false,
-    };
+    return emptyResolve();
   }
 
   let sawTechnical = false;
@@ -211,6 +272,7 @@ export async function resolveInstagramEmbedVideo(
   let bestHtml = "";
   let bestKind: InstagramEmbedKind | null = null;
   let bestPoster: string | null = null;
+  let bestImages: string[] = [];
 
   try {
     for (const ua of [CRAWLER_UA, BROWSER_UA]) {
@@ -237,77 +299,101 @@ export async function resolveInstagramEmbedVideo(
       fetched = true;
       const kind = kindFromHtml(html);
       const poster = extractPosterFromEmbedHtml(html);
+      const images = imagesForHtml(html, kind || bestKind);
       if (kind && !bestKind) bestKind = kind;
       if (poster && !bestPoster) bestPoster = poster;
-      if (kind || poster) bestHtml = html;
+      if (images.length > bestImages.length) bestImages = images;
+      if (kind || poster || images.length) bestHtml = html;
 
       const videoUrl = extractVideoUrlFromEmbedHtml(html);
       if (videoUrl) {
-        return {
+        return emptyResolve({
           videoUrl,
           poster: poster || bestPoster,
           mediaType: kind || bestKind || "video",
+          images: [],
           isVideo: true,
           fetched: true,
-        };
+        });
       }
 
       // Photos / carousels: no MP4 — stop once we have type (+ optional poster).
       const resolvedKind = kind || bestKind;
       if (resolvedKind === "image" || resolvedKind === "carousel") {
-        return {
+        const imgs =
+          resolvedKind === "carousel"
+            ? images.length
+              ? images
+              : bestImages
+            : [];
+        const cover = poster || bestPoster || imgs[0] || null;
+        return emptyResolve({
           videoUrl: null,
-          poster: poster || bestPoster,
+          poster: cover,
           mediaType: resolvedKind,
+          images: imgs,
           isVideo: false,
           fetched: true,
-        };
+        });
       }
       // Video without URL yet: try next UA for MP4; meta already kept in best*.
     }
 
     if (fetched) {
-      const mediaType =
+      let mediaType =
         bestKind || (bestHtml ? kindFromHtml(bestHtml) : null);
       let poster =
         bestPoster ||
         (bestHtml ? extractPosterFromEmbedHtml(bestHtml) : null);
+      let images =
+        bestImages.length > 0
+          ? bestImages
+          : imagesForHtml(bestHtml, mediaType);
+
+      // Old posts / login shells: no GraphQL — still recover image from HTML/og.
+      if (!mediaType && poster) {
+        mediaType = /EmbedSidecar|data-media-type="GraphSidecar"/i.test(bestHtml)
+          ? "carousel"
+          : "image";
+      }
+
       if (!poster) {
         const canonical = `https://www.instagram.com/p/${code}/`;
         poster = await fetchInstagramOEmbedPoster(canonical);
+        if (!mediaType && poster) mediaType = "image";
       }
+
+      if (mediaType === "carousel" && images.length === 0 && poster) {
+        images = [poster];
+      }
+      if (!poster && images[0]) poster = images[0];
+
       const isVideo =
         mediaType === "video" ||
         (bestHtml ? embedHtmlIndicatesVideo(bestHtml) : false);
-      return {
+      return emptyResolve({
         videoUrl: null,
         poster,
         mediaType: mediaType || (isVideo ? "video" : null),
+        images: mediaType === "carousel" ? images : [],
         isVideo,
         fetched: true,
-      };
+      });
     }
 
-    // Last resort: oEmbed poster only (no mediaType).
+    // Last resort: oEmbed poster → treat as static image (never leave UI blank).
     const poster = await fetchInstagramOEmbedPoster(
       `https://www.instagram.com/p/${code}/`
     );
-    return {
+    return emptyResolve({
       videoUrl: null,
       poster,
-      mediaType: null,
+      mediaType: poster ? "image" : null,
       isVideo: false,
       fetched: false,
       technicalFailure: sawTechnical || true,
-    };
+    });
   } catch {
-    return {
-      videoUrl: null,
-      poster: null,
-      mediaType: null,
-      isVideo: false,
-      fetched: false,
-      technicalFailure: true,
-    };
+    return emptyResolve({ technicalFailure: true });
   }
 }
