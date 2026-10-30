@@ -3,8 +3,15 @@
  * Prefer crawler UA (still embeds video_url); fall back to browser UA.
  */
 
-import { extractInstagramShortcode, isValidInstagramShortcode } from "@/lib/instagramShortcode";
-import { parseInstagramMediaTypeFromEmbedHtml } from "@/lib/instagramMediaType";
+import {
+  extractInstagramMedia,
+  extractInstagramShortcode,
+  isValidInstagramShortcode,
+} from "@/lib/instagramShortcode";
+import {
+  parseInstagramEmbedKindFromHtml,
+  type InstagramEmbedKind,
+} from "@/lib/instagramMediaType";
 
 const CRAWLER_UA =
   "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)";
@@ -56,21 +63,76 @@ export function extractVideoUrlFromEmbedHtml(html: string): string | null {
   return null;
 }
 
+function decodeHtmlAttrUrl(raw: string): string {
+  return decodeIgEscapedUrl(
+    raw
+      .replace(/&amp;/gi, "&")
+      .replace(/&quot;/gi, '"')
+      .replace(/&#x2F;/gi, "/")
+      .replace(/&#39;/gi, "'")
+  );
+}
+
 export function extractPosterFromEmbedHtml(html: string): string | null {
+  // Crawler /embed markup first (clean attr; avoids over-long escaped JSON captures).
+  const emb = html.match(
+    /class="EmbeddedMediaImage"[^>]*\ssrc="([^"]+)"|src="([^"]+)"[^>]*\sclass="EmbeddedMediaImage"/i
+  );
+  const embSrc = emb?.[1] || emb?.[2];
+  if (embSrc) {
+    const url = decodeHtmlAttrUrl(embSrc);
+    if (url.startsWith("http")) return url;
+  }
+
   const keys = ["display_url", "thumbnail_src", "thumbnail_url"];
   for (const key of keys) {
-    const patterns = [
-      new RegExp(`"${key}"\\s*:\\s*"((?:\\\\.|[^"\\\\])*)"`),
-      new RegExp(`\\\\"${key}\\\\"\\s*:\\s*\\\\"((?:\\\\.|[^"\\\\])*)\\\\"`),
-    ];
-    for (const re of patterns) {
-      const m = html.match(re);
-      if (!m?.[1]) continue;
-      const url = decodeIgEscapedUrl(m[1]);
-      if (url.startsWith("http")) return url;
+    // Plain JSON string value starting with https (stop at raw ").
+    const plain = html.match(
+      new RegExp(`"${key}"\\s*:\\s*"(https:[^"]+)"`)
+    );
+    if (plain?.[1]) {
+      const url = decodeIgEscapedUrl(plain[1]);
+      if (url.startsWith("http") && !url.includes("display_resources")) return url;
+    }
+    // Double-escaped crawler JSON: \"display_url\":\"https:\/\/…jpg…\"
+    // Do not use (?:\\.|[^"\\])* — \\. consumes \" and over-reads the blob.
+    const escaped = html.match(
+      new RegExp(
+        `\\\\"${key}\\\\"\\s*:\\s*\\\\"(https:(?:\\\\[\\\\/u]|[^"\\\\])*)\\\\"`
+      )
+    );
+    if (escaped?.[1]) {
+      const url = decodeIgEscapedUrl(escaped[1]);
+      if (url.startsWith("http") && url.length < 4000) return url;
     }
   }
+
   return null;
+}
+
+/** oEmbed thumbnail when embed HTML has no poster (login/error walls). */
+export async function fetchInstagramOEmbedPoster(
+  postUrl: string
+): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://www.instagram.com/api/v1/oembed/?url=${encodeURIComponent(postUrl)}`,
+      {
+        headers: {
+          Accept: "application/json",
+          "User-Agent": BROWSER_UA,
+        },
+        signal: AbortSignal.timeout(EMBED_TIMEOUT_MS),
+      }
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as { thumbnail_url?: unknown };
+    const thumb =
+      typeof data.thumbnail_url === "string" ? data.thumbnail_url.trim() : "";
+    return thumb.startsWith("http") ? thumb : null;
+  } catch {
+    return null;
+  }
 }
 
 /** True when embed HTML indicates a video (even if CDN URL is withheld). */
@@ -79,13 +141,13 @@ export function embedHtmlIndicatesVideo(html: string): boolean {
   if (/"is_video"\s*:\s*true/.test(html) || /\\"is_video\\"\s*:\s*true/.test(html)) {
     return true;
   }
-  const mediaType = parseInstagramMediaTypeFromEmbedHtml(html);
-  return mediaType === "video";
+  return parseInstagramEmbedKindFromHtml(html) === "video";
 }
 
 export type InstagramEmbedResolve = {
   videoUrl: string | null;
   poster: string | null;
+  mediaType: InstagramEmbedKind | null;
   /** True when the media is a video (GraphVideo / is_video). */
   isVideo: boolean;
   /** True when we successfully fetched embed HTML from at least one UA. */
@@ -94,8 +156,21 @@ export type InstagramEmbedResolve = {
   technicalFailure?: boolean;
 };
 
-async function fetchEmbedHtml(code: string, ua: string): Promise<Response> {
-  const embedUrl = `https://www.instagram.com/reel/${code}/embed/captioned/`;
+function embedCaptionedUrl(urlOrCode: string, code: string): string {
+  const media = extractInstagramMedia(urlOrCode);
+  const kind = media?.kind === "p" ? "p" : media?.kind === "tv" ? "tv" : "reel";
+  // /p/ posts resolve GraphImage more reliably via /p/…/embed
+  if (kind === "p") return `https://www.instagram.com/p/${code}/embed/captioned/`;
+  if (kind === "tv") return `https://www.instagram.com/tv/${code}/embed/captioned/`;
+  return `https://www.instagram.com/reel/${code}/embed/captioned/`;
+}
+
+async function fetchEmbedHtml(
+  urlOrCode: string,
+  code: string,
+  ua: string
+): Promise<Response> {
+  const embedUrl = embedCaptionedUrl(urlOrCode, code);
   return fetch(embedUrl, {
     headers: {
       "User-Agent": ua,
@@ -108,9 +183,12 @@ async function fetchEmbedHtml(code: string, ua: string): Promise<Response> {
   });
 }
 
+function kindFromHtml(html: string): InstagramEmbedKind | null {
+  return parseInstagramEmbedKindFromHtml(html) ?? null;
+}
+
 /**
- * Resolve playable MP4 (+ poster) from Instagram embed/captioned.
- * Also reports whether the post is a video without a public video_url.
+ * Resolve playable MP4 (+ poster + mediaType) from Instagram embed/captioned.
  */
 export async function resolveInstagramEmbedVideo(
   urlOrCode: string
@@ -119,19 +197,26 @@ export async function resolveInstagramEmbedVideo(
     extractInstagramShortcode(urlOrCode) ||
     (isValidInstagramShortcode(urlOrCode) ? urlOrCode : null);
   if (!code || !isValidInstagramShortcode(code)) {
-    return { videoUrl: null, poster: null, isVideo: false, fetched: false };
+    return {
+      videoUrl: null,
+      poster: null,
+      mediaType: null,
+      isVideo: false,
+      fetched: false,
+    };
   }
 
   let sawTechnical = false;
   let fetched = false;
-  let lastHtml = "";
-  let anyIsVideo = false;
+  let bestHtml = "";
+  let bestKind: InstagramEmbedKind | null = null;
+  let bestPoster: string | null = null;
 
   try {
     for (const ua of [CRAWLER_UA, BROWSER_UA]) {
       let res: Response;
       try {
-        res = await fetchEmbedHtml(code, ua);
+        res = await fetchEmbedHtml(urlOrCode, code, ua);
       } catch {
         sawTechnical = true;
         continue;
@@ -143,32 +228,74 @@ export async function resolveInstagramEmbedVideo(
       if (!res.ok) continue;
 
       const html = await res.text();
+      // Skip login/error shells that lack media markers (browser often hits these).
+      if (/PolarisErrorRoot|httpErrorPage/i.test(html) && !/data-media-type=/i.test(html)) {
+        fetched = true;
+        continue;
+      }
+
       fetched = true;
-      lastHtml = html;
-      if (embedHtmlIndicatesVideo(html)) anyIsVideo = true;
+      const kind = kindFromHtml(html);
+      const poster = extractPosterFromEmbedHtml(html);
+      if (kind && !bestKind) bestKind = kind;
+      if (poster && !bestPoster) bestPoster = poster;
+      if (kind || poster) bestHtml = html;
+
       const videoUrl = extractVideoUrlFromEmbedHtml(html);
       if (videoUrl) {
         return {
           videoUrl,
-          poster: extractPosterFromEmbedHtml(html),
+          poster: poster || bestPoster,
+          mediaType: kind || bestKind || "video",
           isVideo: true,
           fetched: true,
         };
       }
+
+      // Photos / carousels: no MP4 — stop once we have type (+ optional poster).
+      const resolvedKind = kind || bestKind;
+      if (resolvedKind === "image" || resolvedKind === "carousel") {
+        return {
+          videoUrl: null,
+          poster: poster || bestPoster,
+          mediaType: resolvedKind,
+          isVideo: false,
+          fetched: true,
+        };
+      }
+      // Video without URL yet: try next UA for MP4; meta already kept in best*.
     }
 
     if (fetched) {
+      const mediaType =
+        bestKind || (bestHtml ? kindFromHtml(bestHtml) : null);
+      let poster =
+        bestPoster ||
+        (bestHtml ? extractPosterFromEmbedHtml(bestHtml) : null);
+      if (!poster) {
+        const canonical = `https://www.instagram.com/p/${code}/`;
+        poster = await fetchInstagramOEmbedPoster(canonical);
+      }
+      const isVideo =
+        mediaType === "video" ||
+        (bestHtml ? embedHtmlIndicatesVideo(bestHtml) : false);
       return {
         videoUrl: null,
-        poster: extractPosterFromEmbedHtml(lastHtml),
-        isVideo: anyIsVideo || embedHtmlIndicatesVideo(lastHtml),
+        poster,
+        mediaType: mediaType || (isVideo ? "video" : null),
+        isVideo,
         fetched: true,
       };
     }
 
+    // Last resort: oEmbed poster only (no mediaType).
+    const poster = await fetchInstagramOEmbedPoster(
+      `https://www.instagram.com/p/${code}/`
+    );
     return {
       videoUrl: null,
-      poster: null,
+      poster,
+      mediaType: null,
       isVideo: false,
       fetched: false,
       technicalFailure: sawTechnical || true,
@@ -177,6 +304,7 @@ export async function resolveInstagramEmbedVideo(
     return {
       videoUrl: null,
       poster: null,
+      mediaType: null,
       isVideo: false,
       fetched: false,
       technicalFailure: true,

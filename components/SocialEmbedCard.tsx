@@ -7,6 +7,9 @@ import {
   buildTikTokPlayerUrl,
   extractTikTokVideoId,
 } from "@/lib/tikTokPlayer";
+import { extractInstagramMedia } from "@/lib/instagramShortcode";
+import type { InstagramEmbedKind } from "@/lib/instagramMediaType";
+
 type Provider = "instagram" | "tiktok" | "youtube";
 
 interface SocialEmbedCardProps {
@@ -24,9 +27,11 @@ const COPY = {
   play: { el: "Αναπαραγωγή", en: "Play" },
   playVideo: { el: "Προβολή βίντεο", en: "Play video" },
   viewPhoto: { el: "Προβολή φωτογραφίας", en: "View photo" },
+  viewCarousel: { el: "Προβολή άλμπουμ", en: "View album" },
   loading: { el: "Φόρτωση", en: "Loading" },
   error: { el: "Αποτυχία φόρτωσης", en: "Failed to load" },
   retry: { el: "Δοκιμή ξανά", en: "Try again" },
+  close: { el: "Κλείσιμο", en: "Close" },
 } as const;
 
 const NAMES: Record<Provider, string> = {
@@ -77,23 +82,82 @@ async function fetchTikTokEmbedUrl(originalUrl: string): Promise<string> {
   }
 }
 
-async function fetchInstagramNativeVideo(
-  originalUrl: string
-): Promise<{ videoUrl: string | null; poster: string | null }> {
-  const res = await fetch(`/api/instagram-video?url=${encodeURIComponent(originalUrl)}`);
-  if (!res.ok) return { videoUrl: null, poster: null };
-  const data = (await res.json()) as { videoUrl?: string | null; poster?: string | null };
+async function fetchInstagramMeta(originalUrl: string): Promise<{
+  mediaType: InstagramEmbedKind | null;
+  poster: string | null;
+}> {
+  const res = await fetch(
+    `/api/instagram-video?url=${encodeURIComponent(originalUrl)}&meta=1`
+  );
+  if (!res.ok) return { mediaType: null, poster: null };
+  const data = (await res.json()) as {
+    mediaType?: string | null;
+    poster?: string | null;
+  };
+  const mt = data.mediaType;
+  const mediaType =
+    mt === "video" || mt === "image" || mt === "carousel" ? mt : null;
   return {
-    videoUrl: data.videoUrl ? String(data.videoUrl) : null,
+    mediaType,
     poster: data.poster ? String(data.poster) : null,
   };
 }
 
+async function fetchInstagramNativeVideo(
+  originalUrl: string
+): Promise<{
+  videoUrl: string | null;
+  poster: string | null;
+  mediaType: InstagramEmbedKind | null;
+}> {
+  const res = await fetch(`/api/instagram-video?url=${encodeURIComponent(originalUrl)}`);
+  if (!res.ok) return { videoUrl: null, poster: null, mediaType: null };
+  const data = (await res.json()) as {
+    videoUrl?: string | null;
+    poster?: string | null;
+    mediaType?: string | null;
+  };
+  const mt = data.mediaType;
+  return {
+    videoUrl: data.videoUrl ? String(data.videoUrl) : null,
+    poster: data.poster ? String(data.poster) : null,
+    mediaType: mt === "video" || mt === "image" || mt === "carousel" ? mt : null,
+  };
+}
+
+function CarouselBadge({ label }: { label: string }) {
+  return (
+    <span
+      className="absolute top-3 right-3 z-20 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-black/55 text-white shadow-sm backdrop-blur-sm"
+      aria-label={label}
+      title={label}
+    >
+      <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden>
+        <path d="M4 5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-2H6a2 2 0 0 1-2-2V5zm2 0v10h8V5H6zm10 4v10h2V9h-2z" />
+      </svg>
+    </span>
+  );
+}
+
+function PhotoBadge({ label }: { label: string }) {
+  return (
+    <span
+      className="absolute top-3 right-3 z-20 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-black/55 text-white shadow-sm backdrop-blur-sm"
+      aria-label={label}
+      title={label}
+    >
+      <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden>
+        <path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5zm3 2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm-1 11 3.5-4.5 2.5 3 3.5-4.5L19 18H6z" />
+      </svg>
+    </span>
+  );
+}
+
 /**
  * Social video card:
- * - YouTube / TikTok / Instagram: facade with cover + ▶; media only after click.
- * - Instagram reels: native <video> when /api/instagram-video finds an MP4; else official iframe.
- * - Instagram /p/ photos: official embed on click.
+ * - YouTube / TikTok / Instagram reels: facade with cover + ▶; media after click.
+ * - Instagram /p/ photos: photo (no ▶); click opens lightbox.
+ * - Instagram /p/ carousel: first frame + multi-image icon; click opens lightbox/embed.
  */
 export default function SocialEmbedCard({
   provider,
@@ -106,6 +170,9 @@ export default function SocialEmbedCard({
   const finalHeight = height || DEFAULT_DIMENSIONS[provider].height;
   const uiLang = lang === "en" ? "en" : "el";
   const isInstagram = provider === "instagram";
+  const igMedia = isInstagram ? extractInstagramMedia(originalUrl) : null;
+  const isIgPost = igMedia?.kind === "p";
+  const isIgReel = igMedia?.kind === "reel" || igMedia?.kind === "tv";
   const rootRef = useRef<HTMLDivElement>(null);
   const [nearViewport, setNearViewport] = useState(false);
 
@@ -113,15 +180,29 @@ export default function SocialEmbedCard({
   const [iframeSrc, setIframeSrc] = useState<string | null>(null);
   const [nativeVideoUrl, setNativeVideoUrl] = useState<string | null>(null);
   const [nativePoster, setNativePoster] = useState<string | null>(null);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [igKind, setIgKind] = useState<InstagramEmbedKind | null>(
+    isIgReel ? "video" : null
+  );
+  const [igPoster, setIgPoster] = useState<string | null>(null);
+  const [igMetaLoading, setIgMetaLoading] = useState(false);
 
   const { src: thumbSrc, mediaType, onImgError } = useLazyVideoThumbnail(
     originalUrl,
-    nearViewport && !activated
+    nearViewport && !activated && !lightboxSrc
   );
-  const isPhotoMedia = mediaType === "image";
+
+  const isPhotoLike =
+    igKind === "image" ||
+    igKind === "carousel" ||
+    mediaType === "image";
+  const isCarousel = igKind === "carousel";
+  // /p/ posts: wait for meta before showing ▶ (avoid false play on GraphImage).
+  const showPlayButton =
+    !isPhotoLike && !(isIgPost && igKind === null && (igMetaLoading || nearViewport));
 
   useEffect(() => {
     const node = rootRef.current;
@@ -139,6 +220,25 @@ export default function SocialEmbedCard({
     return () => observer.disconnect();
   }, [nearViewport]);
 
+  // Instagram /p/: resolve mediaType early so we never flash a ▶ on photos.
+  useEffect(() => {
+    if (!isInstagram || !nearViewport || !isIgPost || igKind) return;
+    let cancelled = false;
+    setIgMetaLoading(true);
+    void fetchInstagramMeta(originalUrl)
+      .then((meta) => {
+        if (cancelled) return;
+        if (meta.mediaType) setIgKind(meta.mediaType);
+        if (meta.poster) setIgPoster(meta.poster);
+      })
+      .finally(() => {
+        if (!cancelled) setIgMetaLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [igKind, isIgPost, isInstagram, nearViewport, originalUrl]);
+
   const fallBackToOfficialEmbed = useCallback(() => {
     setNativeVideoUrl(null);
     const official = buildOfficialEmbedUrl(originalUrl, { autoplay: false });
@@ -151,9 +251,27 @@ export default function SocialEmbedCard({
     setLoading(false);
   }, [originalUrl]);
 
+  const openPhotoLightbox = useCallback(() => {
+    const src = igPoster || thumbSrc;
+    if (src) {
+      setLightboxSrc(src);
+      setActivated(true);
+      return;
+    }
+    fallBackToOfficialEmbed();
+    setActivated(true);
+  }, [fallBackToOfficialEmbed, igPoster, thumbSrc]);
+
   const activateClickToLoad = useCallback(async () => {
-    if (loading || iframeSrc || nativeVideoUrl) return;
+    if (loading || iframeSrc || nativeVideoUrl || lightboxSrc) return;
     setError(false);
+
+    // Photo / carousel: enlarge (no video facade).
+    if (isPhotoLike) {
+      openPhotoLightbox();
+      return;
+    }
+
     setActivated(true);
     setLoading(true);
     try {
@@ -177,13 +295,23 @@ export default function SocialEmbedCard({
         return;
       }
 
-      // Instagram photo posts keep the official embed; reels/videos try native MP4 first.
-      if (mediaType === "image") {
+      // Instagram reel / video post
+      const { videoUrl, poster, mediaType: mt } = await fetchInstagramNativeVideo(
+        originalUrl
+      );
+      if (mt) setIgKind(mt);
+      if (poster) setIgPoster(poster);
+
+      if (mt === "image" || mt === "carousel") {
+        setLoading(false);
+        if (poster || thumbSrc) {
+          setLightboxSrc(poster || thumbSrc);
+          return;
+        }
         fallBackToOfficialEmbed();
         return;
       }
 
-      const { videoUrl, poster } = await fetchInstagramNativeVideo(originalUrl);
       if (videoUrl) {
         setNativeVideoUrl(videoUrl);
         setNativePoster(poster);
@@ -198,15 +326,19 @@ export default function SocialEmbedCard({
   }, [
     fallBackToOfficialEmbed,
     iframeSrc,
+    isPhotoLike,
+    lightboxSrc,
     loading,
-    mediaType,
     nativeVideoUrl,
+    openPhotoLightbox,
     originalUrl,
     provider,
+    thumbSrc,
   ]);
 
-  const showClickFacade = !activated || error;
+  const coverSrc = igPoster || thumbSrc;
   const playLabel = isInstagram ? COPY.play[uiLang] : COPY.playVideo[uiLang];
+  const photoLabel = isCarousel ? COPY.viewCarousel[uiLang] : COPY.viewPhoto[uiLang];
 
   return (
     <div className="w-full max-w-full" ref={rootRef}>
@@ -220,10 +352,10 @@ export default function SocialEmbedCard({
             aria-hidden
           />
 
-          {showClickFacade && thumbSrc ? (
+          {!lightboxSrc && !iframeSrc && !nativeVideoUrl && coverSrc ? (
             // eslint-disable-next-line @next/next/no-img-element -- CDN/proxy URLs; lazy cover only
             <img
-              src={thumbSrc}
+              src={coverSrc}
               alt=""
               loading="lazy"
               decoding="async"
@@ -233,7 +365,14 @@ export default function SocialEmbedCard({
             />
           ) : null}
 
-          {showClickFacade ? (
+          {!activated && isPhotoLike && isCarousel ? (
+            <CarouselBadge label={photoLabel} />
+          ) : null}
+          {!activated && isPhotoLike && !isCarousel ? (
+            <PhotoBadge label={photoLabel} />
+          ) : null}
+
+          {!activated || error ? (
             <button
               type="button"
               onClick={() => {
@@ -243,33 +382,31 @@ export default function SocialEmbedCard({
               aria-label={
                 error
                   ? COPY.retry[uiLang]
-                  : isPhotoMedia
-                    ? COPY.viewPhoto[uiLang]
+                  : isPhotoLike
+                    ? photoLabel
                     : playLabel
               }
             >
               <span className="text-sm font-semibold tracking-wide uppercase opacity-95 drop-shadow">
                 {NAMES[provider]}
               </span>
-              {isPhotoMedia ? (
-                <span className="absolute top-3 right-3 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-black/55 text-white shadow-sm backdrop-blur-sm">
-                  <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden>
-                    <path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5zm3 2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm-1 11 3.5-4.5 2.5 3 3.5-4.5L19 18H6z" />
-                  </svg>
-                </span>
-              ) : (
+              {showPlayButton ? (
                 <span className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg">
                   <svg viewBox="0 0 24 24" className="ml-1 h-8 w-8 fill-current" aria-hidden>
                     <path d="M8 5v14l11-7z" />
                   </svg>
                 </span>
-              )}
+              ) : isPhotoLike ? null : igMetaLoading || (isIgPost && igKind === null) ? (
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-white border-t-transparent" />
+              ) : null}
               <span className="text-base font-bold drop-shadow">
                 {error
                   ? COPY.retry[uiLang]
-                  : isPhotoMedia
-                    ? COPY.viewPhoto[uiLang]
-                    : playLabel}
+                  : isPhotoLike
+                    ? photoLabel
+                    : showPlayButton
+                      ? playLabel
+                      : COPY.loading[uiLang]}
               </span>
               {error ? (
                 <span className="text-xs font-medium text-white/85">{COPY.error[uiLang]}</span>
@@ -288,10 +425,33 @@ export default function SocialEmbedCard({
             </div>
           ) : null}
 
+          {lightboxSrc ? (
+            <div className="absolute inset-0 z-[6] flex items-center justify-center bg-black">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={lightboxSrc}
+                alt=""
+                className="max-h-full max-w-full object-contain"
+                referrerPolicy="no-referrer"
+              />
+              {isCarousel ? <CarouselBadge label={photoLabel} /> : null}
+              <button
+                type="button"
+                className="absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-lg bg-white/90 px-3 py-1.5 text-sm font-semibold text-slate-900 shadow"
+                onClick={() => {
+                  setLightboxSrc(null);
+                  setActivated(false);
+                }}
+              >
+                {COPY.close[uiLang]}
+              </button>
+            </div>
+          ) : null}
+
           {nativeVideoUrl ? (
             <video
               src={nativeVideoUrl}
-              poster={nativePoster || thumbSrc || undefined}
+              poster={nativePoster || coverSrc || undefined}
               controls
               autoPlay
               playsInline
@@ -308,10 +468,8 @@ export default function SocialEmbedCard({
           {iframeSrc ? (
             <iframe
               src={iframeSrc}
-              title={`${NAMES[provider]} video`}
-              className={`absolute top-0 left-0 z-[5] h-full w-full border-0 ${
-                iframeLoaded ? "opacity-100" : "opacity-100"
-              }`}
+              title={`${NAMES[provider]} media`}
+              className="absolute top-0 left-0 z-[5] h-full w-full border-0 opacity-100"
               allow={
                 provider === "tiktok"
                   ? "autoplay; encrypted-media; fullscreen; picture-in-picture"

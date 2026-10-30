@@ -9,6 +9,8 @@ import {
   thumbnailProxySrc,
   toDisplayThumbnailSrc,
 } from "@/lib/videoThumbnailExtract";
+import { extractInstagramMedia } from "@/lib/instagramShortcode";
+import type { InstagramEmbedKind } from "@/lib/instagramMediaType";
 
 type MediaType = "video" | "image";
 
@@ -26,7 +28,10 @@ interface VideoThumbnailProps {
 const ARIA = {
   photo: { el: "Φωτογραφία", en: "Photo" },
   video: { el: "Βίντεο", en: "Video" },
+  carousel: { el: "Άλμπουμ", en: "Album" },
   openEmbed: { el: "Αναπαραγωγή", en: "Play" },
+  viewPhoto: { el: "Προβολή φωτογραφίας", en: "View photo" },
+  close: { el: "Κλείσιμο", en: "Close" },
 } as const;
 
 function PhotoBadge({ label }: { label: string }) {
@@ -38,6 +43,20 @@ function PhotoBadge({ label }: { label: string }) {
     >
       <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden>
         <path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5zm3 2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm-1 11 3.5-4.5 2.5 3 3.5-4.5L19 18H6z" />
+      </svg>
+    </span>
+  );
+}
+
+function CarouselBadge({ label }: { label: string }) {
+  return (
+    <span
+      className="absolute top-2 right-2 z-20 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-black/55 text-white shadow-sm backdrop-blur-sm"
+      aria-label={label}
+      title={label}
+    >
+      <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden>
+        <path d="M4 5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-2H6a2 2 0 0 1-2-2V5zm2 0v10h8V5H6zm10 4v10h2V9h-2z" />
       </svg>
     </span>
   );
@@ -71,21 +90,28 @@ export default function VideoThumbnail({
   const uiLang = lang === "en" ? "en" : "el";
   const [thumbnail, setThumbnail] = useState<string | null>(manualThumbnail || null);
   const [mediaType, setMediaType] = useState<MediaType | undefined>(undefined);
+  const [igKind, setIgKind] = useState<InstagramEmbedKind | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [embedSrc, setEmbedSrc] = useState<string | null>(null);
   const [nativeVideoUrl, setNativeVideoUrl] = useState<string | null>(null);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const proxiedRef = useRef(false);
   const refreshUsedRef = useRef(false);
   const isImage = url.match(/\.(jpg|jpeg|png|gif|webp)$/i);
   const isVideo = isVideoUrl(url);
   const isInstagram = /instagram\.com\/(?:(?:[A-Za-z0-9._]+)\/)?(p|reel|tv)\//i.test(url);
   const isTikTok = /tiktok\.com|(vm|vt)\.tiktok\.com/i.test(url);
+  const igMedia = isInstagram ? extractInstagramMedia(url) : null;
+  const isIgPost = igMedia?.kind === "p";
+  const isIgReel = igMedia?.kind === "reel" || igMedia?.kind === "tv";
 
   useEffect(() => {
     let cancelled = false;
     proxiedRef.current = false;
     refreshUsedRef.current = false;
+    setIgKind(isIgReel ? "video" : null);
+    setLightboxSrc(null);
 
     const fetchThumbnail = async () => {
       setFailed(false);
@@ -112,6 +138,37 @@ export default function VideoThumbnail({
           setLoading(false);
         }
         return;
+      }
+
+      // Instagram /p/: resolve kind via meta (cached) so photos never show ▶.
+      if (isIgPost) {
+        try {
+          const metaRes = await fetch(
+            `/api/instagram-video?url=${encodeURIComponent(url)}&meta=1`
+          );
+          if (metaRes.ok) {
+            const meta = (await metaRes.json()) as {
+              mediaType?: string | null;
+              poster?: string | null;
+            };
+            if (cancelled) return;
+            if (meta.mediaType === "video" || meta.mediaType === "image" || meta.mediaType === "carousel") {
+              setIgKind(meta.mediaType);
+              if (meta.mediaType === "image" || meta.mediaType === "carousel") {
+                setMediaType("image");
+              } else {
+                setMediaType("video");
+              }
+            }
+            if (meta.poster) {
+              setThumbnail(toDisplayThumbnailSrc(meta.poster) || meta.poster);
+              setLoading(false);
+              return;
+            }
+          }
+        } catch {
+          /* fall through to video-thumbnail */
+        }
       }
 
       const directThumbnail = getVideoThumbnail(url);
@@ -143,14 +200,14 @@ export default function VideoThumbnail({
           setThumbnail(display);
           if (data.mediaType === "video" || data.mediaType === "image") {
             setMediaType(data.mediaType);
-          } else {
+          } else if (!isIgPost) {
             setMediaType(undefined);
           }
         } catch (error) {
           console.error("Error fetching thumbnail:", error);
           if (!cancelled) {
             setThumbnail(null);
-            setMediaType(undefined);
+            if (!isIgPost) setMediaType(undefined);
           }
         } finally {
           if (!cancelled) setLoading(false);
@@ -168,7 +225,7 @@ export default function VideoThumbnail({
     return () => {
       cancelled = true;
     };
-  }, [url, manualThumbnail, isImage, isInstagram, isTikTok]);
+  }, [url, manualThumbnail, isImage, isInstagram, isTikTok, isIgPost, isIgReel]);
 
   const handleImgError = useCallback(() => {
     if (
@@ -205,13 +262,42 @@ export default function VideoThumbnail({
     setThumbnail(null);
   }, [thumbnail, url]);
 
+  const isPhotoLike =
+    igKind === "image" || igKind === "carousel" || mediaType === "image";
+  const isCarousel = igKind === "carousel";
+
   const openInstagramEmbed = useCallback(() => {
-    if (!isInstagram || embedSrc || nativeVideoUrl) return;
+    if (!isInstagram || embedSrc || nativeVideoUrl || lightboxSrc) return;
+
+    // Photos / carousels: lightbox, no ▶ video path.
+    if (isPhotoLike) {
+      if (thumbnail) {
+        setLightboxSrc(thumbnail);
+        return;
+      }
+      const official = buildOfficialEmbedUrl(url, { autoplay: false });
+      if (official) setEmbedSrc(official);
+      return;
+    }
+
     void (async () => {
       try {
         const res = await fetch(`/api/instagram-video?url=${encodeURIComponent(url)}`);
         if (res.ok) {
-          const data = (await res.json()) as { videoUrl?: string | null };
+          const data = (await res.json()) as {
+            videoUrl?: string | null;
+            mediaType?: string | null;
+            poster?: string | null;
+          };
+          if (data.mediaType === "image" || data.mediaType === "carousel") {
+            setIgKind(data.mediaType);
+            setMediaType("image");
+            const src = data.poster || thumbnail;
+            if (src) {
+              setLightboxSrc(src);
+              return;
+            }
+          }
           if (data.videoUrl) {
             setNativeVideoUrl(String(data.videoUrl));
             return;
@@ -223,7 +309,15 @@ export default function VideoThumbnail({
       const official = buildOfficialEmbedUrl(url, { autoplay: false });
       if (official) setEmbedSrc(official);
     })();
-  }, [embedSrc, isInstagram, nativeVideoUrl, url]);
+  }, [
+    embedSrc,
+    isInstagram,
+    isPhotoLike,
+    lightboxSrc,
+    nativeVideoUrl,
+    thumbnail,
+    url,
+  ]);
 
   if (loading) {
     return (
@@ -231,6 +325,31 @@ export default function VideoThumbnail({
         className={`bg-gray-200 animate-pulse ${className}`}
         style={fill ? {} : { width, height }}
       />
+    );
+  }
+
+  if (lightboxSrc) {
+    return (
+      <div
+        className={`relative overflow-hidden bg-black ${className}`}
+        style={fill ? { width: "100%", height: "100%" } : { width, height, minHeight: 320 }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={lightboxSrc}
+          alt={alt}
+          className="absolute inset-0 h-full w-full object-contain"
+          referrerPolicy="no-referrer"
+        />
+        {isCarousel ? <CarouselBadge label={ARIA.carousel[uiLang]} /> : null}
+        <button
+          type="button"
+          className="absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-lg bg-white/90 px-3 py-1.5 text-sm font-semibold text-slate-900 shadow"
+          onClick={() => setLightboxSrc(null)}
+        >
+          {ARIA.close[uiLang]}
+        </button>
+      </div>
     );
   }
 
@@ -277,16 +396,22 @@ export default function VideoThumbnail({
     );
   }
 
-  const showPhotoBadge = mediaType === "image";
-  // Hide Play only when we know it is an image; undefined keeps previous behavior.
+  const showPhotoBadge = isPhotoLike && !isCarousel;
+  const showCarouselBadge = isCarousel;
+  // Never show ▶ for Instagram photos/carousels; reels/videos keep play.
   const showPlayOverlay =
-    mediaType !== "image" && (mediaType === "video" || isVideo || isInstagram || isTikTok);
+    !isPhotoLike &&
+    (mediaType === "video" ||
+      igKind === "video" ||
+      isIgReel ||
+      (!isIgPost && (isVideo || isTikTok)));
 
   const mediaFrame = (inner: ReactNode) => (
     <div className={`relative overflow-hidden ${fill ? "h-full w-full" : ""} ${className}`}>
       {inner}
+      {showCarouselBadge ? <CarouselBadge label={ARIA.carousel[uiLang]} /> : null}
       {showPhotoBadge ? <PhotoBadge label={ARIA.photo[uiLang]} /> : null}
-      {showPlayOverlay && thumbnail && !failed && mediaType === "video" ? (
+      {showPlayOverlay && thumbnail && !failed ? (
         <PlayBadge label={ARIA.video[uiLang]} />
       ) : null}
     </div>
@@ -348,7 +473,9 @@ export default function VideoThumbnail({
           type="button"
           onClick={openInstagramEmbed}
           className="relative block h-full w-full cursor-pointer border-0 bg-transparent p-0 text-left"
-          aria-label={ARIA.openEmbed[uiLang]}
+          aria-label={
+            isPhotoLike ? ARIA.viewPhoto[uiLang] : ARIA.openEmbed[uiLang]
+          }
         >
           {imgEl}
         </button>
@@ -441,7 +568,7 @@ export default function VideoThumbnail({
         type="button"
         onClick={openInstagramEmbed}
         className="relative block h-full w-full cursor-pointer border-0 bg-transparent p-0 text-left"
-        aria-label={ARIA.openEmbed[uiLang]}
+        aria-label={isPhotoLike ? ARIA.viewPhoto[uiLang] : ARIA.openEmbed[uiLang]}
       >
         {placeholderBody}
       </button>
