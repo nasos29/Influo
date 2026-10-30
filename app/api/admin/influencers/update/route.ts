@@ -11,6 +11,10 @@ import {
   validateBirthDate,
 } from '@/lib/validateBirthDate';
 import { FACEBOOK_VIDEO_LINK_ERROR, prepareVideosForSave } from '@/lib/videoLinks';
+import {
+  VIDEO_NOT_PLAYABLE_ERROR,
+  checkNewVideosPlayable,
+} from '@/lib/checkVideoPlayable';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -100,10 +104,20 @@ export async function POST(request: NextRequest) {
 
     if ('videos' in patch) {
       const prepared = prepareVideosForSave(patch.videos);
+      const lang = birthDateLangFromRequest(request);
       if (!prepared.ok) {
-        const lang = birthDateLangFromRequest(request);
         return NextResponse.json(
           { error: FACEBOOK_VIDEO_LINK_ERROR[lang] },
+          { status: 400 }
+        );
+      }
+      const existingVideos = Array.isArray(existing.videos)
+        ? (existing.videos as string[])
+        : [];
+      const playable = await checkNewVideosPlayable(prepared.videos, existingVideos);
+      if (!playable.ok) {
+        return NextResponse.json(
+          { error: VIDEO_NOT_PLAYABLE_ERROR[lang === 'en' ? 'en' : 'el'] },
           { status: 400 }
         );
       }

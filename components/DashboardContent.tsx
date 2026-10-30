@@ -10,9 +10,9 @@ import Image from 'next/image';
 import { getVideoThumbnail, isVideoUrl, isDefinitelyVideo, isDefinitelyImage, detectProvider, isEmbeddableVideoUrl } from '@/lib/videoThumbnail';
 import {
     FACEBOOK_VIDEO_LINK_ERROR,
-    cleanVideoLink,
     prepareVideosForSave,
 } from '@/lib/videoLinks';
+import { useVideoPlayableChecks } from '@/lib/useVideoPlayableChecks';
 import VideoThumbnail from './VideoThumbnail';
 import Messaging from './Messaging';
 import Analytics from './Analytics';
@@ -242,31 +242,50 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
     };
 
     const [videoLinkError, setVideoLinkError] = useState<string | null>(null);
+    const existingVideos = Array.isArray(user.videos) ? user.videos : [];
+    const {
+        checkingByIndex,
+        errorByIndex,
+        isChecking: videosChecking,
+        hasBlockingError: videosNotPlayable,
+        checkingLabel,
+        notPlayableMessage,
+        runCheck,
+        clearIndex,
+        assertAllNewPlayable,
+    } = useVideoPlayableChecks('el', existingVideos);
     const handleVideoChange = (i: number, value: string) => {
         setVideoLinkError(null);
+        clearIndex(i);
         const copy = [...videos];
         copy[i] = value;
         setVideos(copy);
     };
     const handleVideoBlur = (i: number) => {
-        const raw = videos[i] || '';
-        if (!raw.trim()) return;
-        const cleaned = cleanVideoLink(raw);
-        if (!cleaned.ok) {
-            if (cleaned.reason === 'facebook') {
-                setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR.el);
+        void (async () => {
+            const raw = videos[i] || '';
+            if (!raw.trim()) {
+                clearIndex(i);
+                return;
+            }
+            const cleaned = await runCheck(i, raw);
+            if (!cleaned.ok) {
+                if (cleaned.reason === 'facebook') {
+                    setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR.el);
+                    const copy = [...videos];
+                    copy[i] = '';
+                    setVideos(copy);
+                    clearIndex(i);
+                }
+                return;
+            }
+            setVideoLinkError(null);
+            if (cleaned.url !== raw) {
                 const copy = [...videos];
-                copy[i] = '';
+                copy[i] = cleaned.url;
                 setVideos(copy);
             }
-            return;
-        }
-        setVideoLinkError(null);
-        if (cleaned.url !== raw) {
-            const copy = [...videos];
-            copy[i] = cleaned.url;
-            setVideos(copy);
-        }
+        })();
     };
     const addVideo = () => setVideos([...videos, ""]);
     const removeVideo = (i: number) => {
@@ -274,6 +293,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
             const copy = [...videos];
             copy.splice(i, 1);
             setVideos(copy);
+            clearIndex(i);
         }
     };
 
@@ -357,6 +377,19 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
             if (!preparedVideos.ok) {
                 setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR.el);
                 alert(FACEBOOK_VIDEO_LINK_ERROR.el);
+                setLoading(false);
+                return;
+            }
+            if (videosChecking || videosNotPlayable) {
+                setVideoLinkError(notPlayableMessage);
+                alert(notPlayableMessage);
+                setLoading(false);
+                return;
+            }
+            const playableOk = await assertAllNewPlayable(preparedVideos.videos);
+            if (!playableOk) {
+                setVideoLinkError(notPlayableMessage);
+                alert(notPlayableMessage);
                 setLoading(false);
                 return;
             }
@@ -840,6 +873,14 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" 
                                                 placeholder="https://youtube.com/... ή https://image.com/..." 
                                             />
+                                            {checkingByIndex[i] ? (
+                                              <p className="mt-2 text-sm text-slate-500">{checkingLabel}</p>
+                                            ) : null}
+                                            {errorByIndex[i] ? (
+                                              <p className="mt-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                                                {errorByIndex[i]}
+                                              </p>
+                                            ) : null}
                                             {isProfileNotVideo && (
                                               <p className="mt-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                                                 {videoProfileWarn.el}
