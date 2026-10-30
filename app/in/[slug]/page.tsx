@@ -8,19 +8,14 @@ import { retiredSlugInfluencerId } from "@/lib/profileSlugAssign";
 import { publicProfilePath } from "@/lib/profileSlug";
 
 export const revalidate = 3600;
+export const dynamicParams = true;
+
+/** Empty at build — pages generated on demand and then ISR-cached. */
+export function generateStaticParams(): { slug: string }[] {
+  return [];
+}
 
 type Params = Promise<{ slug: string }>;
-type Search = Promise<Record<string, string | string[] | undefined>>;
-
-function withSearch(path: string, search: Record<string, string | string[] | undefined>): string {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(search || {})) {
-    if (typeof value === "string") params.set(key, value);
-    else if (Array.isArray(value)) value.forEach((item) => params.append(key, item));
-  }
-  const qs = params.toString();
-  return qs ? `${path}?${qs}` : path;
-}
 
 async function resolveSlug(slug: string): Promise<{ profile: SeoProfile; redirect: boolean } | null> {
   const profile = await loadSeoProfileBySlug(slug);
@@ -47,26 +42,24 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   return profileMetadata(resolved.profile.view);
 }
 
-export default async function InfluencerBySlugPage({
-  params,
-  searchParams,
-}: {
-  params: Params;
-  searchParams: Search;
-}) {
+export default async function InfluencerBySlugPage({ params }: { params: Params }) {
   const { slug } = await params;
   const resolved = await resolveSlug(slug);
   if (!resolved) notFound();
 
   const path = publicProfilePath(resolved.profile.profile_slug, resolved.profile.id);
   if (resolved.redirect) {
-    permanentRedirect(withSearch(path, await searchParams));
+    // Drop query string here so the page stays ISR-static (client keeps deep-links).
+    permanentRedirect(path);
   }
 
   const jsonLd = profileJsonLd(resolved.profile.view);
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
+      />
       <InfluencerProfileClient
         params={Promise.resolve({ id: resolved.profile.id })}
         initialProfile={resolved.profile.view}

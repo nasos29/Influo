@@ -3,7 +3,7 @@ import PublicCampaignsPage from "@/components/PublicCampaignsPage";
 import { loadOpenCampaigns } from "@/lib/loadHomeOpenCampaigns";
 import { absoluteUrl, languageAlternates } from "@/lib/site";
 
-export const revalidate = 300;
+export const revalidate = 3600;
 
 const copy = {
   title: "Open brand campaigns | Influo",

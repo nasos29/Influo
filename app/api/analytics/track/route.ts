@@ -56,7 +56,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate event type
     const validEventTypes = ['profile_view', 'profile_click', 'proposal_sent', 'message_sent', 'conversation_started'];
     if (!validEventTypes.includes(eventType)) {
       return NextResponse.json(
@@ -77,7 +76,6 @@ export async function POST(request: NextRequest) {
     const visitorIdTrimmed = typeof visitorId === 'string' ? visitorId.trim() || null : null;
     const ipHash = hashAnalyticsIp(clientIpFromHeaders(request.headers));
 
-    // Insert analytics event (coerce influencerId to string for UUID column)
     const payload: Record<string, unknown> = {
       influencer_id: String(influencerId),
       event_type: eventType,
@@ -88,21 +86,22 @@ export async function POST(request: NextRequest) {
     if (visitorIdTrimmed != null) payload.visitor_id = visitorIdTrimmed;
     if (ipHash) payload.ip_hash = ipHash;
 
-    let result = await supabaseAdmin.from('influencer_analytics').insert([payload]).select().single();
+    // Insert only — no .select() round-trip (saves CPU + egress).
+    let result = await supabaseAdmin.from('influencer_analytics').insert([payload]);
 
     if (result.error && /ip_hash|column/i.test(result.error.message)) {
       delete payload.ip_hash;
-      result = await supabaseAdmin.from('influencer_analytics').insert([payload]).select().single();
+      result = await supabaseAdmin.from('influencer_analytics').insert([payload]);
     }
 
     if (result.error && /visitor_id|column/i.test(result.error.message)) {
       delete payload.visitor_id;
-      result = await supabaseAdmin.from('influencer_analytics').insert([payload]).select().single();
+      result = await supabaseAdmin.from('influencer_analytics').insert([payload]);
     }
 
     if (result.error && /metadata|column/i.test(result.error.message)) {
       delete payload.metadata;
-      result = await supabaseAdmin.from('influencer_analytics').insert([payload]).select().single();
+      result = await supabaseAdmin.from('influencer_analytics').insert([payload]);
     }
 
     if (result.error) {
@@ -112,9 +111,8 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-    const { data } = result;
 
-    return NextResponse.json({ success: true, data });
+    return NextResponse.json({ success: true });
   } catch (err: unknown) {
     console.error('[Analytics API] Error:', err);
     const message = err instanceof Error ? err.message : 'Internal server error';

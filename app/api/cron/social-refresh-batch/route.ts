@@ -146,8 +146,11 @@ export async function POST(request: NextRequest) {
         console.log('[social-refresh-batch] ' + GEMINI_PAUSED_MSG);
         return NextResponse.json({ run: null, influencers: [], purged: 0, paused: true, message: GEMINI_PAUSED_MSG });
       }
-      const purged = await purgeOldSocialRefreshLogs(supabaseAdmin);
       const influencers = await listAllInfluencersWithSocials();
+      if (influencers.length === 0) {
+        return NextResponse.json({ run: null, influencers: [], purged: 0, idle: true });
+      }
+      const purged = await purgeOldSocialRefreshLogs(supabaseAdmin);
       const run = await createSocialRefreshRun(supabaseAdmin, influencers.length);
       await appendSocialRefreshLog(supabaseAdmin, {
         run_id: run.id,

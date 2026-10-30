@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { cache } from "react";
 import { loadInfluencerRows } from "@/lib/loadPublicInfluencers";
 import { getPastBrandsForInfluencer } from "@/lib/pastBrands";
@@ -29,14 +30,26 @@ async function loadOne(filter: { id?: string; slug?: string }): Promise<SeoProfi
   };
 }
 
+const cachedBySlug = (slug: string) =>
+  unstable_cache(() => loadOne({ slug }), ["seo-profile-slug", slug], {
+    revalidate: 3600,
+    tags: [`profile-${slug}`],
+  })();
+
+const cachedById = (id: string) =>
+  unstable_cache(() => loadOne({ id }), ["seo-profile-id", id], {
+    revalidate: 3600,
+    tags: [`profile-id-${id}`],
+  })();
+
 export const loadSeoProfileById = cache(async (id: string): Promise<SeoProfile | null> => {
   const clean = (id || "").trim();
   if (!UUID_RE.test(clean)) return null;
-  return loadOne({ id: clean });
+  return cachedById(clean);
 });
 
 export const loadSeoProfileBySlug = cache(async (slug: string): Promise<SeoProfile | null> => {
   const clean = (slug || "").trim().toLowerCase();
   if (clean.length < 2 || clean.length > 80) return null;
-  return loadOne({ slug: clean });
+  return cachedBySlug(clean);
 });
