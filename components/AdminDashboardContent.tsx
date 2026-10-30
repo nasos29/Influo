@@ -6,9 +6,9 @@ import Image from "next/image";
 import { isDefinitelyVideo, isDefinitelyImage, detectProvider, getVideoEmbedApiUrl, isEmbeddableVideoUrl } from "@/lib/videoThumbnail";
 import {
   FACEBOOK_VIDEO_LINK_ERROR,
-  cleanVideoLink,
   prepareVideosForSave,
 } from "@/lib/videoLinks";
+import { useVideoPlayableChecks } from "@/lib/useVideoPlayableChecks";
 import VideoThumbnail from "./VideoThumbnail";
 import SocialEmbedCard from "./SocialEmbedCard";
 import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
@@ -876,9 +876,22 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
     };
 
     const [videoLinkError, setVideoLinkError] = useState<string | null>(null);
+    const existingVideos = Array.isArray(user.videos) ? user.videos : [];
+    const {
+        checkingByIndex,
+        errorByIndex,
+        isChecking: videosChecking,
+        hasBlockingError: videosNotPlayable,
+        checkingLabel,
+        notPlayableMessage,
+        runCheck,
+        clearIndex,
+        assertAllNewPlayable,
+    } = useVideoPlayableChecks("el", existingVideos);
     const handleVideoChange = (i: number, value: string) => {
         markSensitiveTouched("videos");
         setVideoLinkError(null);
+        clearIndex(i);
         const copy = [...videos];
         const oldUrl = copy[i];
         copy[i] = value;
@@ -897,39 +910,45 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
         }
     };
     const handleVideoBlur = (i: number) => {
-        const raw = videos[i] || "";
-        if (!raw.trim()) return;
-        const cleaned = cleanVideoLink(raw);
-        if (!cleaned.ok) {
-            if (cleaned.reason === "facebook") {
-                setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR.el);
+        void (async () => {
+            const raw = videos[i] || "";
+            if (!raw.trim()) {
+                clearIndex(i);
+                return;
+            }
+            const cleaned = await runCheck(i, raw);
+            if (!cleaned.ok) {
+                if (cleaned.reason === "facebook") {
+                    setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR.el);
+                    markSensitiveTouched("videos");
+                    const copy = [...videos];
+                    const oldUrl = copy[i];
+                    copy[i] = "";
+                    setVideos(copy);
+                    clearIndex(i);
+                    if (oldUrl && videoThumbnails[oldUrl]) {
+                        const newThumbnails = { ...videoThumbnails };
+                        delete newThumbnails[oldUrl];
+                        setVideoThumbnails(newThumbnails);
+                    }
+                }
+                return;
+            }
+            setVideoLinkError(null);
+            if (cleaned.url !== raw) {
                 markSensitiveTouched("videos");
                 const copy = [...videos];
                 const oldUrl = copy[i];
-                copy[i] = "";
+                copy[i] = cleaned.url;
                 setVideos(copy);
-                if (oldUrl && videoThumbnails[oldUrl]) {
+                if (oldUrl && oldUrl !== cleaned.url && videoThumbnails[oldUrl]) {
                     const newThumbnails = { ...videoThumbnails };
+                    const prev = newThumbnails[oldUrl];
                     delete newThumbnails[oldUrl];
-                    setVideoThumbnails(newThumbnails);
+                    setVideoThumbnails({ ...newThumbnails, [cleaned.url]: prev });
                 }
             }
-            return;
-        }
-        setVideoLinkError(null);
-        if (cleaned.url !== raw) {
-            markSensitiveTouched("videos");
-            const copy = [...videos];
-            const oldUrl = copy[i];
-            copy[i] = cleaned.url;
-            setVideos(copy);
-            if (oldUrl && oldUrl !== cleaned.url && videoThumbnails[oldUrl]) {
-                const newThumbnails = { ...videoThumbnails };
-                const prev = newThumbnails[oldUrl];
-                delete newThumbnails[oldUrl];
-                setVideoThumbnails({ ...newThumbnails, [cleaned.url]: prev });
-            }
-        }
+        })();
     };
     
     const handleThumbnailChange = (videoUrl: string, thumbnailUrl: string) => {
@@ -1125,6 +1144,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
         const copy = [...videos]; 
         copy.splice(i, 1);
         setVideos(copy);
+        clearIndex(i);
         
         // Remove thumbnail for deleted video
         if (videoUrl && videoThumbnails[videoUrl]) {
@@ -1213,6 +1233,19 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
             if (!preparedVideos.ok) {
                 setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR.el);
                 alert(FACEBOOK_VIDEO_LINK_ERROR.el);
+                setLoading(false);
+                return;
+            }
+            if (videosChecking || videosNotPlayable) {
+                setVideoLinkError(notPlayableMessage);
+                alert(notPlayableMessage);
+                setLoading(false);
+                return;
+            }
+            const playableOk = await assertAllNewPlayable(preparedVideos.videos);
+            if (!playableOk) {
+                setVideoLinkError(notPlayableMessage);
+                alert(notPlayableMessage);
                 setLoading(false);
                 return;
             }
@@ -1694,6 +1727,14 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                             </div>
                                             <button type="button" onClick={() => removeVideo(i)} className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">✕</button>
                                         </div>
+                                        {checkingByIndex[i] ? (
+                                          <p className="mt-2 text-sm text-slate-500">{checkingLabel}</p>
+                                        ) : null}
+                                        {errorByIndex[i] ? (
+                                          <p className="mt-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                                            {errorByIndex[i]}
+                                          </p>
+                                        ) : null}
                                         {video && detectProvider(video) && !isDefinitelyImage(video) && !isEmbeddableVideoUrl(video) && (
                                           <p className="mt-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                                             {{ el: "Αυτό είναι link προφίλ, όχι video. Βάλε link από συγκεκριμένο reel/video/post.", en: "This is a profile link, not a video. Paste a link to a specific reel/video/post." }.el}

@@ -7,9 +7,9 @@ import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 import { detectProvider, getVideoEmbedApiUrl, isDefinitelyImage, isEmbeddableVideoUrl } from "@/lib/videoThumbnail";
 import {
   FACEBOOK_VIDEO_LINK_ERROR,
-  cleanVideoLink,
   prepareVideosForSave,
 } from "@/lib/videoLinks";
+import { useVideoPlayableChecks } from "@/lib/useVideoPlayableChecks";
 import { prepareImageForStorage } from "@/lib/prepareImageForStorage";
 import { normalizeGender } from "@/lib/gender";
 import { languagesCodesToStored } from "@/lib/languages";
@@ -309,34 +309,57 @@ export default function InfluencerSignupForm() {
   };
 
   const [videoLinkError, setVideoLinkError] = useState<string | null>(null);
+  const {
+    checkingByIndex,
+    errorByIndex,
+    isChecking: videosChecking,
+    hasBlockingError: videosNotPlayable,
+    checkingLabel,
+    notPlayableMessage,
+    runCheck,
+    clearIndex,
+    assertAllNewPlayable,
+  } = useVideoPlayableChecks(lang, []);
   const handleVideoChange = (i: number, val: string) => {
     setVideoLinkError(null);
+    clearIndex(i);
     const copy = [...videos];
     copy[i] = val;
     setVideos(copy);
   };
   const handleVideoBlur = (i: number) => {
-    const raw = videos[i] || "";
-    if (!raw.trim()) return;
-    const cleaned = cleanVideoLink(raw);
-    if (!cleaned.ok) {
-      if (cleaned.reason === "facebook") {
-        setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR[lang]);
+    void (async () => {
+      const raw = videos[i] || "";
+      if (!raw.trim()) {
+        clearIndex(i);
+        return;
+      }
+      const cleaned = await runCheck(i, raw);
+      if (!cleaned.ok) {
+        if (cleaned.reason === "facebook") {
+          setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR[lang]);
+          const copy = [...videos];
+          copy[i] = "";
+          setVideos(copy);
+          clearIndex(i);
+        }
+        return;
+      }
+      setVideoLinkError(null);
+      if (cleaned.url !== raw) {
         const copy = [...videos];
-        copy[i] = "";
+        copy[i] = cleaned.url;
         setVideos(copy);
       }
-      return;
-    }
-    setVideoLinkError(null);
-    if (cleaned.url !== raw) {
-      const copy = [...videos];
-      copy[i] = cleaned.url;
-      setVideos(copy);
-    }
+    })();
   };
   const addVideo = () => setVideos([...videos, ""]);
-  const removeVideo = (i: number) => { const copy = [...videos]; copy.splice(i, 1); setVideos(copy); };
+  const removeVideo = (i: number) => {
+    const copy = [...videos];
+    copy.splice(i, 1);
+    setVideos(copy);
+    clearIndex(i);
+  };
 
   // --- NEW: AUDIENCE HANDLERS ---
   const handleMaleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -666,6 +689,19 @@ export default function InfluencerSignupForm() {
       if (!preparedVideos.ok) {
         setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR[lang]);
         setMessage(FACEBOOK_VIDEO_LINK_ERROR[lang]);
+        setLoading(false);
+        return;
+      }
+      if (videosChecking || videosNotPlayable) {
+        setVideoLinkError(notPlayableMessage);
+        setMessage(notPlayableMessage);
+        setLoading(false);
+        return;
+      }
+      const playableOk = await assertAllNewPlayable(preparedVideos.videos);
+      if (!playableOk) {
+        setVideoLinkError(notPlayableMessage);
+        setMessage(notPlayableMessage);
         setLoading(false);
         return;
       }
@@ -1125,6 +1161,14 @@ export default function InfluencerSignupForm() {
                             />
                             {videos.length > 1 && <button onClick={() => removeVideo(i)} className="text-red-500 font-bold px-2 hover:bg-red-50 rounded">✕</button>}
                         </div>
+                                {checkingByIndex[i] ? (
+                                  <p className="text-sm text-slate-500 px-1">{checkingLabel}</p>
+                                ) : null}
+                                {errorByIndex[i] ? (
+                                  <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                                    {errorByIndex[i]}
+                                  </p>
+                                ) : null}
                                 {isProfileNotVideo && (
                                   <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                                     {txt.videoProfileWarn}
