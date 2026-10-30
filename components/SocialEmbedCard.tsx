@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { buildOfficialEmbedUrl } from "@/lib/videoThumbnail";
 import { useLazyVideoThumbnail } from "@/lib/useVideoThumbnail";
+import { toDisplayThumbnailSrc } from "@/lib/videoThumbnailExtract";
 import {
   buildTikTokPlayerUrl,
   extractTikTokVideoId,
@@ -26,7 +27,6 @@ interface SocialEmbedCardProps {
 const COPY = {
   play: { el: "Αναπαραγωγή", en: "Play" },
   playVideo: { el: "Προβολή βίντεο", en: "Play video" },
-  viewPhoto: { el: "Προβολή φωτογραφίας", en: "View photo" },
   viewCarousel: { el: "Προβολή άλμπουμ", en: "View album" },
   loading: { el: "Φόρτωση", en: "Loading" },
   error: { el: "Αποτυχία φόρτωσης", en: "Failed to load" },
@@ -139,24 +139,10 @@ function CarouselBadge({ label }: { label: string }) {
   );
 }
 
-function PhotoBadge({ label }: { label: string }) {
-  return (
-    <span
-      className="absolute top-3 right-3 z-20 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-black/55 text-white shadow-sm backdrop-blur-sm"
-      aria-label={label}
-      title={label}
-    >
-      <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden>
-        <path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5zm3 2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm-1 11 3.5-4.5 2.5 3 3.5-4.5L19 18H6z" />
-      </svg>
-    </span>
-  );
-}
-
 /**
  * Social video card:
  * - YouTube / TikTok / Instagram reels: facade with cover + ▶; media after click.
- * - Instagram /p/ photos: photo (no ▶); click opens lightbox.
+ * - Instagram /p/ photos (mediaType image): static cover only — no overlay/click.
  * - Instagram /p/ carousel: first frame + multi-image icon; click opens lightbox/embed.
  */
 export default function SocialEmbedCard({
@@ -181,7 +167,6 @@ export default function SocialEmbedCard({
   const [nativeVideoUrl, setNativeVideoUrl] = useState<string | null>(null);
   const [nativePoster, setNativePoster] = useState<string | null>(null);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
-  const [iframeLoaded, setIframeLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [igKind, setIgKind] = useState<InstagramEmbedKind | null>(
@@ -190,19 +175,21 @@ export default function SocialEmbedCard({
   const [igPoster, setIgPoster] = useState<string | null>(null);
   const [igMetaLoading, setIgMetaLoading] = useState(false);
 
-  const { src: thumbSrc, mediaType, onImgError } = useLazyVideoThumbnail(
+  const isStaticImage = igKind === "image";
+  const isCarousel = igKind === "carousel";
+
+  const { src: thumbSrc, onImgError } = useLazyVideoThumbnail(
     originalUrl,
-    nearViewport && !activated && !lightboxSrc
+    // Static photos: still fetch cover if meta had no poster; otherwise facade cover.
+    nearViewport &&
+      !lightboxSrc &&
+      !(isStaticImage && !!igPoster) &&
+      (isStaticImage || (!activated && !iframeSrc && !nativeVideoUrl))
   );
 
-  const isPhotoLike =
-    igKind === "image" ||
-    igKind === "carousel" ||
-    mediaType === "image";
-  const isCarousel = igKind === "carousel";
-  // /p/ posts: wait for meta before showing ▶ (avoid false play on GraphImage).
+  // /p/ posts: never show ▶ until meta confirms video (photos stay static).
   const showPlayButton =
-    !isPhotoLike && !(isIgPost && igKind === null && (igMetaLoading || nearViewport));
+    !isStaticImage && !isCarousel && (!isIgPost || igKind === "video");
 
   useEffect(() => {
     const node = rootRef.current;
@@ -220,16 +207,18 @@ export default function SocialEmbedCard({
     return () => observer.disconnect();
   }, [nearViewport]);
 
-  // Instagram /p/: resolve mediaType early so we never flash a ▶ on photos.
+  // Instagram /p/: resolve mediaType on mount (not only near viewport).
   useEffect(() => {
-    if (!isInstagram || !nearViewport || !isIgPost || igKind) return;
+    if (!isInstagram || !isIgPost || igKind) return;
     let cancelled = false;
     setIgMetaLoading(true);
     void fetchInstagramMeta(originalUrl)
       .then((meta) => {
         if (cancelled) return;
         if (meta.mediaType) setIgKind(meta.mediaType);
-        if (meta.poster) setIgPoster(meta.poster);
+        if (meta.poster) {
+          setIgPoster(toDisplayThumbnailSrc(meta.poster) || meta.poster);
+        }
       })
       .finally(() => {
         if (!cancelled) setIgMetaLoading(false);
@@ -237,7 +226,7 @@ export default function SocialEmbedCard({
     return () => {
       cancelled = true;
     };
-  }, [igKind, isIgPost, isInstagram, nearViewport, originalUrl]);
+  }, [igKind, isIgPost, isInstagram, originalUrl]);
 
   const fallBackToOfficialEmbed = useCallback(() => {
     setNativeVideoUrl(null);
@@ -251,7 +240,7 @@ export default function SocialEmbedCard({
     setLoading(false);
   }, [originalUrl]);
 
-  const openPhotoLightbox = useCallback(() => {
+  const openCarouselLightbox = useCallback(() => {
     const src = igPoster || thumbSrc;
     if (src) {
       setLightboxSrc(src);
@@ -263,12 +252,11 @@ export default function SocialEmbedCard({
   }, [fallBackToOfficialEmbed, igPoster, thumbSrc]);
 
   const activateClickToLoad = useCallback(async () => {
-    if (loading || iframeSrc || nativeVideoUrl || lightboxSrc) return;
+    if (loading || iframeSrc || nativeVideoUrl || lightboxSrc || isStaticImage) return;
     setError(false);
 
-    // Photo / carousel: enlarge (no video facade).
-    if (isPhotoLike) {
-      openPhotoLightbox();
+    if (isCarousel) {
+      openCarouselLightbox();
       return;
     }
 
@@ -300,12 +288,24 @@ export default function SocialEmbedCard({
         originalUrl
       );
       if (mt) setIgKind(mt);
-      if (poster) setIgPoster(poster);
+      if (poster) {
+        setIgPoster(toDisplayThumbnailSrc(poster) || poster);
+      }
 
-      if (mt === "image" || mt === "carousel") {
+      if (mt === "image") {
+        // Static photo — drop activation; no lightbox/embed.
+        setActivated(false);
         setLoading(false);
-        if (poster || thumbSrc) {
-          setLightboxSrc(poster || thumbSrc);
+        return;
+      }
+
+      if (mt === "carousel") {
+        setLoading(false);
+        const src = poster
+          ? toDisplayThumbnailSrc(poster) || poster
+          : thumbSrc;
+        if (src) {
+          setLightboxSrc(src);
           return;
         }
         fallBackToOfficialEmbed();
@@ -314,7 +314,7 @@ export default function SocialEmbedCard({
 
       if (videoUrl) {
         setNativeVideoUrl(videoUrl);
-        setNativePoster(poster);
+        setNativePoster(poster ? toDisplayThumbnailSrc(poster) || poster : null);
         setLoading(false);
         return;
       }
@@ -326,25 +326,26 @@ export default function SocialEmbedCard({
   }, [
     fallBackToOfficialEmbed,
     iframeSrc,
-    isPhotoLike,
+    isCarousel,
+    isStaticImage,
     lightboxSrc,
     loading,
     nativeVideoUrl,
-    openPhotoLightbox,
+    openCarouselLightbox,
     originalUrl,
     provider,
     thumbSrc,
   ]);
 
-  const coverSrc = igPoster || thumbSrc;
+  const coverSrc = igPoster || thumbSrc || null;
   const playLabel = isInstagram ? COPY.play[uiLang] : COPY.playVideo[uiLang];
-  const photoLabel = isCarousel ? COPY.viewCarousel[uiLang] : COPY.viewPhoto[uiLang];
+  const carouselLabel = COPY.viewCarousel[uiLang];
 
   return (
     <div className="w-full max-w-full" ref={rootRef}>
       <div className="bg-white rounded-xl border border-slate-200 shadow-md overflow-hidden w-full max-w-full">
         <div
-          className="relative w-full bg-slate-100"
+          className={`relative w-full bg-slate-100 ${isStaticImage ? "cursor-default" : ""}`}
           style={{ aspectRatio: `${finalWidth} / ${finalHeight}`, minHeight: 300 }}
         >
           <div
@@ -365,127 +366,128 @@ export default function SocialEmbedCard({
             />
           ) : null}
 
-          {!activated && isPhotoLike && isCarousel ? (
-            <CarouselBadge label={photoLabel} />
-          ) : null}
-          {!activated && isPhotoLike && !isCarousel ? (
-            <PhotoBadge label={photoLabel} />
-          ) : null}
-
-          {!activated || error ? (
-            <button
-              type="button"
-              onClick={() => {
-                void activateClickToLoad();
-              }}
-              className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-gradient-to-t from-black/70 via-black/25 to-black/10 text-white transition hover:from-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
-              aria-label={
-                error
-                  ? COPY.retry[uiLang]
-                  : isPhotoLike
-                    ? photoLabel
-                    : playLabel
-              }
-            >
-              <span className="text-sm font-semibold tracking-wide uppercase opacity-95 drop-shadow">
-                {NAMES[provider]}
-              </span>
-              {showPlayButton ? (
-                <span className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg">
-                  <svg viewBox="0 0 24 24" className="ml-1 h-8 w-8 fill-current" aria-hidden>
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                </span>
-              ) : isPhotoLike ? null : igMetaLoading || (isIgPost && igKind === null) ? (
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-white border-t-transparent" />
+          {/* Static Instagram photo: cover only — no overlay, badge, or click. */}
+          {isStaticImage ? null : (
+            <>
+              {!activated && isCarousel ? (
+                <CarouselBadge label={carouselLabel} />
               ) : null}
-              <span className="text-base font-bold drop-shadow">
-                {error
-                  ? COPY.retry[uiLang]
-                  : isPhotoLike
-                    ? photoLabel
-                    : showPlayButton
-                      ? playLabel
-                      : COPY.loading[uiLang]}
-              </span>
-              {error ? (
-                <span className="text-xs font-medium text-white/85">{COPY.error[uiLang]}</span>
+
+              {!activated || error ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void activateClickToLoad();
+                  }}
+                  className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-gradient-to-t from-black/70 via-black/25 to-black/10 text-white transition hover:from-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+                  aria-label={
+                    error
+                      ? COPY.retry[uiLang]
+                      : isCarousel
+                        ? carouselLabel
+                        : playLabel
+                  }
+                >
+                  <span className="text-sm font-semibold tracking-wide uppercase opacity-95 drop-shadow">
+                    {NAMES[provider]}
+                  </span>
+                  {showPlayButton ? (
+                    <span className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg">
+                      <svg viewBox="0 0 24 24" className="ml-1 h-8 w-8 fill-current" aria-hidden>
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </span>
+                  ) : isCarousel ? null : igMetaLoading || (isIgPost && igKind === null) ? (
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-white border-t-transparent" />
+                  ) : null}
+                  <span className="text-base font-bold drop-shadow">
+                    {error
+                      ? COPY.retry[uiLang]
+                      : isCarousel
+                        ? carouselLabel
+                        : showPlayButton
+                          ? playLabel
+                          : COPY.loading[uiLang]}
+                  </span>
+                  {error ? (
+                    <span className="text-xs font-medium text-white/85">{COPY.error[uiLang]}</span>
+                  ) : null}
+                </button>
               ) : null}
-            </button>
-          ) : null}
 
-          {activated && loading ? (
-            <div
-              className={`absolute inset-0 z-10 flex flex-col items-center justify-center bg-gradient-to-br ${COLORS[provider]}`}
-            >
-              <div className="mb-2 h-8 w-8 animate-spin rounded-full border-4 border-white border-t-transparent" />
-              <span className="text-xs font-medium text-white">
-                {COPY.loading[uiLang]} {NAMES[provider]}…
-              </span>
-            </div>
-          ) : null}
+              {activated && loading ? (
+                <div
+                  className={`absolute inset-0 z-10 flex flex-col items-center justify-center bg-gradient-to-br ${COLORS[provider]}`}
+                >
+                  <div className="mb-2 h-8 w-8 animate-spin rounded-full border-4 border-white border-t-transparent" />
+                  <span className="text-xs font-medium text-white">
+                    {COPY.loading[uiLang]} {NAMES[provider]}…
+                  </span>
+                </div>
+              ) : null}
 
-          {lightboxSrc ? (
-            <div className="absolute inset-0 z-[6] flex items-center justify-center bg-black">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={lightboxSrc}
-                alt=""
-                className="max-h-full max-w-full object-contain"
-                referrerPolicy="no-referrer"
-              />
-              {isCarousel ? <CarouselBadge label={photoLabel} /> : null}
-              <button
-                type="button"
-                className="absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-lg bg-white/90 px-3 py-1.5 text-sm font-semibold text-slate-900 shadow"
-                onClick={() => {
-                  setLightboxSrc(null);
-                  setActivated(false);
-                }}
-              >
-                {COPY.close[uiLang]}
-              </button>
-            </div>
-          ) : null}
+              {lightboxSrc ? (
+                <div className="absolute inset-0 z-[6] flex items-center justify-center bg-black">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={lightboxSrc}
+                    alt=""
+                    className="max-h-full max-w-full object-contain"
+                    referrerPolicy="no-referrer"
+                  />
+                  <CarouselBadge label={carouselLabel} />
+                  <button
+                    type="button"
+                    className="absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-lg bg-white/90 px-3 py-1.5 text-sm font-semibold text-slate-900 shadow"
+                    onClick={() => {
+                      setLightboxSrc(null);
+                      setActivated(false);
+                    }}
+                  >
+                    {COPY.close[uiLang]}
+                  </button>
+                </div>
+              ) : null}
 
-          {nativeVideoUrl ? (
-            <video
-              src={nativeVideoUrl}
-              poster={nativePoster || coverSrc || undefined}
-              controls
-              autoPlay
-              playsInline
-              className="absolute inset-0 z-[5] h-full w-full bg-black object-contain"
-              ref={(el) => {
-                if (el) el.setAttribute("referrerpolicy", "no-referrer");
-              }}
-              onError={() => {
-                fallBackToOfficialEmbed();
-              }}
-            />
-          ) : null}
+              {nativeVideoUrl ? (
+                <video
+                  src={nativeVideoUrl}
+                  poster={nativePoster || coverSrc || undefined}
+                  controls
+                  autoPlay
+                  playsInline
+                  className="absolute inset-0 z-[5] h-full w-full bg-black object-contain"
+                  ref={(el) => {
+                    if (el) el.setAttribute("referrerpolicy", "no-referrer");
+                  }}
+                  onError={() => {
+                    fallBackToOfficialEmbed();
+                  }}
+                />
+              ) : null}
 
-          {iframeSrc ? (
-            <iframe
-              src={iframeSrc}
-              title={`${NAMES[provider]} media`}
-              className="absolute top-0 left-0 z-[5] h-full w-full border-0 opacity-100"
-              allow={
-                provider === "tiktok"
-                  ? "autoplay; encrypted-media; fullscreen; picture-in-picture"
-                  : "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              }
-              allowFullScreen
-              referrerPolicy="strict-origin-when-cross-origin"
-              onLoad={() => {
-                setIframeLoaded(true);
-                setLoading(false);
-              }}
-              onError={() => {
-                setError(true);
-              }}
-            />
-          ) : null}
+              {iframeSrc ? (
+                <iframe
+                  src={iframeSrc}
+                  title={`${NAMES[provider]} media`}
+                  className="absolute top-0 left-0 z-[5] h-full w-full border-0 opacity-100"
+                  allow={
+                    provider === "tiktok"
+                      ? "autoplay; encrypted-media; fullscreen; picture-in-picture"
+                      : "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  }
+                  allowFullScreen
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  onLoad={() => {
+                    setLoading(false);
+                  }}
+                  onError={() => {
+                    setError(true);
+                  }}
+                />
+              ) : null}
+            </>
+          )}
         </div>
       </div>
     </div>
