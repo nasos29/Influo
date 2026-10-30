@@ -4,18 +4,24 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import Image from "next/image";
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
-import { detectProvider, getVideoEmbedApiUrl, isDefinitelyImage, isEmbeddableVideoUrl } from "@/lib/videoThumbnail";
 import {
   FACEBOOK_VIDEO_LINK_ERROR,
   prepareVideosForSave,
 } from "@/lib/videoLinks";
-import { useVideoPlayableChecks } from "@/lib/useVideoPlayableChecks";
+import { isDefinitelyImage, isEmbeddableVideoUrl } from "@/lib/videoThumbnail";
+import {
+  newVideoRowId,
+  toVideoRows,
+  useVideoPlayableChecks,
+  videoRowsToUrls,
+  type VideoRow,
+} from "@/lib/useVideoPlayableChecks";
 import { prepareImageForStorage } from "@/lib/prepareImageForStorage";
 import { normalizeGender } from "@/lib/gender";
 import { languagesCodesToStored } from "@/lib/languages";
 import { formatStoredCategories } from "@/lib/categories";
 import CategoryCheckboxList from "./CategoryCheckboxList";
-import SocialEmbedCard from "./SocialEmbedCard";
+import PortfolioVideoLinkRow from "./PortfolioVideoLinkRow";
 import { clearLoggedOutMark } from "@/lib/authSession";
 import {
   BIRTH_DATE_MIN,
@@ -227,7 +233,7 @@ export default function InfluencerSignupForm() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [insightFiles, setInsightFiles] = useState<File[]>([]); 
-  const [videos, setVideos] = useState<string[]>([""]);
+  const [videoRows, setVideoRows] = useState<VideoRow[]>(() => toVideoRows([""]));
   const [minRate, setMinRate] = useState("");
   const [engagementRate, setEngagementRate] = useState("");
   const [avgLikes, setAvgLikes] = useState("");
@@ -310,55 +316,80 @@ export default function InfluencerSignupForm() {
 
   const [videoLinkError, setVideoLinkError] = useState<string | null>(null);
   const {
-    checkingByIndex,
-    errorByIndex,
+    checkingById,
+    errorById,
     isChecking: videosChecking,
     hasBlockingError: videosNotPlayable,
     checkingLabel,
     notPlayableMessage,
     runCheck,
-    clearIndex,
+    scheduleCheck,
+    clearId,
     assertAllNewPlayable,
   } = useVideoPlayableChecks(lang, []);
-  const handleVideoChange = (i: number, val: string) => {
-    setVideoLinkError(null);
-    clearIndex(i);
-    const copy = [...videos];
-    copy[i] = val;
-    setVideos(copy);
-  };
-  const handleVideoBlur = (i: number) => {
-    void (async () => {
-      const raw = videos[i] || "";
-      if (!raw.trim()) {
-        clearIndex(i);
-        return;
-      }
-      const cleaned = await runCheck(i, raw);
-      if (!cleaned.ok) {
-        if (cleaned.reason === "facebook") {
-          setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR[lang]);
-          const copy = [...videos];
-          copy[i] = "";
-          setVideos(copy);
-          clearIndex(i);
-        }
-        return;
-      }
+
+  // Clear banner once every rejected/checking link is gone.
+  useEffect(() => {
+    if (!videosNotPlayable && !videosChecking && videoLinkError === notPlayableMessage) {
       setVideoLinkError(null);
-      if (cleaned.url !== raw) {
-        const copy = [...videos];
-        copy[i] = cleaned.url;
-        setVideos(copy);
+      setMessage((prev) => (prev === notPlayableMessage ? "" : prev));
+    }
+  }, [videosNotPlayable, videosChecking, videoLinkError, notPlayableMessage]);
+
+  const handleVideoChange = (id: string, val: string) => {
+    setVideoLinkError(null);
+    if (message === notPlayableMessage || message === FACEBOOK_VIDEO_LINK_ERROR[lang]) {
+      setMessage("");
+    }
+    setVideoRows((rows) => rows.map((r) => (r.id === id ? { ...r, url: val } : r)));
+    // Debounce check only for complete-looking URLs; incomplete typing just clears prior status.
+    if (!val.trim()) {
+      clearId(id);
+      return;
+    }
+    if (isEmbeddableVideoUrl(val) || isDefinitelyImage(val)) {
+      scheduleCheck(id, val);
+    } else {
+      clearId(id);
+    }
+  };
+  const applyVideoCleanResult = (id: string, raw: string, cleaned: Awaited<ReturnType<typeof runCheck>>) => {
+    if (!cleaned.ok) {
+      if (cleaned.reason === "facebook") {
+        setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR[lang]);
+        setVideoRows((rows) => rows.map((r) => (r.id === id ? { ...r, url: "" } : r)));
+        clearId(id);
       }
+      return;
+    }
+    setVideoLinkError(null);
+    if (cleaned.url !== raw) {
+      setVideoRows((rows) =>
+        rows.map((r) => (r.id === id ? { ...r, url: cleaned.url } : r))
+      );
+    }
+  };
+  const handleVideoBlur = (id: string) => {
+    void (async () => {
+      const raw = videoRows.find((r) => r.id === id)?.url || "";
+      if (!raw.trim()) {
+        clearId(id);
+        return;
+      }
+      const cleaned = await runCheck(id, raw);
+      applyVideoCleanResult(id, raw, cleaned);
     })();
   };
-  const addVideo = () => setVideos([...videos, ""]);
-  const removeVideo = (i: number) => {
-    const copy = [...videos];
-    copy.splice(i, 1);
-    setVideos(copy);
-    clearIndex(i);
+  const addVideo = () =>
+    setVideoRows((rows) => [...rows, { id: newVideoRowId(), url: "" }]);
+  const removeVideo = (id: string) => {
+    setVideoRows((rows) => {
+      if (rows.length <= 1) return rows;
+      return rows.filter((r) => r.id !== id);
+    });
+    clearId(id);
+    setVideoLinkError(null);
+    if (message === notPlayableMessage) setMessage("");
   };
 
   // --- NEW: AUDIENCE HANDLERS ---
@@ -567,6 +598,28 @@ export default function InfluencerSignupForm() {
           throw new Error(txt.birthDateInvalid);
       }
       const normalizedBirthDate = birthCheck.normalized;
+
+      // Portfolio links — validate BEFORE creating an auth account.
+      const preparedVideos = prepareVideosForSave(videoRowsToUrls(videoRows));
+      if (!preparedVideos.ok) {
+        setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR[lang]);
+        setMessage(FACEBOOK_VIDEO_LINK_ERROR[lang]);
+        setLoading(false);
+        return;
+      }
+      if (videosChecking || videosNotPlayable) {
+        setVideoLinkError(notPlayableMessage);
+        setMessage(notPlayableMessage);
+        setLoading(false);
+        return;
+      }
+      const playableOk = await assertAllNewPlayable(videoRows);
+      if (!playableOk) {
+        setVideoLinkError(notPlayableMessage);
+        setMessage(notPlayableMessage);
+        setLoading(false);
+        return;
+      }
       
       // 1. Auth: Δημιουργία Χρήστη (Sign Up)
       let authData: any;
@@ -684,27 +737,6 @@ export default function InfluencerSignupForm() {
               : normalizeUsername(acc.username);
           return { ...acc, username };
         });
-
-      const preparedVideos = prepareVideosForSave(videos);
-      if (!preparedVideos.ok) {
-        setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR[lang]);
-        setMessage(FACEBOOK_VIDEO_LINK_ERROR[lang]);
-        setLoading(false);
-        return;
-      }
-      if (videosChecking || videosNotPlayable) {
-        setVideoLinkError(notPlayableMessage);
-        setMessage(notPlayableMessage);
-        setLoading(false);
-        return;
-      }
-      const playableOk = await assertAllNewPlayable(preparedVideos.videos);
-      if (!playableOk) {
-        setVideoLinkError(notPlayableMessage);
-        setMessage(notPlayableMessage);
-        setLoading(false);
-        return;
-      }
 
       const rateCardPayload = {
         ...(priceStory.trim() ? { story: priceStory.trim() } : {}),
@@ -1141,59 +1173,28 @@ export default function InfluencerSignupForm() {
                 <div className="space-y-3">
                     <label className={labelClass}>{txt.videoLabel}</label>
                     <p className="text-xs text-gray-500 mb-2">{txt.videoDesc}</p>
-                    {videos.map((vid, i) => {
-                        const provider = detectProvider(vid);
-                        const embedUrl = provider ? getVideoEmbedApiUrl(vid) : null;
-                        const isImage = isDefinitelyImage(vid);
-                        const isProfileNotVideo =
-                          !!vid.trim() && !!provider && !isImage && !isEmbeddableVideoUrl(vid);
-
-                        return (
-                            <div key={`signup-video-${i}-${vid.slice(0, 24)}`} className="space-y-2">
-                                <div className="flex gap-3">
-                            <input
-                              type="text"
-                              className={inputClass}
-                              value={vid}
-                              onChange={(e) => handleVideoChange(i, e.target.value)}
-                              onBlur={() => handleVideoBlur(i)}
-                              placeholder="https://..."
-                            />
-                            {videos.length > 1 && <button onClick={() => removeVideo(i)} className="text-red-500 font-bold px-2 hover:bg-red-50 rounded">✕</button>}
-                        </div>
-                                {checkingByIndex[i] ? (
-                                  <p className="text-sm text-slate-500 px-1">{checkingLabel}</p>
-                                ) : null}
-                                {errorByIndex[i] ? (
-                                  <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                                    {errorByIndex[i]}
-                                  </p>
-                                ) : null}
-                                {isProfileNotVideo && (
-                                  <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                                    {txt.videoProfileWarn}
-                                  </p>
-                                )}
-                                {/* Preview with SocialEmbedCard for social media videos */}
-                                {vid && provider && embedUrl && !isImage && isEmbeddableVideoUrl(vid) && (
-                                    <div className="mt-2 w-full max-w-lg">
-                                        <SocialEmbedCard
-                                            provider={provider}
-                                            originalUrl={vid}
-                                            embedUrl={embedUrl}
-                                            lang={lang}
-                                        />
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })}
+                    {videoRows.map((row) => (
+                      <PortfolioVideoLinkRow
+                        key={row.id}
+                        rowId={row.id}
+                        value={row.url}
+                        lang={lang}
+                        inputClassName={inputClass}
+                        canRemove={videoRows.length > 1}
+                        checking={!!checkingById[row.id]}
+                        checkingLabel={checkingLabel}
+                        error={errorById[row.id] || null}
+                        onChange={(val) => handleVideoChange(row.id, val)}
+                        onBlur={() => handleVideoBlur(row.id)}
+                        onRemove={() => removeVideo(row.id)}
+                      />
+                    ))}
                     {videoLinkError ? (
                       <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                         {videoLinkError}
                       </p>
                     ) : null}
-                    <button onClick={addVideo} className="text-blue-600 text-sm font-bold hover:underline">{txt.addVideo}</button>
+                    <button type="button" onClick={addVideo} className="text-blue-600 text-sm font-bold hover:underline">{txt.addVideo}</button>
                 </div>
 
                 {/* Pricing Section */}
@@ -1255,8 +1256,12 @@ export default function InfluencerSignupForm() {
                 {/* Buttons at the end of Step 3 */}
                 <div className="mt-8 pt-6 border-t border-slate-200 flex flex-col-reverse sm:flex-row gap-3 sm:gap-4">
                   <button onClick={() => { setStep(2); setMessage(""); }} className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-all">{txt.back}</button>
-                  <button onClick={handleSubmit} disabled={loading} className="flex-1 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-900 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-slate-900/30 hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                    {loading ? txt.loading : txt.submit}
+                  <button
+                    onClick={handleSubmit}
+                    disabled={loading || videosChecking || videosNotPlayable}
+                    className="flex-1 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-900 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-slate-900/30 hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? txt.loading : videosChecking ? checkingLabel : txt.submit}
                   </button>
                 </div>
             </div>

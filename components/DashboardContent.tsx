@@ -12,7 +12,13 @@ import {
     FACEBOOK_VIDEO_LINK_ERROR,
     prepareVideosForSave,
 } from '@/lib/videoLinks';
-import { useVideoPlayableChecks } from '@/lib/useVideoPlayableChecks';
+import {
+    newVideoRowId,
+    toVideoRows,
+    useVideoPlayableChecks,
+    videoRowsToUrls,
+    type VideoRow,
+} from '@/lib/useVideoPlayableChecks';
 import VideoThumbnail from './VideoThumbnail';
 import Messaging from './Messaging';
 import Analytics from './Analytics';
@@ -144,7 +150,9 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
     const [malePercent, setMalePercent] = useState(user.audience_male_percent?.toString() || "");
     const [femalePercent, setFemalePercent] = useState(user.audience_female_percent?.toString() || "");
     const [topAge, setTopAge] = useState(user.audience_top_age || "");
-    const [videos, setVideos] = useState<string[]>(Array.isArray(user.videos) ? user.videos : [""]);
+    const [videoRows, setVideoRows] = useState<VideoRow[]>(() =>
+        toVideoRows(Array.isArray(user.videos) && user.videos.length ? user.videos : [""])
+    );
     const [loading, setLoading] = useState(false);
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatar_url || null);
@@ -244,57 +252,70 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
     const [videoLinkError, setVideoLinkError] = useState<string | null>(null);
     const existingVideos = Array.isArray(user.videos) ? user.videos : [];
     const {
-        checkingByIndex,
-        errorByIndex,
+        checkingById,
+        errorById,
         isChecking: videosChecking,
         hasBlockingError: videosNotPlayable,
         checkingLabel,
         notPlayableMessage,
         runCheck,
-        clearIndex,
+        scheduleCheck,
+        clearId,
         assertAllNewPlayable,
     } = useVideoPlayableChecks('el', existingVideos);
-    const handleVideoChange = (i: number, value: string) => {
+
+    useEffect(() => {
+        if (!videosNotPlayable && !videosChecking && videoLinkError === notPlayableMessage) {
+            setVideoLinkError(null);
+        }
+    }, [videosNotPlayable, videosChecking, videoLinkError, notPlayableMessage]);
+
+    const handleVideoChange = (id: string, value: string) => {
         setVideoLinkError(null);
-        clearIndex(i);
-        const copy = [...videos];
-        copy[i] = value;
-        setVideos(copy);
+        setVideoRows((rows) => rows.map((r) => (r.id === id ? { ...r, url: value } : r)));
+        if (!value.trim()) {
+            clearId(id);
+            return;
+        }
+        if (isEmbeddableVideoUrl(value) || isDefinitelyImage(value)) {
+            scheduleCheck(id, value);
+        } else {
+            clearId(id);
+        }
     };
-    const handleVideoBlur = (i: number) => {
+    const handleVideoBlur = (id: string) => {
         void (async () => {
-            const raw = videos[i] || '';
+            const raw = videoRows.find((r) => r.id === id)?.url || '';
             if (!raw.trim()) {
-                clearIndex(i);
+                clearId(id);
                 return;
             }
-            const cleaned = await runCheck(i, raw);
+            const cleaned = await runCheck(id, raw);
             if (!cleaned.ok) {
                 if (cleaned.reason === 'facebook') {
                     setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR.el);
-                    const copy = [...videos];
-                    copy[i] = '';
-                    setVideos(copy);
-                    clearIndex(i);
+                    setVideoRows((rows) => rows.map((r) => (r.id === id ? { ...r, url: '' } : r)));
+                    clearId(id);
                 }
                 return;
             }
             setVideoLinkError(null);
             if (cleaned.url !== raw) {
-                const copy = [...videos];
-                copy[i] = cleaned.url;
-                setVideos(copy);
+                setVideoRows((rows) =>
+                    rows.map((r) => (r.id === id ? { ...r, url: cleaned.url } : r))
+                );
             }
         })();
     };
-    const addVideo = () => setVideos([...videos, ""]);
-    const removeVideo = (i: number) => {
-        if (videos.length > 1) {
-            const copy = [...videos];
-            copy.splice(i, 1);
-            setVideos(copy);
-            clearIndex(i);
-        }
+    const addVideo = () =>
+        setVideoRows((rows) => [...rows, { id: newVideoRowId(), url: '' }]);
+    const removeVideo = (id: string) => {
+        setVideoRows((rows) => {
+            if (rows.length <= 1) return rows;
+            return rows.filter((r) => r.id !== id);
+        });
+        clearId(id);
+        setVideoLinkError(null);
     };
 
     const handleSave = async (e: React.FormEvent) => {
@@ -373,7 +394,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                 (currentData.accounts || []) as Account[]
             );
 
-            const preparedVideos = prepareVideosForSave(videos);
+            const preparedVideos = prepareVideosForSave(videoRowsToUrls(videoRows));
             if (!preparedVideos.ok) {
                 setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR.el);
                 alert(FACEBOOK_VIDEO_LINK_ERROR.el);
@@ -386,7 +407,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                 setLoading(false);
                 return;
             }
-            const playableOk = await assertAllNewPlayable(preparedVideos.videos);
+            const playableOk = await assertAllNewPlayable(videoRows);
             if (!playableOk) {
                 setVideoLinkError(notPlayableMessage);
                 alert(notPlayableMessage);
@@ -847,7 +868,9 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                         <h3 className="text-sm font-bold text-slate-900 mb-3 uppercase">Video Links / Φωτογραφίες</h3>
                         <p className="text-xs text-slate-600 mb-2">Μπορείτε να προσθέσετε links από TikTok, Reels, YouTube ή φωτογραφίες από δουλειές σας.</p>
                         <div className="space-y-2">
-                            {videos.map((video, i) => {
+                            {videoRows.map((row) => {
+                                const video = row.url;
+                                const rejected = !!errorById[row.id];
                                 const isVideo = isDefinitelyVideo(video);
                                 const isImage = isDefinitelyImage(video);
                                 const isInstagramPost = video && /instagram\.com\/(?:[A-Za-z0-9._]+\/)?p\//i.test(video);
@@ -863,30 +886,31 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                   !isEmbeddableVideoUrl(video);
 
                                 return (
-                                    <div key={i} className="flex gap-3 items-start">
+                                    <div key={row.id} className="flex gap-3 items-start">
                                         <div className="flex-1">
                                             <input 
                                                 type="url" 
                                                 value={video} 
-                                                onChange={e => handleVideoChange(i, e.target.value)}
-                                                onBlur={() => handleVideoBlur(i)}
+                                                onChange={e => handleVideoChange(row.id, e.target.value)}
+                                                onBlur={() => handleVideoBlur(row.id)}
                                                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" 
                                                 placeholder="https://youtube.com/... ή https://image.com/..." 
+                                                autoComplete="off"
                                             />
-                                            {checkingByIndex[i] ? (
+                                            {checkingById[row.id] ? (
                                               <p className="mt-2 text-sm text-slate-500">{checkingLabel}</p>
                                             ) : null}
-                                            {errorByIndex[i] ? (
+                                            {errorById[row.id] ? (
                                               <p className="mt-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                                                {errorByIndex[i]}
+                                                {errorById[row.id]}
                                               </p>
                                             ) : null}
-                                            {isProfileNotVideo && (
+                                            {isProfileNotVideo && !rejected && (
                                               <p className="mt-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                                                 {videoProfileWarn.el}
                                               </p>
                                             )}
-                                            {video && isEmbeddableVideoUrl(video) && (
+                                            {!rejected && video && isEmbeddableVideoUrl(video) && (
                                                 <div className="mt-2 relative w-full h-32 rounded-lg overflow-hidden border border-slate-200 bg-slate-100">
                                                     <VideoThumbnail 
                                                         url={video}
@@ -903,7 +927,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                                     )}
                                                 </div>
                                             )}
-                                            {video && isImage && (
+                                            {!rejected && video && isImage && (
                                                 <div className="mt-2 relative w-full h-32 rounded-lg overflow-hidden border border-slate-200 bg-slate-100">
                                                     <VideoThumbnail
                                                         url={video}
@@ -914,8 +938,8 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                                 </div>
                                             )}
                                         </div>
-                                        {videos.length > 1 && (
-                                            <button type="button" onClick={() => removeVideo(i)} className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg mt-8">✕</button>
+                                        {videoRows.length > 1 && (
+                                            <button type="button" onClick={() => removeVideo(row.id)} className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg mt-8">✕</button>
                                         )}
                                     </div>
                                 );
@@ -938,7 +962,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                     
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
                         <button type="button" onClick={onClose} className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg font-medium transition-colors">Ακύρωση</button>
-                        <button type="submit" disabled={loading} className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium disabled:opacity-50 transition-colors">
+                        <button type="submit" disabled={loading || videosChecking || videosNotPlayable} className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium disabled:opacity-50 transition-colors">
                             {loading ? 'Αποθήκευση...' : 'Αποθήκευση Αλλαγών'}
                         </button>
                     </div>

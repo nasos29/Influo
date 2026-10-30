@@ -8,7 +8,13 @@ import {
   FACEBOOK_VIDEO_LINK_ERROR,
   prepareVideosForSave,
 } from "@/lib/videoLinks";
-import { useVideoPlayableChecks } from "@/lib/useVideoPlayableChecks";
+import {
+  newVideoRowId,
+  toVideoRows,
+  useVideoPlayableChecks,
+  videoRowsToUrls,
+  type VideoRow,
+} from "@/lib/useVideoPlayableChecks";
 import VideoThumbnail from "./VideoThumbnail";
 import SocialEmbedCard from "./SocialEmbedCard";
 import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
@@ -852,7 +858,9 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
             ? user.accounts.map((acc: any) => ({ ...acc, engagement_rate: acc.engagement_rate || "", avg_likes: acc.avg_likes || "" }))
             : [{ platform: "Instagram", username: "", followers: "", engagement_rate: "", avg_likes: "" }]
     );
-    const [videos, setVideos] = useState<string[]>(Array.isArray(user.videos) ? user.videos : []);
+    const [videoRows, setVideoRows] = useState<VideoRow[]>(() =>
+      toVideoRows(Array.isArray(user.videos) && user.videos.length ? user.videos : [""])
+    );
     const [videoThumbnails, setVideoThumbnails] = useState<Record<string, string | { url: string; width?: number; height?: number; type?: string }>>(user.video_thumbnails || {});
     const [thumbnailFiles, setThumbnailFiles] = useState<Record<string, File | null>>({}); // Store files to upload
     const [thumbnailPreviews, setThumbnailPreviews] = useState<Record<string, string>>({}); // Preview URLs
@@ -878,75 +886,89 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
     const [videoLinkError, setVideoLinkError] = useState<string | null>(null);
     const existingVideos = Array.isArray(user.videos) ? user.videos : [];
     const {
-        checkingByIndex,
-        errorByIndex,
+        checkingById,
+        errorById,
         isChecking: videosChecking,
         hasBlockingError: videosNotPlayable,
         checkingLabel,
         notPlayableMessage,
         runCheck,
-        clearIndex,
+        scheduleCheck,
+        clearId,
         assertAllNewPlayable,
     } = useVideoPlayableChecks("el", existingVideos);
-    const handleVideoChange = (i: number, value: string) => {
+
+    useEffect(() => {
+        if (!videosNotPlayable && !videosChecking && videoLinkError === notPlayableMessage) {
+            setVideoLinkError(null);
+        }
+    }, [videosNotPlayable, videosChecking, videoLinkError, notPlayableMessage]);
+
+    const handleVideoChange = (id: string, value: string) => {
         markSensitiveTouched("videos");
         setVideoLinkError(null);
-        clearIndex(i);
-        const copy = [...videos];
-        const oldUrl = copy[i];
-        copy[i] = value;
-        setVideos(copy);
-        
-        // If video URL changed, preserve thumbnail if URL is the same, otherwise remove it
-        if (oldUrl && oldUrl !== value && videoThumbnails[oldUrl]) {
-            const newThumbnails = { ...videoThumbnails };
-            delete newThumbnails[oldUrl];
-            if (videoThumbnails[value]) {
-                // Keep existing thumbnail if new URL already has one
-                setVideoThumbnails({ ...newThumbnails, [value]: videoThumbnails[value] });
-            } else {
-                setVideoThumbnails(newThumbnails);
+        setVideoRows((rows) => {
+            const prev = rows.find((r) => r.id === id);
+            const oldUrl = prev?.url || "";
+            if (oldUrl && oldUrl !== value && videoThumbnails[oldUrl]) {
+                const newThumbnails = { ...videoThumbnails };
+                delete newThumbnails[oldUrl];
+                if (videoThumbnails[value]) {
+                    setVideoThumbnails({ ...newThumbnails, [value]: videoThumbnails[value] });
+                } else {
+                    setVideoThumbnails(newThumbnails);
+                }
             }
+            return rows.map((r) => (r.id === id ? { ...r, url: value } : r));
+        });
+        if (!value.trim()) {
+            clearId(id);
+            return;
+        }
+        if (isEmbeddableVideoUrl(value) || isDefinitelyImage(value)) {
+            scheduleCheck(id, value);
+        } else {
+            clearId(id);
         }
     };
-    const handleVideoBlur = (i: number) => {
+    const handleVideoBlur = (id: string) => {
         void (async () => {
-            const raw = videos[i] || "";
+            const raw = videoRows.find((r) => r.id === id)?.url || "";
             if (!raw.trim()) {
-                clearIndex(i);
+                clearId(id);
                 return;
             }
-            const cleaned = await runCheck(i, raw);
+            const cleaned = await runCheck(id, raw);
             if (!cleaned.ok) {
                 if (cleaned.reason === "facebook") {
                     setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR.el);
                     markSensitiveTouched("videos");
-                    const copy = [...videos];
-                    const oldUrl = copy[i];
-                    copy[i] = "";
-                    setVideos(copy);
-                    clearIndex(i);
-                    if (oldUrl && videoThumbnails[oldUrl]) {
-                        const newThumbnails = { ...videoThumbnails };
-                        delete newThumbnails[oldUrl];
-                        setVideoThumbnails(newThumbnails);
-                    }
+                    setVideoRows((rows) => {
+                        const oldUrl = rows.find((r) => r.id === id)?.url || "";
+                        if (oldUrl && videoThumbnails[oldUrl]) {
+                            const newThumbnails = { ...videoThumbnails };
+                            delete newThumbnails[oldUrl];
+                            setVideoThumbnails(newThumbnails);
+                        }
+                        return rows.map((r) => (r.id === id ? { ...r, url: "" } : r));
+                    });
+                    clearId(id);
                 }
                 return;
             }
             setVideoLinkError(null);
             if (cleaned.url !== raw) {
                 markSensitiveTouched("videos");
-                const copy = [...videos];
-                const oldUrl = copy[i];
-                copy[i] = cleaned.url;
-                setVideos(copy);
-                if (oldUrl && oldUrl !== cleaned.url && videoThumbnails[oldUrl]) {
-                    const newThumbnails = { ...videoThumbnails };
-                    const prev = newThumbnails[oldUrl];
-                    delete newThumbnails[oldUrl];
-                    setVideoThumbnails({ ...newThumbnails, [cleaned.url]: prev });
-                }
+                setVideoRows((rows) => {
+                    const oldUrl = rows.find((r) => r.id === id)?.url || "";
+                    if (oldUrl && oldUrl !== cleaned.url && videoThumbnails[oldUrl]) {
+                        const newThumbnails = { ...videoThumbnails };
+                        const prevThumb = newThumbnails[oldUrl];
+                        delete newThumbnails[oldUrl];
+                        setVideoThumbnails({ ...newThumbnails, [cleaned.url]: prevThumb });
+                    }
+                    return rows.map((r) => (r.id === id ? { ...r, url: cleaned.url } : r));
+                });
             }
         })();
     };
@@ -1136,22 +1158,22 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
     
     const addVideo = () => {
         markSensitiveTouched("videos");
-        setVideos([...videos, ""]);
+        setVideoRows((rows) => [...rows, { id: newVideoRowId(), url: "" }]);
     };
-    const removeVideo = (i: number) => {
+    const removeVideo = (id: string) => {
         markSensitiveTouched("videos");
-        const videoUrl = videos[i];
-        const copy = [...videos]; 
-        copy.splice(i, 1);
-        setVideos(copy);
-        clearIndex(i);
-        
-        // Remove thumbnail for deleted video
-        if (videoUrl && videoThumbnails[videoUrl]) {
-            const newThumbnails = { ...videoThumbnails };
-            delete newThumbnails[videoUrl];
-            setVideoThumbnails(newThumbnails);
-        }
+        setVideoRows((rows) => {
+            const videoUrl = rows.find((r) => r.id === id)?.url || "";
+            if (videoUrl && videoThumbnails[videoUrl]) {
+                const newThumbnails = { ...videoThumbnails };
+                delete newThumbnails[videoUrl];
+                setVideoThumbnails(newThumbnails);
+            }
+            if (rows.length <= 1) return [{ id: rows[0]?.id || newVideoRowId(), url: "" }];
+            return rows.filter((r) => r.id !== id);
+        });
+        clearId(id);
+        setVideoLinkError(null);
     };
 
     const handleSave = async (e: React.FormEvent) => {
@@ -1229,7 +1251,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                         username: normalizeYouTubeUsernameForSave(username),
                     };
                 });
-            const preparedVideos = prepareVideosForSave(videos);
+            const preparedVideos = prepareVideosForSave(videoRowsToUrls(videoRows));
             if (!preparedVideos.ok) {
                 setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR.el);
                 alert(FACEBOOK_VIDEO_LINK_ERROR.el);
@@ -1242,7 +1264,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                 setLoading(false);
                 return;
             }
-            const playableOk = await assertAllNewPlayable(preparedVideos.videos);
+            const playableOk = await assertAllNewPlayable(videoRows);
             if (!playableOk) {
                 setVideoLinkError(notPlayableMessage);
                 alert(notPlayableMessage);
@@ -1695,7 +1717,9 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                         {/* Videos */}
                         <div>
                             <h3 className="text-sm font-bold text-slate-900 uppercase mb-3">Video Links / Φωτογραφίες</h3>
-                            {videos.map((video, i) => {
+                            {videoRows.map((row) => {
+                                const video = row.url;
+                                const rejected = !!errorById[row.id];
                                 const isVideo = isDefinitelyVideo(video);
                                 const isImage = isDefinitelyImage(video);
                                 const isInstagramPost = video && /instagram\.com\/(?:[A-Za-z0-9._]+\/)?p\//i.test(video);
@@ -1712,35 +1736,36 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                 const thumbnailUrlString = getThumbnailUrl(currentThumbnail);
                                 
                                 return (
-                                    <div key={i} className="mb-3">
+                                    <div key={row.id} className="mb-3">
                                         <div className="flex gap-2 items-end">
                                             <div className="flex-1">
                                                 <label className="block text-xs font-semibold text-slate-700 mb-1">Video/Photo URL</label>
                                                 <input
                                                   type="url"
                                                   value={video}
-                                                  onChange={e => handleVideoChange(i, e.target.value)}
-                                                  onBlur={() => handleVideoBlur(i)}
+                                                  onChange={e => handleVideoChange(row.id, e.target.value)}
+                                                  onBlur={() => handleVideoBlur(row.id)}
                                                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
                                                   placeholder="https://..."
+                                                  autoComplete="off"
                                                 />
                                             </div>
-                                            <button type="button" onClick={() => removeVideo(i)} className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">✕</button>
+                                            <button type="button" onClick={() => removeVideo(row.id)} className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">✕</button>
                                         </div>
-                                        {checkingByIndex[i] ? (
+                                        {checkingById[row.id] ? (
                                           <p className="mt-2 text-sm text-slate-500">{checkingLabel}</p>
                                         ) : null}
-                                        {errorByIndex[i] ? (
+                                        {errorById[row.id] ? (
                                           <p className="mt-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                                            {errorByIndex[i]}
+                                            {errorById[row.id]}
                                           </p>
                                         ) : null}
-                                        {video && detectProvider(video) && !isDefinitelyImage(video) && !isEmbeddableVideoUrl(video) && (
+                                        {!rejected && video && detectProvider(video) && !isDefinitelyImage(video) && !isEmbeddableVideoUrl(video) && (
                                           <p className="mt-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                                             {{ el: "Αυτό είναι link προφίλ, όχι video. Βάλε link από συγκεκριμένο reel/video/post.", en: "This is a profile link, not a video. Paste a link to a specific reel/video/post." }.el}
                                           </p>
                                         )}
-                                        {video && (
+                                        {!rejected && video && (
                                             <>
                                                 {/* Thumbnail Input Section */}
                                                 <div className="mt-3 p-3 border border-slate-200 rounded-lg bg-slate-50 space-y-2">
@@ -1894,7 +1919,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                     </div>
                     <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-200">
                         <button type="button" onClick={onClose} className="px-6 py-2 text-slate-900 hover:bg-slate-100 rounded-lg font-semibold transition-colors border border-slate-300">Cancel</button>
-                        <button type="submit" disabled={loading} className="px-6 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-semibold disabled:opacity-50 transition-colors">
+                        <button type="submit" disabled={loading || videosChecking || videosNotPlayable} className="px-6 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-semibold disabled:opacity-50 transition-colors">
                             {loading ? 'Saving...' : 'Save Changes'}
                         </button>
                     </div>
