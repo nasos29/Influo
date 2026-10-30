@@ -1005,13 +1005,15 @@ export default function InfluencerProfile(props: {
     return () => { cancelled = true; };
   }, [isBrand, id]);
 
-  // Track profile view after profile loads
+  // Track profile view once per page load (not on every profile refresh).
+  const trackedViewRef = useRef<string | null>(null);
   useEffect(() => {
     if (!id || !profile) return;
+    if (trackedViewRef.current === id) return;
+    trackedViewRef.current = id;
 
     const trackProfileView = async () => {
       try {
-        // Get brand info if user is a brand
         let brandEmail = null;
         let brandName = null;
         try {
@@ -1033,11 +1035,10 @@ export default function InfluencerProfile(props: {
               }
             }
           }
-        } catch (e) {
+        } catch {
           // Ignore errors
         }
 
-        // Track profile view (visitorId for unique-anon count when not brand)
         await fetch('/api/analytics/track', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1049,13 +1050,13 @@ export default function InfluencerProfile(props: {
             visitorId: getVisitorId(),
             metadata: { source: 'profile_page' }
           })
-        }).catch(() => {}); // Fail silently
-      } catch (err) {
+        }).catch(() => {});
+      } catch {
         // Fail silently - analytics tracking should not break the page
       }
     };
 
-    trackProfileView();
+    void trackProfileView();
   }, [id, profile]);
 
   // Fetch 15-day growth when profile is loaded (for stats card)

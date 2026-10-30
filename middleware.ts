@@ -20,8 +20,6 @@ function isPrivatePath(pathname: string): boolean {
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const host = (request.headers.get("host") || "").split(":")[0].toLowerCase();
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set("x-pathname", pathname);
 
   // Production *.vercel.app is a duplicate of www. Preview deploys stay up, noindex.
   // /api is excluded by the matcher, so /api/cron/* is never redirected.
@@ -29,7 +27,7 @@ export function middleware(request: NextRequest) {
     const productionHost = host === "influo.vercel.app" || process.env.VERCEL_ENV === "production";
     const preview = process.env.VERCEL_ENV === "preview" || !productionHost;
     if (preview) {
-      const previewResponse = NextResponse.next({ request: { headers: requestHeaders } });
+      const previewResponse = NextResponse.next();
       previewResponse.headers.set("X-Robots-Tag", "noindex, nofollow");
       return previewResponse;
     }
@@ -40,9 +38,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(dest, 308);
   }
 
-  const response = NextResponse.next({
-    request: { headers: requestHeaders },
-  });
+  const response = NextResponse.next();
 
   if (request.method === "GET" && !isPrivatePath(pathname) && !request.nextUrl.search) {
     response.headers.set("Cache-Control", "public, s-maxage=300, stale-while-revalidate=86400");
@@ -52,11 +48,10 @@ export function middleware(request: NextRequest) {
 }
 
 /**
- * Run middleware only for real app pages.
- * Skips API/static assets so /api/cron/* (called by the owner's local tool) is untouched.
+ * Real app pages only — skip API, Next internals, and common static assets.
  */
 export const config = {
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt|xml)$).*)",
+    "/((?!api|_next/static|_next/image|_next/data|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|txt|xml|js|css|woff2?|mp4|webm|map)$).*)",
   ],
 };

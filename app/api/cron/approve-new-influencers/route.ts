@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { copyAuditprErExtras } from '@/lib/engagementFlags';
+import { GEMINI_PAUSED_MSG, isGeminiPaused } from '@/lib/geminiPause';
 import { doRefreshSocialStats, type InstagramOverrides, type TikTokOverrides, type YouTubeOverrides } from '@/lib/refreshSocialStats';
 import { finalizeNewInfluencerApproval } from '@/lib/approveNewInfluencer';
 import {
@@ -132,6 +133,10 @@ export async function GET(request: NextRequest) {
   if (denied) return denied;
   try {
     const influencers = await listNewUnapprovedWithSocials();
+    // Idle polls from Oracle: cheap empty response (no side effects).
+    if (influencers.length === 0) {
+      return NextResponse.json({ influencers: [], count: 0, job: 'approve_new', idle: true });
+    }
     return NextResponse.json({ influencers, count: influencers.length, job: 'approve_new' });
   } catch (err: unknown) {
     return NextResponse.json(
@@ -150,8 +155,26 @@ export async function POST(request: NextRequest) {
     const action = String(body?.action || '').trim();
 
     if (action === 'start') {
-      const purged = await purgeOldSocialRefreshLogs(supabaseAdmin);
+      if (isGeminiPaused()) {
+        return NextResponse.json({
+          run: null,
+          influencers: [],
+          purged: 0,
+          paused: true,
+          message: GEMINI_PAUSED_MSG,
+        });
+      }
       const influencers = await listNewUnapprovedWithSocials();
+      // Oracle was polling ~every 2 min; when idle skip purge/run creation entirely.
+      if (influencers.length === 0) {
+        return NextResponse.json({
+          run: null,
+          influencers: [],
+          purged: 0,
+          idle: true,
+        });
+      }
+      const purged = await purgeOldSocialRefreshLogs(supabaseAdmin);
       const run = await createSocialRefreshRun(
         supabaseAdmin,
         influencers.length,

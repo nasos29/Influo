@@ -2,8 +2,15 @@ import type { Metadata } from "next";
 import PublicCampaignsPage from "@/components/PublicCampaignsPage";
 import { loadOpenCampaigns } from "@/lib/loadHomeOpenCampaigns";
 import { absoluteUrl, languageAlternates } from "@/lib/site";
+import { unstable_cache } from "next/cache";
 
-export const revalidate = 300;
+export const revalidate = 3600;
+
+const cachedOpenCampaigns = unstable_cache(
+  () => loadOpenCampaigns(),
+  ["public-open-campaigns"],
+  { revalidate: 3600, tags: ["public-campaigns"] }
+);
 
 const copy = {
   el: {
@@ -33,6 +40,6 @@ export const metadata: Metadata = {
 };
 
 export default async function PublicCampaignsRoute() {
-  const initialCampaigns = await loadOpenCampaigns();
+  const initialCampaigns = await cachedOpenCampaigns();
   return <PublicCampaignsPage initialCampaigns={initialCampaigns} />;
 }
