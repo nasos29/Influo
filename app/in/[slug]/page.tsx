@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { notFound, permanentRedirect } from "next/navigation";
 import InfluencerProfileClient from "@/components/InfluencerProfileClient";
 import { supabaseService } from "@/lib/apiAuth";
@@ -60,11 +61,14 @@ export default async function InfluencerBySlugPage({ params }: { params: Params 
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
       />
-      <InfluencerProfileClient
-        params={Promise.resolve({ id: resolved.profile.id })}
-        initialProfile={resolved.profile.view}
-        publicPath={path}
-      />
+      {/* useSearchParams() inside the client tree needs a Suspense boundary for ISR. */}
+      <Suspense fallback={<div className="min-h-screen bg-slate-50" />}>
+        <InfluencerProfileClient
+          params={Promise.resolve({ id: resolved.profile.id })}
+          initialProfile={resolved.profile.view}
+          publicPath={path}
+        />
+      </Suspense>
     </>
   );
 }

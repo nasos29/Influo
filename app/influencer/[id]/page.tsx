@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { notFound, permanentRedirect } from "next/navigation";
 import InfluencerProfileClient from "@/components/InfluencerProfileClient";
 import { loadSeoProfileById } from "@/lib/loadSeoProfile";
@@ -43,11 +44,13 @@ export default async function InfluencerByIdPage({ params }: { params: Params })
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
       />
-      <InfluencerProfileClient
-        params={Promise.resolve({ id: profile.id })}
-        initialProfile={profile.view}
-        publicPath={path}
-      />
+      <Suspense fallback={<div className="min-h-screen bg-slate-50" />}>
+        <InfluencerProfileClient
+          params={Promise.resolve({ id: profile.id })}
+          initialProfile={profile.view}
+          publicPath={path}
+        />
+      </Suspense>
     </>
   );
 }
