@@ -2587,8 +2587,10 @@ export default function InfluencerProfile(props: {
                                         const AdaptiveImage = ({ imageUrl, alt }: { imageUrl: string; alt: string }) => {
                                             const [imgSrc, setImgSrc] = useState<string | null>(null);
                                             const [error, setError] = useState(false);
+                                            const refreshUsedRef = useRef(false);
 
                                             useEffect(() => {
+                                                refreshUsedRef.current = false;
                                                 if (isDefinitelyImage(imageUrl)) {
                                                     setImgSrc(imageUrl);
                                                     return;
@@ -2618,6 +2620,29 @@ export default function InfluencerProfile(props: {
                                                 fetchThumbnail();
                                             }, [imageUrl]);
 
+                                            const onImgError = () => {
+                                                if (!refreshUsedRef.current && imageUrl) {
+                                                    refreshUsedRef.current = true;
+                                                    void (async () => {
+                                                        try {
+                                                            const res = await fetch(
+                                                                `/api/video-thumbnail?url=${encodeURIComponent(imageUrl)}&refresh=1`
+                                                            );
+                                                            const data = await res.json();
+                                                            if (data.thumbnail) {
+                                                                setImgSrc(String(data.thumbnail));
+                                                                return;
+                                                            }
+                                                        } catch {
+                                                            /* gradient via VideoThumbnail */
+                                                        }
+                                                        setError(true);
+                                                    })();
+                                                    return;
+                                                }
+                                                setError(true);
+                                            };
+
                                             if (error || !imgSrc) {
                                                 return (
                                                     <div className="relative w-full flex items-center justify-center p-4 min-h-[200px]">
@@ -2642,7 +2667,7 @@ export default function InfluencerProfile(props: {
                                                         loading="lazy"
                                                         referrerPolicy="no-referrer"
                                                         style={{ display: 'block' }}
-                                                        onError={() => setError(true)}
+                                                        onError={onImgError}
                                                     />
                                                 </div>
                                             );

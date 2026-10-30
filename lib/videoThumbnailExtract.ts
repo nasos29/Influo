@@ -47,6 +47,16 @@ export function extractTikTokCoverFromHtml(html: string): string | null {
   return null;
 }
 
+/** Decode common HTML entities in meta content URLs (`&amp;` → `&`). */
+function decodeHtmlEntities(raw: string): string {
+  return raw
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">");
+}
+
 /** Extract og:image from HTML meta tags. */
 export function extractOgImageFromHtml(html: string): string | null {
   if (!html) return null;
@@ -59,7 +69,7 @@ export function extractOgImageFromHtml(html: string): string | null {
   for (const pattern of patterns) {
     const match = html.match(pattern);
     if (match?.[1]) {
-      const url = normalizeHttpUrl(match[1]);
+      const url = normalizeHttpUrl(decodeHtmlEntities(match[1]));
       if (url && !isGenericLogoThumbnail(url)) return url;
     }
   }
@@ -75,10 +85,18 @@ export function thumbnailProxySrc(imageUrl: string): string {
   return `/api/thumbnail-proxy?url=${encodeURIComponent(imageUrl)}`;
 }
 
-/** Wrap CDN thumbs in the proxy path; leave YouTube / already-proxied alone. */
+/** Wrap CDN thumbs in the proxy path; Storage via image-proxy; leave YouTube alone. */
 export function toDisplayThumbnailSrc(thumbnailUrl: string | null): string | null {
   if (!thumbnailUrl) return null;
   if (thumbnailUrl.startsWith("/api/thumbnail-proxy")) return thumbnailUrl;
+  if (thumbnailUrl.startsWith("/api/image-proxy")) return thumbnailUrl;
   if (isCdnThumbnailUrl(thumbnailUrl)) return thumbnailProxySrc(thumbnailUrl);
+  // Durable covers in Supabase Storage → Vercel CDN via /api/image-proxy
+  if (
+    (thumbnailUrl.includes("supabase.co") || thumbnailUrl.includes("supabase.in")) &&
+    thumbnailUrl.includes("/storage/")
+  ) {
+    return `/api/image-proxy?url=${encodeURIComponent(thumbnailUrl)}`;
+  }
   return thumbnailUrl;
 }

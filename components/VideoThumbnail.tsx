@@ -1,8 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback, type ReactNode } from "react";
+import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import Image from "next/image";
 import { buildOfficialEmbedUrl, getVideoThumbnail, isVideoUrl } from "@/lib/videoThumbnail";
+import { refreshVideoThumbnail } from "@/lib/useVideoThumbnail";
+import {
+  isCdnThumbnailUrl,
+  thumbnailProxySrc,
+  toDisplayThumbnailSrc,
+} from "@/lib/videoThumbnailExtract";
 
 type MediaType = "video" | "image";
 
@@ -20,7 +26,7 @@ interface VideoThumbnailProps {
 const ARIA = {
   photo: { el: "Φωτογραφία", en: "Photo" },
   video: { el: "Βίντεο", en: "Video" },
-  openEmbed: { el: "Προβολή στο Influo", en: "View on Influo" },
+  openEmbed: { el: "Αναπαραγωγή", en: "Play" },
 } as const;
 
 function PhotoBadge({ label }: { label: string }) {
@@ -68,6 +74,9 @@ export default function VideoThumbnail({
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [embedSrc, setEmbedSrc] = useState<string | null>(null);
+  const [nativeVideoUrl, setNativeVideoUrl] = useState<string | null>(null);
+  const proxiedRef = useRef(false);
+  const refreshUsedRef = useRef(false);
   const isImage = url.match(/\.(jpg|jpeg|png|gif|webp)$/i);
   const isVideo = isVideoUrl(url);
   const isInstagram = /instagram\.com\/(?:(?:[A-Za-z0-9._]+)\/)?(p|reel|tv)\//i.test(url);
@@ -75,10 +84,13 @@ export default function VideoThumbnail({
 
   useEffect(() => {
     let cancelled = false;
+    proxiedRef.current = false;
+    refreshUsedRef.current = false;
 
     const fetchThumbnail = async () => {
       setFailed(false);
       setEmbedSrc(null);
+      setNativeVideoUrl(null);
 
       if (manualThumbnail) {
         if (!cancelled) {
@@ -127,7 +139,8 @@ export default function VideoThumbnail({
             mediaType?: MediaType;
           };
           if (cancelled) return;
-          setThumbnail(data.thumbnail || null);
+          const display = toDisplayThumbnailSrc(data.thumbnail || null);
+          setThumbnail(display);
           if (data.mediaType === "video" || data.mediaType === "image") {
             setMediaType(data.mediaType);
           } else {
@@ -157,11 +170,60 @@ export default function VideoThumbnail({
     };
   }, [url, manualThumbnail, isImage, isInstagram, isTikTok]);
 
+  const handleImgError = useCallback(() => {
+    if (
+      thumbnail &&
+      !proxiedRef.current &&
+      !thumbnail.startsWith("/api/thumbnail-proxy") &&
+      !thumbnail.startsWith("/api/image-proxy") &&
+      isCdnThumbnailUrl(thumbnail)
+    ) {
+      proxiedRef.current = true;
+      setThumbnail(thumbnailProxySrc(thumbnail));
+      return;
+    }
+
+    if (!refreshUsedRef.current && url) {
+      refreshUsedRef.current = true;
+      void (async () => {
+        const refreshed = await refreshVideoThumbnail(url).catch(() => ({
+          thumbnail: null as string | null,
+        }));
+        const display = toDisplayThumbnailSrc(refreshed.thumbnail);
+        if (display) {
+          proxiedRef.current = true;
+          setThumbnail(display);
+          return;
+        }
+        setFailed(true);
+        setThumbnail(null);
+      })();
+      return;
+    }
+
+    setFailed(true);
+    setThumbnail(null);
+  }, [thumbnail, url]);
+
   const openInstagramEmbed = useCallback(() => {
-    if (!isInstagram || embedSrc) return;
-    const official = buildOfficialEmbedUrl(url, { autoplay: false });
-    if (official) setEmbedSrc(official);
-  }, [embedSrc, isInstagram, url]);
+    if (!isInstagram || embedSrc || nativeVideoUrl) return;
+    void (async () => {
+      try {
+        const res = await fetch(`/api/instagram-video?url=${encodeURIComponent(url)}`);
+        if (res.ok) {
+          const data = (await res.json()) as { videoUrl?: string | null };
+          if (data.videoUrl) {
+            setNativeVideoUrl(String(data.videoUrl));
+            return;
+          }
+        }
+      } catch {
+        /* fall through to iframe */
+      }
+      const official = buildOfficialEmbedUrl(url, { autoplay: false });
+      if (official) setEmbedSrc(official);
+    })();
+  }, [embedSrc, isInstagram, nativeVideoUrl, url]);
 
   if (loading) {
     return (
@@ -169,6 +231,31 @@ export default function VideoThumbnail({
         className={`bg-gray-200 animate-pulse ${className}`}
         style={fill ? {} : { width, height }}
       />
+    );
+  }
+
+  if (nativeVideoUrl) {
+    return (
+      <div
+        className={`relative overflow-hidden bg-black ${className}`}
+        style={fill ? { width: "100%", height: "100%" } : { width, height, minHeight: 320 }}
+      >
+        <video
+          src={nativeVideoUrl}
+          controls
+          autoPlay
+          playsInline
+          className="absolute inset-0 h-full w-full object-contain"
+          ref={(el) => {
+            if (el) el.setAttribute("referrerpolicy", "no-referrer");
+          }}
+          onError={() => {
+            setNativeVideoUrl(null);
+            const official = buildOfficialEmbedUrl(url, { autoplay: false });
+            if (official) setEmbedSrc(official);
+          }}
+        />
+      </div>
     );
   }
 
@@ -228,7 +315,7 @@ export default function VideoThumbnail({
         }
         loading="lazy"
         referrerPolicy="no-referrer"
-        onError={() => setFailed(true)}
+        onError={handleImgError}
       />
     ) : (
       <Image
@@ -240,6 +327,7 @@ export default function VideoThumbnail({
         sizes={fill ? undefined : "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"}
         className={fill ? "object-cover" : className}
         unoptimized
+        onError={handleImgError}
         style={
           fill
             ? undefined

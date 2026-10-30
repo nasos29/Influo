@@ -7,11 +7,6 @@ import {
   buildTikTokPlayerUrl,
   extractTikTokVideoId,
 } from "@/lib/tikTokPlayer";
-import {
-  releaseInstagramEmbedSlot,
-  requestInstagramEmbedSlot,
-} from "@/lib/instagramEmbedQueue";
-
 type Provider = "instagram" | "tiktok" | "youtube";
 
 interface SocialEmbedCardProps {
@@ -26,7 +21,8 @@ interface SocialEmbedCardProps {
 }
 
 const COPY = {
-  play: { el: "Προβολή βίντεο", en: "Play video" },
+  play: { el: "Αναπαραγωγή", en: "Play" },
+  playVideo: { el: "Προβολή βίντεο", en: "Play video" },
   viewPhoto: { el: "Προβολή φωτογραφίας", en: "View photo" },
   loading: { el: "Φόρτωση", en: "Loading" },
   error: { el: "Αποτυχία φόρτωσης", en: "Failed to load" },
@@ -50,8 +46,6 @@ const DEFAULT_DIMENSIONS: Record<Provider, { width: number; height: number }> = 
   tiktok: { width: 400, height: 600 },
   youtube: { width: 560, height: 315 },
 };
-
-const IG_SLOT_TIMEOUT_MS = 4000;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -83,10 +77,23 @@ async function fetchTikTokEmbedUrl(originalUrl: string): Promise<string> {
   }
 }
 
+async function fetchInstagramNativeVideo(
+  originalUrl: string
+): Promise<{ videoUrl: string | null; poster: string | null }> {
+  const res = await fetch(`/api/instagram-video?url=${encodeURIComponent(originalUrl)}`);
+  if (!res.ok) return { videoUrl: null, poster: null };
+  const data = (await res.json()) as { videoUrl?: string | null; poster?: string | null };
+  return {
+    videoUrl: data.videoUrl ? String(data.videoUrl) : null,
+    poster: data.poster ? String(data.poster) : null,
+  };
+}
+
 /**
  * Social video card:
- * - YouTube / TikTok: facade with cover + ▶; iframe only after click (TikTok → player/v1).
- * - Instagram: no facade; official embed mounts near viewport (queued, max 2 concurrent).
+ * - YouTube / TikTok / Instagram: facade with cover + ▶; media only after click.
+ * - Instagram reels: native <video> when /api/instagram-video finds an MP4; else official iframe.
+ * - Instagram /p/ photos: official embed on click.
  */
 export default function SocialEmbedCard({
   provider,
@@ -104,21 +111,21 @@ export default function SocialEmbedCard({
 
   const [activated, setActivated] = useState(false);
   const [iframeSrc, setIframeSrc] = useState<string | null>(null);
+  const [nativeVideoUrl, setNativeVideoUrl] = useState<string | null>(null);
+  const [nativePoster, setNativePoster] = useState<string | null>(null);
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
-  const igSlotHeldRef = useRef(false);
 
   const { src: thumbSrc, mediaType, onImgError } = useLazyVideoThumbnail(
     originalUrl,
-    nearViewport && (isInstagram ? !iframeLoaded : !activated)
+    nearViewport && !activated
   );
   const isPhotoMedia = mediaType === "image";
 
   useEffect(() => {
     const node = rootRef.current;
     if (!node || nearViewport) return;
-    const rootMargin = isInstagram ? "300px" : "200px";
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((e) => e.isIntersecting)) {
@@ -126,62 +133,26 @@ export default function SocialEmbedCard({
           observer.disconnect();
         }
       },
-      { rootMargin, threshold: 0.01 }
+      { rootMargin: "200px", threshold: 0.01 }
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, [nearViewport, isInstagram]);
+  }, [nearViewport]);
 
-  // Instagram: queue official embed when near viewport (no click facade).
-  useEffect(() => {
-    if (!isInstagram || !nearViewport || iframeSrc || error) return;
-
-    let cancelled = false;
-    let releaseTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const cancelWait = requestInstagramEmbedSlot(() => {
-      if (cancelled) {
-        releaseInstagramEmbedSlot();
-        return;
-      }
-      igSlotHeldRef.current = true;
-      const official = buildOfficialEmbedUrl(originalUrl, { autoplay: false });
-      if (!official) {
-        setError(true);
-        igSlotHeldRef.current = false;
-        releaseInstagramEmbedSlot();
-        return;
-      }
-      setIframeSrc(official);
-      setActivated(true);
-      releaseTimer = setTimeout(() => {
-        if (igSlotHeldRef.current) {
-          igSlotHeldRef.current = false;
-          releaseInstagramEmbedSlot();
-        }
-      }, IG_SLOT_TIMEOUT_MS);
-    });
-
-    return () => {
-      cancelled = true;
-      cancelWait();
-      if (releaseTimer) clearTimeout(releaseTimer);
-      if (igSlotHeldRef.current) {
-        igSlotHeldRef.current = false;
-        releaseInstagramEmbedSlot();
-      }
-    };
-  }, [isInstagram, nearViewport, iframeSrc, error, originalUrl]);
-
-  const releaseIgSlotIfHeld = useCallback(() => {
-    if (igSlotHeldRef.current) {
-      igSlotHeldRef.current = false;
-      releaseInstagramEmbedSlot();
+  const fallBackToOfficialEmbed = useCallback(() => {
+    setNativeVideoUrl(null);
+    const official = buildOfficialEmbedUrl(originalUrl, { autoplay: false });
+    if (!official) {
+      setError(true);
+      setLoading(false);
+      return;
     }
-  }, []);
+    setIframeSrc(official);
+    setLoading(false);
+  }, [originalUrl]);
 
   const activateClickToLoad = useCallback(async () => {
-    if (isInstagram || loading || iframeSrc) return;
+    if (loading || iframeSrc || nativeVideoUrl) return;
     setError(false);
     setActivated(true);
     setLoading(true);
@@ -194,23 +165,48 @@ export default function SocialEmbedCard({
         return;
       }
 
-      // TikTok: official player/v1 after user click — unmuted (gesture unlocks audio).
-      let videoId = extractTikTokVideoId(originalUrl);
-      if (!videoId) {
-        const embedOrResolved = await fetchTikTokEmbedUrl(originalUrl);
-        videoId = extractTikTokVideoId(embedOrResolved);
+      if (provider === "tiktok") {
+        let videoId = extractTikTokVideoId(originalUrl);
+        if (!videoId) {
+          const embedOrResolved = await fetchTikTokEmbedUrl(originalUrl);
+          videoId = extractTikTokVideoId(embedOrResolved);
+        }
+        if (!videoId) throw new Error("Missing TikTok video id");
+        setIframeSrc(buildTikTokPlayerUrl(videoId, { muted: false }));
+        setLoading(false);
+        return;
       }
-      if (!videoId) throw new Error("Missing TikTok video id");
-      setIframeSrc(buildTikTokPlayerUrl(videoId, { muted: false }));
-      setLoading(false);
+
+      // Instagram photo posts keep the official embed; reels/videos try native MP4 first.
+      if (mediaType === "image") {
+        fallBackToOfficialEmbed();
+        return;
+      }
+
+      const { videoUrl, poster } = await fetchInstagramNativeVideo(originalUrl);
+      if (videoUrl) {
+        setNativeVideoUrl(videoUrl);
+        setNativePoster(poster);
+        setLoading(false);
+        return;
+      }
+      fallBackToOfficialEmbed();
     } catch {
       setError(true);
       setLoading(false);
     }
-  }, [iframeSrc, isInstagram, loading, originalUrl, provider]);
+  }, [
+    fallBackToOfficialEmbed,
+    iframeSrc,
+    loading,
+    mediaType,
+    nativeVideoUrl,
+    originalUrl,
+    provider,
+  ]);
 
-  const showClickFacade = !isInstagram && (!activated || error);
-  const showIgSkeleton = isInstagram && !iframeLoaded;
+  const showClickFacade = !activated || error;
+  const playLabel = isInstagram ? COPY.play[uiLang] : COPY.playVideo[uiLang];
 
   return (
     <div className="w-full max-w-full" ref={rootRef}>
@@ -224,7 +220,7 @@ export default function SocialEmbedCard({
             aria-hidden
           />
 
-          {(showClickFacade || showIgSkeleton) && thumbSrc ? (
+          {showClickFacade && thumbSrc ? (
             // eslint-disable-next-line @next/next/no-img-element -- CDN/proxy URLs; lazy cover only
             <img
               src={thumbSrc}
@@ -234,13 +230,6 @@ export default function SocialEmbedCard({
               referrerPolicy="no-referrer"
               className="absolute inset-0 h-full w-full object-cover"
               onError={onImgError}
-            />
-          ) : null}
-
-          {showIgSkeleton && !thumbSrc ? (
-            <div
-              className="absolute inset-0 animate-pulse bg-gradient-to-br from-white/10 to-black/20"
-              aria-hidden
             />
           ) : null}
 
@@ -256,7 +245,7 @@ export default function SocialEmbedCard({
                   ? COPY.retry[uiLang]
                   : isPhotoMedia
                     ? COPY.viewPhoto[uiLang]
-                    : COPY.play[uiLang]
+                    : playLabel
               }
             >
               <span className="text-sm font-semibold tracking-wide uppercase opacity-95 drop-shadow">
@@ -280,7 +269,7 @@ export default function SocialEmbedCard({
                   ? COPY.retry[uiLang]
                   : isPhotoMedia
                     ? COPY.viewPhoto[uiLang]
-                    : COPY.play[uiLang]}
+                    : playLabel}
               </span>
               {error ? (
                 <span className="text-xs font-medium text-white/85">{COPY.error[uiLang]}</span>
@@ -288,7 +277,7 @@ export default function SocialEmbedCard({
             </button>
           ) : null}
 
-          {!isInstagram && activated && loading ? (
+          {activated && loading ? (
             <div
               className={`absolute inset-0 z-10 flex flex-col items-center justify-center bg-gradient-to-br ${COLORS[provider]}`}
             >
@@ -299,10 +288,21 @@ export default function SocialEmbedCard({
             </div>
           ) : null}
 
-          {isInstagram && error ? (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 text-white">
-              <span className="text-sm font-medium">{COPY.error[uiLang]}</span>
-            </div>
+          {nativeVideoUrl ? (
+            <video
+              src={nativeVideoUrl}
+              poster={nativePoster || thumbSrc || undefined}
+              controls
+              autoPlay
+              playsInline
+              className="absolute inset-0 z-[5] h-full w-full bg-black object-contain"
+              ref={(el) => {
+                if (el) el.setAttribute("referrerpolicy", "no-referrer");
+              }}
+              onError={() => {
+                fallBackToOfficialEmbed();
+              }}
+            />
           ) : null}
 
           {iframeSrc ? (
@@ -310,7 +310,7 @@ export default function SocialEmbedCard({
               src={iframeSrc}
               title={`${NAMES[provider]} video`}
               className={`absolute top-0 left-0 z-[5] h-full w-full border-0 ${
-                isInstagram && !iframeLoaded ? "opacity-0" : "opacity-100"
+                iframeLoaded ? "opacity-100" : "opacity-100"
               }`}
               allow={
                 provider === "tiktok"
@@ -322,11 +322,9 @@ export default function SocialEmbedCard({
               onLoad={() => {
                 setIframeLoaded(true);
                 setLoading(false);
-                releaseIgSlotIfHeld();
               }}
               onError={() => {
                 setError(true);
-                releaseIgSlotIfHeld();
               }}
             />
           ) : null}

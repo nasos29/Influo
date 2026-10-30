@@ -40,6 +40,25 @@ async function fetchApiThumbnailResult(apiOrOriginalUrl: string): Promise<ThumbA
   };
 }
 
+/** Force re-fetch (bypasses stale signed CDN cache when rate-limit allows). */
+export async function refreshVideoThumbnail(
+  originalUrl: string
+): Promise<ThumbApiResult> {
+  if (!originalUrl) return { thumbnail: null };
+  const apiUrl = `/api/video-thumbnail?url=${encodeURIComponent(originalUrl)}&refresh=1`;
+  const res = await fetch(apiUrl);
+  if (!res.ok) return { thumbnail: null };
+  const data = (await res.json()) as { thumbnail?: string; mediaType?: string };
+  const mediaType =
+    data.mediaType === "video" || data.mediaType === "image"
+      ? data.mediaType
+      : undefined;
+  return {
+    thumbnail: data.thumbnail ? String(data.thumbnail) : null,
+    mediaType,
+  };
+}
+
 /** Infer mediaType without a network round-trip when the URL is unambiguous. */
 export function inferMediaTypeFromUrl(originalUrl: string): MediaType | undefined {
   if (!originalUrl) return undefined;
@@ -82,6 +101,13 @@ export async function resolveVideoThumbnail(
     }
     try {
       const result = await fetchApiThumbnailResult(api);
+      // Prefer durable Storage cover when API already persisted one
+      if (result.thumbnail && !result.thumbnail.includes("thumbnail-proxy")) {
+        return {
+          src: toDisplayThumbnailSrc(result.thumbnail),
+          mediaType: result.mediaType ?? inferred,
+        };
+      }
       return {
         src: instagramThumbnailProxySrc(igCode),
         mediaType: result.mediaType ?? inferred,
@@ -129,7 +155,7 @@ export type LazyVideoThumbnailState = {
   src: string | null;
   mediaType?: MediaType;
   loading: boolean;
-  /** Call from <img onError>. Proxy once for CDN, else one delayed re-resolve. */
+  /** Call from <img onError>. Proxy once for CDN, then refresh=1 once, else gradient. */
   onImgError: () => void;
 };
 
@@ -146,12 +172,12 @@ export function useLazyVideoThumbnail(
   const [loading, setLoading] = useState(false);
   const rawSrcRef = useRef<string | null>(null);
   const proxiedRef = useRef(false);
-  const delayedRetryUsedRef = useRef(false);
+  const refreshUsedRef = useRef(false);
 
   useEffect(() => {
     rawSrcRef.current = null;
     proxiedRef.current = false;
-    delayedRetryUsedRef.current = false;
+    refreshUsedRef.current = false;
     setSrc(null);
     setMediaType(inferMediaTypeFromUrl(originalUrl));
     if (!enabled || !originalUrl) {
@@ -165,7 +191,10 @@ export function useLazyVideoThumbnail(
       .then((resolved) => {
         if (cancelled) return;
         rawSrcRef.current = resolved.src;
-        if (resolved.src?.startsWith("/api/thumbnail-proxy")) {
+        if (
+          resolved.src?.startsWith("/api/thumbnail-proxy") ||
+          resolved.src?.startsWith("/api/image-proxy")
+        ) {
           proxiedRef.current = true;
         }
         setSrc(resolved.src);
@@ -189,6 +218,7 @@ export function useLazyVideoThumbnail(
       current &&
       !proxiedRef.current &&
       !current.startsWith("/api/thumbnail-proxy") &&
+      !current.startsWith("/api/image-proxy") &&
       isCdnThumbnailUrl(current)
     ) {
       proxiedRef.current = true;
@@ -198,21 +228,25 @@ export function useLazyVideoThumbnail(
       return;
     }
 
-    if (!delayedRetryUsedRef.current && originalUrl) {
-      delayedRetryUsedRef.current = true;
+    // After proxy (or Storage/image-proxy) failure: one refresh to re-fetch + persist
+    if (!refreshUsedRef.current && originalUrl) {
+      refreshUsedRef.current = true;
       setLoading(true);
       void (async () => {
-        await sleep(RETRY_DELAY_MS);
-        const resolved = await resolveVideoThumbnail(originalUrl).catch(
-          (): ResolvedThumbnail => ({ src: null })
+        const refreshed = await refreshVideoThumbnail(originalUrl).catch(
+          (): ThumbApiResult => ({ thumbnail: null })
         );
-        rawSrcRef.current = resolved.src;
-        if (resolved.src?.startsWith("/api/thumbnail-proxy")) {
+        const display = toDisplayThumbnailSrc(refreshed.thumbnail);
+        rawSrcRef.current = display;
+        if (display?.startsWith("/api/")) {
           proxiedRef.current = true;
         }
-        setSrc(resolved.src);
-        if (resolved.mediaType) setMediaType(resolved.mediaType);
+        setSrc(display);
+        if (refreshed.mediaType) setMediaType(refreshed.mediaType);
         setLoading(false);
+        if (!display) {
+          /* gradient via null src */
+        }
       })();
       return;
     }
