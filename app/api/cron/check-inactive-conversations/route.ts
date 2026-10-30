@@ -14,19 +14,19 @@ export const maxDuration = 60;
  * Also sends at most one unread summary per quiet conversation (default 20 minutes),
  * and one admin summary per quiet or newly closed conversation.
  * Does not email a full transcript.
+ *
+ * Auth: Authorization: Bearer ${CRON_SECRET} only (no hardcoded secrets).
+ * Ops: disable the legacy pg_cron job that hit this every 5 minutes on the DB — do that by hand.
  */
 export async function GET(req: Request) {
   const authHeader = req.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
-  const isVercelCron = req.headers.get('x-vercel-cron') === '1' ||
-    req.headers.get('user-agent')?.includes('vercel-cron');
 
-  if (cronSecret) {
-    if (authHeader !== `Bearer ${cronSecret}` && !isVercelCron) {
-      return NextResponse.json({ error: 'Unauthorized. Missing or invalid CRON_SECRET.' }, { status: 401 });
-    }
-  } else if (!isVercelCron) {
+  if (!cronSecret) {
     return NextResponse.json({ error: 'Unauthorized. CRON_SECRET not configured.' }, { status: 401 });
+  }
+  if (authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized. Missing or invalid CRON_SECRET.' }, { status: 401 });
   }
 
   try {
@@ -40,16 +40,17 @@ export async function GET(req: Request) {
     const now = new Date();
     const cutoff = new Date(now.getTime() - 10 * 60 * 1000).toISOString();
 
+    // Only open threads (closed_at IS NULL) — already-closed rows are skipped.
     const [stale, never] = await Promise.all([
       supabaseAdmin
         .from('conversations')
-        .select('id, last_message_at')
+        .select('id')
         .is('closed_at', null)
         .lt('last_message_at', cutoff)
         .limit(200),
       supabaseAdmin
         .from('conversations')
-        .select('id, last_message_at')
+        .select('id')
         .is('closed_at', null)
         .is('last_message_at', null)
         .limit(50),
@@ -62,7 +63,14 @@ export async function GET(req: Request) {
       );
     }
 
-    const inactiveConversations = [...(stale.data || []), ...(never.data || [])];
+    const seen = new Set<string>();
+    const inactiveConversations: { id: string }[] = [];
+    for (const row of [...(stale.data || []), ...(never.data || [])]) {
+      const id = String(row.id);
+      if (seen.has(id)) continue;
+      seen.add(id);
+      inactiveConversations.push({ id });
+    }
 
     if (inactiveConversations.length === 0) {
       return NextResponse.json({

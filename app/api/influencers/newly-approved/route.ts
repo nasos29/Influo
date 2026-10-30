@@ -17,12 +17,19 @@ export async function GET() {
       limit: LIMIT,
     });
     const pastById = await getPastBrandsByInfluencerIds(rows.map((row) => String(row.id ?? "")));
-    return NextResponse.json({
-      influencers: rows.map((row) => ({
-        ...toPublicNewlyApproved(row),
-        past_brands: pastById.get(String(row.id ?? "")) || [],
-      })),
-    });
+    return NextResponse.json(
+      {
+        influencers: rows.map((row) => ({
+          ...toPublicNewlyApproved(row),
+          past_brands: pastById.get(String(row.id ?? "")) || [],
+        })),
+      },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+        },
+      }
+    );
   } catch (err: unknown) {
     console.error("[newly-approved] Exception:", err);
     return NextResponse.json(

@@ -2,6 +2,7 @@
  * Shared Top 10 ranking used by /api/top-influencers and Top 10 congrats cron.
  */
 
+import { unstable_cache } from 'next/cache';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { getPastBrandsByInfluencerIds } from '@/lib/pastBrands';
 import {
@@ -370,9 +371,27 @@ async function loadSnapshotsByInfluencer(
   return byId;
 }
 
+type ComputeTopOptions = { limit?: number; days?: number; supabase?: SupabaseClient };
+
+function withBrandSafeOnly(rows: Record<string, unknown>[] | null): TopScoreInfluencer[] {
+  return (rows || []).map((row) => {
+    const brandSafe =
+      row.brandSafe === true ||
+      row.brandSafe === false
+        ? row.brandSafe
+        : (row.auditpr_audit as { brandSafe?: boolean } | null | undefined)?.brandSafe ?? null;
+    const rest = { ...row };
+    delete rest.brandSafe;
+    return {
+      ...rest,
+      auditpr_audit: { brandSafe },
+    } as TopScoreInfluencer;
+  });
+}
+
 /** Rank approved influencers and return the top N for homepage / notifications. */
-export async function computeTopInfluencers(
-  options?: { limit?: number; days?: number; supabase?: SupabaseClient }
+async function computeTopInfluencersUncached(
+  options?: ComputeTopOptions
 ): Promise<TopInfluencerRow[]> {
   const sb = options?.supabase ?? getAdmin();
   const topN = options?.limit ?? TOP_INFLUENCERS_N;
@@ -420,8 +439,9 @@ export async function computeTopInfluencers(
 
   if (candidateIds.length === 0) return [];
 
+  // Only brandSafe from audit JSON — not the full auditpr_audit blob.
   const selectFull =
-    'id, display_name, avatar_url, bio, videos, video_thumbnails, accounts, category, location, analytics_verified, verified, auditpr_audit, min_rate, rate_card, total_reviews, avg_rating, created_at, audience_top_age, audience_male_percent, audience_female_percent, profile_slug, avg_response_time, completion_rate, last_social_refresh_at, approved_at, approved';
+    'id, display_name, avatar_url, bio, videos, accounts, category, location, analytics_verified, verified, auditpr_audit->brandSafe, min_rate, rate_card, total_reviews, avg_rating, created_at, audience_top_age, audience_male_percent, audience_female_percent, profile_slug, avg_response_time, completion_rate, last_social_refresh_at, approved_at, approved';
   let influencers: TopScoreInfluencer[] | null = null;
   let infErr: { message: string } | null = null;
   {
@@ -431,18 +451,18 @@ export async function computeTopInfluencers(
       .eq('approved', true)
       .in('id', candidateIds);
     infErr = full.error;
-    influencers = (full.data as TopScoreInfluencer[] | null) ?? null;
+    influencers = withBrandSafeOnly((full.data as Record<string, unknown>[] | null) ?? null);
   }
 
-  if (infErr && /column/i.test(infErr.message)) {
+  if (infErr && /column|brandSafe|auditpr_audit/i.test(infErr.message)) {
     const fallback = await sb
       .from('influencers')
       .select(
-        'id, display_name, avatar_url, bio, videos, video_thumbnails, accounts, category, location, analytics_verified, verified, auditpr_audit, approved'
+        'id, display_name, avatar_url, bio, videos, accounts, category, location, analytics_verified, verified, approved'
       )
       .eq('approved', true)
       .in('id', candidateIds);
-    influencers = (fallback.data as TopScoreInfluencer[] | null) ?? null;
+    influencers = withBrandSafeOnly((fallback.data as Record<string, unknown>[] | null) ?? null);
     infErr = fallback.error;
   }
 
@@ -519,4 +539,25 @@ export async function computeTopInfluencers(
       views: 0,
     };
   });
+}
+
+/** Cached Top 10 (1h). Custom supabase clients bypass the cache (cron/tests). */
+export async function computeTopInfluencers(
+  options?: ComputeTopOptions
+): Promise<TopInfluencerRow[]> {
+  if (options?.supabase) {
+    return computeTopInfluencersUncached(options);
+  }
+  const topN = options?.limit ?? TOP_INFLUENCERS_N;
+  const days = Math.max(
+    1,
+    options?.days ??
+      (parseInt(process.env.TOP_INFLUENCERS_DAYS || String(DEFAULT_DAYS), 10) ||
+        DEFAULT_DAYS)
+  );
+  return unstable_cache(
+    () => computeTopInfluencersUncached({ limit: topN, days }),
+    ['top-influencers', String(topN), String(days)],
+    { revalidate: 3600, tags: ['top-influencers'] }
+  )();
 }

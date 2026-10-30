@@ -12,7 +12,8 @@ import {
   chatInitial,
 } from '@/lib/chatTime';
 import { formatActiveLabel, presenceOnline } from '@/lib/presenceStatus';
-import { counterpartyBrandPresence, counterpartyInfluencerPresence } from '@/lib/presenceIdentity';
+import { counterpartyBrandPresence } from '@/lib/presenceIdentity';
+import { getInfluencerPresenceCached } from '@/lib/presenceCache';
 import { sessionFetch } from '@/lib/sessionFetch';
 
 interface MessageAttachment {
@@ -343,31 +344,78 @@ export default function Messaging({
     if (!watchedInfluencerId) return;
     if (viewerUserId && watchedInfluencerId === viewerUserId) return;
 
-    checkInfluencerStatus(watchedInfluencerId);
-    const interval = setInterval(() => {
-      if (document.hidden) return;
-      checkInfluencerStatus(watchedInfluencerId);
-    }, 300000);
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let interval = 0;
 
-    const channel = supabase
-      .channel(`influencer_presence_watch:${watchedInfluencerId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'influencer_presence',
-          filter: `influencer_id=eq.${watchedInfluencerId}`,
-        },
-        () => {
-          checkInfluencerStatus(watchedInfluencerId);
-        }
-      )
-      .subscribe();
+    const subscribe = () => {
+      if (channel) return;
+      channel = supabase
+        .channel(`influencer_presence_watch:${watchedInfluencerId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'influencer_presence',
+            filter: `influencer_id=eq.${watchedInfluencerId}`,
+          },
+          () => {
+            void checkInfluencerStatus(watchedInfluencerId);
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'influencer_presence',
+            filter: `influencer_id=eq.${watchedInfluencerId}`,
+          },
+          () => {
+            void checkInfluencerStatus(watchedInfluencerId);
+          }
+        )
+        .subscribe();
+    };
+
+    const teardown = () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+        channel = null;
+      }
+    };
+
+    const startFallback = () => {
+      window.clearInterval(interval);
+      interval = window.setInterval(() => {
+        if (document.hidden) return;
+        void checkInfluencerStatus(watchedInfluencerId);
+      }, 120_000);
+    };
+
+    void checkInfluencerStatus(watchedInfluencerId);
+    if (!document.hidden) {
+      subscribe();
+      startFallback();
+    }
+
+    const onVisibility = () => {
+      if (document.hidden) {
+        teardown();
+        window.clearInterval(interval);
+        interval = 0;
+      } else {
+        void checkInfluencerStatus(watchedInfluencerId);
+        subscribe();
+        startFallback();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
-      clearInterval(interval);
-      channel.unsubscribe();
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.clearInterval(interval);
+      teardown();
     };
   }, [mode, watchedInfluencerId, viewerUserId]);
 
@@ -381,12 +429,81 @@ export default function Messaging({
     setIsBrandOnline(false);
     setBrandLastSeen(null);
     if (!watchedBrandEmail) return;
-    checkBrandStatus(watchedBrandEmail);
-    const interval = setInterval(() => {
-      if (document.hidden) return;
-      checkBrandStatus(watchedBrandEmail);
-    }, 300000);
-    return () => clearInterval(interval);
+
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let interval = 0;
+    const emailFilter = `brand_email=eq.${watchedBrandEmail.toLowerCase().trim()}`;
+
+    const subscribe = () => {
+      if (channel) return;
+      channel = supabase
+        .channel(`brand_presence_watch:${watchedBrandEmail}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'brand_presence',
+            filter: emailFilter,
+          },
+          () => {
+            void checkBrandStatus(watchedBrandEmail);
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'brand_presence',
+            filter: emailFilter,
+          },
+          () => {
+            void checkBrandStatus(watchedBrandEmail);
+          }
+        )
+        .subscribe();
+    };
+
+    const teardown = () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+        channel = null;
+      }
+    };
+
+    const startFallback = () => {
+      window.clearInterval(interval);
+      interval = window.setInterval(() => {
+        if (document.hidden) return;
+        void checkBrandStatus(watchedBrandEmail);
+      }, 120_000);
+    };
+
+    void checkBrandStatus(watchedBrandEmail);
+    if (!document.hidden) {
+      subscribe();
+      startFallback();
+    }
+
+    const onVisibility = () => {
+      if (document.hidden) {
+        teardown();
+        window.clearInterval(interval);
+        interval = 0;
+      } else {
+        void checkBrandStatus(watchedBrandEmail);
+        subscribe();
+        startFallback();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.clearInterval(interval);
+      teardown();
+    };
   }, [mode, watchedBrandEmail]);
 
   useEffect(() => {
@@ -553,105 +670,160 @@ export default function Messaging({
       })();
       // NOTE: We do NOT update activity timestamp when opening conversation
       // Activity should only be updated on actual user actions (typing, sending, etc.)
-      // Set up real-time subscription. Fallback poll runs only while Realtime is down.
+      // Realtime for this thread only. Tear down while the tab is hidden.
       let realtimeOk = false;
-      const subscription = supabase
-        .channel(`messages:${selectedConversation}`)
-        .on('postgres_changes', {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `conversation_id=eq.${selectedConversation}`
-        }, (payload) => {
-          const newMsg = payload.new as Message;
-          // Only play sound if this is not the message we just sent (to avoid double beep)
-          const isOurMessage = lastSentMessageRef.current && 
-            newMsg.content.trim() === lastSentMessageRef.current;
-          
-          if (!isOurMessage) {
-            playNotificationSound();
-          } else {
-            // Clear the ref after checking
-            lastSentMessageRef.current = '';
-          }
-          
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === newMsg.id)) return prev;
-            const tmpIdx = prev.findIndex(
-              (m) => m.id.startsWith('tmp-') && m.sender_type === newMsg.sender_type
-            );
-            if (tmpIdx >= 0) {
-              const copy = [...prev];
-              copy[tmpIdx] = newMsg;
-              return copy;
-            }
-            return [...prev, newMsg];
-          });
-          if (stickToBottomRef.current || isOurMessage) {
-            setUnseenBelow(0);
-            scrollToBottom(true);
-          } else {
-            setUnseenBelow((n) => n + 1);
-          }
-          applyInboxMessageRef.current(newMsg);
+      let subscription: ReturnType<typeof supabase.channel> | null = null;
+      let typingChannel: ReturnType<typeof supabase.channel> | null = null;
+      let fallback = 0;
+      let activityInterval = 0;
+      const convId = selectedConversation;
 
-          if (
-            !isOurMessage &&
-            newMsg.sender_type !== mode &&
-            document.visibilityState === 'visible'
-          ) {
-            markReadRef.current(selectedConversation);
-          }
+      const onInsert = (payload: { new: Message }) => {
+        const newMsg = payload.new as Message;
+        const isOurMessage =
+          lastSentMessageRef.current && newMsg.content.trim() === lastSentMessageRef.current;
 
-          if (mode === 'influencer' && newMsg.sender_type === 'brand') {
-            const currentConv = conversations.find(c => c.id === selectedConversation);
-            const emailToCheck = currentConv?.brand_email || (brandEmail as string | undefined);
-            if (emailToCheck) checkBrandStatus(emailToCheck);
-          }
-          if (mode === 'brand' && newMsg.sender_type === 'influencer') {
-            const currentConv = conversations.find((c) => c.id === selectedConversation);
-            const idToCheck = currentConv?.influencer_id || influencerId;
-            if (idToCheck) checkInfluencerStatus(idToCheck);
-          }
-        })
-        .on('postgres_changes', {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'messages',
-          filter: `conversation_id=eq.${selectedConversation}`
-        }, (payload) => {
-          const updated = payload.new as Message;
-          setMessages((prev) =>
-            prev.map((m) => (m.id === updated.id ? { ...m, read: updated.read } : m))
-          );
-        })
-        .subscribe((status) => {
-          realtimeOk = status === 'SUBSCRIBED';
-        });
-
-      const typingChannel = supabase.channel(`typing:${selectedConversation}`);
-      typingChannelRef.current = typingChannel;
-      typingChannel.on('broadcast', { event: 'typing' }, ({ payload }) => {
-        const role = (payload as { role?: string } | null)?.role;
-        if (role && role !== mode) {
-          setOtherTyping(true);
-          window.setTimeout(() => setOtherTyping(false), 2500);
+        if (!isOurMessage) {
+          playNotificationSound();
+        } else {
+          lastSentMessageRef.current = '';
         }
-      }).subscribe();
 
-      const fallback = window.setInterval(() => {
-        if (!realtimeOk && selectedConversation) void loadMessages(selectedConversation);
-      }, 25_000);
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === newMsg.id)) return prev;
+          const tmpIdx = prev.findIndex(
+            (m) => m.id.startsWith('tmp-') && m.sender_type === newMsg.sender_type
+          );
+          if (tmpIdx >= 0) {
+            const copy = [...prev];
+            copy[tmpIdx] = newMsg;
+            return copy;
+          }
+          return [...prev, newMsg];
+        });
+        if (stickToBottomRef.current || isOurMessage) {
+          setUnseenBelow(0);
+          scrollToBottom(true);
+        } else {
+          setUnseenBelow((n) => n + 1);
+        }
+        applyInboxMessageRef.current(newMsg);
 
-      const activityInterval = setInterval(() => {
-        updateActivityTimestamp();
-      }, 30000);
+        if (!isOurMessage && newMsg.sender_type !== mode && document.visibilityState === 'visible') {
+          markReadRef.current(convId);
+        }
+
+        if (mode === 'influencer' && newMsg.sender_type === 'brand') {
+          const currentConv = conversations.find((c) => c.id === convId);
+          const emailToCheck = currentConv?.brand_email || (brandEmail as string | undefined);
+          if (emailToCheck) void checkBrandStatus(emailToCheck);
+        }
+        if (mode === 'brand' && newMsg.sender_type === 'influencer') {
+          const currentConv = conversations.find((c) => c.id === convId);
+          const idToCheck = currentConv?.influencer_id || influencerId;
+          if (idToCheck) void checkInfluencerStatus(idToCheck);
+        }
+      };
+
+      const onUpdate = (payload: { new: Message }) => {
+        const updated = payload.new as Message;
+        setMessages((prev) =>
+          prev.map((m) => (m.id === updated.id ? { ...m, read: updated.read } : m))
+        );
+      };
+
+      const teardownRealtime = () => {
+        if (subscription) {
+          supabase.removeChannel(subscription);
+          subscription = null;
+        }
+        if (typingChannel) {
+          supabase.removeChannel(typingChannel);
+          typingChannel = null;
+          typingChannelRef.current = null;
+        }
+        realtimeOk = false;
+      };
+
+      const startRealtime = () => {
+        if (subscription) return;
+        subscription = supabase
+          .channel(`messages:${convId}`)
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'messages',
+              filter: `conversation_id=eq.${convId}`,
+            },
+            onInsert
+          )
+          .on(
+            'postgres_changes',
+            {
+              event: 'UPDATE',
+              schema: 'public',
+              table: 'messages',
+              filter: `conversation_id=eq.${convId}`,
+            },
+            onUpdate
+          )
+          .subscribe((status) => {
+            realtimeOk = status === 'SUBSCRIBED';
+          });
+
+        typingChannel = supabase.channel(`typing:${convId}`);
+        typingChannelRef.current = typingChannel;
+        typingChannel
+          .on('broadcast', { event: 'typing' }, ({ payload }) => {
+            const role = (payload as { role?: string } | null)?.role;
+            if (role && role !== mode) {
+              setOtherTyping(true);
+              window.setTimeout(() => setOtherTyping(false), 2500);
+            }
+          })
+          .subscribe();
+      };
+
+      const startTimers = () => {
+        window.clearInterval(fallback);
+        window.clearInterval(activityInterval);
+        // Fallback only when Realtime is down; never under 2 minutes.
+        fallback = window.setInterval(() => {
+          if (document.hidden || realtimeOk) return;
+          void loadMessages(convId);
+        }, 120_000);
+        activityInterval = window.setInterval(() => {
+          if (document.hidden) return;
+          updateActivityTimestamp();
+        }, 120_000);
+      };
+
+      if (!document.hidden) {
+        startRealtime();
+        startTimers();
+      }
+
+      const onVisibility = () => {
+        if (document.hidden) {
+          teardownRealtime();
+          window.clearInterval(fallback);
+          window.clearInterval(activityInterval);
+          fallback = 0;
+          activityInterval = 0;
+        } else {
+          void loadMessages(convId);
+          startRealtime();
+          startTimers();
+        }
+      };
+      document.addEventListener('visibilitychange', onVisibility);
 
       return () => {
-        subscription.unsubscribe();
-        typingChannel.unsubscribe();
-        typingChannelRef.current = null;
-        clearInterval(activityInterval);
+        document.removeEventListener('visibilitychange', onVisibility);
+        teardownRealtime();
+        window.clearInterval(activityInterval);
         window.clearInterval(fallback);
         setOtherTyping(false);
       };
@@ -661,7 +833,7 @@ export default function Messaging({
     }
   }, [selectedConversation]);
 
-  // Inbox list follows this user's conversations only (not every message in the project).
+  // Inbox list: mount + Realtime only (no interval). Pause channel while hidden.
   useEffect(() => {
     const filter =
       mode === 'influencer' && influencerId
@@ -670,31 +842,54 @@ export default function Messaging({
           ? `brand_email=eq.${brandEmail.toLowerCase().trim()}`
           : null;
     if (!filter) return;
-    const channel = supabase
-      .channel(`inbox-conv:${mode}:${influencerId || brandEmail}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'conversations', filter },
-        () => {
-          void loadConversations(true);
-        }
-      )
-      .subscribe();
-    const poll = window.setInterval(() => {
-      if (document.hidden) return;
+
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    const onChange = () => {
       void loadConversations(true);
-    }, 120000);
+    };
+
+    const subscribe = () => {
+      if (channel) return;
+      channel = supabase
+        .channel(`inbox-conv:${mode}:${influencerId || brandEmail}`)
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'conversations', filter },
+          onChange
+        )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'conversations', filter },
+          onChange
+        )
+        .subscribe();
+    };
+
+    const teardown = () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+        channel = null;
+      }
+    };
+
+    if (!document.hidden) subscribe();
+
     const onFocus = () => {
       void loadConversations(true);
     };
     const onVisibility = () => {
-      if (!document.hidden) void loadConversations(true);
+      if (document.hidden) {
+        teardown();
+      } else {
+        void loadConversations(true);
+        subscribe();
+      }
     };
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onVisibility);
     return () => {
-      channel.unsubscribe();
-      window.clearInterval(poll);
+      teardown();
       window.removeEventListener('focus', onFocus);
       document.removeEventListener('visibilitychange', onVisibility);
     };
@@ -716,8 +911,9 @@ export default function Messaging({
       // NOTE: We do NOT update activity timestamp here - only check for inactivity
       // Activity timestamps should only be updated on user actions (typing, sending, etc.)
       activityCheckIntervalRef.current = setInterval(() => {
-        checkInactivity();
-      }, 60 * 1000); // 1 minute
+        if (document.hidden) return;
+        void checkInactivity();
+      }, 60 * 1000);
 
       return () => {
         if (activityCheckIntervalRef.current) {
@@ -782,6 +978,7 @@ export default function Messaging({
     // Poll the check endpoint every 5 minutes when user has an open conversation
     // If conversation is inactive, trigger the cron endpoint to close it
     const pollInterval = setInterval(async () => {
+      if (document.hidden) return;
       try {
         const response = await sessionFetch(`/api/conversations/check-inactive?conversationId=${selectedConversation}`);
         
@@ -799,14 +996,14 @@ export default function Messaging({
                 }
               }
             } catch {
-              // Ignore - Supabase pg_cron ή Vercel cron θα το κλείσει αργότερα
+              // Ignore - Vercel cron θα το κλείσει αργότερα
             }
           }
           
           // Refresh conversation state to reflect any closures
           if (selectedConversation) {
             await loadActivityTimestamps(selectedConversation);
-            await loadConversations();
+            await loadConversations(true);
           }
         }
       } catch (error) {
@@ -837,7 +1034,9 @@ export default function Messaging({
     try {
       let query = supabase
         .from('conversations')
-        .select('*');
+        .select(
+          'id, influencer_id, influencer_name, influencer_email, brand_email, brand_name, last_message_at, last_activity_influencer, last_activity_brand, closed_at, proposal_id'
+        );
 
       if (mode === 'influencer') {
         query = query.eq('influencer_id', influencerId);
@@ -1048,7 +1247,7 @@ export default function Messaging({
     try {
       const { data, error } = await supabase
         .from('messages')
-        .select('*')
+        .select('id, conversation_id, sender_id, sender_type, content, attachments, read, created_at')
         .eq('conversation_id', convId)
         .order('created_at', { ascending: true });
 
@@ -1289,22 +1488,8 @@ export default function Messaging({
     }
 
     try {
-      const { data, error } = await supabase
-        .from('influencer_presence')
-        .select('influencer_id, is_online, last_seen')
-        .eq('influencer_id', id)
-        .maybeSingle();
-
+      const row = await getInfluencerPresenceCached(id, { force: true });
       if (gen !== influencerWatchGen.current) return;
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error checking influencer status:', error);
-        setIsInfluencerOnline(false);
-        setInfluencerLastSeen(null);
-        return;
-      }
-
-      const row = counterpartyInfluencerPresence(id, data, mode === 'brand' ? viewerUserId : null);
       setInfluencerLastSeen(row?.last_seen || null);
       setIsInfluencerOnline(presenceOnline(row));
     } catch (error) {

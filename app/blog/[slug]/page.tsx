@@ -2652,14 +2652,13 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
 
     loadPost();
 
-    // Listen for updates
     const handleUpdate = () => loadPost();
-    window.addEventListener('blogPostsUpdated', handleUpdate);
-    const interval = setInterval(loadPost, 2000);
+    window.addEventListener("blogPostsUpdated", handleUpdate);
+    window.addEventListener("storage", handleUpdate);
 
     return () => {
-      window.removeEventListener('blogPostsUpdated', handleUpdate);
-      clearInterval(interval);
+      window.removeEventListener("blogPostsUpdated", handleUpdate);
+      window.removeEventListener("storage", handleUpdate);
     };
   }, [resolvedParams.slug]);
   

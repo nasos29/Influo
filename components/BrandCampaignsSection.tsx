@@ -304,7 +304,9 @@ export default function BrandCampaignsSection({
     setSchemaError(false);
     const { data, error } = await supabase
       .from("brand_campaigns")
-      .select("*")
+      .select(
+        "id, brand_id, title, description, budget, category, deliverables, status, deadline, created_at, opened_at, updated_at, platforms, min_followers, location, starts_on, compensation_type"
+      )
       .eq("brand_id", brandId)
       .order("created_at", { ascending: false });
     if (error) {

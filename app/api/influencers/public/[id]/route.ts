@@ -16,7 +16,14 @@ export async function GET(
     if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const past_brands = await getPastBrandsForInfluencer(String(row.id ?? id));
-    return NextResponse.json({ data: { ...toPublicProfile(row), past_brands } });
+    return NextResponse.json(
+      { data: { ...toPublicProfile(row), past_brands } },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+        },
+      }
+    );
   } catch (err: unknown) {
     console.error("[API /api/influencers/public/:id]", err);
     const message = err instanceof Error ? err.message : "Internal server error";

@@ -30,21 +30,19 @@ export default function BlogPage() {
     setLoading(false);
   }, []);
 
-  // Listen for localStorage changes (when admin updates posts)
+  // Listen for localStorage / same-tab updates (when admin updates posts)
   useEffect(() => {
     const handleStorageChange = () => {
       const loadedPosts = getBlogPosts();
       setPosts(loadedPosts);
     };
 
-    // Listen for custom event from admin dashboard
-    window.addEventListener('blogPostsUpdated', handleStorageChange);
-    // Also check periodically (every 2 seconds) for changes
-    const interval = setInterval(handleStorageChange, 2000);
+    window.addEventListener("blogPostsUpdated", handleStorageChange);
+    window.addEventListener("storage", handleStorageChange);
 
     return () => {
-      window.removeEventListener('blogPostsUpdated', handleStorageChange);
-      clearInterval(interval);
+      window.removeEventListener("blogPostsUpdated", handleStorageChange);
+      window.removeEventListener("storage", handleStorageChange);
     };
   }, []);
 
