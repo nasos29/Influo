@@ -7,6 +7,8 @@ import {
   buildTikTokPlayerUrl,
   extractTikTokVideoId,
 } from "@/lib/tikTokPlayer";
+import { TIKTOK_SOUND_COPY, useTikTokPlayerHost } from "@/lib/useTikTokPlayerHost";
+import TikTokSoundPromptButton from "@/components/TikTokSoundPromptButton";
 import { extractInstagramMedia } from "@/lib/instagramShortcode";
 import type { InstagramEmbedKind } from "@/lib/instagramMediaType";
 
@@ -190,6 +192,14 @@ export default function SocialEmbedCard({
   const [igPoster, setIgPoster] = useState<string | null>(null);
   const [igMetaLoading, setIgMetaLoading] = useState(false);
 
+  const isTikTokPlayer =
+    provider === "tiktok" && !!iframeSrc && /tiktok\.com\/player\/v1\//i.test(iframeSrc);
+  const {
+    iframeRef: tikTokIframeRef,
+    showSoundPrompt: showTikTokSoundPrompt,
+    onTapForSound: onTikTokTapForSound,
+  } = useTikTokPlayerHost(isTikTokPlayer);
+
   const { src: thumbSrc, mediaType, onImgError } = useLazyVideoThumbnail(
     originalUrl,
     nearViewport && !activated && !lightboxSrc
@@ -290,7 +300,8 @@ export default function SocialEmbedCard({
           videoId = extractTikTokVideoId(embedOrResolved);
         }
         if (!videoId) throw new Error("Missing TikTok video id");
-        setIframeSrc(buildTikTokPlayerUrl(videoId, { muted: false }));
+        // muted=1 so autoplay works; unmute via TikTok postMessage after ready.
+        setIframeSrc(buildTikTokPlayerUrl(videoId));
         setLoading(false);
         return;
       }
@@ -466,25 +477,34 @@ export default function SocialEmbedCard({
           ) : null}
 
           {iframeSrc ? (
-            <iframe
-              src={iframeSrc}
-              title={`${NAMES[provider]} media`}
-              className="absolute top-0 left-0 z-[5] h-full w-full border-0 opacity-100"
-              allow={
-                provider === "tiktok"
-                  ? "autoplay; encrypted-media; fullscreen; picture-in-picture"
-                  : "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              }
-              allowFullScreen
-              referrerPolicy="strict-origin-when-cross-origin"
-              onLoad={() => {
-                setIframeLoaded(true);
-                setLoading(false);
-              }}
-              onError={() => {
-                setError(true);
-              }}
-            />
+            <>
+              <iframe
+                ref={isTikTokPlayer ? tikTokIframeRef : undefined}
+                src={iframeSrc}
+                title={`${NAMES[provider]} media`}
+                className="absolute top-0 left-0 z-[5] h-full w-full border-0 opacity-100"
+                allow={
+                  provider === "tiktok"
+                    ? "autoplay; encrypted-media; fullscreen; picture-in-picture"
+                    : "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                }
+                allowFullScreen
+                referrerPolicy="strict-origin-when-cross-origin"
+                onLoad={() => {
+                  setIframeLoaded(true);
+                  setLoading(false);
+                }}
+                onError={() => {
+                  setError(true);
+                }}
+              />
+              {showTikTokSoundPrompt ? (
+                <TikTokSoundPromptButton
+                  label={TIKTOK_SOUND_COPY[uiLang]}
+                  onClick={onTikTokTapForSound}
+                />
+              ) : null}
+            </>
           ) : null}
         </div>
       </div>

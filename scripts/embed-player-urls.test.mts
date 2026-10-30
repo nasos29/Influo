@@ -48,6 +48,34 @@ test("buildTikTokPlayerUrl creates muted player/v1 by default", () => {
   assert.throws(() => buildTikTokPlayerUrl("not-a-number"));
 });
 
+test("isTikTokPlayerMessage and postTikTokPlayer shape", async () => {
+  const { isTikTokPlayerMessage, postTikTokPlayer, TIKTOK_PLAYER_ORIGIN } =
+    await import("../lib/tikTokPlayer.ts");
+  assert.equal(TIKTOK_PLAYER_ORIGIN, "https://www.tiktok.com");
+  assert.equal(isTikTokPlayerMessage({ "x-tiktok-player": true, type: "unMute" }), true);
+  assert.equal(isTikTokPlayerMessage({ type: "unMute" }), false);
+  assert.equal(isTikTokPlayerMessage(null), false);
+
+  const posted: unknown[] = [];
+  const fakeIframe = {
+    contentWindow: {
+      postMessage(data: unknown, origin: string) {
+        posted.push({ data, origin });
+      },
+    },
+  } as unknown as HTMLIFrameElement;
+  postTikTokPlayer(fakeIframe, "unMute");
+  postTikTokPlayer(fakeIframe, "seekTo", 12);
+  postTikTokPlayer(null, "play");
+  assert.deepEqual(posted, [
+    { data: { "x-tiktok-player": true, type: "unMute" }, origin: TIKTOK_PLAYER_ORIGIN },
+    {
+      data: { "x-tiktok-player": true, type: "seekTo", value: 12 },
+      origin: TIKTOK_PLAYER_ORIGIN,
+    },
+  ]);
+});
+
 test("isValidInstagramShortcode and extractInstagramShortcode", () => {
   assert.equal(isValidInstagramShortcode("AbC123xyz"), true);
   assert.equal(isValidInstagramShortcode("ab_12-XY"), true);

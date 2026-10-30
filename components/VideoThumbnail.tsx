@@ -9,6 +9,12 @@ import {
   thumbnailProxySrc,
   toDisplayThumbnailSrc,
 } from "@/lib/videoThumbnailExtract";
+import {
+  buildTikTokPlayerUrl,
+  extractTikTokVideoId,
+} from "@/lib/tikTokPlayer";
+import { TIKTOK_SOUND_COPY, useTikTokPlayerHost } from "@/lib/useTikTokPlayerHost";
+import TikTokSoundPromptButton from "@/components/TikTokSoundPromptButton";
 import { extractInstagramMedia } from "@/lib/instagramShortcode";
 import type { InstagramEmbedKind } from "@/lib/instagramMediaType";
 
@@ -105,6 +111,13 @@ export default function VideoThumbnail({
   const igMedia = isInstagram ? extractInstagramMedia(url) : null;
   const isIgPost = igMedia?.kind === "p";
   const isIgReel = igMedia?.kind === "reel" || igMedia?.kind === "tv";
+  const isTikTokPlayer =
+    !!embedSrc && /tiktok\.com\/player\/v1\//i.test(embedSrc);
+  const {
+    iframeRef: tikTokIframeRef,
+    showSoundPrompt: showTikTokSoundPrompt,
+    onTapForSound: onTikTokTapForSound,
+  } = useTikTokPlayerHost(isTikTokPlayer);
 
   useEffect(() => {
     let cancelled = false;
@@ -319,6 +332,26 @@ export default function VideoThumbnail({
     url,
   ]);
 
+  const openTikTokPlayer = useCallback(() => {
+    if (!isTikTok || embedSrc || nativeVideoUrl || lightboxSrc) return;
+    void (async () => {
+      try {
+        let videoId = extractTikTokVideoId(url);
+        if (!videoId) {
+          const res = await fetch(`/api/video-embed?url=${encodeURIComponent(url)}`);
+          if (res.ok) {
+            const data = (await res.json()) as { embed_url?: string };
+            if (data.embed_url) videoId = extractTikTokVideoId(String(data.embed_url));
+          }
+        }
+        if (!videoId) return;
+        setEmbedSrc(buildTikTokPlayerUrl(videoId));
+      } catch {
+        /* keep thumbnail */
+      }
+    })();
+  }, [embedSrc, isTikTok, lightboxSrc, nativeVideoUrl, url]);
+
   if (loading) {
     return (
       <div
@@ -385,13 +418,24 @@ export default function VideoThumbnail({
         style={fill ? { width: "100%", height: "100%" } : { width, height, minHeight: 320 }}
       >
         <iframe
+          ref={isTikTokPlayer ? tikTokIframeRef : undefined}
           src={embedSrc}
-          title="Instagram"
+          title={isTikTokPlayer ? "TikTok" : "Instagram"}
           className="absolute inset-0 h-full w-full border-0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allow={
+            isTikTokPlayer
+              ? "autoplay; encrypted-media; fullscreen; picture-in-picture"
+              : "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          }
           allowFullScreen
           referrerPolicy="strict-origin-when-cross-origin"
         />
+        {showTikTokSoundPrompt ? (
+          <TikTokSoundPromptButton
+            label={TIKTOK_SOUND_COPY[uiLang]}
+            onClick={onTikTokTapForSound}
+          />
+        ) : null}
       </div>
     );
   }
@@ -476,6 +520,19 @@ export default function VideoThumbnail({
           aria-label={
             isPhotoLike ? ARIA.viewPhoto[uiLang] : ARIA.openEmbed[uiLang]
           }
+        >
+          {imgEl}
+        </button>
+      );
+    }
+
+    if (isTikTok) {
+      return mediaFrame(
+        <button
+          type="button"
+          onClick={openTikTokPlayer}
+          className="relative block h-full w-full cursor-pointer border-0 bg-transparent p-0 text-left"
+          aria-label={ARIA.openEmbed[uiLang]}
         >
           {imgEl}
         </button>
@@ -569,6 +626,19 @@ export default function VideoThumbnail({
         onClick={openInstagramEmbed}
         className="relative block h-full w-full cursor-pointer border-0 bg-transparent p-0 text-left"
         aria-label={isPhotoLike ? ARIA.viewPhoto[uiLang] : ARIA.openEmbed[uiLang]}
+      >
+        {placeholderBody}
+      </button>
+    );
+  }
+
+  if (isTikTok) {
+    return (
+      <button
+        type="button"
+        onClick={openTikTokPlayer}
+        className="relative block h-full w-full cursor-pointer border-0 bg-transparent p-0 text-left"
+        aria-label={ARIA.openEmbed[uiLang]}
       >
         {placeholderBody}
       </button>
