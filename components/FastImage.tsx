@@ -2,6 +2,7 @@
 
 import Image, { type ImageProps } from "next/image";
 import type { SyntheticEvent } from "react";
+import { getCachedImageUrl } from "@/lib/imageProxy";
 
 /** Hosts where Next.js Image optimization is worth the hop (configured in next.config). */
 export function canOptimizeRemoteUrl(url: string): boolean {
@@ -9,7 +10,8 @@ export function canOptimizeRemoteUrl(url: string): boolean {
   if (url.startsWith("/")) return !url.startsWith("/api/image-proxy");
   try {
     const host = new URL(url).hostname;
-    if (host.endsWith("supabase.co") || host.endsWith("supabase.in")) return true;
+    // Supabase goes through /api/image-proxy (unoptimized) to cut Storage egress.
+    if (host.endsWith("supabase.co") || host.endsWith("supabase.in")) return false;
     if (host === "images.unsplash.com" || host === "plus.unsplash.com") return true;
     if (host === "unavatar.io" || host === "ui-avatars.com") return true;
     if (host === "img.youtube.com" || host === "i.ytimg.com") return true;
@@ -23,17 +25,10 @@ type FastImageProps = Omit<ImageProps, "src"> & {
   src: string;
 };
 
-function isSupabaseUrl(url: string): boolean {
-  try {
-    const host = new URL(url).hostname;
-    return host.endsWith("supabase.co") || host.endsWith("supabase.in");
-  } catch {
-    return false;
-  }
-}
-
 /**
  * Prefer next/image (resized/WebP via /_next/image) for known hosts.
+ * Supabase Storage URLs are rewritten via getCachedImageUrl → /api/image-proxy
+ * so repeats are served from Vercel cache (not Supabase egress).
  * Fall back to native <img> for TikTok/IG CDNs that aren't worth the optimizer hop.
  */
 export default function FastImage({
@@ -47,11 +42,14 @@ export default function FastImage({
   onError,
   ...rest
 }: FastImageProps) {
-  if (!canOptimizeRemoteUrl(src)) {
-    // eslint-disable-next-line @next/next/no-img-element -- unknown / ephemeral CDN hosts
+  const resolved = (getCachedImageUrl(src) ?? src).trim();
+  const isProxy = resolved.startsWith("/api/image-proxy");
+
+  if (isProxy || !canOptimizeRemoteUrl(resolved)) {
+    // eslint-disable-next-line @next/next/no-img-element -- proxy + unknown / ephemeral CDN hosts
     return (
       <img
-        src={src}
+        src={resolved}
         alt={alt}
         className={className}
         loading={priority ? "eager" : "lazy"}
@@ -69,7 +67,7 @@ export default function FastImage({
 
   return (
     <Image
-      src={src}
+      src={resolved}
       alt={alt}
       className={className}
       fill={fill}
@@ -78,7 +76,6 @@ export default function FastImage({
       quality={quality}
       onError={onError}
       {...rest}
-      unoptimized={isSupabaseUrl(src) || rest.unoptimized}
     />
   );
 }

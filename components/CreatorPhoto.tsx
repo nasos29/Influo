@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { getCachedImageUrl } from "@/lib/imageProxy";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -21,7 +22,8 @@ export default function CreatorPhoto({
   rounded?: string;
 }) {
   const [failed, setFailed] = useState(false);
-  const url = typeof src === "string" ? src.trim() : "";
+  const raw = typeof src === "string" ? src.trim() : "";
+  const url = raw ? (getCachedImageUrl(raw) ?? raw) : "";
   const usable = url && !failed && !/placeholder|default-avatar/i.test(url);
 
   if (!usable) {

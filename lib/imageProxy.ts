@@ -1,24 +1,29 @@
 /**
  * Image URL helpers for public media.
  *
- * Historically we rewrote Supabase Storage URLs through `/api/image-proxy` to
- * cut egress. That adds a Vercel serverless hop and feels slow on cache MISS
- * (often 1–2s for a single avatar). Public bucket + Next.js Image optimization
- * is faster for users; enable the proxy only if needed via env.
+ * By default, Supabase Storage URLs are rewritten through `/api/image-proxy`
+ * so Vercel can cache them (30d Cache-Control) and cut Storage Cached Egress.
+ * First fetch still hits Supabase; repeats are served from the app CDN.
  *
- * Set NEXT_PUBLIC_USE_IMAGE_PROXY=true to restore the proxy rewrite.
+ * Opt out with NEXT_PUBLIC_USE_IMAGE_PROXY=false (or "0") if you put a CDN
+ * in front of Storage and prefer direct URLs.
  */
+
+function wantsImageProxy(): boolean {
+  if (typeof process === "undefined") return true;
+  const flag = process.env.NEXT_PUBLIC_USE_IMAGE_PROXY;
+  if (flag === "0" || flag === "false") return false;
+  return true;
+}
 
 export function getCachedImageUrl(url: string | null | undefined): string | null | undefined {
   if (!url || typeof url !== "string" || url.trim() === "") return url;
   const trimmed = url.trim();
 
-  const useProxy =
-    typeof process !== "undefined" &&
-    (process.env.NEXT_PUBLIC_USE_IMAGE_PROXY === "1" ||
-      process.env.NEXT_PUBLIC_USE_IMAGE_PROXY === "true");
+  // Already proxied (avoid double-encoding when callers + FastImage both wrap).
+  if (trimmed.startsWith("/api/image-proxy")) return trimmed;
 
-  if (!useProxy) return trimmed;
+  if (!wantsImageProxy()) return trimmed;
 
   const isSupabaseStorage =
     (trimmed.includes("supabase.co") || trimmed.includes("supabase.in")) &&
@@ -31,7 +36,8 @@ export function getCachedImageUrl(url: string | null | undefined): string | null
 
 /**
  * Resize public Supabase Storage images at the CDN (Image Transformation).
- * Cuts cold next/image time when originals are 0.5–2MB mislabeled PNGs.
+ * Cuts bytes per view when originals are large; pair with getCachedImageUrl
+ * so the transformed result is cached on Vercel instead of re-hit every page.
  */
 export function getStorageCardUrl(
   url: string | null | undefined,

@@ -1,10 +1,10 @@
 # Reducing Supabase Cached Egress
 
-If you exceed **Cached Egress** usage in Supabase, most of it usually comes from serving **Storage** assets (avatars, logos) directly to browsers. Every page view that shows those images counts as egress.
+If you exceed **Cached Egress** usage in Supabase, most of it usually comes from serving **Storage** assets (avatars, logos) directly to browsers. Every page view that shows those images counts as egress. Compressing files helps bytes-per-hit, but **hit volume** still burns egress if browsers talk to Supabase on every view.
 
 ## What we did in code
 
-### 1. Image proxy (`/api/image-proxy`)
+### 1. Image proxy (`/api/image-proxy`) — **on by default**
 
 - **Route:** `app/api/image-proxy/route.ts`
 - **Behaviour:** GET `?url=<encoded_supabase_storage_url>`. Fetches the image from Supabase once and returns it with long `Cache-Control` (30 days). Next.js/Vercel caches the response, so subsequent requests are served from cache and **do not hit Supabase**.
@@ -12,10 +12,17 @@ If you exceed **Cached Egress** usage in Supabase, most of it usually comes from
 
 ### 2. Helper `getCachedImageUrl()` (`lib/imageProxy.ts`)
 
-- For any Supabase Storage URL (contains `supabase.co` and `/storage/`), it returns the proxy URL: `/api/image-proxy?url=...`
-- Used in: **Avatar** component, **homepage** brand logos, **AdminDashboardContent** (influencer avatars, brand logos), **BrandDashboardContent** (recommendation avatars).
+- For any Supabase Storage URL (contains `supabase.co` / `supabase.in` and `/storage/`), returns the proxy URL: `/api/image-proxy?url=...`
+- **Default:** proxy rewrite is **enabled**. Set `NEXT_PUBLIC_USE_IMAGE_PROXY=false` (or `0`) to serve Storage URLs directly again.
+- Idempotent: already-proxied paths are left unchanged.
+- Used via **Avatar**, **FastImage**, **CreatorPhoto**, homepage brand logos, admin/brand dashboards, media kit, etc.
 
-So: avatars and logos from Storage are now loaded via the proxy. After the first request per image, traffic is served from your app’s cache instead of Supabase, which reduces Storage egress.
+So: avatars and logos from Storage load via the proxy. After the first request per image, traffic is served from the app’s cache instead of Supabase, which reduces Storage egress.
+
+### 3. Upload compression (`prepareImageForStorage`)
+
+- Resize + WebP/JPEG before upload; keep the original when the encoded blob is **not smaller**.
+- Smaller objects → fewer MB egress even on cold (first) proxy fetches.
 
 ## Other ways to reduce egress
 
@@ -25,12 +32,15 @@ So: avatars and logos from Storage are now loaded via the proxy. After the first
 2. **Move images to another provider**  
    Use Cloudinary, Imgix, or Vercel Blob for uploads and serve from there; then Supabase Storage is only for upload/origin, not for every page view.
 
-3. **Resize/compress on upload**  
-   Store smaller or compressed images so each request transfers fewer bytes (fewer MB egress per view).
-
-4. **Upgrade or add-on**  
+3. **Upgrade or add-on**  
    Supabase Pro (or egress add-ons) gives more included egress.
 
-## Optional: disable proxy
+## Opt out of the proxy
 
-If you want to serve images directly from Supabase again (e.g. after adding a CDN), stop using the proxy by not calling `getCachedImageUrl()` and using the raw Storage URL instead. You can also remove or bypass the proxy route.
+If you put a CDN in front of Storage and prefer direct URLs:
+
+```bash
+NEXT_PUBLIC_USE_IMAGE_PROXY=false
+```
+
+Or stop calling `getCachedImageUrl()` and use the raw Storage URL (not recommended without another CDN).

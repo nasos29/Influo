@@ -105,17 +105,19 @@ export async function prepareImageForStorage(
   const baseName = stripExtension(file.name).replace(/[^a-zA-Z0-9._-]+/g, '_').slice(0, 80) || 'image';
 
   const webpBlob = await canvasToBlob(canvas, 'image/webp', webpQ);
-  if (webpBlob && webpBlob.size > 0) {
-    const newFile = new File([webpBlob], `${baseName}.webp`, { type: 'image/webp' });
-    if (newFile.size >= file.size) return file;
-    return newFile;
+  if (webpBlob && webpBlob.size > 0 && webpBlob.size < file.size) {
+    return new File([webpBlob], `${baseName}.webp`, { type: 'image/webp' });
   }
 
   const jpegBlob = await canvasToBlob(canvas, 'image/jpeg', jpegQ);
-  if (jpegBlob && jpegBlob.size > 0) {
-    const newFile = new File([jpegBlob], `${baseName}.jpg`, { type: 'image/jpeg' });
-    if (newFile.size >= file.size) return file;
-    return newFile;
+  if (jpegBlob && jpegBlob.size > 0 && jpegBlob.size < file.size) {
+    return new File([jpegBlob], `${baseName}.jpg`, { type: 'image/jpeg' });
+  }
+
+  // We downscaled but neither codec beat the original size — still ship the
+  // smaller-dimension JPEG so Storage serves fewer pixels on every view.
+  if ((outW < width || outH < height) && jpegBlob && jpegBlob.size > 0) {
+    return new File([jpegBlob], `${baseName}.jpg`, { type: 'image/jpeg' });
   }
 
   return file;
