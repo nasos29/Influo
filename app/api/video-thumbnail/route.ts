@@ -11,6 +11,12 @@ import {
   parseInstagramMediaTypeFromEmbedHtml,
   type InstagramMediaType,
 } from "@/lib/instagramMediaType";
+import { getSignedUrlExpiryMs } from "@/lib/signedCdnExpiry";
+import {
+  isVideoThumbsStorageUrl,
+  persistVideoThumbToStorage,
+} from "@/lib/persistVideoThumb";
+import { getCachedImageUrl } from "@/lib/imageProxy";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -19,6 +25,9 @@ const supabaseAdmin = createClient(
 );
 
 const CACHE_DAYS_DEFAULT = 365;
+const STORAGE_CACHE_DAYS = 365;
+const SIGNED_SKEW_MS = 60 * 60 * 1000; // 1 hour
+const REFRESH_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes
 const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 const FACEBOOK_UA = "facebookexternalhit/1.1";
@@ -48,9 +57,10 @@ function decodeCachedPayload(raw: string): { thumbnail: string; mediaType?: Medi
     try {
       const parsed = JSON.parse(trimmed) as { url?: unknown; mediaType?: unknown };
       if (typeof parsed?.url === "string" && parsed.url) {
-        const mt = parsed.mediaType === "video" || parsed.mediaType === "image"
-          ? (parsed.mediaType as MediaType)
-          : undefined;
+        const mt =
+          parsed.mediaType === "video" || parsed.mediaType === "image"
+            ? (parsed.mediaType as MediaType)
+            : undefined;
         return { thumbnail: parsed.url, mediaType: mt };
       }
     } catch {
@@ -58,6 +68,20 @@ function decodeCachedPayload(raw: string): { thumbnail: string; mediaType?: Medi
     }
   }
   return { thumbnail: trimmed };
+}
+
+function computeExpiresAt(thumbnailUrl: string, platform: string): Date {
+  const now = Date.now();
+  if (isVideoThumbsStorageUrl(thumbnailUrl)) {
+    return new Date(now + STORAGE_CACHE_DAYS * 24 * 60 * 60 * 1000);
+  }
+  const platformExpiry = now + cacheTtlMs(platform);
+  const signedMs = getSignedUrlExpiryMs(thumbnailUrl);
+  if (signedMs != null) {
+    const signedCap = signedMs - SIGNED_SKEW_MS;
+    return new Date(Math.min(platformExpiry, signedCap));
+  }
+  return new Date(platformExpiry);
 }
 
 /** Save thumbnail (+ optional mediaType) to DB cache. Upsert overwrites logo / stale entries. */
@@ -69,7 +93,7 @@ async function saveThumbnailCache(
 ) {
   if (!thumbnailUrl || isGenericLogoThumbnail(thumbnailUrl)) return;
   try {
-    const expiresAt = new Date(Date.now() + cacheTtlMs(platform));
+    const expiresAt = computeExpiresAt(thumbnailUrl, platform);
     await supabaseAdmin.from("video_thumbnail_cache").upsert(
       {
         original_url: originalUrl,
@@ -85,13 +109,23 @@ async function saveThumbnailCache(
   }
 }
 
+function forClient(url: string | null): string | null {
+  if (!url) return null;
+  return (getCachedImageUrl(url) as string | null | undefined) ?? url;
+}
+
 function jsonThumb(
   thumbnail: string | null,
   platform: string,
   extra?: Record<string, unknown>
 ) {
-  const res = NextResponse.json({ thumbnail, platform, ...extra });
-  const maxAge = platform === "tiktok" || platform === "instagram" ? 86400 : 31536000;
+  const res = NextResponse.json({ thumbnail: forClient(thumbnail), platform, ...extra });
+  const maxAge =
+    platform === "tiktok" || platform === "instagram"
+      ? isVideoThumbsStorageUrl(thumbnail || "")
+        ? 31536000
+        : 86400
+      : 31536000;
   res.headers.set("Cache-Control", `public, max-age=${maxAge}, s-maxage=${maxAge}`);
   return res;
 }
@@ -249,32 +283,86 @@ async function detectInstagramMediaType(
   }
 }
 
+type CacheHit = {
+  thumbnail: string;
+  platform: string;
+  mediaType?: MediaType;
+  cachedAt: number | null;
+};
+
+/**
+ * Cache hit only when DB row is still valid AND the stored URL is not a
+ * near-expired signed CDN link. Storage URLs are durable.
+ */
 async function readCache(
-  cleanUrl: string
-): Promise<{ thumbnail: string; platform: string; mediaType?: MediaType } | null> {
+  cleanUrl: string,
+  opts?: { forceRefresh?: boolean }
+): Promise<CacheHit | null> {
   try {
     const { data: cached, error: cacheError } = await supabaseAdmin
       .from("video_thumbnail_cache")
-      .select("thumbnail_url, platform, expires_at")
+      .select("thumbnail_url, platform, expires_at, cached_at")
       .eq("original_url", cleanUrl)
       .single();
     if (cacheError || !cached?.thumbnail_url) return null;
+
+    const decoded = decodeCachedPayload(String(cached.thumbnail_url));
+    if (isGenericLogoThumbnail(decoded.thumbnail)) return null;
+
+    const cachedAtMs = cached.cached_at ? new Date(cached.cached_at).getTime() : NaN;
+    const hit: CacheHit = {
+      thumbnail: decoded.thumbnail,
+      platform: (cached.platform as string) || "unknown",
+      mediaType: decoded.mediaType,
+      cachedAt: Number.isFinite(cachedAtMs) ? cachedAtMs : null,
+    };
+
+    // ?refresh=1: bypass unless we refreshed this URL in the last 10 minutes
+    if (opts?.forceRefresh) {
+      if (hit.cachedAt != null && Date.now() - hit.cachedAt < REFRESH_COOLDOWN_MS) {
+        return hit;
+      }
+      return null;
+    }
+
     const expiresAt = new Date(cached.expires_at);
     if (!(expiresAt > new Date())) {
       await supabaseAdmin.from("video_thumbnail_cache").delete().eq("original_url", cleanUrl);
       return null;
     }
-    const decoded = decodeCachedPayload(String(cached.thumbnail_url));
-    // Cached generic logos are useless — ignore and re-fetch (upsert will overwrite).
-    if (isGenericLogoThumbnail(decoded.thumbnail)) return null;
-    return {
-      thumbnail: decoded.thumbnail,
-      platform: (cached.platform as string) || "unknown",
-      mediaType: decoded.mediaType,
-    };
+
+    // Durable Storage covers — trust DB expires_at
+    if (isVideoThumbsStorageUrl(decoded.thumbnail)) {
+      return hit;
+    }
+
+    // Signed CDN: treat as miss if expired or within 1h of expiry
+    const signedExp = getSignedUrlExpiryMs(decoded.thumbnail);
+    if (signedExp != null && signedExp - Date.now() < SIGNED_SKEW_MS) {
+      return null;
+    }
+
+    return hit;
   } catch {
     return null;
   }
+}
+
+async function persistAndCache(
+  cleanUrl: string,
+  platform: "tiktok" | "instagram",
+  remoteThumb: string,
+  mediaType?: MediaType
+): Promise<string> {
+  const stored = await persistVideoThumbToStorage(
+    supabaseAdmin,
+    platform,
+    cleanUrl,
+    remoteThumb
+  );
+  const finalUrl = stored || remoteThumb;
+  await saveThumbnailCache(cleanUrl, finalUrl, platform, mediaType);
+  return finalUrl;
 }
 
 export async function GET(req: NextRequest) {
@@ -284,9 +372,10 @@ export async function GET(req: NextRequest) {
   }
 
   const cleanUrl = stripUrlNoise(url);
+  const forceRefresh = req.nextUrl.searchParams.get("refresh") === "1";
 
   try {
-    const cached = await readCache(cleanUrl);
+    const cached = await readCache(cleanUrl, { forceRefresh });
     if (cached) {
       return jsonThumb(cached.thumbnail, cached.platform, {
         ...(cached.mediaType ? { mediaType: cached.mediaType } : {}),
@@ -315,8 +404,8 @@ export async function GET(req: NextRequest) {
 
       const thumb = await resolveInstagramThumbnail(url);
       if (thumb) {
-        await saveThumbnailCache(cleanUrl, thumb, "instagram", mediaType);
-        return jsonThumb(thumb, "instagram", {
+        const finalUrl = await persistAndCache(cleanUrl, "instagram", thumb, mediaType);
+        return jsonThumb(finalUrl, "instagram", {
           ...(mediaType ? { mediaType } : {}),
         });
       }
@@ -336,8 +425,8 @@ export async function GET(req: NextRequest) {
     if (isTikTok) {
       const { thumbnail: thumb, mediaType } = await resolveTikTokThumbnail(url);
       if (thumb && !isGenericLogoThumbnail(thumb)) {
-        await saveThumbnailCache(cleanUrl, thumb, "tiktok", mediaType);
-        return jsonThumb(thumb, "tiktok", {
+        const finalUrl = await persistAndCache(cleanUrl, "tiktok", thumb, mediaType);
+        return jsonThumb(finalUrl, "tiktok", {
           ...(mediaType ? { mediaType } : {}),
         });
       }
