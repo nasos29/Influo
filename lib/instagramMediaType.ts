@@ -44,8 +44,12 @@ export function parseInstagramEmbedKindFromHtml(
   if (!html) return undefined;
   const typename = matchTypename(html);
   if (!typename) {
-    // Fallback when typename missing but is_video is present
+    // Crawler /embed shells without GraphQL JSON
+    if (/EmbedSidecar|class=["'][^"']*EmbedSidecar/i.test(html)) {
+      return "carousel";
+    }
     if (htmlHasIsVideoTrue(html)) return "video";
+    if (/EmbeddedMediaImage/i.test(html)) return "image";
     return undefined;
   }
   if (typename === "GraphVideo") return "video";

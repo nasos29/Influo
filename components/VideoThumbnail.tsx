@@ -15,6 +15,7 @@ import {
 } from "@/lib/tikTokPlayer";
 import { TIKTOK_SOUND_COPY, useTikTokPlayerHost } from "@/lib/useTikTokPlayerHost";
 import TikTokSoundPromptButton from "@/components/TikTokSoundPromptButton";
+import InstagramStaticCarousel from "@/components/InstagramStaticCarousel";
 import { extractInstagramMedia } from "@/lib/instagramShortcode";
 import type { InstagramEmbedKind } from "@/lib/instagramMediaType";
 
@@ -34,23 +35,20 @@ interface VideoThumbnailProps {
 const ARIA = {
   photo: { el: "Φωτογραφία", en: "Photo" },
   video: { el: "Βίντεο", en: "Video" },
-  carousel: { el: "Άλμπουμ", en: "Album" },
   openEmbed: { el: "Αναπαραγωγή", en: "Play" },
-  close: { el: "Κλείσιμο", en: "Close" },
 } as const;
 
-function CarouselBadge({ label }: { label: string }) {
-  return (
-    <span
-      className="absolute top-2 right-2 z-20 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-black/55 text-white shadow-sm backdrop-blur-sm"
-      aria-label={label}
-      title={label}
-    >
-      <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden>
-        <path d="M4 5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-2H6a2 2 0 0 1-2-2V5zm2 0v10h8V5H6zm10 4v10h2V9h-2z" />
-      </svg>
-    </span>
-  );
+function proxyImageList(urls: string[] | null | undefined): string[] {
+  if (!urls?.length) return [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of urls) {
+    const display = toDisplayThumbnailSrc(raw) || raw;
+    if (!display || seen.has(display)) continue;
+    seen.add(display);
+    out.push(display);
+  }
+  return out;
 }
 
 function PlayBadge({ label }: { label: string }) {
@@ -82,11 +80,11 @@ export default function VideoThumbnail({
   const [thumbnail, setThumbnail] = useState<string | null>(manualThumbnail || null);
   const [mediaType, setMediaType] = useState<MediaType | undefined>(undefined);
   const [igKind, setIgKind] = useState<InstagramEmbedKind | null>(null);
+  const [igImages, setIgImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [embedSrc, setEmbedSrc] = useState<string | null>(null);
   const [nativeVideoUrl, setNativeVideoUrl] = useState<string | null>(null);
-  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const proxiedRef = useRef(false);
   const refreshUsedRef = useRef(false);
   const isImage = url.match(/\.(jpg|jpeg|png|gif|webp)$/i);
@@ -109,7 +107,7 @@ export default function VideoThumbnail({
     proxiedRef.current = false;
     refreshUsedRef.current = false;
     setIgKind(isIgReel ? "video" : null);
-    setLightboxSrc(null);
+    setIgImages([]);
 
     const fetchThumbnail = async () => {
       setFailed(false);
@@ -148,8 +146,11 @@ export default function VideoThumbnail({
             const meta = (await metaRes.json()) as {
               mediaType?: string | null;
               poster?: string | null;
+              images?: string[] | null;
             };
             if (cancelled) return;
+            const proxied = proxyImageList(meta.images);
+            if (proxied.length) setIgImages(proxied);
             if (meta.mediaType === "video" || meta.mediaType === "image" || meta.mediaType === "carousel") {
               setIgKind(meta.mediaType);
               if (meta.mediaType === "image" || meta.mediaType === "carousel") {
@@ -157,9 +158,18 @@ export default function VideoThumbnail({
               } else {
                 setMediaType("video");
               }
+            } else if (meta.poster || proxied[0]) {
+              // Old posts: null mediaType but recoverable cover → static image.
+              setIgKind("image");
+              setMediaType("image");
             }
             if (meta.poster) {
               setThumbnail(toDisplayThumbnailSrc(meta.poster) || meta.poster);
+              setLoading(false);
+              return;
+            }
+            if (proxied[0]) {
+              setThumbnail(proxied[0]);
               setLoading(false);
               return;
             }
@@ -260,20 +270,56 @@ export default function VideoThumbnail({
     setThumbnail(null);
   }, [thumbnail, url]);
 
-  const isStaticImage = igKind === "image";
-  const isCarousel = igKind === "carousel";
+  const carouselImages =
+    igImages.length > 1
+      ? igImages
+      : igImages.length === 1
+        ? igImages
+        : thumbnail
+          ? [thumbnail]
+          : [];
+  const isInteractiveCarousel =
+    igKind === "carousel" && carouselImages.length > 1;
+  const isStaticImage =
+    igKind === "image" || (igKind === "carousel" && !isInteractiveCarousel);
 
-  const openInstagramEmbed = useCallback(() => {
-    if (!isInstagram || embedSrc || nativeVideoUrl || lightboxSrc || isStaticImage) return;
-
-    // Carousels: lightbox; videos: native / official embed.
-    if (isCarousel) {
-      if (thumbnail) {
-        setLightboxSrc(thumbnail);
-        return;
+  // Never leave Instagram /p/ empty: if meta+thumb failed, load official embed.
+  useEffect(() => {
+    if (!isIgPost || loading || embedSrc || nativeVideoUrl) return;
+    if (isStaticImage || isInteractiveCarousel) return;
+    if (igKind === "video") return;
+    if (thumbnail) {
+      if (igKind === null) {
+        setIgKind("image");
+        setMediaType("image");
       }
+      return;
+    }
+    if (failed || (!thumbnail && !loading)) {
       const official = buildOfficialEmbedUrl(url, { autoplay: false });
       if (official) setEmbedSrc(official);
+    }
+  }, [
+    embedSrc,
+    failed,
+    igKind,
+    isIgPost,
+    isInteractiveCarousel,
+    isStaticImage,
+    loading,
+    nativeVideoUrl,
+    thumbnail,
+    url,
+  ]);
+
+  const openInstagramEmbed = useCallback(() => {
+    if (
+      !isInstagram ||
+      embedSrc ||
+      nativeVideoUrl ||
+      isStaticImage ||
+      isInteractiveCarousel
+    ) {
       return;
     }
 
@@ -285,25 +331,27 @@ export default function VideoThumbnail({
             videoUrl?: string | null;
             mediaType?: string | null;
             poster?: string | null;
+            images?: string[] | null;
           };
-          if (data.mediaType === "image") {
-            setIgKind("image");
+          const proxied = proxyImageList(data.images);
+          if (proxied.length) setIgImages(proxied);
+          if (data.mediaType === "image" || (data.mediaType === "carousel" && proxied.length <= 1)) {
+            setIgKind(data.mediaType === "carousel" ? "carousel" : "image");
+            setMediaType("image");
+            if (data.poster) {
+              setThumbnail(toDisplayThumbnailSrc(data.poster) || data.poster);
+            } else if (proxied[0]) {
+              setThumbnail(proxied[0]);
+            }
+            return;
+          }
+          if (data.mediaType === "carousel" && proxied.length > 1) {
+            setIgKind("carousel");
             setMediaType("image");
             if (data.poster) {
               setThumbnail(toDisplayThumbnailSrc(data.poster) || data.poster);
             }
             return;
-          }
-          if (data.mediaType === "carousel") {
-            setIgKind("carousel");
-            setMediaType("image");
-            const src = data.poster
-              ? toDisplayThumbnailSrc(data.poster) || data.poster
-              : thumbnail;
-            if (src) {
-              setLightboxSrc(src);
-              return;
-            }
           }
           if (data.videoUrl) {
             setNativeVideoUrl(String(data.videoUrl));
@@ -318,17 +366,15 @@ export default function VideoThumbnail({
     })();
   }, [
     embedSrc,
-    isCarousel,
     isInstagram,
+    isInteractiveCarousel,
     isStaticImage,
-    lightboxSrc,
     nativeVideoUrl,
-    thumbnail,
     url,
   ]);
 
   const openTikTokPlayer = useCallback(() => {
-    if (!isTikTok || embedSrc || nativeVideoUrl || lightboxSrc) return;
+    if (!isTikTok || embedSrc || nativeVideoUrl) return;
     void (async () => {
       try {
         let videoId = extractTikTokVideoId(url);
@@ -345,7 +391,7 @@ export default function VideoThumbnail({
         /* keep thumbnail */
       }
     })();
-  }, [embedSrc, isTikTok, lightboxSrc, nativeVideoUrl, url]);
+  }, [embedSrc, isTikTok, nativeVideoUrl, url]);
 
   if (loading) {
     return (
@@ -353,31 +399,6 @@ export default function VideoThumbnail({
         className={`bg-gray-200 animate-pulse ${className}`}
         style={fill ? {} : { width, height }}
       />
-    );
-  }
-
-  if (lightboxSrc) {
-    return (
-      <div
-        className={`relative overflow-hidden bg-black ${className}`}
-        style={fill ? { width: "100%", height: "100%" } : { width, height, minHeight: 320 }}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={lightboxSrc}
-          alt={alt}
-          className="absolute inset-0 h-full w-full object-contain"
-          referrerPolicy="no-referrer"
-        />
-        <CarouselBadge label={ARIA.carousel[uiLang]} />
-        <button
-          type="button"
-          className="absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-lg bg-white/90 px-3 py-1.5 text-sm font-semibold text-slate-900 shadow"
-          onClick={() => setLightboxSrc(null)}
-        >
-          {ARIA.close[uiLang]}
-        </button>
-      </div>
     );
   }
 
@@ -435,11 +456,10 @@ export default function VideoThumbnail({
     );
   }
 
-  const showCarouselBadge = isCarousel;
   // Never show ▶ for Instagram photos/carousels; reels/videos keep play.
   const showPlayOverlay =
     !isStaticImage &&
-    !isCarousel &&
+    !isInteractiveCarousel &&
     (mediaType === "video" ||
       igKind === "video" ||
       isIgReel ||
@@ -448,16 +468,27 @@ export default function VideoThumbnail({
   const mediaFrame = (inner: ReactNode) => (
     <div
       className={`relative overflow-hidden ${fill ? "h-full w-full" : ""} ${
-        isStaticImage ? "cursor-default" : ""
+        isStaticImage || isInteractiveCarousel ? "cursor-default" : ""
       } ${className}`}
     >
       {inner}
-      {showCarouselBadge ? <CarouselBadge label={ARIA.carousel[uiLang]} /> : null}
       {showPlayOverlay && thumbnail && !failed ? (
         <PlayBadge label={ARIA.video[uiLang]} />
       ) : null}
     </div>
   );
+
+  if (isInteractiveCarousel) {
+    return mediaFrame(
+      <InstagramStaticCarousel
+        images={carouselImages}
+        lang={uiLang}
+        alt={alt}
+        imgClassName="h-full w-full object-cover"
+        onImgError={handleImgError}
+      />
+    );
+  }
 
   if (thumbnail && !failed) {
     // Static Instagram photo: plain object-cover image, no click / modal.
@@ -531,9 +562,7 @@ export default function VideoThumbnail({
           type="button"
           onClick={openInstagramEmbed}
           className="relative block h-full w-full cursor-pointer border-0 bg-transparent p-0 text-left"
-          aria-label={
-            isCarousel ? ARIA.carousel[uiLang] : ARIA.openEmbed[uiLang]
-          }
+          aria-label={ARIA.openEmbed[uiLang]}
         >
           {imgEl}
         </button>
@@ -642,7 +671,7 @@ export default function VideoThumbnail({
         type="button"
         onClick={openInstagramEmbed}
         className="relative block h-full w-full cursor-pointer border-0 bg-transparent p-0 text-left"
-        aria-label={isCarousel ? ARIA.carousel[uiLang] : ARIA.openEmbed[uiLang]}
+        aria-label={ARIA.openEmbed[uiLang]}
       >
         {placeholderBody}
       </button>

@@ -10,6 +10,7 @@ import {
 } from "@/lib/tikTokPlayer";
 import { TIKTOK_SOUND_COPY, useTikTokPlayerHost } from "@/lib/useTikTokPlayerHost";
 import TikTokSoundPromptButton from "@/components/TikTokSoundPromptButton";
+import InstagramStaticCarousel from "@/components/InstagramStaticCarousel";
 import { extractInstagramMedia } from "@/lib/instagramShortcode";
 import type { InstagramEmbedKind } from "@/lib/instagramMediaType";
 
@@ -29,11 +30,9 @@ interface SocialEmbedCardProps {
 const COPY = {
   play: { el: "Αναπαραγωγή", en: "Play" },
   playVideo: { el: "Προβολή βίντεο", en: "Play video" },
-  viewCarousel: { el: "Προβολή άλμπουμ", en: "View album" },
   loading: { el: "Φόρτωση", en: "Loading" },
   error: { el: "Αποτυχία φόρτωσης", en: "Failed to load" },
   retry: { el: "Δοκιμή ξανά", en: "Try again" },
-  close: { el: "Κλείσιμο", en: "Close" },
 } as const;
 
 const NAMES: Record<Provider, string> = {
@@ -56,6 +55,19 @@ const DEFAULT_DIMENSIONS: Record<Provider, { width: number; height: number }> = 
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function proxyImageList(urls: string[] | null | undefined): string[] {
+  if (!urls?.length) return [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of urls) {
+    const display = toDisplayThumbnailSrc(raw) || raw;
+    if (!display || seen.has(display)) continue;
+    seen.add(display);
+    out.push(display);
+  }
+  return out;
 }
 
 async function fetchTikTokEmbedUrl(originalUrl: string): Promise<string> {
@@ -87,14 +99,16 @@ async function fetchTikTokEmbedUrl(originalUrl: string): Promise<string> {
 async function fetchInstagramMeta(originalUrl: string): Promise<{
   mediaType: InstagramEmbedKind | null;
   poster: string | null;
+  images: string[];
 }> {
   const res = await fetch(
     `/api/instagram-video?url=${encodeURIComponent(originalUrl)}&meta=1`
   );
-  if (!res.ok) return { mediaType: null, poster: null };
+  if (!res.ok) return { mediaType: null, poster: null, images: [] };
   const data = (await res.json()) as {
     mediaType?: string | null;
     poster?: string | null;
+    images?: string[] | null;
   };
   const mt = data.mediaType;
   const mediaType =
@@ -102,6 +116,9 @@ async function fetchInstagramMeta(originalUrl: string): Promise<{
   return {
     mediaType,
     poster: data.poster ? String(data.poster) : null,
+    images: Array.isArray(data.images)
+      ? data.images.filter((u): u is string => typeof u === "string")
+      : [],
   };
 }
 
@@ -111,41 +128,32 @@ async function fetchInstagramNativeVideo(
   videoUrl: string | null;
   poster: string | null;
   mediaType: InstagramEmbedKind | null;
+  images: string[];
 }> {
   const res = await fetch(`/api/instagram-video?url=${encodeURIComponent(originalUrl)}`);
-  if (!res.ok) return { videoUrl: null, poster: null, mediaType: null };
+  if (!res.ok) return { videoUrl: null, poster: null, mediaType: null, images: [] };
   const data = (await res.json()) as {
     videoUrl?: string | null;
     poster?: string | null;
     mediaType?: string | null;
+    images?: string[] | null;
   };
   const mt = data.mediaType;
   return {
     videoUrl: data.videoUrl ? String(data.videoUrl) : null,
     poster: data.poster ? String(data.poster) : null,
     mediaType: mt === "video" || mt === "image" || mt === "carousel" ? mt : null,
+    images: Array.isArray(data.images)
+      ? data.images.filter((u): u is string => typeof u === "string")
+      : [],
   };
-}
-
-function CarouselBadge({ label }: { label: string }) {
-  return (
-    <span
-      className="absolute top-3 right-3 z-20 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-black/55 text-white shadow-sm backdrop-blur-sm"
-      aria-label={label}
-      title={label}
-    >
-      <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden>
-        <path d="M4 5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-2H6a2 2 0 0 1-2-2V5zm2 0v10h8V5H6zm10 4v10h2V9h-2z" />
-      </svg>
-    </span>
-  );
 }
 
 /**
  * Social video card:
  * - YouTube / TikTok / Instagram reels: facade with cover + ▶; media after click.
- * - Instagram /p/ photos (mediaType image): static cover only — no overlay/click.
- * - Instagram /p/ carousel: first frame + multi-image icon; click opens lightbox/embed.
+ * - Instagram /p/ photos: static cover only — no overlay/click.
+ * - Instagram /p/ carousel (images.length > 1): in-card swipe/arrows, no modal/label.
  */
 export default function SocialEmbedCard({
   provider,
@@ -168,17 +176,29 @@ export default function SocialEmbedCard({
   const [iframeSrc, setIframeSrc] = useState<string | null>(null);
   const [nativeVideoUrl, setNativeVideoUrl] = useState<string | null>(null);
   const [nativePoster, setNativePoster] = useState<string | null>(null);
-  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [igKind, setIgKind] = useState<InstagramEmbedKind | null>(
     isIgReel ? "video" : null
   );
   const [igPoster, setIgPoster] = useState<string | null>(null);
+  const [igImages, setIgImages] = useState<string[]>([]);
   const [igMetaLoading, setIgMetaLoading] = useState(false);
+  const [igMetaDone, setIgMetaDone] = useState(!isIgPost);
 
-  const isStaticImage = igKind === "image";
-  const isCarousel = igKind === "carousel";
+  const carouselImages =
+    igImages.length > 1
+      ? igImages
+      : igImages.length === 1
+        ? igImages
+        : igPoster
+          ? [igPoster]
+          : [];
+  const isInteractiveCarousel =
+    igKind === "carousel" && carouselImages.length > 1;
+  // Carousel with ≤1 image behaves like a plain static photo.
+  const isStaticImage =
+    igKind === "image" || (igKind === "carousel" && !isInteractiveCarousel);
 
   const isTikTokPlayer =
     provider === "tiktok" && !!iframeSrc && /tiktok\.com\/player\/v1\//i.test(iframeSrc);
@@ -190,16 +210,20 @@ export default function SocialEmbedCard({
 
   const { src: thumbSrc, onImgError } = useLazyVideoThumbnail(
     originalUrl,
-    // Static photos: still fetch cover if meta had no poster; otherwise facade cover.
+    // Static photos / carousels: still fetch cover if meta had no poster.
     nearViewport &&
-      !lightboxSrc &&
+      !iframeSrc &&
+      !nativeVideoUrl &&
       !(isStaticImage && !!igPoster) &&
-      (isStaticImage || (!activated && !iframeSrc && !nativeVideoUrl))
+      !(isInteractiveCarousel && carouselImages.length > 0) &&
+      (isStaticImage || isInteractiveCarousel || (!activated && !iframeSrc && !nativeVideoUrl))
   );
 
   // /p/ posts: never show ▶ until meta confirms video (photos stay static).
   const showPlayButton =
-    !isStaticImage && !isCarousel && (!isIgPost || igKind === "video");
+    !isStaticImage &&
+    !isInteractiveCarousel &&
+    (!isIgPost || igKind === "video");
 
   useEffect(() => {
     const node = rootRef.current;
@@ -219,19 +243,29 @@ export default function SocialEmbedCard({
 
   // Instagram /p/: resolve mediaType on mount (not only near viewport).
   useEffect(() => {
-    if (!isInstagram || !isIgPost || igKind) return;
+    if (!isInstagram || !isIgPost || igKind) {
+      if (isIgPost && igKind) setIgMetaDone(true);
+      return;
+    }
     let cancelled = false;
     setIgMetaLoading(true);
     void fetchInstagramMeta(originalUrl)
       .then((meta) => {
         if (cancelled) return;
         if (meta.mediaType) setIgKind(meta.mediaType);
+        const proxied = proxyImageList(meta.images);
+        if (proxied.length) setIgImages(proxied);
         if (meta.poster) {
           setIgPoster(toDisplayThumbnailSrc(meta.poster) || meta.poster);
+        } else if (proxied[0]) {
+          setIgPoster(proxied[0]);
         }
       })
       .finally(() => {
-        if (!cancelled) setIgMetaLoading(false);
+        if (!cancelled) {
+          setIgMetaLoading(false);
+          setIgMetaDone(true);
+        }
       });
     return () => {
       cancelled = true;
@@ -247,28 +281,53 @@ export default function SocialEmbedCard({
       return;
     }
     setIframeSrc(official);
+    setActivated(true);
     setLoading(false);
   }, [originalUrl]);
 
-  const openCarouselLightbox = useCallback(() => {
-    const src = igPoster || thumbSrc;
-    if (src) {
-      setLightboxSrc(src);
-      setActivated(true);
-      return;
+  // Never leave an empty Instagram /p/ card: cover from video-thumbnail, else official embed.
+  useEffect(() => {
+    if (!isIgPost || !igMetaDone || igMetaLoading) return;
+    if (iframeSrc || nativeVideoUrl || activated) return;
+    if (isStaticImage || isInteractiveCarousel) return;
+    if (igKind === "video") return;
+    // mediaType still null after meta — use thumb or embed.
+    if (igKind === null) {
+      const cover = igPoster || thumbSrc;
+      if (cover) {
+        setIgKind("image");
+        setIgPoster(cover);
+        return;
+      }
+      if (nearViewport) fallBackToOfficialEmbed();
     }
-    fallBackToOfficialEmbed();
-    setActivated(true);
-  }, [fallBackToOfficialEmbed, igPoster, thumbSrc]);
+  }, [
+    activated,
+    fallBackToOfficialEmbed,
+    igKind,
+    igMetaDone,
+    igMetaLoading,
+    igPoster,
+    iframeSrc,
+    isIgPost,
+    isInteractiveCarousel,
+    isStaticImage,
+    nativeVideoUrl,
+    nearViewport,
+    thumbSrc,
+  ]);
 
   const activateClickToLoad = useCallback(async () => {
-    if (loading || iframeSrc || nativeVideoUrl || lightboxSrc || isStaticImage) return;
-    setError(false);
-
-    if (isCarousel) {
-      openCarouselLightbox();
+    if (
+      loading ||
+      iframeSrc ||
+      nativeVideoUrl ||
+      isStaticImage ||
+      isInteractiveCarousel
+    ) {
       return;
     }
+    setError(false);
 
     setActivated(true);
     setLoading(true);
@@ -295,31 +354,27 @@ export default function SocialEmbedCard({
       }
 
       // Instagram reel / video post
-      const { videoUrl, poster, mediaType: mt } = await fetchInstagramNativeVideo(
+      const { videoUrl, poster, mediaType: mt, images } = await fetchInstagramNativeVideo(
         originalUrl
       );
       if (mt) setIgKind(mt);
+      const proxied = proxyImageList(images);
+      if (proxied.length) setIgImages(proxied);
       if (poster) {
         setIgPoster(toDisplayThumbnailSrc(poster) || poster);
+      } else if (proxied[0]) {
+        setIgPoster(proxied[0]);
       }
 
-      if (mt === "image") {
-        // Static photo — drop activation; no lightbox/embed.
+      if (mt === "image" || (mt === "carousel" && proxied.length <= 1)) {
         setActivated(false);
         setLoading(false);
         return;
       }
 
-      if (mt === "carousel") {
+      if (mt === "carousel" && proxied.length > 1) {
+        setActivated(false);
         setLoading(false);
-        const src = poster
-          ? toDisplayThumbnailSrc(poster) || poster
-          : thumbSrc;
-        if (src) {
-          setLightboxSrc(src);
-          return;
-        }
-        fallBackToOfficialEmbed();
         return;
       }
 
@@ -337,26 +392,27 @@ export default function SocialEmbedCard({
   }, [
     fallBackToOfficialEmbed,
     iframeSrc,
-    isCarousel,
+    isInteractiveCarousel,
     isStaticImage,
-    lightboxSrc,
     loading,
     nativeVideoUrl,
-    openCarouselLightbox,
     originalUrl,
     provider,
-    thumbSrc,
   ]);
 
   const coverSrc = igPoster || thumbSrc || null;
   const playLabel = isInstagram ? COPY.play[uiLang] : COPY.playVideo[uiLang];
-  const carouselLabel = COPY.viewCarousel[uiLang];
+  const showStaticPhoto = isStaticImage && !iframeSrc && !nativeVideoUrl;
+  const showCarousel =
+    isInteractiveCarousel && !iframeSrc && !nativeVideoUrl && carouselImages.length > 1;
 
   return (
     <div className="w-full max-w-full" ref={rootRef}>
       <div className="bg-white rounded-xl border border-slate-200 shadow-md overflow-hidden w-full max-w-full">
         <div
-          className={`relative w-full bg-slate-100 ${isStaticImage ? "cursor-default" : ""}`}
+          className={`relative w-full bg-slate-100 ${
+            showStaticPhoto || showCarousel ? "cursor-default" : ""
+          }`}
           style={{ aspectRatio: `${finalWidth} / ${finalHeight}`, minHeight: 300 }}
         >
           <div
@@ -364,7 +420,15 @@ export default function SocialEmbedCard({
             aria-hidden
           />
 
-          {!lightboxSrc && !iframeSrc && !nativeVideoUrl && coverSrc ? (
+          {showCarousel ? (
+            <InstagramStaticCarousel
+              images={carouselImages}
+              lang={uiLang}
+              onImgError={onImgError}
+            />
+          ) : null}
+
+          {showStaticPhoto && coverSrc ? (
             // eslint-disable-next-line @next/next/no-img-element -- CDN/proxy URLs; lazy cover only
             <img
               src={coverSrc}
@@ -377,11 +441,20 @@ export default function SocialEmbedCard({
             />
           ) : null}
 
-          {/* Static Instagram photo: cover only — no overlay, badge, or click. */}
-          {isStaticImage ? null : (
+          {/* Non-static: video facade / player */}
+          {!showStaticPhoto && !showCarousel ? (
             <>
-              {!activated && isCarousel ? (
-                <CarouselBadge label={carouselLabel} />
+              {!iframeSrc && !nativeVideoUrl && coverSrc ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={coverSrc}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  referrerPolicy="no-referrer"
+                  className="absolute inset-0 h-full w-full object-cover"
+                  onError={onImgError}
+                />
               ) : null}
 
               {!activated || error ? (
@@ -391,13 +464,7 @@ export default function SocialEmbedCard({
                     void activateClickToLoad();
                   }}
                   className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-gradient-to-t from-black/70 via-black/25 to-black/10 text-white transition hover:from-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
-                  aria-label={
-                    error
-                      ? COPY.retry[uiLang]
-                      : isCarousel
-                        ? carouselLabel
-                        : playLabel
-                  }
+                  aria-label={error ? COPY.retry[uiLang] : playLabel}
                 >
                   <span className="text-sm font-semibold tracking-wide uppercase opacity-95 drop-shadow">
                     {NAMES[provider]}
@@ -408,17 +475,15 @@ export default function SocialEmbedCard({
                         <path d="M8 5v14l11-7z" />
                       </svg>
                     </span>
-                  ) : isCarousel ? null : igMetaLoading || (isIgPost && igKind === null) ? (
+                  ) : igMetaLoading || (isIgPost && igKind === null) ? (
                     <div className="h-8 w-8 animate-spin rounded-full border-4 border-white border-t-transparent" />
                   ) : null}
                   <span className="text-base font-bold drop-shadow">
                     {error
                       ? COPY.retry[uiLang]
-                      : isCarousel
-                        ? carouselLabel
-                        : showPlayButton
-                          ? playLabel
-                          : COPY.loading[uiLang]}
+                      : showPlayButton
+                        ? playLabel
+                        : COPY.loading[uiLang]}
                   </span>
                   {error ? (
                     <span className="text-xs font-medium text-white/85">{COPY.error[uiLang]}</span>
@@ -434,29 +499,6 @@ export default function SocialEmbedCard({
                   <span className="text-xs font-medium text-white">
                     {COPY.loading[uiLang]} {NAMES[provider]}…
                   </span>
-                </div>
-              ) : null}
-
-              {lightboxSrc ? (
-                <div className="absolute inset-0 z-[6] flex items-center justify-center bg-black">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={lightboxSrc}
-                    alt=""
-                    className="max-h-full max-w-full object-contain"
-                    referrerPolicy="no-referrer"
-                  />
-                  <CarouselBadge label={carouselLabel} />
-                  <button
-                    type="button"
-                    className="absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-lg bg-white/90 px-3 py-1.5 text-sm font-semibold text-slate-900 shadow"
-                    onClick={() => {
-                      setLightboxSrc(null);
-                      setActivated(false);
-                    }}
-                  >
-                    {COPY.close[uiLang]}
-                  </button>
                 </div>
               ) : null}
 
@@ -507,7 +549,7 @@ export default function SocialEmbedCard({
                 </>
               ) : null}
             </>
-          )}
+          ) : null}
         </div>
       </div>
     </div>
