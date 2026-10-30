@@ -30,23 +30,8 @@ const ARIA = {
   video: { el: "Βίντεο", en: "Video" },
   carousel: { el: "Άλμπουμ", en: "Album" },
   openEmbed: { el: "Αναπαραγωγή", en: "Play" },
-  viewPhoto: { el: "Προβολή φωτογραφίας", en: "View photo" },
   close: { el: "Κλείσιμο", en: "Close" },
 } as const;
-
-function PhotoBadge({ label }: { label: string }) {
-  return (
-    <span
-      className="absolute top-2 right-2 z-20 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-black/55 text-white shadow-sm backdrop-blur-sm"
-      aria-label={label}
-      title={label}
-    >
-      <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden>
-        <path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5zm3 2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm-1 11 3.5-4.5 2.5 3 3.5-4.5L19 18H6z" />
-      </svg>
-    </span>
-  );
-}
 
 function CarouselBadge({ label }: { label: string }) {
   return (
@@ -262,15 +247,14 @@ export default function VideoThumbnail({
     setThumbnail(null);
   }, [thumbnail, url]);
 
-  const isPhotoLike =
-    igKind === "image" || igKind === "carousel" || mediaType === "image";
+  const isStaticImage = igKind === "image";
   const isCarousel = igKind === "carousel";
 
   const openInstagramEmbed = useCallback(() => {
-    if (!isInstagram || embedSrc || nativeVideoUrl || lightboxSrc) return;
+    if (!isInstagram || embedSrc || nativeVideoUrl || lightboxSrc || isStaticImage) return;
 
-    // Photos / carousels: lightbox, no ▶ video path.
-    if (isPhotoLike) {
+    // Carousels: lightbox; videos: native / official embed.
+    if (isCarousel) {
       if (thumbnail) {
         setLightboxSrc(thumbnail);
         return;
@@ -289,10 +273,20 @@ export default function VideoThumbnail({
             mediaType?: string | null;
             poster?: string | null;
           };
-          if (data.mediaType === "image" || data.mediaType === "carousel") {
-            setIgKind(data.mediaType);
+          if (data.mediaType === "image") {
+            setIgKind("image");
             setMediaType("image");
-            const src = data.poster || thumbnail;
+            if (data.poster) {
+              setThumbnail(toDisplayThumbnailSrc(data.poster) || data.poster);
+            }
+            return;
+          }
+          if (data.mediaType === "carousel") {
+            setIgKind("carousel");
+            setMediaType("image");
+            const src = data.poster
+              ? toDisplayThumbnailSrc(data.poster) || data.poster
+              : thumbnail;
             if (src) {
               setLightboxSrc(src);
               return;
@@ -311,8 +305,9 @@ export default function VideoThumbnail({
     })();
   }, [
     embedSrc,
+    isCarousel,
     isInstagram,
-    isPhotoLike,
+    isStaticImage,
     lightboxSrc,
     nativeVideoUrl,
     thumbnail,
@@ -341,7 +336,7 @@ export default function VideoThumbnail({
           className="absolute inset-0 h-full w-full object-contain"
           referrerPolicy="no-referrer"
         />
-        {isCarousel ? <CarouselBadge label={ARIA.carousel[uiLang]} /> : null}
+        <CarouselBadge label={ARIA.carousel[uiLang]} />
         <button
           type="button"
           className="absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-lg bg-white/90 px-3 py-1.5 text-sm font-semibold text-slate-900 shadow"
@@ -396,21 +391,24 @@ export default function VideoThumbnail({
     );
   }
 
-  const showPhotoBadge = isPhotoLike && !isCarousel;
   const showCarouselBadge = isCarousel;
   // Never show ▶ for Instagram photos/carousels; reels/videos keep play.
   const showPlayOverlay =
-    !isPhotoLike &&
+    !isStaticImage &&
+    !isCarousel &&
     (mediaType === "video" ||
       igKind === "video" ||
       isIgReel ||
       (!isIgPost && (isVideo || isTikTok)));
 
   const mediaFrame = (inner: ReactNode) => (
-    <div className={`relative overflow-hidden ${fill ? "h-full w-full" : ""} ${className}`}>
+    <div
+      className={`relative overflow-hidden ${fill ? "h-full w-full" : ""} ${
+        isStaticImage ? "cursor-default" : ""
+      } ${className}`}
+    >
       {inner}
       {showCarouselBadge ? <CarouselBadge label={ARIA.carousel[uiLang]} /> : null}
-      {showPhotoBadge ? <PhotoBadge label={ARIA.photo[uiLang]} /> : null}
       {showPlayOverlay && thumbnail && !failed ? (
         <PlayBadge label={ARIA.video[uiLang]} />
       ) : null}
@@ -418,6 +416,22 @@ export default function VideoThumbnail({
   );
 
   if (thumbnail && !failed) {
+    // Static Instagram photo: plain object-cover image, no click / modal.
+    if (isStaticImage) {
+      return mediaFrame(
+        // eslint-disable-next-line @next/next/no-img-element -- proxied CDN poster
+        <img
+          src={thumbnail}
+          alt={alt}
+          className="h-full w-full object-cover"
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          onError={handleImgError}
+        />
+      );
+    }
+
     const isInstagramCDN =
       thumbnail.includes("cdninstagram.com") || thumbnail.includes("scontent.cdninstagram.com");
 
@@ -474,7 +488,7 @@ export default function VideoThumbnail({
           onClick={openInstagramEmbed}
           className="relative block h-full w-full cursor-pointer border-0 bg-transparent p-0 text-left"
           aria-label={
-            isPhotoLike ? ARIA.viewPhoto[uiLang] : ARIA.openEmbed[uiLang]
+            isCarousel ? ARIA.carousel[uiLang] : ARIA.openEmbed[uiLang]
           }
         >
           {imgEl}
@@ -494,7 +508,7 @@ export default function VideoThumbnail({
     <div
       className={`bg-gradient-to-br ${placeholderClass} flex items-center justify-center relative overflow-hidden ${
         fill ? "h-full w-full" : className
-      }`}
+      } ${isStaticImage ? "cursor-default" : ""}`}
       style={fill ? {} : { width, height }}
     >
       <div className="absolute inset-0 opacity-10" aria-hidden>
@@ -506,8 +520,6 @@ export default function VideoThumbnail({
           }}
         />
       </div>
-
-      {showPhotoBadge ? <PhotoBadge label={ARIA.photo[uiLang]} /> : null}
 
       {isVideo || isInstagram || isTikTok ? (
         <div className="text-center relative z-10">
@@ -562,13 +574,18 @@ export default function VideoThumbnail({
     </div>
   );
 
+  // Static IG photo placeholder: non-interactive.
+  if (isStaticImage) {
+    return placeholderBody;
+  }
+
   if (isInstagram) {
     return (
       <button
         type="button"
         onClick={openInstagramEmbed}
         className="relative block h-full w-full cursor-pointer border-0 bg-transparent p-0 text-left"
-        aria-label={isPhotoLike ? ARIA.viewPhoto[uiLang] : ARIA.openEmbed[uiLang]}
+        aria-label={isCarousel ? ARIA.carousel[uiLang] : ARIA.openEmbed[uiLang]}
       >
         {placeholderBody}
       </button>
