@@ -1,7 +1,9 @@
 /** Online if the heartbeat is fresh. A stuck is_online flag does not keep someone online. */
 
-export const PRESENCE_STALE_MS = 90_000;
-export const PRESENCE_HEARTBEAT_MS = 25_000;
+/** Online window must outlast the 2-minute heartbeat. */
+export const PRESENCE_STALE_MS = 240_000;
+/** At most one presence upsert every 2 minutes. */
+export const PRESENCE_HEARTBEAT_MS = 120_000;
 
 export function presenceOnline(
   row: { is_online?: boolean | null; last_seen?: string | null } | null | undefined,

@@ -5,6 +5,9 @@
 import { NextResponse } from 'next/server';
 import { computeTopInfluencers } from '@/lib/computeTopInfluencers';
 
+/** Edge-friendly; computeTopInfluencers is also unstable_cache'd for 1h. */
+export const revalidate = 300;
+
 export async function GET() {
   try {
     const ordered = await computeTopInfluencers();

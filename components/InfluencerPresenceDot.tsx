@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
 import { formatActiveLabel, presenceOnline } from "@/lib/presenceStatus";
-import { counterpartyInfluencerPresence } from "@/lib/presenceIdentity";
+import { getInfluencerPresenceCached } from "@/lib/presenceCache";
 
-/** Μικρή ένδειξη online/offline (ίδια λογική με Messaging.checkInfluencerStatus). */
+/**
+ * Shared presence cache + slow poll (no per-dot postgres_changes).
+ * Interval 2 minutes; skips while the tab is hidden.
+ */
 export default function InfluencerPresenceDot({
   influencerId,
   lang = "el",
@@ -20,19 +22,12 @@ export default function InfluencerPresenceDot({
 
   useEffect(() => {
     if (!influencerId) return;
+    let cancelled = false;
 
     const check = async () => {
-      const { data, error } = await supabase
-        .from("influencer_presence")
-        .select("influencer_id, is_online, last_seen")
-        .eq("influencer_id", influencerId)
-        .maybeSingle();
-
-      if (error && error.code !== "PGRST116") {
-        setOnline(false);
-        return;
-      }
-      const row = counterpartyInfluencerPresence(influencerId, data);
+      if (document.hidden) return;
+      const row = await getInfluencerPresenceCached(influencerId);
+      if (cancelled) return;
       if (!row) {
         setOnline(false);
         setLastSeen(null);
@@ -42,27 +37,21 @@ export default function InfluencerPresenceDot({
       setOnline(presenceOnline(row));
     };
 
-    check();
-    const interval = setInterval(check, 30000);
-    const channel = supabase
-      .channel(`influencer_presence_dot:${influencerId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "influencer_presence",
-          filter: `influencer_id=eq.${influencerId}`,
-        },
-        () => {
-          check();
-        }
-      )
-      .subscribe();
+    void check();
+    const interval = setInterval(() => {
+      if (document.hidden) return;
+      void check();
+    }, 120_000);
+
+    const onVisibility = () => {
+      if (!document.hidden) void check();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
+      cancelled = true;
       clearInterval(interval);
-      supabase.removeChannel(channel);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [influencerId]);
 

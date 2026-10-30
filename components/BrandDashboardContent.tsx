@@ -23,6 +23,8 @@ import BrandShortlistPanel from '@/components/BrandShortlistPanel';
 import BrandToolsPanel from '@/components/BrandToolsPanel';
 import InfluencerPresenceDot from '@/components/InfluencerPresenceDot';
 import { loadOwnProfiles } from '@/lib/ownProfile';
+import { getApprovedInfluencersForRecommendations } from '@/lib/approvedInfluencersListCache';
+import { readSessionAvatar, writeSessionAvatar } from '@/lib/sessionAvatarCache';
 import { publicProfilePath } from '@/lib/profileSlug';
 import { CATEGORIES, categoriesMatchFilter, categoryLabel, formatStoredCategories, parseStoredCategories } from "@/lib/categories";
 import CategoryCheckboxList from "@/components/CategoryCheckboxList";
@@ -1017,20 +1019,36 @@ export default function BrandDashboardContent() {
         // Get unique influencer IDs
         const influencerIds = [...new Set(proposalsData.map((p: Proposal) => p.influencer_id))];
 
-        // Fetch influencer data
+        // Fetch influencer avatars (session-cached per id)
         if (influencerIds.length > 0) {
-          const { data: influencersData } = await supabase
-            .from('influencers')
-            .select('id, display_name, avatar_url')
-            .in('id', influencerIds);
-
-          if (influencersData) {
-            const influencersMap: Record<string, Influencer> = {};
-            influencersData.forEach((inf: Influencer) => {
-              influencersMap[inf.id] = inf;
-            });
-            setInfluencers(influencersMap);
+          const influencersMap: Record<string, Influencer> = {};
+          const missing: string[] = [];
+          for (const id of influencerIds) {
+            const cached = readSessionAvatar("influencer", String(id));
+            if (cached) {
+              influencersMap[id] = {
+                id,
+                display_name: cached.name || "Unknown",
+                avatar_url: cached.url || undefined,
+              } as Influencer;
+            } else {
+              missing.push(id);
+            }
           }
+          if (missing.length > 0) {
+            const { data: influencersData } = await supabase
+              .from("influencers")
+              .select("id, display_name, avatar_url")
+              .in("id", missing);
+            for (const inf of (influencersData || []) as Influencer[]) {
+              influencersMap[inf.id] = inf;
+              writeSessionAvatar("influencer", String(inf.id), {
+                url: inf.avatar_url || null,
+                name: inf.display_name || null,
+              });
+            }
+          }
+          setInfluencers(influencersMap);
         }
     } catch (err) {
       console.error('Error loading data:', err);
@@ -1049,16 +1067,34 @@ export default function BrandDashboardContent() {
       setProposalsLoaded(true);
       const influencerIds = [...new Set(proposalsData.map((p) => p.influencer_id).filter(Boolean))];
       if (!influencerIds.length) return;
-      const { data: influencersData } = await supabase
-        .from('influencers')
-        .select('id, display_name, avatar_url')
-        .in('id', influencerIds);
-      if (!influencersData) return;
-      setInfluencers((prev) => {
-        const next = { ...prev };
-        for (const inf of influencersData as Influencer[]) next[inf.id] = inf;
-        return next;
-      });
+      const missing: string[] = [];
+      const found: Record<string, Influencer> = {};
+      for (const id of influencerIds) {
+        const cached = readSessionAvatar("influencer", String(id));
+        if (cached) {
+          found[id] = {
+            id,
+            display_name: cached.name || "Unknown",
+            avatar_url: cached.url || undefined,
+          } as Influencer;
+        } else {
+          missing.push(id);
+        }
+      }
+      if (missing.length > 0) {
+        const { data: influencersData } = await supabase
+          .from("influencers")
+          .select("id, display_name, avatar_url")
+          .in("id", missing);
+        for (const inf of (influencersData || []) as Influencer[]) {
+          found[inf.id] = inf;
+          writeSessionAvatar("influencer", String(inf.id), {
+            url: inf.avatar_url || null,
+            name: inf.display_name || null,
+          });
+        }
+      }
+      setInfluencers((prev) => ({ ...prev, ...found }));
     } catch (err) {
       console.error('Error reloading proposals:', err);
     }
@@ -1119,17 +1155,12 @@ export default function BrandDashboardContent() {
   const loadRecommendations = async (brand: any) => {
     setRecommendationsLoading(true);
     try {
-      // Fetch only approved influencers from database (same as Directory)
-      const { data: influencersData, error } = await supabase
-        .from('influencers')
-        .select('id, display_name, category, engagement_rate, avg_likes, location, gender, avg_rating, total_reviews, verified, approved, analytics_verified, accounts, avatar_url, audience_male_percent, audience_female_percent, audience_top_age, bio, auditpr_audit, profile_slug')
-        .eq('approved', true) // Only approved influencers (same as Directory)
-        .order('created_at', { ascending: false }) // Sort by creation date
-        .limit(200);
-      
-      if (error) throw error;
+      // Cached approved list — no bio / full auditpr_audit (JSON paths only).
+      const influencersData = await getApprovedInfluencersForRecommendations();
 
-      const ids = (influencersData || []).map((inf: { id: string }) => inf.id).filter(Boolean);
+      const ids = (influencersData || [])
+        .map((inf) => String(inf.id || ""))
+        .filter(Boolean);
       const priceById: Record<string, string | null> = {};
       const pastById: Record<string, string[]> = {};
       try {
@@ -1263,9 +1294,13 @@ export default function BrandDashboardContent() {
           audience_male_percent: inf.audience_male_percent,
           audience_female_percent: inf.audience_female_percent,
           audience_top_age: inf.audience_top_age,
-          bio: inf.bio,
+          bio: null,
           rate_card: undefined,
-          auditpr_audit: inf.auditpr_audit ?? undefined,
+          auditpr_audit: {
+            brandSafe: (inf as { brandSafe?: boolean }).brandSafe ?? (inf.auditpr_audit as { brandSafe?: boolean } | null)?.brandSafe,
+            niche: (inf as { niche?: string }).niche ?? (inf.auditpr_audit as { niche?: string } | null)?.niche,
+            niche_en: (inf as { niche_en?: string }).niche_en ?? (inf.auditpr_audit as { niche_en?: string } | null)?.niche_en,
+          },
           profile_slug: inf.profile_slug ?? null,
         };
       }).filter(inf => {

@@ -680,9 +680,18 @@ export default function InfluencerProfile(props: {
     };
 
     checkOnlineStatus();
-    // Check every 10 seconds for more accurate status
-    const interval = setInterval(checkOnlineStatus, 10000);
-    return () => clearInterval(interval);
+    const interval = setInterval(() => {
+      if (document.hidden) return;
+      void checkOnlineStatus();
+    }, 60_000);
+    const onVisibility = () => {
+      if (!document.hidden) void checkOnlineStatus();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [id]);
 
   // Load counter proposal data if query params exist
@@ -1097,12 +1106,12 @@ export default function InfluencerProfile(props: {
     return () => window.removeEventListener('focus', handleFocus);
   }, [id]);
 
-  // Also refresh periodically (every 30 seconds) to catch updates from admin dashboard
+  // Soft refresh while the tab is visible (Realtime is not used on public profiles).
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchProfile();
-    }, 30000); // Refresh every 30 seconds
-    
+      if (document.hidden) return;
+      void fetchProfile();
+    }, 120_000);
     return () => clearInterval(interval);
   }, [id]);
 
