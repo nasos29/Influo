@@ -137,6 +137,7 @@ const t = {
     noResults: "Δεν βρέθηκαν influencers",
     adjust: "Δοκίμασε διαφορετικά φίλτρα.",
     reset: "Επαναφορά",
+    seeFullDirectory: "Δείτε όλο τον κατάλογο",
     pagePrev: "Προηγούμενη",
     pageNext: "Επόμενη",
     pageOf: "από",
@@ -178,6 +179,7 @@ const t = {
     noResults: "No influencers found",
     adjust: "Try adjusting your filters.",
     reset: "Reset Filters",
+    seeFullDirectory: "See the full directory",
     pagePrev: "Previous",
     pageNext: "Next",
     pageOf: "of",
@@ -275,9 +277,15 @@ const pillInput =
 export default function Directory({
   lang = "el",
   initialInfluencers = [],
+  homeLimit,
+  onDisplayedIdsChange,
 }: {
   lang?: "el" | "en";
   initialInfluencers?: Influencer[];
+  /** Homepage preview: show only this many cards, no pagination. */
+  homeLimit?: number;
+  /** Fired when the visible preview card ids change (home preview). */
+  onDisplayedIdsChange?: (ids: string[]) => void;
 }) {
   const [influencers, setInfluencers] = useState<Influencer[]>(initialInfluencers);
   const txt = t[lang];
@@ -286,6 +294,7 @@ export default function Directory({
   const pathname = usePathname() || "/directory";
   const searchParams = useSearchParams();
   const skipPageResetRef = useRef(true);
+  const isHomePreview = typeof homeLimit === "number" && homeLimit > 0;
 
   const [searchQuery, setSearchQuery] = useState("");
   const [locationQuery, setLocationQuery] = useState("");
@@ -646,11 +655,13 @@ export default function Directory({
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
-  const displayedInfluencers = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const displayedInfluencers = isHomePreview
+    ? filtered.slice(0, homeLimit)
+    : filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const pageButtons = useMemo(() => {
-    if (totalPages <= 7) {
-      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    if (isHomePreview || totalPages <= 7) {
+      return isHomePreview ? [] : Array.from({ length: totalPages }, (_, i) => i + 1);
     }
     const pages = new Set<number>();
     pages.add(1);
@@ -659,7 +670,25 @@ export default function Directory({
       if (i >= 1 && i <= totalPages) pages.add(i);
     }
     return Array.from(pages).sort((a, b) => a - b);
-  }, [safePage, totalPages]);
+  }, [isHomePreview, safePage, totalPages]);
+
+  const fullDirectoryHref = useMemo(() => {
+    const base = lang === "en" ? "/en/directory" : "/directory";
+    const params = new URLSearchParams();
+    if (categoryFilter && categoryFilter !== "All") params.set("category", categoryFilter);
+    const qs = params.toString();
+    return qs ? `${base}?${qs}` : base;
+  }, [categoryFilter, lang]);
+
+  const displayedIdsKey = displayedInfluencers.map((inf) => String(inf.id)).join(",");
+  useEffect(() => {
+    if (!isHomePreview || !onDisplayedIdsChange) return;
+    onDisplayedIdsChange(displayedIdsKey ? displayedIdsKey.split(",") : []);
+  }, [isHomePreview, onDisplayedIdsChange, displayedIdsKey]);
+
+  const cardGridClass = isHomePreview
+    ? "grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-4 md:gap-x-6 md:gap-y-8"
+    : "grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-6 lg:gap-y-8";
 
   return (
     <div>
@@ -888,7 +917,7 @@ export default function Directory({
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-6 lg:gap-y-8">
+        <div className={cardGridClass}>
           {[...Array(8)].map((_, i) => (
             <div key={i} className="animate-pulse">
               <div className="aspect-[4/5] rounded-2xl bg-slate-200" />
@@ -902,7 +931,7 @@ export default function Directory({
         </div>
       ) : filtered.length > 0 ? (
         <>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-6 lg:gap-y-8">
+          <div className={cardGridClass}>
             {displayedInfluencers.map((inf) => {
               const badges = badgesForInfluencer(inf, lang);
 
@@ -910,7 +939,7 @@ export default function Directory({
                 <Link
                   href={publicProfilePath(inf.profile_slug, inf.id)}
                   key={inf.id}
-                  className="block group"
+                  className="block group min-w-0"
                   onClick={() => {
                     fetch("/api/analytics/track", {
                       method: "POST",
@@ -919,7 +948,7 @@ export default function Directory({
                         influencerId: inf.id,
                         eventType: "profile_click",
                         visitorId: getVisitorId(),
-                        metadata: { source: "directory" },
+                        metadata: { source: isHomePreview ? "home_directory" : "directory" },
                       }),
                       keepalive: true,
                     }).catch(() => {});
@@ -939,7 +968,16 @@ export default function Directory({
             })}
           </div>
 
-          {totalPages > 1 && (
+          {isHomePreview ? (
+            <div className="mt-10 flex justify-center">
+              <a
+                href={fullDirectoryHref}
+                className="inline-flex items-center justify-center rounded-full bg-slate-900 px-8 py-3.5 text-base font-semibold text-white shadow-md transition-colors hover:bg-slate-800 hover:shadow-lg"
+              >
+                {txt.seeFullDirectory}
+              </a>
+            </div>
+          ) : totalPages > 1 ? (
             <nav
               className="mt-10 flex flex-wrap items-center justify-center gap-2"
               aria-label={lang === "el" ? "Σελιδοποίηση" : "Pagination"}
@@ -986,7 +1024,7 @@ export default function Directory({
                 {txt.pageNext}
               </button>
             </nav>
-          )}
+          ) : null}
         </>
       ) : (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 py-20 text-center">
