@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { sessionFetch } from "@/lib/sessionFetch";
+import { formatEuroAmount } from "@/lib/formatEuro";
 import InfluencerPresenceDot from "@/components/InfluencerPresenceDot";
 import CreatorPhoto from "@/components/CreatorPhoto";
 import PlatformFollowers from "@/components/PlatformFollowers";
@@ -1480,7 +1481,7 @@ export default function BrandCampaignsSection({
                                     {inf?.min_rate ? ` · ${x.rate}: ${inf.min_rate}` : ""}
                                     {inf?.category ? ` · ${categoryLabel(inf.category, lang) || inf.category}` : ""}
                                   </p>
-                                  {app.proposed_price != null && <p className="text-xs text-slate-700 mt-1">{x.proposed}: €{app.proposed_price}</p>}
+                                  {app.proposed_price != null && <p className="text-xs text-slate-700 mt-1">{x.proposed}: {formatEuroAmount(app.proposed_price, lang)}</p>}
                                   {(() => {
                                     const allowed = filterWorkLinks(app.work_links || "").ok;
                                     if (!allowed.length) return null;

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { sessionFetch } from "@/lib/sessionFetch";
 import Image from "next/image";
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 import {
@@ -32,7 +33,7 @@ import { normalizeYouTubeUsernameForSave } from "@/lib/youtubeHandle";
 import ServicePackagesEditor from "./ServicePackagesEditor";
 import {
   defaultPackages,
-  minRateFromPackages,
+  packagesHaveInvalidPrice,
   packagesForSave,
   rateCardFromPackages,
   type ServicePackage,
@@ -110,7 +111,6 @@ const t = {
     videoDesc: "Επικόλλησε links από TikTok, Reels ή YouTube. Μπορείτε επίσης να προσθέσετε links φωτογραφιών από δουλειές σας.",
     videoProfileWarn: "Αυτό είναι link προφίλ, όχι video. Βάλε link από συγκεκριμένο reel/video/post.",
     addVideo: "+ Προσθήκη Video Link / Φωτογραφίας",
-    rateLabel: "Ελάχιστη Χρέωση / Budget (€)",
     pricingLabel: "Τιμές Ανά Υπηρεσία",
     pricingDesc: "Αφήστε κενό για 'Ρώτησε'",
     pricingStory: "Instagram Story (€)",
@@ -184,7 +184,6 @@ const t = {
     videoDesc: "Paste links from TikTok, Reels, or YouTube. You can also add photo links from your work.",
     videoProfileWarn: "This is a profile link, not a video. Paste a link to a specific reel/video/post.",
     addVideo: "+ Add Video Link / Photo",
-    rateLabel: "Minimum Rate / Budget (€)",
     pricingLabel: "Pricing Per Service",
     pricingDesc: "Leave empty for 'Ask'",
     pricingStory: "Instagram Story (€)",
@@ -766,6 +765,13 @@ export default function InfluencerSignupForm() {
           return { ...acc, username };
         });
 
+      if (packagesHaveInvalidPrice(servicePackages)) {
+        throw new Error(
+          lang === "el"
+            ? "Κάθε τιμή πακέτου πρέπει να είναι πάνω από 0, ή κενή."
+            : "Each package price must be greater than 0, or left empty."
+        );
+      }
       const packagesPayload = packagesForSave(servicePackages);
       if (packagesPayload.length < 1) {
         throw new Error(
@@ -775,7 +781,6 @@ export default function InfluencerSignupForm() {
         );
       }
       const rateCardPayload = rateCardFromPackages(packagesPayload);
-      const minRateValue = minRateFromPackages(packagesPayload) || "";
 
       const baseRow: Record<string, unknown> = {
           id: authUser.id,
@@ -786,7 +791,6 @@ export default function InfluencerSignupForm() {
           location,
           birth_date: normalizedBirthDate,
           languages: languagesCodesToStored(selectedLanguages),
-          min_rate: minRateValue,
           contact_email: email,
           bio, 
           accounts: socialAccounts, 
@@ -813,6 +817,30 @@ export default function InfluencerSignupForm() {
       ) {
         console.warn('[Signup] pricing columns missing; inserting without them:', insertError.message);
         insertError = (await supabase.from("influencers").insert([baseRow])).error;
+      }
+
+      if (!insertError) {
+        try {
+          const token = authData?.session?.access_token as string | undefined;
+          const headers: Record<string, string> = { "Content-Type": "application/json" };
+          if (token) headers.Authorization = `Bearer ${token}`;
+          const sync = token
+            ? await fetch("/api/influencer/sync-min-rate", {
+                method: "POST",
+                headers,
+                body: JSON.stringify({ influencerId: authUser.id }),
+              })
+            : await sessionFetch("/api/influencer/sync-min-rate", {
+                method: "POST",
+                headers,
+                body: JSON.stringify({ influencerId: authUser.id }),
+              });
+          if (!sync.ok) {
+            console.error("[Signup] min_rate sync failed:", sync.status);
+          }
+        } catch (syncErr) {
+          console.error("[Signup] min_rate sync failed:", syncErr);
+        }
       }
 
       if (insertError) {

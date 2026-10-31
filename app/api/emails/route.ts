@@ -2,6 +2,7 @@ import { Resend } from 'resend';
 import { NextResponse } from 'next/server';
 import { buildPasswordResetEmail } from '@/lib/passwordResetEmail';
 import { supabaseService } from '@/lib/apiAuth';
+import { formatEuroAmount } from '@/lib/formatEuro';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -16,6 +17,13 @@ function escapeHtml(s: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function euroLabel(amount: unknown): string {
+  const formatted = formatEuroAmount(amount);
+  if (formatted) return formatted;
+  const raw = String(amount ?? "").replace(/€/g, "").trim();
+  return raw ? `${escapeHtml(raw)} €` : "—";
 }
 
 export async function POST(req: Request) {
@@ -236,7 +244,7 @@ export async function POST(req: Request) {
                   <p style="margin: 0 0 8px 0; font-size: 13px;"><strong style="color: #6b21a8;">Email:</strong> <span style="color: #1f2937;">${email}</span></p>
                   <p style="margin: 0 0 8px 0; font-size: 13px;"><strong style="color: #6b21a8;">Influencer:</strong> <span style="color: #1f2937;">${influencerName}</span></p>
                   <p style="margin: 0 0 8px 0; font-size: 13px;"><strong style="color: #6b21a8;">Υπηρεσία:</strong> <span style="color: #1f2937;">${proposalType}</span></p>
-                  <p style="margin: 0 0 12px 0; font-size: 13px;"><strong style="color: #6b21a8;">Budget:</strong> <span style="color: #7c3aed; font-size: 16px; font-weight: 600;">€${budget}</span></p>
+                  <p style="margin: 0 0 12px 0; font-size: 13px;"><strong style="color: #6b21a8;">Budget:</strong> <span style="color: #7c3aed; font-size: 16px; font-weight: 600;">${euroLabel(budget)}</span></p>
                   ${message ? `<div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #c4b5fd;"><p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #6b21a8;">Μήνυμα:</p><p style="margin: 0; font-size: 13px; color: #1f2937; white-space: pre-wrap;">${message.replace(/\n/g, '<br/>')}</p></div>` : ''}
                 </div>
                 <div style="margin: 24px 0; text-align: center;">
@@ -464,7 +472,7 @@ export async function POST(req: Request) {
                 <p style="margin: 0 0 20px 0; font-size: 13px; color: #4b5563;">Έχεις λάβει μια νέα πρόταση συνεργασίας από το brand <strong style="color: #1f2937;">${brandName}</strong>.</p>
                 <div style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 16px; border-radius: 8px; margin: 20px 0;">
                   <p style="margin: 0 0 8px 0; font-size: 13px;"><strong style="color: #065f46;">Υπηρεσία:</strong> <span style="color: #1f2937;">${proposalType}</span></p>
-                  <p style="margin: 0 0 12px 0; font-size: 13px;"><strong style="color: #065f46;">Budget:</strong> <span style="color: #047857; font-size: 16px; font-weight: 600;">€${budget}</span></p>
+                  <p style="margin: 0 0 12px 0; font-size: 13px;"><strong style="color: #065f46;">Budget:</strong> <span style="color: #047857; font-size: 16px; font-weight: 600;">${euroLabel(budget)}</span></p>
                   ${message ? `<div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #a7f3d0;"><p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #065f46;">Μήνυμα:</p><p style="margin: 0; font-size: 13px; color: #1f2937; white-space: pre-wrap;">${message.replace(/\n/g, '<br/>')}</p></div>` : ''}
                 </div>
                 <div style="margin: 24px 0; text-align: center;">
@@ -504,7 +512,7 @@ export async function POST(req: Request) {
             : '';
         const priceBlock =
           proposedPrice !== undefined && proposedPrice !== null && String(proposedPrice).trim() !== ''
-            ? `<div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #c7d2fe;"><p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #3730a3;">Προτεινόμενη τιμή:</p><p style="margin: 0; font-size: 13px; color: #1f2937;">€${escapeHtml(String(proposedPrice))}</p></div>`
+            ? `<div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #c7d2fe;"><p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #3730a3;">Προτεινόμενη τιμή:</p><p style="margin: 0; font-size: 13px; color: #1f2937;">${euroLabel(proposedPrice)}</p></div>`
             : '';
         const linksBlock =
           workLinks && String(workLinks).trim()
@@ -689,7 +697,7 @@ export async function POST(req: Request) {
         const budgetRaw = body.budget as number | string | undefined | null;
         const budgetLabel =
           budgetRaw !== undefined && budgetRaw !== null && String(budgetRaw).trim() !== ''
-            ? `€${escapeHtml(String(budgetRaw))}`
+            ? euroLabel(budgetRaw)
             : '—';
         const safeTitle = escapeHtml(campaignTitleRaw);
         const safeBrand = escapeHtml(brandNameVal);
@@ -794,8 +802,8 @@ export async function POST(req: Request) {
                 <p style="margin: 0 0 20px 0; font-size: 13px; color: #4b5563;">Ο/Η <strong style="color: #1f2937;">${influencerName}</strong> σας έστειλε μια αντιπρόταση για τη συνεργασία:</p>
                 <div style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 8px; margin: 20px 0;">
                   <p style="margin: 0 0 8px 0; font-size: 13px;"><strong style="color: #92400e;">Υπηρεσία:</strong> <span style="color: #1f2937;">${serviceType}</span></p>
-                  <p style="margin: 0 0 8px 0; font-size: 13px;"><strong style="color: #92400e;">Προσφερόμενη Τιμή:</strong> <span style="color: #6b7280; text-decoration: line-through;">€${originalBudget}</span></p>
-                  <p style="margin: 0 0 12px 0; font-size: 13px;"><strong style="color: #92400e;">Αντιπρόταση:</strong> <span style="color: #d97706; font-size: 18px; font-weight: 700;">€${counterBudget}</span></p>
+                  <p style="margin: 0 0 8px 0; font-size: 13px;"><strong style="color: #92400e;">Προσφερόμενη Τιμή:</strong> <span style="color: #6b7280; text-decoration: line-through;">${euroLabel(originalBudget)}</span></p>
+                  <p style="margin: 0 0 12px 0; font-size: 13px;"><strong style="color: #92400e;">Αντιπρόταση:</strong> <span style="color: #d97706; font-size: 18px; font-weight: 700;">${euroLabel(counterBudget)}</span></p>
                   ${counterMessage ? `<div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #fcd34d;"><p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #92400e;">Σχόλιο:</p><p style="margin: 0; font-size: 13px; color: #1f2937; white-space: pre-wrap;">${counterMessage.replace(/\n/g, '<br/>')}</p></div>` : ''}
                 </div>
                 <div style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 16px; margin: 20px 0;">

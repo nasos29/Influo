@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { BrandShortlistItem } from "@/lib/brandShortlist";
+import { formatEuro } from "@/lib/formatEuro";
 import { publicProfilePath } from "@/lib/profileSlug";
 import { formatCategoryLabels } from "@/lib/categories";
 import {
@@ -282,8 +283,8 @@ export default function BrandToolsPanel({
         ? `Budget: ${budgetNote.trim()}`
         : withRate.length
           ? el
-            ? `Εκτίμηση από shortlist (από): ${Math.round(minTotal)}€`
-            : `Shortlist estimate (from): ${Math.round(minTotal)}€`
+            ? `Εκτίμηση από shortlist (από): ${formatEuro(Math.round(minTotal), "el")}`
+            : `Shortlist estimate (from): ${formatEuro(Math.round(minTotal), "en")}`
           : null,
       "",
       el ? "Creators στη λίστα:" : "Creators on shortlist:",
@@ -291,7 +292,7 @@ export default function BrandToolsPanel({
         ? shortlist.map((s, i) => {
             const path = publicProfilePath(s.profileSlug, s.influencerId);
             const rate = parseEuro(s.minRate);
-            const rateBit = rate != null ? ` · από ${rate}€` : "";
+            const rateBit = rate != null ? ` · ${el ? "από" : "from"} ${formatEuro(rate, el ? "el" : "en")}` : "";
             return `${i + 1}. ${s.displayName}${rateBit} — https://www.influo.gr${path}`;
           })
         : [el ? "(κενή shortlist)" : "(empty shortlist)"]),
@@ -451,7 +452,7 @@ export default function BrandToolsPanel({
       .map((s) => {
         const rate = parseEuro(s.minRate);
         return `<tr><td>${escapeHtml(s.displayName)}</td><td>${escapeHtml(s.category || "—")}</td><td>${
-          rate != null ? rate + "€" : "—"
+          rate != null ? formatEuro(rate, el ? "el" : "en") : "—"
         }</td><td>${escapeHtml(s.note || "")}</td></tr>`;
       })
       .join("");
@@ -459,7 +460,7 @@ export default function BrandToolsPanel({
       <style>body{font-family:system-ui,sans-serif;padding:32px;color:#0f172a}table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13px}th,td{border:1px solid #e2e8f0;padding:8px;text-align:left}th{background:#f8fafc}
       @media print{button{display:none}}</style></head><body>
       <h1>${escapeHtml(brandName || "Brand")}</h1>
-      <p>${el ? "Εκτίμηση (από)" : "Estimate (from)"}: ${Math.round(minTotal)}€</p>
+      <p>${el ? "Εκτίμηση (από)" : "Estimate (from)"}: ${formatEuro(Math.round(minTotal), el ? "el" : "en")}</p>
       <table><thead><tr><th>${el ? "Όνομα" : "Name"}</th><th>${el ? "Κατηγορία" : "Category"}</th><th>${el ? "Από" : "From"}</th><th>${el ? "Σημείωση" : "Note"}</th></tr></thead><tbody>${rows || `<tr><td colspan="4">${el ? "Κενή λίστα" : "Empty list"}</td></tr>`}</tbody></table>
       <p style="margin-top:24px"><button type="button" onclick="window.print()" style="padding:10px 16px;font-size:14px;font-weight:700;color:#0f172a;background:#ffffff;border:1px solid #cbd5e1;border-radius:8px;cursor:pointer">${el ? "Εκτύπωση / PDF" : "Print / PDF"}</button></p>
       </body></html>`);
@@ -543,7 +544,7 @@ export default function BrandToolsPanel({
                   {el ? "Εκτίμηση (από)" : "Estimate (from)"}
                 </div>
                 <div className="text-3xl font-bold text-slate-900 mt-1 tabular-nums">
-                  {withRate.length ? `${Math.round(minTotal).toLocaleString(el ? "el-GR" : "en-US")}€` : "—"}
+                  {withRate.length ? formatEuro(Math.round(minTotal), el ? "el" : "en") : "—"}
                 </div>
                 <p className={`${mutedCls} mt-2`}>
                   {withRate.length} {el ? "με τιμή" : "with rate"} · {withoutRate.length}{" "}
@@ -554,7 +555,9 @@ export default function BrandToolsPanel({
                 type="button"
                 onClick={() =>
                   copyText(
-                    el ? `Εκτίμηση Influo: από ${Math.round(minTotal)}€` : `Influo estimate: from ${Math.round(minTotal)}€`,
+                    el
+                      ? `Εκτίμηση Influo: από ${formatEuro(Math.round(minTotal), "el")}`
+                      : `Influo estimate: from ${formatEuro(Math.round(minTotal), "en")}`,
                     "budget"
                   )
                 }
@@ -647,10 +650,10 @@ export default function BrandToolsPanel({
                             [el ? "Followers" : "Followers", (s: BrandShortlistItem) => fmtFollowers(s.followers)],
                             ["ER", (s: BrandShortlistItem) => (s.engagementRate != null ? `${s.engagementRate}%` : "—")],
                             [
-                              el ? "Από (€)" : "From (€)",
+                              el ? "Από" : "From",
                               (s: BrandShortlistItem) => {
                                 const r = parseEuro(s.minRate);
-                                return r != null ? `${r}` : "—";
+                                return r != null ? formatEuro(r, el ? "el" : "en") : "—";
                               },
                             ],
                             [
@@ -835,7 +838,7 @@ export default function BrandToolsPanel({
               <input
                 value={roiSpend}
                 onChange={(e) => setRoiSpend(e.target.value)}
-                placeholder="Spend €"
+                placeholder={el ? "π.χ. 200 €" : "e.g. 200 €"}
                 className={inputCls.replace("mt-1 ", "")}
               />
               <input
@@ -868,7 +871,7 @@ export default function BrandToolsPanel({
                     <div>
                       <div className="font-semibold text-slate-900">{r.campaignName}</div>
                       <div className="text-slate-700">
-                        {r.spend.toLocaleString(el ? "el-GR" : "en-US")}€
+                        {formatEuro(r.spend, el ? "el" : "en")}
                         {r.results ? ` · ${r.results}` : ""}
                         {r.notes ? ` · ${r.notes}` : ""}
                       </div>

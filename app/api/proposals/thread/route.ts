@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { formatEuroAmount } from "@/lib/formatEuro";
 import { ensureProposalThread } from "@/lib/proposalChat";
 import { loadProposal, partyOf, requireActor } from "@/lib/proposalAccess";
 
@@ -15,7 +16,8 @@ export async function POST(request: Request) {
     }
     if (!proposal.brand_email) return NextResponse.json({ error: "Proposal has no brand" }, { status: 400 });
 
-    const content = `Νέα πρόταση: ${proposal.service_type || ""} | Budget: €${proposal.budget || ""}${
+    const budgetLabel = formatEuroAmount(proposal.budget) || String(proposal.budget || "").replace(/€/g, "").trim();
+    const content = `Νέα πρόταση: ${proposal.service_type || ""} | Budget: ${budgetLabel}${
       proposal.message ? `\n\n${proposal.message}` : ""
     }`;
     const conversationId = await ensureProposalThread({

@@ -88,7 +88,7 @@ export function defaultSnippets(el: boolean): BrandSnippetsState {
       outreach:
         "Γεια σας,\n\nΕίμαστε από το [Brand] και μας άρεσε το περιεχόμενό σας. Θα μας ενδιέφερε συνεργασία για [προϊόν/καμπάνια]. Μπορούμε να σας στείλουμε brief;\n\nΕυχαριστώ,\n[Όνομα]",
       negotiate:
-        "Ευχαριστούμε για την πρόταση. Το budget μας για αυτή τη συνεργασία είναι έως [Χ]€ για [deliverables]. Μπορούμε να συμφωνήσουμε σε αυτό το εύρος;",
+        "Ευχαριστούμε για την πρόταση. Το budget μας για αυτή τη συνεργασία είναι έως [Χ] € για [deliverables]. Μπορούμε να συμφωνήσουμε σε αυτό το εύρος;",
       reminder:
         "Γεια σας — υπενθύμιση για το deliverable της καμπάνιας [όνομα]. Παρακαλούμε ανεβάστε το URL στο Influo όταν είναι έτοιμο.",
       approve:
@@ -99,7 +99,7 @@ export function defaultSnippets(el: boolean): BrandSnippetsState {
     outreach:
       "Hi,\n\nWe're from [Brand] and love your content. We'd like to collaborate on [product/campaign]. Can we share a brief?\n\nThanks,\n[Name]",
     negotiate:
-      "Thanks for the proposal. Our budget for this collab is up to [X]€ for [deliverables]. Can we align on that range?",
+      "Thanks for the proposal. Our budget for this collab is up to [X] € for [deliverables]. Can we align on that range?",
     reminder:
       "Hi — friendly reminder on the deliverable for campaign [name]. Please submit the URL in Influo when ready.",
     approve:
