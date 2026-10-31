@@ -16,6 +16,27 @@ export type PublicAccountNav = {
   dashboardLabel: string;
 };
 
+function textField(row: Record<string, unknown> | null | undefined, key: string): string {
+  const value = row?.[key];
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      () => {
+        clearTimeout(timer);
+        resolve(null);
+      }
+    );
+  });
+}
+
 const labels = {
   el: {
     login: "Σύνδεση",
@@ -89,44 +110,54 @@ export function alternateLocalePath(pathname: string, targetLang: "el" | "en"): 
 
 export function usePublicAccountNav(lang: "el" | "en"): PublicAccountNav {
   const [userKind, setUserKind] = useState<PublicUserKind>("none");
+  const [accountName, setAccountName] = useState("");
   const [identityReady, setIdentityReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
+    const finish = (kind: PublicUserKind, name: string) => {
+      if (cancelled) return;
+      setUserKind(kind);
+      setAccountName(name.trim());
+      setIdentityReady(true);
+    };
+    // Profile reads can hang on the auth lock or a failing influencers select.
+    // The skeleton must clear even when that happens.
+    const hardStop = setTimeout(() => {
+      if (!cancelled) setIdentityReady(true);
+    }, 8000);
+
     (async () => {
-      const auth = await lookupAuthUser(8000);
+      const auth = await lookupAuthUser(3000);
       if (cancelled) return;
+      const email = auth.user?.email?.trim() || "";
       if (!auth.user) {
-        setUserKind("none");
-        setIdentityReady(true);
+        finish("none", "");
         return;
       }
-      const email = auth.user.email?.toLowerCase().trim();
-      if (email === ADMIN_EMAIL_FALLBACK.toLowerCase()) {
-        setUserKind("admin");
-        setIdentityReady(true);
+      if (email.toLowerCase() === ADMIN_EMAIL_FALLBACK.toLowerCase()) {
+        finish("admin", email);
         return;
       }
-      let profiles = await loadOwnProfiles(supabase);
-      if (!profiles.ok) profiles = await loadOwnProfiles(supabase);
+      const profiles = await withTimeout(loadOwnProfiles(supabase), 3500);
       if (cancelled) return;
-      if (profiles.ok && profiles.brand && !profiles.influencer) {
-        setUserKind("brand");
-      } else if (profiles.ok && profiles.influencer) {
-        setUserKind("influencer");
-      } else if (profiles.ok) {
-        setUserKind("none");
-      } else {
-        setUserKind("signed-in");
+      if (profiles?.ok && profiles.brand && !profiles.influencer) {
+        finish("brand", textField(profiles.brand, "brand_name") || email);
+        return;
       }
-      setIdentityReady(true);
+      if (profiles?.ok && profiles.influencer) {
+        finish("influencer", textField(profiles.influencer, "display_name") || email);
+        return;
+      }
+      finish(profiles?.ok ? "none" : "signed-in", email);
     })().catch(() => {
-      if (cancelled) return;
-      setUserKind("none");
-      setIdentityReady(true);
+      finish("signed-in", "");
+    }).finally(() => {
+      clearTimeout(hardStop);
     });
     return () => {
       cancelled = true;
+      clearTimeout(hardStop);
     };
   }, []);
 
@@ -134,6 +165,6 @@ export function usePublicAccountNav(lang: "el" | "en"): PublicAccountNav {
     userKind,
     identityReady,
     dashboardPath: dashboardPathFor(userKind),
-    dashboardLabel: dashboardLabelFor(userKind, lang),
+    dashboardLabel: accountName || dashboardLabelFor(userKind, lang),
   };
 }

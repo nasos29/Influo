@@ -15,11 +15,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Brand not found" }, { status: 404 });
     }
 
-    const { data: announcements, error: annError } = await admin
+    const announcementFilter = `target_type.eq.all_brands,target_brand_id.eq.${brandId}`;
+    const withEnglish = await admin
       .from("announcements")
-      .select("id, title, body, created_at, target_type")
-      .or(`target_type.eq.all_brands,target_brand_id.eq.${brandId}`)
+      .select("id, title, title_en, body, body_en, created_at, target_type")
+      .or(announcementFilter)
       .order("created_at", { ascending: false });
+    let announcements: Array<Record<string, unknown>> | null = (withEnglish.data as Array<Record<string, unknown>> | null) ?? null;
+    let annError = withEnglish.error;
+    if (annError && /column|schema cache|does not exist/i.test(annError.message)) {
+      const plain = await admin
+        .from("announcements")
+        .select("id, title, body, created_at, target_type")
+        .or(announcementFilter)
+        .order("created_at", { ascending: false });
+      announcements = (plain.data as Array<Record<string, unknown>> | null) ?? null;
+      annError = plain.error;
+    }
 
     if (annError) {
       console.error("[brand announcements GET]", annError);
@@ -42,11 +54,17 @@ export async function GET(request: NextRequest) {
     );
 
     const list = (announcements || [])
-      .filter((a: { id: string }) => !dismissedSet.has(a.id))
-      .map((a: { id: string; title: string; body: string; created_at: string; target_type: string }) => ({
-        ...a,
-        read: readSet.has(a.id),
-        read_at: readAtMap[a.id] || null,
+      .filter((a) => !dismissedSet.has(String(a.id)))
+      .map((a) => ({
+        id: String(a.id),
+        title: typeof a.title === "string" ? a.title : "",
+        title_en: typeof a.title_en === "string" ? a.title_en : null,
+        body: typeof a.body === "string" ? a.body : "",
+        body_en: typeof a.body_en === "string" ? a.body_en : null,
+        created_at: typeof a.created_at === "string" ? a.created_at : "",
+        target_type: typeof a.target_type === "string" ? a.target_type : "",
+        read: readSet.has(String(a.id)),
+        read_at: readAtMap[String(a.id)] || null,
       }));
 
     return NextResponse.json({ data: list });
