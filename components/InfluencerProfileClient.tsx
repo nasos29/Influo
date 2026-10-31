@@ -48,7 +48,8 @@ import { loadOwnBrand, loadOwnProfiles } from "@/lib/ownProfile";
 import { creatorHasHardErOnMainAccount, displayErFlag, erFlagHint, erFlagLabel } from "@/lib/engagementFlags";
 import type { FollowerGrowthPoint } from "@/lib/followerGrowth";
 import { displayLanguageLabel } from "@/lib/languages";
-import { formatEuroAmount } from "@/lib/formatEuro";
+import { formatEuro, formatEuroAmount } from "@/lib/formatEuro";
+import { lowestListedPrice } from "@/lib/publicInfluencer";
 import ProfileOffersPanel from "@/components/ProfileOffersPanel";
 import CampaignInviteButton from "@/components/CampaignInviteButton";
 import { showCampaignInviteButton } from "@/lib/gateAvatars";
@@ -2151,9 +2152,18 @@ export default function InfluencerProfile(props: {
               );
 
               const avgViewsForCpm = averageAvgViews(profile.accounts);
-              const cpmValue = estimateCpm(profile.min_rate ?? profile.from_price, avgViewsForCpm);
-              const minChargeLabel =
-                formatEuroAmount(profile.min_rate, lang) || formatEuroAmount(profile.from_price, lang);
+              const pricedFloor = lowestListedPrice({
+                service_packages: profile.service_packages,
+                rate_card: profile.rate_card,
+                min_rate: profile.min_rate,
+              });
+              const cpmValue = estimateCpm(
+                pricedFloor ?? profile.min_rate ?? profile.from_price,
+                avgViewsForCpm
+              );
+              const minChargeLabel = pricedFloor
+                ? formatEuro(pricedFloor, lang)
+                : formatEuroAmount(profile.from_price, lang);
               const statsUpdatedLabel = statsUpdatedAt
                 ? formatStatsUpdatedAt(statsUpdatedAt, lang)
                 : "";

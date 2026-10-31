@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { MediaKitAccount, MediaKitProfile } from "@/lib/mediaKit";
 import { getCachedImageUrl } from "@/lib/imageProxy";
 import { displayErFlag, erFlagLabel } from "@/lib/engagementFlags";
-import { formatEuroAmount } from "@/lib/formatEuro";
+import { formatListedPrice } from "@/lib/parsePrice";
 
 function firstLetter(name: string): string {
   const ch = (name || "C").trim().charAt(0);
@@ -434,7 +434,7 @@ export default function MediaKitView({ profile, lang = "el" }: { profile: MediaK
           <section className="mk-cards">
             <div className="mk-card">
               <span>{copy.minRate}</span>
-              <b>{rate ? formatEuroAmount(rate, lang) || `${String(rate).replace(/€/g, "").trim()} €` : copy.rateFallback}</b>
+              <b>{rate ? formatListedPrice(rate, lang) || copy.rateFallback : copy.rateFallback}</b>
             </div>
             <div className="mk-card">
               <span>{copy.collab}</span>

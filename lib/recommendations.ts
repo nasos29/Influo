@@ -1,6 +1,7 @@
 // Smart Recommendation System for Matching Influencers to Brands
 
 import { categoryLabel, categoryTranslations, isGeneralCategory, parseStoredCategories } from "./categories.ts";
+import { listedPriceMin } from "./parsePrice.ts";
 
 export interface BrandProfile {
   id: string;
@@ -128,10 +129,7 @@ function parseFollowers(followers: string | null | undefined): number {
  * Parse minimum rate from string (e.g., "€100", "100€", "100")
  */
 function parseMinRate(rate: string | null | undefined): number {
-  if (!rate) return 0;
-  const clean = rate.toString().replace(/[€$,\s]/g, '');
-  const num = parseFloat(clean);
-  return isNaN(num) ? 0 : num;
+  return listedPriceMin(rate) ?? 0;
 }
 
 /**

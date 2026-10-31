@@ -56,6 +56,19 @@ test("cheapest service wins over a higher min_rate", () => {
   assert.equal(formatFromPriceLabel(lowestListedPrice(row)), "Από 40 €");
 });
 
+test("a range uses its lower bound for Από and budget, not joined digits", () => {
+  const row = {
+    min_rate: "500",
+    rate_card: { post: "100-300", reel: "120-300", story: "30 - 100", youtube: "500" },
+    service_packages: [],
+  };
+  assert.equal(lowestListedPrice(row), 30);
+  assert.equal(formatFromPriceLabel(lowestListedPrice(row)), "Από 30 €");
+  assert.equal(priceTierFromMinRate(lowestListedPrice(row)), "50");
+  assert.equal(budgetTierMatches(priceTierFromMinRate("30–100"), "50"), true);
+  assert.equal(priceTierFromMinRate("100-300"), "200");
+});
+
 test("euro sign stays to the right of the amount", () => {
   for (const label of [labelFor(50), labelFor(200, "en"), formatEuro(1000), formatEuro(1000, "en")]) {
     assert.equal(label?.endsWith("€"), true);

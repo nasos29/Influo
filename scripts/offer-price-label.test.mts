@@ -15,6 +15,14 @@ test("everyone sees the exact service price, with the euro sign after it", () =>
   );
 });
 
+test("a stored range stays on the service card and does not join the digits", () => {
+  assert.equal(offerPriceLabel({ price: "30-100", fromPrice: 30, priceMax: 100, lang: "el" }), "30–100 €");
+  assert.equal(offerPriceLabel({ price: "30 - 100", lang: "el" }), "30–100 €");
+  assert.equal(offerPriceLabel({ price: "30–100", lang: "en" }), "30–100 €");
+  assert.equal(offerPriceLabel({ fromPrice: 120, priceMax: 300, lang: "el" }), "120–300 €");
+  assert.equal(/Από|From/.test(offerPriceLabel({ price: "500", lang: "el" }) || ""), false);
+});
+
 test("a package without a price string still shows the exact amount", () => {
   assert.equal(offerPriceLabel({ price: "", fromPrice: 40, lang: "el" }), "40 €");
   assert.equal(offerPriceLabel({ fromPrice: 40, lang: "el" }), "40 €");

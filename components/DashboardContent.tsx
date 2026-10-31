@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { sessionFetch } from '@/lib/sessionFetch';
-import { formatEuroAmount } from '@/lib/formatEuro';
+import { formatEuro, formatEuroAmount } from '@/lib/formatEuro';
 import Image from 'next/image';
 import { getVideoThumbnail, isVideoUrl, isDefinitelyVideo, isDefinitelyImage, detectProvider, isEmbeddableVideoUrl } from '@/lib/videoThumbnail';
 import {
@@ -50,6 +50,7 @@ import { displayNameForLang } from '@/lib/greeklish';
 import { normalizeYouTubeUsernameForSave } from '@/lib/youtubeHandle';
 import ServicePackagesEditor, { initialPackagesFromUser } from '@/components/ServicePackagesEditor';
 import {
+    deriveMinRate,
     extrasFromRateCard,
     extrasHaveInvalidPrice,
     mergeRateCard,
@@ -2523,7 +2524,11 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                         </div>
                         <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
                             <span className="block text-xs text-slate-500 uppercase font-medium mb-2">{ui.minRate}</span>
-                            <span className="text-lg font-semibold text-slate-900">{profile.min_rate ? formatEuroAmount(profile.min_rate, lang) : "—"}</span>
+                            <span className="text-lg font-semibold text-slate-900">{(() => {
+                                const derived = deriveMinRate(profile.service_packages, profile.rate_card);
+                                if (derived) return formatEuro(Number(derived), lang === "en" ? "en" : "el");
+                                return profile.min_rate ? formatEuroAmount(profile.min_rate, lang) : "—";
+                            })()}</span>
                         </div>
                         <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
                             <span className="block text-xs text-slate-500 uppercase font-medium mb-2">{ui.engagement}</span>

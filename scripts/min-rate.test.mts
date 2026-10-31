@@ -26,6 +26,11 @@ test("deriveMinRate uses the smallest positive package or rate-card price", () =
   );
   assert.equal(deriveMinRate([], { story: "150", reel: "0", post: "ask" }), "150");
   assert.equal(deriveMinRate([], { reel: "0", story: "", post: "ρώτησε" }), null);
+  assert.equal(
+    deriveMinRate([], { post: "100-300", reel: "120-300", story: "30-100", youtube: "500" }),
+    "30"
+  );
+  assert.equal(deriveMinRate([], { story: "hello", post: "30-10", reel: "ask" }), null);
   assert.equal(deriveMinRate([{ id: "a", platform: "instagram", type: "reel", quantity: 1, price: "-5" }], null), null);
 });
 

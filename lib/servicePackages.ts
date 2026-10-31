@@ -3,32 +3,27 @@
  * Titles are derived; display-only fallbacks from rate_card never write to the DB.
  */
 
-/** Local copies so this module stays free of cycles with publicInfluencer. */
+import { isListedPrice, listedPriceMin, parseListedPrice } from "@/lib/parsePrice";
+
 function isConcretePrice(value: unknown): boolean {
-  if (typeof value === "number") return Number.isFinite(value) && value !== 0;
-  if (typeof value !== "string") return false;
-  const trimmed = value.trim();
-  if (!trimmed) return false;
-  if (/^(ask|ρώτησε|ρωτησε)$/i.test(trimmed)) return false;
-  return true;
+  return isListedPrice(value);
 }
 
+/** Lower bound of a listed price. 0 when the value is ignored. */
 function parsePackagePrice(price: unknown): number {
-  if (typeof price === "number") return Number.isFinite(price) && price > 0 ? price : 0;
-  if (typeof price !== "string") return 0;
-  const raw = price.trim();
-  if (!raw || raw.startsWith("-")) return 0;
-  const parsed = parseFloat(raw.replace(/[^0-9.]/g, ""));
-  return parsed || 0;
+  return listedPriceMin(price) ?? 0;
 }
 
-/** Positive listed amount, or null. Same parsing as the package minimum. */
+/** Positive listed amount (range lower bound), or null. */
 export function listedPriceAmount(price: unknown): number | null {
-  const n = parsePackagePrice(price);
-  return n > 0 ? n : null;
+  return listedPriceMin(price);
 }
 
-/** Empty is allowed. A filled price must be a number greater than 0. */
+/**
+ * Editor input. Empty is allowed. A filled price must be a plain number above 0
+ * (digits and an optional decimal). Ranges and currency text are not accepted;
+ * the form has no min–max field.
+ */
 export function isPositivePriceInput(price: string): boolean {
   const trimmed = price.trim();
   if (!trimmed) return true;
@@ -139,9 +134,11 @@ export type PublicPackageView = {
   has_price: boolean;
   /** Ceiling tier string from priceTierFromMinRate (e.g. "100"). Budget filters only. */
   price_tier: string;
-  /** Exact amount for the guest «Από X €» label. */
+  /** Exact amount for the guest «Από X €» label. Lower bound when the price is a range. */
   from_price: number | null;
-  /** Exact service price. Public on the creator profile. */
+  /** Upper bound when the stored price is a range. The service card renders «30–100 €». */
+  price_max?: number | null;
+  /** Exact service price, including a stored range. Public on the creator profile. */
   price?: string;
 };
 
@@ -150,9 +147,11 @@ export type PublicExtraView = {
   has_price: boolean;
   /** Ceiling tier. Budget filters only — guests read `from_price`. */
   price_tier: string;
-  /** Exact amount for the guest «Από X €» label. */
+  /** Exact amount for the guest «Από X €» label. Lower bound when the price is a range. */
   from_price: number | null;
-  /** Exact add-on price. Public on the creator profile. */
+  /** Upper bound when the stored price is a range. */
+  price_max?: number | null;
+  /** Exact add-on price, including a stored range. Public on the creator profile. */
   price?: string;
 };
 
@@ -419,6 +418,7 @@ export function toPublicPackageView(
   lang: "el" | "en" = "en",
   tierFromPrice: (price: unknown) => string = () => "0"
 ): PublicPackageView {
+  const parsed = parseListedPrice(pkg.price);
   const view: PublicPackageView = {
     id: pkg.id,
     platform: pkg.platform,
@@ -428,11 +428,12 @@ export function toPublicPackageView(
     description: pkg.description || "",
     delivery_days: pkg.delivery_days ?? null,
     usage_rights: pkg.usage_rights ?? null,
-    has_price: isConcretePrice(pkg.price),
-    price_tier: tierFromPrice(pkg.price),
-    from_price: listedPriceAmount(pkg.price),
+    has_price: parsed != null,
+    price_tier: tierFromPrice(parsed?.min ?? pkg.price),
+    from_price: parsed?.min ?? null,
+    price_max: parsed?.max ?? null,
   };
-  if (isConcretePrice(pkg.price)) {
+  if (parsed) {
     view.price = typeof pkg.price === "string" ? pkg.price.trim() : String(pkg.price);
   }
   return view;
@@ -526,12 +527,13 @@ export function toPublicExtraView(
   price: unknown,
   tierFromPrice: (price: unknown) => string = () => "0"
 ): PublicExtraView {
-  const priced = isConcretePrice(price);
+  const parsed = parseListedPrice(price);
   return {
     key,
-    has_price: priced,
-    price_tier: priced ? tierFromPrice(price) : "0",
-    from_price: priced ? listedPriceAmount(price) : null,
+    has_price: parsed != null,
+    price_tier: parsed ? tierFromPrice(parsed.min) : "0",
+    from_price: parsed?.min ?? null,
+    price_max: parsed?.max ?? null,
   };
 }
 

@@ -6,6 +6,7 @@ import { ChevronRight } from "lucide-react";
 import ResponsiveDialog, { DialogClose } from "@/components/ResponsiveDialog";
 import { sessionFetch } from "@/lib/sessionFetch";
 import { formatEuroAmount, parseEuroNumber } from "@/lib/formatEuro";
+import { listedPriceMin } from "@/lib/parsePrice";
 import { averageRateNote, negotiateLead } from "@/lib/creatorAddress";
 import { offerPriceLabel } from "@/lib/offerPriceLabel";
 import {
@@ -371,11 +372,14 @@ export function NegotiateDialog({
 function rowPrice(
   price: string | undefined,
   fromPrice: number | null | undefined,
+  priceMax: number | null | undefined,
   suffix: string | null,
   lang: "el" | "en"
 ): { label: string | null; budget?: string } {
-  const label = offerPriceLabel({ price, fromPrice, suffix, lang });
+  const label = offerPriceLabel({ price, fromPrice, priceMax, suffix, lang });
   if (price && formatEuroAmount(price, lang)) return { label, budget: price };
+  const floor = price ? listedPriceMin(price) : fromPrice != null && fromPrice > 0 ? fromPrice : null;
+  if (floor != null && label) return { label, budget: String(floor) };
   return { label };
 }
 
@@ -416,6 +420,7 @@ export default function ProfileOffersPanel({
       const priced = rowPrice(
         pkg.price,
         pkg.from_price,
+        pkg.price_max,
         pkg.type ? packagePriceSuffix(pkg.type, lang) : null,
         lang
       );
@@ -436,6 +441,7 @@ export default function ProfileOffersPanel({
         const priced = rowPrice(
           extra.price,
           extra.from_price,
+          extra.price_max,
           extraPriceSuffix(extra.key, lang),
           lang
         );

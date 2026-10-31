@@ -1,5 +1,7 @@
 // Badge system για influencers - όπως επιτυχημένες πλατφόρμες
 
+import { listedPriceMin } from "@/lib/parsePrice";
+
 export type BadgeType = 'new' | 'rising' | 'verified' | 'top_performer' | 'pro' | 'elite' | 'vip';
 
 export interface Badge {
@@ -133,7 +135,7 @@ export function getBadges(metrics: InfluencerMetrics, lang: 'el' | 'en' = 'el'):
   const numBrands = Array.isArray(metrics.past_brands) ? metrics.past_brands.length : (metrics.past_brands || 0);
   const totalReviews = metrics.total_reviews || 0;
   const avgRating = metrics.avg_rating || 0;
-  const minRate = metrics.min_rate ? parseFloat(metrics.min_rate.replace(/[^0-9.]/g, '')) : 0;
+  const minRate = listedPriceMin(metrics.min_rate) ?? 0;
 
   // TOP PERFORMER - High engagement rate (>5%) και followers > 10k
   if (engagementRate > 5 && maxFollowers > 10000) {

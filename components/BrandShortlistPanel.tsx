@@ -6,7 +6,8 @@ import { getCachedImageUrl } from "@/lib/imageProxy";
 import { SHORTLIST_NOTE_MAX, type BrandShortlistItem } from "@/lib/brandShortlist";
 import { publicProfilePath } from "@/lib/profileSlug";
 import FastImage from "@/components/FastImage";
-import { formatEuroAmount } from "@/lib/formatEuro";
+import { formatEuro } from "@/lib/formatEuro";
+import { listedPriceMin } from "@/lib/parsePrice";
 
 type Props = {
   lang: "el" | "en";
@@ -101,6 +102,7 @@ export default function BrandShortlistPanel({
         {items.map((item) => {
           const avatar = getCachedImageUrl(item.avatarUrl) || item.avatarUrl;
           const note = drafts[item.influencerId] ?? item.note;
+          const floor = listedPriceMin(item.minRate);
           return (
             <article
               key={item.influencerId}
@@ -127,7 +129,7 @@ export default function BrandShortlistPanel({
                   <div className="font-semibold text-slate-900 truncate">{item.displayName}</div>
                   <div className="text-xs text-slate-500 mt-0.5">
                     {item.category || "Creator"}
-                    {item.minRate ? ` · ${el ? "από" : "from"} ${formatEuroAmount(item.minRate, el ? "el" : "en")}` : ""}
+                    {floor != null ? ` · ${el ? "από" : "from"} ${formatEuro(floor, el ? "el" : "en")}` : ""}
                     {!item.approved ? (el ? " · μη εγκεκριμένος" : " · not approved") : ""}
                   </div>
                   <textarea
