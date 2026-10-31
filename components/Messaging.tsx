@@ -12,6 +12,8 @@ import {
   chatInitial,
 } from '@/lib/chatTime';
 import { formatTime } from '@/lib/formatDateTime';
+import { isTimeoutError, withTimeout } from '@/lib/withTimeout';
+import ToastViewport, { useToasts } from '@/components/ui/Toast';
 import { formatActiveLabel, presenceOnline } from '@/lib/presenceStatus';
 import { counterpartyBrandPresence } from '@/lib/presenceIdentity';
 import { getInfluencerPresenceCached } from '@/lib/presenceCache';
@@ -202,6 +204,11 @@ export default function Messaging({
   onLeaveThread,
 }: MessagingProps) {
   const txt = t[lang];
+  const { toasts, push: pushToast, dismiss: dismissToast } = useToasts();
+  const notify = useCallback(
+    (message: string, tone: 'success' | 'error' | 'info' = 'info') => pushToast(message, tone),
+    [pushToast]
+  );
   
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(initialConversationId);
@@ -629,13 +636,13 @@ export default function Messaging({
       );
     } catch (error) {
       console.error('[End Conversation] Error:', error);
-      alert(lang === 'el' 
+      notify(lang === 'el' 
         ? 'Αποτυχία τερματισμού συνομιλίας. Παρακαλώ δοκιμάστε ξανά.'
-        : 'Failed to end conversation. Please try again.');
+        : 'Failed to end conversation. Please try again.', 'error');
     } finally {
       setEndingConversation(false);
     }
-  }, [selectedConversation, endingConversation, lang]);
+  }, [selectedConversation, endingConversation, lang, notify]);
 
   const confirmEndConversation = useCallback(async () => {
     if (!selectedConversation || endingConversation) return;
@@ -667,13 +674,13 @@ export default function Messaging({
       );
     } catch (error) {
       console.error('[End Conversation] Error:', error);
-      alert(lang === 'el'
+      notify(lang === 'el'
         ? 'Αποτυχία τερματισμού συνομιλίας. Παρακαλώ δοκιμάστε ξανά.'
-        : 'Failed to end conversation. Please try again.');
+        : 'Failed to end conversation. Please try again.', 'error');
     } finally {
       setEndingConversation(false);
     }
-  }, [selectedConversation, endingConversation, lang]);
+  }, [selectedConversation, endingConversation, lang, notify]);
 
   // Load messages when conversation is selected
   useEffect(() => {
@@ -1059,6 +1066,7 @@ export default function Messaging({
       setLoadError(null);
     }
     try {
+      const enriched = await withTimeout((async () => {
       let query = supabase
         .from('conversations')
         .select(
@@ -1082,7 +1090,8 @@ export default function Messaging({
       }
 
       const rows = (data || []) as Conversation[];
-      const enriched = await enrichConversationRows(rows);
+      return enrichConversationRows(rows);
+      })(), 20000);
       setLoadError(null);
       setConversations(enriched);
 
@@ -1112,7 +1121,15 @@ export default function Messaging({
     } catch (error) {
       console.error('Error loading conversations:', error);
       if (!silent) {
-        setLoadError(lang === 'el' ? 'Τα μηνύματα δεν φορτώθηκαν.' : 'Messages could not be loaded.');
+        setLoadError(
+          isTimeoutError(error)
+            ? lang === 'el'
+              ? 'Η φόρτωση άργησε. Δοκίμασε ξανά.'
+              : 'This took too long. Try again.'
+            : lang === 'el'
+              ? 'Τα μηνύματα δεν φορτώθηκαν.'
+              : 'Messages could not be loaded.'
+        );
       }
     } finally {
       if (!silent) setLoading(false);
@@ -1230,9 +1247,9 @@ export default function Messaging({
   const handleAcceptAgreement = async () => {
     const activeProposalId = activeProposalIdRef.current || proposalId;
     if (!activeProposalId || !agreementAccepted) {
-      alert(lang === 'el' 
+      notify(lang === 'el' 
         ? 'Παρακαλώ διαβάστε και αποδεχτείτε τους όρους χρήσης'
-        : 'Please read and accept the terms of service');
+        : 'Please read and accept the terms of service', 'error');
       return;
     }
 
@@ -1254,21 +1271,21 @@ export default function Messaging({
         await loadProposalInfo();
         setShowAgreementModal(false);
         setAgreementAccepted(false);
-        alert(lang === 'el'
+        notify(lang === 'el'
           ? mode === 'influencer'
             ? 'Η συμφωνία αποδεχτήθηκε! Το brand θα προστεθεί στις συνεργασίες σας όταν και το brand αποδεχτεί.'
             : 'Η συμφωνία αποδεχτήθηκε! Θα προστεθείτε στις συνεργασίες του influencer όταν και ο influencer αποδεχτεί.'
           : mode === 'influencer'
             ? 'Agreement accepted! The brand will be added to your collaborations once the brand also accepts.'
-            : 'Agreement accepted! You will be added to the influencer\'s collaborations once the influencer also accepts.');
+            : 'Agreement accepted! You will be added to the influencer\'s collaborations once the influencer also accepts.', 'success');
       } else {
         throw new Error(result.error || (lang === 'el' ? 'Σφάλμα αποδοχής συμφωνίας' : 'Error accepting agreement'));
       }
     } catch (error: any) {
       console.error('Error accepting agreement:', error);
-      alert(lang === 'el' 
+      notify(lang === 'el' 
         ? 'Σφάλμα: ' + error.message 
-        : 'Error: ' + error.message);
+        : 'Error: ' + error.message, 'error');
     } finally {
       setSavingAgreement(false);
     }
@@ -1685,6 +1702,7 @@ export default function Messaging({
 
   return (
     <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-slate-200 h-[min(720px,calc(100vh-12rem))] min-h-[480px] flex flex-col overflow-hidden">
+      <ToastViewport toasts={toasts} onDismiss={dismissToast} dismissLabel={lang === 'el' ? 'Κλείσιμο' : 'Dismiss'} />
       {/* Shared file picker — used by both existing-thread and compose-new composers */}
       <input
         ref={fileInputRef}
@@ -1720,7 +1738,11 @@ export default function Messaging({
               </button>
             </div>
           ) : loading && conversations.length === 0 ? (
-            <div className="p-4 text-center text-sm text-slate-500">{txt.loading}</div>
+            <div className="p-3 space-y-2" aria-busy="true">
+              <div className="h-16 rounded-lg bg-slate-200 animate-pulse" />
+              <div className="h-16 rounded-lg bg-slate-200 animate-pulse" />
+              <div className="h-16 rounded-lg bg-slate-200 animate-pulse" />
+            </div>
           ) : conversations.length === 0 ? (
             <div className="p-6 text-center text-sm text-slate-500">
               <p>{txt.noConversations}</p>
@@ -1748,7 +1770,7 @@ export default function Messaging({
                   key={conv.id}
                   type="button"
                   onClick={() => setSelectedConversation(conv.id)}
-                  className={`w-full text-left px-3 py-3 border-b border-slate-100 transition-colors flex gap-3 items-start ${
+                  className={`w-full text-left min-h-11 px-3 py-3 border-b border-slate-100 transition-colors flex gap-3 items-start ${
                     isActive ? 'bg-white border-l-2 border-l-blue-600' : 'hover:bg-white/80'
                   } ${isClosed ? 'opacity-70' : ''}`}
                 >

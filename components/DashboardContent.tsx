@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { sessionFetch } from '@/lib/sessionFetch';
@@ -62,6 +62,25 @@ import {
     validateBirthDate,
 } from '@/lib/validateBirthDate';
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
+import { formatDate, formatTime } from '@/lib/formatDateTime';
+import { isTimeoutError, withTimeout } from '@/lib/withTimeout';
+import ToastViewport, { useToasts } from '@/components/ui/Toast';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import {
+    BarChart3,
+    Bell,
+    FileText,
+    Home,
+    LayoutDashboard,
+    LifeBuoy,
+    LogOut,
+    Megaphone,
+    Menu,
+    MessageSquare,
+    User,
+    Wrench,
+    X,
+} from 'lucide-react';
 
 // --- LANGUAGES LIST ---
 const LANGUAGES = [
@@ -114,7 +133,12 @@ interface InfluencerData {
     availability_status?: string | null;
     rate_card?: { story?: string; post?: string; reel?: string; youtube?: string; facebook?: string } | null;
     service_packages?: ServicePackage[] | null;
+    avg_rating?: number | null;
+    total_reviews?: number | null;
 }
+
+type EditSection = 'basics' | 'platforms' | 'packages' | 'portfolio';
+type CreatorTab = 'overview' | 'profile' | 'tools' | 'messages' | 'proposals' | 'campaigns' | 'analytics' | 'announcements';
 
 const HIDDEN_VIDEO_NOTICE = {
   title: {
@@ -130,7 +154,7 @@ const HIDDEN_VIDEO_NOTICE = {
 } as const;
 
 // --- COMPREHENSIVE EDIT MODAL WITH SOCIAL ACCOUNTS ---
-const EditModal = ({ user, onClose, onSave, lang = 'el' }: { user: InfluencerData, onClose: () => void, onSave: (updatedUser: InfluencerData) => void, lang?: 'el' | 'en' }) => {
+const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection = 'basics' }: { user: InfluencerData, onClose: () => void, onSave: (updatedUser: InfluencerData) => void, lang?: 'el' | 'en', notify: (message: string, tone?: 'success' | 'error' | 'info') => void, initialSection?: EditSection }) => {
     const L = (el: string, en: string) => (lang === 'en' ? en : el);
     const [name, setName] = useState(user.display_name);
     const [bio, setBio] = useState(user.bio || "");
@@ -189,6 +213,9 @@ const EditModal = ({ user, onClose, onSave, lang = 'el' }: { user: InfluencerDat
     const [servicePackages, setServicePackages] = useState<ServicePackage[]>(() =>
         initialPackagesFromUser(user.service_packages, user.rate_card)
     );
+    const [section, setSection] = useState<EditSection>(initialSection);
+    const [confirmSave, setConfirmSave] = useState(false);
+    const [confirmDiscard, setConfirmDiscard] = useState(false);
 
     // Helper function to replace commas with dots in numeric inputs
     const replaceCommaWithDot = (value: string): string => {
@@ -281,7 +308,33 @@ const EditModal = ({ user, onClose, onSave, lang = 'el' }: { user: InfluencerDat
         scheduleCheck,
         clearId,
         assertAllNewPlayable,
-    } = useVideoPlayableChecks('el', existingVideos);
+    } = useVideoPlayableChecks(lang, existingVideos);
+
+    const formSignature = JSON.stringify({
+        name,
+        bio,
+        location,
+        birthDate,
+        categories,
+        selectedLanguages,
+        gender,
+        accounts: accounts.map((acc) => ({ platform: acc.platform, username: acc.username, followers: acc.followers })),
+        malePercent,
+        femalePercent,
+        topAge,
+        videos: videoRows.map((row) => row.url),
+        avatarPreview,
+        servicePackages,
+    });
+    const baselineRef = useRef<string | null>(null);
+    if (baselineRef.current === null) baselineRef.current = formSignature;
+    const unsaved = formSignature !== baselineRef.current;
+
+    const requestClose = () => {
+        if (loading) return;
+        if (unsaved) setConfirmDiscard(true);
+        else onClose();
+    };
 
     useEffect(() => {
         if (!videosNotPlayable && !videosChecking && videoLinkError === notPlayableMessage) {
@@ -312,7 +365,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el' }: { user: InfluencerDat
             const cleaned = await runCheck(id, raw);
             if (!cleaned.ok) {
                 if (cleaned.reason === 'facebook') {
-                    setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR.el);
+                    setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR[lang]);
                     setVideoRows((rows) => rows.map((r) => (r.id === id ? { ...r, url: '' } : r)));
                     clearId(id);
                 }
@@ -337,15 +390,8 @@ const EditModal = ({ user, onClose, onSave, lang = 'el' }: { user: InfluencerDat
         setVideoLinkError(null);
     };
 
-    const handleSave = async (e: React.FormEvent) => {
-        e.preventDefault();
-        
-        if (!confirm(
-            "Οι αλλαγές στο προφίλ σου θα απαιτήσουν επαν-επαλήθευση. Το προφίλ σου θα μεταβεί σε κατάσταση «Εκκρεμότητα» μέχρι να εγκριθεί ξανά. Θέλεις να συνεχίσεις;"
-        )) {
-            return;
-        }
-
+    const performSave = async () => {
+        setConfirmSave(false);
         setLoading(true);
 
         try {
@@ -362,7 +408,8 @@ const EditModal = ({ user, onClose, onSave, lang = 'el' }: { user: InfluencerDat
             if (nextBirth && nextBirth !== prevBirth) {
                 const birthCheck = validateBirthDate(nextBirth);
                 if (!birthCheck.ok) {
-                    alert(birthDateErrorText(birthCheck, 'el'));
+                    notify(birthDateErrorText(birthCheck, lang), 'error');
+                    setSection('basics');
                     setLoading(false);
                     return;
                 }
@@ -415,21 +462,24 @@ const EditModal = ({ user, onClose, onSave, lang = 'el' }: { user: InfluencerDat
 
             const preparedVideos = prepareVideosForSave(videoRowsToUrls(videoRows));
             if (!preparedVideos.ok) {
-                setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR.el);
-                alert(FACEBOOK_VIDEO_LINK_ERROR.el);
+                setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR[lang]);
+                notify(FACEBOOK_VIDEO_LINK_ERROR[lang], 'error');
+                setSection('portfolio');
                 setLoading(false);
                 return;
             }
             if (videosChecking || videosNotPlayable) {
                 setVideoLinkError(notPlayableMessage);
-                alert(notPlayableMessage);
+                notify(notPlayableMessage, 'error');
+                setSection('portfolio');
                 setLoading(false);
                 return;
             }
             const playableOk = await assertAllNewPlayable(videoRows);
             if (!playableOk) {
                 setVideoLinkError(notPlayableMessage);
-                alert(notPlayableMessage);
+                notify(notPlayableMessage, 'error');
+                setSection('portfolio');
                 setLoading(false);
                 return;
             }
@@ -440,13 +490,15 @@ const EditModal = ({ user, onClose, onSave, lang = 'el' }: { user: InfluencerDat
             );
 
             if (packagesHaveInvalidPrice(servicePackages)) {
-                alert(L("Κάθε τιμή πακέτου πρέπει να είναι πάνω από 0, ή κενή.", "Each package price must be greater than 0, or left empty."));
+                notify(L("Κάθε τιμή πακέτου πρέπει να είναι πάνω από 0, ή κενή.", "Each package price must be greater than 0, or left empty."), 'error');
+                setSection('packages');
                 setLoading(false);
                 return;
             }
             const packagesPayload = packagesForSave(servicePackages);
             if (packagesPayload.length < 1) {
-                alert(L("Προσθέστε τουλάχιστον ένα πακέτο με τιμή.", "Add at least one package with a price."));
+                notify(L("Προσθέστε τουλάχιστον ένα πακέτο με τιμή.", "Add at least one package with a price."), 'error');
+                setSection('packages');
                 setLoading(false);
                 return;
             }
@@ -579,7 +631,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el' }: { user: InfluencerDat
 
             if (error || !data) {
                 setLoading(false);
-                alert("Σφάλμα: " + (error?.message || "Δεν επιστράφηκε το προφίλ"));
+                notify(L("Σφάλμα: ", "Error: ") + (error?.message || L("Δεν επιστράφηκε το προφίλ", "The profile was not returned")), 'error');
                 return;
             }
 
@@ -676,26 +728,80 @@ const EditModal = ({ user, onClose, onSave, lang = 'el' }: { user: InfluencerDat
                 service_packages: newValues.service_packages,
                 insights_urls: user.insights_urls,
             });
-            alert("Το προφίλ σου ενημερώθηκε! Θα ελέγξουμε τις αλλαγές και θα σε ενημερώσουμε όταν εγκριθεί ξανά.");
+            notify(L("Το προφίλ σου ενημερώθηκε. Θα ελέγξουμε τις αλλαγές και θα σε ενημερώσουμε όταν εγκριθεί ξανά.", "Your profile was updated. We will review the changes and let you know when it is approved again."), 'success');
             onClose();
         } catch (err: any) {
             setLoading(false);
-            alert("Σφάλμα: " + err.message);
+            notify(L("Σφάλμα: ", "Error: ") + err.message, 'error');
         }
+    };
+
+    const handleSave = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!unsaved) {
+            notify(L("Δεν υπάρχουν αλλαγές για αποθήκευση.", "There are no changes to save."), 'info');
+            return;
+        }
+        setConfirmSave(true);
     };
 
     const platforms = ["Instagram", "TikTok", "YouTube", "Twitter"];
 
+    const editSections: { id: EditSection; label: string }[] = [
+        { id: 'basics', label: L('Βασικά', 'Basics') },
+        { id: 'platforms', label: L('Πλατφόρμες και στατιστικά', 'Platforms and stats') },
+        { id: 'packages', label: L('Πακέτα και τιμές', 'Packages and prices') },
+        { id: 'portfolio', label: L('Portfolio', 'Portfolio') },
+    ];
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto my-8">
-                <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-                    <h2 className="text-xl font-semibold text-slate-900">{L("Επεξεργασία Προφίλ", "Edit Profile")}</h2>
-                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600">✕</button>
+        <>
+        <ConfirmDialog
+            open={confirmSave}
+            title={L('Αποθήκευση και νέος έλεγχος;', 'Save and send for review?')}
+            body={L('Οι αλλαγές θα βάλουν το προφίλ σε εκκρεμότητα μέχρι να εγκριθεί ξανά.', 'Saving puts your profile back to pending until it is approved again.')}
+            confirmLabel={L('Αποθήκευση', 'Save')}
+            cancelLabel={L('Ακύρωση', 'Cancel')}
+            onConfirm={() => { void performSave(); }}
+            onCancel={() => setConfirmSave(false)}
+        />
+        <ConfirmDialog
+            open={confirmDiscard}
+            title={L('Απόρριψη αλλαγών;', 'Discard changes?')}
+            body={L('Υπάρχουν αλλαγές που δεν έχουν αποθηκευτεί.', 'There are unsaved changes.')}
+            confirmLabel={L('Απόρριψη', 'Discard')}
+            cancelLabel={L('Συνέχεια επεξεργασίας', 'Keep editing')}
+            onConfirm={() => { setConfirmDiscard(false); onClose(); }}
+            onCancel={() => setConfirmDiscard(false)}
+        />
+        <div className="fixed inset-0 z-50 flex bg-black/50 sm:items-center sm:justify-center sm:p-4">
+            <div className="flex h-full w-full flex-col bg-white shadow-xl sm:h-auto sm:max-h-[92vh] sm:max-w-4xl sm:rounded-2xl">
+                <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
+                    <div className="min-w-0">
+                        <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">{L("Επεξεργασία προφίλ", "Edit profile")}</h2>
+                        {unsaved ? <p className="mt-0.5 text-xs text-amber-700">{L('Μη αποθηκευμένες αλλαγές', 'Unsaved changes')}</p> : null}
+                    </div>
+                    <button type="button" onClick={requestClose} aria-label={L('Κλείσιμο', 'Close')} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100">✕</button>
+                </div>
+                <div className="relative border-b border-slate-200">
+                    <div className="flex gap-2 overflow-x-auto snap-x snap-mandatory px-3 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                        {editSections.map((item) => (
+                            <button
+                                key={item.id}
+                                type="button"
+                                onClick={() => setSection(item.id)}
+                                className={`inline-flex min-h-11 shrink-0 snap-start items-center rounded-full px-4 text-sm font-medium ${section === item.id ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'}`}
+                            >
+                                {item.label}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-white to-transparent" aria-hidden="true" />
                 </div>
                 
-                <form onSubmit={handleSave} className="p-6 space-y-6">
-                    {/* Basic Info */}
+                <form onSubmit={handleSave} className="flex min-h-0 flex-1 flex-col">
+                    <div className="flex-1 space-y-6 overflow-y-auto p-4 sm:p-6">
+                    {section === 'basics' ? (
                     <div>
                         <h3 className="text-sm font-semibold text-slate-700 mb-3 uppercase">{L("Βασικές Πληροφορίες", "Basic Information")}</h3>
                         
@@ -726,11 +832,11 @@ const EditModal = ({ user, onClose, onSave, lang = 'el' }: { user: InfluencerDat
                                             }}
                                             className="hidden"
                                         />
-                                        <span className="inline-block px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors cursor-pointer">
-                                            Επιλογή Αρχείου
+                                        <span className="inline-flex min-h-11 items-center px-4 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors cursor-pointer">
+                                            {L("Επιλογή αρχείου", "Choose file")}
                                         </span>
                                     </label>
-                                    <p className="text-xs text-slate-500 mt-1">PNG, JPG, GIF έως 5MB</p>
+                                    <p className="text-xs text-slate-500 mt-1">{L("PNG, JPG ή GIF έως 5MB", "PNG, JPG or GIF up to 5MB")}</p>
                                 </div>
                             </div>
                         </div>
@@ -759,32 +865,36 @@ const EditModal = ({ user, onClose, onSave, lang = 'el' }: { user: InfluencerDat
                                 lang={lang}
                                 selected={categories}
                                 onChange={setCategories}
-                                label="Κατηγορίες *"
-                                description="Επιλέξτε μία ή περισσότερες κατηγορίες"
+                                label={L("Κατηγορίες *", "Categories *")}
+                                description={L("Επίλεξε μία ή περισσότερες κατηγορίες", "Choose one or more categories")}
                                 emptyFallback="Lifestyle"
                                 compact
                             />
                             <div>
                                 <label className="block text-xs font-semibold text-slate-900 mb-1">{L("Φύλο", "Gender")}</label>
                                 <select value={gender} onChange={e => setGender(normalizeGender(e.target.value))} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900">
-                                    <option value="Female">Γυναίκα</option>
-                                    <option value="Male">Άνδρας</option>
-                                    <option value="AI">AI (Artificial Intelligence)</option>
+                                    <option value="Female">{L("Γυναίκα", "Woman")}</option>
+                                    <option value="Male">{L("Άνδρας", "Man")}</option>
+                                    <option value="AI">{L("AI (τεχνητή νοημοσύνη)", "AI (artificial intelligence)")}</option>
                                 </select>
                             </div>
                         </div>
                         <div className="mt-3">
-                            <label className="block text-xs font-semibold text-slate-900 mb-1">{L("Βιογραφικό", "Bio")}</label>
+                            <label className="block text-xs font-semibold text-slate-900 mb-1">{L("Βιογραφικό", "Biography")}</label>
                             <textarea value={bio} onChange={e => setBio(e.target.value)} rows={2} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900" />
                         </div>
                     </div>
+                    ) : null}
 
+                    {section === 'packages' ? (
                     <ServicePackagesEditor
                         lang={lang}
                         packages={servicePackages}
                         onChange={setServicePackages}
                     />
+                    ) : null}
 
+                    {section === 'basics' ? (
                     <div>
                             <div className="mt-2">
                                 <label className="block text-sm font-semibold text-slate-900 mb-1">{L("Γλώσσες", "Languages")}</label>
@@ -814,7 +924,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el' }: { user: InfluencerDat
                                                         className="w-4 h-4 text-blue-600 border-2 border-slate-300 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                                                     />
                                                     <span className={`text-xs font-medium ${isSelected ? 'text-blue-900' : 'text-slate-700'}`}>
-                                                        {langItem.el}
+                                                        {lang === 'en' ? langItem.en : langItem.el}
                                                     </span>
                                                 </label>
                                             );
@@ -823,20 +933,22 @@ const EditModal = ({ user, onClose, onSave, lang = 'el' }: { user: InfluencerDat
                                 </div>
                             </div>
                         </div>
+                    ) : null}
 
-                    {/* Social Accounts */}
+                    {section === 'platforms' ? (
+                    <>
                     <div>
-                        <h3 className="text-sm font-bold text-slate-900 mb-3 uppercase">{L("Κανάλια Social Media", "Social Media Channels")}</h3>
+                        <h3 className="text-sm font-bold text-slate-900 mb-3 uppercase">{L("Κοινωνικά δίκτυα", "Social accounts")}</h3>
                         <div className="space-y-2">
                             {accounts.map((acc, i) => (
                                 <div key={i} className="flex gap-3 items-start p-3 border border-slate-200 rounded-lg">
                                     <select value={acc.platform} onChange={e => handleAccountChange(i, 'platform', e.target.value)} className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900">
                                         {platforms.map(p => <option key={p}>{p}</option>)}
                                     </select>
-                                    <input type="text" placeholder="Username" value={acc.username} onChange={e => handleAccountChange(i, 'username', e.target.value)} className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" />
-                                    <input type="text" placeholder="Followers" value={acc.followers} onChange={e => handleAccountChange(i, 'followers', e.target.value)} className="w-32 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" />
+                                    <input type="text" placeholder={L("Όνομα χρήστη", "Username")} value={acc.username} onChange={e => handleAccountChange(i, 'username', e.target.value)} className="min-h-11 flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" />
+                                    <input type="text" placeholder={L("Ακόλουθοι", "Followers")} value={acc.followers} onChange={e => handleAccountChange(i, 'followers', e.target.value)} className="min-h-11 w-32 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" />
                                     {accounts.length > 1 && (
-                                        <button type="button" onClick={() => removeAccount(i)} className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg">✕</button>
+                                        <button type="button" onClick={() => removeAccount(i)} aria-label={L("Αφαίρεση", "Remove")} className="inline-flex min-h-11 min-w-11 items-center justify-center text-red-600 hover:bg-red-50 rounded-lg">✕</button>
                                     )}
                                 </div>
                             ))}
@@ -878,11 +990,13 @@ const EditModal = ({ user, onClose, onSave, lang = 'el' }: { user: InfluencerDat
                             </div>
                         </div>
                     </div>
+                    </>
+                    ) : null}
 
-                    {/* Videos */}
+                    {section === 'portfolio' ? (
                     <div>
-                        <h3 className="text-sm font-bold text-slate-900 mb-3 uppercase">{L("Video Links / Φωτογραφίες", "Video Links / Photos")}</h3>
-                        <p className="text-xs text-slate-600 mb-2">{L('Μπορείτε να προσθέσετε links από TikTok, Reels, YouTube ή φωτογραφίες από δουλειές σας.', 'You can add links from TikTok, Reels, YouTube or photos of your work.')}</p>
+                        <h3 className="text-sm font-bold text-slate-900 mb-3 uppercase">{L("Σύνδεσμοι βίντεο και φωτογραφίες", "Video links and photos")}</h3>
+                        <p className="text-xs text-slate-600 mb-2">{L('Μπορείς να προσθέσεις συνδέσμους από TikTok, Reels ή YouTube, ή φωτογραφίες από δουλειές σου.', 'You can add TikTok, Reels or YouTube links, or photos of your work.')}</p>
                         {parseHiddenVideos(user.hidden_videos).map((hidden) => {
                           const short =
                             hidden.url.length > 64 ? `${hidden.url.slice(0, 61)}…` : hidden.url;
@@ -1029,22 +1143,29 @@ const EditModal = ({ user, onClose, onSave, lang = 'el' }: { user: InfluencerDat
                         </div>
                     </div>
 
-                    {/* Warning */}
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                        <p className="text-sm text-yellow-800">
-                            ⚠️ <strong>{L('Σημαντικό:', 'Important:')}</strong> {L('Μετά την αποθήκευση, το προφίλ σου θα μεταβεί σε κατάσταση «Εκκρεμότητα» και θα χρειαστεί επαν-επαλήθευση από τον admin.', 'After saving, your profile will switch to "Pending" and will need to be re-verified by an admin.')}
-                        </p>
+                    ) : null}
                     </div>
-                    
-                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
-                        <button type="button" onClick={onClose} className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg font-medium transition-colors">{L("Ακύρωση", "Cancel")}</button>
-                        <button type="submit" disabled={loading || videosChecking || videosNotPlayable} className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium disabled:opacity-50 transition-colors">
-                            {loading ? L('Αποθήκευση...', 'Saving...') : L('Αποθήκευση Αλλαγών', 'Save Changes')}
-                        </button>
+
+                    <div className="sticky bottom-0 z-10 border-t border-slate-200 bg-white px-4 py-3 sm:px-6">
+                        <p className="mb-2 text-xs text-amber-800">
+                            {L('Μετά την αποθήκευση το προφίλ μπαίνει σε εκκρεμότητα μέχρι τον νέο έλεγχο.', 'After saving, the profile stays pending until it is reviewed again.')}
+                        </p>
+                        <div className="flex items-center justify-between gap-3">
+                            <p className="text-xs font-medium text-slate-500">
+                                {unsaved ? L('Μη αποθηκευμένες αλλαγές', 'Unsaved changes') : L('Όλα αποθηκευμένα', 'All changes saved')}
+                            </p>
+                            <div className="flex gap-2">
+                                <button type="button" onClick={requestClose} className="inline-flex min-h-11 items-center px-4 text-slate-700 hover:bg-slate-100 rounded-lg font-medium transition-colors">{L("Ακύρωση", "Cancel")}</button>
+                                <button type="submit" disabled={loading || !unsaved || videosChecking || videosNotPlayable} className="inline-flex min-h-11 items-center px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium disabled:opacity-50 transition-colors">
+                                    {loading ? L('Αποθήκευση...', 'Saving...') : L('Αποθήκευση', 'Save')}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </form>
             </div>
         </div>
+        </>
     );
 };
 
@@ -1075,12 +1196,19 @@ function tabBadgeText(count: number): string {
 export default function DashboardContent({ profile: initialProfile }: { profile: InfluencerData }) {
     const [profile, setProfile] = useState(initialProfile);
     const [showEditModal, setShowEditModal] = useState(false);
+    const [editSection, setEditSection] = useState<EditSection>('basics');
     const [availabilitySaving, setAvailabilitySaving] = useState(false);
     const [availabilityError, setAvailabilityError] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'profile' | 'tools' | 'messages' | 'proposals' | 'campaigns' | 'analytics' | 'announcements'>('profile');
+    const [activeTab, setActiveTab] = useState<CreatorTab>('overview');
     const activeTabRef = useRef(activeTab);
     activeTabRef.current = activeTab;
     const searchParams = useSearchParams();
+    const router = useRouter();
+    const tabsNavRef = useRef<HTMLElement | null>(null);
+    const [menuOpen, setMenuOpen] = useState(false);
+    const { toasts, push: pushToast, dismiss: dismissToast } = useToasts();
+    const notify = (message: string, tone: 'success' | 'error' | 'info' = 'info') => pushToast(message, tone);
+    const [rejectProposalId, setRejectProposalId] = useState<number | null>(null);
     const [lang, setLang] = useState<'el' | 'en'>(() => getStoredLanguage());
     const ui = lang === 'en'
       ? {
@@ -1093,7 +1221,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
           approved: 'Approved',
           pending: 'Pending',
           pendingHint:
-            'Pending means you cannot yet view or apply to campaigns. Other dashboard tabs stay available. The team usually reviews within 1–2 business days.',
+            'Pending means you cannot yet view or apply to campaigns. The other sections stay available. The team usually reviews within 1–2 business days.',
           logout: 'Log out',
           deleteAccount: 'Delete Account',
           deleteAccountTitle: 'Delete account',
@@ -1115,10 +1243,13 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
           tabStats: 'Analytics',
           tabAnnouncements: 'Announcements',
           campaignsTitle: 'Campaigns · expressions of interest',
-          offersTitle: 'Offers from Brands',
+          offersTitle: 'Offers from brands',
           offersEmpty: 'No offers yet.',
           announcementsTitle: 'Announcements',
           announcementsLoading: 'Loading...',
+          announcementsError: 'Announcements could not be loaded.',
+          announcementsTimeout: 'This took too long. Try again.',
+          retry: 'Try again',
           announcementsEmpty: 'No announcements.',
           unreadTitle: 'Unread',
           markRead: 'Mark as read',
@@ -1134,7 +1265,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
           availableHint: 'Open to new collaborations',
           unavailableHint: 'Pausing new collaborations for now',
           saving: 'Saving…',
-          socialChannels: 'Social Media Channels',
+          socialChannels: 'Social accounts',
           docTitle: 'Creator Dashboard | Influo',
         }
       : {
@@ -1147,7 +1278,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
           approved: 'Εγκεκριμένο',
           pending: 'Σε Εκκρεμότητα',
           pendingHint:
-            'Η εκκρεμότητα σημαίνει ότι δεν μπορείτε ακόμη να δείτε ή να κάνετε αίτηση σε καμπάνιες. Τα υπόλοιπα tabs του dashboard παραμένουν διαθέσιμα. Η ομάδα ελέγχει το προφίλ, συνήθως εντός 1–2 εργάσιμων ημερών.',
+            'Η εκκρεμότητα σημαίνει ότι δεν μπορείς ακόμη να δεις ή να κάνεις αίτηση σε καμπάνιες. Οι υπόλοιπες ενότητες μένουν διαθέσιμες. Η ομάδα ελέγχει το προφίλ, συνήθως εντός 1–2 εργάσιμων ημερών.',
           logout: 'Αποσύνδεση',
           deleteAccount: 'Διαγραφή Λογαριασμού',
           deleteAccountTitle: 'Διαγραφή λογαριασμού',
@@ -1169,10 +1300,13 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
           tabStats: 'Στατιστικά',
           tabAnnouncements: 'Ανακοινώσεις',
           campaignsTitle: 'Καμπάνιες · αιτήσεις ενδιαφέροντος',
-          offersTitle: 'Προσφορές από Brands',
+          offersTitle: 'Προσφορές από επιχειρήσεις',
           offersEmpty: 'Δεν υπάρχουν προσφορές ακόμα.',
           announcementsTitle: 'Ανακοινώσεις',
           announcementsLoading: 'Φόρτωση...',
+          announcementsError: 'Οι ανακοινώσεις δεν φορτώθηκαν.',
+          announcementsTimeout: 'Η φόρτωση άργησε. Δοκίμασε ξανά.',
+          retry: 'Δοκίμασε ξανά',
           announcementsEmpty: 'Δεν υπάρχουν ανακοινώσεις.',
           unreadTitle: 'Μη διαβασμένο',
           markRead: 'Σήμανση ως διαβασμένο',
@@ -1188,17 +1322,37 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
           availableHint: 'Ανοιχτός σε νέες συνεργασίες',
           unavailableHint: 'Παύση νέων συνεργασιών προς το παρόν',
           saving: 'Αποθήκευση…',
-          socialChannels: 'Κανάλια Social Media',
+          socialChannels: 'Κοινωνικά δίκτυα',
           docTitle: 'Πίνακας δημιουργού | Influo',
         };
 
+    const T = (el: string, en: string) => (lang === 'en' ? en : el);
+
     useEffect(() => {
         if (typeof document === 'undefined') return;
-        document.title = ui.docTitle;
-    }, [ui.docTitle]);
-
-    const dateLocale = lang === 'en' ? 'en-GB' : 'el-GR';
-    const T = (el: string, en: string) => (lang === 'en' ? en : el);
+        const titles = lang === 'en'
+            ? {
+                overview: 'Overview | Influo',
+                profile: 'Profile | Influo',
+                tools: 'Tools | Influo',
+                campaigns: 'Campaigns | Influo',
+                proposals: 'Offers | Influo',
+                messages: 'Messages | Influo',
+                analytics: 'Analytics | Influo',
+                announcements: 'Announcements | Influo',
+            }
+            : {
+                overview: 'Επισκόπηση | Influo',
+                profile: 'Προφίλ | Influo',
+                tools: 'Εργαλεία | Influo',
+                campaigns: 'Καμπάνιες | Influo',
+                proposals: 'Προσφορές | Influo',
+                messages: 'Μηνύματα | Influo',
+                analytics: 'Στατιστικά | Influo',
+                announcements: 'Ανακοινώσεις | Influo',
+            };
+        document.title = titles[activeTab] || ui.docTitle;
+    }, [lang, activeTab, ui.docTitle]);
 
     const switchLang = (next: 'el' | 'en') => {
       setLang(next);
@@ -1228,7 +1382,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
             if (error) throw error;
         } catch (err: unknown) {
             setProfile((p) => ({ ...p, availability_status: previous ?? 'available' }));
-            const msg = err instanceof Error ? err.message : 'Σφάλμα ενημέρωσης';
+            const msg = err instanceof Error ? err.message : T('Σφάλμα ενημέρωσης', 'Could not update');
             setAvailabilityError(msg);
         } finally {
             setAvailabilitySaving(false);
@@ -1237,18 +1391,38 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
 
     useEffect(() => {
         const tab = searchParams?.get('tab');
-        if (
-            tab === 'profile' ||
-            tab === 'tools' ||
-            tab === 'messages' ||
-            tab === 'proposals' ||
-            tab === 'campaigns' ||
-            tab === 'analytics' ||
-            tab === 'announcements'
-        ) {
-            setActiveTab(tab);
+        const allowed: CreatorTab[] = ['overview', 'profile', 'tools', 'messages', 'proposals', 'campaigns', 'analytics', 'announcements'];
+        if (tab && allowed.includes(tab as CreatorTab)) {
+            setActiveTab(tab as CreatorTab);
+        } else if (!tab) {
+            setActiveTab('overview');
         }
     }, [searchParams]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        if (window.matchMedia('(min-width: 768px)').matches) return;
+        const nav = tabsNavRef.current;
+        if (!nav) return;
+        const btn = nav.querySelector<HTMLElement>(`[data-creator-tab="${activeTab}"]`);
+        btn?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+    }, [activeTab]);
+
+    const openCreatorTab = (tab: CreatorTab) => {
+        setMenuOpen(false);
+        setActiveTab(tab);
+        const url = tab === 'overview' ? '/dashboard' : `/dashboard?tab=${tab}`;
+        if (typeof window !== 'undefined') {
+            window.history.replaceState({ ...(window.history.state || {}), as: url, url }, '', url);
+        }
+        router.replace(url, { scroll: false });
+    };
+
+    const openEdit = (section: EditSection) => {
+        setEditSection(section);
+        setMenuOpen(false);
+        setShowEditModal(true);
+    };
 
     useOwnPresenceHeartbeat(profile?.id ? { kind: 'influencer', influencerId: profile.id } : null);
 
@@ -1264,11 +1438,18 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     const [savingCounterProposal, setSavingCounterProposal] = useState(false);
     const [selectedProposalForMessaging, setSelectedProposalForMessaging] = useState<Proposal | null>(null);
     const [proposalsLoaded, setProposalsLoaded] = useState(false);
+    const [proposalsLoading, setProposalsLoading] = useState(true);
+    const [proposalsError, setProposalsError] = useState<null | 'timeout' | 'error'>(null);
     const [unseenProposalCount, setUnseenProposalCount] = useState(0);
     const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
     const [announcementsList, setAnnouncementsList] = useState<Array<{ id: string; title: string; body: string; created_at: string; read: boolean; read_at: string | null }>>([]);
     const [unreadAnnouncementsCount, setUnreadAnnouncementsCount] = useState(0);
     const [announcementsLoading, setAnnouncementsLoading] = useState(false);
+    const [announcementsError, setAnnouncementsError] = useState<null | 'timeout' | 'error'>(null);
+    const [announcementsAttempt, setAnnouncementsAttempt] = useState(0);
+    const [profileViews, setProfileViews] = useState<number | null>(null);
+    const [profileViewsState, setProfileViewsState] = useState<'loading' | 'ready' | 'error'>('loading');
+    const [profileViewsAttempt, setProfileViewsAttempt] = useState(0);
     const [openCampaignIds, setOpenCampaignIds] = useState<string[]>([]);
     const [campaignsLoaded, setCampaignsLoaded] = useState(false);
     const [changesRequestedCount, setChangesRequestedCount] = useState(0);
@@ -1283,7 +1464,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session?.access_token) {
-                throw new Error('Δεν βρέθηκε ενεργή σύνδεση. Συνδεθείτε ξανά.');
+                throw new Error(T('Δεν βρέθηκε ενεργή σύνδεση. Συνδέσου ξανά.', 'No active session. Sign in again.'));
             }
 
             const res = await fetch('/api/account/delete', {
@@ -1294,32 +1475,44 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) {
-                throw new Error(data.error || 'Η διαγραφή απέτυχε. Δοκιμάστε ξανά.');
+                throw new Error(data.error || T('Η διαγραφή απέτυχε. Δοκίμασε ξανά.', 'Deletion failed. Try again.'));
             }
 
             await logoutEverywhere('/?account_deleted=1');
         } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : 'Η διαγραφή απέτυχε. Δοκιμάστε ξανά.';
+            const message = err instanceof Error ? err.message : T('Η διαγραφή απέτυχε. Δοκίμασε ξανά.', 'Deletion failed. Try again.');
             setDeleteAccountError(message);
         } finally {
             setDeletingAccount(false);
         }
     };
 
-    const reloadProposals = async () => {
-        const response = await sessionFetch('/api/proposals?role=influencer', { cache: 'no-store' });
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok || !Array.isArray(result.proposals)) return null;
-        const rows = result.proposals as Proposal[];
-        setProposals(rows);
-        setProposalsLoaded(true);
-        return rows;
+    const reloadProposals = async (quiet = false) => {
+        if (!quiet) setProposalsLoading(true);
+        try {
+            const response = await withTimeout(sessionFetch('/api/proposals?role=influencer', { cache: 'no-store' }), 20000);
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || !Array.isArray(result.proposals)) {
+                throw new Error(typeof result.error === 'string' ? result.error : 'proposals');
+            }
+            const rows = result.proposals as Proposal[];
+            setProposals(rows);
+            setProposalsLoaded(true);
+            setProposalsError(null);
+            return rows;
+        } catch (error) {
+            console.error('Error loading proposals:', error);
+            setProposalsError(isTimeoutError(error) ? 'timeout' : 'error');
+            return null;
+        } finally {
+            if (!quiet) setProposalsLoading(false);
+        }
     };
 
     // Load proposals and counts
     useEffect(() => {
         const loadProposals = async () => {
-            await reloadProposals();
+            await reloadProposals(false);
         };
         
         const loadUnreadMessages = async () => {
@@ -1338,7 +1531,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
             const conversationIds = conversations.map(c => c.id);
             const { count, error } = await supabase
                 .from('messages')
-                .select('*', { count: 'exact', head: true })
+                .select('id', { count: 'exact', head: true })
                 .in('conversation_id', conversationIds)
                 .eq('sender_type', 'brand')
                 .or('read.eq.false,read.is.null');
@@ -1459,29 +1652,43 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     }, [profile?.id, activeTab, campaignsLoaded, openCampaignIds, proposals, proposalsLoaded]);
 
     useEffect(() => {
-        if (activeTab !== 'announcements' || !profile?.id) return;
+        if ((activeTab !== 'announcements' && activeTab !== 'overview') || !profile?.id) return;
         let cancelled = false;
+        const markRead = activeTab === 'announcements';
         void (async () => {
             setAnnouncementsLoading(true);
+            setAnnouncementsError(null);
             try {
                 const { data: { session } } = await supabase.auth.getSession();
-                if (!session?.access_token || cancelled) return;
-                const res = await fetch('/api/announcements', {
+                if (!session?.access_token || cancelled) {
+                    if (!cancelled) setAnnouncementsError('error');
+                    return;
+                }
+                const res = await withTimeout(fetch('/api/announcements', {
                     headers: { Authorization: `Bearer ${session.access_token}` },
-                });
+                }), 20000);
                 const data = await res.json();
-                if (cancelled || !res.ok || !Array.isArray(data.data)) return;
+                if (cancelled) return;
+                if (!res.ok || !Array.isArray(data.data)) {
+                    setAnnouncementsError('error');
+                    return;
+                }
                 const rows = data.data as typeof announcementsList;
-                const unread = rows.filter((row) => !row.read);
-                const now = new Date().toISOString();
-                setAnnouncementsList(rows.map((row) => (row.read ? row : { ...row, read: true, read_at: row.read_at || now })));
-                setUnreadAnnouncementsCount(0);
-                await Promise.all(unread.map((row) => fetch(`/api/announcements/${row.id}/read`, {
-                    method: 'POST',
-                    headers: { Authorization: `Bearer ${session.access_token}` },
-                })));
+                if (markRead) {
+                    const unread = rows.filter((row) => !row.read);
+                    const now = new Date().toISOString();
+                    setAnnouncementsList(rows.map((row) => (row.read ? row : { ...row, read: true, read_at: row.read_at || now })));
+                    setUnreadAnnouncementsCount(0);
+                    await Promise.all(unread.map((row) => fetch(`/api/announcements/${row.id}/read`, {
+                        method: 'POST',
+                        headers: { Authorization: `Bearer ${session.access_token}` },
+                    })));
+                } else {
+                    setAnnouncementsList(rows);
+                }
             } catch (e) {
                 console.error('Error loading announcements:', e);
+                if (!cancelled) setAnnouncementsError(isTimeoutError(e) ? 'timeout' : 'error');
             } finally {
                 if (!cancelled) setAnnouncementsLoading(false);
             }
@@ -1489,7 +1696,33 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
         return () => {
             cancelled = true;
         };
-    }, [activeTab, profile?.id]);
+    }, [activeTab, profile?.id, announcementsAttempt]);
+
+    useEffect(() => {
+        if (!profile?.id) return;
+        let cancelled = false;
+        void (async () => {
+            setProfileViewsState('loading');
+            try {
+                const res = await withTimeout(
+                    fetch(`/api/analytics/stats?influencerId=${encodeURIComponent(String(profile.id))}&metric=profile_views`),
+                    20000
+                );
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || typeof data.profileViews !== 'number') throw new Error('views');
+                if (!cancelled) {
+                    setProfileViews(data.profileViews);
+                    setProfileViewsState('ready');
+                }
+            } catch (error) {
+                console.error('Error loading profile views:', error);
+                if (!cancelled) setProfileViewsState('error');
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [profile?.id, profileViewsAttempt]);
 
     useEffect(() => {
         // Refresh profile data periodically
@@ -1529,19 +1762,19 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
 
             const result = await response.json();
             if (result.success) {
-                await reloadProposals();
+                await reloadProposals(true);
 
                 setShowCounterProposalModal(false);
                 setSelectedProposal(null);
                 setCounterBudget('');
                 setCounterMessage('');
-                alert('Η αντιπρόταση στάλθηκε! Το brand θα λάβει email με τις λεπτομέρειες.');
+                notify(T('Η αντιπρόταση στάλθηκε. Η επιχείρηση θα λάβει email με τις λεπτομέρειες.', 'The counter-offer was sent. The brand will get an email with the details.'), 'success');
             } else {
-                throw new Error(result.error || 'Σφάλμα αποστολής αντιπρότασης');
+                throw new Error(result.error || T('Σφάλμα αποστολής αντιπρότασης', 'Could not send the counter-offer'));
             }
         } catch (err: any) {
             console.error('Error submitting counter-proposal:', err);
-            alert('Σφάλμα: ' + err.message);
+            notify(T('Σφάλμα: ', 'Error: ') + err.message, 'error');
         } finally {
             setSavingCounterProposal(false);
         }
@@ -1549,7 +1782,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
 
     const handleAcceptAgreement = async () => {
         if (!selectedProposal || !agreementAccepted) {
-            alert('Παρακαλώ διαβάστε και αποδεχτείτε τους όρους χρήσης');
+            notify(T('Διάβασε και αποδέξου τους όρους χρήσης.', 'Read and accept the terms first.'), 'error');
             return;
         }
 
@@ -1571,7 +1804,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                 const withAcceptance = (rows: Proposal[]) =>
                     rows.map((row) => row.id === acceptedId ? { ...row, influencer_agreement_accepted: true } : row);
                 setProposals((prev) => withAcceptance(prev));
-                const data = await reloadProposals();
+                const data = await reloadProposals(true);
                 if (data) {
                     setProposals(withAcceptance(data));
                     // Refresh profile to get updated past_brands
@@ -1584,171 +1817,298 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                 setShowAgreementModal(false);
                 setSelectedProposal(null);
                 setAgreementAccepted(false);
-                alert('Η συμφωνία αποδεχτήθηκε! Το brand θα προστεθεί στις συνεργασίες σας όταν και το brand αποδεχτεί.');
+                notify(T('Η συμφωνία αποδεχτήθηκε. Η επιχείρηση θα προστεθεί στις συνεργασίες σου όταν αποδεχτεί και εκείνη.', 'Agreement accepted. The brand will be added to your collaborations once they accept too.'), 'success');
             } else {
-                throw new Error(result.error || 'Σφάλμα αποδοχής συμφωνίας');
+                throw new Error(result.error || T('Σφάλμα αποδοχής συμφωνίας', 'Could not accept the agreement'));
             }
         } catch (err: any) {
             console.error('Error accepting agreement:', err);
-            alert('Σφάλμα: ' + err.message);
+            notify(T('Σφάλμα: ', 'Error: ') + err.message, 'error');
         } finally {
             setSavingAgreement(false);
         }
     };
 
+    const confirmRejectProposal = async () => {
+        const id = rejectProposalId;
+        setRejectProposalId(null);
+        if (id == null) return;
+        try {
+            const response = await sessionFetch('/api/proposals/reject', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ proposalId: id }),
+            });
+            const result = await response.json();
+            if (result.success) {
+                await reloadProposals(true);
+                notify(T('Η προσφορά απορρίφθηκε. Η επιχείρηση θα ειδοποιηθεί.', 'The offer was rejected. The brand will be notified.'), 'success');
+            } else {
+                notify(T('Σφάλμα: ', 'Error: ') + (result.error || T('Αποτυχία απόρριψης', 'Failed to reject')), 'error');
+            }
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : T('Αποτυχία απόρριψης', 'Failed to reject');
+            notify(T('Σφάλμα: ', 'Error: ') + message, 'error');
+        }
+    };
+
+    const activeCollaborations = proposals.filter((item) => item.status === 'accepted' || item.status === 'completed').length;
+    const ratingValue = typeof profile.avg_rating === 'number' && profile.avg_rating > 0 ? profile.avg_rating : null;
+    const profileIncomplete = !(profile.bio || '').trim() || !profile.avatar_url || !(profile.accounts || []).some((account) => String(account.username || '').trim());
+    const missingPackages = packagesForSave(profile.service_packages || []).length < 1;
+    const missingPortfolio = !(profile.videos || []).some((url) => String(url || '').trim());
+    const waitingAgreements = proposals.filter((item) => (item.status === 'accepted' || item.status === 'completed') && !item.influencer_agreement_accepted).length;
+    const overviewSteps = (
+        [
+            !profile.approved
+                ? { id: 'approval', text: T('Ο λογαριασμός περιμένει έγκριση. Μπορείς να συμπληρώσεις το προφίλ στο μεταξύ.', 'Your account is waiting for approval. You can complete your profile in the meantime.'), tab: 'profile' as const, cta: T('Προφίλ', 'Profile') }
+                : null,
+            profileIncomplete
+                ? { id: 'profile', text: T('Συμπλήρωσε φωτογραφία, βιογραφικό και τουλάχιστον ένα κανάλι.', 'Add a photo, a biography, and at least one channel.'), tab: 'profile' as const, cta: T('Συμπλήρωση', 'Complete'), section: 'basics' as const }
+                : null,
+            missingPackages
+                ? { id: 'packages', text: T('Πρόσθεσε πακέτα με τιμή για να σε βρίσκουν οι επιχειρήσεις.', 'Add priced packages so brands can find you.'), tab: 'profile' as const, cta: T('Πακέτα', 'Packages'), section: 'packages' as const }
+                : null,
+            missingPortfolio
+                ? { id: 'portfolio', text: T('Πρόσθεσε δείγματα δουλειάς στο portfolio.', 'Add work samples to your portfolio.'), tab: 'profile' as const, cta: T('Portfolio', 'Portfolio'), section: 'portfolio' as const }
+                : null,
+            waitingAgreements > 0
+                ? { id: 'agreements', text: T('Υπάρχουν συμφωνίες που δεν έχεις αποδεχτεί ακόμη.', 'Some agreements are still waiting for you.'), tab: 'proposals' as const, cta: T('Συμφωνίες', 'Agreements') }
+                : null,
+            unreadMessagesCount > 0
+                ? { id: 'messages', text: T(`Έχεις ${unreadMessagesCount} αδιάβαστα μηνύματα.`, `You have ${unreadMessagesCount} unread messages.`), tab: 'messages' as const, cta: T('Άνοιγμα', 'Open') }
+                : null,
+        ] as Array<{ id: string; text: string; tab: CreatorTab; cta: string; section?: EditSection } | null>
+    ).filter((step): step is { id: string; text: string; tab: CreatorTab; cta: string; section?: EditSection } => step !== null).slice(0, 4);
+
+    const announcementsErrorText = announcementsError === 'timeout' ? ui.announcementsTimeout : ui.announcementsError;
+    const proposalsErrorText = proposalsError === 'timeout'
+        ? T('Η φόρτωση άργησε. Δοκίμασε ξανά.', 'This took too long. Try again.')
+        : T('Οι προσφορές δεν φορτώθηκαν.', 'Offers could not be loaded.');
+
     return (
-        <div className="min-h-screen p-6 md:p-8 bg-slate-50">
+        <div className="min-h-screen bg-slate-50">
+            <ToastViewport toasts={toasts} onDismiss={dismissToast} dismissLabel={T('Κλείσιμο', 'Dismiss')} />
+            <ConfirmDialog
+                open={rejectProposalId != null}
+                title={T('Απόρριψη προσφοράς;', 'Reject this offer?')}
+                body={T('Η επιχείρηση θα ειδοποιηθεί.', 'The brand will be notified.')}
+                confirmLabel={T('Απόρριψη', 'Reject')}
+                cancelLabel={T('Ακύρωση', 'Cancel')}
+                onConfirm={() => { void confirmRejectProposal(); }}
+                onCancel={() => setRejectProposalId(null)}
+            />
             <PushNotificationPrompt userType="influencer" userIdentifier={profile?.id || ''} lang={lang} />
-            <div className="max-w-6xl mx-auto">
-                {/* Back to Home Link */}
-                <div className="mb-4">
-                    <a 
-                        href="/" 
-                        className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors text-sm font-medium"
-                    >
-                        <span>←</span> {ui.backHome}
-                    </a>
-                </div>
-                <div className="mb-8 flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                    <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">
-                        {ui.welcome} <span className="text-slate-900">{displayNameForLang(profile.display_name, lang)}</span>!
-                </h1>
-                    <p className="text-slate-600">{ui.subtitle}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                    <button
-                        type="button"
-                        onClick={() => switchLang(lang === 'el' ? 'en' : 'el')}
-                        className="px-3 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 rounded-lg hover:bg-blue-50 transition-colors"
-                    >
-                        {lang === 'el' ? 'EN' : 'ΕΛ'}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => logoutEverywhere("/login")}
-                        className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium text-sm transition-colors"
-                    >
-                        {ui.logout}
-                    </button>
-                    </div>
-                </div>
-                
-                <div className="bg-white rounded-lg border border-slate-200">
-                    {/* Tabs */}
-                    <div className="border-b border-slate-200 overflow-x-auto">
-                        <div className="flex min-w-max sm:min-w-0">
-                            <button
-                                onClick={() => setActiveTab('profile')}
-                                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors whitespace-nowrap ${
-                                    activeTab === 'profile'
-                                        ? 'border-slate-900 text-slate-900'
-                                        : 'border-transparent text-slate-500 hover:text-slate-700'
-                                }`}
-                            >
-                                {ui.tabProfile}
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('tools')}
-                                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors whitespace-nowrap ${
-                                    activeTab === 'tools'
-                                        ? 'border-slate-900 text-slate-900'
-                                        : 'border-transparent text-slate-500 hover:text-slate-700'
-                                }`}
-                            >
-                                <span className="hidden md:inline">🧰 </span>{ui.tabTools}
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('campaigns')}
-                                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors whitespace-nowrap relative ${
-                                    activeTab === 'campaigns'
-                                        ? 'border-slate-900 text-slate-900'
-                                        : 'border-transparent text-slate-500 hover:text-slate-700'
-                                }`}
-                            >
-                                <span className="hidden md:inline">📣 </span>{ui.tabCampaigns}
-                                {unseenCampaignCount > 0 && (
-                                    <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 bg-red-500 text-white text-[9px] sm:text-[10px] font-bold rounded-full min-w-[14px] sm:min-w-[16px] h-[14px] sm:h-[16px] flex items-center justify-center px-0.5">
-                                        {tabBadgeText(unseenCampaignCount)}
-                                    </span>
-                                )}
-                                {changesRequestedCount > 0 && (
-                                    <span className="ml-1.5 inline-flex items-center justify-center min-w-[14px] sm:min-w-[16px] h-[14px] sm:h-[16px] px-0.5 rounded-full bg-amber-500 text-white text-[9px] sm:text-[10px] font-bold">
-                                        {changesRequestedCount > 99 ? '99+' : changesRequestedCount}
-                                    </span>
-                                )}
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('proposals')}
-                                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors relative whitespace-nowrap ${
-                                    activeTab === 'proposals'
-                                        ? 'border-slate-900 text-slate-900'
-                                        : 'border-transparent text-slate-500 hover:text-slate-700'
-                                }`}
-                            >
-                                <span className="hidden md:inline">📋 </span>{ui.tabOffers}
-                                {unseenProposalCount > 0 && (
-                                    <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 bg-red-500 text-white text-[9px] sm:text-[10px] font-bold rounded-full min-w-[14px] sm:min-w-[16px] h-[14px] sm:h-[16px] flex items-center justify-center px-0.5">
-                                        {tabBadgeText(unseenProposalCount)}
-                                    </span>
-                                )}
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('messages')}
-                                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors relative whitespace-nowrap ${
-                                    activeTab === 'messages'
-                                        ? 'border-slate-900 text-slate-900'
-                                        : 'border-transparent text-slate-500 hover:text-slate-700'
-                                }`}
-                            >
-                                <span className="hidden md:inline">💬 </span>{ui.tabMessages}
-                                {unreadMessagesCount > 0 && (
-                                    <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 bg-red-500 text-white text-[9px] sm:text-[10px] font-bold rounded-full min-w-[14px] sm:min-w-[16px] h-[14px] sm:h-[16px] flex items-center justify-center px-0.5">
-                                        {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
-                                    </span>
-                                )}
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('analytics')}
-                                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors whitespace-nowrap ${
-                                    activeTab === 'analytics'
-                                        ? 'border-slate-900 text-slate-900'
-                                        : 'border-transparent text-slate-500 hover:text-slate-700'
-                                }`}
-                            >
-                                <span className="hidden md:inline">📊 </span>{ui.tabStats}
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('announcements')}
-                                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors relative whitespace-nowrap ${
-                                    activeTab === 'announcements'
-                                        ? 'border-slate-900 text-slate-900'
-                                        : 'border-transparent text-slate-500 hover:text-slate-700'
-                                }`}
-                            >
-                                <span className="hidden md:inline">📢 </span>{ui.tabAnnouncements}
-                                {unreadAnnouncementsCount > 0 && (
-                                    <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 bg-red-500 text-white text-[9px] sm:text-[10px] font-bold rounded-full min-w-[14px] sm:min-w-[16px] h-[14px] sm:h-[16px] flex items-center justify-center px-0.5">
-                                        {unreadAnnouncementsCount > 99 ? '99+' : unreadAnnouncementsCount > 9 ? '9+' : unreadAnnouncementsCount}
-                                    </span>
-                                )}
-                            </button>
-                            <Link
-                                href="/help-desk"
-                                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors whitespace-nowrap ${
-                                    'border-transparent text-slate-500 hover:text-slate-700'
-                                }`}
-                            >
-                                <span className="hidden md:inline">📧 </span>Help Desk
+            <div className="bg-white border-b border-slate-200">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-4 sm:gap-6 min-w-0">
+                            <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity shrink-0">
+                                <Image src="/logo.svg" alt="Influo" width={120} height={48} className="h-6 sm:h-8 w-auto" />
                             </Link>
+                            <div className="min-w-0">
+                                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 truncate">{T('Πίνακας δημιουργού', 'Creator dashboard')}</h1>
+                                <p className="text-sm text-slate-500 truncate">{ui.welcome} {displayNameForLang(profile.display_name, lang)}</p>
+                            </div>
+                        </div>
+                        <div className="hidden md:flex flex-wrap items-center gap-2">
+                            <Link href="/" className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                                <Home className="w-4 h-4" aria-hidden="true" />
+                                {T('Αρχική', 'Home')}
+                            </Link>
+                            <Link href="/help-desk" className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-purple-200 px-3 text-sm font-medium text-purple-700 hover:bg-purple-50">
+                                <LifeBuoy className="w-4 h-4" aria-hidden="true" />
+                                {T('Βοήθεια', 'Help')}
+                            </Link>
+                            <button type="button" onClick={() => openEdit('basics')} className="inline-flex min-h-11 items-center rounded-lg border border-blue-200 px-3 text-sm font-medium text-blue-700 hover:bg-blue-50">
+                                {ui.editProfile}
+                            </button>
+                            <button type="button" onClick={() => switchLang(lang === 'el' ? 'en' : 'el')} className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-blue-700 hover:bg-blue-50">
+                                {lang === 'el' ? 'EN' : 'ΕΛ'}
+                            </button>
+                            <button type="button" onClick={() => logoutEverywhere('/login')} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                                <LogOut className="w-4 h-4" aria-hidden="true" />
+                                {ui.logout}
+                            </button>
+                        </div>
+                        <button
+                            type="button"
+                            className="md:hidden inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-slate-200 text-slate-700"
+                            aria-label={T('Μενού', 'Menu')}
+                            aria-expanded={menuOpen}
+                            onClick={() => setMenuOpen((open) => !open)}
+                        >
+                            {menuOpen ? <X className="w-5 h-5" aria-hidden="true" /> : <Menu className="w-5 h-5" aria-hidden="true" />}
+                        </button>
+                    </div>
+                    {menuOpen ? (
+                        <div className="md:hidden mt-3 flex flex-col gap-1 border-t border-slate-100 pt-3">
+                            <Link href="/" className="min-h-11 inline-flex items-center gap-2 rounded-lg px-3 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                                <Home className="w-4 h-4" aria-hidden="true" />
+                                {T('Αρχική', 'Home')}
+                            </Link>
+                            <Link href="/help-desk" className="min-h-11 inline-flex items-center gap-2 rounded-lg px-3 text-sm font-medium text-purple-700 hover:bg-purple-50">
+                                <LifeBuoy className="w-4 h-4" aria-hidden="true" />
+                                {T('Βοήθεια', 'Help')}
+                            </Link>
+                            <button type="button" onClick={() => openEdit('basics')} className="min-h-11 text-left rounded-lg px-3 text-sm font-medium text-blue-700 hover:bg-blue-50">
+                                {ui.editProfile}
+                            </button>
+                            <button type="button" onClick={() => switchLang(lang === 'el' ? 'en' : 'el')} className="min-h-11 text-left rounded-lg px-3 text-sm font-medium text-blue-700 hover:bg-blue-50">
+                                {lang === 'el' ? 'English' : 'Ελληνικά'}
+                            </button>
+                            <button type="button" onClick={() => logoutEverywhere('/login')} className="min-h-11 inline-flex items-center gap-2 rounded-lg px-3 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                                <LogOut className="w-4 h-4" aria-hidden="true" />
+                                {ui.logout}
+                            </button>
+                        </div>
+                    ) : null}
+                </div>
+            </div>
+
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
+                <div className={`mb-6 rounded-xl border px-4 py-3 text-sm ${profile.approved ? 'border-emerald-200 bg-emerald-50 text-emerald-950' : 'border-amber-200 bg-amber-50 text-amber-950'}`}>
+                    <p className="font-semibold">{profile.approved ? T('Ο λογαριασμός είναι εγκεκριμένος', 'Your account is approved') : T('Έγκριση σε αναμονή', 'Approval pending')}</p>
+                    <p className="mt-1 leading-relaxed">{profile.approved ? T('Το προφίλ σου είναι ορατό στις επιχειρήσεις και μπορείς να κάνεις αιτήσεις σε καμπάνιες.', 'Your profile is visible to brands and you can apply to campaigns.') : ui.pendingHint}</p>
+                </div>
+
+                <div className="relative bg-white rounded-xl border border-slate-200 mb-6 overflow-hidden">
+                    <nav
+                        ref={tabsNavRef}
+                        role="tablist"
+                        aria-label={T('Ενότητες πίνακα', 'Dashboard sections')}
+                        className="flex gap-2 overflow-x-auto snap-x snap-mandatory px-3 py-2 md:gap-0 md:overflow-visible md:snap-none md:px-0 md:py-0 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                    >
+                        {(
+                            [
+                                { id: 'overview' as const, label: T('Επισκόπηση', 'Overview'), icon: LayoutDashboard, count: 0 },
+                                { id: 'profile' as const, label: ui.tabProfile, icon: User, count: 0 },
+                                { id: 'campaigns' as const, label: ui.tabCampaigns, icon: Megaphone, count: unseenCampaignCount + changesRequestedCount },
+                                { id: 'proposals' as const, label: ui.tabOffers, icon: FileText, count: unseenProposalCount },
+                                { id: 'messages' as const, label: ui.tabMessages, icon: MessageSquare, count: unreadMessagesCount },
+                                { id: 'analytics' as const, label: ui.tabStats, icon: BarChart3, count: 0 },
+                                { id: 'tools' as const, label: ui.tabTools, icon: Wrench, count: 0 },
+                                { id: 'announcements' as const, label: ui.tabAnnouncements, icon: Bell, count: unreadAnnouncementsCount },
+                            ]
+                        ).map((tab) => {
+                            const selected = activeTab === tab.id;
+                            const Icon = tab.icon;
+                            return (
+                                <button
+                                    key={tab.id}
+                                    type="button"
+                                    role="tab"
+                                    data-creator-tab={tab.id}
+                                    aria-selected={selected}
+                                    onClick={() => openCreatorTab(tab.id)}
+                                    className={`inline-flex min-h-11 shrink-0 snap-start items-center gap-2 rounded-full px-4 text-sm font-medium whitespace-nowrap transition-colors md:min-h-0 md:rounded-none md:px-5 md:py-4 md:text-base md:border-b-2 ${
+                                        selected
+                                            ? 'bg-blue-600 text-white md:bg-transparent md:text-blue-600 md:border-blue-600'
+                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200 md:bg-transparent md:text-slate-500 md:hover:text-slate-700 md:border-transparent'
+                                    }`}
+                                >
+                                    <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
+                                    {tab.label}
+                                    {tab.count > 0 ? (
+                                        <span className={`text-xs font-bold rounded-full min-w-[18px] h-[18px] inline-flex items-center justify-center px-1 ${selected ? 'bg-white text-blue-700 md:bg-red-500 md:text-white' : 'bg-red-500 text-white'}`}>
+                                            {tabBadgeText(tab.count)}
+                                        </span>
+                                    ) : null}
+                                </button>
+                            );
+                        })}
+                    </nav>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-white to-transparent md:hidden" aria-hidden="true" />
+                </div>
+
+                {activeTab === 'overview' ? (
+                    <div className="space-y-6">
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                            <div className="min-h-[88px] rounded-xl border border-slate-200 bg-white p-4">
+                                <p className="text-2xl font-semibold text-slate-900 tabular-nums">
+                                    {profileViewsState === 'loading' ? <span className="inline-block h-7 w-12 rounded bg-slate-100 animate-pulse" /> : profileViewsState === 'ready' ? profileViews : '—'}
+                                </p>
+                                <p className="mt-1 text-sm text-slate-600">{T('Προβολές προφίλ', 'Profile views')}</p>
+                                {profileViewsState === 'error' ? (
+                                    <button type="button" onClick={() => setProfileViewsAttempt((n) => n + 1)} className="mt-2 min-h-11 text-sm font-medium text-blue-700">
+                                        {ui.retry}
+                                    </button>
+                                ) : null}
+                            </div>
+                            <button type="button" onClick={() => openCreatorTab('proposals')} className="min-h-[88px] rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-slate-300">
+                                <p className="text-2xl font-semibold text-slate-900 tabular-nums">{(proposalsLoading || proposalsError) && proposals.length === 0 ? '—' : proposals.length}</p>
+                                <p className="mt-1 text-sm text-slate-600">{T('Προσφορές', 'Offers')}</p>
+                            </button>
+                            <button type="button" onClick={() => openCreatorTab('proposals')} className="min-h-[88px] rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-slate-300">
+                                <p className="text-2xl font-semibold text-slate-900 tabular-nums">{(proposalsLoading || proposalsError) && proposals.length === 0 ? '—' : activeCollaborations}</p>
+                                <p className="mt-1 text-sm text-slate-600">{T('Ενεργές συνεργασίες', 'Active collaborations')}</p>
+                            </button>
+                            <div className="min-h-[88px] rounded-xl border border-slate-200 bg-white p-4">
+                                <p className="text-2xl font-semibold text-slate-900 tabular-nums">{ratingValue == null ? '—' : ratingValue.toFixed(1)}</p>
+                                <p className="mt-1 text-sm text-slate-600">{T('Μέση αξιολόγηση', 'Average rating')}</p>
+                            </div>
+                        </div>
+                        <div className="grid gap-6 lg:grid-cols-2">
+                            <section className="rounded-xl border border-slate-200 bg-white p-5">
+                                <h2 className="text-lg font-semibold text-slate-900">{T('Επόμενα βήματα', 'Next steps')}</h2>
+                                <ul className="mt-4 space-y-3">
+                                    {overviewSteps.length === 0 ? (
+                                        <li className="text-sm text-slate-600">{T('Είσαι ενήμερος. Δεν εκκρεμεί κάποιο βήμα.', 'You are up to date. Nothing is waiting.')}</li>
+                                    ) : overviewSteps.map((step) => (
+                                        <li key={step.id} className="flex items-start justify-between gap-3">
+                                            <p className="text-sm text-slate-700 leading-relaxed">{step.text}</p>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    if (step.section) openEdit(step.section);
+                                                    else openCreatorTab(step.tab);
+                                                }}
+                                                className="shrink-0 min-h-11 px-3 text-sm font-medium text-blue-700 hover:bg-blue-50 rounded-lg"
+                                            >
+                                                {step.cta}
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </section>
+                            <section className="rounded-xl border border-slate-200 bg-white p-5">
+                                <div className="flex items-center justify-between gap-3">
+                                    <h2 className="text-lg font-semibold text-slate-900">{ui.announcementsTitle}</h2>
+                                    <button type="button" onClick={() => openCreatorTab('announcements')} className="min-h-11 text-sm font-medium text-blue-700">
+                                        {T('Όλες', 'All')}
+                                    </button>
+                                </div>
+                                {announcementsLoading && announcementsList.length === 0 ? (
+                                    <div className="mt-4 h-24 rounded-lg bg-slate-100 animate-pulse" />
+                                ) : announcementsError && announcementsList.length === 0 ? (
+                                    <div className="mt-4 text-sm text-slate-600">
+                                        <p>{announcementsErrorText}</p>
+                                        <button type="button" onClick={() => setAnnouncementsAttempt((n) => n + 1)} className="mt-3 min-h-11 px-4 rounded-lg bg-slate-900 text-white text-sm font-medium">
+                                            {ui.retry}
+                                        </button>
+                                    </div>
+                                ) : announcementsList.length === 0 ? (
+                                    <p className="mt-4 text-sm text-slate-600">{ui.announcementsEmpty}</p>
+                                ) : (
+                                    <ul className="mt-4 space-y-3">
+                                        {announcementsList.slice(0, 3).map((item) => (
+                                            <li key={item.id} className="border-b border-slate-100 pb-3 last:border-0">
+                                                <p className="text-sm font-medium text-slate-900">{item.title}</p>
+                                                <p className="text-xs text-slate-500 mt-1">{formatDate(item.created_at, lang)} {formatTime(item.created_at, lang)}</p>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </section>
                         </div>
                     </div>
-
-                    <div className="p-6">
+                ) : (
+                <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6">
                         {activeTab === 'tools' ? (
                             <InfluencerToolsPanel
                                 approved={!!profile.approved}
                                 displayName={profile.display_name}
+                                lang={lang}
                             />
                         ) : activeTab === 'campaigns' ? (
                             <div className="space-y-4">
@@ -1764,7 +2124,19 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                             <div className="space-y-4">
                                 <h2 className="text-xl font-semibold text-slate-900">{ui.offersTitle}</h2>
                                 
-                                {proposals.length === 0 ? (
+                                {proposalsLoading && proposals.length === 0 ? (
+                                    <div className="space-y-3" aria-busy="true">
+                                        <div className="h-28 rounded-xl bg-slate-100 animate-pulse" />
+                                        <div className="h-28 rounded-xl bg-slate-100 animate-pulse" />
+                                    </div>
+                                ) : proposalsError && proposals.length === 0 ? (
+                                    <div className="rounded-xl border border-slate-200 p-6 text-center">
+                                        <p className="text-sm text-slate-600">{proposalsErrorText}</p>
+                                        <button type="button" onClick={() => void reloadProposals(false)} className="mt-4 inline-flex min-h-11 items-center px-5 rounded-xl bg-slate-900 text-white text-sm font-medium">
+                                            {ui.retry}
+                                        </button>
+                                    </div>
+                                ) : proposals.length === 0 ? (
                                     <div className="text-center py-12 text-slate-500">
                                         <p>{ui.offersEmpty}</p>
                                     </div>
@@ -1807,7 +2179,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                 </span>
                                                             </div>
                                                             <p className="text-sm text-slate-600 mb-2">
-                                                                <strong>{T("Υπηρεσία:", "Service:")}</strong> {prop.service_type} • <strong>Budget:</strong> {formatEuroAmount(prop.budget, lang)}
+                                                                <strong>{T("Υπηρεσία:", "Service:")}</strong> {prop.service_type} • <strong>{T("Προϋπολογισμός:", "Budget:")}</strong> {formatEuroAmount(prop.budget, lang)}
                                                             </p>
                                                             {prop.message && (
                                                                 <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg mt-2">{prop.message}</p>
@@ -1823,11 +2195,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                 </div>
                                                             )}
                                                             <p className="text-xs text-slate-500 mt-2">
-                                                                {new Date(prop.created_at).toLocaleDateString(dateLocale, { 
-                                                                    day: 'numeric', 
-                                                                    month: 'long', 
-                                                                    year: 'numeric' 
-                                                                })}
+                                                                {formatDate(prop.created_at, lang)} {formatTime(prop.created_at, lang)}
                                                             </p>
                                                         </div>
                                                         <div className="ml-4 flex flex-col gap-2">
@@ -1837,7 +2205,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                         setSelectedProposal(prop);
                                                                         setShowAgreementModal(true);
                                                                     }}
-                                                                    className="px-4 py-2 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-semibold rounded-lg transition-all text-xs whitespace-nowrap shadow-lg hover:shadow-xl"
+                                                                    className="inline-flex min-h-11 items-center px-4 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg transition-all text-sm whitespace-nowrap"
                                                                 >
                                                                     ⚠️ {T("Συμφωνία", "Agreement")}
                                                                 </button>
@@ -1855,44 +2223,29 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
 
                                                                                 const result = await response.json();
                                                                                 if (result.success) {
-                                                                                    const data = await reloadProposals();
+                                                                                    const data = await reloadProposals(true);
                                                                                     const acceptedProp = data?.find((p: Proposal) => p.id === prop.id);
                                                                                     if (acceptedProp && acceptedProp.status === 'accepted') {
                                                                                         setSelectedProposal(acceptedProp);
                                                                                         setShowAgreementModal(true);
                                                                                     }
                                                                                 } else {
-                                                                                    alert(T("Σφάλμα: ", "Error: ") + (result.error || T("Αποτυχία αποδοχής προσφοράς", "Failed to accept offer")));
+                                                                                    notify(T("Σφάλμα: ", "Error: ") + (result.error || T("Αποτυχία αποδοχής προσφοράς", "Failed to accept offer")), 'error');
                                                                                 }
                                                                             } catch (error: any) {
                                                                                 console.error('Error accepting proposal:', error);
-                                                                                alert(T("Σφάλμα: ", "Error: ") + error.message);
+                                                                                notify(T("Σφάλμα: ", "Error: ") + error.message, 'error');
                                                                             }
                                                                         }}
-                                                                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-all text-xs whitespace-nowrap"
+                                                                        className="inline-flex min-h-11 items-center px-4 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-all text-sm whitespace-nowrap"
                                                                     >
                                                                         ✅ {T("Αποδοχή", "Accept")}
                                                                     </button>
                                                                     <button
                                                                         onClick={async () => {
-                                                                            if (!confirm(T("Να απορριφθεί η πρόταση; Το brand θα ειδοποιηθεί.", "Reject this offer? The brand will be notified."))) return;
-                                                                            try {
-                                                                                const response = await sessionFetch('/api/proposals/reject', {
-                                                                                    method: 'POST',
-                                                                                    headers: { 'Content-Type': 'application/json' },
-                                                                                    body: JSON.stringify({ proposalId: prop.id })
-                                                                                });
-                                                                                const result = await response.json();
-                                                                                if (result.success) {
-                                                                                    await reloadProposals();
-                                                                                } else {
-                                                                                    alert(T("Σφάλμα: ", "Error: ") + (result.error || T("Αποτυχία απόρριψης", "Failed to reject")));
-                                                                                }
-                                                                            } catch (error: any) {
-                                                                                alert(T("Σφάλμα: ", "Error: ") + error.message);
-                                                                            }
+                                                                            setRejectProposalId(prop.id);
                                                                         }}
-                                                                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-all text-xs whitespace-nowrap"
+                                                                        className="inline-flex min-h-11 items-center px-4 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-all text-sm whitespace-nowrap"
                                                                     >
                                                                         {T("Απόρριψη", "Reject")}
                                                                     </button>
@@ -1903,7 +2256,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                             setCounterMessage('');
                                                                             setShowCounterProposalModal(true);
                                                                         }}
-                                                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all text-xs whitespace-nowrap"
+                                                                        className="inline-flex min-h-11 items-center px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all text-sm whitespace-nowrap"
                                                                     >
                                                                         💰 {T("Αντιπρόταση", "Counter-offer")}
                                                                     </button>
@@ -1919,9 +2272,9 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                                 console.error('Error opening proposal chat:', error);
                                                                             }
                                                                             setSelectedProposalForMessaging(prop);
-                                                                            setActiveTab('messages');
+                                                                            openCreatorTab('messages');
                                                                         }}
-                                                                        className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white font-semibold rounded-lg transition-all text-xs whitespace-nowrap"
+                                                                        className="inline-flex min-h-11 items-center px-4 bg-slate-600 hover:bg-slate-700 text-white font-semibold rounded-lg transition-all text-sm whitespace-nowrap"
                                                                     >
                                                                         💬 {T("Συζήτησε το", "Discuss")}
                                                                     </button>
@@ -1946,7 +2299,17 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                             <div className="space-y-4">
                                 <h2 className="text-xl font-semibold text-slate-900">{ui.announcementsTitle}</h2>
                                 {announcementsLoading ? (
-                                    <div className="text-center py-8 text-slate-500">{ui.announcementsLoading}</div>
+                                    <div className="space-y-3" aria-busy="true">
+                                        <div className="h-20 rounded-lg bg-slate-100 animate-pulse" />
+                                        <div className="h-20 rounded-lg bg-slate-100 animate-pulse" />
+                                    </div>
+                                ) : announcementsError ? (
+                                    <div className="rounded-xl border border-slate-200 p-6 text-center">
+                                        <p className="text-sm text-slate-600">{announcementsErrorText}</p>
+                                        <button type="button" onClick={() => setAnnouncementsAttempt((n) => n + 1)} className="mt-4 inline-flex min-h-11 items-center px-5 rounded-xl bg-slate-900 text-white text-sm font-medium">
+                                            {ui.retry}
+                                        </button>
+                                    </div>
                                 ) : announcementsList.length === 0 ? (
                                     <div className="text-center py-12 text-slate-500">
                                         {ui.announcementsEmpty}
@@ -1970,9 +2333,9 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                         </div>
                                                         <p className="text-sm text-slate-600 mt-1 whitespace-pre-wrap">{a.body}</p>
                                                         <p className="text-xs text-slate-500 mt-2">
-                                                            {new Date(a.created_at).toLocaleString(dateLocale, { dateStyle: 'medium', timeStyle: 'short' })}
+                                                            {formatDate(a.created_at, lang)} {formatTime(a.created_at, lang)}
                                                             {a.read && a.read_at && (
-                                                                <span className="ml-2">· {ui.readAt} {new Date(a.read_at).toLocaleString(dateLocale, { dateStyle: 'short', timeStyle: 'short' })}</span>
+                                                                <span className="ml-2">· {ui.readAt} {formatDate(a.read_at, lang)} {formatTime(a.read_at, lang)}</span>
                                                             )}
                                                         </p>
                                                     </div>
@@ -2037,7 +2400,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                             <div className="space-y-6">
                                 <div className="flex items-center justify-between">
                                     <h2 className="text-xl font-semibold text-slate-900">{ui.profileOverview}</h2>
-                                    <button onClick={() => setShowEditModal(true)} className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium transition-colors">
+                                    <button onClick={() => openEdit('basics')} className="inline-flex min-h-11 items-center px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium transition-colors">
                                         ✏️ {ui.editProfile}
                                     </button>
                                 </div>
@@ -2059,7 +2422,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                           <p className="mt-1">{HIDDEN_VIDEO_NOTICE.body[lang]}</p>
                                           <button
                                             type="button"
-                                            onClick={() => setShowEditModal(true)}
+                                            onClick={() => openEdit('portfolio')}
                                             className="mt-2 rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-900 ring-1 ring-amber-300 hover:bg-amber-200"
                                           >
                                             {HIDDEN_VIDEO_NOTICE.replace[lang]}
@@ -2169,7 +2532,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                         <div className="font-medium text-slate-900">{acc.platform}</div>
                                         <div className="text-sm text-slate-600">@{acc.username}</div>
                                         {acc.followers ? (
-                                            <div className="text-sm text-slate-500">{acc.followers} followers</div>
+                                            <div className="text-sm text-slate-500">{acc.followers} {T("ακόλουθοι", "followers")}</div>
                                         ) : null}
                                     </div>
                                 ))}
@@ -2208,7 +2571,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                             />
                         )}
                     </div>
-                </div>
+                )}
             </div>
             
             {showEditModal && (
@@ -2217,6 +2580,8 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                     onClose={() => setShowEditModal(false)}
                     onSave={handleProfileSave}
                     lang={lang}
+                    notify={notify}
+                    initialSection={editSection}
                 />
             )}
 
@@ -2270,14 +2635,16 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
                         <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-                            <h2 className="text-xl font-bold text-slate-900">Συμφωνία Συνεργασίας</h2>
+                            <h2 className="text-xl font-bold text-slate-900">{T('Συμφωνία συνεργασίας', 'Collaboration agreement')}</h2>
                             <button 
+                                type="button"
                                 onClick={() => {
                                     setShowAgreementModal(false);
                                     setSelectedProposal(null);
                                     setAgreementAccepted(false);
                                 }}
-                                className="text-slate-400 hover:text-slate-600 text-2xl"
+                                aria-label={T('Κλείσιμο', 'Close')}
+                                className="inline-flex min-h-11 min-w-11 items-center justify-center text-slate-400 hover:text-slate-600 text-2xl"
                             >
                                 ×
                             </button>
@@ -2286,92 +2653,92 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                         <div className="p-6 space-y-6">
                             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                                 <p className="text-sm text-blue-900 font-medium mb-2">
-                                    Συνεργασία με: <strong>{selectedProposal.brand_name}</strong>
+                                    {T('Συνεργασία με:', 'Collaboration with:')} <strong>{selectedProposal.brand_name}</strong>
                                 </p>
                                 <p className="text-sm text-blue-800">
-                                    Υπηρεσία: {selectedProposal.service_type} • Budget: {formatEuroAmount(selectedProposal.budget, lang)}
+                                    {T('Υπηρεσία:', 'Service:')} {selectedProposal.service_type} • {T('Προϋπολογισμός:', 'Budget:')} {formatEuroAmount(selectedProposal.budget, lang)}
                                 </p>
                             </div>
 
                             {/* Benefits Section */}
                             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-5 space-y-3">
                                 <h3 className="font-bold text-blue-900 text-lg flex items-center gap-2">
-                                    ✨ Γιατί να αποδεχτείτε τη συμφωνία;
+                                    ✨ {T('Γιατί να αποδεχτείς τη συμφωνία;', 'Why accept the agreement?')}
                                 </h3>
                                 <div className="grid md:grid-cols-2 gap-3">
                                     <div className="flex items-start gap-2">
                                         <span className="text-2xl">⭐</span>
                                         <div>
-                                            <p className="font-semibold text-blue-900">Αξιολογήσεις & Reviews</p>
-                                            <p className="text-sm text-blue-700">Θα μπορείτε να λάβετε αξιολογήσεις από το brand, που θα βελτιώσουν την αξιοπιστία σας</p>
+                                            <p className="font-semibold text-blue-900">{T('Αξιολογήσεις', 'Reviews')}</p>
+                                            <p className="text-sm text-blue-700">{T('Μπορείς να λάβεις αξιολογήσεις από την επιχείρηση, που βελτιώνουν την αξιοπιστία σου.', 'You can receive reviews from the brand, which improve your credibility.')}</p>
                                         </div>
                                     </div>
                                     <div className="flex items-start gap-2">
                                         <span className="text-2xl">📈</span>
                                         <div>
-                                            <p className="font-semibold text-blue-900">Μεγαλύτερη Προβολή</p>
-                                            <p className="text-sm text-blue-700">Το brand θα εμφανίζεται στις συνεργασίες σας, αυξάνοντας την προβολή σας</p>
+                                            <p className="font-semibold text-blue-900">{T('Μεγαλύτερη προβολή', 'More visibility')}</p>
+                                            <p className="text-sm text-blue-700">{T('Η επιχείρηση εμφανίζεται στις συνεργασίες σου.', 'The brand appears in your collaborations.')}</p>
                                         </div>
                                     </div>
                                     <div className="flex items-start gap-2">
                                         <span className="text-2xl">🎯</span>
                                         <div>
-                                            <p className="font-semibold text-blue-900">Επαγγελματικός Προφίλ</p>
-                                            <p className="text-sm text-blue-700">Περισσότερες συνεργασίες = πιο επαγγελματικό και αξιόπιστο προφίλ</p>
+                                            <p className="font-semibold text-blue-900">{T('Πιο επαγγελματικό προφίλ', 'A more professional profile')}</p>
+                                            <p className="text-sm text-blue-700">{T('Περισσότερες συνεργασίες κάνουν το προφίλ πιο αξιόπιστο.', 'More collaborations make the profile more trusted.')}</p>
                                         </div>
                                     </div>
                                     <div className="flex items-start gap-2">
                                         <span className="text-2xl">💼</span>
                                         <div>
-                                            <p className="font-semibold text-blue-900">Περισσότερες Ευκαιρίες</p>
-                                            <p className="text-sm text-blue-700">Το portfolio σας μεγάλωνει και ελκύει περισσότερα brands</p>
+                                            <p className="font-semibold text-blue-900">{T('Περισσότερες ευκαιρίες', 'More opportunities')}</p>
+                                            <p className="text-sm text-blue-700">{T('Το υλικό σου μεγαλώνει και προσελκύει περισσότερες επιχειρήσεις.', 'Your work samples grow and attract more brands.')}</p>
                                         </div>
                                     </div>
                                 </div>
                                 <div className="mt-3 pt-3 border-t border-blue-200">
                                     <p className="text-sm font-medium text-blue-900">
-                                        💡 <strong>Συμβουλή:</strong> Οι influencers με πολλές αποδεκτές συνεργασίες εμφανίζονται πρώτοι στις αναζητήσεις!
+                                        💡 <strong>{T('Συμβουλή:', 'Tip:')}</strong> {T('Οι δημιουργοί με πολλές αποδεκτές συνεργασίες εμφανίζονται πρώτοι στις αναζητήσεις.', 'Creators with many accepted collaborations appear first in search.')}
                                     </p>
                                 </div>
                             </div>
 
                             <div className="space-y-4">
-                                <h3 className="font-bold text-slate-900">Όροι Χρήσης & Συμφωνία</h3>
+                                <h3 className="font-bold text-slate-900">{T('Όροι και συμφωνία', 'Terms and agreement')}</h3>
                                 <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 max-h-64 overflow-y-auto text-sm text-slate-700 space-y-3">
-                                    <p><strong>1. Υποχρεώσεις Influencer:</strong></p>
+                                    <p><strong>{T('1. Υποχρεώσεις δημιουργού:', '1. Creator obligations:')}</strong></p>
                                     <ul className="list-disc list-inside ml-2 space-y-1">
-                                        <li>Παροχή υψηλής ποιότητας περιεχομένου σύμφωνα με τις προδιαγραφές</li>
-                                        <li>Σεβασμός προθεσμιών και deadlines</li>
-                                        <li>Επικοινωνία με το brand για οποιαδήποτε απορία</li>
-                                        <li>Χρήση προϊόντων/υπηρεσιών όπως συμφωνήθηκε</li>
+                                        <li>{T('Παροχή περιεχομένου σύμφωνα με τις προδιαγραφές', 'Deliver content that matches the brief')}</li>
+                                        <li>{T('Σεβασμός στις προθεσμίες', 'Respect the deadlines')}</li>
+                                        <li>{T('Επικοινωνία με την επιχείρηση για απορίες', 'Talk to the brand when something is unclear')}</li>
+                                        <li>{T('Χρήση προϊόντων ή υπηρεσιών όπως συμφωνήθηκε', 'Use products or services as agreed')}</li>
                                     </ul>
 
-                                    <p><strong>2. Πληρωμή:</strong></p>
+                                    <p><strong>{T('2. Πληρωμή:', '2. Payment:')}</strong></p>
                                     <ul className="list-disc list-inside ml-2 space-y-1">
-                                        <li>Η πληρωμή θα γίνει σύμφωνα με τις προδιαγραφές της προσφοράς</li>
-                                        <li>Ο influencer θα λάβει πληρωμή μετά την ολοκλήρωση και έγκριση του περιεχομένου</li>
+                                        <li>{T('Η πληρωμή ακολουθεί όσα λέει η προσφορά', 'Payment follows the offer')}</li>
+                                        <li>{T('Η πληρωμή γίνεται μετά την ολοκλήρωση και την έγκριση του περιεχομένου', 'Payment happens after the content is finished and approved')}</li>
                                     </ul>
 
-                                    <p><strong>3. Δικαιώματα:</strong></p>
+                                    <p><strong>{T('3. Δικαιώματα:', '3. Rights:')}</strong></p>
                                     <ul className="list-disc list-inside ml-2 space-y-1">
-                                        <li>Το brand έχει δικαίωμα έγκρισης/απόρριψης περιεχομένου</li>
-                                        <li>Το brand μπορεί να χρησιμοποιήσει το περιεχόμενο για marketing σκοπούς</li>
+                                        <li>{T('Η επιχείρηση μπορεί να εγκρίνει ή να απορρίψει το περιεχόμενο', 'The brand can approve or reject the content')}</li>
+                                        <li>{T('Η επιχείρηση μπορεί να χρησιμοποιήσει το περιεχόμενο για προώθηση', 'The brand can use the content for promotion')}</li>
                                     </ul>
 
-                                    <p><strong>4. Confidentiality:</strong></p>
+                                    <p><strong>{T('4. Εμπιστευτικότητα:', '4. Confidentiality:')}</strong></p>
                                     <ul className="list-disc list-inside ml-2 space-y-1">
-                                        <li>Ο influencer δεσμεύεται να διατηρήσει εμπιστευτικότητα για προσωπικά στοιχεία του brand</li>
+                                        <li>{T('Κρατάς εμπιστευτικά τα προσωπικά στοιχεία της επιχείρησης', 'You keep the brand’s private details confidential')}</li>
                                     </ul>
 
                                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-4">
                                         <p className="text-xs font-medium text-amber-900">
-                                            ⚠️ <strong>Σημαντικό:</strong> Με την αποδοχή αυτής της συμφωνίας:
+                                            ⚠️ <strong>{T('Σημαντικό:', 'Important:')}</strong> {T('Με την αποδοχή αυτής της συμφωνίας:', 'By accepting this agreement:')}
                                         </p>
                                         <ul className="text-xs text-amber-800 mt-2 space-y-1 list-disc list-inside ml-2">
-                                            <li>Συμφωνείτε με τους παραπάνω όρους χρήσης</li>
-                                            <li>Το όνομα του brand θα προστεθεί στις συνεργασίες σας (public)</li>
-                                            <li>Το brand θα μπορεί να σας αξιολογήσει μετά την ολοκλήρωση</li>
-                                            <li>Η συνεργασία θα εμφανίζεται στο προφίλ σας</li>
+                                            <li>{T('Συμφωνείς με τους παραπάνω όρους', 'You agree to the terms above')}</li>
+                                            <li>{T('Το όνομα της επιχείρησης προστίθεται δημόσια στις συνεργασίες σου', 'The brand name is added publicly to your collaborations')}</li>
+                                            <li>{T('Η επιχείρηση μπορεί να σε αξιολογήσει μετά την ολοκλήρωση', 'The brand can review you after the work is done')}</li>
+                                            <li>{T('Η συνεργασία εμφανίζεται στο προφίλ σου', 'The collaboration appears on your profile')}</li>
                                         </ul>
                                     </div>
                                 </div>
@@ -2384,7 +2751,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                         className="mt-1 w-5 h-5 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
                                     />
                                     <span className="text-sm text-slate-700">
-                                        <strong>Αποδέχομαι τους όρους χρήσης</strong> και συμφωνώ να προστεθεί το brand <strong>{selectedProposal.brand_name}</strong> στις συνεργασίες μου
+                                        <strong>{T('Αποδέχομαι τους όρους', 'I accept the terms')}</strong> {T('και συμφωνώ να προστεθεί η επιχείρηση', 'and I agree that')} <strong>{selectedProposal.brand_name}</strong> {T('στις συνεργασίες μου', 'is added to my collaborations')}
                                     </span>
                                 </label>
                             </div>
@@ -2396,16 +2763,16 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                         setSelectedProposal(null);
                                         setAgreementAccepted(false);
                                     }}
-                                    className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg font-medium transition-colors"
+                                    className="inline-flex min-h-11 items-center px-4 text-slate-700 hover:bg-slate-100 rounded-lg font-medium transition-colors"
                                 >
-                                    Ακύρωση
+                                    {T('Ακύρωση', 'Cancel')}
                                 </button>
                                 <button
                                     onClick={handleAcceptAgreement}
                                     disabled={!agreementAccepted || savingAgreement}
-                                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    className="inline-flex min-h-11 items-center px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                 >
-                                    {savingAgreement ? 'Αποθήκευση...' : 'Αποδοχή Συμφωνίας'}
+                                    {savingAgreement ? T('Αποθήκευση...', 'Saving...') : T('Αποδοχή συμφωνίας', 'Accept agreement')}
                                 </button>
                             </div>
                         </div>
@@ -2418,15 +2785,17 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
                         <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-                            <h2 className="text-xl font-bold text-slate-900">💰 Υποβολή Αντιπρότασης</h2>
+                            <h2 className="text-xl font-bold text-slate-900">{T('Υποβολή αντιπρότασης', 'Send a counter-offer')}</h2>
                             <button 
+                                type="button"
                                 onClick={() => {
                                     setShowCounterProposalModal(false);
                                     setSelectedProposal(null);
                                     setCounterBudget('');
                                     setCounterMessage('');
                                 }}
-                                className="text-slate-400 hover:text-slate-600 text-2xl"
+                                aria-label={T('Κλείσιμο', 'Close')}
+                                className="inline-flex min-h-11 min-w-11 items-center justify-center text-slate-400 hover:text-slate-600 text-2xl"
                             >
                                 ×
                             </button>
@@ -2435,7 +2804,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                         <form onSubmit={handleSubmitCounterProposal} className="p-6 space-y-6">
                             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                                 <p className="text-sm text-blue-900 font-medium mb-2">
-                                    Αυτή τη στιγμή: <strong>{selectedProposal.brand_name}</strong> προτείνει
+                                    {T('Αυτή τη στιγμή η επιχείρηση', 'Right now')} <strong>{selectedProposal.brand_name}</strong> {T('προτείνει', 'offers')}
                                 </p>
                                 <p className="text-sm text-blue-800">
                                     <strong>{selectedProposal.service_type}</strong> • <strong>{formatEuroAmount(selectedProposal.budget, lang)}</strong>
@@ -2444,7 +2813,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
 
                             <div>
                                 <label className="block text-sm font-semibold text-slate-900 mb-2">
-                                    Προτεινόμενη Τιμή (€) *
+                                    {T('Προτεινόμενη τιμή (€) *', 'Proposed price (€) *')}
                                 </label>
                                 <input
                                     type="text"
@@ -2455,18 +2824,18 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                     required
                                 />
                                 <p className="text-xs text-slate-500 mt-1">
-                                    Προσφέρετε την τιμή που θεωρείτε δίκαιη για αυτή τη συνεργασία
+                                    {T('Γράψε την τιμή που θεωρείς δίκαιη για αυτή τη συνεργασία.', 'Enter the price you think is fair for this collaboration.')}
                                 </p>
                             </div>
 
                             <div>
                                 <label className="block text-sm font-semibold text-slate-900 mb-2">
-                                    Μήνυμα (Προαιρετικό)
+                                    {T('Μήνυμα (προαιρετικό)', 'Message (optional)')}
                                 </label>
                                 <textarea
                                     value={counterMessage}
                                     onChange={(e) => setCounterMessage(e.target.value)}
-                                    placeholder="Εξηγήστε γιατί η αντιπρότασή σας είναι δίκαιη..."
+                                    placeholder={T('Εξήγησε γιατί η αντιπρόταση είναι δίκαιη...', 'Explain why the counter-offer is fair...')}
                                     rows={4}
                                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900"
                                 />
@@ -2474,8 +2843,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
 
                             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
                                 <p className="text-xs text-amber-800">
-                                    💡 <strong>Συμβουλή:</strong> Η αντιπρόταση σας θα σταλεί ως email στο brand. 
-                                    Μπορείτε να συζητήσετε περισσότερες λεπτομέρειες μέσω των μηνυμάτων.
+                                    💡 <strong>{T('Συμβουλή:', 'Tip:')}</strong> {T('Η αντιπρόταση στέλνεται με email στην επιχείρηση. Περισσότερες λεπτομέρειες μπορούν να συζητηθούν στα μηνύματα.', 'The counter-offer is emailed to the brand. You can discuss details in messages.')}
                                 </p>
                             </div>
 
@@ -2488,16 +2856,16 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                         setCounterBudget('');
                                         setCounterMessage('');
                                     }}
-                                    className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg font-medium transition-colors"
+                                    className="inline-flex min-h-11 items-center px-4 text-slate-700 hover:bg-slate-100 rounded-lg font-medium transition-colors"
                                 >
-                                    Ακύρωση
+                                    {T('Ακύρωση', 'Cancel')}
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={!counterBudget || savingCounterProposal}
-                                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    className="inline-flex min-h-11 items-center px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                 >
-                                    {savingCounterProposal ? 'Αποστολή...' : 'Αποστολή Αντιπρότασης'}
+                                    {savingCounterProposal ? T('Αποστολή...', 'Sending...') : T('Αποστολή αντιπρότασης', 'Send counter-offer')}
                                 </button>
                             </div>
                         </form>
