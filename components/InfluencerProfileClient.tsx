@@ -2184,6 +2184,7 @@ export default function InfluencerProfile(props: {
                 service_packages: profile.service_packages,
                 rate_card: profile.rate_card,
                 min_rate: profile.min_rate,
+                accounts: profile.accounts,
               });
               const cpmValue = estimateCpm(
                 pricedFloor ?? profile.min_rate ?? profile.from_price,
