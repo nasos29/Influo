@@ -52,7 +52,7 @@ export default function InfluencerCardCarousel({
 
   return (
     <div className={className}>
-      <div className="mb-4 flex items-start justify-between gap-3">
+      <div className="mb-4 flex items-end justify-between gap-3">
         <div className="min-w-0 flex-1">
           {eyebrow ? <div className="mb-2">{eyebrow}</div> : null}
           <div className={titleClassName}>{title}</div>
