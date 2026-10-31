@@ -108,7 +108,6 @@ const t = {
     filters: "Φίλτρα",
     platAll: "Πλατφόρμα: Όλες",
     catAll: "Κατηγορία: Όλες",
-    catPillAll: "Όλες",
     genAll: "Φύλο: Όλα",
     genFem: "Γυναίκα",
     genMal: "Άνδρας",
@@ -150,7 +149,6 @@ const t = {
     filters: "Filters",
     platAll: "Platform: All",
     catAll: "Category: All",
-    catPillAll: "All",
     genAll: "Gender: Any",
     genFem: "Female",
     genMal: "Male",
@@ -273,8 +271,6 @@ const pillSelect =
   "w-full appearance-none rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 cursor-pointer";
 const pillInput =
   "w-full rounded-full border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm font-medium text-slate-700 outline-none transition-colors placeholder:text-slate-400 hover:border-slate-300 focus:border-slate-900 focus:ring-1 focus:ring-slate-900";
-const scrollbarHide =
-  "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
 export default function Directory({
   lang = "el",
@@ -652,14 +648,6 @@ export default function Directory({
   const safePage = Math.min(page, totalPages);
   const displayedInfluencers = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  const categoryPills = useMemo(
-    () =>
-      CATEGORIES.filter((cat) =>
-        influencers.some((inf) => categoriesMatchFilter(inf.categories, cat))
-      ),
-    [influencers]
-  );
-
   const pageButtons = useMemo(() => {
     if (totalPages <= 7) {
       return Array.from({ length: totalPages }, (_, i) => i + 1);
@@ -897,38 +885,6 @@ export default function Directory({
             </button>
           </div>
         </div>
-      </div>
-
-      {/* Category pills — all breakpoints */}
-      <div className={`mb-6 flex gap-2 overflow-x-auto pb-1 ${scrollbarHide}`}>
-        <button
-          type="button"
-          onClick={() => setCategoryFilterAndUrl("All")}
-          className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-            categoryFilter === "All"
-              ? "bg-slate-900 text-white"
-              : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-          }`}
-        >
-          {txt.catPillAll}
-        </button>
-        {categoryPills.map((cat) => {
-          const selected = categoryFilter === cat;
-          return (
-            <button
-              type="button"
-              key={cat}
-              onClick={() => setCategoryFilterAndUrl(cat)}
-              className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                selected
-                  ? "bg-slate-900 text-white"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-              }`}
-            >
-              {categoryTranslations[cat] ? categoryTranslations[cat][lang] : cat}
-            </button>
-          );
-        })}
       </div>
 
       {loading ? (
