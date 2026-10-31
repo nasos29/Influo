@@ -42,7 +42,7 @@ import InfoTooltip from "@/components/InfoTooltip";
 import StatsInsightsPanel from "@/components/StatsInsightsPanel";
 import { isValidAgeRange } from "@/lib/audience";
 import { buildChannelScore } from "@/lib/channelScore";
-import { averageAvgViews, estimateCpm, formatCpmEuro } from "@/lib/cpm";
+import { formatCpmEuro, platformVideoCpms, type CpmPlatform } from "@/lib/cpm";
 import { resolveCompletionRate } from "@/lib/completionRate";
 import { loadOwnBrand, loadOwnProfiles } from "@/lib/ownProfile";
 import { creatorHasHardErOnMainAccount, displayErFlag, erFlagHint, erFlagLabel } from "@/lib/engagementFlags";
@@ -504,10 +504,6 @@ const t = {
 /** Stats-tab extras kept as per-key {el,en} to avoid Sonar new-code duplication in t.el/t.en. */
 const STATS_UI_COPY = {
   cpm: { el: "Εκτιμώμενο CPM", en: "Est. CPM" },
-  cpm_desc: {
-    el: "Κόστος ανά 1.000 προβολές, με βάση την ελάχιστη χρέωση",
-    en: "Cost per 1,000 views, based on minimum rate",
-  },
   stats_updated: { el: "Τελευταία ενημέρωση στατιστικών", en: "Last stats update" },
   tip_engagement: {
     el: "Μέσο ποσοστό αλληλεπίδρασης ανά ανάρτηση σε σχέση με τους ακόλουθους.",
@@ -547,8 +543,8 @@ const STATS_UI_COPY = {
     en: "The lowest listed rate for a collaboration.",
   },
   tip_cpm: {
-    el: "Εκτιμώμενο κόστος ανά 1.000 προβολές με βάση την ελάχιστη χρέωση.",
-    en: "Estimated cost per 1,000 views based on the minimum rate.",
+    el: "Τιμή Instagram Reel, TikTok Video ή YouTube Video διά τις μέσες προβολές της ίδιας πλατφόρμας, επί 1.000.",
+    en: "Instagram Reel, TikTok Video, or YouTube Video price divided by that platform’s average views, times 1,000.",
   },
   tip_rating: {
     el: "Μέση βαθμολογία από αξιολογήσεις brands.",
@@ -560,7 +556,6 @@ const STATS_UI_COPY = {
 function statsUiFor(lang: "el" | "en") {
   return {
     cpm: STATS_UI_COPY.cpm[lang],
-    cpm_desc: STATS_UI_COPY.cpm_desc[lang],
     stats_updated: STATS_UI_COPY.stats_updated[lang],
     tip_engagement: STATS_UI_COPY.tip_engagement[lang],
     tip_followers: STATS_UI_COPY.tip_followers[lang],
@@ -2183,17 +2178,24 @@ export default function InfluencerProfile(props: {
                 </div>
               );
 
-              const avgViewsForCpm = averageAvgViews(profile.accounts);
               const pricedFloor = lowestListedPrice({
                 service_packages: profile.service_packages,
                 rate_card: profile.rate_card,
                 min_rate: profile.min_rate,
                 accounts: profile.accounts,
               });
-              const cpmValue = estimateCpm(
-                pricedFloor ?? profile.min_rate ?? profile.from_price,
-                avgViewsForCpm
-              );
+              const cpmRows = platformVideoCpms({
+                service_packages: profile.service_packages,
+                rate_card: profile.rate_card,
+                accounts: profile.accounts,
+              });
+              const cpmServiceName: Record<CpmPlatform, string> = {
+                instagram: "Instagram Reel",
+                tiktok: "TikTok Video",
+                youtube: "YouTube Video",
+              };
+              const cpmBasis = (platform: CpmPlatform) =>
+                lang === "el" ? `Βάσει ${cpmServiceName[platform]}` : `Based on ${cpmServiceName[platform]}`;
               const minChargeLabel = pricedFloor
                 ? formatEuro(pricedFloor, lang)
                 : formatEuroAmount(profile.from_price, lang);
@@ -2483,7 +2485,7 @@ export default function InfluencerProfile(props: {
                     </ProfileStatCard>
                   )}
 
-                  {cpmValue != null && (
+                  {cpmRows.length > 0 && (
                     <ProfileStatCard
                       label={txt.cpm}
                       tip={txt.tip_cpm}
@@ -2498,11 +2500,23 @@ export default function InfluencerProfile(props: {
                         </MetricIcon>
                       }
                     >
-                      <div>
-                        <p className="text-2xl font-semibold tracking-tight text-violet-700 tabular-nums">
-                          {formatCpmEuro(cpmValue, lang)}
-                        </p>
-                        <p className="mt-0.5 text-xs text-violet-700/80">{txt.cpm_desc}</p>
+                      <div className="w-full">
+                        {cpmRows.map((row) => {
+                          const platform = platforms.find((item) => item.key === row.platform);
+                          if (!platform) return null;
+                          return platformRow(
+                            row.platform,
+                            platformLabel(platform),
+                            <span className="text-right">
+                              <span className="block text-[15px] font-semibold tabular-nums tracking-tight text-violet-700">
+                                {formatCpmEuro(row.cpm, lang)}
+                              </span>
+                              <span className="mt-0.5 block text-[10px] font-medium leading-tight text-violet-700/80">
+                                {cpmBasis(row.platform)}
+                              </span>
+                            </span>
+                          );
+                        })}
                       </div>
                     </ProfileStatCard>
                   )}
