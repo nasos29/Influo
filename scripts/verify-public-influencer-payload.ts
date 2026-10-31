@@ -133,10 +133,10 @@ for (const payload of [toPublicDirectoryCard(row), toPublicNewlyApproved(row), t
   assert.equal(json.includes(secretRate), false);
   assert.equal(json.includes("internal note"), false);
   assert.equal(json.includes("sekret"), false);
-  // Cheapest package is 400. Guests see that amount; the filter tier stays 500.
-  assert.equal(payload.from_price, 400);
-  assert.equal(payload.price_tier, "500");
-  assert.equal(formatFromPriceLabel(payload.from_price, "el"), "Από 400 €");
+  // The reel package is 400. Story 80 on the rate card is still a service, so «Από» uses 80.
+  assert.equal(payload.from_price, 80);
+  assert.equal(payload.price_tier, "100");
+  assert.equal(formatFromPriceLabel(payload.from_price, "el"), "Από 80 €");
   // past_brands is not a DB column; loaders attach it after toPublic*.
   assert.equal("past_brands" in payload, false);
 }
@@ -327,12 +327,13 @@ const extras = withNew.service_extras as Array<{
 }>;
 assert.deepEqual(
   extras.map((extra) => extra.key),
-  ["usage_rights_ads", "link_in_bio", "event_visit"]
+  ["usage_rights_ads"]
 );
 assert.equal(extras.find((extra) => extra.key === "usage_rights_ads")?.price, adsMonth);
-assert.equal(extras.find((extra) => extra.key === "link_in_bio")?.price, bioLink);
-assert.equal(extras.find((extra) => extra.key === "event_visit")?.price, eventFee);
-assert.equal(extras.find((extra) => extra.key === "link_in_bio")?.from_price, 44);
+assert.equal(newPkgs.find((p) => p.type === "bio")?.platform, "other");
+assert.equal(newPkgs.find((p) => p.type === "bio")?.price, bioLink);
+assert.equal(newPkgs.find((p) => p.type === "bio")?.from_price, 44);
+assert.equal(newPkgs.find((p) => p.type === "event")?.price, eventFee);
 
 const commercial = toCommercialInfluencer({
   id: row.id,
@@ -347,8 +348,10 @@ const commercial = toCommercialInfluencer({
 });
 assert.equal(commercial.min_rate, ugcPhoto);
 assert.equal(commercial.rate_card?.ugc_video, ugcVideo);
+assert.equal(commercial.rate_card?.link_in_bio, bioLink);
 assert.equal(commercial.rate_card?.usage_rights_ads, undefined);
 assert.equal(commercial.service_extras.find((extra) => extra.key === "usage_rights_ads")?.price, adsMonth);
-assert.equal(commercial.service_extras.find((extra) => extra.key === "link_in_bio")?.price, bioLink);
+assert.equal(commercial.service_packages.find((pkg) => pkg.type === "bio")?.price, bioLink);
+assert.equal(commercial.service_packages.find((pkg) => pkg.type === "event")?.price, eventFee);
 
 console.log("public influencer payload checks passed");

@@ -64,7 +64,7 @@ export function hasUnfixedCreatorPrice(servicePackages: unknown, rateCard: unkno
   }
   if (rateCard && typeof rateCard === "object" && !Array.isArray(rateCard)) {
     const src = rateCard as Record<string, unknown>;
-    for (const key of [...RATE_CARD_PRICE_KEYS, ...RATE_CARD_EXTRA_KEYS]) {
+    for (const key of [...RATE_CARD_PRICE_KEYS, ...RATE_CARD_EXTRA_KEYS, ...LEGACY_RATE_CARD_KEYS]) {
       if (bad(src[key])) return true;
     }
   }
@@ -75,31 +75,385 @@ export function packagesHaveInvalidPrice(packages: Array<{ price?: string | null
   return packages.some((p) => !isPositivePriceInput(String(p.price ?? "")));
 }
 
-/** Priced services. These feed rate_card and the automatic min_rate. Extras are not in this list. */
-export const RATE_CARD_PRICE_KEYS = [
+export const PACKAGE_PLATFORMS = ["instagram", "tiktok", "youtube", "facebook", "ugc", "other"] as const;
+export type PackagePlatform = (typeof PACKAGE_PLATFORMS)[number];
+
+export const PACKAGE_TYPES = [
+  "reel",
   "story",
   "post",
-  "reel",
-  "tiktok",
-  "facebook",
-  "youtube",
+  "video",
+  "short",
+  "carousel",
+  "live",
+  "collab",
+  "story_link",
+  "spark",
+  "integration",
   "ugc_video",
   "ugc_photo",
+  "event",
+  "bio",
+  "giveaway",
+] as const;
+export type PackageType = (typeof PACKAGE_TYPES)[number];
+
+/** Social posts vs UGC. Add-ons and the «Άλλα» tab are not social package types. */
+export const SOCIAL_PACKAGE_TYPES = [
+  "reel",
+  "story",
+  "post",
   "carousel",
+  "video",
+  "short",
+  "live",
+  "collab",
+  "story_link",
+  "spark",
+  "integration",
+] as const;
+export const UGC_PACKAGE_TYPES = ["ugc_video", "ugc_photo"] as const;
+
+export function isUgcPackageType(type: PackageType): boolean {
+  return type === "ugc_video" || type === "ugc_photo";
+}
+
+/** UGC is not tied to a network. Some types belong to one platform. */
+export function platformForPackageType(
+  type: PackageType,
+  platform: PackagePlatform | null
+): PackagePlatform | null {
+  if (isUgcPackageType(type)) return "ugc";
+  if (type === "carousel" || type === "collab" || type === "story_link") return "instagram";
+  if (type === "spark") return "tiktok";
+  if (type === "integration") return "youtube";
+  if (type === "event" || type === "bio" || type === "giveaway") return "other";
+  return platform;
+}
+
+export type ServiceGroup = "instagram" | "tiktok" | "youtube" | "ugc" | "other" | "addon";
+
+/**
+ * One list for signup, profile edit, public tabs, «Από», min_rate, compare, and popups.
+ * `basic` rows stay visible. The rest sit under «Περισσότερες υπηρεσίες».
+ * Add-ons are fixed euro amounts and never count toward «Από» / min_rate.
+ */
+export const SERVICE_CATALOG = [
+  {
+    key: "story",
+    kind: "service",
+    group: "instagram",
+    requires: "instagram",
+    basic: true,
+    platform: "instagram",
+    type: "story",
+    title: { el: "Instagram Story", en: "Instagram Story" },
+    description: { el: "Story στο Instagram, για 24 ώρες.", en: "An Instagram story, up for 24 hours." },
+  },
+  {
+    key: "post",
+    kind: "service",
+    group: "instagram",
+    requires: "instagram",
+    basic: true,
+    platform: "instagram",
+    type: "post",
+    title: { el: "Instagram Post", en: "Instagram Post" },
+    description: { el: "Ανάρτηση στη ροή του Instagram.", en: "A post on the Instagram feed." },
+  },
+  {
+    key: "reel",
+    kind: "service",
+    group: "instagram",
+    requires: "instagram",
+    basic: true,
+    platform: "instagram",
+    type: "reel",
+    title: { el: "Instagram Reel", en: "Instagram Reel" },
+    description: { el: "Σύντομο βίντεο στο Instagram.", en: "A short video on Instagram." },
+  },
+  {
+    key: "carousel",
+    kind: "service",
+    group: "instagram",
+    requires: "instagram",
+    basic: false,
+    platform: "instagram",
+    type: "carousel",
+    title: { el: "Carousel", en: "Carousel" },
+    description: { el: "Ανάρτηση με πολλές εικόνες.", en: "A post with several images." },
+  },
+  {
+    key: "ig_live",
+    kind: "service",
+    group: "instagram",
+    requires: "instagram",
+    basic: false,
+    platform: "instagram",
+    type: "live",
+    title: { el: "Live", en: "Live" },
+    description: { el: "Ζωντανή μετάδοση στο Instagram.", en: "A live stream on Instagram." },
+  },
+  {
+    key: "collab_post",
+    kind: "service",
+    group: "instagram",
+    requires: "instagram",
+    basic: false,
+    platform: "instagram",
+    type: "collab",
+    title: { el: "Collab post", en: "Collab post" },
+    description: { el: "Κοινή ανάρτηση με το brand.", en: "A post published together with the brand." },
+  },
+  {
+    key: "story_link",
+    kind: "service",
+    group: "instagram",
+    requires: "instagram",
+    basic: false,
+    platform: "instagram",
+    type: "story_link",
+    title: { el: "Story με link", en: "Story with link" },
+    description: { el: "Story με σύνδεσμο προς το brand.", en: "A story that includes a link to the brand." },
+  },
+  {
+    key: "tiktok",
+    kind: "service",
+    group: "tiktok",
+    requires: "tiktok",
+    basic: true,
+    platform: "tiktok",
+    type: "video",
+    title: { el: "TikTok Video", en: "TikTok Video" },
+    description: { el: "Βίντεο που ανεβαίνει στο TikTok.", en: "A video posted on TikTok." },
+  },
+  {
+    key: "tiktok_story",
+    kind: "service",
+    group: "tiktok",
+    requires: "tiktok",
+    basic: false,
+    platform: "tiktok",
+    type: "story",
+    title: { el: "TikTok Story", en: "TikTok Story" },
+    description: { el: "Story στο TikTok.", en: "A story on TikTok." },
+  },
+  {
+    key: "tiktok_live",
+    kind: "service",
+    group: "tiktok",
+    requires: "tiktok",
+    basic: false,
+    platform: "tiktok",
+    type: "live",
+    title: { el: "Live", en: "Live" },
+    description: { el: "Ζωντανή μετάδοση στο TikTok.", en: "A live stream on TikTok." },
+  },
+  {
+    key: "spark_ads",
+    kind: "service",
+    group: "tiktok",
+    requires: "tiktok",
+    basic: false,
+    platform: "tiktok",
+    type: "spark",
+    title: { el: "Spark Ads", en: "Spark Ads" },
+    description: { el: "Το brand προωθεί το βίντεο ως διαφήμιση.", en: "The brand boosts the video as an ad." },
+  },
+  {
+    key: "youtube",
+    kind: "service",
+    group: "youtube",
+    requires: "youtube",
+    basic: true,
+    platform: "youtube",
+    type: "video",
+    title: { el: "YouTube Video", en: "YouTube Video" },
+    description: { el: "Βίντεο που ανεβαίνει στο YouTube.", en: "A video posted on YouTube." },
+  },
+  {
+    key: "youtube_short",
+    kind: "service",
+    group: "youtube",
+    requires: "youtube",
+    basic: false,
+    platform: "youtube",
+    type: "short",
+    title: { el: "YouTube Short", en: "YouTube Short" },
+    description: { el: "Σύντομο βίντεο στο YouTube.", en: "A short video on YouTube." },
+  },
+  {
+    key: "yt_integration",
+    kind: "service",
+    group: "youtube",
+    requires: "youtube",
+    basic: false,
+    platform: "youtube",
+    type: "integration",
+    title: { el: "Integration", en: "Integration" },
+    description: { el: "Αναφορά του brand μέσα σε βίντεο.", en: "A brand mention inside a video." },
+  },
+  {
+    key: "ugc_video",
+    kind: "service",
+    group: "ugc",
+    requires: null,
+    basic: true,
+    platform: "ugc",
+    type: "ugc_video",
+    title: { el: "UGC Video", en: "UGC Video" },
+    description: { el: "Βίντεο που το χρησιμοποιεί το brand.", en: "A video the brand can publish." },
+  },
+  {
+    key: "ugc_photo",
+    kind: "service",
+    group: "ugc",
+    requires: null,
+    basic: false,
+    platform: "ugc",
+    type: "ugc_photo",
+    title: { el: "UGC φωτογραφίες", en: "UGC photos" },
+    description: { el: "Φωτογραφίες που τις χρησιμοποιεί το brand.", en: "Photos the brand can publish." },
+  },
+  {
+    key: "event_visit",
+    kind: "service",
+    group: "other",
+    requires: null,
+    basic: false,
+    platform: "other",
+    type: "event",
+    title: { el: "Παρουσία σε event", en: "Event appearance" },
+    description: { el: "Παρουσία σε event ή επίσκεψη.", en: "An appearance at an event or a visit." },
+  },
+  {
+    key: "link_in_bio",
+    kind: "service",
+    group: "other",
+    requires: null,
+    basic: false,
+    platform: "other",
+    type: "bio",
+    title: { el: "Link in bio", en: "Link in bio" },
+    description: { el: "Ο σύνδεσμος του brand μένει στο bio.", en: "The brand link stays in the bio." },
+  },
+  {
+    key: "giveaway",
+    kind: "service",
+    group: "other",
+    requires: null,
+    basic: false,
+    platform: "other",
+    type: "giveaway",
+    title: { el: "Giveaway", en: "Giveaway" },
+    description: { el: "Κλήρωση για το κοινό.", en: "A giveaway for the audience." },
+  },
+  {
+    key: "usage_rights_ads",
+    kind: "addon",
+    group: "addon",
+    requires: null,
+    basic: false,
+    platform: null,
+    type: null,
+    title: { el: "Δικαιώματα χρήσης (30 ημέρες)", en: "Usage rights (30 days)" },
+    description: {
+      el: "Το brand χρησιμοποιεί το περιεχόμενο για 30 ημέρες.",
+      en: "The brand can use the content for 30 days.",
+    },
+  },
+  {
+    key: "exclusivity",
+    kind: "addon",
+    group: "addon",
+    requires: null,
+    basic: false,
+    platform: null,
+    type: null,
+    title: { el: "Αποκλειστικότητα", en: "Exclusivity" },
+    description: {
+      el: "Χωρίς ανταγωνιστικό brand για τη συνεργασία.",
+      en: "No competing brand for this collaboration.",
+    },
+  },
+  {
+    key: "raw_footage",
+    kind: "addon",
+    group: "addon",
+    requires: null,
+    basic: false,
+    platform: null,
+    type: null,
+    title: { el: "Raw footage", en: "Raw footage" },
+    description: { el: "Το υλικό χωρίς μοντάζ.", en: "The footage without editing." },
+  },
+  {
+    key: "rush_delivery",
+    kind: "addon",
+    group: "addon",
+    requires: null,
+    basic: false,
+    platform: null,
+    type: null,
+    title: { el: "Γρήγορη παράδοση", en: "Fast delivery" },
+    description: { el: "Παράδοση νωρίτερα από το συνηθισμένο.", en: "Delivery sooner than usual." },
+  },
 ] as const;
 
-export type RateCardPriceKey = (typeof RATE_CARD_PRICE_KEYS)[number];
+export type ServiceCatalogItem = (typeof SERVICE_CATALOG)[number];
+export type ServiceCatalogKey = ServiceCatalogItem["key"];
+type CatalogKind = ServiceCatalogItem["kind"];
+type KeysOfKind<K extends CatalogKind> = Extract<ServiceCatalogItem, { kind: K }>["key"];
 
-/** Optional add-ons stored on rate_card. Never package types and never part of min_rate. */
-export const RATE_CARD_EXTRA_KEYS = ["usage_rights_ads", "link_in_bio", "event_visit"] as const;
+/** Priced services. These feed rate_card and the automatic min_rate. Add-ons are not in this list. */
+export const RATE_CARD_PRICE_KEYS = SERVICE_CATALOG.flatMap((item) =>
+  item.kind === "service" ? [item.key] : []
+) as KeysOfKind<"service">[];
 
-export type RateCardExtraKey = (typeof RATE_CARD_EXTRA_KEYS)[number];
+export type RateCardPriceKey = KeysOfKind<"service">;
+
+/** Optional add-ons stored on rate_card. Never part of «Από» or min_rate. */
+export const RATE_CARD_EXTRA_KEYS = SERVICE_CATALOG.flatMap((item) =>
+  item.kind === "addon" ? [item.key] : []
+) as KeysOfKind<"addon">[];
+
+export type RateCardExtraKey = KeysOfKind<"addon">;
+
+/** Stored prices we do not offer as a service. Kept on save, hidden everywhere else. */
+export const LEGACY_RATE_CARD_KEYS = ["facebook"] as const;
 
 export type ServiceExtras = Partial<Record<RateCardExtraKey, string>>;
 
+export type CreatorServicePrices = Record<ServiceCatalogKey, string>;
+
+const CATALOG_BY_KEY = new Map(SERVICE_CATALOG.map((item) => [item.key, item]));
+
+export function catalogItemByKey(key: string): ServiceCatalogItem | undefined {
+  return CATALOG_BY_KEY.get(key as ServiceCatalogKey);
+}
+
+export function catalogItemForPackage(
+  platform: PackagePlatform,
+  type: PackageType
+): ServiceCatalogItem | undefined {
+  return SERVICE_CATALOG.find((item) => item.platform === platform && item.type === type);
+}
+
+export function catalogItemVisible(item: ServiceCatalogItem, accounts: unknown): boolean {
+  if (item.requires == null) return true;
+  return creatorNetworksFromAccounts(accounts)[item.requires];
+}
+
+/** Keys the creator price form is editing. Hidden platform prices stay on the card. */
+export function managedCreatorPriceKeys(accounts: unknown): ServiceCatalogKey[] {
+  return SERVICE_CATALOG.filter((item) => item.kind === "addon" || catalogItemVisible(item, accounts)).map(
+    (item) => item.key
+  );
+}
+
 /**
  * Smallest positive package or priced-service rate-card amount, or null when none exist.
- * Zeros, blanks, non-numeric text, and extras (usage rights, link in bio, events) are ignored.
+ * Zeros, blanks, non-numeric text, add-ons, and legacy Facebook prices are ignored.
  */
 export function deriveMinRate(servicePackages: unknown, rateCard: unknown): string | null {
   let min = Infinity;
@@ -114,39 +468,6 @@ export function deriveMinRate(servicePackages: unknown, rateCard: unknown): stri
   }
   if (!Number.isFinite(min) || min === Infinity) return null;
   return String(min);
-}
-
-export const PACKAGE_PLATFORMS = ["instagram", "tiktok", "youtube", "facebook", "ugc"] as const;
-export type PackagePlatform = (typeof PACKAGE_PLATFORMS)[number];
-
-export const PACKAGE_TYPES = [
-  "reel",
-  "story",
-  "post",
-  "video",
-  "short",
-  "carousel",
-  "ugc_video",
-  "ugc_photo",
-] as const;
-export type PackageType = (typeof PACKAGE_TYPES)[number];
-
-/** Social posts vs UGC. Extras are not package types. */
-export const SOCIAL_PACKAGE_TYPES = ["reel", "story", "post", "carousel", "video", "short"] as const;
-export const UGC_PACKAGE_TYPES = ["ugc_video", "ugc_photo"] as const;
-
-export function isUgcPackageType(type: PackageType): boolean {
-  return type === "ugc_video" || type === "ugc_photo";
-}
-
-/** UGC is not tied to a network. Carousel is an Instagram post. */
-export function platformForPackageType(
-  type: PackageType,
-  platform: PackagePlatform | null
-): PackagePlatform | null {
-  if (isUgcPackageType(type)) return "ugc";
-  if (type === "carousel") return "instagram";
-  return platform;
 }
 
 export const USAGE_RIGHTS = ["none", "30d", "90d", "perpetual"] as const;
@@ -202,6 +523,7 @@ const PLATFORM_LABEL: Record<PackagePlatform, { el: string; en: string }> = {
   youtube: { el: "YouTube", en: "YouTube" },
   facebook: { el: "Facebook", en: "Facebook" },
   ugc: { el: "UGC", en: "UGC" },
+  other: { el: "Άλλα", en: "Other" },
 };
 
 const TYPE_LABEL: Record<PackageType, { el: { one: string; many: string }; en: { one: string; many: string } }> = {
@@ -211,11 +533,25 @@ const TYPE_LABEL: Record<PackageType, { el: { one: string; many: string }; en: {
   video: { el: { one: "Video", many: "Videos" }, en: { one: "Video", many: "Videos" } },
   short: { el: { one: "Short", many: "Shorts" }, en: { one: "Short", many: "Shorts" } },
   carousel: { el: { one: "Carousel", many: "Carousels" }, en: { one: "Carousel", many: "Carousels" } },
+  live: { el: { one: "Live", many: "Lives" }, en: { one: "Live", many: "Lives" } },
+  collab: { el: { one: "Collab post", many: "Collab posts" }, en: { one: "Collab post", many: "Collab posts" } },
+  story_link: {
+    el: { one: "Story με link", many: "Stories με link" },
+    en: { one: "Story with link", many: "Stories with link" },
+  },
+  spark: { el: { one: "Spark Ads", many: "Spark Ads" }, en: { one: "Spark Ads", many: "Spark Ads" } },
+  integration: { el: { one: "Integration", many: "Integrations" }, en: { one: "Integration", many: "Integrations" } },
   ugc_video: { el: { one: "UGC βίντεο", many: "UGC βίντεο" }, en: { one: "UGC video", many: "UGC videos" } },
   ugc_photo: {
     el: { one: "UGC φωτογραφία", many: "UGC φωτογραφίες" },
     en: { one: "UGC photo", many: "UGC photos" },
   },
+  event: {
+    el: { one: "Παρουσία σε event", many: "Παρουσίες σε event" },
+    en: { one: "Event appearance", many: "Event appearances" },
+  },
+  bio: { el: { one: "Link in bio", many: "Link in bio" }, en: { one: "Link in bio", many: "Link in bio" } },
+  giveaway: { el: { one: "Giveaway", many: "Giveaways" }, en: { one: "Giveaway", many: "Giveaways" } },
 };
 
 /** Short explanation for services that are new to the rate card. */
@@ -234,35 +570,18 @@ export const PACKAGE_TYPE_HINT: Partial<Record<PackageType, { el: string; en: st
   },
 };
 
-export const EXTRA_LABEL: Record<RateCardExtraKey, { el: string; en: string }> = {
-  usage_rights_ads: {
-    el: "Δικαίωμα χρήσης σε διαφημίσεις",
-    en: "Ad usage rights",
-  },
-  link_in_bio: {
-    el: "Link in bio για 30 ημέρες",
-    en: "Link in bio for 30 days",
-  },
-  event_visit: {
-    el: "Παρουσία σε event / επίσκεψη σε κατάστημα",
-    en: "Event appearance / store visit",
-  },
-};
+function addonCopy(field: "title" | "description"): Record<RateCardExtraKey, { el: string; en: string }> {
+  const out = {} as Record<RateCardExtraKey, { el: string; en: string }>;
+  for (const item of SERVICE_CATALOG) {
+    if (item.kind !== "addon") continue;
+    out[item.key] = item[field];
+  }
+  return out;
+}
 
-export const EXTRA_HINT: Record<RateCardExtraKey, { el: string; en: string }> = {
-  usage_rights_ads: {
-    el: "Partnership Ads, Spark Ads ή whitelisting. Τιμή ανά μήνα.",
-    en: "Partnership Ads, Spark Ads, or whitelisting. Price per month.",
-  },
-  link_in_bio: {
-    el: "Ο σύνδεσμος του brand μένει στο bio για 30 ημέρες.",
-    en: "The brand link stays in the bio for 30 days.",
-  },
-  event_visit: {
-    el: "Ο creator παρευρίσκεται σε event ή επισκέπτεται κατάστημα.",
-    en: "The creator attends an event or visits a store.",
-  },
-};
+export const EXTRA_LABEL: Record<RateCardExtraKey, { el: string; en: string }> = addonCopy("title");
+
+export const EXTRA_HINT: Record<RateCardExtraKey, { el: string; en: string }> = addonCopy("description");
 
 /** Suffix after the formatted amount, e.g. "50 € / μήνα". */
 export function packagePriceSuffix(type: PackageType, lang: "el" | "en"): string | null {
@@ -271,7 +590,8 @@ export function packagePriceSuffix(type: PackageType, lang: "el" | "en"): string
 }
 
 export function extraPriceSuffix(key: RateCardExtraKey, lang: "el" | "en"): string | null {
-  if (key === "usage_rights_ads") return lang === "el" ? "/ μήνα" : "/ month";
+  void key;
+  void lang;
   return null;
 }
 
@@ -349,6 +669,11 @@ export function packageTitle(
   lang: "el" | "en" = "en"
 ): string {
   const qty = clampQuantity(quantity);
+  const catalogItem = catalogItemForPackage(platform, type);
+  if (catalogItem?.group === "other") {
+    const name = catalogItem.title[lang];
+    return qty === 1 ? name : `${qty} ${name}`;
+  }
   const typeLabels = TYPE_LABEL[type][lang];
   const typeWord = qty === 1 ? typeLabels.one : typeLabels.many;
   if (platform === "ugc" || isUgcPackageType(type)) return `${qty} ${typeWord}`;
@@ -364,6 +689,9 @@ export function packageRowTitle(
   lang: "el" | "en" = "en"
 ): string {
   const qty = clampQuantity(quantity);
+  if (catalogItemForPackage(platform, type)?.group === "other") {
+    return packageTitle(platform, type, qty, lang);
+  }
   if (qty === 1) {
     const typeWord = TYPE_LABEL[type][lang].one;
     if (platform === "ugc" || isUgcPackageType(type)) return typeWord;
@@ -372,7 +700,10 @@ export function packageRowTitle(
   return packageTitle(platform, type, qty, lang);
 }
 
-/** Parse DB / form packages; drops invalid rows. Caps at 6. */
+/** Enough for every catalog service on one creator. */
+export const MAX_SERVICE_PACKAGES = 24;
+
+/** Parse DB / form packages; drops invalid rows. */
 export function normalizeServicePackages(raw: unknown): ServicePackage[] {
   if (!Array.isArray(raw)) return [];
   const out: ServicePackage[] = [];
@@ -405,7 +736,7 @@ export function normalizeServicePackages(raw: unknown): ServicePackage[] {
       usage_rights: asUsage(src.usage_rights),
       description: typeof src.description === "string" ? src.description.trim() : "",
     });
-    if (out.length >= 6) break;
+    if (out.length >= MAX_SERVICE_PACKAGES) break;
   }
   return out;
 }
@@ -414,33 +745,22 @@ export function normalizeServicePackages(raw: unknown): ServicePackage[] {
 export function packagesFromRateCard(rateCard: unknown): ServicePackage[] {
   if (!rateCard || typeof rateCard !== "object" || Array.isArray(rateCard)) return [];
   const src = rateCard as Record<string, unknown>;
-  const mapping: Array<{ key: string; platform: PackagePlatform; type: PackageType }> = [
-    { key: "story", platform: "instagram", type: "story" },
-    { key: "post", platform: "instagram", type: "post" },
-    { key: "reel", platform: "instagram", type: "reel" },
-    { key: "tiktok", platform: "tiktok", type: "video" },
-    { key: "youtube", platform: "youtube", type: "video" },
-    { key: "facebook", platform: "facebook", type: "post" },
-    { key: "carousel", platform: "instagram", type: "carousel" },
-    { key: "ugc_video", platform: "ugc", type: "ugc_video" },
-    { key: "ugc_photo", platform: "ugc", type: "ugc_photo" },
-  ];
   const out: ServicePackage[] = [];
-  for (const m of mapping) {
-    if (!isConcretePrice(src[m.key])) continue;
-    const price =
-      typeof src[m.key] === "number" ? String(src[m.key]) : String(src[m.key]).trim();
+  for (const item of SERVICE_CATALOG) {
+    if (item.kind !== "service" || !item.platform || !item.type) continue;
+    if (!isConcretePrice(src[item.key])) continue;
+    const raw = src[item.key];
+    const price = typeof raw === "number" ? String(raw) : String(raw).trim();
     out.push({
-      id: `rate_${m.key}`,
-      platform: m.platform,
-      type: m.type,
+      id: `rate_${item.key}`,
+      platform: item.platform,
+      type: item.type,
       quantity: 1,
       price,
       delivery_days: null,
       usage_rights: null,
       description: "",
     });
-    if (out.length >= 12) break;
   }
   return out;
 }
@@ -450,8 +770,10 @@ export function resolvePackagesForDisplay(
   rateCard: unknown
 ): ServicePackage[] {
   const fromDb = normalizeServicePackages(servicePackages).filter((p) => isConcretePrice(p.price));
-  if (fromDb.length) return fromDb;
-  return packagesFromRateCard(rateCard);
+  const fromCard = packagesFromRateCard(rateCard);
+  if (!fromDb.length) return fromCard;
+  const covered = new Set(fromDb.map((pkg) => `${pkg.platform}:${pkg.type}`));
+  return [...fromDb, ...fromCard.filter((pkg) => !covered.has(`${pkg.platform}:${pkg.type}`))];
 }
 
 export type CreatorNetworks = {
@@ -506,7 +828,7 @@ export function alignPackagesToAccounts(packages: ServicePackage[], accounts: un
   };
 
   for (const pkg of packages) {
-    if (isUgcService(pkg)) push(pkg);
+    if (isUgcService(pkg) || pkg.platform === "other") push(pkg);
   }
 
   if (networks.instagram) {
@@ -537,11 +859,6 @@ export function alignPackagesToAccounts(packages: ServicePackage[], accounts: un
       if (pkg.platform === "youtube") push(pkg);
     }
   }
-  if (networks.facebook) {
-    for (const pkg of packages) {
-      if (pkg.platform === "facebook") push(pkg);
-    }
-  }
 
   return out;
 }
@@ -551,7 +868,9 @@ export function packagesForViewer(
   rateCard: unknown,
   accounts: unknown
 ): ServicePackage[] {
-  return alignPackagesToAccounts(resolvePackagesForDisplay(servicePackages, rateCard), accounts);
+  return alignPackagesToAccounts(resolvePackagesForDisplay(servicePackages, rateCard), accounts).filter(
+    (pkg) => pkg.platform !== "facebook"
+  );
 }
 
 /** One-line card copy when the creator left the package description empty. */
@@ -560,30 +879,18 @@ export function packageBlurb(
   type: PackageType,
   lang: "el" | "en" = "en"
 ): string {
-  const el = lang === "el";
-  if (platform === "tiktok") return el ? "Βίντεο που ανεβαίνει στο TikTok." : "A video posted on TikTok.";
-  if (platform === "youtube") return el ? "Βίντεο που ανεβαίνει στο YouTube." : "A video posted on YouTube.";
-  if (type === "story") return el ? "Story στο Instagram, για 24 ώρες." : "An Instagram story, up for 24 hours.";
-  if (type === "reel" || type === "short") return el ? "Σύντομο βίντεο στο Instagram." : "A short video on Instagram.";
-  if (type === "carousel") return el ? "Ανάρτηση Instagram με πολλές εικόνες." : "An Instagram post with several images.";
-  if (type === "post" && platform === "facebook") return el ? "Ανάρτηση στη σελίδα Facebook." : "A post on the Facebook page.";
-  if (type === "post") return el ? "Ανάρτηση στη ροή του Instagram." : "A post on the Instagram feed.";
-  if (type === "ugc_video") return el ? "Βίντεο που το χρησιμοποιεί το brand." : "A video the brand can publish.";
-  if (type === "ugc_photo") return el ? "Φωτογραφία που τη χρησιμοποιεί το brand." : "A photo the brand can publish.";
-  return el ? "Υπηρεσία για συνεργασία." : "A service for a collaboration.";
+  const item = catalogItemForPackage(platform, type);
+  if (item) return item.description[lang];
+  if (type === "post" && platform === "facebook") {
+    return lang === "el" ? "Ανάρτηση στη σελίδα Facebook." : "A post on the Facebook page.";
+  }
+  return lang === "el" ? "Υπηρεσία για συνεργασία." : "A service for a collaboration.";
 }
 
-export type CreatorServicePrices = {
-  story: string;
-  post: string;
-  reel: string;
-  tiktok: string;
-  youtube: string;
-  ugc_video: string;
-};
-
 export function emptyCreatorServicePrices(): CreatorServicePrices {
-  return { story: "", post: "", reel: "", tiktok: "", youtube: "", ugc_video: "" };
+  const prices = {} as CreatorServicePrices;
+  for (const item of SERVICE_CATALOG) prices[item.key] = "";
+  return prices;
 }
 
 function cardText(rateCard: unknown, key: string): string {
@@ -608,10 +915,13 @@ export function creatorServicePricesFromStored(
   const prices = emptyCreatorServicePrices();
   const networks = creatorNetworksFromAccounts(accounts);
   const packages = normalizeServicePackages(servicePackages);
-  prices.story = packagePrice(packages, "instagram", "story") || cardText(rateCard, "story");
-  prices.post = packagePrice(packages, "instagram", "post") || cardText(rateCard, "post");
-  prices.reel = packagePrice(packages, "instagram", "reel") || cardText(rateCard, "reel");
-  prices.tiktok = packagePrice(packages, "tiktok", "video") || cardText(rateCard, "tiktok");
+  for (const item of SERVICE_CATALOG) {
+    if (item.kind === "service" && item.platform && item.type) {
+      prices[item.key] = packagePrice(packages, item.platform, item.type) || cardText(rateCard, item.key);
+    } else {
+      prices[item.key] = cardText(rateCard, item.key);
+    }
+  }
   if (!prices.tiktok && networks.tiktok && !networks.instagram) {
     prices.tiktok =
       cardText(rateCard, "reel") ||
@@ -619,62 +929,62 @@ export function creatorServicePricesFromStored(
       cardText(rateCard, "post") ||
       packagePrice(packages, "instagram", "post");
   }
-  prices.youtube = packagePrice(packages, "youtube", "video") || cardText(rateCard, "youtube");
-  prices.ugc_video = packagePrice(packages, "ugc", "ugc_video") || cardText(rateCard, "ugc_video");
   return prices;
 }
 
-/** Packages for the platforms currently on the account list, plus optional UGC video. */
+/** Packages for the services the form is allowed to edit. Add-ons stay on the rate card. */
 export function packagesFromCreatorPrices(
   prices: CreatorServicePrices,
   accounts: unknown
 ): ServicePackage[] {
-  const networks = creatorNetworksFromAccounts(accounts);
   const out: ServicePackage[] = [];
-  const push = (platform: PackagePlatform, type: PackageType, price: string, id: string) => {
-    const text = price.trim();
-    if (!text) return;
+  for (const item of SERVICE_CATALOG) {
+    if (item.kind !== "service" || !item.platform || !item.type) continue;
+    if (!catalogItemVisible(item, accounts)) continue;
+    const text = String(prices[item.key] ?? "").trim();
+    if (!text) continue;
     out.push({
-      id,
-      platform,
-      type,
+      id: `price_${item.key}`,
+      platform: item.platform,
+      type: item.type,
       quantity: 1,
       price: text,
       delivery_days: null,
       usage_rights: "none",
       description: "",
     });
-  };
-  if (networks.instagram) {
-    push("instagram", "story", prices.story, "price_story");
-    push("instagram", "post", prices.post, "price_post");
-    push("instagram", "reel", prices.reel, "price_reel");
   }
-  if (networks.tiktok) push("tiktok", "video", prices.tiktok, "price_tiktok");
-  if (networks.youtube) push("youtube", "video", prices.youtube, "price_youtube");
-  push("ugc", "ugc_video", prices.ugc_video, "price_ugc_video");
   return out;
 }
 
 export function creatorPricesHaveInvalid(prices: CreatorServicePrices, accounts: unknown): boolean {
-  const networks = creatorNetworksFromAccounts(accounts);
-  const values = [prices.ugc_video];
-  if (networks.instagram) values.push(prices.story, prices.post, prices.reel);
-  if (networks.tiktok) values.push(prices.tiktok);
-  if (networks.youtube) values.push(prices.youtube);
-  return values.some((value) => !isPositivePriceInput(value));
+  return SERVICE_CATALOG.some((item) => {
+    if (!catalogItemVisible(item, accounts)) return false;
+    return !isPositivePriceInput(String(prices[item.key] ?? ""));
+  });
 }
 
-/** Keep add-on and unedited keys when the price form rewrites story/post/reel/tiktok/youtube/ugc_video. */
+export function extrasFromCreatorPrices(prices: CreatorServicePrices): ServiceExtras {
+  const out: ServiceExtras = {};
+  for (const key of RATE_CARD_EXTRA_KEYS) out[key] = String(prices[key] ?? "");
+  return out;
+}
+
+/**
+ * Keep prices the form is not editing (another platform, or legacy Facebook).
+ * `managedKeys` are cleared when absent from `next`.
+ */
 export function rateCardKeepingUnmanaged(
   next: Record<string, string>,
-  previous: unknown
+  previous: unknown,
+  managedKeys: readonly string[]
 ): Record<string, string> {
   const out = { ...next };
   if (!previous || typeof previous !== "object" || Array.isArray(previous)) return out;
+  const managed = new Set(managedKeys);
   const src = previous as Record<string, unknown>;
-  for (const key of ["facebook", "carousel", "ugc_photo", ...RATE_CARD_EXTRA_KEYS]) {
-    if (out[key]) continue;
+  for (const key of [...RATE_CARD_PRICE_KEYS, ...RATE_CARD_EXTRA_KEYS, ...LEGACY_RATE_CARD_KEYS]) {
+    if (managed.has(key) || out[key]) continue;
     const text = fixedIntegerText(src[key]);
     if (text) out[key] = text;
   }
@@ -739,17 +1049,15 @@ export function rateCardFromPackages(packages: ServicePackage[]): Record<string,
     if (!text) continue;
     const n = Number(text);
     let key: string | null = null;
-    if (p.type === "story") key = "story";
-    else if (p.type === "post") key = p.platform === "facebook" ? "facebook" : "post";
-    else if (p.type === "reel" || p.type === "short") key = "reel";
-    else if (p.type === "video") {
-      if (p.platform === "youtube") key = "youtube";
-      else if (p.platform === "tiktok") key = "tiktok";
-      else key = "reel";
+    if (p.platform === "facebook") key = "facebook";
+    else {
+      const item = catalogItemForPackage(p.platform, p.type);
+      if (item && item.kind === "service") key = item.key;
+      else if (p.type === "video") key = "reel";
+      else if (p.type === "reel" || p.type === "short") key = "reel";
+      else if (p.type === "story") key = "story";
+      else if (p.type === "post") key = "post";
     }
-    else if (p.type === "carousel") key = "carousel";
-    else if (p.type === "ugc_video") key = "ugc_video";
-    else if (p.type === "ugc_photo") key = "ugc_photo";
     if (!key) continue;
     if (buckets[key] == null || n < buckets[key]!) buckets[key] = n;
   }
@@ -759,7 +1067,9 @@ export function rateCardFromPackages(packages: ServicePackage[]): Record<string,
 }
 
 export function emptyExtras(): ServiceExtras {
-  return { usage_rights_ads: "", link_in_bio: "", event_visit: "" };
+  const out: ServiceExtras = {};
+  for (const key of RATE_CARD_EXTRA_KEYS) out[key] = "";
+  return out;
 }
 
 export function extrasFromRateCard(rateCard: unknown): ServiceExtras {
@@ -855,11 +1165,11 @@ export function commercialExtrasFromRateCard(
   return out;
 }
 
-/** Persist shape for jsonb (max 6). Only positive integers. Ranges are not saved. */
+/** Persist shape for jsonb. Only positive integers. Ranges are not saved. */
 export function packagesForSave(packages: ServicePackage[]): ServicePackage[] {
   return normalizeServicePackages(packages)
     .filter((p) => fixedIntegerText(p.price) != null)
-    .slice(0, 6)
+    .slice(0, MAX_SERVICE_PACKAGES)
     .map((p) => ({
       id: p.id,
       platform: p.platform,

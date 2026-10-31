@@ -57,7 +57,6 @@ import ProfileShareButton from "@/components/ProfileShareButton";
 import { showCampaignInviteButton } from "@/lib/gateAvatars";
 import BrandGateModal from "@/components/BrandGateModal";
 import {
-  EXTRA_LABEL,
   packageTitle,
   rateCardFromPackages,
   type PublicExtraView,
@@ -1466,39 +1465,33 @@ export default function InfluencerProfile(props: {
   if (!profile) return <div className="min-h-screen flex items-center justify-center text-slate-500">Influencer not found.</div>;
 
   const packageOffers = (Array.isArray(profile.service_packages) ? profile.service_packages : [])
+    .filter((pkg) => pkg.platform !== "facebook")
     .map((pkg) =>
       pkg.platform && pkg.type
         ? packageTitle(pkg.platform, pkg.type, pkg.quantity || 1, lang)
         : pkg.title
     )
     .filter((label): label is string => !!label);
-  const extraOffers = (Array.isArray(profile.service_extras) ? profile.service_extras : [])
-    .filter((extra) => extra.has_price)
-    .map((extra) => EXTRA_LABEL[extra.key]?.[lang])
-    .filter((label): label is string => !!label);
-  const offerChoices = [...new Set([...packageOffers, ...extraOffers])].slice(0, 12);
+  const offerChoices = [...new Set(packageOffers)].slice(0, 12);
   const proposalServices = offerChoices.length ? offerChoices : ["Story", "Post", "Reel"];
   const showHireBar = sessionChecked && !isOwnProfile;
-  const hirePackages = Array.isArray(profile.service_packages) ? profile.service_packages : [];
-  const hireExtras = Array.isArray(profile.service_extras) ? profile.service_extras : [];
+  const hirePackages = (Array.isArray(profile.service_packages) ? profile.service_packages : []).filter(
+    (pkg) => pkg.platform !== "facebook"
+  );
   const hireFloor = lowestListedPrice({
     service_packages: profile.service_packages,
     rate_card: profile.rate_card,
     min_rate: profile.min_rate,
+    accounts: profile.accounts,
   });
   const hireSource = hireFloor ?? (typeof profile.from_price === "number" ? profile.from_price : null);
   const hireAmount = hireSource != null && hireSource > 0 ? formatEuro(hireSource, lang) : null;
-  const pricedExtra = hireExtras.find((extra) => extra.has_price);
-  const defaultOfferId = hirePackages[0]?.id ?? (pricedExtra ? `extra:${pricedExtra.key}` : null);
-  const offerIds = new Set([
-    ...hirePackages.map((pkg) => pkg.id),
-    ...hireExtras.filter((extra) => extra.has_price).map((extra) => `extra:${extra.key}`),
-  ]);
+  const defaultOfferId = hirePackages[0]?.id ?? null;
+  const offerIds = new Set(hirePackages.map((pkg) => pkg.id));
   const activeOfferId = selectedOfferId && offerIds.has(selectedOfferId) ? selectedOfferId : defaultOfferId;
   const hireCardProps = {
     lang,
     packages: hirePackages,
-    extras: hireExtras,
     amountLabel: hireAmount,
     floorAmount: hireSource != null && hireSource > 0 ? hireSource : null,
     selectedId: activeOfferId,

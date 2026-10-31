@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { isAdminUser, supabaseService, userFromBearer } from "@/lib/apiAuth";
 import {
-  deriveMinRate,
   FIXED_PRICE_MESSAGE,
   hasUnfixedCreatorPrice,
+  minRateFromPackages,
   packagesForSave,
+  packagesForViewer,
+  LEGACY_RATE_CARD_KEYS,
   RATE_CARD_EXTRA_KEYS,
   RATE_CARD_PRICE_KEYS,
   type ServicePackage,
@@ -22,7 +24,7 @@ function normalizeRateCard(raw: unknown): Record<string, string> {
   const out: Record<string, string> = {};
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
   const src = raw as Record<string, unknown>;
-  for (const key of [...RATE_CARD_PRICE_KEYS, ...RATE_CARD_EXTRA_KEYS]) {
+  for (const key of [...RATE_CARD_PRICE_KEYS, ...RATE_CARD_EXTRA_KEYS, ...LEGACY_RATE_CARD_KEYS]) {
     const text = integerText(src[key]);
     if (text) out[key] = text;
   }
@@ -54,7 +56,7 @@ export async function POST(request: Request) {
     const admin = supabaseService();
     const { data: row, error: fetchErr } = await admin
       .from("influencers")
-      .select("id, auth_user_id")
+      .select("id, auth_user_id, accounts")
       .eq("id", influencerId)
       .maybeSingle();
 
@@ -79,7 +81,7 @@ export async function POST(request: Request) {
       );
     }
     const card = normalizeRateCard(rateCard);
-    const derived = deriveMinRate(packages, card);
+    const derived = minRateFromPackages(packagesForViewer(packages, card, row.accounts));
 
     const { error: updateErr } = await admin
       .from("influencers")

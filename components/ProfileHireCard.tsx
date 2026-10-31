@@ -7,16 +7,11 @@ import { formatEuroAmount, parseEuroNumber } from "@/lib/formatEuro";
 import { offerPriceLabel } from "@/lib/offerPriceLabel";
 import { listedPriceMin } from "@/lib/parsePrice";
 import {
-  EXTRA_HINT,
-  EXTRA_LABEL,
-  extraPriceSuffix,
   packagePriceSuffix,
   packageTitle,
   type PackagePlatform,
   type PackageType,
-  type PublicExtraView,
   type PublicPackageView,
-  type RateCardExtraKey,
 } from "@/lib/servicePackages";
 
 const COPY = {
@@ -45,7 +40,6 @@ type HireChoice = {
   quantity?: number;
   platform?: PackagePlatform;
   type?: PackageType;
-  extraKey?: RateCardExtraKey;
 };
 
 function choiceBudget(
@@ -62,12 +56,10 @@ function choiceBudget(
   return { label };
 }
 
-function hireChoices(
-  packages: PublicPackageView[],
-  extras: PublicExtraView[],
-  lang: "el" | "en"
-): HireChoice[] {
-  const fromPackages = packages.map((pkg) => {
+function hireChoices(packages: PublicPackageView[], lang: "el" | "en"): HireChoice[] {
+  return packages
+    .filter((pkg) => pkg.platform !== "facebook")
+    .map((pkg) => {
     const title =
       pkg.platform && pkg.type
         ? packageTitle(pkg.platform, pkg.type, pkg.quantity || 1, lang)
@@ -90,33 +82,12 @@ function hireChoices(
       type: pkg.type,
     };
   });
-  const fromExtras = extras
-    .filter((extra) => extra.has_price)
-    .map((extra) => {
-      const priced = choiceBudget(
-        extra.price,
-        extra.from_price,
-        extra.price_max,
-        extraPriceSuffix(extra.key, lang),
-        lang
-      );
-      return {
-        id: `extra:${extra.key}`,
-        title: EXTRA_LABEL[extra.key][lang],
-        description: EXTRA_HINT[extra.key][lang],
-        priceLabel: priced.label,
-        budget: priced.budget,
-        extraKey: extra.key,
-      };
-    });
-  return [...fromPackages, ...fromExtras];
 }
 
 export default function ProfileHireCard({
   variant,
   lang,
   packages,
-  extras,
   amountLabel,
   floorAmount,
   selectedId,
@@ -134,7 +105,6 @@ export default function ProfileHireCard({
   variant: "desktop" | "bar";
   lang: "el" | "en";
   packages: PublicPackageView[];
-  extras: PublicExtraView[];
   /** Floor price, e.g. "40 €", used when no package price is available. */
   amountLabel: string | null;
   /** Numeric floor. «Από» stays only while the selected price is this amount. */
@@ -152,7 +122,7 @@ export default function ProfileHireCard({
   onNeedBrand: () => void;
 }) {
   const copy = COPY[lang];
-  const choices = useMemo(() => hireChoices(packages, extras, lang), [packages, extras, lang]);
+  const choices = useMemo(() => hireChoices(packages, lang), [packages, lang]);
   const [negotiateOpen, setNegotiateOpen] = useState(false);
   const selected = choices.find((choice) => choice.id === selectedId) ?? choices[0] ?? null;
   const priceText = selected?.priceLabel || amountLabel;

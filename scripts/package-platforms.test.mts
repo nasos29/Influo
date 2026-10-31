@@ -99,6 +99,86 @@ test("the price form writes a tiktok key and prefills TikTok-only from the old r
   assert.equal(saved.find((pkg) => pkg.platform === "tiktok")?.type, "video");
 });
 
+test("YouTube Short and TikTok Story follow the account and set the from-price", () => {
+  const accounts = [{ platform: "TikTok" }, { platform: "YouTube" }];
+  const packages = packagesForViewer(
+    [],
+    { tiktok: "100", tiktok_story: "25", youtube: "400", youtube_short: "60", facebook: "15" },
+    accounts
+  );
+  assert.deepEqual(
+    packages.map((pkg) => packageTitle(pkg.platform, pkg.type, 1, "en")),
+    ["1 TikTok Video", "1 TikTok Story", "1 YouTube Video", "1 YouTube Short"]
+  );
+  assert.equal(packages.some((pkg) => pkg.platform === "facebook"), false);
+  assert.equal(lowestListedPrice({ rate_card: { tiktok_story: "25", youtube_short: "60", facebook: "10" }, min_rate: "500", accounts }), 25);
+  const saved = packagesFromCreatorPrices(
+    {
+      ...creatorServicePricesFromStored([], { tiktok_story: "25", youtube_short: "60" }, accounts),
+      tiktok: "",
+      youtube: "",
+    },
+    accounts
+  );
+  assert.deepEqual(rateCardFromPackages(saved), { tiktok_story: "25", youtube_short: "60" });
+});
+
+test("new services follow the account, other services count, and add-ons do not", () => {
+  const accounts = [{ platform: "Instagram" }, { platform: "TikTok" }, { platform: "YouTube" }];
+  const card = {
+    carousel: "70",
+    ig_live: "90",
+    collab_post: "110",
+    story_link: "40",
+    tiktok_live: "55",
+    spark_ads: "75",
+    yt_integration: "300",
+    ugc_photo: "20",
+    event_visit: "150",
+    link_in_bio: "15",
+    giveaway: "35",
+    usage_rights_ads: "8",
+    exclusivity: "5",
+    raw_footage: "12",
+    rush_delivery: "9",
+    facebook: "4",
+  };
+  const packages = packagesForViewer([], card, accounts);
+  assert.deepEqual(
+    packages.map((pkg) => packageTitle(pkg.platform, pkg.type, 1, "en")),
+    [
+      "1 UGC photo",
+      "Event appearance",
+      "Link in bio",
+      "Giveaway",
+      "1 Instagram Carousel",
+      "1 Instagram Live",
+      "1 Instagram Collab post",
+      "1 Instagram Story with link",
+      "1 TikTok Live",
+      "1 TikTok Spark Ads",
+      "1 YouTube Integration",
+    ]
+  );
+  assert.equal(packages.some((pkg) => pkg.platform === "facebook"), false);
+  assert.equal(lowestListedPrice({ rate_card: card, min_rate: "500", accounts }), 15);
+  assert.equal(
+    lowestListedPrice({
+      rate_card: { usage_rights_ads: "8", exclusivity: "5", facebook: "4" },
+      min_rate: "500",
+      accounts,
+    }),
+    500
+  );
+  const hidden = packagesForViewer([], { ig_live: "90", spark_ads: "30", yt_integration: "40" }, [
+    { platform: "TikTok" },
+  ]);
+  assert.deepEqual(
+    hidden.map((pkg) => packageTitle(pkg.platform, pkg.type, 1, "en")),
+    ["1 TikTok Spark Ads"]
+  );
+});
+
 test("no recognized account leaves the rate card unchanged", () => {
   const packages = packagesForViewer([], card, []);
   assert.equal(packages.find((pkg) => pkg.type === "story")?.platform, "instagram");

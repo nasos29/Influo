@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isAdminUser, supabaseService, userFromBearer } from "@/lib/apiAuth";
-import { deriveMinRate, FIXED_PRICE_MESSAGE, hasUnfixedCreatorPrice } from "@/lib/servicePackages";
+import { FIXED_PRICE_MESSAGE, hasUnfixedCreatorPrice, packagesForViewer, minRateFromPackages } from "@/lib/servicePackages";
 
 /**
  * Sets influencers.min_rate from the stored rate card / packages.
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     const admin = supabaseService();
     const { data: row, error: fetchErr } = await admin
       .from("influencers")
-      .select("id, auth_user_id, min_rate, rate_card, service_packages")
+      .select("id, auth_user_id, min_rate, rate_card, service_packages, accounts")
       .eq("id", influencerId)
       .maybeSingle();
 
@@ -42,7 +42,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const derived = deriveMinRate(row.service_packages, row.rate_card);
+    const derived = minRateFromPackages(
+      packagesForViewer(row.service_packages, row.rate_card, row.accounts)
+    );
     if (derived == null) {
       return NextResponse.json({
         ok: true,
