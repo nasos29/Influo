@@ -17,6 +17,7 @@ const LIST_COLUMNS = [
   "accounts",
   "auth_user_id",
   "min_rate",
+  "hidden_videos",
 ].join(",");
 
 const PICKER_COLUMNS = [
@@ -144,15 +145,40 @@ export async function GET(request: NextRequest) {
       { count: approvedCount, error: approvedErr },
       { count: pendingCount, error: pendingErr },
       { count: analyticsCount, error: analyticsErr },
+      hiddenProbe,
     ] = await Promise.all([
       admin.from("influencers").select("id", { count: "exact", head: true }),
       admin.from("influencers").select("id", { count: "exact", head: true }).eq("approved", true),
       admin.from("influencers").select("id", { count: "exact", head: true }).or("approved.is.false,approved.is.null"),
       admin.from("influencers").select("id", { count: "exact", head: true }).eq("analytics_verified", true),
+      admin.from("influencers").select("id, display_name, hidden_videos").not("hidden_videos", "eq", "[]"),
     ]);
 
     if (totalErr || approvedErr || pendingErr || analyticsErr) {
       console.error("[admin/influencers] count error", totalErr || approvedErr || pendingErr || analyticsErr);
+    }
+
+    let hiddenVideoCount = 0;
+    const hiddenByProfile: { id: string; display_name: string; count: number; urls: string[] }[] = [];
+    if (!hiddenProbe.error && Array.isArray(hiddenProbe.data)) {
+      for (const row of hiddenProbe.data) {
+        const list = Array.isArray(row.hidden_videos) ? row.hidden_videos : [];
+        const urls = list
+          .map((item: unknown) =>
+            item && typeof item === "object" && typeof (item as { url?: unknown }).url === "string"
+              ? String((item as { url: string }).url)
+              : null
+          )
+          .filter((u: string | null): u is string => !!u);
+        if (!urls.length) continue;
+        hiddenVideoCount += urls.length;
+        hiddenByProfile.push({
+          id: String(row.id),
+          display_name: typeof row.display_name === "string" ? row.display_name : "",
+          count: urls.length,
+          urls,
+        });
+      }
     }
 
     const total = count ?? 0;
@@ -168,7 +194,9 @@ export async function GET(request: NextRequest) {
           approved: approvedCount ?? 0,
           pending: pendingCount ?? 0,
           analyticsVerified: analyticsCount ?? 0,
+          hiddenVideos: hiddenVideoCount,
         },
+        hiddenByProfile,
         searchIncludesUsername: await hasAccountsTextColumn(admin),
       },
       { headers: { "Cache-Control": "private, no-store" } }

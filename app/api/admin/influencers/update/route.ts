@@ -11,6 +11,7 @@ import {
   validateBirthDate,
 } from '@/lib/validateBirthDate';
 import { FACEBOOK_VIDEO_LINK_ERROR, prepareVideosForSave } from '@/lib/videoLinks';
+import { syncHiddenVideosWithVideos } from '@/lib/hiddenVideos';
 import {
   VIDEO_NOT_PLAYABLE_ERROR,
   checkNewVideosPlayable,
@@ -122,6 +123,10 @@ export async function POST(request: NextRequest) {
         );
       }
       patch.videos = prepared.videos;
+      patch.hidden_videos = syncHiddenVideosWithVideos(
+        prepared.videos,
+        existing.hidden_videos
+      );
     }
 
     if (Object.keys(patch).length === 0) {

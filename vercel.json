@@ -22,6 +22,10 @@
       "schedule": "0 1 * * *"
     },
     {
+      "path": "/api/cron/check-portfolio-videos",
+      "schedule": "30 2 * * *"
+    },
+    {
       "path": "/api/cron/campaign-lifecycle",
       "schedule": "0 7 * * *"
     }

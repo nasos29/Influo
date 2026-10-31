@@ -12,6 +12,11 @@ import {
     FACEBOOK_VIDEO_LINK_ERROR,
     prepareVideosForSave,
 } from '@/lib/videoLinks';
+import { normalizeVideoUrlKey } from '@/lib/checkVideoPlayable';
+import {
+    parseHiddenVideos,
+    syncHiddenVideosWithVideos,
+} from '@/lib/hiddenVideos';
 import {
     newVideoRowId,
     toVideoRows,
@@ -95,10 +100,24 @@ interface InfluencerData {
     audience_female_percent: number | null;
     audience_top_age: string | null;
     videos: string[] | null;
+    hidden_videos?: Array<{ url: string; reason?: string; hidden_at?: string }> | null;
     insights_urls: string[] | null;
     availability_status?: string | null;
     rate_card?: { story?: string; post?: string; reel?: string; youtube?: string; facebook?: string } | null;
 }
+
+const HIDDEN_VIDEO_NOTICE = {
+  title: {
+    el: "Κρυφό βίντεο portfolio",
+    en: "Hidden portfolio video",
+  },
+  body: {
+    el: "Το βίντεο δεν μπορεί πλέον να παίξει στο Influo (π.χ. μουσική με δικαιώματα ή διαγραφή). Αντικατάστησέ το με άλλο.",
+    en: "This video can no longer play on Influo (e.g. licensed music or deletion). Replace it with another.",
+  },
+  replace: { el: "Αντικατάσταση", en: "Replace" },
+  remove: { el: "Αφαίρεση", en: "Remove" },
+} as const;
 
 // --- COMPREHENSIVE EDIT MODAL WITH SOCIAL ACCOUNTS ---
 const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: () => void, onSave: (updatedUser: InfluencerData) => void }) => {
@@ -415,6 +434,11 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                 return;
             }
 
+            const nextHidden = syncHiddenVideosWithVideos(
+                preparedVideos.videos,
+                user.hidden_videos
+            );
+
             const newValues: any = {
                 display_name: name, 
                 bio: bio, 
@@ -426,6 +450,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                 gender: validGender,
                 accounts: accountsForSave,
                 videos: preparedVideos.videos,
+                hidden_videos: nextHidden,
                 audience_male_percent: malePercent ? parseInt(malePercent) : null,
                 audience_female_percent: femalePercent ? parseInt(femalePercent) : null,
                 audience_top_age: topAge || null,
@@ -867,6 +892,55 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                     <div>
                         <h3 className="text-sm font-bold text-slate-900 mb-3 uppercase">Video Links / Φωτογραφίες</h3>
                         <p className="text-xs text-slate-600 mb-2">Μπορείτε να προσθέσετε links από TikTok, Reels, YouTube ή φωτογραφίες από δουλειές σας.</p>
+                        {parseHiddenVideos(user.hidden_videos).map((hidden) => {
+                          const short =
+                            hidden.url.length > 64 ? `${hidden.url.slice(0, 61)}…` : hidden.url;
+                          return (
+                            <div
+                              key={normalizeVideoUrlKey(hidden.url)}
+                              className="mb-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-3 text-sm text-amber-900"
+                            >
+                              <p className="font-semibold">{HIDDEN_VIDEO_NOTICE.title.el}</p>
+                              <p className="mt-1 break-all text-amber-800/90">{short}</p>
+                              <p className="mt-1">{HIDDEN_VIDEO_NOTICE.body.el}</p>
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  className="rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-900 ring-1 ring-amber-300 hover:bg-amber-200"
+                                  onClick={() => {
+                                    const key = normalizeVideoUrlKey(hidden.url);
+                                    const row = videoRows.find(
+                                      (r) => normalizeVideoUrlKey(r.url) === key
+                                    );
+                                    if (row) {
+                                      handleVideoChange(row.id, "");
+                                    } else {
+                                      addVideo();
+                                    }
+                                  }}
+                                >
+                                  {HIDDEN_VIDEO_NOTICE.replace.el}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-red-700 ring-1 ring-red-200 hover:bg-red-50"
+                                  onClick={() => {
+                                    const key = normalizeVideoUrlKey(hidden.url);
+                                    const row = videoRows.find(
+                                      (r) => normalizeVideoUrlKey(r.url) === key
+                                    );
+                                    if (row) {
+                                      if (videoRows.length > 1) removeVideo(row.id);
+                                      else handleVideoChange(row.id, "");
+                                    }
+                                  }}
+                                >
+                                  {HIDDEN_VIDEO_NOTICE.remove.el}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
                         <div className="space-y-2">
                             {videoRows.map((row) => {
                                 const video = row.url;
@@ -884,6 +958,13 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                   !!detectProvider(video) &&
                                   !isImage &&
                                   !isEmbeddableVideoUrl(video);
+                                const isHiddenRow =
+                                  !!video?.trim() &&
+                                  parseHiddenVideos(user.hidden_videos).some(
+                                    (h) =>
+                                      normalizeVideoUrlKey(h.url) ===
+                                      normalizeVideoUrlKey(video)
+                                  );
 
                                 return (
                                     <div key={row.id} className="flex gap-3 items-start">
@@ -893,7 +974,11 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                                 value={video} 
                                                 onChange={e => handleVideoChange(row.id, e.target.value)}
                                                 onBlur={() => handleVideoBlur(row.id)}
-                                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" 
+                                                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900 ${
+                                                  isHiddenRow
+                                                    ? "border-amber-400 bg-amber-50/40"
+                                                    : "border-slate-300"
+                                                }`}
                                                 placeholder="https://youtube.com/... ή https://image.com/..." 
                                                 autoComplete="off"
                                             />
@@ -1833,6 +1918,34 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                         ✏️ Επεξεργασία Προφίλ
                                     </button>
                                 </div>
+
+                                {parseHiddenVideos(profile.hidden_videos).length > 0 ? (
+                                  <div className="space-y-2">
+                                    {parseHiddenVideos(profile.hidden_videos).map((hidden) => {
+                                      const short =
+                                        hidden.url.length > 72
+                                          ? `${hidden.url.slice(0, 69)}…`
+                                          : hidden.url;
+                                      return (
+                                        <div
+                                          key={normalizeVideoUrlKey(hidden.url)}
+                                          className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 shadow-sm"
+                                        >
+                                          <p className="font-semibold">{HIDDEN_VIDEO_NOTICE.title.el}</p>
+                                          <p className="mt-1 break-all text-amber-900/80">{short}</p>
+                                          <p className="mt-1">{HIDDEN_VIDEO_NOTICE.body.el}</p>
+                                          <button
+                                            type="button"
+                                            onClick={() => setShowEditModal(true)}
+                                            className="mt-2 rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-900 ring-1 ring-amber-300 hover:bg-amber-200"
+                                          >
+                                            {HIDDEN_VIDEO_NOTICE.replace.el}
+                                          </button>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                ) : null}
 
                                 <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
                                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
