@@ -2290,6 +2290,7 @@ export default function BrandDashboardContent() {
               brandVerified={!!brandData.verified}
               pendingApplicationsCount={pendingCampaignApplicationsCount}
               focusApplications={appsFocus}
+              startNew={searchParams?.get("new") === "1"}
               onApplicationsUpdated={() => {
                 void reloadProposals();
                 if (!brandData?.id) return;

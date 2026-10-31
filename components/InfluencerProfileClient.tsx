@@ -51,6 +51,8 @@ import { displayLanguageLabel } from "@/lib/languages";
 import { formatEuroAmount } from "@/lib/formatEuro";
 import { formatFromPriceLabel } from "@/lib/publicInfluencer";
 import ProfileOffersPanel from "@/components/ProfileOffersPanel";
+import CampaignInviteButton from "@/components/CampaignInviteButton";
+import BrandGateModal from "@/components/BrandGateModal";
 import {
   EXTRA_LABEL,
   packageTitle,
@@ -630,6 +632,8 @@ export default function InfluencerProfile(props: {
   const [reviewProjectType, setReviewProjectType] = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [isBrand, setIsBrand] = useState(false);
+  const [brandId, setBrandId] = useState<string | null>(null);
+  const [brandGateOpen, setBrandGateOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [hasSession, setHasSession] = useState(false);
@@ -660,6 +664,7 @@ export default function InfluencerProfile(props: {
         setHasSession(!!session?.access_token);
         if (!session?.access_token) {
           setIsBrand(false);
+          setBrandId(null);
           setIsAdmin(false);
           setIsOwnProfile(false);
           sessionStorage.removeItem("isBrand");
@@ -673,6 +678,7 @@ export default function InfluencerProfile(props: {
         if (cancelled) return;
         const brand = profiles.ok ? profiles.brand : null;
         setIsBrand(!!brand);
+        setBrandId(brand && brand.id != null ? String(brand.id) : null);
         if (brand) {
           sessionStorage.setItem("isBrand", "true");
           const name = typeof brand.brand_name === "string" ? brand.brand_name.trim() : "";
@@ -682,6 +688,7 @@ export default function InfluencerProfile(props: {
           if (email) setBrandEmail(email);
         } else {
           sessionStorage.removeItem("isBrand");
+          setBrandId(null);
         }
 
         const ownInf = profiles.ok ? profiles.influencer : null;
@@ -698,6 +705,7 @@ export default function InfluencerProfile(props: {
         console.error("Error checking user type:", error);
         if (!cancelled) {
           setIsBrand(false);
+          setBrandId(null);
           setIsAdmin(false);
           setIsOwnProfile(false);
         }
@@ -1431,6 +1439,12 @@ export default function InfluencerProfile(props: {
   return (
     <div className="bg-white min-h-screen pb-20 font-sans relative text-slate-900">
       <SiteHeader lang={lang} onLangChange={setLang} />
+      <BrandGateModal
+        open={brandGateOpen}
+        onClose={() => setBrandGateOpen(false)}
+        lang={lang}
+        returnPath={publicPath}
+      />
 
       {/* PROPOSAL MODAL */}
       {showProposalModal && (
@@ -1971,6 +1985,15 @@ export default function InfluencerProfile(props: {
                   </div>
                 ) : null;
               })()}
+              <CampaignInviteButton
+                lang={lang}
+                isBrand={isBrand}
+                brandId={brandId}
+                influencerId={String(id)}
+                creatorName={displayNameForLang(profile.name, lang)}
+                gender={profile.gender}
+                onNeedBrand={() => setBrandGateOpen(true)}
+              />
               {/* Action Buttons */}
               <div className={`grid w-full gap-2 ${isBrand ? "grid-cols-2" : "grid-cols-1 sm:grid-cols-2"}`}>
                 {isBrand && (
@@ -2913,39 +2936,32 @@ export default function InfluencerProfile(props: {
                 )}
                 {activeTab === "pricing" && (
                      <div className="bg-white p-4 sm:p-8 rounded-2xl shadow-sm border border-slate-100">
-                        <h2 className="text-xl font-bold text-slate-900 mb-2">
+                        <h2 className="text-xl font-bold text-slate-900 mb-1">
                           {lang === "el" ? "Πακέτα" : "Packages"}
                         </h2>
                         <p className="text-sm text-slate-500 mb-6">
                           {lang === "el"
-                            ? "Έτοιμες υπηρεσίες με τίτλο, παράδοση και δικαιώματα χρήσης."
-                            : "Ready-made services with title, delivery, and usage rights."}
+                            ? "Διάλεξε πακέτο ή πρότεινε το δικό σου"
+                            : "Choose a package or propose your own"}
                         </p>
 
                         <ProfileOffersPanel
                           packages={Array.isArray(profile.service_packages) ? profile.service_packages : []}
                           extras={Array.isArray(profile.service_extras) ? profile.service_extras : []}
                           lang={lang}
-                          revealPrices={revealPrices}
-                          onRequestQuote={(label) => {
-                            setProposalType(label);
+                          creatorName={displayNameForLang(profile.name, lang)}
+                          gender={profile.gender}
+                          isBrand={isBrand}
+                          influencerId={String(id)}
+                          onNeedBrand={() => setBrandGateOpen(true)}
+                          onContinue={(choice) => {
+                            setProposalType(choice.label);
+                            if (choice.budget) setBudget(choice.budget);
                             setShowProposalModal(true);
                           }}
                         />
 
-                        {showBrandPriceCta && (
-                          <p className="mt-4 text-sm text-slate-600 text-center">
-                            {lang === "el" ? "Συνδεθείτε ως brand για τιμές" : "Sign in as a brand for prices"}
-                            {" — "}
-                            <Link href="/login" className="inline-flex min-h-[44px] items-center text-blue-600 underline hover:text-blue-800 sm:min-h-0">{txt.min_rate_cta_login}</Link>
-                            {lang === "el" ? " ή " : " or "}
-                            <Link href="/brand/signup" className="inline-flex min-h-[44px] items-center text-blue-600 underline hover:text-blue-800 sm:min-h-0">{txt.min_rate_cta_signup}</Link>
-                          </p>
-                        )}
                         <p className="mt-6 text-xs text-slate-400 text-center">{txt.price_note}</p>
-                        <button onClick={() => setShowProposalModal(true)} className="w-full mt-6 bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-black transition-colors">
-                            {txt.contact_btn}
-                        </button>
                      </div>
                 )}
                 
