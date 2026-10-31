@@ -1,13 +1,14 @@
 "use client";
 
-import { Suspense, useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
-import Directory, { type Influencer } from "@/components/Directory";
+import { type Influencer } from "@/components/Directory";
+import InfluencerCard from "@/components/InfluencerCard";
 import InfluencerSignupForm from "@/components/InfluencerSignupForm";
 import BrandSignupForm from "@/components/BrandSignupForm";
 import Footer from "@/components/Footer";
-import TopInfluencersSection from "@/components/TopInfluencersSection";
 import NewlyApprovedInfluencersSection from "@/components/NewlyApprovedInfluencersSection";
 import CampaignCard, { type CampaignCardData } from "@/components/CampaignCard";
 import HomeTrustStatsRow from "@/components/HomeTrustStats";
@@ -20,6 +21,23 @@ import { normalizeNameCase } from "@/lib/greeklish";
 import type { HomeTrustStats } from "@/lib/loadHomeTrustStats";
 import { toPublicHttpsHref } from "@/lib/brandProfile";
 import { shuffle } from "@/lib/similarInfluencers";
+import { getVisitorId } from "@/lib/visitorId";
+import { publicProfilePath } from "@/lib/profileSlug";
+
+/** Prefer verified creators with a photo; no duplicates. */
+function pickFeaturedInfluencers(list: Influencer[], limit = 8): Influencer[] {
+  const seen = new Set<string>();
+  const unique: Influencer[] = [];
+  for (const inf of list) {
+    const id = String(inf?.id || "");
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    unique.push(inf);
+  }
+  const preferred = unique.filter((inf) => inf.verified && !!inf.avatar);
+  const rest = unique.filter((inf) => !(inf.verified && !!inf.avatar));
+  return [...preferred, ...rest].slice(0, limit);
+}
 
 type Lang = "el" | "en";
 
@@ -94,8 +112,8 @@ const t = {
     brand_feat_ai_badge: "Περιλαμβάνεται",
     trusted_by: "ΤΗΝ ΕΜΠΙΣΤΕΥΟΝΤΑΙ CREATORS",
     top_influencers: "Top Influencers",
-    dir_title: "Κατάλογος Influencers",
-    dir_desc: "Ανακάλυψε τους πιο δημιουργικούς content creators ανά κατηγορία και πλατφόρμα.",
+    featured_title: "Προτεινόμενοι influencers",
+    featured_see_all: "Δείτε όλο τον κατάλογο",
     feat_1_title: "Analytics",
     feat_1_desc: "Δες τα στατιστικά σου να μεγαλώνουν.",
     feat_2_title: "Συνεργασίες",
@@ -150,8 +168,8 @@ const t = {
     brand_feat_ai_badge: "Included",
     trusted_by: "TRUSTED BY CREATORS",
     top_influencers: "Top Influencers",
-    dir_title: "Influencer Directory",
-    dir_desc: "Discover the most creative content creators by category and platform.",
+    featured_title: "Featured influencers",
+    featured_see_all: "See the full directory",
     feat_1_title: "Analytics",
     feat_1_desc: "Watch your stats grow daily.",
     feat_2_title: "Collaborations",
@@ -203,6 +221,15 @@ export default function Home({
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
   const txt = t[lang];
+  const featuredInfluencers = useMemo(
+    () => pickFeaturedInfluencers(initialInfluencers, 8),
+    [initialInfluencers]
+  );
+  const featuredIds = useMemo(
+    () => featuredInfluencers.map((inf) => String(inf.id)),
+    [featuredInfluencers]
+  );
+  const directoryHref = lang === "en" ? "/en/directory" : "/directory";
 
   // Load language from pathname (/en) or localStorage on client-side
   useEffect(() => {
@@ -670,7 +697,7 @@ export default function Home({
                     {txt.hero_btn_primary}
                   </button>
                   <a 
-                    href="#directory" 
+                    href={directoryHref}
                     className="px-8 py-4 bg-white hover:bg-slate-50 text-slate-900 font-semibold border-2 border-slate-200 rounded-xl transition-all transform hover:scale-105 shadow-md hover:shadow-lg text-lg"
                   >
                     {txt.hero_btn_secondary}
@@ -731,8 +758,59 @@ export default function Home({
 
       <HomeHowItWorks lang={lang} />
 
-      {/* Top Influencers of the Month */}
-        <TopInfluencersSection lang={lang} />
+      {featuredInfluencers.length > 0 && (
+        <section className="relative py-16 md:py-20 px-6 bg-white" id="featured">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-10 md:mb-12">
+              <h2 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight">
+                {txt.featured_title}
+              </h2>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-6 md:gap-x-6 md:gap-y-8 overflow-x-hidden">
+              {featuredInfluencers.map((inf) => (
+                <Link
+                  key={String(inf.id)}
+                  href={publicProfilePath(inf.profile_slug, inf.id)}
+                  className="block group min-w-0"
+                  onClick={() => {
+                    fetch("/api/analytics/track", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        influencerId: inf.id,
+                        eventType: "profile_click",
+                        visitorId: getVisitorId(),
+                        metadata: { source: "home_featured" },
+                      }),
+                      keepalive: true,
+                    }).catch(() => {});
+                  }}
+                >
+                  <InfluencerCard
+                    name={inf.name}
+                    avatar={inf.avatar}
+                    verified={inf.verified}
+                    socials={inf.socials}
+                    followers={inf.followers}
+                    categories={inf.categories}
+                    lang={lang}
+                    location={inf.location}
+                    price_tier={inf.price_tier}
+                  />
+                </Link>
+              ))}
+            </div>
+            <div className="mt-10 flex justify-center">
+              <a
+                href={directoryHref}
+                className="inline-flex items-center justify-center rounded-full bg-slate-900 px-8 py-3.5 text-base font-semibold text-white shadow-md transition-colors hover:bg-slate-800 hover:shadow-lg"
+              >
+                {txt.featured_see_all}
+              </a>
+            </div>
+          </div>
+        </section>
+      )}
 
       {openCampaigns.length > 0 && (
         <section className="relative py-20 px-6 bg-gradient-to-br from-slate-50 via-white to-blue-50 border-y border-slate-100/80">
@@ -781,25 +859,8 @@ export default function Home({
         </section>
       )}
 
-      {/* Directory Section */}
-        <section className="relative py-20 px-6 bg-white" id="directory">
-          {/* Subtle pattern overlay */}
-          <div className="absolute inset-0 opacity-[0.015] pointer-events-none" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-          }}></div>
-          <div className="relative max-w-7xl mx-auto">
-            <div className="text-center mb-12">
-              <h3 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">{txt.dir_title}</h3>
-            <p className="text-slate-600 max-w-2xl mx-auto">{txt.dir_desc}</p>
-          </div>
-          <Suspense fallback={<div className="h-40 rounded-2xl bg-slate-50 animate-pulse" aria-hidden />}>
-            <Directory lang={lang} initialInfluencers={initialInfluencers} />
-          </Suspense>
-        </div>
-      </section>
-
       {/* Newly Approved Influencers */}
-      <NewlyApprovedInfluencersSection lang={lang} />
+      <NewlyApprovedInfluencersSection lang={lang} excludeIds={featuredIds} />
 
       {/* Brand Section */}
         <section className="relative py-20 px-6 bg-slate-50 border-y border-slate-100" id="brands">

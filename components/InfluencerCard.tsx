@@ -69,27 +69,45 @@ const formatNum = (num?: number) => {
   return num.toString();
 };
 
-function topPlatform(followers: { [key: string]: number | undefined }) {
-  let best: { key: string; count: number } | null = null;
+/**
+ * Connected platforms (from socials and/or followers), sorted by followers desc.
+ * Known platforms keep a stable tie-break order.
+ */
+function rankedPlatforms(
+  followers: { [key: string]: number | undefined },
+  socials: { [key: string]: string | undefined }
+) {
+  const knownOrder = new Map(PLATFORM_META.map((p, i) => [p.key, i]));
+  const keys = new Set<string>();
   for (const { key } of PLATFORM_META) {
-    const count = followers[key];
-    if (typeof count !== "number" || !(count > 0)) continue;
-    if (!best || count > best.count) best = { key, count };
-  }
-  // Also allow any other key present in followers
-  if (!best) {
-    for (const [key, count] of Object.entries(followers || {})) {
-      if (typeof count !== "number" || !(count > 0)) continue;
-      if (!best || count > best.count) best = { key, count };
+    if (socials[key] || (typeof followers[key] === "number" && (followers[key] as number) > 0)) {
+      keys.add(key);
     }
   }
-  return best;
+  for (const [key, username] of Object.entries(socials || {})) {
+    if (username) keys.add(key);
+  }
+  for (const [key, count] of Object.entries(followers || {})) {
+    if (typeof count === "number" && count > 0) keys.add(key);
+  }
+
+  const entries = [...keys].map((key) => ({
+    key,
+    count: typeof followers[key] === "number" ? (followers[key] as number) : 0,
+  }));
+
+  entries.sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count;
+    return (knownOrder.get(a.key) ?? 99) - (knownOrder.get(b.key) ?? 99);
+  });
+  return entries;
 }
 
 export default function InfluencerCard({
   name,
   avatar,
   verified,
+  socials,
   followers,
   categories = [],
   badges = [],
@@ -104,10 +122,10 @@ export default function InfluencerCard({
   const cardUrl = avatar ? getStorageCardUrl(avatar, 480, 600) : null;
   const photoSrc = cardUrl ? getCachedImageUrl(cardUrl) ?? cardUrl : null;
   const priceLabel = formatPriceTierLabel(price_tier);
-  const top = topPlatform(followers);
-  const TopIcon = top
-    ? PLATFORM_META.find((p) => p.key === top.key)?.Icon ?? InstagramIcon
-    : null;
+  const ranked = rankedPlatforms(followers, socials);
+  const totalFollowers = ranked.reduce((sum, p) => sum + p.count, 0);
+  const visiblePlatforms = ranked.slice(0, 3);
+  const extraPlatforms = Math.max(0, ranked.length - visiblePlatforms.length);
 
   const categoryLine = categories
     .slice(0, 2)
@@ -165,11 +183,21 @@ export default function InfluencerCard({
           </div>
         )}
 
-        {top && TopIcon && (
-          <div className="absolute bottom-2.5 left-2.5 z-10">
-            <span className="inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[11px] font-semibold text-white backdrop-blur-sm">
-              <TopIcon className="h-3.5 w-3.5 shrink-0" />
-              <span>{formatNum(top.count)}</span>
+        {ranked.length > 0 && (
+          <div className="absolute bottom-2 left-2 z-10 max-w-[calc(100%-1rem)]">
+            <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur-sm sm:gap-1.5 sm:text-[11px]">
+              <span className="inline-flex shrink-0 items-center gap-0.5">
+                {visiblePlatforms.map(({ key }) => {
+                  const Icon = PLATFORM_META.find((p) => p.key === key)?.Icon ?? InstagramIcon;
+                  return <Icon key={key} className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />;
+                })}
+                {extraPlatforms > 0 ? (
+                  <span className="pl-0.5 text-[9px] font-bold opacity-90 sm:text-[10px]">
+                    +{extraPlatforms}
+                  </span>
+                ) : null}
+              </span>
+              <span className="min-w-0 truncate">{formatNum(totalFollowers)}</span>
             </span>
           </div>
         )}

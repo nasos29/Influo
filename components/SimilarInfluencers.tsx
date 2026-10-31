@@ -165,11 +165,9 @@ export default function SimilarInfluencers({
         </div>
       ) : (
         <>
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 className="min-w-0 text-lg font-bold text-slate-900 sm:text-xl md:text-2xl">
-              <span className="block truncate">
-                {COPY.titlePrefix[lang]} {shownName}
-              </span>
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <h2 className="min-w-0 flex-1 text-lg font-bold text-slate-900 break-words sm:text-xl md:text-2xl">
+              {COPY.titlePrefix[lang]} {shownName}
             </h2>
             <div className="hidden shrink-0 items-center gap-2 md:flex">
               <button
