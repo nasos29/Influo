@@ -87,7 +87,9 @@ import {
   mergeRateCard,
   packagesForSave,
   packagesHaveInvalidPrice,
+  RATE_CARD_EXTRA_KEYS,
   rateCardFromPackages,
+  rateCardKeepingUnmanaged,
   type ServiceExtras,
   type ServicePackage,
 } from "@/lib/servicePackages";
@@ -1378,7 +1380,14 @@ const EditProfileModal = ({
                     return;
                 }
                 updateData.service_packages = packagesPayload;
-                updateData.rate_card = mergeRateCard(rateCardFromPackages(packagesPayload), serviceExtras);
+                const fromPackages = rateCardFromPackages(packagesPayload);
+                updateData.rate_card = mergeRateCard(
+                    rateCardKeepingUnmanaged(fromPackages, user.rate_card, [
+                        ...RATE_CARD_EXTRA_KEYS,
+                        ...Object.keys(fromPackages),
+                    ]),
+                    serviceExtras
+                );
             }
 
             if (Object.keys(updateData).length === 0) {

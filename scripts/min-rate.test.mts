@@ -81,7 +81,7 @@ test("a range is rejected and is not saved as its lower bound", () => {
   );
 });
 
-test("ugc and carousel prices lower min_rate; extras never do", () => {
+test("ugc, carousel and other services lower min_rate; add-ons never do", () => {
   assert.equal(
     deriveMinRate(
       [
@@ -92,16 +92,18 @@ test("ugc and carousel prices lower min_rate; extras never do", () => {
       {
         ugc_video: "90",
         usage_rights_ads: "15",
-        link_in_bio: "10",
-        event_visit: "20",
+        exclusivity: "5",
+        raw_footage: "12",
+        rush_delivery: "9",
       }
     ),
     "30"
   );
   assert.equal(
-    deriveMinRate([], { usage_rights_ads: "15", link_in_bio: "10", event_visit: "50" }),
+    deriveMinRate([], { usage_rights_ads: "15", exclusivity: "8", raw_footage: "12", rush_delivery: "9" }),
     null
   );
+  assert.equal(deriveMinRate([], { link_in_bio: "10", event_visit: "50", giveaway: "40" }), "10");
   assert.equal(deriveMinRate([], { ugc_video: "120", carousel: "80", ugc_photo: "0" }), "80");
 });
 

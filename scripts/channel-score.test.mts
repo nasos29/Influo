@@ -172,10 +172,27 @@ test("integration shows From (no ×2.2) when only min_rate exists", () => {
     contentCount: 0,
     platformCount: 1,
     minRate: "100",
-    rateCard: { story: "80", post: "250", usage_rights_ads: "15", link_in_bio: "10", event_visit: "400" },
+    rateCard: {
+      story: "80",
+      post: "250",
+      usage_rights_ads: "15",
+      exclusivity: "5",
+      raw_footage: "12",
+      rush_delivery: "9",
+    },
   });
   assert.equal(withExtrasOnly.integrationFrom, 80);
   assert.equal(withExtrasOnly.integrationTo, 250);
+
+  const withOtherServices = buildChannelScore({
+    followersTotal: 10_000,
+    contentCount: 0,
+    platformCount: 1,
+    minRate: "100",
+    rateCard: { story: "80", post: "250", link_in_bio: "10", event_visit: "400" },
+  });
+  assert.equal(withOtherServices.integrationFrom, 10);
+  assert.equal(withOtherServices.integrationTo, 400);
 
   const withUgc = buildChannelScore({
     followersTotal: 10_000,

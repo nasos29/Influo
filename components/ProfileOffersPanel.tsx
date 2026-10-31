@@ -33,6 +33,7 @@ const COPY = {
     platforms: "Πλατφόρμες",
     continue: "Συνέχεια",
     empty: "Δεν υπάρχουν δημοσιευμένα πακέτα ακόμα.",
+    addons: "Επιπλέον χρεώσεις",
     type: "Τύπος περιεχομένου",
     qty: "Ποσότητα",
     price: "Προσφερόμενη τιμή (€)",
@@ -63,6 +64,7 @@ const COPY = {
     platforms: "Platforms",
     continue: "Continue",
     empty: "No published packages yet.",
+    addons: "Extra charges",
     type: "Content type",
     qty: "Quantity",
     price: "Offered price (€)",
@@ -140,6 +142,9 @@ function PlatformMark({ platform }: { platform?: PackagePlatform }) {
   }
   if (platform === "ugc") {
     return <span className={`${box} bg-blue-600 text-[10px] font-bold tracking-wide`}>UGC</span>;
+  }
+  if (platform === "other") {
+    return <span className={`${box} bg-slate-700 text-[10px] font-bold tracking-wide`}>+</span>;
   }
   return <span className={`${box} bg-slate-200 text-lg text-slate-600`}>+</span>;
 }
@@ -419,32 +424,36 @@ export default function ProfileOffersPanel({
   const [tab, setTab] = useState<"all" | PackagePlatform>("all");
 
   const rows = useMemo<OfferRow[]>(() => {
-    const fromPackages = packages.map((pkg) => {
-      const title =
-        pkg.platform && pkg.type
-          ? packageTitle(pkg.platform, pkg.type, pkg.quantity || 1, lang)
-          : pkg.title;
-      const priced = rowPrice(
-        pkg.price,
-        pkg.from_price,
-        pkg.price_max,
-        pkg.type ? packagePriceSuffix(pkg.type, lang) : null,
-        lang
-      );
-      return {
-        id: pkg.id,
-        title,
-        description:
-          pkg.description ||
-          (pkg.platform && pkg.type ? packageBlurb(pkg.platform, pkg.type, lang) : ""),
-        priceLabel: priced.label,
-        budget: priced.budget,
-        quantity: pkg.quantity || 1,
-        platform: pkg.platform,
-        type: pkg.type,
-      };
-    });
-    const fromExtras = extras
+    return packages
+      .filter((pkg) => pkg.platform !== "facebook")
+      .map((pkg) => {
+        const title =
+          pkg.platform && pkg.type
+            ? packageTitle(pkg.platform, pkg.type, pkg.quantity || 1, lang)
+            : pkg.title;
+        const priced = rowPrice(
+          pkg.price,
+          pkg.from_price,
+          pkg.price_max,
+          pkg.type ? packagePriceSuffix(pkg.type, lang) : null,
+          lang
+        );
+        return {
+          id: pkg.id,
+          title,
+          description:
+            pkg.description ||
+            (pkg.platform && pkg.type ? packageBlurb(pkg.platform, pkg.type, lang) : ""),
+          priceLabel: priced.label,
+          budget: priced.budget,
+          quantity: pkg.quantity || 1,
+          platform: pkg.platform,
+          type: pkg.type,
+        };
+      });
+  }, [packages, lang]);
+  const addonRows = useMemo<OfferRow[]>(() => {
+    return extras
       .filter((extra) => extra.has_price)
       .map((extra) => {
         const priced = rowPrice(
@@ -454,17 +463,17 @@ export default function ProfileOffersPanel({
           extraPriceSuffix(extra.key, lang),
           lang
         );
+        const label = priced.label ? (priced.label.startsWith("+") ? priced.label : `+${priced.label}`) : null;
         return {
           id: `extra:${extra.key}`,
           title: EXTRA_LABEL[extra.key][lang],
           description: EXTRA_HINT[extra.key][lang],
-          priceLabel: priced.label,
+          priceLabel: label,
           budget: priced.budget,
           extraKey: extra.key,
         };
       });
-    return [...fromPackages, ...fromExtras];
-  }, [packages, extras, lang]);
+  }, [extras, lang]);
 
   const negotiateOptions = rows.length
     ? rows
@@ -477,7 +486,7 @@ export default function ProfileOffersPanel({
         },
       ];
   const selected = rows.find((row) => row.id === selectedId) || null;
-  const platformOrder: PackagePlatform[] = ["instagram", "tiktok", "youtube", "facebook", "ugc"];
+  const platformOrder: PackagePlatform[] = ["instagram", "tiktok", "youtube", "ugc", "other"];
   const platforms = platformOrder.filter((platform) => rows.some((row) => row.platform === platform));
   const activeTab = tab === "all" || platforms.includes(tab) ? tab : "all";
   const visible = activeTab === "all" ? rows : rows.filter((row) => row.platform === activeTab);
@@ -487,6 +496,7 @@ export default function ProfileOffersPanel({
     youtube: "YouTube",
     facebook: "Facebook",
     ugc: "UGC",
+    other: lang === "el" ? "Άλλα" : "Other",
   };
 
   const choose = (id: string) => {
@@ -616,6 +626,27 @@ export default function ProfileOffersPanel({
         >
           {selected.priceLabel ? `${copy.continue} – ${selected.priceLabel}` : copy.continue}
         </button>
+      ) : null}
+
+      {addonRows.length ? (
+        <section className="mt-6">
+          <h3 className="text-sm font-semibold text-slate-900">{copy.addons}</h3>
+          <ul className="mt-2 space-y-2">
+            {addonRows.map((row) => (
+              <li key={row.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 sm:px-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-900">{row.title}</p>
+                    {row.description ? <p className="mt-0.5 text-sm leading-snug text-slate-500">{row.description}</p> : null}
+                  </div>
+                  {row.priceLabel ? (
+                    <span className="shrink-0 text-sm font-semibold tabular-nums text-slate-900">{row.priceLabel}</span>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : null}
 
       {negotiateOpen ? (

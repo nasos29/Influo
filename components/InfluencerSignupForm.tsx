@@ -34,15 +34,13 @@ import CreatorPlatformPrices from "@/components/CreatorPlatformPrices";
 import {
   creatorPricesHaveInvalid,
   emptyCreatorServicePrices,
-  emptyExtras,
-  extrasHaveInvalidPrice,
+  extrasFromCreatorPrices,
   FIXED_PRICE_MESSAGE,
   mergeRateCard,
   packagesForSave,
   packagesFromCreatorPrices,
   rateCardFromPackages,
   type CreatorServicePrices,
-  type ServiceExtras,
 } from "@/lib/servicePackages";
 
 type Account = { platform: string; username: string; followers: string; engagement_rate?: string; avg_likes?: string };
@@ -250,7 +248,6 @@ export default function InfluencerSignupForm() {
   const [engagementRate, setEngagementRate] = useState("");
   const [avgLikes, setAvgLikes] = useState("");
   const [servicePrices, setServicePrices] = useState<CreatorServicePrices>(() => emptyCreatorServicePrices());
-  const [serviceExtras, setServiceExtras] = useState<ServiceExtras>(() => emptyExtras());
 
   // NEW AUDIENCE STATES
   const [malePercent, setMalePercent] = useState("");
@@ -772,7 +769,7 @@ export default function InfluencerSignupForm() {
           return { ...acc, username };
         });
 
-      if (creatorPricesHaveInvalid(servicePrices, accounts) || extrasHaveInvalidPrice(serviceExtras)) {
+      if (creatorPricesHaveInvalid(servicePrices, accounts)) {
         throw new Error(FIXED_PRICE_MESSAGE[lang]);
       }
       const packagesPayload = packagesForSave(packagesFromCreatorPrices(servicePrices, accounts));
@@ -783,7 +780,10 @@ export default function InfluencerSignupForm() {
             : "Add at least one package with a price."
         );
       }
-      const rateCardPayload = mergeRateCard(rateCardFromPackages(packagesPayload), serviceExtras);
+      const rateCardPayload = mergeRateCard(
+        rateCardFromPackages(packagesPayload),
+        extrasFromCreatorPrices(servicePrices)
+      );
 
       const baseRow: Record<string, unknown> = {
           id: authUser.id,

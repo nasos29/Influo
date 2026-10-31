@@ -12,7 +12,7 @@ import {
 } from '@/lib/validateBirthDate';
 import { FACEBOOK_VIDEO_LINK_ERROR, prepareVideosForSave } from '@/lib/videoLinks';
 import { syncHiddenVideosWithVideos } from '@/lib/hiddenVideos';
-import { deriveMinRate, FIXED_PRICE_MESSAGE, hasUnfixedCreatorPrice } from '@/lib/servicePackages';
+import { FIXED_PRICE_MESSAGE, hasUnfixedCreatorPrice, minRateFromPackages, packagesForViewer } from '@/lib/servicePackages';
 import {
   VIDEO_NOT_PLAYABLE_ERROR,
   checkNewVideosPlayable,
@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-      const derived = deriveMinRate(packages, card);
+      const derived = minRateFromPackages(packagesForViewer(packages, card, existing.accounts));
       if (derived != null && String(existing.min_rate ?? '') !== derived) {
         patch.min_rate = derived;
       }

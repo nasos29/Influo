@@ -15,6 +15,7 @@ import {
   emptyExtras,
   extraPriceSuffix,
   extrasFromRateCard,
+  packagesFromRateCard,
   FIXED_PRICE_MESSAGE,
   isPositivePriceInput,
   isUgcPackageType,
@@ -35,7 +36,7 @@ import InfoTooltip from "@/components/InfoTooltip";
 
 type Lang = "el" | "en";
 
-const SOCIAL_PLATFORMS = PACKAGE_PLATFORMS.filter((p) => p !== "ugc");
+const SOCIAL_PLATFORMS = PACKAGE_PLATFORMS.filter((p) => p !== "ugc" && p !== "other");
 
 const PLATFORM_CHIP: Record<PackagePlatform, { el: string; en: string }> = {
   instagram: { el: "Instagram", en: "Instagram" },
@@ -43,6 +44,7 @@ const PLATFORM_CHIP: Record<PackagePlatform, { el: string; en: string }> = {
   youtube: { el: "YouTube", en: "YouTube" },
   facebook: { el: "Facebook", en: "Facebook" },
   ugc: { el: "UGC", en: "UGC" },
+  other: { el: "Άλλα", en: "Other" },
 };
 
 const TYPE_CHIP: Record<PackageType, { el: string; en: string }> = {
@@ -52,8 +54,16 @@ const TYPE_CHIP: Record<PackageType, { el: string; en: string }> = {
   video: { el: "Video", en: "Video" },
   short: { el: "Short", en: "Short" },
   carousel: { el: "Carousel", en: "Carousel" },
+  live: { el: "Live", en: "Live" },
+  collab: { el: "Collab post", en: "Collab post" },
+  story_link: { el: "Story με link", en: "Story with link" },
+  spark: { el: "Spark Ads", en: "Spark Ads" },
+  integration: { el: "Integration", en: "Integration" },
   ugc_video: { el: "UGC βίντεο", en: "UGC video" },
   ugc_photo: { el: "UGC φωτογραφίες", en: "UGC photos" },
+  event: { el: "Παρουσία σε event", en: "Event appearance" },
+  bio: { el: "Link in bio", en: "Link in bio" },
+  giveaway: { el: "Giveaway", en: "Giveaway" },
 };
 
 const GROUP_COPY = {
@@ -72,10 +82,10 @@ const GROUP_COPY = {
     },
   },
   extras: {
-    title: { el: "Extras", en: "Extras" },
+    title: { el: "Επιπλέον χρεώσεις", en: "Extra charges" },
     body: {
-      el: "Προαιρετικά add-ons. Δεν μπαίνουν στην ελάχιστη χρέωση.",
-      en: "Optional add-ons. They are not part of the minimum rate.",
+      el: "Προαιρετικά add-ons με σταθερή τιμή. Δεν μπαίνουν στην ελάχιστη χρέωση.",
+      en: "Optional add-ons with a fixed price. They are not part of the minimum rate.",
     },
   },
 } as const;
@@ -113,33 +123,8 @@ export function initialPackagesFromUser(
   const fromDb = normalizeServicePackages(servicePackages);
   if (fromDb.length) return fromDb;
   if (rateCard) {
-    const seeded: ServicePackage[] = [];
-    const push = (
-      price: string | null | undefined,
-      platform: PackagePlatform,
-      type: PackageType,
-      days: number
-    ) => {
-      if (!price) return;
-      seeded.push({
-        id: newPackageId(),
-        platform,
-        type,
-        quantity: 1,
-        price: String(price),
-        delivery_days: days,
-        usage_rights: "none",
-        description: "",
-      });
-    };
-    push(rateCard.reel, "instagram", "reel", 7);
-    push(rateCard.story, "instagram", "story", 3);
-    push(rateCard.post, "instagram", "post", 5);
-    push(rateCard.carousel, "instagram", "carousel", 5);
-    push(rateCard.youtube, "youtube", "video", 14);
-    push(rateCard.ugc_video, "ugc", "ugc_video", 7);
-    push(rateCard.ugc_photo, "ugc", "ugc_photo", 7);
-    if (seeded.length) return seeded.slice(0, 6);
+    const seeded = packagesFromRateCard(rateCard);
+    if (seeded.length) return seeded;
   }
   return defaultPackages();
 }

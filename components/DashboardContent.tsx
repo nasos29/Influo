@@ -52,17 +52,17 @@ import CreatorPlatformPrices from '@/components/CreatorPlatformPrices';
 import {
     creatorPricesHaveInvalid,
     creatorServicePricesFromStored,
-    deriveMinRate,
-    extrasFromRateCard,
-    extrasHaveInvalidPrice,
+    extrasFromCreatorPrices,
     FIXED_PRICE_MESSAGE,
+    managedCreatorPriceKeys,
     mergeRateCard,
+    minRateFromPackages,
     packagesForSave,
+    packagesForViewer,
     packagesFromCreatorPrices,
     rateCardFromPackages,
     rateCardKeepingUnmanaged,
     type CreatorServicePrices,
-    type ServiceExtras,
     type ServicePackage,
 } from '@/lib/servicePackages';
 import {
@@ -223,9 +223,6 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
     const [servicePrices, setServicePrices] = useState<CreatorServicePrices>(() =>
         creatorServicePricesFromStored(user.service_packages, user.rate_card, user.accounts)
     );
-    const [serviceExtras, setServiceExtras] = useState<ServiceExtras>(() =>
-        extrasFromRateCard(user.rate_card)
-    );
     const [section, setSection] = useState<EditSection>(initialSection);
     const [confirmSave, setConfirmSave] = useState(false);
     const [confirmDiscard, setConfirmDiscard] = useState(false);
@@ -338,7 +335,6 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
         videos: videoRows.map((row) => row.url),
         avatarPreview,
         servicePrices,
-        serviceExtras,
     });
     const baselineRef = useRef<string | null>(null);
     if (baselineRef.current === null) baselineRef.current = formSignature;
@@ -503,7 +499,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                 user.hidden_videos
             );
 
-            if (creatorPricesHaveInvalid(servicePrices, accounts) || extrasHaveInvalidPrice(serviceExtras)) {
+            if (creatorPricesHaveInvalid(servicePrices, accounts)) {
                 notify(FIXED_PRICE_MESSAGE[lang], 'error');
                 setSection('packages');
                 setLoading(false);
@@ -517,8 +513,12 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                 return;
             }
             const rateCardPayload = mergeRateCard(
-                rateCardKeepingUnmanaged(rateCardFromPackages(packagesPayload), user.rate_card),
-                serviceExtras
+                rateCardKeepingUnmanaged(
+                    rateCardFromPackages(packagesPayload),
+                    user.rate_card,
+                    managedCreatorPriceKeys(accounts)
+                ),
+                extrasFromCreatorPrices(servicePrices)
             );
 
             const newValues: any = {
@@ -2553,7 +2553,9 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                         <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
                             <span className="block text-xs text-slate-500 uppercase font-medium mb-2">{ui.minRate}</span>
                             <span className="text-lg font-semibold text-slate-900">{(() => {
-                                const derived = deriveMinRate(profile.service_packages, profile.rate_card);
+                                const derived = minRateFromPackages(
+                                    packagesForViewer(profile.service_packages, profile.rate_card, profile.accounts)
+                                );
                                 if (derived) return formatEuro(Number(derived), lang === "en" ? "en" : "el");
                                 return profile.min_rate ? formatEuroAmount(profile.min_rate, lang) : "—";
                             })()}</span>
