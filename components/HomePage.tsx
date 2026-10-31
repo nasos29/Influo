@@ -798,7 +798,7 @@ export default function Home({
         />
         <div className="relative max-w-7xl mx-auto">
           <div className="text-center mb-12">
-            <h3 className={`${SECTION_TITLE_CLASS} mb-3`}>{txt.dir_title}</h3>
+            <h2 className={`${SECTION_TITLE_CLASS} mb-3`}>{txt.dir_title}</h2>
             <p className="text-slate-600 max-w-2xl mx-auto">{txt.dir_desc}</p>
           </div>
           <Suspense fallback={<div className="h-40 rounded-2xl bg-slate-50 animate-pulse" aria-hidden />}>
