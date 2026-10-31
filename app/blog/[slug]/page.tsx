@@ -340,7 +340,7 @@ Celebrate small wins - the first 1,000 followers, the first brand collaboration,
 - **Δυνατότητα viral**: Περισσότερες πιθανότητες για viral περιεχόμενο.
 
 **Μειονεκτήματα:**
-- **Υψηλότερο κόστος**: Οι μακρο-influencers κοστίζουν πολύ - μπορεί να είναι €5.000-50.000+ ανά δημοσίευση.
+- **Υψηλότερο κόστος**: Οι μακρο-influencers κοστίζουν πολύ - μπορεί να είναι 5.000 €–50.000 €+ ανά δημοσίευση.
 - **Χαμηλότερο ποσοστό αλληλεπίδρασης**: Λόγω του μεγάλου ακροατηρίου, το ποσοστό αλληλεπίδρασης είναι χαμηλότερο.
 - **Λιγότερο εξατομικευμένο**: Το περιεχόμενο είναι πιο γενικό και λιγότερο εξατομικευμένο.
 - **Λιγότερο αυθεντικό**: Το ακροατήριο μπορεί να αντιλαμβάνεται το περιεχόμενο ως απλά διαφήμιση.
@@ -391,7 +391,7 @@ Macro-influencers are the "big names" - creators with 100,000+ followers, often 
 - **Viral potential**: More chances for viral content.
 
 **Disadvantages:**
-- **Higher cost**: Macro-influencers cost a lot - can be €5,000-50,000+ per post.
+- **Higher cost**: Macro-influencers cost a lot - can be 5,000 €–50,000 €+ per post.
 - **Lower engagement rate**: Due to large audience, engagement rate is lower.
 - **Less personalized**: Content is more generic and less personalized.
 - **Less authentic**: The audience may perceive the content as just advertising.
@@ -448,8 +448,8 @@ There's also a third category that's becoming increasingly popular - nano-influe
 - Καλύτερες ώρες δημοσίευσης: 11πμ-1μμ, 7-9μμ
 
 **Κόστος:**
-- Μικρο-influencers: €100-500 ανά δημοσίευση
-- Μακρο-influencers: €5.000-25.000 ανά δημοσίευση
+- Μικρο-influencers: 100 €–500 € ανά δημοσίευση
+- Μακρο-influencers: 5.000 €–25.000 € ανά δημοσίευση
 
 ## TikTok: Η Πλατφόρμα που Ορίζει Τάσεις
 
@@ -477,8 +477,8 @@ There's also a third category that's becoming increasingly popular - nano-influe
 - Ο αλγόριθμος ευνοεί αυθεντικό, δημιουργικό περιεχόμενο
 
 **Κόστος:**
-- Μικρο-influencers: €200-800 ανά βίντεο
-- Μακρο-influencers: €5.000-50.000 ανά βίντεο
+- Μικρο-influencers: 200 €–800 € ανά βίντεο
+- Μακρο-influencers: 5.000 €–50.000 € ανά βίντεο
 
 **Πλεονεκτήματα:**
 - Υψηλότερα ποσοστά αλληλεπίδρασης
@@ -520,8 +520,8 @@ There's also a third category that's becoming increasingly popular - nano-influe
 - Τα σχόλια είναι πιο λεπτομερή και ουσιαστικά
 
 **Κόστος:**
-- Μικρο-influencers: €300-1.000 ανά βίντεο
-- Μακρο-influencers: €10.000-100.000 ανά βίντεο
+- Μικρο-influencers: 300 €–1.000 € ανά βίντεο
+- Μακρο-influencers: 10.000 €–100.000 € ανά βίντεο
 
 **Πλεονεκτήματα:**
 - Το λεπτομερές περιεχόμενο επιτρέπει ολοκληρωμένη παρουσίαση προϊόντος
@@ -575,8 +575,8 @@ Instagram remains one of the most popular platforms for influencer marketing, wi
 - Best posting times: 11am-1pm, 7-9pm
 
 **Cost:**
-- Micro-influencers: €100-500 per post
-- Macro-influencers: €5,000-25,000 per post
+- Micro-influencers: 100 €–500 € per post
+- Macro-influencers: 5,000 €–25,000 € per post
 
 ## TikTok: The Trend-Setting Platform
 
@@ -604,8 +604,8 @@ TikTok is the fastest-growing platform and has revolutionized influencer marketi
 - Algorithm favors authentic, creative content
 
 **Cost:**
-- Micro-influencers: €200-800 per video
-- Macro-influencers: €5,000-50,000 per video
+- Micro-influencers: 200 €–800 € per video
+- Macro-influencers: 5,000 €–50,000 € per video
 
 **Pros:**
 - Highest engagement rates
@@ -647,8 +647,8 @@ YouTube is the largest video platform and ideal for detailed, educational conten
 - Comments are more detailed and meaningful
 
 **Cost:**
-- Micro-influencers: €300-1,000 per video
-- Macro-influencers: €10,000-100,000 per video
+- Micro-influencers: 300 €–1,000 € per video
+- Macro-influencers: 10,000 €–100,000 € per video
 
 **Pros:**
 - Detailed content allows for comprehensive product showcasing
@@ -743,11 +743,11 @@ This allows you to reach different audiences and maximize your ROI. Many brands 
 **Βασικός Τύπος ROI**: ROI = (Έσοδα - Κόστος) / Κόστος × 100
 
 **Παράδειγμα:**
-- Κόστος καμπάνιας: €5.000
-- Έσοδα από καμπάνια: €20.000
+- Κόστος καμπάνιας: 5.000 €
+- Έσοδα από καμπάνια: 20.000 €
 - ROI = (20.000 - 5.000) / 5.000 × 100 = 300%
 
-Αυτό σημαίνει ότι για κάθε €1 που ξοδέψατε, πήρατε €4 πίσω.
+Αυτό σημαίνει ότι για κάθε 1 € που ξοδέψατε, πήρατε 4 € πίσω.
 
 **Προχωρημένος Υπολογισμός ROI:**
 
@@ -899,11 +899,11 @@ How much value a customer who came from influencer collaboration has. This helps
 **Basic ROI Formula**: ROI = (Revenue - Cost) / Cost × 100
 
 **Example:**
-- Campaign Cost: €5,000
-- Revenue from campaign: €20,000
+- Campaign Cost: 5,000 €
+- Revenue from campaign: 20,000 €
 - ROI = (20,000 - 5,000) / 5,000 × 100 = 300%
 
-This means that for every €1 you spent, you got €4 back.
+This means that for every 1 € you spent, you got 4 € back.
 
 **Advanced ROI Calculation:**
 
@@ -1287,21 +1287,21 @@ Rush jobs (less than 1 week) = premium. Standard timeline (2-4 weeks) = normal r
 ## Pricing Benchmarks (Greece)
 
 **Micro-Influencers (10k-100k followers):**
-- Instagram post: €100-500
-- Reel: €150-600
-- Story: €50-200
-- Package (post + 3 stories): €200-800
+- Instagram post: 100 €–500 €
+- Reel: 150 €–600 €
+- Story: 50 €–200 €
+- Package (post + 3 stories): 200 €–800 €
 
 **Macro-Influencers (100k-500k followers):**
-- Instagram post: €500-2,000
-- Reel: €800-3,000
-- Story: €200-500
-- Package: €1,500-5,000
+- Instagram post: 500 €–2,000 €
+- Reel: 800 €–3,000 €
+- Story: 200 €–500 €
+- Package: 1,500 €–5,000 €
 
 **Mega-Influencers (500k+ followers):**
-- Instagram post: €2,000-10,000+
-- Reel: €3,000-15,000+
-- Story: €500-2,000
+- Instagram post: 2,000 €–10,000 €+
+- Reel: 3,000 €–15,000 €+
+- Story: 500 €–2,000 €
 
 *Note: Οι τιμές vary significantly based on engagement, niche, και άλλα factors.*
 
@@ -1424,21 +1424,21 @@ Rush jobs (less than 1 week) = premium. Standard timeline (2-4 weeks) = normal r
 ## Pricing Benchmarks (Greece)
 
 **Micro-Influencers (10k-100k followers):**
-- Instagram post: €100-500
-- Reel: €150-600
-- Story: €50-200
-- Package (post + 3 stories): €200-800
+- Instagram post: 100 €–500 €
+- Reel: 150 €–600 €
+- Story: 50 €–200 €
+- Package (post + 3 stories): 200 €–800 €
 
 **Macro-Influencers (100k-500k followers):**
-- Instagram post: €500-2,000
-- Reel: €800-3,000
-- Story: €200-500
-- Package: €1,500-5,000
+- Instagram post: 500 €–2,000 €
+- Reel: 800 €–3,000 €
+- Story: 200 €–500 €
+- Package: 1,500 €–5,000 €
 
 **Mega-Influencers (500k+ followers):**
-- Instagram post: €2,000-10,000+
-- Reel: €3,000-15,000+
-- Story: €500-2,000
+- Instagram post: 2,000 €–10,000 €+
+- Reel: 3,000 €–15,000 €+
+- Story: 500 €–2,000 €
 
 *Note: Prices vary significantly based on engagement, niche, and other factors.*
 
@@ -1812,9 +1812,9 @@ Fake followers are a serious problem in influencer marketing. By understanding w
 - Ποινές καθυστερημένων πληρωμών (προαιρετικά)
 
 **Παράδειγμα:**
-«Συνολική αμοιβή: €1.500
-- €750 κατά την υπογραφή της σύμβασης
-- €750 με την ολοκλήρωση και έγκριση όλων των παραδόσεων
+«Συνολική αμοιβή: 1.500 €
+- 750 € κατά την υπογραφή της σύμβασης
+- 750 € με την ολοκλήρωση και έγκριση όλων των παραδόσεων
 Η πληρωμή πρέπει να γίνει εντός 14 ημερών από την ημερομηνία τιμολόγησης.»
 
 **Γιατί:** Αποτρέπει ενδοδιαφορές πληρωμών.
@@ -2021,9 +2021,9 @@ All content must be approved by Brand before publication."
 - Late payment penalties (optional)
 
 **Example:**
-"Total compensation: €1,500
-- €750 upon contract signing
-- €750 upon completion and approval of all deliverables
+"Total compensation: 1,500 €
+- 750 € upon contract signing
+- 750 € upon completion and approval of all deliverables
 Payment must be made within 14 days of invoice date."
 
 **Why:** Prevents payment disputes.

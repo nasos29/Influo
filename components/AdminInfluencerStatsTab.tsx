@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { formatEuro } from "@/lib/formatEuro";
 
 interface AnalyticsStats {
   profileViews: number;
@@ -445,7 +446,7 @@ export default function AdminInfluencerStatsTab({
             <Kpi label={txt.messages} value={msg} />
             <Kpi label={txt.proposals} value={prop} />
             <Kpi label={txt.totalEvents} value={stats.totalEvents} />
-            <Kpi label={txt.earnings} value={`€${stats.totalEarnings.toFixed(0)}`} accent />
+            <Kpi label={txt.earnings} value={formatEuro(stats.totalEarnings, lang, 0)} accent />
           </div>
 
           {growth && (

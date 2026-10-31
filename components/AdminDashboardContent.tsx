@@ -18,6 +18,7 @@ import {
 import VideoThumbnail from "./VideoThumbnail";
 import SocialEmbedCard from "./SocialEmbedCard";
 import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
+import { formatEuro, formatEuroAmount } from "@/lib/formatEuro";
 import { categoryLabel, formatCategoryLabels, formatStoredCategories, parseStoredCategories } from "@/lib/categories";
 import CategoryCheckboxList from "@/components/CategoryCheckboxList";
 import { checkAuditprHealth, fetchAuditprOverridesForAccounts, type AccountFetchResult } from "@/lib/socialRefresh";
@@ -821,7 +822,6 @@ const EditProfileModal = ({
     const [contactEmail, setContactEmail] = useState(user.contact_email || "");
     const [bio, setBio] = useState(user.bio || "");
     const [bioEn, setBioEn] = useState(user.bio_en || "");
-    const [minRate, setMinRate] = useState(user.min_rate || "");
     const [location, setLocation] = useState(user.location || "");
     const [birthDate, setBirthDate] = useState(user.birth_date || "");
     const initialGender = normalizeGender(user.gender);
@@ -1308,7 +1308,6 @@ const EditProfileModal = ({
 
             setIfChanged('display_name', name, user.display_name);
             setIfChanged('contact_email', nextContactEmail, user.contact_email || '');
-            setIfChanged('min_rate', minRate, user.min_rate || '');
             setIfChanged('location', location, user.location || '');
             setIfChanged('birth_date', nextBirth, user.birth_date || null);
             if ('birth_date' in updateData && updateData.birth_date != null && String(updateData.birth_date).trim() !== '') {
@@ -1685,15 +1684,6 @@ const EditProfileModal = ({
                             <button type="button" onClick={addAccount} className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm">{L("+ Προσθήκη λογαριασμού", "+ Add Account")}</button>
                         </div>
 
-                        {/* Analytics */}
-                        <div>
-                            <h3 className="text-sm font-bold text-slate-900 uppercase mb-3">{L("Αναλυτικά", "Analytics")}</h3>
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-900 mb-1">{L("Ελάχ. τιμή (€)", "Min Rate (€)")}</label>
-                                <input type="text" value={minRate} onChange={e => setMinRate(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
-                            </div>
-                        </div>
-
                         {/* Audience Data */}
                         <div>
                             <h3 className="text-sm font-bold text-slate-900 uppercase mb-3">{L("Δημογραφικά Κοινού", "Audience Demographics")}</h3>
@@ -2021,7 +2011,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     analyticsVerified: 0,
     hiddenVideos: null,
     reach: null,
-    pipeline: "0€"
+    pipeline: formatEuro(0)
   });
   const [hiddenByProfile, setHiddenByProfile] = useState<
     Array<{ id: string; display_name: string; count: number; urls: string[] }>
@@ -2793,7 +2783,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         setPendingProposalsCount(countUnseenPendingProposals(propData));
         setStats((prev) => ({
           ...prev,
-          pipeline: pipelineSum.toLocaleString() + "€",
+          pipeline: formatEuro(pipelineSum, lang),
           reach: prev.reach || "—",
         }));
       }
@@ -4532,7 +4522,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                       <tr key={p.id} className="hover:bg-slate-50">
                         <td className="px-4 py-3 font-medium text-slate-900">{p.brand_name}</td>
                         <td className="px-4 py-3 text-slate-600">{p.influencers?.display_name}</td>
-                        <td className="px-4 py-3 font-medium text-green-600">{p.budget}€</td>
+                        <td className="px-4 py-3 font-medium text-green-600">{formatEuroAmount(p.budget, lang)}</td>
                         <td className="px-4 py-3">
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">{statusLabel}</span>
                         </td>
@@ -4825,10 +4815,8 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-600">
                                 {app.proposed_price != null && (
                                   <span>
-                                    {txt.apps_proposed}: €
-                                    {Number(app.proposed_price).toLocaleString(
-                                      lang === "el" ? "el-GR" : "en-GB"
-                                    )}
+                                    {txt.apps_proposed}:{" "}
+                                    {formatEuro(Number(app.proposed_price), lang === "en" ? "en" : "el")}
                                   </span>
                                 )}
                                 <span>
@@ -4959,10 +4947,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                     </span>
                                   </td>
                                   <td className="px-3 py-2 align-top text-sm whitespace-nowrap">
-                                    €
-                                    {Number(c.budget || 0).toLocaleString(
-                                      lang === "el" ? "el-GR" : "en-GB"
-                                    )}
+                                    {formatEuro(Number(c.budget || 0), lang === "en" ? "en" : "el")}
                                   </td>
                                   <td className="px-3 py-2 align-top whitespace-nowrap">
                                     <button
@@ -5058,10 +5043,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                             </div>
                             <div className="text-sm text-slate-700 flex flex-wrap gap-x-3 gap-y-1">
                               <span>
-                                €
-                                {Number(c.budget || 0).toLocaleString(
-                                  lang === "el" ? "el-GR" : "en-GB"
-                                )}
+                                {formatEuro(Number(c.budget || 0), lang === "en" ? "en" : "el")}
                               </span>
                               <span>
                                 {new Date(c.created_at).toLocaleDateString(

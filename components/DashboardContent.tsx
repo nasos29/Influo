@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { sessionFetch } from '@/lib/sessionFetch';
+import { formatEuroAmount } from '@/lib/formatEuro';
 import Image from 'next/image';
 import { getVideoThumbnail, isVideoUrl, isDefinitelyVideo, isDefinitelyImage, detectProvider, isEmbeddableVideoUrl } from '@/lib/videoThumbnail';
 import {
@@ -49,7 +50,7 @@ import { displayNameForLang } from '@/lib/greeklish';
 import { normalizeYouTubeUsernameForSave } from '@/lib/youtubeHandle';
 import ServicePackagesEditor, { initialPackagesFromUser } from '@/components/ServicePackagesEditor';
 import {
-    minRateFromPackages,
+    packagesHaveInvalidPrice,
     packagesForSave,
     rateCardFromPackages,
     type ServicePackage,
@@ -438,6 +439,11 @@ const EditModal = ({ user, onClose, onSave, lang = 'el' }: { user: InfluencerDat
                 user.hidden_videos
             );
 
+            if (packagesHaveInvalidPrice(servicePackages)) {
+                alert(L("Κάθε τιμή πακέτου πρέπει να είναι πάνω από 0, ή κενή.", "Each package price must be greater than 0, or left empty."));
+                setLoading(false);
+                return;
+            }
             const packagesPayload = packagesForSave(servicePackages);
             if (packagesPayload.length < 1) {
                 alert(L("Προσθέστε τουλάχιστον ένα πακέτο με τιμή.", "Add at least one package with a price."));
@@ -445,12 +451,10 @@ const EditModal = ({ user, onClose, onSave, lang = 'el' }: { user: InfluencerDat
                 return;
             }
             const rateCardPayload = rateCardFromPackages(packagesPayload);
-            const minRateValue = minRateFromPackages(packagesPayload) || "";
 
             const newValues: any = {
                 display_name: name, 
                 bio: bio, 
-                min_rate: minRateValue,
                 location: location,
                 birth_date: birthDate || null,
                 category: categoryString,
@@ -495,7 +499,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el' }: { user: InfluencerDat
             // Find changed fields
             const changedFields: string[] = [];
             const fieldsToCheck = [
-                'display_name', 'bio', 'min_rate', 'location', 'birth_date',
+                'display_name', 'bio', 'location', 'birth_date',
                 'category', 'languages', 'gender', 'avatar_url',
                 'audience_male_percent', 'audience_female_percent', 'audience_top_age'
             ];
@@ -579,6 +583,26 @@ const EditModal = ({ user, onClose, onSave, lang = 'el' }: { user: InfluencerDat
                 return;
             }
 
+            let syncedMinRate = currentData.min_rate || "";
+            try {
+                const syncRes = await sessionFetch("/api/influencer/sync-min-rate", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ influencerId: String(user.id) }),
+                });
+                const syncBody = await syncRes.json().catch(() => ({}));
+                if (syncRes.ok && typeof syncBody.min_rate === "string") {
+                    syncedMinRate = syncBody.min_rate;
+                    if ((currentData.min_rate || "") !== syncBody.min_rate) {
+                        if (!changedFields.includes("min_rate")) changedFields.push("min_rate");
+                        oldValues.min_rate = currentData.min_rate || "";
+                        newValues.min_rate = syncBody.min_rate;
+                    }
+                }
+            } catch (syncErr) {
+                console.error("[Profile] min_rate sync failed:", syncErr);
+            }
+
             // Save profile changes if there are any
             if (changedFields.length > 0 && data) {
                 try {
@@ -646,7 +670,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el' }: { user: InfluencerDat
             onSave({
                 ...(data as InfluencerData),
                 contact_email: user.contact_email,
-                min_rate: newValues.min_rate,
+                min_rate: syncedMinRate,
                 birth_date: newValues.birth_date,
                 rate_card: newValues.rate_card,
                 service_packages: newValues.service_packages,
@@ -1783,7 +1807,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                 </span>
                                                             </div>
                                                             <p className="text-sm text-slate-600 mb-2">
-                                                                <strong>{T("Υπηρεσία:", "Service:")}</strong> {prop.service_type} • <strong>Budget:</strong> {prop.budget}€
+                                                                <strong>{T("Υπηρεσία:", "Service:")}</strong> {prop.service_type} • <strong>Budget:</strong> {formatEuroAmount(prop.budget, lang)}
                                                             </p>
                                                             {prop.message && (
                                                                 <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg mt-2">{prop.message}</p>
@@ -1791,7 +1815,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                             {prop.counter_proposal_budget && prop.counter_proposal_status === 'pending' && (
                                                                 <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                                                                     <p className="text-sm font-semibold text-blue-900 mb-1">💰 {T("Αντιπρόταση στάλθηκε", "Counter-offer sent")}</p>
-                                                                    <p className="text-xs text-blue-700">{T("Νέα προτεινόμενη τιμή:", "New proposed price:")} <strong>{prop.counter_proposal_budget}€</strong></p>
+                                                                    <p className="text-xs text-blue-700">{T("Νέα προτεινόμενη τιμή:", "New proposed price:")} <strong>{formatEuroAmount(prop.counter_proposal_budget, lang)}</strong></p>
                                                                     {prop.counter_proposal_message && (
                                                                         <p className="text-xs text-blue-600 mt-1 italic">"{prop.counter_proposal_message}"</p>
                                                                     )}
@@ -2126,7 +2150,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                         </div>
                         <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
                             <span className="block text-xs text-slate-500 uppercase font-medium mb-2">{ui.minRate}</span>
-                            <span className="text-lg font-semibold text-slate-900">{profile.min_rate || '—'}€</span>
+                            <span className="text-lg font-semibold text-slate-900">{profile.min_rate ? formatEuroAmount(profile.min_rate, lang) : "—"}</span>
                         </div>
                         <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
                             <span className="block text-xs text-slate-500 uppercase font-medium mb-2">{ui.engagement}</span>
@@ -2265,7 +2289,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                     Συνεργασία με: <strong>{selectedProposal.brand_name}</strong>
                                 </p>
                                 <p className="text-sm text-blue-800">
-                                    Υπηρεσία: {selectedProposal.service_type} • Budget: {selectedProposal.budget}€
+                                    Υπηρεσία: {selectedProposal.service_type} • Budget: {formatEuroAmount(selectedProposal.budget, lang)}
                                 </p>
                             </div>
 
@@ -2414,7 +2438,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                     Αυτή τη στιγμή: <strong>{selectedProposal.brand_name}</strong> προτείνει
                                 </p>
                                 <p className="text-sm text-blue-800">
-                                    <strong>{selectedProposal.service_type}</strong> • <strong>{selectedProposal.budget}€</strong>
+                                    <strong>{selectedProposal.service_type}</strong> • <strong>{formatEuroAmount(selectedProposal.budget, lang)}</strong>
                                 </p>
                             </div>
 

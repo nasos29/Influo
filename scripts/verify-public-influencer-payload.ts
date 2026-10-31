@@ -13,15 +13,20 @@ import {
   toPublicProfile,
 } from "../lib/publicInfluencer.ts";
 
-/** The directory budget check before this change. */
-function legacyBudgetMatch(minRate: unknown, budgetMax: string): boolean {
+/**
+ * "Up to X" after the half-open scale: prices below X match, a price equal to
+ * a cap below 5000 belongs to the next scale, and 5000+ stays VIP.
+ */
+function scaleBudgetMatch(minRate: unknown, budgetMax: string): boolean {
   if (!budgetMax || budgetMax === "All") return true;
-  const raw = typeof minRate === "string" ? minRate : minRate == null ? "" : String(minRate);
-  const rate = raw ? parseFloat(raw.replace(/[^0-9.]/g, "")) : 0;
+  const rate = parseDirectoryPrice(minRate);
   if (budgetMax === "Unlimited") return rate >= 5000;
   const max = parseInt(budgetMax, 10);
-  if (rate > max) return false;
-  return true;
+  if (!Number.isFinite(max)) return true;
+  if (!(rate > 0)) return true;
+  if (rate > 5000) return false;
+  if (rate === 5000) return max >= 5000;
+  return rate < max;
 }
 
 const budgets = ["All", ...DIRECTORY_BUDGET_CAPS.map(String), "Unlimited"];
@@ -63,13 +68,13 @@ assert.deepEqual([...DIRECTORY_BUDGET_CAPS], [50, 100, 200, 300, 500, 1000, 2000
 
 for (const sample of samples) {
   for (const budget of budgets) {
-    const legacy = legacyBudgetMatch(sample, budget);
+    const legacy = scaleBudgetMatch(sample, budget);
     const tier = priceTierFromMinRate(sample);
     const next = budgetTierMatches(tier, budget);
     assert.equal(
       next,
       legacy,
-      `budget ${budget} for ${JSON.stringify(sample)} tier ${tier}: next ${next} legacy ${legacy} parsed ${parseDirectoryPrice(sample)}`
+      `budget ${budget} for ${JSON.stringify(sample)} tier ${tier}: next ${next} expected ${legacy} parsed ${parseDirectoryPrice(sample)}`
     );
   }
 }
@@ -160,40 +165,47 @@ assert.equal(ageFromBirthDate(""), null);
 assert.equal(ageFromBirthDate(null), null);
 
 assert.equal(formatPriceTierLabel("0"), null);
-assert.equal(formatPriceTierLabel("50"), "έως €50");
-assert.equal(formatPriceTierLabel("100"), "€50–€100");
-assert.equal(formatPriceTierLabel("200"), "€100–€200");
-assert.equal(formatPriceTierLabel("300"), "€200–€300");
-assert.equal(formatPriceTierLabel("500"), "€300–€500");
-assert.equal(formatPriceTierLabel("1000"), "€500–€1.000");
-assert.equal(formatPriceTierLabel("2000"), "€1.000–€2.000");
-assert.equal(formatPriceTierLabel("under_5000"), "€2.000–€5.000");
-assert.equal(formatPriceTierLabel("5000"), "€5.000+");
-assert.equal(formatPriceTierLabel("above_5000"), "€5.000+");
+assert.equal(formatPriceTierLabel("50"), "έως 50 €");
+assert.equal(formatPriceTierLabel("100"), "50 €–100 €");
+assert.equal(formatPriceTierLabel("200"), "100 €–200 €");
+assert.equal(formatPriceTierLabel("300"), "200 €–300 €");
+assert.equal(formatPriceTierLabel("500"), "300 €–500 €");
+assert.equal(formatPriceTierLabel("1000"), "500 €–1.000 €");
+assert.equal(formatPriceTierLabel("2000"), "1.000 €–2.000 €");
+assert.equal(formatPriceTierLabel("under_5000"), "2.000 €–5.000 €");
+assert.equal(formatPriceTierLabel("5000"), "5.000 €+");
+assert.equal(formatPriceTierLabel("above_5000"), "5.000 €+");
 
 assert.equal(formatFromPriceLabel("0"), null);
-assert.equal(formatFromPriceLabel("50", "el"), "Έως €50");
-assert.equal(formatFromPriceLabel("50", "en"), "Up to €50");
-assert.equal(formatFromPriceLabel("100", "el"), "Από €50");
-assert.equal(formatFromPriceLabel("100", "en"), "From €50");
-assert.equal(formatFromPriceLabel("200", "el"), "Από €100");
-assert.equal(formatFromPriceLabel("300", "el"), "Από €200");
-assert.equal(formatFromPriceLabel("500", "el"), "Από €300");
-assert.equal(formatFromPriceLabel("1000", "el"), "Από €500");
-assert.equal(formatFromPriceLabel("2000", "el"), "Από €1.000");
-assert.equal(formatFromPriceLabel("under_5000", "el"), "Από €2.000");
-assert.equal(formatFromPriceLabel("5000", "el"), "Από €5.000");
-assert.equal(formatFromPriceLabel("5000", "en"), "From €5,000");
-assert.equal(formatFromPriceLabel("above_5000", "en"), "From €5,000");
+assert.equal(formatFromPriceLabel("50", "el"), "Έως 50 €");
+assert.equal(formatFromPriceLabel("50", "en"), "Up to 50 €");
+assert.equal(formatFromPriceLabel("100", "el"), "Από 50 €");
+assert.equal(formatFromPriceLabel("100", "en"), "From 50 €");
+assert.equal(formatFromPriceLabel("200", "el"), "Από 100 €");
+assert.equal(formatFromPriceLabel("300", "el"), "Από 200 €");
+assert.equal(formatFromPriceLabel("500", "el"), "Από 300 €");
+assert.equal(formatFromPriceLabel("1000", "el"), "Από 500 €");
+assert.equal(formatFromPriceLabel("2000", "el"), "Από 1.000 €");
+assert.equal(formatFromPriceLabel("under_5000", "el"), "Από 2.000 €");
+assert.equal(formatFromPriceLabel("5000", "el"), "Από 5.000 €");
+assert.equal(formatFromPriceLabel("5000", "en"), "From 5,000 €");
+assert.equal(formatFromPriceLabel("above_5000", "en"), "From 5,000 €");
 assert.equal(/Από έως|From up to|Από έως/i.test(formatFromPriceLabel("50", "el") || ""), false);
 assert.equal(/Από έως|From up to/i.test(formatFromPriceLabel("50", "en") || ""), false);
+assert.equal(/€\d/.test(formatFromPriceLabel("200", "el") || ""), false);
 
 assert.equal(priceTierFromMinRate("40"), "50");
-assert.equal(priceTierFromMinRate("50"), "50");
-assert.equal(priceTierFromMinRate("51"), "100");
+assert.equal(priceTierFromMinRate("49"), "50");
+assert.equal(priceTierFromMinRate("50"), "100");
+assert.equal(priceTierFromMinRate("80"), "100");
+assert.equal(priceTierFromMinRate("100"), "200");
+assert.equal(priceTierFromMinRate("200"), "300");
 assert.equal(priceTierFromMinRate("2500"), "under_5000");
 assert.equal(priceTierFromMinRate("5000"), "5000");
 assert.equal(priceTierFromMinRate("5001"), "above_5000");
+assert.equal(formatFromPriceLabel(priceTierFromMinRate("200"), "el"), "Από 200 €");
+assert.equal(formatFromPriceLabel(priceTierFromMinRate("50"), "en"), "From 50 €");
+assert.equal(formatFromPriceLabel(priceTierFromMinRate("49"), "en"), "Up to 50 €");
 
 // Rate-card fallback when no packages
 const rateOnly = toPublicProfile({
@@ -205,6 +217,8 @@ const rateOnly = toPublicProfile({
 const ratePkgs = rateOnly.service_packages as Array<{ type?: string; price?: string; price_tier?: string }>;
 assert.equal(ratePkgs.length, 2);
 assert.equal(ratePkgs[0].price, undefined);
-assert.equal(rateOnly.price_tier, "100"); // cheapest 80 → 100
+assert.equal(rateOnly.price_tier, "100"); // cheapest 80 → from 50
+assert.equal(ratePkgs.find((p) => p.type === "reel")?.price_tier, "300"); // reel 200 → from 200
+assert.equal(formatFromPriceLabel(ratePkgs.find((p) => p.type === "reel")?.price_tier, "el"), "Από 200 €");
 
 console.log("public influencer payload checks passed");

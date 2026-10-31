@@ -10,6 +10,7 @@ import { normalizeGender, type GenderValue } from "../lib/gender";
 import { isAvailableStatus, trustChipsFromAccounts } from "@/lib/trustSignals";
 import { publicProfilePath } from "@/lib/profileSlug";
 import { CATEGORIES, categoriesMatchFilter, categoryTranslations, parseStoredCategories } from "@/lib/categories";
+import { formatEuro } from "@/lib/formatEuro";
 import {
   badgeMinRateFromTier,
   budgetTierMatches,
@@ -129,7 +130,7 @@ const t = {
     follMacro: "Macro (100k+)",
     budAll: "Όλα",
     budUpTo: "Έως",
-    budUnlimited: "5000€+ (VIP)",
+    budUnlimited: "5.000 €+ (VIP)",
     engAll: "Όλα",
     engMin: "Ελάχ.",
     engGood: "Καλό",
@@ -181,7 +182,7 @@ const t = {
     follMacro: "Macro (100k+)",
     budAll: "Any",
     budUpTo: "Up to",
-    budUnlimited: "5000€+ (VIP)",
+    budUnlimited: "5,000 €+ (VIP)",
     engAll: "Any",
     engMin: "Min",
     engGood: "Good",
@@ -712,7 +713,10 @@ export default function Directory({
       extra += 1;
       chips.push({
         id: "budget",
-        label: budgetMax === "Unlimited" ? txt.budUnlimited : `${txt.budUpTo} ${budgetMax}€`,
+        label:
+          budgetMax === "Unlimited"
+            ? txt.budUnlimited
+            : `${txt.budUpTo} ${formatEuro(Number(budgetMax), lang)}`,
         clear: () => setBudgetMax("All"),
       });
     }
@@ -1036,7 +1040,7 @@ export default function Directory({
                     <option value="All">{txt.budAll}</option>
                     {DIRECTORY_BUDGET_CAPS.map((cap) => (
                       <option key={cap} value={String(cap)}>
-                        {txt.budUpTo} {cap}€
+                        {txt.budUpTo} {formatEuro(cap, lang)}
                       </option>
                     ))}
                     <option value="Unlimited">{txt.budUnlimited}</option>

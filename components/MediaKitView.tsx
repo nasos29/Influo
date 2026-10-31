@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { MediaKitAccount, MediaKitProfile } from "@/lib/mediaKit";
 import { getCachedImageUrl } from "@/lib/imageProxy";
 import { displayErFlag, erFlagLabel } from "@/lib/engagementFlags";
+import { formatEuroAmount } from "@/lib/formatEuro";
 
 function firstLetter(name: string): string {
   const ch = (name || "C").trim().charAt(0);
@@ -392,7 +393,7 @@ export default function MediaKitView({ profile }: { profile: MediaKitProfile }) 
           <section className="mk-cards">
             <div className="mk-card">
               <span>Min rate</span>
-              <b>{rate ? `${rate}€` : "Κατόπιν συνεννόησης"}</b>
+              <b>{rate ? formatEuroAmount(rate) || `${String(rate).replace(/€/g, "").trim()} €` : "Κατόπιν συνεννόησης"}</b>
             </div>
             <div className="mk-card">
               <span>Συνεργασία</span>
