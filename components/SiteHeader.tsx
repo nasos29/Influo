@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
+import InfluoLogo from "@/components/InfluoLogo";
 import { usePathname, useRouter } from "next/navigation";
 import { setStoredLanguage } from "@/lib/language";
 import { alternateLocalePath, usePublicAccountNav } from "@/lib/publicAccountNav";
@@ -138,7 +138,7 @@ export default function SiteHeader({
     <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-200/50 shadow-sm">
       <div className="max-w-7xl mx-auto flex justify-between items-center px-4 sm:px-6 py-4 gap-3">
         <Link href={lang === "en" ? "/en" : "/"} className="flex items-center gap-2 shrink-0" aria-label="Influo Home">
-          <Image src="/logo.svg" alt="Influo.gr Logo" width={160} height={64} className="h-10 w-auto" priority />
+          <InfluoLogo className="h-10 w-auto" title="Influo" />
         </Link>
 
         <nav className="hidden md:flex items-center gap-6 min-w-0" aria-label="Main navigation">

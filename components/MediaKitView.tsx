@@ -5,6 +5,7 @@ import type { MediaKitAccount, MediaKitProfile } from "@/lib/mediaKit";
 import { getCachedImageUrl } from "@/lib/imageProxy";
 import { displayErFlag, erFlagLabel } from "@/lib/engagementFlags";
 import { formatListedPrice } from "@/lib/parsePrice";
+import InfluoLogo from "@/components/InfluoLogo";
 
 function firstLetter(name: string): string {
   const ch = (name || "C").trim().charAt(0);
@@ -364,7 +365,7 @@ export default function MediaKitView({ profile, lang = "el" }: { profile: MediaK
 
       <article className="mk-sheet">
         <header className="mk-top">
-          <img className="mk-logo" src="/logo.svg" alt="Influo" />
+          <InfluoLogo className="mk-logo" title="Influo" />
           <div className="mk-badge">Media kit</div>
         </header>
 

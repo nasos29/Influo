@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useEffect, useState } from "react";
+import InfluoLogo from "@/components/InfluoLogo";
 import InfluoAppPromoSection from "./InfluoAppPromoSection";
 import { supabase } from "@/lib/supabaseClient";
 import { openCookieSettings } from "@/lib/cookieConsent";
@@ -118,13 +118,7 @@ export default function Footer({ lang = "el", showAppPromo = true }: FooterProps
           {/* Brand Column */}
           <div className="lg:col-span-2">
             <Link href={lang === "en" ? "/en" : "/"} className="inline-block mb-4">
-              <Image 
-                src="/logo.svg" 
-                alt="Influo.gr Logo" 
-                width={160} 
-                height={64} 
-                className="h-10 w-auto"
-              />
+              <InfluoLogo className="h-10 w-auto" title="Influo" />
             </Link>
             <p className="text-slate-400 text-sm leading-relaxed mb-6 max-w-xs">
               {lang === "el" 

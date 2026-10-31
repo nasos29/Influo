@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import InfluoLogo from "@/components/InfluoLogo";
 import { useRouter } from "next/navigation";
 import SiteHeader from "@/components/SiteHeader";
 import { setStoredLanguage } from "@/lib/language";
@@ -106,7 +106,7 @@ export default function GetAppLanding({ lang }: { lang: "el" | "en" }) {
         }}
       />
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-16 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white">
-        <Image src="/logo.svg" alt="Influo" width={180} height={72} className="h-12 w-auto mb-8" priority />
+        <InfluoLogo className="mb-8 h-12 w-auto" title="Influo" />
         <h1 className="text-2xl sm:text-3xl font-bold text-center max-w-lg mb-3">{t.title}</h1>
         <p className="text-slate-300 text-center max-w-md mb-10 text-sm sm:text-base">{t.subtitle}</p>
 
