@@ -44,8 +44,12 @@ export function parseInstagramEmbedKindFromHtml(
   if (!html) return undefined;
   const typename = matchTypename(html);
   if (!typename) {
-    // Crawler /embed shells without GraphQL JSON
-    if (/EmbedSidecar|class=["'][^"']*EmbedSidecar/i.test(html)) {
+    // Crawler /embed DOM only — avoid matching webpack ids like PolarisEmbedSidecarEntrypoint
+    if (
+      /<[^>]*\bEmbedSidecar\b/i.test(html) ||
+      /\bclass=["'][^"']*\bEmbedSidecar\b/i.test(html) ||
+      /data-media-type=["']GraphSidecar["']/i.test(html)
+    ) {
       return "carousel";
     }
     if (htmlHasIsVideoTrue(html)) return "video";

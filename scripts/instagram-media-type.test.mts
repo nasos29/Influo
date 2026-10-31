@@ -83,4 +83,11 @@ test("parseInstagramEmbedKindFromHtml: EmbeddedMediaImage / EmbedSidecar without
     parseInstagramEmbedKindFromHtml(`<div class="Embed EmbedSidecar"></div>`),
     "carousel"
   );
+  // Webpack module ids must NOT count as sidecar
+  assert.equal(
+    parseInstagramEmbedKindFromHtml(
+      `{"PolarisEmbedSidecarEntrypoint.react":{"r":["abc"]}}`
+    ),
+    undefined
+  );
 });

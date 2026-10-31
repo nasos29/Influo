@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { extractInstagramShortcode, isValidInstagramShortcode } from "@/lib/instagramShortcode";
-import { resolveInstagramEmbedVideo } from "@/lib/instagramEmbedVideo";
+import {
+  normalizeIgMediaUrl,
+  resolveInstagramEmbedVideo,
+} from "@/lib/instagramEmbedVideo";
 import type { InstagramEmbedKind } from "@/lib/instagramMediaType";
 
 const DAY_SEC = 86400;
@@ -46,18 +49,31 @@ function decodeMeta(raw: string): MetaPayload | null {
     };
     const mt = parsed.mediaType;
     if (mt !== "video" && mt !== "image" && mt !== "carousel") return null;
-    const poster =
-      typeof parsed.poster === "string" && parsed.poster.startsWith("http")
-        ? parsed.poster
-        : null;
+    const posterRaw =
+      typeof parsed.poster === "string" ? parsed.poster : null;
+    const poster = posterRaw ? normalizeIgMediaUrl(posterRaw) || posterRaw : null;
+    if (poster && !poster.startsWith("http")) return null;
+    // Force refresh when legacy cache still has broken \% escapes.
+    if (
+      (typeof posterRaw === "string" && /\\[%&=]/.test(posterRaw)) ||
+      (Array.isArray(parsed.images) &&
+        parsed.images.some(
+          (u) => typeof u === "string" && /\\[%&=]/.test(u)
+        ))
+    ) {
+      return null;
+    }
     const images = Array.isArray(parsed.images)
       ? parsed.images
+          .map((u) =>
+            typeof u === "string" ? normalizeIgMediaUrl(u) || u : null
+          )
           .filter((u): u is string => typeof u === "string" && u.startsWith("http"))
           .slice(0, 10)
       : [];
     // Stale carousel cache without children — force refresh for images[].
     if (mt === "carousel" && images.length === 0) return null;
-    return { mediaType: mt, poster, images };
+    return { mediaType: mt, poster: poster?.startsWith("http") ? poster : null, images };
   } catch {
     return null;
   }

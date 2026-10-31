@@ -4,7 +4,10 @@ import { resolveYouTubeVideoId } from "@/lib/videoThumbnailYoutube";
 import {
   extractOgImageFromHtml,
   extractTikTokCoverFromHtml,
+  extractTikTokImagePostCover,
   isGenericLogoThumbnail,
+  isNearBlackImageBuffer,
+  tikTokHtmlIndicatesPhotoPost,
 } from "@/lib/videoThumbnailExtract";
 import { isValidInstagramShortcode } from "@/lib/instagramShortcode";
 import {
@@ -203,7 +206,7 @@ async function tikTokThumbnailViaOEmbed(resolvedUrl: string): Promise<string | n
   }
 }
 
-async function tikTokThumbnailFromPage(resolvedUrl: string): Promise<string | null> {
+async function tikTokPageHtml(resolvedUrl: string): Promise<string | null> {
   try {
     const pageResponse = await fetch(resolvedUrl, {
       headers: {
@@ -215,8 +218,7 @@ async function tikTokThumbnailFromPage(resolvedUrl: string): Promise<string | nu
       signal: AbortSignal.timeout(10000),
     });
     if (!pageResponse.ok) return null;
-    const html = await pageResponse.text();
-    return extractTikTokCoverFromHtml(html) || extractOgImageFromHtml(html);
+    return await pageResponse.text();
   } catch {
     return null;
   }
@@ -228,11 +230,31 @@ async function resolveTikTokThumbnail(url: string): Promise<{
   mediaType?: MediaType;
 }> {
   const resolved = await resolveTikTokUrl(url);
-  const mediaType = tikTokMediaTypeFromUrl(resolved) ?? tikTokMediaTypeFromUrl(url);
+  let mediaType =
+    tikTokMediaTypeFromUrl(resolved) ?? tikTokMediaTypeFromUrl(url);
+
+  const html = await tikTokPageHtml(resolved);
+  if (html && (tikTokHtmlIndicatesPhotoPost(html) || /\/photo\/\d+/i.test(resolved))) {
+    mediaType = "image";
+  }
+
+  // Photo albums: prefer first imagePost frame, then oEmbed, then covers.
+  if (mediaType === "image" && html) {
+    const fromPost = extractTikTokImagePostCover(html);
+    if (fromPost) return { thumbnail: fromPost, resolvedUrl: resolved, mediaType };
+  }
+
   const oembed = await tikTokThumbnailViaOEmbed(resolved);
   if (oembed) return { thumbnail: oembed, resolvedUrl: resolved, mediaType };
-  const page = await tikTokThumbnailFromPage(resolved);
-  return { thumbnail: page, resolvedUrl: resolved, mediaType };
+
+  if (html) {
+    const pageCover =
+      extractTikTokCoverFromHtml(html) || extractOgImageFromHtml(html);
+    if (pageCover) return { thumbnail: pageCover, resolvedUrl: resolved, mediaType };
+  }
+
+  // oEmbed with no thumbnail + empty-looking player cover → still mark photo when /photo/
+  return { thumbnail: null, resolvedUrl: resolved, mediaType };
 }
 
 async function resolveInstagramThumbnail(url: string): Promise<string | null> {
@@ -375,10 +397,35 @@ export async function GET(req: NextRequest) {
   const forceRefresh = req.nextUrl.searchParams.get("refresh") === "1";
 
   try {
-    const cached = await readCache(cleanUrl, { forceRefresh });
+    let cached = await readCache(cleanUrl, { forceRefresh });
+    // ?refresh=1: drop near-black stored covers so photo posts get a real frame.
+    if (cached && forceRefresh && cached.thumbnail) {
+      try {
+        const imgRes = await fetch(cached.thumbnail, {
+          signal: AbortSignal.timeout(8000),
+          headers: { "User-Agent": BROWSER_UA },
+        });
+        if (imgRes.ok) {
+          const buf = await imgRes.arrayBuffer();
+          if (isNearBlackImageBuffer(buf)) {
+            await supabaseAdmin
+              .from("video_thumbnail_cache")
+              .delete()
+              .eq("original_url", cleanUrl);
+            cached = null;
+          }
+        }
+      } catch {
+        /* keep cache */
+      }
+    }
     if (cached) {
+      const mediaType =
+        /\/photo\/\d+/i.test(cleanUrl) || /\/photo\/\d+/i.test(url)
+          ? "image"
+          : cached.mediaType;
       return jsonThumb(cached.thumbnail, cached.platform, {
-        ...(cached.mediaType ? { mediaType: cached.mediaType } : {}),
+        ...(mediaType ? { mediaType } : {}),
       });
     }
 

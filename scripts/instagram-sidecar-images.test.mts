@@ -2,8 +2,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  decodeIgEscapedUrl,
   extractPosterFromEmbedHtml,
   extractSidecarImagesFromEmbedHtml,
+  normalizeIgMediaUrl,
 } from "../lib/instagramEmbedVideo.ts";
 
 test("extractSidecarImagesFromEmbedHtml: GraphSidecar children display_url (max 10)", () => {
@@ -43,4 +45,31 @@ test("extractPosterFromEmbedHtml: EmbeddedMediaImage + og:image fallback", () =>
     extractPosterFromEmbedHtml(og),
     "https://scontent.cdninstagram.com/v/og.jpg"
   );
+});
+
+test("normalizeIgMediaUrl / decodeIgEscapedUrl: strip literal \\%3D escapes", () => {
+  const dirty =
+    "https://scontent.cdninstagram.com/v/t51.jpg?ig_cache_key=Mzcw\\%3D\\%3D.3-ccb7-5&_nc_cat=103";
+  const clean = normalizeIgMediaUrl(dirty);
+  assert.ok(clean);
+  assert.equal(clean.includes("\\"), false);
+  assert.ok(clean!.includes("ig_cache_key=Mzcw%3D%3D.3-ccb7-5"));
+  assert.equal(
+    decodeIgEscapedUrl("https://x.com/a?k=NQ\\\\%3D\\\\%3D.end"),
+    "https://x.com/a?k=NQ%3D%3D.end"
+  );
+});
+
+test("extractSidecarImagesFromEmbedHtml: DOM <img> fallback when no GraphQL edges", () => {
+  const html = `
+    <div class="Embed EmbedSidecar">
+      <img class="EmbeddedMediaImage" src="https://scontent.cdninstagram.com/v/a.jpg?oh=1" />
+      <img class="EmbeddedMediaImage" src="https://scontent.cdninstagram.com/v/b.jpg?oh=2" />
+      <img src="https://static.cdninstagram.com/rsrc.php/v4/logo.png" />
+    </div>`;
+  const images = extractSidecarImagesFromEmbedHtml(html);
+  assert.deepEqual(images, [
+    "https://scontent.cdninstagram.com/v/a.jpg?oh=1",
+    "https://scontent.cdninstagram.com/v/b.jpg?oh=2",
+  ]);
 });

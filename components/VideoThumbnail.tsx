@@ -35,7 +35,9 @@ interface VideoThumbnailProps {
 const ARIA = {
   photo: { el: "Φωτογραφία", en: "Photo" },
   video: { el: "Βίντεο", en: "Video" },
+  album: { el: "Άλμπουμ", en: "Album" },
   openEmbed: { el: "Αναπαραγωγή", en: "Play" },
+  viewPhotos: { el: "Προβολή άλμπουμ", en: "View album" },
 } as const;
 
 function proxyImageList(urls: string[] | null | undefined): string[] {
@@ -456,14 +458,19 @@ export default function VideoThumbnail({
     );
   }
 
-  // Never show ▶ for Instagram photos/carousels; reels/videos keep play.
+  const isTikTokPhoto =
+    isTikTok && (mediaType === "image" || /\/photo\/\d+/i.test(url));
+
+  // Never show ▶ for Instagram photos/carousels or TikTok photo posts.
   const showPlayOverlay =
     !isStaticImage &&
     !isInteractiveCarousel &&
+    !isTikTokPhoto &&
     (mediaType === "video" ||
       igKind === "video" ||
       isIgReel ||
       (!isIgPost && (isVideo || isTikTok)));
+  const showPhotoOverlay = isTikTokPhoto && !!thumbnail && !failed;
 
   const mediaFrame = (inner: ReactNode) => (
     <div
@@ -474,6 +481,17 @@ export default function VideoThumbnail({
       {inner}
       {showPlayOverlay && thumbnail && !failed ? (
         <PlayBadge label={ARIA.video[uiLang]} />
+      ) : null}
+      {showPhotoOverlay ? (
+        <span
+          className="absolute top-2 right-2 z-20 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-black/55 text-white shadow-sm backdrop-blur-sm pointer-events-none"
+          aria-label={ARIA.album[uiLang]}
+          title={ARIA.viewPhotos[uiLang]}
+        >
+          <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden>
+            <path d="M4 5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-2H6a2 2 0 0 1-2-2V5zm2 0v10h8V5H6zm10 4v10h2V9h-2z" />
+          </svg>
+        </span>
       ) : null}
     </div>
   );
@@ -575,7 +593,9 @@ export default function VideoThumbnail({
           type="button"
           onClick={openTikTokPlayer}
           className="relative block h-full w-full cursor-pointer border-0 bg-transparent p-0 text-left"
-          aria-label={ARIA.openEmbed[uiLang]}
+          aria-label={
+            isTikTokPhoto ? ARIA.viewPhotos[uiLang] : ARIA.openEmbed[uiLang]
+          }
         >
           {imgEl}
         </button>
@@ -684,7 +704,9 @@ export default function VideoThumbnail({
         type="button"
         onClick={openTikTokPlayer}
         className="relative block h-full w-full cursor-pointer border-0 bg-transparent p-0 text-left"
-        aria-label={ARIA.openEmbed[uiLang]}
+        aria-label={
+          isTikTokPhoto ? ARIA.viewPhotos[uiLang] : ARIA.openEmbed[uiLang]
+        }
       >
         {placeholderBody}
       </button>

@@ -33,18 +33,91 @@ function normalizeHttpUrl(raw: string): string | null {
 
 /**
  * First usable "cover" URL from TikTok page HTML / embedded JSON.
- * Decodes \\u002F etc. Rejects generic logos.
+ * Prefers cover, then share/origin/reflow. Decodes \\u002F etc. Rejects logos.
  */
 export function extractTikTokCoverFromHtml(html: string): string | null {
   if (!html) return null;
-  const re = /"cover"\s*:\s*"((?:[^"\\]|\\.)+)"/g;
-  let match: RegExpExecArray | null;
-  while ((match = re.exec(html)) !== null) {
-    const decoded = decodeJsonEscapedUrl(match[1]);
-    const url = normalizeHttpUrl(decoded);
+  const keys = [
+    "cover",
+    "shareCover",
+    "originCover",
+    "reflowCover",
+    "dynamicCover",
+  ];
+  for (const key of keys) {
+    const re = new RegExp(`"${key}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)+)"`, "g");
+    let match: RegExpExecArray | null;
+    while ((match = re.exec(html)) !== null) {
+      const decoded = decodeJsonEscapedUrl(match[1]);
+      const url = normalizeHttpUrl(decoded);
+      if (url && !isGenericLogoThumbnail(url)) return url;
+    }
+  }
+  return null;
+}
+
+/** True when TikTok HTML/JSON indicates a photo / slideshow post. */
+export function tikTokHtmlIndicatesPhotoPost(html: string): boolean {
+  if (!html) return false;
+  if (/\/@[\w.-]+\/photo\/\d+/i.test(html)) return true;
+  if (/"imagePost"\s*:/.test(html) || /\\"imagePost\\"\s*:/.test(html)) {
+    return true;
+  }
+  if (/"image_post_info"\s*:/.test(html) || /\\"image_post_info\\"\s*:/.test(html)) {
+    return true;
+  }
+  // Photo posts sometimes resolve to /video/{id} with empty playable stream.
+  if (
+    /"playAddr"\s*:\s*""/.test(html) ||
+    /"playAddr"\s*:\s*null/.test(html) ||
+    /\\"playAddr\\"\s*:\s*\\"\\"/.test(html) ||
+    /\\"playAddr\\"\s*:\s*null/.test(html)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/** First image URL from TikTok imagePost.images[].imageURL.urlList[0] style blobs. */
+export function extractTikTokImagePostCover(html: string): string | null {
+  if (!html) return null;
+  const idx = html.search(/imagePost|image_post_info/i);
+  if (idx < 0) return null;
+  const slice = html.slice(idx, idx + 40_000);
+  const patterns = [
+    /"urlList"\s*:\s*\[\s*"(https:[^"]+)"/,
+    /\\"urlList\\"\s*:\s*\[\s*\\"(https:[^"\\]+)\\"/,
+    /"url"\s*:\s*"(https:[^"]+(?:tiktokcdn|ttwstatic)[^"]*)"/i,
+  ];
+  for (const re of patterns) {
+    const m = slice.match(re);
+    if (!m?.[1]) continue;
+    const url = normalizeHttpUrl(decodeJsonEscapedUrl(m[1]));
     if (url && !isGenericLogoThumbnail(url)) return url;
   }
   return null;
+}
+
+/**
+ * Heuristic: mostly-black JPEG/PNG (avg luminance below threshold).
+ * Used to invalidate bad TikTok covers on ?refresh=1.
+ */
+export function isNearBlackImageBuffer(
+  buf: ArrayBuffer | Uint8Array,
+  opts?: { sample?: number; maxAvg?: number }
+): boolean {
+  const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+  if (bytes.length < 100) return true;
+  const sample = opts?.sample ?? 2000;
+  const maxAvg = opts?.maxAvg ?? 18;
+  const step = Math.max(1, Math.floor(bytes.length / sample));
+  let sum = 0;
+  let n = 0;
+  for (let i = 0; i < bytes.length && n < sample; i += step) {
+    sum += bytes[i]!;
+    n++;
+  }
+  return n > 0 && sum / n < maxAvg;
 }
 
 /** Decode common HTML entities in meta content URLs (`&amp;` → `&`). */
