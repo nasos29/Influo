@@ -15,6 +15,10 @@ export type SimilarInfluencerRow = {
   category: string | null;
   accounts?: SimilarAccount[] | null;
   verified?: boolean | null;
+  analytics_verified?: boolean | null;
+  location?: string | null;
+  /** Public bracket only — never min_rate. */
+  price_tier?: string | null;
 };
 
 /** Returns a float in [0, 1). Injected in tests for determinism. */
@@ -61,6 +65,36 @@ export function sharedCategoryCount(currentCats: string[], otherCategory: unknow
   return parseStoredCategories(otherCategory).filter((c) => wanted.has(c)).length;
 }
 
+export function normalizePlatformList(platforms: unknown): string[] {
+  if (!Array.isArray(platforms)) return [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of platforms) {
+    const key = String(raw || "")
+      .trim()
+      .toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(key);
+  }
+  return out;
+}
+
+export function platformsFromAccounts(accounts: unknown): string[] {
+  if (!Array.isArray(accounts)) return [];
+  return normalizePlatformList(
+    accounts.map((acc) =>
+      acc && typeof acc === "object" ? (acc as SimilarAccount).platform : null
+    )
+  );
+}
+
+export function sharesPlatform(currentPlatforms: string[], accounts: unknown): boolean {
+  const wanted = new Set(normalizePlatformList(currentPlatforms));
+  if (!wanted.size) return false;
+  return platformsFromAccounts(accounts).some((p) => wanted.has(p));
+}
+
 /** Uniform [0, 1) via crypto.getRandomValues (avoids Math.random Sonar hotspot). */
 function cryptoUnitRandom(): number {
   const buf = new Uint32Array(1);
@@ -84,24 +118,37 @@ export function shuffle<T>(items: readonly T[], random: RandomFn = cryptoUnitRan
 }
 
 /**
- * Pick up to `limit` similar creators: share ≥1 category, exclude self,
- * then Fisher–Yates shuffle (call from client useEffect only).
+ * Pick up to `limit` similar creators: exclude self, prefer shared category,
+ * then same platform. Shuffle within each tier (call from client/API only).
  */
 export function pickSimilarInfluencers(
   currentId: string,
   currentCategories: string[],
   rows: SimilarInfluencerRow[],
-  limit = 6,
-  random?: RandomFn
+  limit = 8,
+  random?: RandomFn,
+  currentPlatforms: string[] = []
 ): SimilarInfluencerRow[] {
   const self = String(currentId || "");
   const cats = currentCategories.filter(Boolean);
-  if (!self || !cats.length || !rows.length) return [];
+  const plats = normalizePlatformList(currentPlatforms);
+  if (!self || !rows.length) return [];
+  if (!cats.length && !plats.length) return [];
 
-  const filtered = rows.filter((row) => {
-    if (!row?.id || String(row.id) === self) return false;
-    return sharedCategoryCount(cats, row.category) > 0;
-  });
+  const withCategory: SimilarInfluencerRow[] = [];
+  const platformOnly: SimilarInfluencerRow[] = [];
 
-  return shuffle(filtered, random ?? cryptoUnitRandom).slice(0, Math.max(0, limit));
+  for (const row of rows) {
+    if (!row?.id || String(row.id) === self) continue;
+    const catShare = sharedCategoryCount(cats, row.category);
+    const platShare = sharesPlatform(plats, row.accounts);
+    if (catShare > 0) withCategory.push(row);
+    else if (platShare) platformOnly.push(row);
+  }
+
+  const rnd = random ?? cryptoUnitRandom;
+  // Tier 1: shared category (shuffle). Tier 2: same platform only (shuffle).
+  const tier1 = shuffle(withCategory, rnd);
+  const tier2 = shuffle(platformOnly, rnd);
+  return [...tier1, ...tier2].slice(0, Math.max(0, limit));
 }

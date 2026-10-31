@@ -3095,7 +3095,9 @@ export default function InfluencerProfile(props: {
 
       <SimilarInfluencers
         influencerId={String(id)}
+        displayName={profile.name || ""}
         categories={profile.categories || []}
+        platforms={Object.keys(profile.socials || {})}
         lang={lang}
       />
     </div>
