@@ -197,6 +197,30 @@ export function badgeMinRateFromTier(tier: string | null | undefined): string | 
   return undefined;
 }
 
+/** Format a euro amount with Greek grouping (e.g. €4.500). */
+function formatEuroAmount(n: number): string {
+  return `€${n.toLocaleString("el-GR")}`;
+}
+
+/**
+ * Directory card price label from `price_tier` only (never min_rate).
+ * "0" → null; "100" → "≤ €100"; numeric tiers use adjacent DIRECTORY_BUDGET_CAPS.
+ */
+export function formatPriceTierLabel(tier: string | null | undefined): string | null {
+  const value = (tier || "0").trim();
+  if (!value || value === "0") return null;
+  if (value === "100") return `≤ ${formatEuroAmount(100)}`;
+  if (value === "under_5000") return `${formatEuroAmount(4500)}–${formatEuroAmount(5000)}`;
+  if (value === "5000" || value === "above_5000") return `${formatEuroAmount(5000)}+`;
+
+  const ceiling = parseInt(value, 10);
+  if (!Number.isFinite(ceiling)) return null;
+  const idx = DIRECTORY_BUDGET_CAPS.indexOf(ceiling as (typeof DIRECTORY_BUDGET_CAPS)[number]);
+  if (idx <= 0) return formatEuroAmount(ceiling);
+  const prev = DIRECTORY_BUDGET_CAPS[idx - 1]!;
+  return `${formatEuroAmount(prev)}–${formatEuroAmount(ceiling)}`;
+}
+
 const ATHENS = "Europe/Athens";
 
 function zonedYmd(date: Date, timeZone: string): { y: number; m: number; d: number } {

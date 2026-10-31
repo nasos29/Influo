@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { supabase } from "../lib/supabaseClient";
 import InfluencerCard from "./InfluencerCard";
 import { getBadges, BADGE_FILTER_TYPES, getBadgeFilterLabel, type BadgeType } from "../lib/badges";
 import { getVisitorId } from "../lib/visitorId";
@@ -19,17 +18,24 @@ import {
 import { resolveCompletionRate } from "@/lib/completionRate";
 
 const CATEGORY_KEYS = new Set<string>(CATEGORIES);
+const PAGE_SIZE = 40;
 
 function categoryFromSearchParam(raw: string | null): string {
   if (!raw) return "All";
   return CATEGORY_KEYS.has(raw) ? raw : "All";
 }
 
+function pageFromSearchParam(raw: string | null): number {
+  const n = parseInt(raw || "1", 10);
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return n;
+}
+
 export interface Influencer {
   id: string | number;
   name: string;
   bio: string;
-  bio_en?: string | null; // English bio translation
+  bio_en?: string | null;
   avatar: string;
   verified: boolean;
   socials: { [key: string]: string | undefined };
@@ -40,8 +46,8 @@ export interface Influencer {
   videos?: string[];
   location?: string;
   languages?: string[];
-  avg_likes?: string | { [key: string]: string }; // Can be per-platform object or legacy string
-  engagement_rate?: string | { [key: string]: string }; // Can be per-platform object or legacy string
+  avg_likes?: string | { [key: string]: string };
+  engagement_rate?: string | { [key: string]: string };
   /** Server-side bracket. Exact prices stay off this public payload. */
   price_tier?: string | null;
   past_brands?: any[] | number;
@@ -77,7 +83,6 @@ export interface Influencer {
   completion_rate?: number | null;
 }
 
-// Languages list
 const LANGUAGES = [
   { code: "el", el: "Ελληνικά", en: "Greek" },
   { code: "en", el: "Αγγλικά", en: "English" },
@@ -91,10 +96,9 @@ const LANGUAGES = [
   { code: "ja", el: "Ιαπωνικά", en: "Japanese" },
   { code: "sq", el: "Αλβανικά", en: "Albanian" },
   { code: "bg", el: "Βουλγαρικά", en: "Bulgarian" },
-  { code: "tr", el: "Τουρκικά", en: "Turkish" }
+  { code: "tr", el: "Τουρκικά", en: "Turkish" },
 ];
 
-// --- FULL TRANSLATIONS ---
 const t = {
   el: {
     searchPlace: "Αναζήτηση ονόματος...",
@@ -104,6 +108,7 @@ const t = {
     filters: "Φίλτρα",
     platAll: "Πλατφόρμα: Όλες",
     catAll: "Κατηγορία: Όλες",
+    catPillAll: "Όλες",
     genAll: "Φύλο: Όλα",
     genFem: "Γυναίκα",
     genMal: "Άνδρας",
@@ -133,7 +138,9 @@ const t = {
     noResults: "Δεν βρέθηκαν influencers",
     adjust: "Δοκίμασε διαφορετικά φίλτρα.",
     reset: "Επαναφορά",
-    seeMore: "Δείτε Περισσότερους"
+    pagePrev: "Προηγούμενη",
+    pageNext: "Επόμενη",
+    pageOf: "από",
   },
   en: {
     searchPlace: "Search name...",
@@ -143,6 +150,7 @@ const t = {
     filters: "Filters",
     platAll: "Platform: All",
     catAll: "Category: All",
+    catPillAll: "All",
     genAll: "Gender: Any",
     genFem: "Female",
     genMal: "Male",
@@ -172,54 +180,67 @@ const t = {
     noResults: "No influencers found",
     adjust: "Try adjusting your filters.",
     reset: "Reset Filters",
-    seeMore: "See More"
-  }
+    pagePrev: "Previous",
+    pageNext: "Next",
+    pageOf: "of",
+  },
 };
 
-// --- ICONS ---
-const SearchIcon = () => <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>;
-const LocationIcon = () => <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>;
-const FilterIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>;
-const ChevronDown = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>;
+const SearchIcon = () => (
+  <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+  </svg>
+);
+const LocationIcon = () => (
+  <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+  </svg>
+);
+const FilterIcon = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+  </svg>
+);
+const ChevronDown = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+  </svg>
+);
 
-// --- HELPERS ---
 const parseEngagement = (rate?: string | { [key: string]: string }) => {
   if (!rate) return 0;
-  
-  // If it's an object (per-platform), calculate average or use first available
-  if (typeof rate === 'object' && rate !== null && !Array.isArray(rate)) {
-    const rates = Object.values(rate).filter(v => v && v !== '-');
+  if (typeof rate === "object" && rate !== null && !Array.isArray(rate)) {
+    const rates = Object.values(rate).filter((v) => v && v !== "-");
     if (rates.length === 0) return 0;
-    
-    // Parse all rates and calculate average
-    const parsedRates = rates.map(r => parseFloat(r.replace('%', '').replace(',', '.')) || 0);
-    const sum = parsedRates.reduce((acc, val) => acc + val, 0);
-    return sum / parsedRates.length;
+    const parsedRates = rates.map((r) => parseFloat(r.replace("%", "").replace(",", ".")) || 0);
+    return parsedRates.reduce((acc, val) => acc + val, 0) / parsedRates.length;
   }
-  
-  // Legacy string format - rate is guaranteed to be string here
-  if (typeof rate === 'string') {
-    return parseFloat(rate.replace('%', '').replace(',', '.')) || 0;
+  if (typeof rate === "string") {
+    return parseFloat(rate.replace("%", "").replace(",", ".")) || 0;
   }
-  
   return 0;
 };
-const getMaxFollowers = (followers: any) => {
-    const values = Object.values(followers).filter((v): v is number => v !== undefined);
-    return values.length ? Math.max(...values as number[]) : 0;
+
+const getMaxFollowers = (followers: { [key: string]: number | undefined }) => {
+  const values = Object.values(followers).filter((v): v is number => v !== undefined);
+  return values.length ? Math.max(...values) : 0;
 };
+
 const parseFollowerString = (str: string) => {
-    if (!str) return 0;
-    const clean = str.toLowerCase().replace(/,/g, '').trim();
-    if (clean.includes('k')) return parseFloat(clean) * 1000;
-    if (clean.includes('m')) return parseFloat(clean) * 1000000;
-    return parseFloat(clean) || 0;
+  if (!str) return 0;
+  const clean = str.toLowerCase().replace(/,/g, "").trim();
+  if (clean.includes("k")) return parseFloat(clean) * 1000;
+  if (clean.includes("m")) return parseFloat(clean) * 1000000;
+  return parseFloat(clean) || 0;
 };
+
 const badgesForInfluencer = (inf: Influencer, lang: "el" | "en") => {
-    const accountAgeDays = inf.created_at
-      ? Math.floor((new Date().getTime() - new Date(inf.created_at).getTime()) / (1000 * 60 * 60 * 24))
-      : 999;
-    return getBadges({
+  const accountAgeDays = inf.created_at
+    ? Math.floor((new Date().getTime() - new Date(inf.created_at).getTime()) / (1000 * 60 * 60 * 24))
+    : 999;
+  return getBadges(
+    {
       verified: inf.verified,
       followers: inf.followers,
       engagement_rate: inf.engagement_rate,
@@ -228,19 +249,32 @@ const badgesForInfluencer = (inf: Influencer, lang: "el" | "en") => {
       past_brands: inf.past_brands || 0,
       account_created_days: accountAgeDays,
       min_rate: badgeMinRateFromTier(inf.price_tier),
-    }, lang);
+    },
+    lang
+  );
 };
 
-/** Κανονικοποίηση για σύγκριση τοποθεσίας: lowercase + αφαίρεση τόνων (αθήνα = αθηνα = Αθήνα) */
 const normalizeLocation = (s: string): string => {
-  if (!s || typeof s !== 'string') return '';
+  if (!s || typeof s !== "string") return "";
   const lower = s.toLowerCase().trim();
-  const noAccent = lower
-    .replace(/ά/g, 'α').replace(/έ/g, 'ε').replace(/ή/g, 'η').replace(/ί/g, 'ι')
-    .replace(/ό/g, 'ο').replace(/ύ/g, 'υ').replace(/ώ/g, 'ω')
-    .replace(/ϊ/g, 'ι').replace(/ϋ/g, 'υ');
-  return noAccent;
+  return lower
+    .replace(/ά/g, "α")
+    .replace(/έ/g, "ε")
+    .replace(/ή/g, "η")
+    .replace(/ί/g, "ι")
+    .replace(/ό/g, "ο")
+    .replace(/ύ/g, "υ")
+    .replace(/ώ/g, "ω")
+    .replace(/ϊ/g, "ι")
+    .replace(/ϋ/g, "υ");
 };
+
+const pillSelect =
+  "w-full appearance-none rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 cursor-pointer";
+const pillInput =
+  "w-full rounded-full border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm font-medium text-slate-700 outline-none transition-colors placeholder:text-slate-400 hover:border-slate-300 focus:border-slate-900 focus:ring-1 focus:ring-slate-900";
+const scrollbarHide =
+  "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
 export default function Directory({
   lang = "el",
@@ -255,8 +289,8 @@ export default function Directory({
   const router = useRouter();
   const pathname = usePathname() || "/directory";
   const searchParams = useSearchParams();
+  const skipPageResetRef = useRef(true);
 
-  // FILTERS
   const [searchQuery, setSearchQuery] = useState("");
   const [locationQuery, setLocationQuery] = useState("");
   const [platformFilter, setPlatformFilter] = useState("All");
@@ -265,7 +299,7 @@ export default function Directory({
   );
   const [genderFilter, setGenderFilter] = useState("All");
   const [showAdvanced, setShowAdvanced] = useState(false);
-  
+
   const [followerRange, setFollowerRange] = useState("All");
   const [budgetMax, setBudgetMax] = useState("All");
   const [minEngagement, setMinEngagement] = useState("All");
@@ -274,25 +308,27 @@ export default function Directory({
   const [ageMin, setAgeMin] = useState("");
   const [ageMax, setAgeMax] = useState("");
   const [badgeFilter, setBadgeFilter] = useState<BadgeType | "All">("All");
-  const [availabilityFilter, setAvailabilityFilter] = useState<"All" | "available" | "unavailable">("available");
+  const [availabilityFilter, setAvailabilityFilter] = useState<"All" | "available" | "unavailable">(
+    "available"
+  );
   const [loading, setLoading] = useState(initialInfluencers.length === 0);
-  const [visibleCount, setVisibleCount] = useState(24);
-  const PAGE_SIZE = 24;
+  const [page, setPage] = useState(() => pageFromSearchParam(searchParams.get("page")));
 
-  // Sort function: "New" influencers first, then by created_at descending
   const sortInfluencers = (influencersList: Influencer[]): Influencer[] => {
     return [...influencersList].sort((a, b) => {
-      const aAge = a.created_at ? Math.floor((new Date().getTime() - new Date(a.created_at).getTime()) / (1000 * 60 * 60 * 24)) : 999;
-      const bAge = b.created_at ? Math.floor((new Date().getTime() - new Date(b.created_at).getTime()) / (1000 * 60 * 60 * 24)) : 999;
-      
+      const aAge = a.created_at
+        ? Math.floor((new Date().getTime() - new Date(a.created_at).getTime()) / (1000 * 60 * 60 * 24))
+        : 999;
+      const bAge = b.created_at
+        ? Math.floor((new Date().getTime() - new Date(b.created_at).getTime()) / (1000 * 60 * 60 * 24))
+        : 999;
+
       const aIsNew = aAge < 30;
       const bIsNew = bAge < 30;
-      
-      // If one is "New" and the other isn't, prioritize the "New" one
+
       if (aIsNew && !bIsNew) return -1;
       if (!aIsNew && bIsNew) return 1;
-      
-      // If both are "New" or both are not "New", sort by created_at descending (newest first)
+
       if (a.created_at && b.created_at) {
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       }
@@ -307,7 +343,7 @@ export default function Directory({
 
     const fetchReal = async () => {
       try {
-        const response = await fetch('/api/influencers/public');
+        const response = await fetch("/api/influencers/public");
         const result = await response.json();
 
         if (!isMountedRef.current) return;
@@ -324,7 +360,6 @@ export default function Directory({
 
         if (data.length > 0) {
           const realInfluencers: Influencer[] = data.map((inf: any) => {
-            
             const socialsObj: { [key: string]: string } = {};
             const followersObj: { [key: string]: number } = {};
             const engagementRatesObj: { [key: string]: string } = {};
@@ -332,22 +367,24 @@ export default function Directory({
             if (Array.isArray(inf.accounts)) {
               inf.accounts.forEach((acc: any) => {
                 if (acc.platform && acc.username) {
-                    const key = acc.platform.toLowerCase();
-                    socialsObj[key] = acc.username;
-                    followersObj[key] = parseFollowerString(acc.followers);
-                    // Store engagement rate per platform if available
-                    if (acc.engagement_rate) {
-                      engagementRatesObj[key] = acc.engagement_rate;
-                    }
+                  const key = acc.platform.toLowerCase();
+                  socialsObj[key] = acc.username;
+                  followersObj[key] = parseFollowerString(acc.followers);
+                  if (acc.engagement_rate) {
+                    engagementRatesObj[key] = acc.engagement_rate;
+                  }
                 }
               });
             }
 
-            // Parse languages from comma-separated string to array
-            const languagesArray = inf.languages 
-              ? (typeof inf.languages === 'string' && inf.languages.includes(',') 
-                ? inf.languages.split(',').map((l: string) => l.trim()) 
-                : (typeof inf.languages === 'string' ? [inf.languages.trim()] : (Array.isArray(inf.languages) ? inf.languages : [])))
+            const languagesArray = inf.languages
+              ? typeof inf.languages === "string" && inf.languages.includes(",")
+                ? inf.languages.split(",").map((l: string) => l.trim())
+                : typeof inf.languages === "string"
+                  ? [inf.languages.trim()]
+                  : Array.isArray(inf.languages)
+                    ? inf.languages
+                    : []
               : [];
 
             return {
@@ -356,11 +393,13 @@ export default function Directory({
               bio: inf.bio || "",
               bio_en: inf.bio_en || null,
               avatar: inf.avatar_url || null,
-              verified: inf.analytics_verified || false, // Use analytics_verified for verified badge (not approved)
+              verified: inf.analytics_verified || false,
               socials: socialsObj,
               followers: followersObj,
               categories: inf.category
-                ? (parseStoredCategories(inf.category).length ? parseStoredCategories(inf.category) : ["New"])
+                ? parseStoredCategories(inf.category).length
+                  ? parseStoredCategories(inf.category)
+                  : ["New"]
                 : ["New"],
               languages: languagesArray,
               platform: "Instagram",
@@ -368,7 +407,10 @@ export default function Directory({
               location: inf.location,
               price_tier: inf.price_tier || "0",
               avg_likes: inf.avg_likes,
-              engagement_rate: Object.keys(engagementRatesObj).length > 0 ? engagementRatesObj : (inf.engagement_rate || undefined),
+              engagement_rate:
+                Object.keys(engagementRatesObj).length > 0
+                  ? engagementRatesObj
+                  : inf.engagement_rate || undefined,
               videos: Array.isArray(inf.videos) ? inf.videos : [],
               avg_rating: inf.avg_rating || 0,
               total_reviews: inf.total_reviews || 0,
@@ -377,7 +419,7 @@ export default function Directory({
               past_brands: inf.past_brands || 0,
               created_at: inf.created_at,
               age: typeof inf.age === "number" ? inf.age : null,
-              availability_status: inf.availability_status || 'available',
+              availability_status: inf.availability_status || "available",
               profile_slug: inf.profile_slug || null,
               accounts: Array.isArray(inf.accounts) ? inf.accounts : [],
             };
@@ -386,10 +428,8 @@ export default function Directory({
           if (isMountedRef.current) {
             setInfluencers(sortInfluencers(realInfluencers));
           }
-        } else {
-          if (isMountedRef.current) {
-            setInfluencers([]);
-          }
+        } else if (isMountedRef.current) {
+          setInfluencers([]);
         }
       } catch (_err) {
         if (isMountedRef.current) {
@@ -410,12 +450,16 @@ export default function Directory({
   }, []);
 
   const filtered = influencers.filter((inf) => {
-    const searchMatch = inf.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                        inf.bio.toLowerCase().includes(searchQuery.toLowerCase());
-    const locationMatch = locationQuery === "" ||
-                          (inf.location && normalizeLocation(inf.location).includes(normalizeLocation(locationQuery)));
-    
-    const platformMatch = platformFilter === "All" || (inf.socials && inf.socials[platformFilter.toLowerCase()] !== undefined);
+    const searchMatch =
+      inf.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      inf.bio.toLowerCase().includes(searchQuery.toLowerCase());
+    const locationMatch =
+      locationQuery === "" ||
+      (inf.location && normalizeLocation(inf.location).includes(normalizeLocation(locationQuery)));
+
+    const platformMatch =
+      platformFilter === "All" ||
+      (inf.socials && inf.socials[platformFilter.toLowerCase()] !== undefined);
     const categoryMatch = categoriesMatchFilter(inf.categories, categoryFilter);
     const genderMatch = genderFilter === "All" || inf.gender === genderFilter;
 
@@ -429,61 +473,58 @@ export default function Directory({
 
     let engageMatch = true;
     if (minEngagement !== "All") {
-        const min = parseFloat(minEngagement);
-        const rate = parseEngagement(inf.engagement_rate);
-        if (rate < min) engageMatch = false;
+      const min = parseFloat(minEngagement);
+      const rate = parseEngagement(inf.engagement_rate);
+      if (rate < min) engageMatch = false;
     }
 
     let languageMatch = true;
     if (languageFilter !== "All") {
-        if (!inf.languages || !Array.isArray(inf.languages) || inf.languages.length === 0) {
-            languageMatch = false;
+      if (!inf.languages || !Array.isArray(inf.languages) || inf.languages.length === 0) {
+        languageMatch = false;
+      } else {
+        const selectedLang = LANGUAGES.find((l) => l.code === languageFilter);
+        if (!selectedLang) {
+          languageMatch = false;
         } else {
-            // Find the selected language object
-            const selectedLang = LANGUAGES.find(l => l.code === languageFilter);
-            if (!selectedLang) {
-                languageMatch = false;
-            } else {
-                // Check if any language in the influencer's languages matches (by code, Greek name, or English name)
-                const matches = inf.languages.some(lang => {
-                    const langStr = lang.toString().toLowerCase().trim();
-                    const selectedEl = selectedLang.el.toLowerCase();
-                    const selectedEn = selectedLang.en.toLowerCase();
-                    const selectedCode = selectedLang.code.toLowerCase();
-                    
-                    // Check if it matches the language code, Greek name, or English name
-                    return langStr === selectedCode || 
-                           langStr === selectedEl || 
-                           langStr === selectedEn ||
-                           langStr.includes(selectedEl) ||
-                           langStr.includes(selectedEn) ||
-                           selectedEl.includes(langStr) ||
-                           selectedEn.includes(langStr);
-                });
-                if (!matches) languageMatch = false;
-            }
+          const matches = inf.languages.some((langItem) => {
+            const langStr = langItem.toString().toLowerCase().trim();
+            const selectedEl = selectedLang.el.toLowerCase();
+            const selectedEn = selectedLang.en.toLowerCase();
+            const selectedCode = selectedLang.code.toLowerCase();
+            return (
+              langStr === selectedCode ||
+              langStr === selectedEl ||
+              langStr === selectedEn ||
+              langStr.includes(selectedEl) ||
+              langStr.includes(selectedEn) ||
+              selectedEl.includes(langStr) ||
+              selectedEn.includes(langStr)
+            );
+          });
+          if (!matches) languageMatch = false;
         }
+      }
     }
 
     let ratingMatch = true;
     if (minRating !== "All") {
-        const min = parseFloat(minRating);
-        const rating = (inf as any).avg_rating || 0;
-        if (rating < min) ratingMatch = false;
+      const min = parseFloat(minRating);
+      const rating = (inf as any).avg_rating || 0;
+      if (rating < min) ratingMatch = false;
     }
 
     let ageMatch = true;
     const age = typeof inf.age === "number" ? inf.age : null;
     if (ageMin !== "" || ageMax !== "") {
-        const min = ageMin !== "" ? parseInt(ageMin, 10) : 0;
-        const max = ageMax !== "" ? parseInt(ageMax, 10) : 999;
-        if (age === null) ageMatch = false;
-        else if (age < min || age > max) ageMatch = false;
+      const min = ageMin !== "" ? parseInt(ageMin, 10) : 0;
+      const max = ageMax !== "" ? parseInt(ageMax, 10) : 999;
+      if (age === null) ageMatch = false;
+      else if (age < min || age > max) ageMatch = false;
     }
 
     const badgeMatch =
-      badgeFilter === "All" ||
-      badgesForInfluencer(inf, lang).some((b) => b.type === badgeFilter);
+      badgeFilter === "All" || badgesForInfluencer(inf, lang).some((b) => b.type === badgeFilter);
 
     let availabilityMatch = true;
     if (availabilityFilter === "available") {
@@ -492,14 +533,27 @@ export default function Directory({
       availabilityMatch = !isAvailableStatus(inf.availability_status);
     }
 
-    return searchMatch && locationMatch && platformMatch && categoryMatch && genderMatch && followerMatch && budgetMatch && engageMatch && languageMatch && ratingMatch && ageMatch && badgeMatch && availabilityMatch;
+    return (
+      searchMatch &&
+      locationMatch &&
+      platformMatch &&
+      categoryMatch &&
+      genderMatch &&
+      followerMatch &&
+      budgetMatch &&
+      engageMatch &&
+      languageMatch &&
+      ratingMatch &&
+      ageMatch &&
+      badgeMatch &&
+      availabilityMatch
+    );
   });
 
-  const replaceCategoryInUrl = useCallback(
-    (nextCategory: string) => {
+  const replaceUrlParams = useCallback(
+    (mutate: (params: URLSearchParams) => void) => {
       const params = new URLSearchParams(searchParams.toString());
-      if (!nextCategory || nextCategory === "All") params.delete("category");
-      else params.set("category", nextCategory);
+      mutate(params);
       const qs = params.toString();
       const next = qs ? `${pathname}?${qs}` : pathname;
       const currentQs = searchParams.toString();
@@ -514,222 +568,404 @@ export default function Directory({
   const setCategoryFilterAndUrl = useCallback(
     (value: string) => {
       setCategoryFilter(value);
-      replaceCategoryInUrl(value);
+      setPage(1);
+      replaceUrlParams((params) => {
+        if (!value || value === "All") params.delete("category");
+        else params.set("category", value);
+        params.delete("page");
+      });
     },
-    [replaceCategoryInUrl]
+    [replaceUrlParams]
   );
 
-  // Keep select in sync when landing via shared ?category= URL / browser back.
+  const setPageAndUrl = useCallback(
+    (nextPage: number) => {
+      const safe = Math.max(1, nextPage);
+      setPage(safe);
+      replaceUrlParams((params) => {
+        if (safe <= 1) params.delete("page");
+        else params.set("page", String(safe));
+      });
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    },
+    [replaceUrlParams]
+  );
+
+  // Keep category + page in sync with shared URL / browser back.
   useEffect(() => {
-    const fromUrl = categoryFromSearchParam(searchParams.get("category"));
-    setCategoryFilter((prev) => (prev === fromUrl ? prev : fromUrl));
+    const fromUrlCat = categoryFromSearchParam(searchParams.get("category"));
+    setCategoryFilter((prev) => (prev === fromUrlCat ? prev : fromUrlCat));
+    const fromUrlPage = pageFromSearchParam(searchParams.get("page"));
+    setPage((prev) => (prev === fromUrlPage ? prev : fromUrlPage));
   }, [searchParams]);
 
   const clearFilters = () => {
-    setSearchQuery(""); setLocationQuery(""); setPlatformFilter("All");
-    setCategoryFilterAndUrl("All"); setGenderFilter("All"); setFollowerRange("All");
-    setBudgetMax("All"); setMinEngagement("All"); setLanguageFilter("All"); setMinRating("All");
-    setAgeMin(""); setAgeMax(""); setBadgeFilter("All");
+    setSearchQuery("");
+    setLocationQuery("");
+    setPlatformFilter("All");
+    setCategoryFilterAndUrl("All");
+    setGenderFilter("All");
+    setFollowerRange("All");
+    setBudgetMax("All");
+    setMinEngagement("All");
+    setLanguageFilter("All");
+    setMinRating("All");
+    setAgeMin("");
+    setAgeMax("");
+    setBadgeFilter("All");
     setAvailabilityFilter("available");
-    setVisibleCount(PAGE_SIZE);
+    setPage(1);
   };
 
-  // Reset pagination when filters change
+  // Reset to page 1 when filters change (skip first mount so ?page= is kept).
+  // Do not depend on replaceUrlParams — its identity changes when ?page= updates.
   useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-  }, [searchQuery, locationQuery, platformFilter, categoryFilter, genderFilter, followerRange, budgetMax, minEngagement, languageFilter, minRating, ageMin, ageMax, badgeFilter, availabilityFilter]);
+    if (skipPageResetRef.current) {
+      skipPageResetRef.current = false;
+      return;
+    }
+    setPage(1);
+    replaceUrlParams((params) => {
+      params.delete("page");
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only filter values
+  }, [
+    searchQuery,
+    locationQuery,
+    platformFilter,
+    categoryFilter,
+    genderFilter,
+    followerRange,
+    budgetMax,
+    minEngagement,
+    languageFilter,
+    minRating,
+    ageMin,
+    ageMax,
+    badgeFilter,
+    availabilityFilter,
+  ]);
 
-  const displayedInfluencers = filtered.slice(0, visibleCount);
-  const hasMore = filtered.length > visibleCount;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const displayedInfluencers = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  const selectClass = "w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 cursor-pointer";
+  const categoryPills = useMemo(
+    () =>
+      CATEGORIES.filter((cat) =>
+        influencers.some((inf) => categoriesMatchFilter(inf.categories, cat))
+      ),
+    [influencers]
+  );
+
+  const pageButtons = useMemo(() => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    const pages = new Set<number>();
+    pages.add(1);
+    pages.add(totalPages);
+    for (let i = safePage - 1; i <= safePage + 1; i++) {
+      if (i >= 1 && i <= totalPages) pages.add(i);
+    }
+    return Array.from(pages).sort((a, b) => a - b);
+  }, [safePage, totalPages]);
 
   return (
     <div>
-      <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 mb-10 transition-all duration-300 hover:shadow-xl hover:border-blue-200">
-        
-        {/* Search Row - Platform and Category Dropdowns */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
-            <div className="md:col-span-5">
-                <select value={platformFilter} onChange={(e) => setPlatformFilter(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-sm font-medium">
-                    <option value="All">{txt.platAll}</option>
-                    <option value="Instagram">Instagram</option>
-                    <option value="TikTok">TikTok</option>
-                    <option value="YouTube">YouTube</option>
-                </select>
-            </div>
-            <div className="md:col-span-4">
-                <select value={categoryFilter} onChange={(e) => setCategoryFilterAndUrl(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-sm font-medium">
-                    <option value="All">{txt.catAll}</option>
-                    {CATEGORIES.map(cat => (
-                        <option key={cat} value={cat}>
-                            {categoryTranslations[cat] ? categoryTranslations[cat][lang] : cat}
-                        </option>
-                    ))}
-                </select>
-            </div>
-            <div className="md:col-span-3 flex items-center justify-end gap-3">
-                <button onClick={() => setShowAdvanced(!showAdvanced)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold border transition-colors ${showAdvanced ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
-                    <FilterIcon /> {txt.filters} <ChevronDown />
-                </button>
-            </div>
+      {/* Filter bar — Collabstr-style pills */}
+      <div className="mb-6 space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="min-w-[140px] flex-1 sm:min-w-[160px] sm:flex-none sm:w-44">
+            <select
+              value={platformFilter}
+              onChange={(e) => setPlatformFilter(e.target.value)}
+              className={pillSelect}
+            >
+              <option value="All">{txt.platAll}</option>
+              <option value="Instagram">Instagram</option>
+              <option value="TikTok">TikTok</option>
+              <option value="YouTube">YouTube</option>
+            </select>
+          </div>
+          <div className="min-w-[140px] flex-1 sm:min-w-[160px] sm:flex-none sm:w-52">
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilterAndUrl(e.target.value)}
+              className={pillSelect}
+            >
+              <option value="All">{txt.catAll}</option>
+              {CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>
+                  {categoryTranslations[cat] ? categoryTranslations[cat][lang] : cat}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className={`inline-flex items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-semibold transition-colors ${
+              showAdvanced
+                ? "border-slate-900 bg-slate-900 text-white"
+                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+            }`}
+          >
+            <FilterIcon /> {txt.filters} <ChevronDown />
+          </button>
+          <span className="ml-auto hidden text-xs font-medium text-slate-400 sm:inline">
+            {filtered.length} {txt.results}
+          </span>
         </div>
 
-        {/* Filters Panel */}
-        <div className={`overflow-hidden transition-all duration-300 ${showAdvanced ? 'max-h-[720px] opacity-100 mt-4 pt-4 border-t border-slate-100' : 'max-h-0 opacity-0'}`}>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                
-                <select value={genderFilter} onChange={(e) => setGenderFilter(e.target.value)} className={selectClass}>
-                    <option value="All">{txt.genAll}</option>
-                    <option value="Female">{txt.genFem}</option>
-                    <option value="Male">{txt.genMal}</option>
-                    <option value="AI">{txt.genAi}</option>
-                </select>
+        <div
+          className={`overflow-hidden transition-all duration-300 ${
+            showAdvanced ? "max-h-[720px] opacity-100" : "max-h-0 opacity-0"
+          }`}
+        >
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-6 pt-1">
+            <select
+              value={genderFilter}
+              onChange={(e) => setGenderFilter(e.target.value)}
+              className={pillSelect}
+            >
+              <option value="All">{txt.genAll}</option>
+              <option value="Female">{txt.genFem}</option>
+              <option value="Male">{txt.genMal}</option>
+              <option value="AI">{txt.genAi}</option>
+            </select>
 
-                <select
-                  value={availabilityFilter}
-                  onChange={(e) =>
-                    setAvailabilityFilter(e.target.value as "All" | "available" | "unavailable")
-                  }
-                  className={`${selectClass} !bg-emerald-50 !border-emerald-100 !text-emerald-800`}
-                >
-                    <option value="All">{txt.availAll}</option>
-                    <option value="available">{txt.availYes}</option>
-                    <option value="unavailable">{txt.availNo}</option>
-                </select>
+            <select
+              value={availabilityFilter}
+              onChange={(e) =>
+                setAvailabilityFilter(e.target.value as "All" | "available" | "unavailable")
+              }
+              className={pillSelect}
+            >
+              <option value="All">{txt.availAll}</option>
+              <option value="available">{txt.availYes}</option>
+              <option value="unavailable">{txt.availNo}</option>
+            </select>
 
-                <select value={followerRange} onChange={(e) => setFollowerRange(e.target.value)} className={`${selectClass} !bg-blue-50 !border-blue-100 !text-blue-800`}>
-                    <option value="All">{txt.follAll}</option>
-                    <option value="Nano">{txt.follNano}</option>
-                    <option value="Micro">{txt.follMicro}</option>
-                    <option value="Macro">{txt.follMacro}</option>
-                </select>
+            <select
+              value={followerRange}
+              onChange={(e) => setFollowerRange(e.target.value)}
+              className={pillSelect}
+            >
+              <option value="All">{txt.follAll}</option>
+              <option value="Nano">{txt.follNano}</option>
+              <option value="Micro">{txt.follMicro}</option>
+              <option value="Macro">{txt.follMacro}</option>
+            </select>
 
-                <select value={budgetMax} onChange={(e) => setBudgetMax(e.target.value)} className={`${selectClass} !bg-green-50 !border-green-100 !text-green-800`}>
-                    <option value="All">{txt.budAll}</option>
-                    {DIRECTORY_BUDGET_CAPS.map((cap) => (
-                        <option key={cap} value={String(cap)}>{txt.budUpTo} {cap}€</option>
-                    ))}
-                    <option value="Unlimited">{txt.budUnlimited}</option>
-                </select>
+            <select
+              value={budgetMax}
+              onChange={(e) => setBudgetMax(e.target.value)}
+              className={pillSelect}
+            >
+              <option value="All">{txt.budAll}</option>
+              {DIRECTORY_BUDGET_CAPS.map((cap) => (
+                <option key={cap} value={String(cap)}>
+                  {txt.budUpTo} {cap}€
+                </option>
+              ))}
+              <option value="Unlimited">{txt.budUnlimited}</option>
+            </select>
 
-                <select value={minEngagement} onChange={(e) => setMinEngagement(e.target.value)} className={`${selectClass} !bg-purple-50 !border-purple-100 !text-purple-800`}>
-                    <option value="All">{txt.engAll}</option>
-                    <option value="1">{txt.engMin} 1%</option>
-                    <option value="3">{txt.engMin} 3% ({txt.engGood})</option>
-                    <option value="5">{txt.engMin} 5% ({txt.engHigh})</option>
-                </select>
+            <select
+              value={minEngagement}
+              onChange={(e) => setMinEngagement(e.target.value)}
+              className={pillSelect}
+            >
+              <option value="All">{txt.engAll}</option>
+              <option value="1">
+                {txt.engMin} 1%
+              </option>
+              <option value="3">
+                {txt.engMin} 3% ({txt.engGood})
+              </option>
+              <option value="5">
+                {txt.engMin} 5% ({txt.engHigh})
+              </option>
+            </select>
 
-                <select value={languageFilter} onChange={(e) => setLanguageFilter(e.target.value)} className={`${selectClass} !bg-indigo-50 !border-indigo-100 !text-indigo-800`}>
-                    <option value="All">{txt.langAll}</option>
-                    {LANGUAGES.map(langItem => (
-                        <option key={langItem.code} value={langItem.code}>
-                            {langItem[lang]}
-                        </option>
-                    ))}
-                </select>
-                
-                <select value={minRating} onChange={(e) => setMinRating(e.target.value)} className={`${selectClass} !bg-amber-50 !border-amber-100 !text-amber-800`}>
-                    <option value="All">{txt.ratingAll}</option>
-                    <option value="3">{txt.ratingMin} 3★</option>
-                    <option value="4">{txt.ratingMin} 4★</option>
-                    <option value="4.5">{txt.ratingMin} 4.5★</option>
-                </select>
+            <select
+              value={languageFilter}
+              onChange={(e) => setLanguageFilter(e.target.value)}
+              className={pillSelect}
+            >
+              <option value="All">{txt.langAll}</option>
+              {LANGUAGES.map((langItem) => (
+                <option key={langItem.code} value={langItem.code}>
+                  {langItem[lang]}
+                </option>
+              ))}
+            </select>
 
-                <select
-                  value={badgeFilter}
-                  onChange={(e) => setBadgeFilter(e.target.value as BadgeType | "All")}
-                  className={`${selectClass} !bg-yellow-50 !border-yellow-100 !text-yellow-900`}
-                >
-                    <option value="All">{txt.badgeAll}</option>
-                    {BADGE_FILTER_TYPES.map((type) => (
-                      <option key={type} value={type}>
-                        {getBadgeFilterLabel(type, lang)}
-                      </option>
-                    ))}
-                </select>
+            <select
+              value={minRating}
+              onChange={(e) => setMinRating(e.target.value)}
+              className={pillSelect}
+            >
+              <option value="All">{txt.ratingAll}</option>
+              <option value="3">
+                {txt.ratingMin} 3★
+              </option>
+              <option value="4">
+                {txt.ratingMin} 4★
+              </option>
+              <option value="4.5">
+                {txt.ratingMin} 4.5★
+              </option>
+            </select>
 
-                {/* Age filter (whole years computed on the server, not a birth date) */}
-                <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-600 whitespace-nowrap">{txt.ageRange}:</span>
-                    <input type="number" min={18} max={99} placeholder={txt.ageFrom} value={ageMin} onChange={(e) => setAgeMin(e.target.value)} className={`${selectClass} !py-2`} />
-                    <span className="text-slate-400">-</span>
-                    <input type="number" min={18} max={99} placeholder={txt.ageTo} value={ageMax} onChange={(e) => setAgeMax(e.target.value)} className={`${selectClass} !py-2`} />
-                </div>
-                
-                {/* Location Filter - Second to Last */}
-                <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><LocationIcon /></div>
-                    <input 
-                        type="text" 
-                        placeholder={txt.locPlace} 
-                        value={locationQuery} 
-                        onChange={(e) => setLocationQuery(e.target.value)} 
-                        className={`${selectClass} pl-10`}
-                    />
-                </div>
-                
-                {/* Name Search Filter - Last */}
-                <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><SearchIcon /></div>
-                    <input 
-                        type="text" 
-                        placeholder={txt.searchPlace} 
-                        value={searchQuery} 
-                        onChange={(e) => setSearchQuery(e.target.value)} 
-                        className={`${selectClass} pl-10`}
-                    />
-                </div>
+            <select
+              value={badgeFilter}
+              onChange={(e) => setBadgeFilter(e.target.value as BadgeType | "All")}
+              className={pillSelect}
+            >
+              <option value="All">{txt.badgeAll}</option>
+              {BADGE_FILTER_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {getBadgeFilterLabel(type, lang)}
+                </option>
+              ))}
+            </select>
+
+            <div className="col-span-2 flex items-center gap-2 md:col-span-2 lg:col-span-2">
+              <span className="shrink-0 text-xs font-semibold text-slate-500">{txt.ageRange}</span>
+              <input
+                type="number"
+                min={18}
+                max={99}
+                placeholder={txt.ageFrom}
+                value={ageMin}
+                onChange={(e) => setAgeMin(e.target.value)}
+                className={`${pillSelect} !py-2`}
+              />
+              <span className="text-slate-300">–</span>
+              <input
+                type="number"
+                min={18}
+                max={99}
+                placeholder={txt.ageTo}
+                value={ageMax}
+                onChange={(e) => setAgeMax(e.target.value)}
+                className={`${pillSelect} !py-2`}
+              />
             </div>
-            
-            <div className="mt-4 flex justify-between items-center">
-                <p className="text-xs text-slate-400">{filtered.length} {txt.results}</p>
-                <button onClick={clearFilters} className="text-sm text-red-500 hover:text-red-700 font-medium underline">{txt.clear}</button>
+
+            <div className="relative col-span-2 md:col-span-1 lg:col-span-2">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
+                <LocationIcon />
+              </div>
+              <input
+                type="text"
+                placeholder={txt.locPlace}
+                value={locationQuery}
+                onChange={(e) => setLocationQuery(e.target.value)}
+                className={pillInput}
+              />
             </div>
+
+            <div className="relative col-span-2 md:col-span-1 lg:col-span-2">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
+                <SearchIcon />
+              </div>
+              <input
+                type="text"
+                placeholder={txt.searchPlace}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={pillInput}
+              />
+            </div>
+          </div>
+
+          <div className="mt-3 flex items-center justify-between">
+            <p className="text-xs text-slate-400 sm:hidden">
+              {filtered.length} {txt.results}
+            </p>
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="rounded-full border border-slate-200 bg-white px-4 py-1.5 text-sm font-semibold text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900"
+            >
+              {txt.clear}
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Grid */}
+      {/* Category pills — all breakpoints */}
+      <div className={`mb-6 flex gap-2 overflow-x-auto pb-1 ${scrollbarHide}`}>
+        <button
+          type="button"
+          onClick={() => setCategoryFilterAndUrl("All")}
+          className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+            categoryFilter === "All"
+              ? "bg-slate-900 text-white"
+              : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+          }`}
+        >
+          {txt.catPillAll}
+        </button>
+        {categoryPills.map((cat) => {
+          const selected = categoryFilter === cat;
+          return (
+            <button
+              type="button"
+              key={cat}
+              onClick={() => setCategoryFilterAndUrl(cat)}
+              className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                selected
+                  ? "bg-slate-900 text-white"
+                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+              }`}
+            >
+              {categoryTranslations[cat] ? categoryTranslations[cat][lang] : cat}
+            </button>
+          );
+        })}
+      </div>
+
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-6 lg:gap-y-8">
           {[...Array(8)].map((_, i) => (
-            <div key={i} className="bg-slate-100 rounded-2xl overflow-hidden animate-pulse">
-              <div className="aspect-[4/3] bg-slate-200" />
-              <div className="p-4 space-y-3">
-                <div className="h-5 bg-slate-200 rounded w-3/4" />
-                <div className="h-3 bg-slate-200 rounded w-full" />
-                <div className="h-3 bg-slate-200 rounded w-5/6" />
-                <div className="flex gap-2 mt-3">
-                  <div className="h-6 bg-slate-200 rounded-full w-16" />
-                  <div className="h-6 bg-slate-200 rounded-full w-20" />
-                </div>
+            <div key={i} className="animate-pulse">
+              <div className="aspect-[4/5] rounded-2xl bg-slate-200" />
+              <div className="mt-3 space-y-2">
+                <div className="h-4 w-3/4 rounded bg-slate-200" />
+                <div className="h-3 w-1/2 rounded bg-slate-200" />
+                <div className="h-3 w-full rounded bg-slate-200" />
               </div>
             </div>
           ))}
         </div>
       ) : filtered.length > 0 ? (
         <>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-6 lg:gap-y-8">
             {displayedInfluencers.map((inf) => {
               const badges = badgesForInfluencer(inf, lang);
-              
+
               return (
-                <Link 
-                  href={publicProfilePath(inf.profile_slug, inf.id)} 
-                  key={inf.id} 
-                  className="block h-full group"
+                <Link
+                  href={publicProfilePath(inf.profile_slug, inf.id)}
+                  key={inf.id}
+                  className="block group"
                   onClick={() => {
-                    // Track profile_click (keepalive: true so request completes even after navigation)
-                    fetch('/api/analytics/track', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
+                    fetch("/api/analytics/track", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({
                         influencerId: inf.id,
-                        eventType: 'profile_click',
+                        eventType: "profile_click",
                         visitorId: getVisitorId(),
-                        metadata: { source: 'directory' }
+                        metadata: { source: "directory" },
                       }),
-                      keepalive: true
+                      keepalive: true,
                     }).catch(() => {});
                   }}
                 >
@@ -739,27 +975,74 @@ export default function Directory({
                     lang={lang}
                     trustChips={trustChipsFromAccounts(inf.accounts)}
                     availabilityStatus={inf.availability_status}
+                    location={inf.location}
+                    price_tier={inf.price_tier}
                   />
                 </Link>
               );
             })}
-        </div>
-        {hasMore && (
-          <div className="flex justify-center mt-10">
-            <button
-              onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
-              className="px-8 py-4 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-lg hover:shadow-xl"
-            >
-              {txt.seeMore}
-            </button>
           </div>
-        )}
+
+          {totalPages > 1 && (
+            <nav
+              className="mt-10 flex flex-wrap items-center justify-center gap-2"
+              aria-label={lang === "el" ? "Σελιδοποίηση" : "Pagination"}
+            >
+              <button
+                type="button"
+                disabled={safePage <= 1}
+                onClick={() => setPageAndUrl(safePage - 1)}
+                className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {txt.pagePrev}
+              </button>
+              {pageButtons.map((p, idx) => {
+                const prev = pageButtons[idx - 1];
+                const showEllipsis = prev != null && p - prev > 1;
+                return (
+                  <span key={p} className="contents">
+                    {showEllipsis && (
+                      <span className="px-1 text-slate-400" aria-hidden>
+                        …
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setPageAndUrl(p)}
+                      aria-current={p === safePage ? "page" : undefined}
+                      className={`min-w-10 rounded-full px-3.5 py-2 text-sm font-semibold transition-colors ${
+                        p === safePage
+                          ? "bg-slate-900 text-white"
+                          : "border border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  </span>
+                );
+              })}
+              <button
+                type="button"
+                disabled={safePage >= totalPages}
+                onClick={() => setPageAndUrl(safePage + 1)}
+                className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {txt.pageNext}
+              </button>
+            </nav>
+          )}
         </>
       ) : (
-        <div className="text-center py-20 bg-slate-50 rounded-2xl border border-dashed border-slate-300">
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 py-20 text-center">
           <h3 className="text-xl font-bold text-slate-900">{txt.noResults}</h3>
-          <p className="text-slate-500 mb-4">{txt.adjust}</p>
-          <button onClick={clearFilters} className="bg-slate-900 text-white px-6 py-2 rounded-lg font-bold">{txt.reset}</button>
+          <p className="mb-4 text-slate-500">{txt.adjust}</p>
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="rounded-full bg-slate-900 px-6 py-2.5 text-sm font-bold text-white"
+          >
+            {txt.reset}
+          </button>
         </div>
       )}
     </div>
