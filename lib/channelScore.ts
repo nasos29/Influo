@@ -3,7 +3,6 @@ import { parseFollowerString } from "@/lib/parseFollowers";
 
 export type ChannelAxisId =
   | "followersGrowth"
-  | "creationPublish"
   | "channelQuality"
   | "engagementRate"
   | "audienceCredibility";
@@ -154,21 +153,6 @@ function scoreEngagement(er: number, followersTotal: number, erFlagged?: boolean
   return 2.2;
 }
 
-/**
- * Portfolio samples only — no platform-count bonus (platforms count in channelQuality).
- * 0 → 0; 1 → 1.5; 3 → 2.5; 6 → 3.5; 10 → 4.5; 15+ → 5.
- */
-export function scoreCreation(contentCount: number): number {
-  const n = Math.max(0, Number(contentCount) || 0);
-  if (n <= 0) return 0;
-  if (n >= 15) return 5;
-  if (n >= 10) return 4.5;
-  if (n >= 6) return 3.5;
-  if (n >= 3) return 2.5;
-  if (n >= 1) return 1.5;
-  return 0;
-}
-
 /** Like/followers ratio bands mirror ER % / 100 for the same follower size. */
 function likeRatioThresholds(followersTotal: number): { excellent: number; good: number; average: number } {
   const er = erBandThresholds(followersTotal);
@@ -299,9 +283,10 @@ export function buildChannelScore(input: ChannelScoreInput) {
   const er = weightedEngagementPercent(input.followersByPlatform, input.engagementRate);
   const likes = parseLikes(input.avgLikes);
   const growthScore = scoreFollowersGrowth(input.growthPct);
+  // Influo Score = mean of scored axes (no creation/portfolio axis).
+  // contentCount ≥ 3 still adds +0.5 inside collaboration readiness.
   const axes: ChannelAxis[] = [
     { id: "followersGrowth", score: growthScore == null ? null : round1(growthScore) },
-    { id: "creationPublish", score: round1(scoreCreation(input.contentCount)) },
     { id: "audienceCredibility", score: round1(scoreAudience(input)) },
     {
       id: "engagementRate",
@@ -339,7 +324,6 @@ export function buildChannelScore(input: ChannelScoreInput) {
 
 export const AXIS_LABELS: Record<ChannelAxisId, { el: string; en: string }> = {
   followersGrowth: { el: "Αύξηση followers", en: "Followers growth" },
-  creationPublish: { el: "Δείγματα δουλειάς", en: "Portfolio" },
   channelQuality: { el: "Ποιότητα καναλιού", en: "Channel quality" },
   engagementRate: { el: "Engagement rate", en: "Engagement rate" },
   audienceCredibility: { el: "Πληρότητα & επαλήθευση", en: "Verification & completeness" },

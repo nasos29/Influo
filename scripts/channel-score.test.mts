@@ -6,7 +6,6 @@ import {
   buildChannelScore,
   erBandThresholds,
   excellentErThreshold,
-  scoreCreation,
   scoreFollowersGrowth,
 } from "../lib/channelScore.ts";
 
@@ -169,29 +168,36 @@ test("integration shows From (no ×2.2) when only min_rate exists", () => {
   assert.equal(withCard.integrationTo, 250);
 });
 
-test("axis labels renamed for portfolio and verification", () => {
-  assert.equal(AXIS_LABELS.creationPublish.el, "Δείγματα δουλειάς");
-  assert.equal(AXIS_LABELS.creationPublish.en, "Portfolio");
+test("axis labels for verification; no creationPublish axis", () => {
   assert.equal(AXIS_LABELS.audienceCredibility.el, "Πληρότητα & επαλήθευση");
   assert.equal(AXIS_LABELS.audienceCredibility.en, "Verification & completeness");
+  assert.equal("creationPublish" in AXIS_LABELS, false);
+  const score = buildChannelScore({
+    followersTotal: 5_000,
+    contentCount: 10,
+    platformCount: 1,
+  });
+  assert.equal(score.axes.some((a) => a.id === "creationPublish"), false);
+  assert.equal(score.axes.length, 4);
 });
 
-test("scoreCreation tiers start at 0 and ignore platforms", () => {
-  assert.equal(scoreCreation(0), 0);
-  assert.equal(scoreCreation(1), 1.5);
-  assert.equal(scoreCreation(2), 1.5);
-  assert.equal(scoreCreation(3), 2.5);
-  assert.equal(scoreCreation(6), 3.5);
-  assert.equal(scoreCreation(10), 4.5);
-  assert.equal(scoreCreation(15), 5);
-  assert.equal(scoreCreation(40), 5);
-  const withPlatforms = buildChannelScore({
-    followersTotal: 5_000,
+test("contentCount >= 3 still adds +0.5 to collaboration readiness", () => {
+  const without = buildChannelScore({
+    followersTotal: 0,
     contentCount: 0,
-    platformCount: 5,
+    platformCount: 0,
   });
-  assert.equal(axis(withPlatforms, "creationPublish"), 0);
+  const withSamples = buildChannelScore({
+    followersTotal: 0,
+    contentCount: 3,
+    platformCount: 0,
+  });
+  assert.equal(withSamples.coopPotential, round1(without.coopPotential + 0.5));
 });
+
+function round1(n: number): number {
+  return Math.round(n * 10) / 10;
+}
 
 test("scoreAudience uses avatar/bio/age more than rare verified", () => {
   const bare = buildChannelScore({
@@ -224,7 +230,7 @@ test("growthPct null excludes followersGrowth from influoScore", () => {
   });
   assert.equal(axis(missing, "followersGrowth"), null);
   const scoredAxes = missing.axes.filter((a) => a.score != null);
-  assert.equal(scoredAxes.length, 4);
+  assert.equal(scoredAxes.length, 3);
   const expected =
     Math.round(
       (scoredAxes.reduce((sum, a) => sum + (a.score as number), 0) / scoredAxes.length) * 10
