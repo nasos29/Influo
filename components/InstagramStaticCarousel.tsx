@@ -76,7 +76,7 @@ export default function InstagramStaticCarousel({
       />
 
       <span
-        className="absolute top-2 right-2 z-20 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-black/55 text-white shadow-sm backdrop-blur-sm pointer-events-none"
+        className="absolute top-2 right-2 z-40 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-black/55 text-white shadow-sm backdrop-blur-sm pointer-events-none"
         aria-label={COPY.album[uiLang]}
         title={COPY.album[uiLang]}
       >
@@ -89,9 +89,10 @@ export default function InstagramStaticCarousel({
         <>
           <button
             type="button"
-            className="absolute left-1 top-1/2 z-20 -translate-y-1/2 inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/45 text-lg font-semibold text-white shadow backdrop-blur-sm hover:bg-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+            className="absolute left-1 top-1/2 z-40 -translate-y-1/2 inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/45 text-lg font-semibold text-white shadow backdrop-blur-sm hover:bg-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
             aria-label={COPY.prev[uiLang]}
             onClick={(e) => {
+              e.preventDefault();
               e.stopPropagation();
               go(-1);
             }}
@@ -100,9 +101,10 @@ export default function InstagramStaticCarousel({
           </button>
           <button
             type="button"
-            className="absolute right-1 top-1/2 z-20 -translate-y-1/2 inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/45 text-lg font-semibold text-white shadow backdrop-blur-sm hover:bg-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+            className="absolute right-1 top-1/2 z-40 -translate-y-1/2 inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/45 text-lg font-semibold text-white shadow backdrop-blur-sm hover:bg-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
             aria-label={COPY.next[uiLang]}
             onClick={(e) => {
+              e.preventDefault();
               e.stopPropagation();
               go(1);
             }}
@@ -110,7 +112,7 @@ export default function InstagramStaticCarousel({
             ›
           </button>
           <div
-            className="absolute bottom-2 left-1/2 z-20 flex -translate-x-1/2 gap-1.5"
+            className="absolute bottom-2 left-1/2 z-40 flex -translate-x-1/2 gap-1.5 pointer-events-none"
             aria-hidden
           >
             {images.map((_, i) => (

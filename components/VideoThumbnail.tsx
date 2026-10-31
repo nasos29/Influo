@@ -106,6 +106,8 @@ export default function VideoThumbnail({
     !!embedSrc && /tiktok\.com\/player\/v1\//i.test(embedSrc);
   const isYouTubePlayer =
     !!embedSrc && /youtube\.com\/embed\//i.test(embedSrc);
+  const isTikTokPhotoEarly =
+    isTikTok && (mediaType === "image" || /\/photo\/\d+/i.test(url));
   const portfolioKind: PortfolioMediaKind | null = nativeVideoUrl
     ? "native"
     : isTikTokPlayer
@@ -113,7 +115,13 @@ export default function VideoThumbnail({
       : isYouTubePlayer
         ? "youtube"
         : null;
-  const portfolioActive = !!portfolioKind && (!!embedSrc || !!nativeVideoUrl);
+  // Never put play/pause overlay on photos / carousels (blocks ‹ › and dots).
+  const portfolioActive =
+    !!portfolioKind &&
+    (!!embedSrc || !!nativeVideoUrl) &&
+    !isTikTokPhotoEarly &&
+    igKind !== "image" &&
+    igKind !== "carousel";
   const {
     iframeRef: mediaIframeRef,
     videoRef: mediaVideoRef,
@@ -493,7 +501,7 @@ export default function VideoThumbnail({
             onClick={onTikTokTapForSound}
           />
         ) : null}
-        {portfolioKind ? (
+        {portfolioActive ? (
           <button
             type="button"
             className="absolute inset-x-0 top-0 bottom-16 z-[15] bg-transparent"
