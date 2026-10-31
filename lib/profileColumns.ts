@@ -23,6 +23,7 @@ export const INFLUENCER_BROWSER_COLUMNS = [
   "avatar_url",
   "verified",
   "videos",
+  "hidden_videos",
   "avg_rating",
   "total_reviews",
   "avg_response_time",

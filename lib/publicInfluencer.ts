@@ -7,6 +7,7 @@
  */
 
 import { sanitizeTopPosts } from "@/lib/topPosts";
+import { visibleVideos } from "@/lib/hiddenVideos";
 
 export const DIRECTORY_CARD_COLUMNS = [
   "id",
@@ -33,6 +34,7 @@ export const DIRECTORY_CARD_COLUMNS = [
 /** Extra columns the public profile page renders for logged-out visitors. */
 export const PUBLIC_PROFILE_EXTRA_COLUMNS = [
   "videos",
+  "hidden_videos",
   "video_thumbnails",
   "skills",
   "certifications",
@@ -47,7 +49,7 @@ export const PUBLIC_PROFILE_EXTRA_COLUMNS = [
 /** Read server-side only so the public payload can say "a price exists" without the amount. */
 export const PRICING_SOURCE_COLUMNS = ["min_rate", "rate_card", "service_packages"] as const;
 
-export const NEWLY_APPROVED_EXTRA_COLUMNS = ["videos", "video_thumbnails"] as const;
+export const NEWLY_APPROVED_EXTRA_COLUMNS = ["videos", "hidden_videos", "video_thumbnails"] as const;
 
 const ACCOUNT_KEYS = [
   "platform",
@@ -324,11 +326,14 @@ export function toPublicDirectoryCard(row: Record<string, unknown>): Record<stri
 }
 
 export function toPublicNewlyApproved(row: Record<string, unknown>): Record<string, unknown> {
-  return withFilterFields(
+  const out = withFilterFields(
     pickColumns(row, [...DIRECTORY_CARD_COLUMNS, ...NEWLY_APPROVED_EXTRA_COLUMNS]),
     row,
     false
   );
+  out.videos = visibleVideos(row.videos, row.hidden_videos);
+  delete out.hidden_videos;
+  return out;
 }
 
 export function toPublicProfile(row: Record<string, unknown>): Record<string, unknown> {
@@ -337,6 +342,8 @@ export function toPublicProfile(row: Record<string, unknown>): Record<string, un
     row,
     false
   );
+  base.videos = visibleVideos(row.videos, row.hidden_videos);
+  delete base.hidden_videos;
   base.has_min_rate = hasListedMinRate(row.min_rate);
   base.has_priced_min_rate = hasPricedMinRate(row.min_rate);
   base.rate_card_flags = rateCardFlags(row.rate_card);

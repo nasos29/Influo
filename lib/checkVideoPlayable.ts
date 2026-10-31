@@ -98,7 +98,9 @@ async function resolveTikTokUrl(url: string): Promise<
     if (resolved) return { ok: true, url: resolved };
     try {
       const path = new URL(current).pathname;
-      if (path === "/" || path === "") return { ok: false, technical: false, gone: true };
+      // TikTok often sends server-side short-link crawlers to the homepage.
+      // That is not proof the post is gone — treat as unchecked (never hide).
+      if (path === "/" || path === "") return { ok: false, technical: true };
     } catch {
       return { ok: false, technical: true };
     }

@@ -1993,6 +1993,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     verified: number;
     approved?: number;
     analyticsVerified?: number;
+    hiddenVideos?: number;
     reach: string;
     pipeline: string;
   }>({ 
@@ -2001,9 +2002,14 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     verified: 0,
     approved: 0,
     analyticsVerified: 0,
+    hiddenVideos: 0,
     reach: "0",
     pipeline: "0€"
   });
+  const [hiddenByProfile, setHiddenByProfile] = useState<
+    Array<{ id: string; display_name: string; count: number; urls: string[] }>
+  >([]);
+  const [showHiddenVideosPanel, setShowHiddenVideosPanel] = useState(false);
   const [pendingProposalsCount, setPendingProposalsCount] = useState(0);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
   const [brokenThumbnails, setBrokenThumbnails] = useState<Array<{ influencerId: number; influencerName: string; videoUrl: string; thumbnailUrl: string; reason: string }>>([]);
@@ -2587,8 +2593,15 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const PAGE_SIZE = 50;
 
   const applyInfluencerCounts = (
-    counts: { total?: number; approved?: number; pending?: number; analyticsVerified?: number } | undefined,
-    pipeline: string
+    counts: {
+      total?: number;
+      approved?: number;
+      pending?: number;
+      analyticsVerified?: number;
+      hiddenVideos?: number;
+    } | undefined,
+    pipeline: string,
+    hiddenList?: Array<{ id: string; display_name: string; count: number; urls: string[] }>
   ) => {
     if (!counts) return;
     const total = counts.total ?? 0;
@@ -2602,10 +2615,12 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       approved,
       analyticsVerified,
       pending,
+      hiddenVideos: counts.hiddenVideos ?? 0,
       pipeline: pipeline || prev.pipeline,
       // Reach is not recomputed from full table (would require scanning all rows).
       reach: prev.reach || "—",
     }));
+    if (hiddenList) setHiddenByProfile(hiddenList);
   };
 
   const fetchInfluencersPage = async (opts: {
@@ -2644,7 +2659,11 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       setInfluencersPage(page);
       setInfluencersTotal(typeof body.total === "number" ? body.total : rows.length);
       setInfluencersHasMore(!!body.hasMore);
-      applyInfluencerCounts(body.counts, "");
+      applyInfluencerCounts(
+        body.counts,
+        "",
+        Array.isArray(body.hiddenByProfile) ? body.hiddenByProfile : undefined
+      );
     } catch (error) {
       console.error("Error fetching influencers:", error);
       if (!append) setUsers([]);
@@ -3844,7 +3863,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-7 gap-4 mb-6">
           <div className="bg-white p-4 rounded-lg border border-slate-200">
             <p className="text-xs text-slate-500 uppercase font-medium mb-1">{txt.users}</p>
             <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
@@ -3869,7 +3888,67 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
             <p className="text-xs text-purple-700 uppercase font-medium mb-1">{txt.pipeline}</p>
             <p className="text-2xl font-bold text-purple-600">{stats.pipeline}</p>
           </div>
+          <button
+            type="button"
+            onClick={() => setShowHiddenVideosPanel((v) => !v)}
+            className="bg-orange-50 border border-orange-200 p-4 rounded-lg text-left hover:bg-orange-100/80 transition-colors"
+          >
+            <p className="text-xs text-orange-800 uppercase font-medium mb-1">
+              {lang === "en" ? "Hidden videos" : "Κρυφά βίντεο"}
+            </p>
+            <p className="text-2xl font-bold text-orange-700">{stats.hiddenVideos ?? 0}</p>
+          </button>
         </div>
+
+        {showHiddenVideosPanel ? (
+          <div className="mb-6 rounded-lg border border-orange-200 bg-orange-50/60 p-4">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <h3 className="text-sm font-semibold text-orange-950">
+                {lang === "en"
+                  ? "Hidden portfolio videos by profile"
+                  : "Κρυφά βίντεο portfolio ανά προφίλ"}
+              </h3>
+              <button
+                type="button"
+                className="text-xs font-medium text-orange-800 hover:underline"
+                onClick={() => setShowHiddenVideosPanel(false)}
+              >
+                {lang === "en" ? "Close" : "Κλείσιμο"}
+              </button>
+            </div>
+            {hiddenByProfile.length === 0 ? (
+              <p className="text-sm text-orange-900/80">
+                {lang === "en" ? "No hidden videos." : "Δεν υπάρχουν κρυφά βίντεο."}
+              </p>
+            ) : (
+              <ul className="space-y-3 max-h-80 overflow-y-auto">
+                {hiddenByProfile.map((row) => (
+                  <li
+                    key={row.id}
+                    className="rounded-lg border border-orange-200 bg-white px-3 py-2 text-sm"
+                  >
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <span className="font-semibold text-slate-900">
+                        {row.display_name || row.id}
+                      </span>
+                      <span className="text-xs font-medium text-orange-800">
+                        {row.count}{" "}
+                        {lang === "en" ? "hidden" : "κρυφά"}
+                      </span>
+                    </div>
+                    <ul className="mt-1 space-y-0.5">
+                      {row.urls.map((url) => (
+                        <li key={url} className="break-all text-xs text-slate-600">
+                          {url}
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ) : null}
 
         {/* Tabs */}
         <div className="bg-white rounded-lg border border-slate-200 mb-4">
