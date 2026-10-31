@@ -17,6 +17,8 @@ import { campaignAudience, type CampaignAudience } from "@/lib/campaignAudience"
 import { formatFollowerCount } from "@/lib/platformStats";
 import { campaignPublicBadgeLabel } from "@/lib/campaignPublicBadge";
 import BrandAboutCard from "@/components/BrandAboutCard";
+import { CampaignDescriptionText } from "@/lib/campaignDescription";
+import { displayLocation } from "@/lib/displayLocation";
 
 const CONTACT_BLOCKED = {
   el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
@@ -422,7 +424,9 @@ export default function CampaignPublicView({
                   {brand.city ? <span className="text-slate-400"> · {brand.city}</span> : null}
                 </p>
               ) : null}
-              <p className="text-slate-700 mt-4 whitespace-pre-wrap">{campaign.description}</p>
+              <p className="text-slate-700 mt-4 whitespace-pre-wrap">
+                <CampaignDescriptionText text={campaign.description} />
+              </p>
 
               {deliverables.length > 0 && (
                 <div className="mt-8">
@@ -433,7 +437,9 @@ export default function CampaignPublicView({
                     {deliverables.map((d) => (
                       <li key={d} className="flex gap-2 text-sm text-slate-700">
                         <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400 shrink-0" />
-                        <span>{d}</span>
+                        <span>
+                          <CampaignDescriptionText text={d} />
+                        </span>
                       </li>
                     ))}
                   </ul>
@@ -460,7 +466,7 @@ export default function CampaignPublicView({
                   {campaign.location ? (
                     <li>
                       <span className="text-slate-500">{el ? "Τοποθεσία" : "Location"}: </span>
-                      {campaign.location}
+                      {displayLocation(campaign.location, el ? "el" : "en")}
                     </li>
                   ) : null}
                   {campaign.starts_on ? (

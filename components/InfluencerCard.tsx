@@ -7,6 +7,7 @@ import { categoryTranslations } from "./categoryTranslations";
 import { displayNameForLang } from "@/lib/greeklish";
 import { getCachedImageUrl, getStorageCardUrl } from "@/lib/imageProxy";
 import { formatPriceTierLabel } from "@/lib/publicInfluencer";
+import { displayLocation } from "@/lib/displayLocation";
 import type { TrustChip } from "@/lib/trustSignals";
 import { isAvailableStatus } from "@/lib/trustSignals";
 
@@ -264,7 +265,7 @@ export default function InfluencerCard({
             <span className="min-w-0 truncate">
               {location ? (
                 <>
-                  <span aria-hidden>📍</span> {location}
+                  <span aria-hidden>📍</span> {displayLocation(location, lang) || location}
                 </>
               ) : (
                 <span className="invisible">-</span>

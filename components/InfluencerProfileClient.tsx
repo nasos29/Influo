@@ -31,6 +31,8 @@ import { getVisitorId } from "@/lib/visitorId";
 import { trackOutboundSocialClick } from "@/lib/trackOutboundSocial";
 import { categoryTranslations } from "@/components/categoryTranslations";
 import { parseStoredCategories } from "@/lib/categories";
+import { displayLocation } from "@/lib/displayLocation";
+import { localizeCategoryText } from "@/lib/localizeCategoryText";
 import { genderLabel, normalizeGender } from "@/lib/gender";
 import BrandSaveInfluencerButton from "@/components/BrandSaveInfluencerButton";
 import { addBrandShortlist, fetchBrandShortlist, removeBrandShortlist } from "@/lib/brandShortlist";
@@ -588,6 +590,7 @@ export default function InfluencerProfile(props: {
   const [reviewProjectType, setReviewProjectType] = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [isBrand, setIsBrand] = useState(false);
+  const [hasSession, setHasSession] = useState(false);
   const commercialRef = useRef<{
     min_rate?: string;
     rate_card?: ProInfluencer["rate_card"];
@@ -606,6 +609,7 @@ export default function InfluencerProfile(props: {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (cancelled) return;
+        setHasSession(!!session?.access_token);
         if (!session?.access_token) {
           setIsBrand(false);
           sessionStorage.removeItem("isBrand");
@@ -651,14 +655,15 @@ export default function InfluencerProfile(props: {
     };
   }, [isBrand, id]);
 
-  // Check online status - only show online if influencer is actually logged in and active
+  // Online badge — only when the visitor has a session (avoids 401 on public RLS).
   useEffect(() => {
-    if (!id) return;
+    if (!id || !hasSession) {
+      setIsOnline(false);
+      return;
+    }
 
     const checkOnlineStatus = async () => {
       try {
-        // First check if this influencer is actually logged in
-        // We can't directly check, but we can verify the presence record is recent and valid
         const { data, error } = await supabase
           .from('influencer_presence')
           .select('influencer_id, is_online, last_seen')
@@ -692,7 +697,7 @@ export default function InfluencerProfile(props: {
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [id]);
+  }, [id, hasSession]);
 
   // Load counter proposal data if query params exist
   useEffect(() => {
@@ -829,19 +834,23 @@ export default function InfluencerProfile(props: {
         const usable = resolveCompletionRate(data.completion_rate);
         if (usable != null) calculatedCompletionRate = usable;
       }
-      const { computeAvgResponseHours } = await import('@/lib/influencerMetrics');
-      const responseH = await computeAvgResponseHours(supabase, String(id));
-      computedResponseHours = responseH;
-      // The public completion percentage is stored on the profile.
-      // A visitor only sees their own proposals, so the browser must not rewrite it.
-      const patch: Record<string, number | null> = {};
-      if (responseH != null) {
-        patch.avg_response_time = responseH;
-      } else if (data.avg_response_time === 24 || data.avg_response_time === '24') {
-        patch.avg_response_time = null;
-      }
-      if (Object.keys(patch).length > 0) {
-        void supabase.from('influencers').update(patch).eq('id', id);
+      // Conversations/messages metrics require a session (RLS → 401 when logged out).
+      const { data: { session: metricSession } } = await supabase.auth.getSession();
+      if (metricSession?.access_token) {
+        const { computeAvgResponseHours } = await import('@/lib/influencerMetrics');
+        const responseH = await computeAvgResponseHours(supabase, String(id));
+        computedResponseHours = responseH;
+        // The public completion percentage is stored on the profile.
+        // A visitor only sees their own proposals, so the browser must not rewrite it.
+        const patch: Record<string, number | null> = {};
+        if (responseH != null) {
+          patch.avg_response_time = responseH;
+        } else if (data.avg_response_time === 24 || data.avg_response_time === '24') {
+          patch.avg_response_time = null;
+        }
+        if (Object.keys(patch).length > 0) {
+          void supabase.from('influencers').update(patch).eq('id', id);
+        }
       }
     }
     
@@ -1765,7 +1774,10 @@ export default function InfluencerProfile(props: {
                     {displayNameForLang(profile.name, lang)}
                 </h1>
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-1">
-                    <p className="text-slate-500">{profile.location} • {genderLabel(profile.gender, lang)}</p>
+                    <p className="text-slate-500">
+                      {displayLocation(profile.location, lang) || profile.location} •{" "}
+                      {genderLabel(profile.gender, lang)}
+                    </p>
                     {isOnline && (
                         <span className="inline-flex items-center gap-1.5 bg-green-50 border border-green-200 text-green-700 px-3 py-1 rounded-full text-xs font-semibold animate-pulse">
                             <span className="w-2 h-2 bg-green-500 rounded-full"></span>
@@ -1958,14 +1970,25 @@ export default function InfluencerProfile(props: {
                   ? (profile.avg_likes as { [key: string]: string })
                   : {};
               const platforms = [
-                { key: "instagram", icon: InstagramIcon, color: "text-pink-600" },
-                { key: "tiktok", icon: TiktokIcon, color: "text-slate-900" },
-                { key: "youtube", icon: YoutubeIcon, color: "text-red-600" },
-                { key: "twitter", icon: TwitterIcon, color: "text-slate-700" },
+                { key: "instagram", icon: InstagramIcon, color: "text-pink-600", name: "Instagram" },
+                { key: "tiktok", icon: TiktokIcon, color: "text-slate-900", name: "TikTok" },
+                { key: "youtube", icon: YoutubeIcon, color: "text-red-600", name: "YouTube" },
+                { key: "twitter", icon: TwitterIcon, color: "text-slate-700", name: "X" },
               ];
               const availablePlatforms = platforms.filter(
                 (platform) => followers[platform.key as keyof typeof followers]
               );
+              const platformLabel = (platform: (typeof platforms)[number]) => {
+                const Icon = platform.icon;
+                return (
+                  <>
+                    <span className={platform.color}>
+                      <Icon />
+                    </span>
+                    <span className="truncate text-xs font-medium text-slate-600">{platform.name}</span>
+                  </>
+                );
+              };
               const hasReviews =
                 !!profile.total_reviews &&
                 profile.total_reviews > 0 &&
@@ -2011,6 +2034,10 @@ export default function InfluencerProfile(props: {
               return (
                 <>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                  {availablePlatforms.some((p) => {
+                    const er = engagementRates[p.key];
+                    return er && er !== "-";
+                  }) ? (
                   <ProfileStatCard
                     label={lang === "el" ? "Αλληλεπίδραση" : "Engagement"}
                     tip={txt.tip_engagement}
@@ -2022,33 +2049,25 @@ export default function InfluencerProfile(props: {
                       </MetricIcon>
                     }
                   >
-                    {availablePlatforms.length === 0 ? (
-                      <p className="text-xl font-semibold tracking-tight text-slate-300">—</p>
-                    ) : (
                       <div className="w-full">
                         {availablePlatforms.map((platform) => {
-                          const Icon = platform.icon;
                           let engagementRate = engagementRates[platform.key] || "-";
-                          if (engagementRate !== "-" && !engagementRate.includes("%")) {
+                          if (engagementRate === "-") return null;
+                          if (!engagementRate.includes("%")) {
                             engagementRate = engagementRate + "%";
                           }
                           const acc = (profile.accounts || []).find(
                             (a) => String(a.platform || "").toLowerCase() === platform.key
                           );
-                          const erFlag =
-                            engagementRate === "-"
-                              ? null
-                              : displayErFlag({
-                                  ...acc,
-                                  platform: acc?.platform || platform.key,
-                                  engagement_rate: engagementRate,
-                                });
+                          const erFlag = displayErFlag({
+                            ...acc,
+                            platform: acc?.platform || platform.key,
+                            engagement_rate: engagementRate,
+                          });
                           return platformRow(
                             platform.key,
                             <>
-                              <span className={platform.color}>
-                                <Icon />
-                              </span>
+                              {platformLabel(platform)}
                               {erFlag && (
                                 <span
                                   title={erFlagHint(erFlag, lang === "el" ? "el" : "en")}
@@ -2068,9 +2087,10 @@ export default function InfluencerProfile(props: {
                           );
                         })}
                       </div>
-                    )}
                   </ProfileStatCard>
+                  ) : null}
 
+                  {availablePlatforms.length > 0 ? (
                   <ProfileStatCard
                     label={lang === "el" ? "Ακόλουθοι" : "Followers"}
                     tip={txt.tip_followers}
@@ -2084,28 +2104,26 @@ export default function InfluencerProfile(props: {
                       </MetricIcon>
                     }
                   >
-                    {availablePlatforms.length === 0 ? (
-                      <p className="text-xl font-semibold tracking-tight text-slate-300">—</p>
-                    ) : (
                       <div className="w-full">
                         {availablePlatforms.map((platform) => {
-                          const Icon = platform.icon;
                           const count =
                             followers[platform.key as keyof typeof followers] || 0;
                           return platformRow(
                             platform.key,
-                            <span className={platform.color}>
-                              <Icon />
-                            </span>,
+                            platformLabel(platform),
                             <span className="text-[15px] font-semibold tabular-nums tracking-tight text-slate-900">
                               {formatNum(count)}
                             </span>
                           );
                         })}
                       </div>
-                    )}
                   </ProfileStatCard>
+                  ) : null}
 
+                  {availablePlatforms.some((p) => {
+                    const v = avgLikesMap[p.key];
+                    return v && v !== "-";
+                  }) ? (
                   <ProfileStatCard
                     label={lang === "el" ? "Μ.Ο. Likes" : "Avg Likes"}
                     tip={txt.tip_likes}
@@ -2116,27 +2134,23 @@ export default function InfluencerProfile(props: {
                       </MetricIcon>
                     }
                   >
-                    {availablePlatforms.length === 0 ? (
-                      <p className="text-xl font-semibold tracking-tight text-slate-300">—</p>
-                    ) : (
                       <div className="w-full">
                         {availablePlatforms.map((platform) => {
-                          const Icon = platform.icon;
                           const avgLikesValue = avgLikesMap[platform.key] || "-";
+                          if (avgLikesValue === "-") return null;
                           return platformRow(
                             platform.key,
-                            <span className={platform.color}>
-                              <Icon />
-                            </span>,
+                            platformLabel(platform),
                             <span className="text-[15px] font-semibold tabular-nums tracking-tight text-slate-900">
                               {avgLikesValue}
                             </span>
                           );
                         })}
                       </div>
-                    )}
                   </ProfileStatCard>
+                  ) : null}
 
+                  {growth30d != null ? (
                   <ProfileStatCard
                     label={txt.stat_growth_30d}
                     tip={txt.tip_growth}
@@ -2145,7 +2159,7 @@ export default function InfluencerProfile(props: {
                     icon={
                       <MetricIcon
                         className={
-                          growth30d != null && growth30d.growth < 0
+                          growth30d.growth < 0
                             ? "bg-rose-50 text-rose-600 ring-rose-100"
                             : "bg-emerald-50 text-emerald-600 ring-emerald-100"
                         }
@@ -2155,7 +2169,6 @@ export default function InfluencerProfile(props: {
                       </MetricIcon>
                     }
                   >
-                    {growth30d != null ? (
                       <div>
                         <p
                           className={`text-xl font-semibold tracking-tight tabular-nums ${
@@ -2176,10 +2189,8 @@ export default function InfluencerProfile(props: {
                           </p>
                         )}
                       </div>
-                    ) : (
-                      <p className="text-xl font-semibold tracking-tight text-slate-300">—</p>
-                    )}
                   </ProfileStatCard>
+                  ) : null}
 
                   {(profile.past_brands?.length || 0) > 0 ? (
                     <ProfileStatCard
@@ -2241,6 +2252,7 @@ export default function InfluencerProfile(props: {
                     </span>
                   </ProfileStatCard>
 
+                  {profile.avg_response_time != null && profile.avg_response_time > 0 ? (
                   <ProfileStatCard
                     label={txt.stat_response}
                     tip={txt.tip_response}
@@ -2253,16 +2265,14 @@ export default function InfluencerProfile(props: {
                       </MetricIcon>
                     }
                   >
-                    {profile.avg_response_time != null && profile.avg_response_time > 0 ? (
                       <p className="text-2xl font-semibold tracking-tight text-slate-900 tabular-nums">
                         {profile.avg_response_time}
                         <span className="ml-0.5 text-base font-medium text-slate-500">h</span>
                       </p>
-                    ) : (
-                      <p className="text-2xl font-semibold tracking-tight text-slate-300">—</p>
-                    )}
                   </ProfileStatCard>
+                  ) : null}
 
+                  {profile.calculatedCompletionRate !== undefined ? (
                   <ProfileStatCard
                     label={txt.stat_completion}
                     tip={txt.tip_completion}
@@ -2275,19 +2285,11 @@ export default function InfluencerProfile(props: {
                       </MetricIcon>
                     }
                   >
-                    {profile.calculatedCompletionRate !== undefined ? (
                       <p className="text-2xl font-semibold tracking-tight tabular-nums text-slate-900">
                         {profile.calculatedCompletionRate}%
                       </p>
-                    ) : (
-                      <div>
-                        <p className="text-2xl font-semibold tracking-tight text-slate-300">—</p>
-                        <p className="mt-0.5 text-xs text-slate-400">
-                          {lang === "el" ? "Καμία συνεργασία ακόμα" : "No collaborations yet"}
-                        </p>
-                      </div>
-                    )}
                   </ProfileStatCard>
+                  ) : null}
 
                   {(profile.has_min_rate || profile.min_rate) && (
                     <ProfileStatCard
@@ -2383,6 +2385,7 @@ export default function InfluencerProfile(props: {
                     </ProfileStatCard>
                   )}
 
+                  {hasReviews ? (
                   <ProfileStatCard
                     label={txt.stat_rating}
                     tip={txt.tip_rating}
@@ -2394,7 +2397,6 @@ export default function InfluencerProfile(props: {
                       </MetricIcon>
                     }
                   >
-                    {hasReviews ? (
                       <div>
                         <p className="text-2xl font-semibold tracking-tight text-slate-900 tabular-nums">
                           {profile.avg_rating!.toFixed(1)}
@@ -2403,15 +2405,8 @@ export default function InfluencerProfile(props: {
                           {profile.total_reviews} {txt.stat_reviews}
                         </p>
                       </div>
-                    ) : (
-                      <div>
-                        <p className="text-2xl font-semibold tracking-tight text-slate-300">—</p>
-                        <p className="mt-0.5 text-xs text-slate-400">
-                          {lang === "el" ? "Δεν υπάρχουν αξιολογήσεις" : "No reviews yet"}
-                        </p>
-                      </div>
-                    )}
                   </ProfileStatCard>
+                  ) : null}
                 </div>
                 {statsUpdatedLabel ? (
                   <p className="mt-3 text-xs text-slate-500">
@@ -2496,9 +2491,19 @@ export default function InfluencerProfile(props: {
                                       }
                                       return null;
                                     })()}
-                                    {(lang === 'en' ? profile.auditpr_audit.niche_en : profile.auditpr_audit.niche) && (
+                                    {localizeCategoryText(
+                                      lang === "en"
+                                        ? (profile.auditpr_audit.niche_en ?? profile.auditpr_audit.niche)
+                                        : profile.auditpr_audit.niche,
+                                      lang
+                                    ) && (
                                         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
-                                            {lang === 'en' ? (profile.auditpr_audit.niche_en ?? profile.auditpr_audit.niche) : profile.auditpr_audit.niche}
+                                            {localizeCategoryText(
+                                              lang === "en"
+                                                ? (profile.auditpr_audit.niche_en ?? profile.auditpr_audit.niche)
+                                                : profile.auditpr_audit.niche,
+                                              lang
+                                            )}
                                         </span>
                                     )}
                                 </div>
@@ -2506,7 +2511,7 @@ export default function InfluencerProfile(props: {
                                     {(lang === 'en' && profile.auditpr_audit.scoreBreakdown_en?.length ? profile.auditpr_audit.scoreBreakdown_en : profile.auditpr_audit.scoreBreakdown).map((item, idx) => (
                                         <li key={idx} className="flex gap-2">
                                             <span className="text-indigo-500 mt-0.5 shrink-0">•</span>
-                                            <span>{item}</span>
+                                            <span>{localizeCategoryText(item, lang)}</span>
                                         </li>
                                     ))}
                                     {(lang === 'en' ? profile.auditpr_audit.whyWorkWithThem_en : profile.auditpr_audit.whyWorkWithThem) && (
@@ -2520,7 +2525,12 @@ export default function InfluencerProfile(props: {
                                                       ? txt.why_work_with_them_male
                                                       : txt.why_work_with_them_ai)
                                                   : txt.why_work_with_them}</strong>
-                                                {lang === 'en' ? (profile.auditpr_audit.whyWorkWithThem_en ?? profile.auditpr_audit.whyWorkWithThem) : profile.auditpr_audit.whyWorkWithThem}
+                                                {localizeCategoryText(
+                                                  lang === 'en'
+                                                    ? (profile.auditpr_audit.whyWorkWithThem_en ?? profile.auditpr_audit.whyWorkWithThem)
+                                                    : profile.auditpr_audit.whyWorkWithThem,
+                                                  lang
+                                                )}
                                             </span>
                                         </li>
                                     )}
@@ -2533,7 +2543,7 @@ export default function InfluencerProfile(props: {
                                                 {(lang === 'en' ? profile.auditpr_audit.positives_en : profile.auditpr_audit.positives)?.map((item, idx) => (
                                                     <li key={idx} className="flex gap-2">
                                                         <span className="text-emerald-500 shrink-0">+</span>
-                                                        <span>{item}</span>
+                                                        <span>{localizeCategoryText(item, lang)}</span>
                                                     </li>
                                                 ))}
                                             </ul>
@@ -2548,7 +2558,7 @@ export default function InfluencerProfile(props: {
                                                 {(lang === 'en' ? profile.auditpr_audit.negatives_en : profile.auditpr_audit.negatives)?.map((item, idx) => (
                                                     <li key={idx} className="flex gap-2">
                                                         <span className="text-amber-500 shrink-0">−</span>
-                                                        <span>{item}</span>
+                                                        <span>{localizeCategoryText(item, lang)}</span>
                                                     </li>
                                                 ))}
                                             </ul>

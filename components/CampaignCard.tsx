@@ -8,6 +8,8 @@ import { campaignClosesAt, daysUntilCampaignCloses } from "@/lib/campaignLifecyc
 import { formatFollowerCount } from "@/lib/platformStats";
 import { getCachedImageUrl } from "@/lib/imageProxy";
 import { campaignPublicBadgeLabel } from "@/lib/campaignPublicBadge";
+import { CampaignDescriptionText } from "@/lib/campaignDescription";
+import { displayLocation } from "@/lib/displayLocation";
 
 export type CampaignCardBrand = {
   brand_name?: string | null;
@@ -326,7 +328,7 @@ export default function CampaignCard({
         )}
         {campaign.location ? (
           <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
-            {campaign.location}
+            {displayLocation(campaign.location, lang)}
           </span>
         ) : null}
         {campaign.min_followers ? (
@@ -337,7 +339,9 @@ export default function CampaignCard({
         ) : null}
       </div>
 
-      <p className="mt-3 text-sm text-slate-600 line-clamp-3 whitespace-pre-wrap">{campaign.description}</p>
+      <p className="mt-3 text-sm text-slate-600 line-clamp-3 whitespace-pre-wrap">
+        <CampaignDescriptionText text={campaign.description} />
+      </p>
 
       {(platforms.length > 0 || cat || deliverableChips.length > 0) && (
         <div className="mt-3 flex flex-wrap gap-2">

@@ -45,6 +45,7 @@ import {
   MARKETING_SHARED,
   PLATFORM_STAT_LABELS,
 } from "@/lib/marketingSharedCopy";
+import { openCampaignsLabel } from "@/lib/pluralize";
 import { useAuthLoggedIn } from "@/lib/useAuthLoggedIn";
 import { useMarketingLang } from "@/lib/useMarketingLang";
 
@@ -324,7 +325,7 @@ export default function ForBrandsPage({ stats }: Props) {
   const statItems = marketingStatItems(stats, {
     influencers: bi(lang, PLATFORM_STAT_LABELS.influencers),
     brands: bi(lang, PLATFORM_STAT_LABELS.brands),
-    campaigns: bi(lang, PLATFORM_STAT_LABELS.campaigns),
+    campaigns: openCampaignsLabel(stats.openCampaigns ?? 0, lang),
   });
 
   return (

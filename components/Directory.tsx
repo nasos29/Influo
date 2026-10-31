@@ -16,6 +16,7 @@ import {
   DIRECTORY_BUDGET_CAPS,
 } from "@/lib/publicInfluencer";
 import { resolveCompletionRate } from "@/lib/completionRate";
+import { displayLocation, locationFilterMatches } from "@/lib/displayLocation";
 
 const CATEGORY_KEYS = new Set<string>(CATEGORIES);
 const PAGE_SIZE = 40;
@@ -254,21 +255,6 @@ const badgesForInfluencer = (inf: Influencer, lang: "el" | "en") => {
   );
 };
 
-const normalizeLocation = (s: string): string => {
-  if (!s || typeof s !== "string") return "";
-  const lower = s.toLowerCase().trim();
-  return lower
-    .replace(/ά/g, "α")
-    .replace(/έ/g, "ε")
-    .replace(/ή/g, "η")
-    .replace(/ί/g, "ι")
-    .replace(/ό/g, "ο")
-    .replace(/ύ/g, "υ")
-    .replace(/ώ/g, "ω")
-    .replace(/ϊ/g, "ι")
-    .replace(/ϋ/g, "υ");
-};
-
 const pillSelect =
   "w-full appearance-none rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 cursor-pointer";
 const pillInput =
@@ -459,8 +445,7 @@ export default function Directory({
       inf.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       inf.bio.toLowerCase().includes(searchQuery.toLowerCase());
     const locationMatch =
-      locationQuery === "" ||
-      (inf.location && normalizeLocation(inf.location).includes(normalizeLocation(locationQuery)));
+      locationQuery === "" || locationFilterMatches(inf.location, locationQuery);
 
     const platformMatch =
       platformFilter === "All" ||
@@ -960,7 +945,7 @@ export default function Directory({
                     lang={lang}
                     trustChips={trustChipsFromAccounts(inf.accounts)}
                     availabilityStatus={inf.availability_status}
-                    location={inf.location}
+                    location={displayLocation(inf.location, lang) || inf.location}
                     price_tier={inf.price_tier}
                   />
                 </Link>
