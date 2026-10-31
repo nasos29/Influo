@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { MessageCircle } from "lucide-react";
 import { NegotiateDialog } from "@/components/ProfileOffersPanel";
-import { formatEuroAmount } from "@/lib/formatEuro";
+import { formatEuroAmount, parseEuroNumber } from "@/lib/formatEuro";
 import { offerPriceLabel } from "@/lib/offerPriceLabel";
 import { listedPriceMin } from "@/lib/parsePrice";
 import {
@@ -11,7 +11,7 @@ import {
   EXTRA_LABEL,
   extraPriceSuffix,
   packagePriceSuffix,
-  packageRowTitle,
+  packageTitle,
   type PackagePlatform,
   type PackageType,
   type PublicExtraView,
@@ -70,7 +70,7 @@ function hireChoices(
   const fromPackages = packages.map((pkg) => {
     const title =
       pkg.platform && pkg.type
-        ? packageRowTitle(pkg.platform, pkg.type, pkg.quantity || 1, lang)
+        ? packageTitle(pkg.platform, pkg.type, pkg.quantity || 1, lang)
         : pkg.title;
     const priced = choiceBudget(
       pkg.price,
@@ -118,6 +118,9 @@ export default function ProfileHireCard({
   packages,
   extras,
   amountLabel,
+  floorAmount,
+  selectedId,
+  onSelectedIdChange,
   creatorName,
   gender,
   isBrand,
@@ -132,8 +135,12 @@ export default function ProfileHireCard({
   lang: "el" | "en";
   packages: PublicPackageView[];
   extras: PublicExtraView[];
-  /** Formatted amount only, e.g. "40 €". The «Από» word is separate. */
+  /** Floor price, e.g. "40 €", used when no package price is available. */
   amountLabel: string | null;
+  /** Numeric floor. «Από» stays only while the selected price is this amount. */
+  floorAmount: number | null;
+  selectedId: string | null;
+  onSelectedIdChange: (id: string) => void;
   creatorName: string;
   gender?: string | null;
   isBrand: boolean;
@@ -146,9 +153,13 @@ export default function ProfileHireCard({
 }) {
   const copy = COPY[lang];
   const choices = useMemo(() => hireChoices(packages, extras, lang), [packages, extras, lang]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [negotiateOpen, setNegotiateOpen] = useState(false);
   const selected = choices.find((choice) => choice.id === selectedId) ?? choices[0] ?? null;
+  const priceText = selected?.priceLabel || amountLabel;
+  const selectedNumber = selected?.budget ? parseEuroNumber(selected.budget) : null;
+  const showFrom =
+    !selected?.priceLabel ||
+    (selectedNumber != null && floorAmount != null && selectedNumber === floorAmount);
 
   const collaborate = () => {
     onCollaborate(selected ? { label: selected.title, budget: selected.budget } : undefined);
@@ -170,10 +181,10 @@ export default function ProfileHireCard({
     return (
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white px-4 pt-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] lg:hidden pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="mx-auto flex max-w-6xl items-center gap-3">
-          {amountLabel ? (
+          {priceText ? (
             <div className="min-w-0">
-              <p className="text-xs text-slate-500">{copy.from}</p>
-              <p className="text-lg font-extrabold leading-none text-slate-900">{amountLabel}</p>
+              {showFrom ? <p className="text-xs text-slate-500">{copy.from}</p> : null}
+              <p className="text-lg font-extrabold leading-none text-slate-900">{priceText}</p>
             </div>
           ) : (
             <div className="min-w-0" />
@@ -203,18 +214,24 @@ export default function ProfileHireCard({
   return (
     <>
       <div className="rounded-2xl border border-slate-200 bg-white px-[18px] pb-3.5 pt-[18px] shadow-[0_10px_28px_rgba(15,23,42,0.08)]">
-        {amountLabel ? (
-          <>
-            <p className="text-[13px] text-slate-500">{copy.from}</p>
-            <p className="mb-3.5 mt-0.5 text-3xl font-extrabold leading-none text-slate-900">{amountLabel}</p>
-          </>
+        {priceText ? (
+          <div className="mb-3.5">
+            {showFrom ? <p className="text-[13px] text-slate-500">{copy.from}</p> : null}
+            <p
+              className={`mt-0.5 font-extrabold text-slate-900 ${
+                priceText.length > 10 ? "text-2xl leading-tight" : "text-3xl leading-none"
+              }`}
+            >
+              {priceText}
+            </p>
+          </div>
         ) : null}
         {choices.length > 0 ? (
           <label className="block">
             <span className="text-xs font-semibold text-slate-700">{copy.package}</span>
             <select
               value={selected?.id || ""}
-              onChange={(event) => setSelectedId(event.target.value)}
+              onChange={(event) => onSelectedIdChange(event.target.value)}
               className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 outline-none focus:border-blue-500"
             >
               {choices.map((choice) => (

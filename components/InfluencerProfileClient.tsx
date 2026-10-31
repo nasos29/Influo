@@ -622,6 +622,7 @@ export default function InfluencerProfile(props: {
 
   // MODAL STATE
   const [showProposalModal, setShowProposalModal] = useState(false);
+  const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [showRegistrationRequiredModal, setShowRegistrationRequiredModal] = useState(false);
   const [proposalType, setProposalType] = useState("Instagram Story");
@@ -1487,11 +1488,21 @@ export default function InfluencerProfile(props: {
   });
   const hireSource = hireFloor ?? (typeof profile.from_price === "number" ? profile.from_price : null);
   const hireAmount = hireSource != null && hireSource > 0 ? formatEuro(hireSource, lang) : null;
+  const pricedExtra = hireExtras.find((extra) => extra.has_price);
+  const defaultOfferId = hirePackages[0]?.id ?? (pricedExtra ? `extra:${pricedExtra.key}` : null);
+  const offerIds = new Set([
+    ...hirePackages.map((pkg) => pkg.id),
+    ...hireExtras.filter((extra) => extra.has_price).map((extra) => `extra:${extra.key}`),
+  ]);
+  const activeOfferId = selectedOfferId && offerIds.has(selectedOfferId) ? selectedOfferId : defaultOfferId;
   const hireCardProps = {
     lang,
     packages: hirePackages,
     extras: hireExtras,
     amountLabel: hireAmount,
+    floorAmount: hireSource != null && hireSource > 0 ? hireSource : null,
+    selectedId: activeOfferId,
+    onSelectedIdChange: setSelectedOfferId,
     creatorName: displayNameForLang(profile.name, lang),
     gender: profile.gender,
     isBrand,
@@ -2954,6 +2965,8 @@ export default function InfluencerProfile(props: {
                           influencerId={String(id)}
                           onNeedBrand={() => setBrandGateOpen(true)}
                           onContinue={startCollaboration}
+                          selectedId={activeOfferId}
+                          onSelectedIdChange={setSelectedOfferId}
                         />
 
                         <p className="mt-6 text-xs text-slate-400 text-center">{txt.price_note}</p>
