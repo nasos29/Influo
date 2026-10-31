@@ -182,7 +182,7 @@ export default function CampaignCard({
     <article
       className={`group relative bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm cursor-pointer transition-[box-shadow,border-color] hover:shadow-md hover:border-slate-300 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-blue-500 has-[:focus-visible]:ring-offset-2 ${className}`}
     >
-      <div className="relative">
+      <div className="pointer-events-none relative z-0 [&_*]:pointer-events-none">
         <CampaignCover
           coverUrl={campaign.cover_url}
           title={campaign.title}
@@ -193,13 +193,13 @@ export default function CampaignCard({
           aspect="4/3"
         />
         {statusText && (
-          <span className={`absolute left-3 top-3 z-20 text-[11px] font-medium px-2.5 py-1 rounded-full shadow-sm ${statusClass(campaign.status)}`}>
+          <span className={`pointer-events-none absolute left-3 top-3 z-20 text-[11px] font-medium px-2.5 py-1 rounded-full shadow-sm ${statusClass(campaign.status)}`}>
             {statusText}
           </span>
         )}
         {closes && (
           <span
-            className={`absolute right-3 top-3 z-20 text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-sm ${
+            className={`pointer-events-none absolute right-3 top-3 z-20 text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-sm ${
               closes.urgent
                 ? "bg-red-600/90 text-white ring-1 ring-white/30 backdrop-blur-md"
                 : "bg-white/80 text-slate-900 ring-1 ring-white/70 backdrop-blur-md"
@@ -226,7 +226,7 @@ export default function CampaignCard({
           <h3 className="min-w-0 flex-1 text-lg font-bold text-slate-900 leading-snug line-clamp-2">
             <Link
               href={link}
-              className="inline-flex min-h-[44px] items-center text-inherit after:absolute after:inset-0 after:z-0 after:rounded-2xl after:content-[''] focus-visible:outline-none group-hover:text-blue-700 sm:min-h-0"
+              className="inline-flex min-h-[44px] items-center text-inherit after:absolute after:inset-0 after:z-[1] after:rounded-2xl after:content-[''] focus-visible:outline-none group-hover:text-blue-700 sm:min-h-0"
             >
               {campaign.title}
             </Link>
