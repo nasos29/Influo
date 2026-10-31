@@ -3,18 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import ResponsiveDialog, { DialogClose } from "@/components/ResponsiveDialog";
+import GateAvatarGrid from "@/components/GateAvatarGrid";
 import { campaignChoiceLine } from "@/lib/campaignChoiceMeta";
-
-const TILES = [
-  "from-indigo-100 to-violet-100",
-  "from-blue-100 to-indigo-100",
-  "from-violet-100 to-fuchsia-100",
-  "from-sky-100 to-blue-100",
-  "from-purple-100 to-indigo-50",
-  "from-blue-50 to-violet-100",
-  "from-indigo-50 to-sky-100",
-  "from-fuchsia-100 to-purple-100",
-];
 
 const COPY = {
   el: {
@@ -92,11 +82,7 @@ export function NoCampaignModal({
             {copy.check2}
           </li>
         </ul>
-        <div className="mt-5 grid grid-cols-4 gap-2.5" aria-hidden>
-          {TILES.map((tone) => (
-            <div key={tone} className={`aspect-square rounded-2xl bg-gradient-to-br ${tone}`} />
-          ))}
-        </div>
+        <GateAvatarGrid active={open} />
         <Link
           href={NEW_CAMPAIGN_HREF}
           className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-4 text-sm font-semibold text-white hover:from-blue-700 hover:to-purple-700"
