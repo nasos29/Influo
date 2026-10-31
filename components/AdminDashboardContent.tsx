@@ -83,6 +83,7 @@ import ServicePackagesEditor, { initialPackagesFromUser } from "@/components/Ser
 import {
   extrasFromRateCard,
   extrasHaveInvalidPrice,
+  FIXED_PRICE_MESSAGE,
   mergeRateCard,
   packagesForSave,
   packagesHaveInvalidPrice,
@@ -1366,7 +1367,7 @@ const EditProfileModal = ({
             const pricingSignature = JSON.stringify({ servicePackages, serviceExtras });
             if (pricingSignature !== pricingBaselineRef.current) {
                 if (packagesHaveInvalidPrice(servicePackages) || extrasHaveInvalidPrice(serviceExtras)) {
-                    notify(L("Κάθε τιμή πρέπει να είναι πάνω από 0, ή κενή.", "Each price must be greater than 0, or left empty."));
+                    notify(FIXED_PRICE_MESSAGE[lang === "en" ? "en" : "el"]);
                     setLoading(false);
                     return;
                 }
@@ -1400,7 +1401,11 @@ const EditProfileModal = ({
         setLoading(false);
 
         if (!saveRes.ok) {
-            notify("Error saving: " + ((saveJson as { error?: string }).error || saveRes.statusText));
+            const body = saveJson as { error?: string; message?: { el?: string; en?: string } };
+            const fixed = body.message && typeof body.message === "object"
+              ? (lang === "en" ? body.message.en : body.message.el)
+              : "";
+            notify(fixed || ("Error saving: " + (body.error || saveRes.statusText)));
         } else {
             const payload = saveJson as { warning?: string; influencer?: DbInfluencer };
             if (payload.warning) {

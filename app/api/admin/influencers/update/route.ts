@@ -12,7 +12,7 @@ import {
 } from '@/lib/validateBirthDate';
 import { FACEBOOK_VIDEO_LINK_ERROR, prepareVideosForSave } from '@/lib/videoLinks';
 import { syncHiddenVideosWithVideos } from '@/lib/hiddenVideos';
-import { deriveMinRate } from '@/lib/servicePackages';
+import { deriveMinRate, FIXED_PRICE_MESSAGE, hasUnfixedCreatorPrice } from '@/lib/servicePackages';
 import {
   VIDEO_NOT_PLAYABLE_ERROR,
   checkNewVideosPlayable,
@@ -135,6 +135,15 @@ export async function POST(request: NextRequest) {
     if ('service_packages' in patch || 'rate_card' in patch) {
       const packages = 'service_packages' in patch ? patch.service_packages : existing.service_packages;
       const card = 'rate_card' in patch ? patch.rate_card : existing.rate_card;
+      if (hasUnfixedCreatorPrice(
+        'service_packages' in patch ? patch.service_packages : null,
+        'rate_card' in patch ? patch.rate_card : null,
+      )) {
+        return NextResponse.json(
+          { error: FIXED_PRICE_MESSAGE.el, message: FIXED_PRICE_MESSAGE },
+          { status: 400 }
+        );
+      }
       const derived = deriveMinRate(packages, card);
       if (derived != null && String(existing.min_rate ?? '') !== derived) {
         patch.min_rate = derived;

@@ -118,10 +118,11 @@ test("polyxeni rate card: cards show the span, min and filters use 30", () => {
   );
 });
 
-test("creator price form accepts only plain numbers", () => {
+test("creator price form accepts only one positive integer", () => {
   assert.equal(isPositivePriceInput(""), true);
   assert.equal(isPositivePriceInput("150"), true);
-  assert.equal(isPositivePriceInput("0.5"), true);
+  assert.equal(isPositivePriceInput("1"), true);
+  assert.equal(isPositivePriceInput("0.5"), false);
   assert.equal(isPositivePriceInput("30-100"), false);
   assert.equal(isPositivePriceInput("30 - 100"), false);
   assert.equal(isPositivePriceInput("30–100"), false);

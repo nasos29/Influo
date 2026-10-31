@@ -53,6 +53,7 @@ import {
     deriveMinRate,
     extrasFromRateCard,
     extrasHaveInvalidPrice,
+    FIXED_PRICE_MESSAGE,
     mergeRateCard,
     packagesHaveInvalidPrice,
     packagesForSave,
@@ -499,7 +500,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
             );
 
             if (packagesHaveInvalidPrice(servicePackages) || extrasHaveInvalidPrice(serviceExtras)) {
-                notify(L("Κάθε τιμή πρέπει να είναι πάνω από 0, ή κενή.", "Each price must be greater than 0, or left empty."), 'error');
+                notify(FIXED_PRICE_MESSAGE[lang], 'error');
                 setSection('packages');
                 setLoading(false);
                 return;
@@ -527,9 +528,30 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                 audience_male_percent: malePercent ? parseInt(malePercent) : null,
                 audience_female_percent: femalePercent ? parseInt(femalePercent) : null,
                 audience_top_age: topAge || null,
-                rate_card: rateCardPayload,
-                service_packages: packagesPayload,
             };
+
+            const priceRes = await sessionFetch("/api/influencer/prices", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    influencerId: String(user.id),
+                    service_packages: packagesPayload,
+                    rate_card: rateCardPayload,
+                }),
+            });
+            const priceBody = await priceRes.json().catch(() => ({}));
+            if (!priceRes.ok) {
+                const message = priceBody?.message;
+                notify(
+                    message && typeof message === "object"
+                        ? (lang === "en" ? message.en : message.el) || FIXED_PRICE_MESSAGE[lang]
+                        : priceBody?.error || FIXED_PRICE_MESSAGE[lang],
+                    "error"
+                );
+                setSection("packages");
+                setLoading(false);
+                return;
+            }
 
             // Only update avatar_url if we have a new URL
             if (avatarUrl) {

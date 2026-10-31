@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isAdminUser, supabaseService, userFromBearer } from "@/lib/apiAuth";
-import { deriveMinRate } from "@/lib/servicePackages";
+import { deriveMinRate, FIXED_PRICE_MESSAGE, hasUnfixedCreatorPrice } from "@/lib/servicePackages";
 
 /**
  * Sets influencers.min_rate from the stored rate card / packages.
@@ -33,6 +33,13 @@ export async function POST(request: Request) {
     const isAdmin = !!user && (await isAdminUser(user));
     if (!isOwner && !isAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    if (hasUnfixedCreatorPrice(row.service_packages, row.rate_card)) {
+      return NextResponse.json(
+        { error: FIXED_PRICE_MESSAGE.el, message: FIXED_PRICE_MESSAGE },
+        { status: 400 }
+      );
     }
 
     const derived = deriveMinRate(row.service_packages, row.rate_card);
