@@ -48,8 +48,8 @@ import { loadOwnBrand, loadOwnProfiles } from "@/lib/ownProfile";
 import { creatorHasHardErOnMainAccount, displayErFlag, erFlagHint, erFlagLabel } from "@/lib/engagementFlags";
 import type { FollowerGrowthPoint } from "@/lib/followerGrowth";
 import { displayLanguageLabel } from "@/lib/languages";
-import { formatEuroAmount } from "@/lib/formatEuro";
-import { formatFromPriceLabel } from "@/lib/publicInfluencer";
+import { formatEuro, formatEuroAmount } from "@/lib/formatEuro";
+import { formatFromPriceLabel, lowestListedPrice } from "@/lib/publicInfluencer";
 import ProfileOffersPanel from "@/components/ProfileOffersPanel";
 import {
   EXTRA_LABEL,
@@ -2112,7 +2112,12 @@ export default function InfluencerProfile(props: {
               );
 
               const avgViewsForCpm = averageAvgViews(profile.accounts);
-              const cpmValue = estimateCpm(profile.min_rate, avgViewsForCpm);
+              const pricedFloor = lowestListedPrice({
+                service_packages: profile.service_packages,
+                rate_card: profile.rate_card,
+                min_rate: profile.min_rate,
+              });
+              const cpmValue = estimateCpm(pricedFloor ?? profile.min_rate, avgViewsForCpm);
               const showCpmCard =
                 !!(profile.has_min_rate || profile.min_rate) && avgViewsForCpm >= 100;
               const statsUpdatedLabel = statsUpdatedAt
@@ -2392,10 +2397,12 @@ export default function InfluencerProfile(props: {
                         </MetricIcon>
                       }
                     >
-                      {revealPrices && profile.min_rate ? (
+                      {revealPrices && (pricedFloor || profile.min_rate) ? (
                         <div>
                           <p className="text-2xl font-semibold tracking-tight text-blue-700 tabular-nums">
-                            {formatEuroAmount(profile.min_rate, lang)}
+                            {pricedFloor
+                              ? formatEuro(pricedFloor, lang)
+                              : formatEuroAmount(profile.min_rate, lang)}
                           </p>
                           <p className="mt-0.5 text-xs text-blue-600/80">{txt.min_rate_desc}</p>
                         </div>

@@ -1,5 +1,6 @@
 import { resolveCompletionRate } from "@/lib/completionRate";
 import { parseFollowerString } from "@/lib/parseFollowers";
+import { listedPriceMin } from "@/lib/parsePrice";
 import { RATE_CARD_PRICE_KEYS } from "@/lib/servicePackages";
 
 export type ChannelAxisId =
@@ -199,11 +200,7 @@ export function scoreAudience(input: ChannelScoreInput): number {
 }
 
 export function parseMoney(raw?: string | null): number | null {
-  if (!raw) return null;
-  const t = String(raw).trim();
-  if (!t || /ρώτησε|ask/i.test(t)) return null;
-  const n = parseFloat(t.replace(/[^\d.,]/g, "").replace(",", "."));
-  return Number.isFinite(n) && n > 0 ? n : null;
+  return listedPriceMin(raw);
 }
 
 /** Positive service prices from a rate card. Extras are stored beside them and skipped. */

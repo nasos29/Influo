@@ -15,7 +15,7 @@ import {
   type PublicPackageView,
   type UsageRights,
 } from "@/lib/servicePackages";
-import { formatEuroAmount } from "@/lib/formatEuro";
+import { formatListedPrice, formatPriceSpan } from "@/lib/parsePrice";
 import { formatFromPriceLabel } from "@/lib/publicInfluencer";
 
 const PLATFORM_TAB_LABEL: Record<PackagePlatform, { el: string; en: string }> = {
@@ -46,27 +46,36 @@ function OfferPrice({
   revealPrices,
   price,
   fromPrice,
+  priceMax,
   suffix,
   lang,
 }: {
   revealPrices: boolean;
   price?: string;
   fromPrice?: number | null;
+  priceMax?: number | null;
   suffix: string | null;
   lang: "el" | "en";
 }) {
-  if (revealPrices && price) {
-    const amount = formatEuroAmount(price, lang);
-    if (!amount) return null;
-    return (
-      <p className="text-2xl font-extrabold tabular-nums text-blue-700">
-        {suffix ? `${amount} ${suffix}` : amount}
-      </p>
-    );
-  }
-  const fromLabel = formatFromPriceLabel(fromPrice, lang);
-  if (!fromLabel) return null;
-  return <p className="text-xl font-bold tabular-nums text-slate-800">{fromLabel}</p>;
+  const range =
+    fromPrice != null && priceMax != null && priceMax > fromPrice
+      ? formatPriceSpan(fromPrice, priceMax, lang)
+      : "";
+  const exact = revealPrices && price ? formatListedPrice(price, lang) : "";
+  const label = exact || range || formatFromPriceLabel(fromPrice, lang);
+  if (!label) return null;
+  const prominent = Boolean(exact || range);
+  return (
+    <p
+      className={
+        prominent
+          ? "text-2xl font-extrabold tabular-nums text-blue-700"
+          : "text-xl font-bold tabular-nums text-slate-800"
+      }
+    >
+      {suffix ? `${label} ${suffix}` : label}
+    </p>
+  );
 }
 
 function PackageCard({
@@ -107,6 +116,7 @@ function PackageCard({
           revealPrices={revealPrices}
           price={pkg.price}
           fromPrice={pkg.from_price}
+          priceMax={pkg.price_max}
           suffix={pkg.type ? packagePriceSuffix(pkg.type, lang) : null}
           lang={lang}
         />
@@ -238,6 +248,7 @@ export default function ProfileOffersPanel({
                     revealPrices={revealPrices}
                     price={extra.price}
                     fromPrice={extra.from_price}
+                    priceMax={extra.price_max}
                     suffix={extraPriceSuffix(extra.key, lang)}
                     lang={lang}
                   />

@@ -4,11 +4,13 @@
  *
  * Raw rate cards, contact email, birth date, and auth ids are never copied
  * here. Guests get `from_price` (the cheapest service, or min_rate) and each
- * public package's own `from_price`. Callers must not spread the raw database
+ * public package's own `from_price`. A range also sends `price_max` so the
+ * service card can show «30–100 €». Callers must not spread the raw database
  * row into a response.
  */
 
 import { formatEuro } from "@/lib/formatEuro";
+import { isListedPrice, listedPriceMin } from "@/lib/parsePrice";
 import { sanitizeTopPosts } from "@/lib/topPosts";
 import { visibleVideos } from "@/lib/hiddenVideos";
 import {
@@ -134,12 +136,7 @@ const BLOCKED_KEYS = new Set([
 ]);
 
 export function isConcretePrice(value: unknown): boolean {
-  if (typeof value === "number") return Number.isFinite(value) && value !== 0;
-  if (typeof value !== "string") return false;
-  const trimmed = value.trim();
-  if (!trimmed) return false;
-  if (/^(ask|ρώτησε|ρωτησε)$/i.test(trimmed)) return false;
-  return true;
+  return isListedPrice(value);
 }
 
 /**
@@ -162,13 +159,12 @@ export type PriceTier =
   | "5000"
   | "above_5000";
 
-/** Same parsing as Directory's parsePrice (non-digits except '.' removed). */
+/**
+ * Positive listed amount, using the lower bound of a range.
+ * 0 when the value is empty or not a price. Budget tiers and «Από» use this.
+ */
 export function parseDirectoryPrice(price: unknown): number {
-  if (price == null || price === "") return 0;
-  const raw = typeof price === "number" ? String(price) : typeof price === "string" ? price : "";
-  if (!raw) return 0;
-  const parsed = parseFloat(raw.replace(/[^0-9.]/g, ""));
-  return parsed || 0;
+  return listedPriceMin(price) ?? 0;
 }
 
 /**
@@ -306,16 +302,9 @@ export function hasListedMinRate(value: unknown): boolean {
   return value.trim().length > 0;
 }
 
-/**
- * Same rule as parseMoney() in channelScore.ts (coop score +0.7).
- * Kept here so this module stays free of server imports.
- */
+/** True when min_rate parses as a positive price (range lower bound counts). */
 export function hasPricedMinRate(value: unknown): boolean {
-  if (value == null || value === "") return false;
-  const text = String(value).trim();
-  if (!text || /ρώτησε|ask/i.test(text)) return false;
-  const amount = parseFloat(text.replace(/[^\d.,]/g, "").replace(",", "."));
-  return Number.isFinite(amount) && amount > 0;
+  return listedPriceMin(value) != null;
 }
 
 function pickColumns(row: Record<string, unknown>, columns: readonly string[]): Record<string, unknown> {

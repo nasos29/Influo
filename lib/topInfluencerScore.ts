@@ -14,6 +14,7 @@ import { resolveCompletionRate } from '@/lib/completionRate';
 import { creatorHasHardErOnMainAccount, displayErFlag, isHardErFlag, parseErPercent } from '@/lib/engagementFlags';
 import { FOLLOWER_GROWTH_WINDOW_DAYS } from '@/lib/followerGrowth';
 import { parseFollowerString, totalFollowersFromAccounts } from '@/lib/parseFollowers';
+import { listedPriceMin } from '@/lib/parsePrice';
 import { getBadges, type BadgeType } from '@/lib/badges';
 
 export type TopScoreAccount = {
@@ -137,17 +138,10 @@ function platformKey(platform: string | null | undefined): string {
 }
 
 function hasPricedOffer(inf: TopScoreInfluencer): boolean {
-  if (inf.min_rate && String(inf.min_rate).replace(/[^0-9.]/g, '').length > 0) {
-    const n = parseFloat(String(inf.min_rate).replace(/[^0-9.]/g, ''));
-    if (Number.isFinite(n) && n > 0) return true;
-  }
+  if (listedPriceMin(inf.min_rate) != null) return true;
   const rc = inf.rate_card;
   if (!rc || typeof rc !== 'object') return false;
-  return Object.values(rc).some((v) => {
-    if (v == null || v === '') return false;
-    const n = parseFloat(String(v).replace(/[^0-9.]/g, ''));
-    return Number.isFinite(n) && n > 0;
-  });
+  return Object.values(rc).some((v) => listedPriceMin(v) != null);
 }
 
 /**
