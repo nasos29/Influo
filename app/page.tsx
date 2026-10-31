@@ -7,7 +7,7 @@ import { unstable_cache } from "next/cache";
 export const revalidate = 3600;
 
 const cachedHomeInfluencers = unstable_cache(
-  () => loadPublicDirectoryCards(16),
+  () => loadPublicDirectoryCards(24),
   ["home-directory-cards"],
   { revalidate: 3600, tags: ["home-directory"] }
 );
