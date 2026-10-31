@@ -1,6 +1,23 @@
 "use client";
 
 import { Fragment, useEffect, useState, useRef } from "react";
+import {
+  Activity,
+  BarChart3,
+  Bell,
+  Building2,
+  FileText,
+  Home,
+  LayoutDashboard,
+  LifeBuoy,
+  LogOut,
+  Megaphone,
+  Menu,
+  MessageSquare,
+  Newspaper,
+  Users,
+  X,
+} from "lucide-react";
 import { supabase } from "@/lib/supabaseClient"; 
 import Image from "next/image";
 import { isDefinitelyVideo, isDefinitelyImage, detectProvider, getVideoEmbedApiUrl, isEmbeddableVideoUrl } from "@/lib/videoThumbnail";
@@ -29,15 +46,19 @@ import PushNotificationPrompt from "./PushNotificationPrompt";
 import AdminInfluencerStatsTab from "./AdminInfluencerStatsTab";
 import SocialRefreshLogsPanel from "./SocialRefreshLogsPanel";
 import Avatar from "./Avatar";
-import { askConfirm } from "@/components/Feedback";
+import ToastViewport, { useToasts, type ToastTone } from "@/components/ui/Toast";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { formatDate, formatTime } from "@/lib/formatDateTime";
+import { isTimeoutError, withTimeout } from "@/lib/withTimeout";
+import { isProtectedTestAccount } from "@/lib/protectedAccount";
+import { AdminListSkeleton, AdminLoadError, AdminPager } from "@/components/admin/AdminListChrome";
+import { formatChatDayLabel, sameChatDay } from "@/lib/chatTime";
 import { logoutEverywhere } from "@/lib/authSession";
 import {
   adminCampaignSeenKey,
   companySeenKey,
   conversationSeenKey,
-  countNewerThan,
   countUnseenIds,
-  latestIso,
   readIdList,
   readStamp,
   writeIdList,
@@ -54,6 +75,37 @@ import {
 import { MAX_ANNOUNCEMENT_SPECIFIC_RECIPIENTS } from "@/lib/announcementTargets";
 import { normalizeYouTubeUsernameForSave } from "@/lib/youtubeHandle";
 import AnnouncementRecipientMultiSelect from "@/components/AnnouncementRecipientMultiSelect";
+
+const ADMIN_PAGE_SIZE = 20;
+const LOAD_TIMEOUT_MS = 20000;
+
+type LoadError = null | "error" | "timeout";
+
+type PendingConfirm = {
+  title: string;
+  body?: string;
+  confirmLabel: string;
+  cancelLabel: string;
+  danger?: boolean;
+  resolve: (ok: boolean) => void;
+};
+
+let adminNotify: (message: string, tone: ToastTone) => void = () => {};
+
+function notify(message: string, tone?: ToastTone) {
+  const resolved =
+    tone ??
+    (/σφάλμα|error|failed|απέτυχ|cannot|δεν συνδέ|δεν ανανεώ/i.test(message)
+      ? "error"
+      : /επιτυχ|saved|deleted|ολοκληρ|απεστάλ|διαγράφη|αποθηκεύ|εγκρίθ|verified|completed|done/i.test(message)
+        ? "success"
+        : "info");
+  adminNotify(message, resolved);
+}
+
+function protectedDeleteMessage(lang: "el" | "en") {
+  return { el: "Ο λογαριασμός test δεν διαγράφεται.", en: "The test account cannot be deleted." }[lang];
+}
 
 async function adminAuthHeaders(): Promise<Record<string, string>> {
   const { data: { session } } = await supabase.auth.getSession();
@@ -150,7 +202,8 @@ interface Proposal {
   service_type: string;
   status: string;
   influencer_id: number;
-  influencers: { display_name: string };
+  influencer_name?: string;
+  influencers?: { display_name: string } | Array<{ display_name: string }> | null;
 }
 
 interface Conversation {
@@ -177,6 +230,8 @@ interface Message {
   conversation_id: string;
   sender_id: string;
   sender_type: 'influencer' | 'brand';
+  sender_name?: string;
+  sender_role?: "creator" | "brand";
   content: string;
   attachments?: MessageAttachment[] | null;
   read: boolean;
@@ -548,7 +603,7 @@ const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClos
         logoUrl = publicUrl;
       } catch (err: any) {
         console.error('Error uploading logo:', err);
-        alert(lang === 'el' ? `Σφάλμα κατά το ανέβασμα λογοτύπου: ${err.message}` : `Error uploading logo: ${err.message}`);
+        notify(lang === 'el' ? `Σφάλμα κατά το ανέβασμα λογοτύπου: ${err.message}` : `Error uploading logo: ${err.message}`);
         setUploadingLogo(false);
         setSaving(false);
         return;
@@ -1022,11 +1077,11 @@ const EditProfileModal = ({
                 // Clear file upload if we got data from Iframely
                 setThumbnailFiles({ ...thumbnailFiles, [videoUrl]: null });
             } else {
-                alert(data.error || 'Failed to fetch thumbnail from Iframely');
+                notify(data.error || 'Failed to fetch thumbnail from Iframely');
             }
         } catch (error: any) {
             console.error('Error fetching from Iframely:', error);
-            alert('Error: ' + (error.message || 'Failed to fetch thumbnail'));
+            notify('Error: ' + (error.message || 'Failed to fetch thumbnail'));
         } finally {
             setFetchingThumbnails({ ...fetchingThumbnails, [videoUrl]: false });
         }
@@ -1036,12 +1091,12 @@ const EditProfileModal = ({
         if (file) {
             // Validate file type
             if (!file.type.startsWith('image/')) {
-                alert('Μόνο αρχεία εικόνας επιτρέπονται (JPG, PNG, etc.)');
+                notify('Μόνο αρχεία εικόνας επιτρέπονται (JPG, PNG, etc.)');
                 return;
             }
             // Validate file size (max 5MB)
             if (file.size > 5 * 1024 * 1024) {
-                alert('Το αρχείο είναι πολύ μεγάλο. Μέγιστο μέγεθος: 5MB');
+                notify('Το αρχείο είναι πολύ μεγάλο. Μέγιστο μέγεθος: 5MB');
                 return;
             }
             
@@ -1269,20 +1324,20 @@ const EditProfileModal = ({
             const preparedVideos = prepareVideosForSave(videoRowsToUrls(videoRows));
             if (!preparedVideos.ok) {
                 setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR.el);
-                alert(FACEBOOK_VIDEO_LINK_ERROR.el);
+                notify(FACEBOOK_VIDEO_LINK_ERROR.el);
                 setLoading(false);
                 return;
             }
             if (videosChecking || videosNotPlayable) {
                 setVideoLinkError(notPlayableMessage);
-                alert(notPlayableMessage);
+                notify(notPlayableMessage);
                 setLoading(false);
                 return;
             }
             const playableOk = await assertAllNewPlayable(videoRows);
             if (!playableOk) {
                 setVideoLinkError(notPlayableMessage);
-                alert(notPlayableMessage);
+                notify(notPlayableMessage);
                 setLoading(false);
                 return;
             }
@@ -1315,7 +1370,7 @@ const EditProfileModal = ({
                 const birthCheck = validateBirthDate(updateData.birth_date);
                 if (!birthCheck.ok) {
                     const uiLang = getStoredLanguage() === 'en' ? 'en' : 'el';
-                    alert(birthDateErrorText(birthCheck, uiLang));
+                    notify(birthDateErrorText(birthCheck, uiLang));
                     setLoading(false);
                     return;
                 }
@@ -1371,15 +1426,15 @@ const EditProfileModal = ({
         setLoading(false);
 
         if (!saveRes.ok) {
-            alert("Error saving: " + ((saveJson as { error?: string }).error || saveRes.statusText));
+            notify("Error saving: " + ((saveJson as { error?: string }).error || saveRes.statusText));
         } else {
             const payload = saveJson as { warning?: string; influencer?: DbInfluencer };
             if (payload.warning) {
-                alert(payload.warning);
+                notify(payload.warning);
             }
             const data = payload.influencer;
             if (!data) {
-                alert("Error saving: empty response");
+                notify("Error saving: empty response");
             } else {
             // Refresh Gemini audit only when metrics or audit-relevant fields changed (followers, engagement_rate, avg_likes, bio, category)
             const prevAccounts = (user.accounts ?? []) as { followers?: string; engagement_rate?: string; avg_likes?: string }[];
@@ -1419,7 +1474,7 @@ const EditProfileModal = ({
         }
         } catch (err: any) {
             setLoading(false);
-            alert("Error saving: " + err.message);
+            notify("Error saving: " + err.message);
         }
     };
 
@@ -1947,13 +2002,34 @@ const EditProfileModal = ({
 export default function AdminDashboardContent({ adminEmail }: { adminEmail: string }) {
   const [lang, setLang] = useState<"el" | "en">("el"); // Default to Greek, will be updated in useEffect
   const txt = t[lang];
+  const { toasts, push: pushToast, dismiss: dismissToast } = useToasts();
+  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const activeTabRef = useRef("overview");
+  const confirmAction = (opts: Omit<PendingConfirm, "resolve">) =>
+    new Promise<boolean>((resolve) => {
+      setPendingConfirm({ ...opts, resolve });
+    });
+  const closeConfirm = (ok: boolean) => {
+    setPendingConfirm((current) => {
+      current?.resolve(ok);
+      return null;
+    });
+  };
+
+  useEffect(() => {
+    adminNotify = (message, tone) => pushToast(message, tone);
+    return () => {
+      adminNotify = () => {};
+    };
+  }, [pushToast]);
 
   // Load language from localStorage on client-side
   useEffect(() => {
     setLang(getStoredLanguage());
   }, []);
 
-  const [activeTab, setActiveTab] = useState("influencers");
+  const [activeTab, setActiveTab] = useState("overview");
   const [users, setUsers] = useState<DbInfluencer[]>([]);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -1983,7 +2059,6 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [selectedBlogPost, setSelectedBlogPost] = useState<BlogPost | null>(null);
   const [showBlogEditModal, setShowBlogEditModal] = useState(false);
   const [isNewBlogPost, setIsNewBlogPost] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "verified" | "pending">("all");
@@ -1991,8 +2066,55 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [influencersPage, setInfluencersPage] = useState(1);
   const [influencersTotal, setInfluencersTotal] = useState(0);
   const [influencersHasMore, setInfluencersHasMore] = useState(false);
-  const [influencersLoading, setInfluencersLoading] = useState(false);
+  const [influencersLoading, setInfluencersLoading] = useState(true);
   const [influencersLoadingMore, setInfluencersLoadingMore] = useState(false);
+  const [influencersError, setInfluencersError] = useState<LoadError>(null);
+  const [influencerRecent, setInfluencerRecent] = useState(0);
+  const [influencerAttention, setInfluencerAttention] = useState<
+    Array<{ id: number; display_name: string; contact_email: string | null; created_at: string }>
+  >([]);
+  const [brandSearchDebounced, setBrandSearchDebounced] = useState("");
+  const [brandsPage, setBrandsPage] = useState(1);
+  const [brandsTotal, setBrandsTotal] = useState(0);
+  const [brandsError, setBrandsError] = useState<LoadError>(null);
+  const [brandsLoading, setBrandsLoading] = useState(true);
+  const [brandCounts, setBrandCounts] = useState({ total: 0, pending: 0, verified: 0, recent: 0 });
+  const [brandPendingIds, setBrandPendingIds] = useState<string[]>([]);
+  const [brandAttention, setBrandAttention] = useState<
+    Array<{ id: string; brand_name: string; contact_email: string | null; created_at: string }>
+  >([]);
+  const [proposalSearch, setProposalSearch] = useState("");
+  const [proposalSearchDebounced, setProposalSearchDebounced] = useState("");
+  const [proposalStatus, setProposalStatus] = useState<"all" | "pending" | "accepted" | "completed" | "rejected">("all");
+  const [proposalsPage, setProposalsPage] = useState(1);
+  const [proposalsTotal, setProposalsTotal] = useState(0);
+  const [proposalsLoading, setProposalsLoading] = useState(true);
+  const [proposalsError, setProposalsError] = useState<LoadError>(null);
+  const [proposalCounts, setProposalCounts] = useState({
+    total: 0,
+    pending: 0,
+    accepted: 0,
+    completed: 0,
+    active: 0,
+    recent: 0,
+    pipeline: null as number | null,
+  });
+  const [proposalAttention, setProposalAttention] = useState<
+    Array<{ id: number; brand_name: string; budget: string; created_at: string; influencer_name: string }>
+  >([]);
+  const [pendingProposalIdList, setPendingProposalIdList] = useState<number[]>([]);
+  const [conversationSearch, setConversationSearch] = useState("");
+  const [conversationSearchDebounced, setConversationSearchDebounced] = useState("");
+  const [conversationStatus, setConversationStatus] = useState<"all" | "open" | "closed">("all");
+  const [conversationsPage, setConversationsPage] = useState(1);
+  const [conversationsTotal, setConversationsTotal] = useState(0);
+  const [conversationsLoading, setConversationsLoading] = useState(true);
+  const [conversationsError, setConversationsError] = useState<LoadError>(null);
+  const [conversationCounts, setConversationCounts] = useState({ total: 0, open: 0, closed: 0 });
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [messagesError, setMessagesError] = useState<LoadError>(null);
+  const [messagesHasMore, setMessagesHasMore] = useState(false);
+  const [campaignsError, setCampaignsError] = useState<LoadError>(null);
   const [pickerUsers, setPickerUsers] = useState<DbInfluencer[]>([]);
   const [editDetailLoading, setEditDetailLoading] = useState(false);
   const [editDetailError, setEditDetailError] = useState<string | null>(null);
@@ -2060,6 +2182,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     }>
   >([]);
   const [announcementsLoading, setAnnouncementsLoading] = useState(false);
+  const [announcementsError, setAnnouncementsError] = useState<LoadError>(null);
   const [announcementSending, setAnnouncementSending] = useState(false);
   const [announcementReadersOpenId, setAnnouncementReadersOpenId] = useState<string | null>(null);
   const [announcementReadersById, setAnnouncementReadersById] = useState<
@@ -2080,79 +2203,200 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [announcementBulkDeleting, setAnnouncementBulkDeleting] = useState(false);
   const ANNOUNCEMENTS_PAGE_SIZE = 20;
 
-  const fetchConversations = async () => {
+  const fetchConversations = async (opts?: {
+    page?: number;
+    q?: string;
+    status?: "all" | "open" | "closed";
+    silent?: boolean;
+  }) => {
+    const page = opts?.page ?? conversationsPage;
+    const q = opts?.q ?? conversationSearchDebounced;
+    const status = opts?.status ?? conversationStatus;
+    if (!opts?.silent) setConversationsLoading(true);
+    setConversationsError(null);
     try {
-      const response = await fetch('/api/admin/conversations', { headers: await adminAuthHeaders() });
-      const result = await response.json();
-      if (!response.ok || !result.success) {
-        console.error('Error fetching conversations:', result.error || response.status);
-        return;
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(ADMIN_PAGE_SIZE),
+        status,
+      });
+      if (q.trim()) params.set("q", q.trim());
+      if (viewerId && typeof window !== "undefined") {
+        const stamp = readStamp(window.localStorage, conversationSeenKey(viewerId));
+        if (stamp) params.set("newerThan", stamp);
       }
-      setConversations(result.conversations || []);
-    } catch (error) {
-      console.error('Error fetching conversations:', error);
-    }
-  };
-
-  const fetchConversationMessages = async (convId: string) => {
-    try {
-      const response = await fetch(
-        `/api/admin/conversations?conversationId=${encodeURIComponent(convId)}`,
-        { headers: await adminAuthHeaders() }
+      const response = await withTimeout(
+        fetch(`/api/admin/conversations?${params}`, { headers: await adminAuthHeaders() }),
+        LOAD_TIMEOUT_MS
       );
       const result = await response.json();
       if (!response.ok || !result.success) {
-        console.error('Error fetching messages:', result.error || response.status);
-        return;
+        throw new Error(result.error || "Failed to load conversations");
       }
-      setConversationMessages(result.messages || []);
+      setConversations(result.conversations || []);
+      setConversationsPage(page);
+      setConversationsTotal(typeof result.total === "number" ? result.total : 0);
+      if (result.counts) setConversationCounts(result.counts);
+      if (activeTabRef.current !== "conversations" && typeof result.newerCount === "number") {
+        setUnreadMessagesCount(result.newerCount);
+      }
     } catch (error) {
-      console.error('Error fetching messages:', error);
+      console.error("Error fetching conversations:", error);
+      setConversationsError(isTimeoutError(error) ? "timeout" : "error");
+    } finally {
+      setConversationsLoading(false);
     }
   };
 
-  const fetchBrands = async () => {
+  const fetchConversationMessages = async (convId: string, opts?: { before?: string }) => {
+    if (!opts?.before) {
+      setMessagesLoading(true);
+      setMessagesError(null);
+    }
     try {
-      // Use API route with service role key to bypass RLS
-      const response = await fetch('/api/admin/brands', { headers: await adminAuthHeaders() });
+      const params = new URLSearchParams({
+        conversationId: convId,
+        limit: "80",
+      });
+      if (opts?.before) params.set("before", opts.before);
+      const response = await withTimeout(
+        fetch(`/api/admin/conversations?${params}`, { headers: await adminAuthHeaders() }),
+        LOAD_TIMEOUT_MS
+      );
       const result = await response.json();
-      
       if (!response.ok || !result.success) {
-        console.error('Error fetching brands:', result.error || result.details);
-        setBrands([]);
-        return;
+        throw new Error(result.error || "Failed to load messages");
       }
-      
-      if (result.brands) {
-        console.log(`[Admin Dashboard] Fetched ${result.brands.length} brands`);
-        setBrands(result.brands);
-      } else {
-        setBrands([]);
+      const rows = (result.messages || []) as Message[];
+      setConversationMessages((prev) => (opts?.before ? [...rows, ...prev] : rows));
+      setMessagesHasMore(!!result.hasMore);
+      setMessagesError(null);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      setMessagesError(isTimeoutError(error) ? "timeout" : "error");
+    } finally {
+      setMessagesLoading(false);
+    }
+  };
+
+  const fetchBrands = async (opts?: {
+    page?: number;
+    q?: string;
+    status?: "all" | "verified" | "pending";
+    silent?: boolean;
+  }) => {
+    const page = opts?.page ?? brandsPage;
+    const q = opts?.q ?? brandSearchDebounced;
+    const status = opts?.status ?? brandStatusFilter;
+    if (!opts?.silent) setBrandsLoading(true);
+    setBrandsError(null);
+    try {
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(ADMIN_PAGE_SIZE),
+        status,
+      });
+      if (q.trim()) params.set("q", q.trim());
+      const response = await withTimeout(
+        fetch(`/api/admin/brands?${params}`, { headers: await adminAuthHeaders() }),
+        LOAD_TIMEOUT_MS
+      );
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || result.details || "Failed to load brands");
       }
+      setBrands(result.brands || []);
+      setBrandsPage(page);
+      setBrandsTotal(typeof result.total === "number" ? result.total : 0);
+      if (result.counts) setBrandCounts(result.counts);
+      if (Array.isArray(result.attention)) setBrandAttention(result.attention);
+      if (Array.isArray(result.pendingIds)) setBrandPendingIds(result.pendingIds.map(String));
       setBrandsLoaded(true);
-    } catch (error: any) {
-      console.error('Error fetching brands:', error);
-      setBrands([]);
+    } catch (error) {
+      console.error("Error fetching brands:", error);
+      setBrandsError(isTimeoutError(error) ? "timeout" : "error");
+    } finally {
+      setBrandsLoading(false);
+    }
+  };
+
+  const fetchProposals = async (opts?: {
+    page?: number;
+    q?: string;
+    status?: "all" | "pending" | "accepted" | "completed" | "rejected";
+    silent?: boolean;
+  }) => {
+    const page = opts?.page ?? proposalsPage;
+    const q = opts?.q ?? proposalSearchDebounced;
+    const status = opts?.status ?? proposalStatus;
+    if (!opts?.silent) setProposalsLoading(true);
+    setProposalsError(null);
+    try {
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(ADMIN_PAGE_SIZE),
+        status,
+      });
+      if (q.trim()) params.set("q", q.trim());
+      const response = await withTimeout(
+        fetch(`/api/admin/proposals?${params}`, { headers: await adminAuthHeaders() }),
+        LOAD_TIMEOUT_MS
+      );
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Failed to load proposals");
+      }
+      setProposals(Array.isArray(result.proposals) ? result.proposals : []);
+      setProposalsPage(page);
+      setProposalsTotal(typeof result.total === "number" ? result.total : 0);
+      if (result.counts) {
+        setProposalCounts((prev) => ({
+          ...prev,
+          ...result.counts,
+          pipeline: typeof result.counts.pipeline === "number" ? result.counts.pipeline : prev.pipeline,
+        }));
+        if (typeof result.counts.pipeline === "number") {
+          const locale = lang === "el" ? "el-GR" : "en-GB";
+          setStats((prev) => ({
+            ...prev,
+            pipeline: Math.round(result.counts.pipeline).toLocaleString(locale) + "€",
+          }));
+        }
+      }
+      if (Array.isArray(result.attention)) setProposalAttention(result.attention);
+      if (Array.isArray(result.pendingIds)) {
+        const ids = result.pendingIds.map(Number).filter((id: number) => Number.isFinite(id));
+        setPendingProposalIdList(ids);
+        setPendingProposalsCount(
+          countUnseenPendingProposals(ids.map((id: number) => ({ id, status: "pending" })))
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching proposals:", error);
+      setProposalsError(isTimeoutError(error) ? "timeout" : "error");
+    } finally {
+      setProposalsLoading(false);
     }
   };
 
   const fetchAdminCampaigns = async () => {
     setCampaignsLoading(true);
+    setCampaignsError(null);
     setCampaignsSchemaMissing(false);
     try {
-      const response = await fetch("/api/admin/campaigns", {
-        headers: await adminAuthHeaders(),
-      });
+      const response = await withTimeout(
+        fetch("/api/admin/campaigns", { headers: await adminAuthHeaders() }),
+        LOAD_TIMEOUT_MS
+      );
       const result = await response.json();
       if (!response.ok || !result.success) {
-        console.error("[Admin] campaigns fetch", result.error);
-        setAdminCampaigns([]);
-        return;
+        throw new Error(result.error || "Failed to load campaigns");
       }
       setCampaignsSchemaMissing(!!result.schemaMissing);
       setAdminCampaigns(result.campaigns || []);
     } catch (e) {
       console.error("[Admin] campaigns fetch", e);
+      setCampaignsError(isTimeoutError(e) ? "timeout" : "error");
       setAdminCampaigns([]);
     } finally {
       setCampaignsLoading(false);
@@ -2161,7 +2405,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   };
 
   const deleteAdminCampaign = async (row: AdminBrandCampaignRow) => {
-    const ok = await askConfirm({
+    const ok = await confirmAction({
       title: lang === "el" ? "Διαγραφή καμπάνιας" : "Delete campaign",
       body: txt.campaign_delete_confirm,
       confirmLabel: lang === "el" ? "Διαγραφή" : "Delete",
@@ -2181,10 +2425,10 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         throw new Error(result.error || "Delete failed");
       }
       setAdminCampaigns((prev) => prev.filter((c) => c.id !== row.id));
-      alert(lang === "el" ? "Η καμπάνια διαγράφηκε." : "Campaign deleted.");
+      notify(lang === "el" ? "Η καμπάνια διαγράφηκε." : "Campaign deleted.");
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
-      alert(lang === "el" ? `Σφάλμα: ${message}` : `Error: ${message}`);
+      notify(lang === "el" ? `Σφάλμα: ${message}` : `Error: ${message}`);
     } finally {
       setDeletingCampaignId(null);
     }
@@ -2226,6 +2470,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     const from = opts?.from ?? announcementDateFrom;
     const to = opts?.to ?? announcementDateTo;
     setAnnouncementsLoading(true);
+    setAnnouncementsError(null);
     try {
       const params = new URLSearchParams();
       params.set('page', String(page));
@@ -2234,9 +2479,12 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       if (targetType) params.set('target_type', targetType);
       if (from) params.set('from', from);
       if (to) params.set('to', to);
-      const res = await fetch(`/api/admin/announcements?${params.toString()}`, {
-        headers: await adminAuthHeaders(),
-      });
+      const res = await withTimeout(
+        fetch(`/api/admin/announcements?${params.toString()}`, {
+          headers: await adminAuthHeaders(),
+        }),
+        LOAD_TIMEOUT_MS
+      );
       const data = await res.json();
       if (res.ok && Array.isArray(data.data)) {
         setAnnouncementsList(data.data);
@@ -2254,6 +2502,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       }
     } catch (e) {
       console.error('Error fetching announcements:', e);
+      setAnnouncementsError(isTimeoutError(e) ? "timeout" : "error");
       setAnnouncementsList([]);
       setAnnouncementsTotal(0);
       setAnnouncementsTotalPages(1);
@@ -2308,7 +2557,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const bulkDeleteAnnouncements = async () => {
     const ids = announcementSelectedIds;
     if (ids.length === 0) return;
-    const ok = await askConfirm({
+    const ok = await confirmAction({
       title: lang === "el" ? "Διαγραφή ανακοινώσεων" : "Delete announcements",
       body:
         lang === "el"
@@ -2328,7 +2577,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       });
       const result = await res.json().catch(() => ({}));
       if (!res.ok) {
-        alert(result.error || (lang === 'el' ? 'Σφάλμα διαγραφής' : 'Delete failed'));
+        notify(result.error || (lang === 'el' ? 'Σφάλμα διαγραφής' : 'Delete failed'));
         return;
       }
       setAnnouncementSelectedIds([]);
@@ -2340,7 +2589,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       await fetchAnnouncements({ page: nextPage });
     } catch (e) {
       console.error('Bulk delete announcements error:', e);
-      alert(lang === 'el' ? 'Σφάλμα διαγραφής' : 'Delete failed');
+      notify(lang === 'el' ? 'Σφάλμα διαγραφής' : 'Delete failed');
     } finally {
       setAnnouncementBulkDeleting(false);
     }
@@ -2350,11 +2599,11 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     e.preventDefault();
     if (!announcementTitle.trim() || !announcementBody.trim()) return;
     if (announcementTargetType === 'specific' && announcementTargetInfluencerIds.length === 0) {
-      alert(lang === 'el' ? 'Επιλέξτε τουλάχιστον έναν influencer.' : 'Select at least one influencer.');
+      notify(lang === 'el' ? 'Επιλέξτε τουλάχιστον έναν influencer.' : 'Select at least one influencer.');
       return;
     }
     if (announcementTargetType === 'specific_brand' && announcementTargetBrandIds.length === 0) {
-      alert(lang === 'el' ? 'Επιλέξτε τουλάχιστον μία επιχείρηση.' : 'Select at least one business.');
+      notify(lang === 'el' ? 'Επιλέξτε τουλάχιστον μία επιχείρηση.' : 'Select at least one business.');
       return;
     }
     if (
@@ -2363,7 +2612,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       (announcementTargetType === 'specific_brand' &&
         announcementTargetBrandIds.length > MAX_ANNOUNCEMENT_SPECIFIC_RECIPIENTS)
     ) {
-      alert(
+      notify(
         lang === 'el'
           ? `Μέχρι ${MAX_ANNOUNCEMENT_SPECIFIC_RECIPIENTS} παραλήπτες ανά αποστολή.`
           : `At most ${MAX_ANNOUNCEMENT_SPECIFIC_RECIPIENTS} recipients per send.`
@@ -2395,18 +2644,18 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         setAnnouncementReadersById({});
         await fetchAnnouncements({ page: 1 });
         const n = typeof result.count === 'number' ? result.count : Array.isArray(result.data) ? result.data.length : 1;
-        alert(
+        notify(
           n > 1
             ? (lang === 'el' ? `Απεστάλη σε ${n} παραλήπτες.` : `Sent to ${n} recipients.`)
             : txt.ann_sent
         );
       } else {
-        alert(result.error || (lang === 'el' ? 'Σφάλμα αποστολής' : 'Send failed'));
+        notify(result.error || (lang === 'el' ? 'Σφάλμα αποστολής' : 'Send failed'));
       }
     } catch (err: unknown) {
       console.error('Send announcement error:', err);
       const message = err instanceof Error ? err.message : '';
-      alert(message || (lang === 'el' ? 'Σφάλμα αποστολής' : 'Send failed'));
+      notify(message || (lang === 'el' ? 'Σφάλμα αποστολής' : 'Send failed'));
     } finally {
       setAnnouncementSending(false);
     }
@@ -2456,15 +2705,15 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       setShowBlogEditModal(false);
       setSelectedBlogPost(null);
       setIsNewBlogPost(false);
-      alert(lang === 'el' ? 'Το άρθρο αποθηκεύτηκε!' : 'Article saved!');
+      notify(lang === 'el' ? 'Το άρθρο αποθηκεύτηκε!' : 'Article saved!');
     } catch (error) {
       console.error('Error saving blog post:', error);
-      alert(lang === 'el' ? 'Σφάλμα κατά την αποθήκευση' : 'Error saving');
+      notify(lang === 'el' ? 'Σφάλμα κατά την αποθήκευση' : 'Error saving');
     }
   };
 
   const deleteBlogPost = async (slug: string) => {
-    const ok = await askConfirm({
+    const ok = await confirmAction({
       title: lang === "el" ? "Διαγραφή άρθρου" : "Delete article",
       body: lang === "el"
         ? "Είστε σίγουροι ότι θέλετε να διαγράψετε αυτό το άρθρο;"
@@ -2480,10 +2729,10 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       localStorage.setItem('blogPosts', JSON.stringify(updated));
       // Dispatch event to notify blog pages
       window.dispatchEvent(new Event('blogPostsUpdated'));
-      alert(lang === 'el' ? 'Το άρθρο διαγράφηκε!' : 'Article deleted!');
+      notify(lang === 'el' ? 'Το άρθρο διαγράφηκε!' : 'Article deleted!');
     } catch (error) {
       console.error('Error deleting blog post:', error);
-      alert(lang === 'el' ? 'Σφάλμα κατά τη διαγραφή' : 'Error deleting');
+      notify(lang === 'el' ? 'Σφάλμα κατά τη διαγραφή' : 'Error deleting');
     }
   };
 
@@ -2678,37 +2927,43 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     const status = opts.status ?? statusFilter;
     if (append) setInfluencersLoadingMore(true);
     else if (!opts.silent) setInfluencersLoading(true);
+    if (!opts.silent) setInfluencersError(null);
     try {
       const params = new URLSearchParams({
         page: String(page),
-        pageSize: String(PAGE_SIZE),
+        pageSize: String(ADMIN_PAGE_SIZE),
         status,
         sort: "created_at",
         order: "desc",
       });
       if (q.trim()) params.set("q", q.trim());
-      const res = await fetch(`/api/admin/influencers?${params}`, {
-        headers: await adminAuthHeaders(),
-      });
+      const res = await withTimeout(
+        fetch(`/api/admin/influencers?${params}`, {
+          headers: await adminAuthHeaders(),
+        }),
+        LOAD_TIMEOUT_MS
+      );
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        console.error("Error fetching influencers:", body.error || res.statusText);
-        if (!append) setUsers([]);
-        return;
+        throw new Error(body.error || res.statusText || "Failed to load influencers");
       }
       const rows = (Array.isArray(body.influencers) ? body.influencers : []) as DbInfluencer[];
       setUsers((prev) => (append ? [...prev, ...rows] : rows));
       setInfluencersPage(page);
       setInfluencersTotal(typeof body.total === "number" ? body.total : rows.length);
       setInfluencersHasMore(!!body.hasMore);
+      if (typeof body.counts?.recent === "number") setInfluencerRecent(body.counts.recent);
+      if (Array.isArray(body.attention)) setInfluencerAttention(body.attention);
       applyInfluencerCounts(
         body.counts,
         "",
         Array.isArray(body.hiddenByProfile) ? body.hiddenByProfile : undefined
       );
+      setInfluencersError(null);
     } catch (error) {
       console.error("Error fetching influencers:", error);
-      if (!append) setUsers([]);
+      setInfluencersError(isTimeoutError(error) ? "timeout" : "error");
+      if (!append && !opts.silent) setUsers([]);
     } finally {
       setInfluencersLoading(false);
       setInfluencersLoadingMore(false);
@@ -2762,46 +3017,10 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   };
 
   const fetchData = async (opts?: { silent?: boolean }) => {
-    const silent = !!opts?.silent;
-    if (!silent) setLoading(true);
-    try {
-      await Promise.all([
-        fetchInfluencersPage({ page: 1, silent: true, q: debouncedSearch, status: statusFilter }),
-        fetchPickerUsers(),
-      ]);
-
-      const proposalsResponse = await fetch('/api/admin/proposals', {
-        headers: await adminAuthHeaders(),
-      });
-      const proposalsBody = await proposalsResponse.json().catch(() => ({}));
-      const propData = (
-        proposalsResponse.ok && Array.isArray(proposalsBody.proposals) ? proposalsBody.proposals : null
-      ) as Proposal[] | null;
-      const proposalsError = proposalsResponse.ok ? null : { message: proposalsBody.error || 'Failed to load proposals' };
-
-      if (proposalsError) {
-        console.error('Error fetching proposals:', proposalsError);
-      }
-
-      let pipelineSum = 0;
-      if (propData) {
-        setProposals(propData as any);
-        propData.forEach(p => {
-          const val = parseFloat(p.budget);
-          if (!isNaN(val)) pipelineSum += val;
-        });
-        setPendingProposalsCount(countUnseenPendingProposals(propData));
-        setStats((prev) => ({
-          ...prev,
-          pipeline: pipelineSum.toLocaleString() + "€",
-          reach: prev.reach || "—",
-        }));
-      }
-    } catch (error) {
-      console.error('Error in fetchData:', error);
-    } finally {
-      if (!silent) setLoading(false);
-    }
+    await Promise.all([
+      fetchInfluencersPage({ page: 1, silent: !!opts?.silent, q: debouncedSearch, status: statusFilter }),
+      fetchPickerUsers(),
+    ]);
   };
 
   const editModalOpenRef = useRef(false);
@@ -2825,32 +3044,15 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     const store = window.localStorage;
     if (activeTab === "conversations") {
       setUnreadMessagesCount(0);
-      if (conversations.length > 0) {
-        writeStamp(
-          store,
-          conversationSeenKey(viewerId),
-          latestIso(
-            conversations.map((row) => row.last_message_at || row.created_at),
-            new Date().toISOString()
-          )
-        );
-      }
-    } else {
-      setUnreadMessagesCount(
-        countNewerThan(
-          conversations.map((row) => row.last_message_at || row.created_at),
-          readStamp(store, conversationSeenKey(viewerId))
-        )
-      );
+      writeStamp(store, conversationSeenKey(viewerId), new Date().toISOString());
     }
-    const pendingBrandIds = brands.filter((brand) => !brand.verified).map((brand) => brand.id);
     if (activeTab === "brands") {
       setUnseenBrandCount(0);
-      if (brandsLoaded) writeIdList(store, companySeenKey(viewerId), pendingBrandIds);
+      if (brandsLoaded) writeIdList(store, companySeenKey(viewerId), brandPendingIds);
     } else if (brandsLoaded) {
-      setUnseenBrandCount(countUnseenIds(pendingBrandIds, readIdList(store, companySeenKey(viewerId))));
+      setUnseenBrandCount(countUnseenIds(brandPendingIds, readIdList(store, companySeenKey(viewerId))));
     }
-  }, [viewerId, activeTab, conversations, brands, brandsLoaded]);
+  }, [viewerId, activeTab, brandsLoaded, brandPendingIds]);
 
   useEffect(() => {
     if (!viewerId || typeof window === "undefined") return;
@@ -2866,11 +3068,12 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
 
   // Initial load once
   useEffect(() => {
-    fetchData();
-    fetchConversations();
-    fetchBrands();
-    fetchAdminCampaigns();
-    fetchBlogPosts();
+    void fetchData();
+    void fetchProposals();
+    void fetchConversations();
+    void fetchBrands();
+    void fetchAdminCampaigns();
+    void fetchBlogPosts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -2901,7 +3104,6 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   ]);
 
   const adminSoftRefreshAtRef = useRef(0);
-  const activeTabRef = useRef(activeTab);
   useEffect(() => {
     activeTabRef.current = activeTab;
   }, [activeTab]);
@@ -2913,8 +3115,9 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       if (now - adminSoftRefreshAtRef.current < 60_000) return;
       adminSoftRefreshAtRef.current = now;
       void fetchAdminCampaigns();
-      void fetchBrands();
-      void fetchConversations();
+      void fetchBrands({ page: 1, silent: true });
+      void fetchProposals({ page: 1, silent: true });
+      void fetchConversations({ page: 1, silent: true });
       // Influencers: only current filter page 1 (cheap list columns), and only when tab visible/active.
       if (activeTabRef.current === "influencers") {
         void fetchInfluencersPage({
@@ -2967,10 +3170,55 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   }, [debouncedSearch, statusFilter]);
 
   useEffect(() => {
-    if (activeTab !== "influencers") setSearchQuery("");
-    if (activeTab !== "brands") setBrandSearchQuery("");
-    if (activeTab !== "campaigns") setCampaignSearchQuery("");
-  }, [activeTab]);
+    const t = window.setTimeout(() => setBrandSearchDebounced(brandSearchQuery), 300);
+    return () => window.clearTimeout(t);
+  }, [brandSearchQuery]);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setProposalSearchDebounced(proposalSearch), 300);
+    return () => window.clearTimeout(t);
+  }, [proposalSearch]);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setConversationSearchDebounced(conversationSearch), 300);
+    return () => window.clearTimeout(t);
+  }, [conversationSearch]);
+
+  const brandsFilterBootRef = useRef(true);
+  useEffect(() => {
+    if (brandsFilterBootRef.current) {
+      brandsFilterBootRef.current = false;
+      return;
+    }
+    void fetchBrands({ page: 1, q: brandSearchDebounced, status: brandStatusFilter });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brandSearchDebounced, brandStatusFilter]);
+
+  const proposalsFilterBootRef = useRef(true);
+  useEffect(() => {
+    if (proposalsFilterBootRef.current) {
+      proposalsFilterBootRef.current = false;
+      return;
+    }
+    void fetchProposals({ page: 1, q: proposalSearchDebounced, status: proposalStatus });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proposalSearchDebounced, proposalStatus]);
+
+  const conversationsFilterBootRef = useRef(true);
+  useEffect(() => {
+    if (conversationsFilterBootRef.current) {
+      conversationsFilterBootRef.current = false;
+      return;
+    }
+    void fetchConversations({ page: 1, q: conversationSearchDebounced, status: conversationStatus });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationSearchDebounced, conversationStatus]);
+
+  useEffect(() => {
+    if (!viewerId) return;
+    void fetchConversations({ silent: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewerId]);
 
   const linkedConversationId = useRef<string | null>(null);
   useEffect(() => {
@@ -2983,8 +3231,27 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     const id = linkedConversationId.current;
     if (!id) return;
     const match = conversations.find((c) => c.id === id);
-    if (!match) return;
-    setSelectedConversation((current) => (current && current.id !== id ? current : match));
+    if (match) {
+      setSelectedConversation((current) => (current && current.id !== id ? current : match));
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch(`/api/admin/conversations?id=${encodeURIComponent(id)}`, {
+          headers: await adminAuthHeaders(),
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!cancelled && response.ok && body.conversation) {
+          setSelectedConversation(body.conversation as Conversation);
+        }
+      } catch (error) {
+        console.error("Error opening linked conversation:", error);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [conversations]);
 
   useEffect(() => {
@@ -3056,7 +3323,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
 
   const toggleApproval = async (id: number, currentStatus: boolean, userEmail: string, userName: string) => {
     if (currentStatus) {
-      const ok = await askConfirm({
+      const ok = await confirmAction({
         title: lang === "el" ? "Ακύρωση έγκρισης" : "Remove approval",
         body: lang === "el"
           ? `Ο/Η «${userName || userEmail}» δεν θα βλέπει πλέον ανοιχτές καμπάνιες.`
@@ -3122,6 +3389,20 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   };
 
   const toggleAnalyticsVerification = async (id: number, currentStatus: boolean) => {
+    if (currentStatus) {
+      const user = users.find((u) => u.id === id);
+      const ok = await confirmAction({
+        title: { el: "Αφαίρεση επαλήθευσης", en: "Remove verification" }[lang],
+        body: {
+          el: `Τα analytics του «${user?.display_name || id}» δεν θα εμφανίζονται πλέον ως επαληθευμένα.`,
+          en: `Analytics for “${user?.display_name || id}” will no longer show as verified.`,
+        }[lang],
+        confirmLabel: { el: "Αφαίρεση", en: "Remove" }[lang],
+        cancelLabel: { el: "Άκυρο", en: "Cancel" }[lang],
+        danger: true,
+      });
+      if (!ok) return;
+    }
     const response = await fetch('/api/admin/influencers/update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(await adminAuthHeaders()) },
@@ -3199,7 +3480,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     if (auditprUrl === null) return null;
     const url = normalizeAuditprUrl(auditprUrl);
     if (!url) {
-      alert(lang === 'el'
+      notify(lang === 'el'
         ? `Απαιτείται Auditpr URL (π.χ. ${LOCAL_AUDITPR_DEFAULT}). Βεβαιωθείτε ότι τρέχει το start-auditpr.bat.`
         : `Auditpr URL is required (e.g. ${LOCAL_AUDITPR_DEFAULT}). Make sure start-auditpr.bat is running.`);
       return null;
@@ -3209,8 +3490,15 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   };
 
   const refreshSocialStats = async (user?: DbInfluencer) => {
-    const confirmMsg = lang === 'el' ? 'Είσαι σίγουρος;' : 'Are you sure?';
-    if (!confirm(confirmMsg)) return;
+    const okRefresh = await confirmAction({
+      title: { el: "Ανανέωση στατιστικών", en: "Refresh stats" }[lang],
+      body: user
+        ? { el: `Θα ανανεωθούν τα social στατιστικά για «${user.display_name}».`, en: `Social stats for “${user.display_name}” will be refreshed.` }[lang]
+        : { el: "Θα ελεγχθεί ποιοι creators χρειάζονται ανανέωση.", en: "Creators that need a refresh will be checked." }[lang],
+      confirmLabel: { el: "Συνέχεια", en: "Continue" }[lang],
+      cancelLabel: { el: "Άκυρο", en: "Cancel" }[lang],
+    });
+    if (!okRefresh) return;
     const idStr = user != null ? String(user.id) : null;
     if (idStr) setRefreshingSocialFor(idStr); else setRefreshingSocialAll(true);
     try {
@@ -3230,14 +3518,18 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         const listData = await listRes.json();
         const dueList = (listData.influencers ?? []) as { id: number; display_name: string; accounts: { platform?: string; username?: string }[] }[];
         if (!dueList.length) {
-          alert(lang === 'el' ? 'Δεν υπάρχουν influencers για ανανέωση (τελευταίες 15 ημέρες).' : 'No influencers due for refresh (last 15 days).');
+          notify(lang === 'el' ? 'Δεν υπάρχουν influencers για ανανέωση (τελευταίες 15 ημέρες).' : 'No influencers due for refresh (last 15 days).');
           return;
         }
-        const proceedAll = confirm(
-          lang === 'el'
-            ? `Θα ανανεωθούν ${dueList.length} influencers (όσοι δεν έχουν ανανεωθεί τις τελευταίες 15 ημέρες).\n\nΤα metrics θα φορτωθούν από Auditpr (session-only). Μπορεί να πάρει αρκετά λεπτά. Στο τέλος θα ληφθεί αρχείο Excel με αναλυτικά αποτελέσματα. Συνέχεια;`
-            : `This will refresh ${dueList.length} influencers (not refreshed in the last 15 days).\n\nMetrics will be fetched from Auditpr (session-only). This may take several minutes. An Excel report will download when finished. Continue?`
-        );
+        const proceedAll = await confirmAction({
+          title: { el: "Μαζική ανανέωση", en: "Refresh all due" }[lang],
+          body:
+            lang === "el"
+              ? `Θα ανανεωθούν ${dueList.length} influencers (όσοι δεν έχουν ανανεωθεί τις τελευταίες 15 ημέρες). Τα metrics θα φορτωθούν από Auditpr και στο τέλος κατεβαίνει Excel. Μπορεί να πάρει αρκετά λεπτά.`
+              : `This will refresh ${dueList.length} influencers (not refreshed in the last 15 days). Metrics come from Auditpr and an Excel report downloads at the end. This may take several minutes.`,
+          confirmLabel: { el: "Συνέχεια", en: "Continue" }[lang],
+          cancelLabel: { el: "Άκυρο", en: "Cancel" }[lang],
+        });
         if (!proceedAll) return;
         dueListForReport = dueList;
         accountsToFetch = dueList.flatMap((inf) => inf.accounts ?? []);
@@ -3252,7 +3544,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         let auditprUrl = getStoredAuditprUrl();
 
         if (!canBrowserFetchAuditpr(auditprUrl)) {
-          alert(lang === 'el'
+          notify(lang === 'el'
             ? `Το Auditpr πρέπει να τρέχει τοπικά στο PC σας (${LOCAL_AUDITPR_DEFAULT}).\nΤρέξτε start-auditpr.bat και ξαναδοκιμάστε.\n\nΤρέχον URL: ${auditprUrl}`
             : `Auditpr must run locally on your PC (${LOCAL_AUDITPR_DEFAULT}).\nRun start-auditpr.bat and try again.\n\nCurrent URL: ${auditprUrl}`);
           return;
@@ -3266,7 +3558,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
           if (!canBrowserFetchAuditpr(auditprUrl)) return;
           health = await checkAuditprHealth(auditprUrl);
           if (!health.ok) {
-            alert(lang === 'el'
+            notify(lang === 'el'
               ? `Δεν συνδέεται το Auditpr στο ${auditprUrl}.\n${health.error || ''}\n\nΒεβαιωθείτε ότι τρέχει το start-auditpr.bat στο PC σας.`
               : `Cannot reach Auditpr at ${auditprUrl}.\n${health.error || ''}\n\nMake sure start-auditpr.bat is running on your PC.`);
             return;
@@ -3287,7 +3579,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
           Object.keys(bundle.tiktokOverrides).length +
           Object.keys(bundle.youtubeOverrides).length;
         if (fetchedCount === 0) {
-          alert(lang === 'el'
+          notify(lang === 'el'
             ? `Δεν ανανεώθηκε κανένα account από το Auditpr.\n\n${fetchErrors.join('\n') || 'Άγνωστο σφάλμα.'}`
             : `No accounts were refreshed from Auditpr.\n\n${fetchErrors.join('\n') || 'Unknown error.'}`);
           return;
@@ -3352,7 +3644,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
           });
         } catch (exportErr) {
           console.error('[Admin] Excel export failed:', exportErr);
-          alert(lang === 'el'
+          notify(lang === 'el'
             ? 'Η ανανέωση ολοκληρώθηκε αλλά η εξαγωγή Excel απέτυχε. Δείτε την κονσόλα.'
             : 'Refresh completed but Excel export failed. Check the console.');
         }
@@ -3361,10 +3653,10 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       const excelNote = !idStr && dueListForReport.length > 0
         ? (lang === 'el' ? '\n\n📊 Κατέβηκε αρχείο Excel με αναλυτικά αποτελέσματα.' : '\n\n📊 Excel report downloaded with detailed results.')
         : '';
-      alert(doneLabel + ': ' + data.refreshed + (summary ? '\n\n' + summary : '') + fetchNote + excelNote);
+      notify(doneLabel + ': ' + data.refreshed + (summary ? '\n\n' + summary : '') + fetchNote + excelNote);
       void fetchInfluencersPage({ page: 1, silent: true });
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : 'Error');
+      notify(e instanceof Error ? e.message : 'Error');
     } finally {
       setRefreshingSocialFor(null);
       setRefreshingSocialAll(false);
@@ -3398,9 +3690,9 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         setSelectedUser(prev => prev ? { ...prev, auditpr_audit: data.auditpr_audit } : null);
       }
       void fetchInfluencersPage({ page: 1, silent: true });
-      alert(lang === 'el' ? 'Η αξιολόγηση AI ανανεώθηκε.' : 'AI audit refreshed.');
+      notify(lang === 'el' ? 'Η αξιολόγηση AI ανανεώθηκε.' : 'AI audit refreshed.');
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : 'Error');
+      notify(e instanceof Error ? e.message : 'Error');
     } finally {
       setRefreshingAuditFor(null);
     }
@@ -3411,8 +3703,12 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     const user = users.find(u => u.id === id);
     const userEmail = user?.contact_email || 'unknown';
     const userName = user?.display_name || 'unknown';
+    if (user && isProtectedTestAccount(user)) {
+      notify(protectedDeleteMessage(lang), "error");
+      return;
+    }
     
-    const ok = await askConfirm({
+    const ok = await confirmAction({
       title: lang === "el" ? "Διαγραφή influencer" : "Delete influencer",
       body: lang === "el"
         ? `Διαγραφή του «${userName}» (${userEmail}); Θα αφαιρεθούν το προφίλ, ο λογαριασμός σύνδεσης, οι συνομιλίες και οι προτάσεις. Δεν αναιρείται.`
@@ -3436,6 +3732,10 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         const result = await response.json();
 
         if (!response.ok) {
+            if (result.error === "protected_test_account") {
+              notify(protectedDeleteMessage(lang), "error");
+              return;
+            }
             throw new Error(result.error || 'Failed to delete user');
         }
 
@@ -3444,13 +3744,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         setSelectedUser(null);
         setSelectedUsers(selectedUsers.filter(uId => uId !== id));
         
-        alert(lang === 'el' 
+        notify(lang === 'el' 
           ? `Ο χρήστης "${userName}" διαγράφηκε επιτυχώς.`
           : `User "${userName}" deleted successfully.`
         );
     } catch (error: any) {
         console.error('Error deleting user:', error);
-        alert(`Σφάλμα: ${error.message}`);
+        notify(`Σφάλμα: ${error.message}`);
     }
   };
 
@@ -3483,7 +3783,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const handleToggleBrandVerification = async (brandId: string, currentStatus: boolean) => {
     if (currentStatus) {
       const brand = brands.find((b) => b.id === brandId);
-      const ok = await askConfirm({
+      const ok = await confirmAction({
         title: lang === "el" ? "Απόρριψη επιχείρησης" : "Reject company",
         body: lang === "el"
           ? `Η «${brand?.brand_name || ""}» θα χάσει την επαλήθευση και δεν θα μπορεί να δημοσιεύει ανοιχτές καμπάνιες.`
@@ -3516,13 +3816,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         b.id === brandId ? { ...b, verified: !currentStatus } : b
       ));
 
-      alert(lang === 'el' 
+      notify(lang === 'el' 
         ? `Η επιχείρηση ${!currentStatus ? 'εγκρίθηκε' : 'απορρίφθηκε'} επιτυχώς.`
         : `Brand ${!currentStatus ? 'verified' : 'unverified'} successfully.`
       );
     } catch (error: any) {
       console.error('Error toggling brand verification:', error);
-      alert(lang === 'el' 
+      notify(lang === 'el' 
         ? `Σφάλμα: ${error.message}`
         : `Error: ${error.message}`
       );
@@ -3560,7 +3860,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         b.id === selectedBrand.id ? { ...b, ...saved } : b
       ));
 
-      alert(lang === 'el' 
+      notify(lang === 'el' 
         ? 'Η επιχείρηση ενημερώθηκε επιτυχώς.'
         : 'Brand updated successfully.'
       );
@@ -3569,7 +3869,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       setSelectedBrand(null);
     } catch (error: any) {
       console.error('Error updating brand:', error);
-      alert(lang === 'el' 
+      notify(lang === 'el' 
         ? `Σφάλμα: ${error.message}`
         : `Error: ${error.message}`
       );
@@ -3579,7 +3879,12 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   };
 
   const deleteBrand = async (brandId: string, brandName: string) => {
-    const ok = await askConfirm({
+    const brand = brands.find((b) => b.id === brandId);
+    if (isProtectedTestAccount({ brand_name: brandName, contact_email: brand?.contact_email })) {
+      notify(protectedDeleteMessage(lang), "error");
+      return;
+    }
+    const ok = await confirmAction({
       title: lang === "el" ? "Διαγραφή επιχείρησης" : "Delete company",
       body: lang === "el"
         ? `Διαγραφή της «${brandName}»; Η ενέργεια δεν αναιρείται.`
@@ -3601,19 +3906,23 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       const result = await response.json();
 
       if (!response.ok) {
+        if (result.error === "protected_test_account") {
+          notify(protectedDeleteMessage(lang), "error");
+          return;
+        }
         throw new Error(result.error || 'Failed to delete brand');
       }
 
       // Remove from local state
       setBrands(prev => prev.filter(b => b.id !== brandId));
 
-      alert(lang === 'el' 
+      notify(lang === 'el' 
         ? `Η επιχείρηση "${brandName}" διαγράφηκε επιτυχώς.`
         : `Brand "${brandName}" deleted successfully.`
       );
     } catch (error: any) {
       console.error('Error deleting brand:', error);
-      alert(lang === 'el' 
+      notify(lang === 'el' 
         ? `Σφάλμα: ${error.message}`
         : `Error: ${error.message}`
       );
@@ -3623,7 +3932,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   };
 
   const handleDeleteConversation = async (conversationId: string) => {
-    const ok = await askConfirm({
+    const ok = await confirmAction({
       title: lang === "el" ? "Διαγραφή συνομιλίας" : "Delete conversation",
       body:
         lang === "el"
@@ -3658,13 +3967,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         setConversationMessages([]);
       }
 
-      alert(lang === 'el' 
+      notify(lang === 'el' 
         ? 'Η συνομιλία διαγράφηκε επιτυχώς.'
         : 'Conversation deleted successfully.'
       );
     } catch (error: any) {
       console.error('Error deleting conversation:', error);
-      alert(lang === 'el' 
+      notify(lang === 'el' 
         ? `Σφάλμα: ${error.message}`
         : `Error: ${error.message}`
       );
@@ -3674,7 +3983,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   };
 
   const handleDeleteProposal = async (proposalId: number) => {
-    const ok = await askConfirm({
+    const ok = await confirmAction({
       title: lang === "el" ? "Διαγραφή πρότασης" : "Delete proposal",
       body:
         lang === "el"
@@ -3707,13 +4016,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         return next;
       });
 
-      alert(lang === 'el' 
+      notify(lang === 'el' 
         ? 'Η πρόταση διαγράφηκε επιτυχώς.'
         : 'Proposal deleted successfully.'
       );
     } catch (error: any) {
       console.error('Error deleting proposal:', error);
-      alert(lang === 'el' 
+      notify(lang === 'el' 
         ? `Σφάλμα: ${error.message}`
         : `Error: ${error.message}`
       );
@@ -3724,14 +4033,29 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
 
   const handleBulkAction = async (action: 'approve' | 'delete') => {
     if (selectedUsers.length === 0) {
-      alert(lang === "el" ? "Επιλέξτε τουλάχιστον έναν χρήστη" : "Select at least one user");
+      notify(lang === "el" ? "Επιλέξτε τουλάχιστον έναν χρήστη" : "Select at least one user");
       return;
     }
 
+    const deletableIds =
+      action === "delete"
+        ? selectedUsers.filter((id) => {
+            const row = users.find((u) => u.id === id);
+            return !row || !isProtectedTestAccount(row);
+          })
+        : selectedUsers;
+    if (action === "delete" && deletableIds.length === 0) {
+      notify(protectedDeleteMessage(lang), "error");
+      return;
+    }
     if (action === 'delete') {
-      const ok = await askConfirm({
+      const skipped = selectedUsers.length - deletableIds.length;
+      const ok = await confirmAction({
         title: lang === "el" ? "Μαζική διαγραφή" : "Bulk delete",
-        body: lang === "el" ? `Διαγραφή ${selectedUsers.length} χρηστών; Δεν αναιρείται.` : `Delete ${selectedUsers.length} users? This cannot be undone.`,
+        body:
+          lang === "el"
+            ? `Διαγραφή ${deletableIds.length} χρηστών; Δεν αναιρείται.${skipped ? ` Ο λογαριασμός test (${skipped}) θα μείνει.` : ""}`
+            : `Delete ${deletableIds.length} users? This cannot be undone.${skipped ? ` The test account (${skipped}) will be kept.` : ""}`,
         confirmLabel: lang === "el" ? "Διαγραφή" : "Delete",
         cancelLabel: lang === "el" ? "Άκυρο" : "Cancel",
         danger: true,
@@ -3740,7 +4064,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     }
 
     try {
-      for (const userId of selectedUsers) {
+      for (const userId of action === "delete" ? deletableIds : selectedUsers) {
         if (action === 'approve') {
           const response = await fetch('/api/admin/influencers/update', {
             method: 'POST',
@@ -3784,9 +4108,9 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       setSelectedUsers([]);
       void fetchInfluencersPage({ page: 1, silent: true });
       void fetchPickerUsers();
-      alert(lang === "el" ? "Ολοκληρώθηκε" : "Completed");
+      notify(lang === "el" ? "Ολοκληρώθηκε" : "Completed");
     } catch (error: any) {
-      alert(`Error: ${error.message}`);
+      notify(`Error: ${error.message}`);
     }
   };
 
@@ -3834,27 +4158,12 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       a.download = `influencers-${new Date().toISOString().split('T')[0]}.csv`;
       a.click();
     } catch (error: any) {
-      alert(error?.message || 'Export failed');
+      notify(error?.message || 'Export failed');
     }
   };
 
-  const pendingBrandCount = brands.filter((b) => !b.verified).length;
-  const visibleBrands = brands
-    .filter((b) => {
-      const query = brandSearchQuery.trim().toLowerCase();
-      const matchesSearch =
-        !query ||
-        b.brand_name.toLowerCase().includes(query) ||
-        b.contact_email.toLowerCase().includes(query);
-      const matchesStatus =
-        brandStatusFilter === "all" ||
-        (brandStatusFilter === "pending" ? !b.verified : b.verified);
-      return matchesSearch && matchesStatus;
-    })
-    .sort((a, b) => {
-      if (a.verified !== b.verified) return a.verified ? 1 : -1;
-      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-    });
+  const pendingBrandCount = brandCounts.pending;
+  const visibleBrands = brands;
 
   /** Server already applied search + status filters; `users` is the current loaded page(s). */
   const filteredUsers = users;
@@ -3873,88 +4182,353 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     }
   };
 
-  if (loading) return (
-    <div className="min-h-screen bg-white flex items-center justify-center">
-      <div className="text-slate-600">Loading...</div>
-    </div>
-  );
+  const influencerActions = (u: DbInfluencer) => {
+    const locked = isProtectedTestAccount(u);
+    return (
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => { void openEditUser(u); }} className="inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-3 text-sm font-medium text-slate-800 hover:bg-slate-50">
+            {txt.edit}
+          </button>
+          {!u.approved && (
+            <button type="button" onClick={() => toggleApproval(u.id, false, u.contact_email || "", u.display_name)} className="inline-flex min-h-11 items-center rounded-lg bg-slate-900 px-3 text-sm font-medium text-white">
+              {txt.btn_approve}
+            </button>
+          )}
+          {!u.analytics_verified && (
+            <button type="button" onClick={() => toggleAnalyticsVerification(u.id, false)} className="inline-flex min-h-11 items-center rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-sm font-medium text-emerald-800">
+              {txt.btn_verify_analytics}
+            </button>
+          )}
+          <button type="button" onClick={() => refreshSocialStats(u)} disabled={refreshingSocialFor === String(u.id)} className="inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-3 text-sm font-medium text-slate-700 disabled:opacity-50">
+            {refreshingSocialFor === String(u.id) ? "..." : txt.refresh_social}
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-2 border-t border-red-100 pt-2">
+          {u.approved && (
+            <button type="button" onClick={() => toggleApproval(u.id, true, u.contact_email || "", u.display_name)} className="inline-flex min-h-11 items-center rounded-lg border border-red-200 bg-red-50 px-3 text-sm font-medium text-red-700">
+              {txt.btn_unapprove}
+            </button>
+          )}
+          {u.analytics_verified && (
+            <button type="button" onClick={() => toggleAnalyticsVerification(u.id, true)} className="inline-flex min-h-11 items-center rounded-lg border border-red-200 bg-red-50 px-3 text-sm font-medium text-red-700">
+              {txt.btn_unverify_analytics}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => deleteUser(u.id)}
+            disabled={locked}
+            title={locked ? protectedDeleteMessage(lang) : undefined}
+            className="inline-flex min-h-11 items-center rounded-lg border border-red-200 bg-white px-3 text-sm font-medium text-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {locked ? protectedDeleteMessage(lang) : txt.btn_delete}
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const needsAction = [
+    ...influencerAttention.map((row) => ({
+      key: `creator-${row.id}`,
+      title: row.display_name || row.contact_email || String(row.id),
+      detail: { el: "Δημιουργός σε αναμονή έγκρισης", en: "Creator waiting for approval" }[lang],
+      when: row.created_at,
+      onOpen: () => {
+        setStatusFilter("pending");
+        setActiveTab("influencers");
+      },
+    })),
+    ...brandAttention.map((row) => ({
+      key: `brand-${row.id}`,
+      title: row.brand_name,
+      detail: { el: "Επιχείρηση σε αναμονή έγκρισης", en: "Company waiting for approval" }[lang],
+      when: row.created_at,
+      onOpen: () => {
+        setBrandStatusFilter("pending");
+        setActiveTab("brands");
+      },
+    })),
+    ...proposalAttention.map((row) => ({
+      key: `proposal-${row.id}`,
+      title: `${row.brand_name} → ${row.influencer_name || "—"}`,
+      detail: { el: `Πρόταση ${row.budget}€ σε αναμονή`, en: `Proposal of ${row.budget}€ is waiting` }[lang],
+      when: row.created_at,
+      onOpen: () => {
+        setProposalStatus("pending");
+        setActiveTab("proposals");
+        markPendingProposalsSeen(pendingProposalIdList.map((id) => ({ id, status: "pending" })));
+        setPendingProposalsCount(0);
+      },
+    })),
+  ];
+  const overviewBusy = influencersLoading || brandsLoading || proposalsLoading;
+  const overviewFailed = influencersError || brandsError || proposalsError;
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header */}
       <div className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-lg sm:text-xl font-semibold text-slate-900">{txt.title}</h1>
-              <p className="text-xs sm:text-sm text-slate-500">{txt.sub}</p>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 truncate">{txt.title}</h1>
+              <p className="text-sm text-slate-500 truncate">{txt.sub}</p>
             </div>
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <a href="/admin/support" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
-                📧 Help Desk
+            <div className="hidden md:flex flex-wrap items-center gap-2">
+              <a href="/" className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                <Home className="w-4 h-4" aria-hidden="true" />
+                {{ el: "Αρχική", en: "Home" }[lang]}
               </a>
-              <button 
+              <a href="/admin/support" className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-purple-200 px-3 text-sm font-medium text-purple-700 hover:bg-purple-50">
+                <LifeBuoy className="w-4 h-4" aria-hidden="true" />
+                Help Desk
+              </a>
+              <button
+                type="button"
                 onClick={() => {
                   const newLang = lang === "el" ? "en" : "el";
                   setLang(newLang);
                   setStoredLanguage(newLang);
-                }} 
-                className="text-xs font-medium border border-slate-200 px-2 sm:px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
-                aria-label="Toggle language"
+                }}
+                className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-blue-700 hover:bg-blue-50"
               >
-                {lang === "el" ? "EN" : "EL"}
+                {lang === "el" ? "EN" : "ΕΛ"}
               </button>
-              <button type="button" onClick={() => void logoutEverywhere("/login")} className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors">{txt.logout}</button>
-              <a href="/" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors">{txt.back}</a>
+              <button type="button" onClick={() => void logoutEverywhere("/login")} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                <LogOut className="w-4 h-4" aria-hidden="true" />
+                {txt.logout}
+              </button>
             </div>
+            <button
+              type="button"
+              className="md:hidden inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-slate-200 text-slate-700"
+              aria-label={{ el: "Μενού", en: "Menu" }[lang]}
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((open) => !open)}
+            >
+              {menuOpen ? <X className="w-5 h-5" aria-hidden="true" /> : <Menu className="w-5 h-5" aria-hidden="true" />}
+            </button>
           </div>
+          {menuOpen ? (
+            <div className="md:hidden mt-3 flex flex-col gap-2 border-t border-slate-100 pt-3">
+              <a href="/" className="min-h-11 inline-flex items-center gap-2 rounded-lg px-3 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                <Home className="w-4 h-4" aria-hidden="true" />
+                {{ el: "Αρχική", en: "Home" }[lang]}
+              </a>
+              <a href="/admin/support" className="min-h-11 inline-flex items-center gap-2 rounded-lg px-3 text-sm font-medium text-purple-700 hover:bg-purple-50">
+                <LifeBuoy className="w-4 h-4" aria-hidden="true" />
+                Help Desk
+              </a>
+              <button
+                type="button"
+                onClick={() => {
+                  const newLang = lang === "el" ? "en" : "el";
+                  setLang(newLang);
+                  setStoredLanguage(newLang);
+                  setMenuOpen(false);
+                }}
+                className="min-h-11 text-left rounded-lg px-3 text-sm font-medium text-blue-700 hover:bg-blue-50"
+              >
+                {lang === "el" ? "English" : "Ελληνικά"}
+              </button>
+              <button type="button" onClick={() => void logoutEverywhere("/login")} className="min-h-11 inline-flex items-center gap-2 rounded-lg px-3 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                <LogOut className="w-4 h-4" aria-hidden="true" />
+                {txt.logout}
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-7 gap-4 mb-6">
-          <div className="bg-white p-4 rounded-lg border border-slate-200">
-            <p className="text-xs text-slate-500 uppercase font-medium mb-1">{txt.users}</p>
-            <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
-          </div>
-          <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
-            <p className="text-xs text-yellow-700 uppercase font-medium mb-1">{txt.pending}</p>
-            <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
-          </div>
-          <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg">
-            <p className="text-xs text-amber-800 uppercase font-medium mb-1">{txt.pending_brands}</p>
-            <p className="text-2xl font-bold text-amber-700">{pendingBrandCount}</p>
-          </div>
-          <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
-            <p className="text-xs text-green-700 uppercase font-medium mb-1">{txt.verified}</p>
-            <p className="text-2xl font-bold text-green-600">{stats.verified}</p>
-          </div>
-          {stats.reach != null && stats.reach !== "" ? (
-            <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
-              <p className="text-xs text-blue-700 uppercase font-medium mb-1">{txt.reach}</p>
-              <p className="text-2xl font-bold text-blue-600">{stats.reach}</p>
-            </div>
-          ) : null}
-          <div className="bg-purple-50 border border-purple-200 p-4 rounded-lg">
-            <p className="text-xs text-purple-700 uppercase font-medium mb-1">{txt.pipeline}</p>
-            <p className="text-2xl font-bold text-purple-600">{stats.pipeline}</p>
-          </div>
-          {typeof stats.hiddenVideos === "number" ? (
-            <button
-              type="button"
-              onClick={() => setShowHiddenVideosPanel((v) => !v)}
-              className="bg-orange-50 border border-orange-200 p-4 rounded-lg text-left hover:bg-orange-100/80 transition-colors"
-            >
-              <p className="text-xs text-orange-800 uppercase font-medium mb-1">
-                {lang === "en" ? "Hidden videos" : "Κρυφά βίντεο"}
-              </p>
-              <p className="text-2xl font-bold text-orange-700">{stats.hiddenVideos}</p>
-            </button>
-          ) : null}
+        <div className="relative bg-white rounded-xl border border-slate-200 mb-6 overflow-hidden">
+          <nav
+            role="tablist"
+            aria-label={{ el: "Ενότητες πίνακα", en: "Dashboard sections" }[lang]}
+            className="flex gap-2 overflow-x-auto snap-x snap-mandatory px-3 py-2 md:gap-0 md:overflow-visible md:snap-none md:px-0 md:py-0 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {(
+              [
+                { id: "overview", label: { el: "Επισκόπηση", en: "Overview" }[lang], icon: LayoutDashboard, count: 0 },
+                { id: "influencers", label: txt.tab_inf, icon: Users, count: 0 },
+                { id: "influencer_stats", label: txt.tab_inf_analytics, icon: BarChart3, count: 0 },
+                { id: "proposals", label: txt.tab_deals, icon: FileText, count: pendingProposalsCount },
+                { id: "conversations", label: { el: "Συνομιλίες", en: "Conversations" }[lang], icon: MessageSquare, count: unreadMessagesCount },
+                { id: "brands", label: txt.tab_brands, icon: Building2, count: unseenBrandCount },
+                { id: "campaigns", label: txt.tab_campaigns, icon: Megaphone, count: unseenCampaignCount },
+                { id: "blog", label: txt.tab_blog, icon: Newspaper, count: 0 },
+                { id: "announcements", label: txt.tab_announcements, icon: Bell, count: 0 },
+                { id: "social_cron", label: txt.tab_social_cron, icon: Activity, count: 0 },
+              ] as const
+            ).map((tab) => {
+              const selected = activeTab === tab.id;
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={selected}
+                  onClick={() => {
+                    if (tab.id === "proposals") {
+                      markPendingProposalsSeen(pendingProposalIdList.map((id) => ({ id, status: "pending" })));
+                      setPendingProposalsCount(0);
+                    }
+                    if (tab.id === "campaigns") void fetchAdminCampaigns();
+                    setActiveTab(tab.id);
+                    setMenuOpen(false);
+                  }}
+                  className={`inline-flex min-h-11 shrink-0 snap-start items-center gap-2 rounded-full px-4 text-sm font-medium whitespace-nowrap transition-colors md:min-h-0 md:rounded-none md:px-4 md:py-4 md:text-base md:border-b-2 ${
+                    selected
+                      ? "bg-blue-600 text-white md:bg-transparent md:text-blue-600 md:border-blue-600"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200 md:bg-transparent md:text-slate-500 md:hover:text-slate-700 md:border-transparent"
+                  }`}
+                >
+                  <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
+                  {tab.label}
+                  {tab.count > 0 ? (
+                    <span className={`text-xs font-bold rounded-full min-w-[18px] h-[18px] inline-flex items-center justify-center px-1 ${selected ? "bg-white text-blue-700 md:bg-red-500 md:text-white" : "bg-red-500 text-white"}`}>
+                      {tab.count > 99 ? "99+" : tab.count}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </nav>
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-white to-transparent md:hidden" aria-hidden="true" />
         </div>
 
-        {showHiddenVideosPanel ? (
+        {activeTab === "overview" && (
+          <div className="space-y-6">
+            {overviewFailed && !overviewBusy ? (
+              <AdminLoadError
+                lang={lang}
+                timedOut={overviewFailed === "timeout"}
+                onRetry={() => {
+                  void fetchInfluencersPage({ page: 1, q: debouncedSearch, status: statusFilter });
+                  void fetchBrands({ page: 1 });
+                  void fetchProposals({ page: 1 });
+                }}
+              />
+            ) : null}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {(
+                [
+                  {
+                    label: { el: "Εκκρεμείς εγκρίσεις", en: "Pending approvals" }[lang],
+                    value: stats.pending + brandCounts.pending,
+                    hint: { el: "Creators και επιχειρήσεις", en: "Creators and companies" }[lang],
+                    onClick: () => {
+                      setStatusFilter("pending");
+                      setActiveTab("influencers");
+                    },
+                  },
+                  {
+                    label: { el: "Νέοι creators / brands", en: "New creators / brands" }[lang],
+                    value: `${influencerRecent} / ${brandCounts.recent}`,
+                    hint: { el: "Τελευταίες 7 ημέρες", en: "Last 7 days" }[lang],
+                    onClick: () => setActiveTab("influencers"),
+                  },
+                  {
+                    label: { el: "Ενεργές συνεργασίες", en: "Active collaborations" }[lang],
+                    value: proposalCounts.active,
+                    hint: { el: "Αποδεκτές και ολοκληρωμένες", en: "Accepted and completed" }[lang],
+                    onClick: () => {
+                      setProposalStatus("accepted");
+                      setActiveTab("proposals");
+                    },
+                  },
+                  {
+                    label: { el: "Προτάσεις", en: "Proposals" }[lang],
+                    value: proposalCounts.total,
+                    hint:
+                      proposalCounts.pending > 0
+                        ? { el: `${proposalCounts.pending} σε αναμονή`, en: `${proposalCounts.pending} waiting` }[lang]
+                        : { el: "Σύνολο", en: "Total" }[lang],
+                    onClick: () => setActiveTab("proposals"),
+                  },
+                ]
+              ).map((card) => (
+                <button
+                  key={card.label}
+                  type="button"
+                  onClick={card.onClick}
+                  className="min-h-[88px] rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-slate-300 hover:shadow-sm transition-shadow"
+                >
+                  <p className="text-2xl font-semibold text-slate-900 tabular-nums">
+                    {overviewBusy && card.value === 0 ? <span className="inline-block h-7 w-12 rounded bg-slate-100 animate-pulse" /> : card.value}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-600">{card.label}</p>
+                  <p className="mt-1 text-xs text-slate-400">{card.hint}</p>
+                </button>
+              ))}
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              <section className="rounded-xl border border-slate-200 bg-white p-5">
+                <h2 className="text-lg font-semibold text-slate-900">
+                  {{ el: "Χρειάζονται ενέργεια", en: "Needs action" }[lang]}
+                </h2>
+                {overviewBusy && needsAction.length === 0 ? (
+                  <div className="mt-4 h-24 rounded-lg bg-slate-100 animate-pulse" />
+                ) : needsAction.length === 0 ? (
+                  <p className="mt-4 text-sm text-slate-600">
+                    {{ el: "Είσαι ενήμερος. Δεν εκκρεμεί κάποια ενέργεια.", en: "You are up to date. Nothing needs action." }[lang]}
+                  </p>
+                ) : (
+                  <ul className="mt-4 space-y-3">
+                    {needsAction.slice(0, 8).map((item) => (
+                      <li key={item.key} className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-slate-900 truncate">{item.title}</p>
+                          <p className="text-sm text-slate-600">{item.detail}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">{formatDate(item.when, lang)} {formatTime(item.when, lang)}</p>
+                        </div>
+                        <button type="button" onClick={item.onOpen} className="shrink-0 min-h-11 px-3 text-sm font-medium text-blue-700 hover:bg-blue-50 rounded-lg">
+                          {{ el: "Άνοιγμα", en: "Open" }[lang]}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+              <section className="rounded-xl border border-slate-200 bg-white p-5">
+                <h2 className="text-lg font-semibold text-slate-900">
+                  {{ el: "Πλατφόρμα", en: "Platform" }[lang]}
+                </h2>
+                <dl className="mt-4 grid grid-cols-2 gap-3">
+                  <div className="rounded-lg bg-slate-50 p-3">
+                    <dt className="text-xs text-slate-500">{txt.users}</dt>
+                    <dd className="text-xl font-semibold text-slate-900 tabular-nums">{stats.total}</dd>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 p-3">
+                    <dt className="text-xs text-slate-500">{txt.verified}</dt>
+                    <dd className="text-xl font-semibold text-slate-900 tabular-nums">{stats.verified}</dd>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 p-3">
+                    <dt className="text-xs text-slate-500">{txt.pipeline}</dt>
+                    <dd className="text-xl font-semibold text-slate-900 tabular-nums">{stats.pipeline}</dd>
+                  </div>
+                  {stats.reach != null && stats.reach !== "" ? (
+                    <div className="rounded-lg bg-slate-50 p-3">
+                      <dt className="text-xs text-slate-500">{txt.reach}</dt>
+                      <dd className="text-xl font-semibold text-slate-900 tabular-nums">{stats.reach}</dd>
+                    </div>
+                  ) : null}
+                </dl>
+                {typeof stats.hiddenVideos === "number" ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowHiddenVideosPanel((v) => !v)}
+                    className="mt-4 inline-flex min-h-11 items-center rounded-lg border border-orange-200 bg-orange-50 px-3 text-sm font-medium text-orange-900"
+                  >
+                    {{ el: "Κρυφά βίντεο", en: "Hidden videos" }[lang]}: {stats.hiddenVideos}
+                  </button>
+                ) : null}
+              </section>
+            </div>
+            {showHiddenVideosPanel ? (
           <div className="mb-6 rounded-lg border border-orange-200 bg-orange-50/60 p-4">
             <div className="flex items-center justify-between gap-3 mb-3">
               <h3 className="text-sm font-semibold text-orange-950">
@@ -4002,134 +4576,12 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
               </ul>
             )}
           </div>
-        ) : null}
-
-        {/* Tabs */}
-        <div className="bg-white rounded-lg border border-slate-200 mb-4">
-          <div className="border-b border-slate-200 overflow-x-auto">
-            <div className="flex min-w-max sm:min-w-0 px-4 sm:px-6">
-              <button 
-                onClick={() => setActiveTab("influencers")} 
-                className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === "influencers" 
-                    ? "border-slate-900 text-slate-900" 
-                    : "border-transparent text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                {txt.tab_inf} ({influencersTotal || filteredUsers.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("influencer_stats")}
-                className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === "influencer_stats"
-                    ? "border-slate-900 text-slate-900"
-                    : "border-transparent text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                {txt.tab_inf_analytics}
-              </button>
-              <button 
-                onClick={() => {
-                  setActiveTab("proposals");
-                  markPendingProposalsSeen(proposals);
-                  setPendingProposalsCount(0);
-                }} 
-                className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors relative whitespace-nowrap ${
-                  activeTab === "proposals" 
-                    ? "border-slate-900 text-slate-900" 
-                    : "border-transparent text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                {txt.tab_deals} ({proposals.length})
-                {pendingProposalsCount > 0 && (
-                  <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 bg-red-500 text-white text-[9px] sm:text-[10px] font-bold rounded-full min-w-[14px] sm:min-w-[16px] h-[14px] sm:h-[16px] flex items-center justify-center px-0.5">
-                    {pendingProposalsCount > 99 ? '99+' : pendingProposalsCount > 9 ? '9+' : pendingProposalsCount}
-                  </span>
-                )}
-              </button>
-              <button 
-                onClick={() => setActiveTab("conversations")}
-                className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors relative whitespace-nowrap ${
-                  activeTab === "conversations" 
-                    ? "border-slate-900 text-slate-900" 
-                    : "border-transparent text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                {lang === "el" ? "💬 Συνομιλίες" : "💬 Conversations"} ({conversations.length})
-                {unreadMessagesCount > 0 && (
-                  <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 bg-red-500 text-white text-[9px] sm:text-[10px] font-bold rounded-full min-w-[14px] sm:min-w-[16px] h-[14px] sm:h-[16px] flex items-center justify-center px-0.5">
-                    {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
-                  </span>
-                )}
-              </button>
-              <button 
-                onClick={() => setActiveTab("brands")} 
-                className={`relative px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === "brands" 
-                    ? "border-slate-900 text-slate-900" 
-                    : "border-transparent text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                {txt.tab_brands} ({brands.length})
-                {unseenBrandCount > 0 && (
-                  <span className="ml-1.5 inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold">
-                    {unseenBrandCount > 99 ? "99+" : unseenBrandCount}
-                  </span>
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab("campaigns");
-                  fetchAdminCampaigns();
-                }}
-                className={`relative px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === "campaigns"
-                    ? "border-slate-900 text-slate-900"
-                    : "border-transparent text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                {txt.tab_campaigns} ({adminCampaigns.length})
-                {unseenCampaignCount > 0 && (
-                  <span className="ml-1.5 inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold">
-                    {unseenCampaignCount > 99 ? "99+" : unseenCampaignCount}
-                  </span>
-                )}
-              </button>
-              <button 
-                onClick={() => setActiveTab("blog")} 
-                className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === "blog" 
-                    ? "border-slate-900 text-slate-900" 
-                    : "border-transparent text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                {txt.tab_blog} ({blogPosts.length})
-              </button>
-              <button 
-                onClick={() => setActiveTab("announcements")} 
-                className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === "announcements" 
-                    ? "border-slate-900 text-slate-900" 
-                    : "border-transparent text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                {txt.tab_announcements}
-              </button>
-              <button
-                onClick={() => setActiveTab("social_cron")}
-                className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === "social_cron"
-                    ? "border-slate-900 text-slate-900"
-                    : "border-transparent text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                {txt.tab_social_cron}
-              </button>
-            </div>
+            ) : null}
           </div>
+        )}
 
+        {activeTab !== "overview" && (
+        <div className="bg-white rounded-xl border border-slate-200 mb-4 overflow-hidden">
           {activeTab === "influencers" && (
             <>
               {/* Search & Filters (server-side) */}
@@ -4167,7 +4619,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                 </button>
                 <button
                   onClick={async () => {
-                    if (!confirm(lang === 'el' ? 'Τρέξιμο Gemini audit για όλους σε batch (15-15). Θα δεις την πρόοδο και θα τελειώσει μόνο του. Συνέχεια;' : 'Run Gemini audit for all in batches (15 at a time). You will see progress and it will finish automatically. Continue?')) return;
+                    const okAudit = await confirmAction({
+                      title: { el: "Gemini audit", en: "Gemini audit" }[lang],
+                      body: { el: "Θα τρέξει Gemini audit για όλους σε batch (15-15). Θα δεις την πρόοδο και θα τελειώσει μόνο του.", en: "This runs a Gemini audit for everyone in batches of 15. You will see progress until it finishes." }[lang],
+                      confirmLabel: { el: "Συνέχεια", en: "Continue" }[lang],
+                      cancelLabel: { el: "Άκυρο", en: "Cancel" }[lang],
+                    });
+                    if (!okAudit) return;
                     setBackfillingAudit(true);
                     setBackfillProgress(lang === 'el' ? 'Ξεκίνημα...' : 'Starting...');
                     let totalUpdated = 0;
@@ -4192,14 +4650,14 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                           throw new Error(msg);
                         }
                         if (!res.ok) {
-                          alert((data.error || res.statusText) as string);
+                          notify((data.error || res.statusText) as string);
                           break;
                         }
                         const batchUpdated = data.updated ?? 0;
                         totalUpdated += batchUpdated;
                         if (!data.hasMore || batchUpdated === 0) {
                           setBackfillProgress(null);
-                          alert(lang === 'el' ? `Ολοκλήρωση: ${totalUpdated} influencers ενημερώθηκαν συνολικά.` : `Done: ${totalUpdated} influencers updated in total.`);
+                          notify(lang === 'el' ? `Ολοκλήρωση: ${totalUpdated} influencers ενημερώθηκαν συνολικά.` : `Done: ${totalUpdated} influencers updated in total.`);
                           break;
                         }
                         skip += limit;
@@ -4207,7 +4665,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                       }
                     } catch (e) {
                       setBackfillProgress(null);
-                      alert(e instanceof Error ? e.message : 'Failed');
+                      notify(e instanceof Error ? e.message : 'Failed');
                     } finally {
                       setBackfillingAudit(false);
                       setBackfillProgress(null);
@@ -4240,7 +4698,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     </button>
                     <button
                       onClick={() => handleBulkAction('delete')}
-                      className="px-3 py-1.5 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                      className="inline-flex min-h-11 items-center px-3 text-sm font-medium border border-red-200 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors"
                     >
                       {txt.bulk_delete}
                     </button>
@@ -4248,13 +4706,35 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                 </div>
               )}
 
-              {/* Table */}
-              <div className="overflow-x-auto">
-                {influencersLoading && (
-                  <p className="px-4 py-3 text-sm text-slate-500 border-b border-slate-100">
-                    {lang === "el" ? "Φόρτωση…" : "Loading…"}
-                  </p>
-                )}
+              {influencersLoading && filteredUsers.length === 0 ? (
+                <AdminListSkeleton />
+              ) : influencersError && filteredUsers.length === 0 ? (
+                <AdminLoadError
+                  lang={lang}
+                  timedOut={influencersError === "timeout"}
+                  onRetry={() => void fetchInfluencersPage({ page: influencersPage, q: debouncedSearch, status: statusFilter })}
+                />
+              ) : (
+              <div>
+                <div className="md:hidden divide-y divide-slate-200">
+                  {filteredUsers.length === 0 ? (
+                    <p className="px-4 py-8 text-center text-sm text-slate-500">{txt.no_data}</p>
+                  ) : filteredUsers.map((u) => (
+                    <article key={u.id} className="p-4 space-y-3">
+                      <div className="flex items-start gap-3">
+                        <input type="checkbox" checked={selectedUsers.includes(u.id)} onChange={() => toggleUserSelection(u.id)} className="mt-3 h-5 w-5 rounded border-slate-300" />
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-slate-900">{u.display_name}</p>
+                          <p className="text-sm text-slate-600 break-all">{u.contact_email || "—"}</p>
+                          <p className="text-xs text-slate-400 mt-1">{formatDate(u.created_at, lang)} {formatTime(u.created_at, lang)}</p>
+                          <p className="mt-2 text-xs text-slate-600">{u.approved ? txt.approved : { el: "Μη εγκεκριμένος", en: "Not approved" }[lang]}</p>
+                        </div>
+                      </div>
+                      {influencerActions(u)}
+                    </article>
+                  ))}
+                </div>
+                <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
@@ -4314,13 +4794,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                     title={new Date(u.created_at).toLocaleString(lang === "el" ? "el-GR" : "en-GB")}
                                   >
                                     {lang === "el" ? "Εγγραφή" : "Joined"}{" "}
-                                    {new Date(u.created_at).toLocaleString(lang === "el" ? "el-GR" : "en-GB", {
-                                      day: "numeric",
-                                      month: "short",
-                                      year: "numeric",
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    })}
+                                    {formatDate(u.created_at, lang)} {formatTime(u.created_at, lang)}
                                   </div>
                                 )}
                                 {u.category && (
@@ -4359,12 +4833,12 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               {u.approved ? (
                                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">{txt.approved}</span>
                               ) : (
-                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">Μη Εγκεκριμένος</span>
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">{{ el: "Μη εγκεκριμένος", en: "Not approved" }[lang]}</span>
                               )}
                               {u.analytics_verified ? (
                                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">{txt.analytics_verified}</span>
                               ) : (
-                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">Μη Επαληθευμένα</span>
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">{{ el: "Μη επαληθευμένα", en: "Not verified" }[lang]}</span>
                               )}
                               {u.possible_duplicate ? (
                                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
@@ -4373,104 +4847,23 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               ) : null}
                             </div>
                           </td>
-                          <td className="px-4 py-3">
-                            <div className="flex flex-col items-end gap-2">
-                              <div className="flex items-center justify-end gap-2 flex-wrap">
-                                <button
-                                  onClick={() => { void openEditUser(u); }}
-                                  className="px-2 py-1 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors"
-                                >
-                                  {txt.edit}
-                                </button>
-                                {!u.approved && (
-                                  <button
-                                    onClick={() => toggleApproval(u.id, false, u.contact_email || "", u.display_name)}
-                                    className="px-2 py-1 text-xs rounded transition-colors text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                  >
-                                    {txt.btn_approve}
-                                  </button>
-                                )}
-                                {!u.analytics_verified && (
-                                  <button
-                                    onClick={() => toggleAnalyticsVerification(u.id, false)}
-                                    className="px-2 py-1 text-xs rounded transition-colors text-green-600 hover:text-green-700 hover:bg-green-50"
-                                  >
-                                    {txt.btn_verify_analytics}
-                                  </button>
-                                )}
-                                <button
-                                  onClick={() => refreshSocialStats(u)}
-                                  disabled={refreshingSocialFor === String(u.id)}
-                                  className="px-2 py-1 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                  {refreshingSocialFor === String(u.id) ? '...' : txt.refresh_social}
-                                </button>
-                                <button
-                                  onClick={() => refreshAudit(u)}
-                                  disabled={refreshingAuditFor === String(u.id)}
-                                  className="px-2 py-1 text-xs text-violet-600 hover:text-violet-700 hover:bg-violet-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                  {refreshingAuditFor === String(u.id) ? '...' : txt.refresh_audit}
-                                </button>
-                              </div>
-                              <div className="flex items-center justify-end gap-2 flex-wrap border-t border-red-100 pt-2">
-                                {u.approved && (
-                                  <button
-                                    onClick={() => toggleApproval(u.id, true, u.contact_email || "", u.display_name)}
-                                    className="px-2 py-1 text-xs rounded transition-colors text-red-600 hover:text-red-700 hover:bg-red-50"
-                                  >
-                                    {txt.btn_unapprove}
-                                  </button>
-                                )}
-                                {u.analytics_verified && (
-                                  <button
-                                    onClick={() => toggleAnalyticsVerification(u.id, true)}
-                                    className="px-2 py-1 text-xs rounded transition-colors text-red-600 hover:text-red-700 hover:bg-red-50"
-                                  >
-                                    {txt.btn_unverify_analytics}
-                                  </button>
-                                )}
-                                <button
-                                  onClick={() => deleteUser(u.id)}
-                                  className="ml-2 px-2.5 py-1 text-xs font-medium bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-                                >
-                                  {txt.btn_delete}
-                                </button>
-                              </div>
-                            </div>
-                          </td>
+                          <td className="px-4 py-3 align-top">{influencerActions(u)}</td>
                         </tr>
                       ))
                     )}
                   </tbody>
                 </table>
-                <div className="px-4 py-3 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <p className="text-sm text-slate-500">
-                    {lang === "el"
-                      ? `Εμφάνιση ${filteredUsers.length} από ${influencersTotal}`
-                      : `Showing ${filteredUsers.length} of ${influencersTotal}`}
-                  </p>
-                  {influencersHasMore && (
-                    <button
-                      type="button"
-                      disabled={influencersLoadingMore}
-                      onClick={() =>
-                        void fetchInfluencersPage({
-                          page: influencersPage + 1,
-                          append: true,
-                          q: debouncedSearch,
-                          status: statusFilter,
-                        })
-                      }
-                      className="px-4 py-2 text-sm font-medium bg-slate-900 text-white rounded-lg hover:bg-slate-800 disabled:opacity-50"
-                    >
-                      {influencersLoadingMore
-                        ? (lang === "el" ? "Φόρτωση…" : "Loading…")
-                        : (lang === "el" ? "Φόρτωσε περισσότερα" : "Load more")}
-                    </button>
-                  )}
                 </div>
+                <AdminPager
+                  lang={lang}
+                  page={influencersPage}
+                  total={influencersTotal}
+                  pageSize={ADMIN_PAGE_SIZE}
+                  disabled={influencersLoading}
+                  onPage={(page) => void fetchInfluencersPage({ page, q: debouncedSearch, status: statusFilter })}
+                />
               </div>
+              )}
             </>
           )}
 
@@ -4497,69 +4890,105 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
           )}
 
           {activeTab === "proposals" && (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{txt.col_brand}</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{txt.col_inf}</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{txt.col_bud}</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{txt.col_status}</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{lang === 'el' ? 'Ενέργειες' : 'Actions'}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {proposals.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-slate-500">{txt.no_data}</td>
-                    </tr>
-                  ) : (
-                    proposals.map(p => {
-                      const statusKey = String(p.status || "").toLowerCase();
-                      const statusLabel =
-                        statusKey === "pending"
-                          ? (lang === "el" ? "Εκκρεμεί" : "Pending")
-                          : statusKey === "accepted"
-                            ? (lang === "el" ? "Αποδεκτή" : "Accepted")
-                            : statusKey === "completed"
-                              ? (lang === "el" ? "Ολοκληρώθηκε" : "Completed")
-                              : statusKey === "rejected"
-                                ? (lang === "el" ? "Απορρίφθηκε" : "Rejected")
-                                : statusKey === "cancelled" || statusKey === "canceled"
-                                  ? (lang === "el" ? "Ακυρώθηκε" : "Cancelled")
-                                  : (lang === "el" ? "Άγνωστο" : "Unknown");
+            <>
+              <div className="p-4 border-b border-slate-200 flex flex-col gap-3 sm:flex-row">
+                <input
+                  type="search"
+                  value={proposalSearch}
+                  onChange={(e) => setProposalSearch(e.target.value)}
+                  placeholder={{ el: "Αναζήτηση επιχείρησης, creator ή υπηρεσίας…", en: "Search company, creator, or service…" }[lang]}
+                  className="min-h-11 flex-1 rounded-lg border border-slate-300 px-3 text-sm"
+                />
+                <select
+                  value={proposalStatus}
+                  onChange={(e) => setProposalStatus(e.target.value as typeof proposalStatus)}
+                  className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm"
+                >
+                  <option value="all">{{ el: "Όλες οι καταστάσεις", en: "All statuses" }[lang]}</option>
+                  <option value="pending">{{ el: "Εκκρεμείς", en: "Pending" }[lang]}</option>
+                  <option value="accepted">{{ el: "Αποδεκτές", en: "Accepted" }[lang]}</option>
+                  <option value="completed">{{ el: "Ολοκληρωμένες", en: "Completed" }[lang]}</option>
+                  <option value="rejected">{{ el: "Απορριφθείσες", en: "Rejected" }[lang]}</option>
+                </select>
+              </div>
+              {proposalsLoading && proposals.length === 0 ? (
+                <AdminListSkeleton />
+              ) : proposalsError && proposals.length === 0 ? (
+                <AdminLoadError lang={lang} timedOut={proposalsError === "timeout"} onRetry={() => void fetchProposals({ page: proposalsPage })} />
+              ) : (
+                <>
+                  <div className="md:hidden divide-y divide-slate-200">
+                    {proposals.length === 0 ? (
+                      <p className="px-4 py-8 text-center text-sm text-slate-500">{txt.no_data}</p>
+                    ) : proposals.map((p) => {
+                      const name = p.influencer_name || (Array.isArray(p.influencers) ? p.influencers[0]?.display_name : p.influencers?.display_name) || "—";
                       return (
-                      <tr key={p.id} className="hover:bg-slate-50">
-                        <td className="px-4 py-3 font-medium text-slate-900">{p.brand_name}</td>
-                        <td className="px-4 py-3 text-slate-600">{p.influencers?.display_name}</td>
-                        <td className="px-4 py-3 font-medium text-green-600">{p.budget}€</td>
-                        <td className="px-4 py-3">
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">{statusLabel}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex justify-end">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteProposal(p.id);
-                              }}
-                              disabled={deletingProposal === p.id}
-                              className="ml-auto px-2.5 py-1 text-xs font-medium bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {deletingProposal === p.id 
-                                ? (lang === 'el' ? 'Διαγραφή...' : 'Deleting...')
-                                : (lang === 'el' ? 'Διαγραφή' : 'Delete')
-                              }
-                            </button>
+                        <article key={p.id} className="space-y-3 p-4">
+                          <div>
+                            <p className="font-semibold text-slate-900">{p.brand_name}</p>
+                            <p className="text-sm text-slate-600">{name}</p>
+                            <p className="mt-1 text-sm font-medium text-emerald-700">{p.budget}€ · {p.status}</p>
+                            <p className="text-xs text-slate-400">{formatDate(p.created_at, lang)} {formatTime(p.created_at, lang)}</p>
                           </div>
-                        </td>
-                      </tr>
+                          <button type="button" onClick={() => handleDeleteProposal(p.id)} disabled={deletingProposal === p.id} className="inline-flex min-h-11 items-center rounded-lg border border-red-200 bg-red-50 px-3 text-sm font-medium text-red-700 disabled:opacity-50">
+                            {deletingProposal === p.id ? { el: "Διαγραφή…", en: "Deleting…" }[lang] : { el: "Διαγραφή πρότασης", en: "Delete proposal" }[lang]}
+                          </button>
+                        </article>
                       );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    })}
+                  </div>
+                  <div className="hidden md:block overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{txt.col_brand}</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{txt.col_inf}</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{txt.col_bud}</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">{txt.col_status}</th>
+                          <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600 uppercase">{txt.col_act}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200">
+                        {proposals.length === 0 ? (
+                          <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-500">{txt.no_data}</td></tr>
+                        ) : proposals.map((p) => {
+                          const name = p.influencer_name || (Array.isArray(p.influencers) ? p.influencers[0]?.display_name : p.influencers?.display_name) || "—";
+                          const statusKey = String(p.status || "").toLowerCase();
+                          const statusLabel =
+                            statusKey === "pending" ? { el: "Εκκρεμεί", en: "Pending" }[lang]
+                            : statusKey === "accepted" ? { el: "Αποδεκτή", en: "Accepted" }[lang]
+                            : statusKey === "completed" ? { el: "Ολοκληρώθηκε", en: "Completed" }[lang]
+                            : statusKey === "rejected" ? { el: "Απορρίφθηκε", en: "Rejected" }[lang]
+                            : statusKey === "cancelled" || statusKey === "canceled" ? { el: "Ακυρώθηκε", en: "Cancelled" }[lang]
+                            : { el: "Άγνωστο", en: "Unknown" }[lang];
+                          return (
+                            <tr key={p.id} className="hover:bg-slate-50">
+                              <td className="px-4 py-3 font-medium text-slate-900">{p.brand_name}</td>
+                              <td className="px-4 py-3 text-slate-600">{name}</td>
+                              <td className="px-4 py-3 font-medium text-emerald-700">{p.budget}€</td>
+                              <td className="px-4 py-3"><span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">{statusLabel}</span></td>
+                              <td className="px-4 py-3 text-right">
+                                <button type="button" onClick={() => handleDeleteProposal(p.id)} disabled={deletingProposal === p.id} className="inline-flex min-h-11 items-center rounded-lg border border-red-200 bg-red-50 px-3 text-sm font-medium text-red-700 disabled:opacity-50">
+                                  {deletingProposal === p.id ? { el: "Διαγραφή…", en: "Deleting…" }[lang] : txt.btn_delete}
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <AdminPager
+                    lang={lang}
+                    page={proposalsPage}
+                    total={proposalsTotal}
+                    pageSize={ADMIN_PAGE_SIZE}
+                    disabled={proposalsLoading}
+                    onPage={(page) => void fetchProposals({ page, q: proposalSearchDebounced, status: proposalStatus })}
+                  />
+                </>
+              )}
+            </>
           )}
 
           {activeTab === "brands" && (
@@ -4576,7 +5005,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                       key={value}
                       type="button"
                       onClick={() => setBrandStatusFilter(value)}
-                      className={`px-3 py-1.5 text-xs font-medium rounded-full border ${
+                      className={`inline-flex min-h-11 items-center px-4 text-sm font-medium rounded-full border ${
                         brandStatusFilter === value
                           ? "bg-slate-900 text-white border-slate-900"
                           : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
@@ -4592,19 +5021,61 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     placeholder={lang === 'el' ? 'Αναζήτηση επιχείρησης...' : 'Search company...'}
                     value={brandSearchQuery}
                     onChange={(e) => setBrandSearchQuery(e.target.value)}
-                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="min-h-11 flex-1 px-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                   <button
-                    onClick={fetchBrands}
-                    className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    onClick={() => void fetchBrands({ page: brandsPage })}
+                    className="inline-flex min-h-11 items-center px-4 text-sm bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors"
                   >
                     {lang === 'el' ? 'Ανανέωση' : 'Refresh'}
                   </button>
                 </div>
               </div>
 
-              {/* Brands Table */}
-              <div className="overflow-x-auto">
+              {brandsLoading && visibleBrands.length === 0 ? (
+                <AdminListSkeleton />
+              ) : brandsError && visibleBrands.length === 0 ? (
+                <AdminLoadError lang={lang} timedOut={brandsError === "timeout"} onRetry={() => void fetchBrands({ page: brandsPage })} />
+              ) : (
+              <>
+              <div className="md:hidden divide-y divide-slate-200">
+                {visibleBrands.length === 0 ? (
+                  <p className="px-4 py-8 text-center text-sm text-slate-500">{txt.no_data}</p>
+                ) : visibleBrands.map((b) => {
+                  const locked = isProtectedTestAccount({ brand_name: b.brand_name, contact_email: b.contact_email });
+                  return (
+                    <article key={b.id} className="space-y-3 p-4">
+                      <div>
+                        <p className="font-semibold text-slate-900">{b.brand_name}</p>
+                        <p className="text-sm text-slate-600 break-all">{b.contact_email}</p>
+                        <p className="text-xs text-slate-400 mt-1">{formatDate(b.created_at, lang)} {formatTime(b.created_at, lang)}</p>
+                        <p className="mt-2 text-xs font-medium text-slate-700">{b.verified ? { el: "Επαληθευμένη", en: "Verified" }[lang] : { el: "Αναμονή για έγκριση", en: "Pending approval" }[lang]}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button type="button" onClick={() => { setSelectedBrand(b); setShowBrandEditModal(true); }} className="inline-flex min-h-11 items-center rounded-lg bg-slate-900 px-3 text-sm font-medium text-white">
+                          {{ el: "Επεξεργασία", en: "Edit" }[lang]}
+                        </button>
+                        {!b.verified && (
+                          <button type="button" onClick={() => handleToggleBrandVerification(b.id, false)} className="inline-flex min-h-11 items-center rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-sm font-medium text-emerald-800">
+                            {{ el: "Έγκριση", en: "Approve" }[lang]}
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2 border-t border-red-100 pt-2">
+                        {b.verified && (
+                          <button type="button" onClick={() => handleToggleBrandVerification(b.id, true)} className="inline-flex min-h-11 items-center rounded-lg border border-red-200 bg-red-50 px-3 text-sm font-medium text-red-700">
+                            {{ el: "Απόρριψη", en: "Reject" }[lang]}
+                          </button>
+                        )}
+                        <button type="button" disabled={locked} onClick={() => deleteBrand(b.id, b.brand_name)} className="inline-flex min-h-11 items-center rounded-lg border border-red-200 px-3 text-sm font-medium text-red-700 disabled:opacity-40">
+                          {locked ? protectedDeleteMessage(lang) : { el: "Διαγραφή", en: "Delete" }[lang]}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
@@ -4663,7 +5134,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                           </td>
                           <td className="px-3 py-2 text-slate-600 text-xs sm:text-sm">{formatCategoryLabels(b.industry, lang) || '-'}</td>
                           <td className="px-3 py-2 text-slate-600 text-xs sm:text-sm whitespace-nowrap">
-                            {new Date(b.created_at).toLocaleDateString('el-GR')}
+                            {formatDate(b.created_at, lang)} {formatTime(b.created_at, lang)}
                           </td>
                           <td className="px-3 py-2">
                             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
@@ -4680,7 +5151,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                 <button
                                   onClick={() => { setSelectedBrand(b); setShowBrandEditModal(true); }}
                                   disabled={updatingBrand === b.id || deletingBrand === b.id}
-                                  className="px-2.5 py-1 text-[11px] bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                  className="inline-flex min-h-11 items-center px-3 text-sm bg-slate-900 text-white rounded-lg hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                 >
                                   {lang === 'el' ? 'Επεξεργασία' : 'Edit'}
                                 </button>
@@ -4688,7 +5159,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                   <button
                                     onClick={() => handleToggleBrandVerification(b.id, false)}
                                     disabled={updatingBrand === b.id || deletingBrand === b.id}
-                                    className="px-2.5 py-1 text-[11px] rounded-md transition-colors bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="inline-flex min-h-11 items-center px-3 text-sm rounded-lg transition-colors bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     {updatingBrand === b.id
                                       ? (lang === 'el' ? 'Επεξεργασία...' : 'Processing...')
@@ -4701,7 +5172,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                   <button
                                     onClick={() => handleToggleBrandVerification(b.id, true)}
                                     disabled={updatingBrand === b.id || deletingBrand === b.id}
-                                    className="px-2.5 py-1 text-[11px] rounded-md transition-colors bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="inline-flex min-h-11 items-center px-3 text-sm rounded-lg transition-colors bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     {updatingBrand === b.id
                                       ? (lang === 'el' ? 'Επεξεργασία...' : 'Processing...')
@@ -4710,8 +5181,9 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                 )}
                                 <button
                                   onClick={() => deleteBrand(b.id, b.brand_name)}
-                                  disabled={updatingBrand === b.id || deletingBrand === b.id}
-                                  className="px-2.5 py-1 text-[11px] bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                  disabled={updatingBrand === b.id || deletingBrand === b.id || isProtectedTestAccount({ brand_name: b.brand_name, contact_email: b.contact_email })}
+                                  title={isProtectedTestAccount({ brand_name: b.brand_name, contact_email: b.contact_email }) ? protectedDeleteMessage(lang) : undefined}
+                                  className="inline-flex min-h-11 items-center px-3 text-sm rounded-lg border border-red-200 bg-white text-red-700 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                                 >
                                   {deletingBrand === b.id 
                                     ? (lang === 'el' ? 'Διαγραφή...' : 'Deleting...')
@@ -4727,6 +5199,16 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                   </tbody>
                 </table>
               </div>
+              <AdminPager
+                lang={lang}
+                page={brandsPage}
+                total={brandsTotal}
+                pageSize={ADMIN_PAGE_SIZE}
+                disabled={brandsLoading}
+                onPage={(page) => void fetchBrands({ page, q: brandSearchDebounced, status: brandStatusFilter })}
+              />
+              </>
+              )}
             </>
           )}
 
@@ -4865,12 +5347,17 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                   );
                 };
 
-                if (campaignsLoading && adminCampaigns.length === 0) {
+                if (campaignsError && adminCampaigns.length === 0) {
                   return (
-                    <div className="px-4 py-8 text-center text-slate-500">
-                      {lang === "el" ? "Φόρτωση…" : "Loading…"}
-                    </div>
+                    <AdminLoadError
+                      lang={lang}
+                      timedOut={campaignsError === "timeout"}
+                      onRetry={() => void fetchAdminCampaigns()}
+                    />
                   );
+                }
+                if (campaignsLoading && adminCampaigns.length === 0) {
+                  return <AdminListSkeleton />;
                 }
                 if (filtered.length === 0) {
                   return (
@@ -4981,23 +5468,17 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                     </button>
                                   </td>
                                   <td className="px-3 py-2 align-top text-sm text-slate-600 whitespace-nowrap">
-                                    {c.deadline
-                                      ? new Date(c.deadline).toLocaleDateString(
-                                          lang === "el" ? "el-GR" : "en-GB"
-                                        )
-                                      : "—"}
+                                    {c.deadline ? formatDate(c.deadline, lang) : "—"}
                                   </td>
                                   <td className="px-3 py-2 align-top text-sm text-slate-600 whitespace-nowrap">
-                                    {new Date(c.created_at).toLocaleDateString(
-                                      lang === "el" ? "el-GR" : "en-GB"
-                                    )}
+                                    {formatDate(c.created_at, lang)}
                                   </td>
                                   <td className="px-3 py-2 align-top">
                                     <button
                                       type="button"
                                       onClick={() => deleteAdminCampaign(c)}
                                       disabled={deletingCampaignId === c.id}
-                                      className="px-2.5 py-1 text-[11px] bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+                                      className="inline-flex min-h-11 items-center px-3 text-sm font-medium border border-red-200 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 disabled:opacity-50"
                                     >
                                       {deletingCampaignId === c.id
                                         ? lang === "el"
@@ -5090,7 +5571,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                 type="button"
                                 onClick={() => deleteAdminCampaign(c)}
                                 disabled={deletingCampaignId === c.id}
-                                className="px-3 py-1.5 text-xs rounded-md bg-red-600 text-white disabled:opacity-50"
+                                className="inline-flex min-h-11 items-center px-3 text-sm font-medium rounded-lg border border-red-200 bg-red-50 text-red-700 disabled:opacity-50"
                               >
                                 {deletingCampaignId === c.id
                                   ? lang === "el"
@@ -5225,7 +5706,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               </button>
                               <button
                                 onClick={() => deleteBlogPost(post.slug)}
-                                className="ml-2 px-3 py-1.5 text-sm font-medium bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                                className="ml-2 inline-flex min-h-11 items-center px-3 text-sm font-medium border border-red-200 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors"
                               >
                                 {txt.blog_delete}
                               </button>
@@ -5450,7 +5931,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     type="button"
                     onClick={() => void bulkDeleteAnnouncements()}
                     disabled={announcementSelectedIds.length === 0 || announcementBulkDeleting}
-                    className="ml-auto px-3 py-1.5 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="ml-auto inline-flex min-h-11 items-center px-3 text-sm font-medium border border-red-200 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {announcementBulkDeleting
                       ? '...'
@@ -5460,8 +5941,14 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                   </button>
                 </div>
 
-                {announcementsLoading ? (
-                  <p className="text-slate-600">{lang === 'el' ? 'Φόρτωση...' : 'Loading...'}</p>
+                {announcementsLoading && announcementsList.length === 0 ? (
+                  <AdminListSkeleton rows={2} />
+                ) : announcementsError && announcementsList.length === 0 ? (
+                  <AdminLoadError
+                    lang={lang}
+                    timedOut={announcementsError === "timeout"}
+                    onRetry={() => void fetchAnnouncements()}
+                  />
                 ) : announcementsList.length === 0 ? (
                   <p className="text-slate-600">{txt.no_data}</p>
                 ) : (
@@ -5583,7 +6070,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                         <button
                           type="button"
                           onClick={async () => {
-                            const ok = await askConfirm({
+                            const ok = await confirmAction({
                               title: lang === "el" ? "Διαγραφή ανακοίνωσης" : "Delete announcement",
                               body:
                                 lang === "el"
@@ -5606,14 +6093,14 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                 await fetchAnnouncements({ page: nextPage });
                               } else {
                                 const j = await res.json().catch(() => ({}));
-                                alert(j.error || 'Error');
+                                notify(j.error || 'Error');
                               }
                             } catch (e) {
                               console.error('Error deleting announcement:', e);
-                              alert(lang === 'el' ? 'Σφάλμα διαγραφής' : 'Delete failed');
+                              notify(lang === 'el' ? 'Σφάλμα διαγραφής' : 'Delete failed');
                             }
                           }}
-                          className="shrink-0 ml-auto px-3 py-1.5 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                          className="shrink-0 ml-auto inline-flex min-h-11 items-center px-3 text-sm font-medium border border-red-200 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors"
                           title={lang === 'el' ? 'Διαγραφή ανακοίνωσης' : 'Delete announcement'}
                         >
                           {lang === 'el' ? 'Διαγραφή' : 'Delete'}
@@ -5660,11 +6147,31 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
           {activeTab === "social_cron" && <SocialRefreshLogsPanel lang={lang} />}
 
           {activeTab === "conversations" && (
-            <div className="bg-white rounded-lg border border-slate-200">
-              {loading ? (
-                <div className="p-8 text-center text-slate-500">Loading conversations...</div>
+            <div>
+              <div className="p-4 border-b border-slate-200 flex flex-col gap-3 sm:flex-row">
+                <input
+                  type="search"
+                  value={conversationSearch}
+                  onChange={(e) => setConversationSearch(e.target.value)}
+                  placeholder={{ el: "Αναζήτηση ονόματος ή email…", en: "Search name or email…" }[lang]}
+                  className="min-h-11 flex-1 rounded-lg border border-slate-300 px-3 text-sm"
+                />
+                <select
+                  value={conversationStatus}
+                  onChange={(e) => setConversationStatus(e.target.value as typeof conversationStatus)}
+                  className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm"
+                >
+                  <option value="all">{{ el: "Όλες", en: "All" }[lang]}</option>
+                  <option value="open">{{ el: "Ανοιχτές", en: "Open" }[lang]}</option>
+                  <option value="closed">{{ el: "Κλειστές", en: "Closed" }[lang]}</option>
+                </select>
+              </div>
+              {conversationsLoading && conversations.length === 0 ? (
+                <AdminListSkeleton />
+              ) : conversationsError && conversations.length === 0 ? (
+                <AdminLoadError lang={lang} timedOut={conversationsError === "timeout"} onRetry={() => void fetchConversations({ page: conversationsPage })} />
               ) : conversations.length === 0 ? (
-                <div className="p-8 text-center text-slate-500">{lang === "el" ? "Δεν υπάρχουν συνομιλίες ακόμα" : "No conversations yet"}</div>
+                <div className="p-8 text-center text-slate-500">{{ el: "Δεν υπάρχουν συνομιλίες ακόμα", en: "No conversations yet" }[lang]}</div>
               ) : (
                 <div className="flex flex-col sm:flex-row h-[500px] sm:h-[600px] relative min-h-[400px]">
                   {/* Mobile: Backdrop overlay when conversations drawer is open */}
@@ -5699,33 +6206,31 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                         <button
                           onClick={() => {
                             setSelectedConversation(conv);
-                            // Close drawer on mobile when conversation is selected
                             setShowConversationsDrawer(false);
                           }}
-                          className="w-full text-left p-4 pr-12"
+                          className="w-full min-h-11 text-left p-4"
                         >
                           <div className="font-semibold text-slate-900">{conv.influencer_name}</div>
-                          <div className="text-xs text-slate-500 mt-1">↔ {conv.brand_name || conv.brand_email}</div>
+                          <div className="text-xs text-slate-500 mt-1">
+                            {{ el: "Δημιουργός", en: "Creator" }[lang]} ↔ {{ el: "Επιχείρηση", en: "Brand" }[lang]}: {conv.brand_name || conv.brand_email}
+                          </div>
                           <div className="text-xs text-slate-400 mt-1 flex items-center gap-2">
-                            <span>
-                              {conv.last_message_at ? new Date(conv.last_message_at).toLocaleDateString('el-GR') : ''}
-                            </span>
+                            <span>{formatDate(conv.last_message_at || conv.created_at, lang)} {formatTime(conv.last_message_at || conv.created_at, lang)}</span>
                             {conv.closed_at && (
-                              <span className="uppercase tracking-wide">{lang === 'el' ? 'Κλειστή' : 'Closed'}</span>
+                              <span className="uppercase tracking-wide">{{ el: "Κλειστή", en: "Closed" }[lang]}</span>
                             )}
                           </div>
                         </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteConversation(conv.id);
-                          }}
-                          disabled={deletingConversation === conv.id}
-                          className="absolute top-2 right-2 px-2 py-1 text-xs font-medium bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          title={lang === 'el' ? 'Διαγραφή συνομιλίας' : 'Delete conversation'}
-                        >
-                          {deletingConversation === conv.id ? '...' : '✕'}
-                        </button>
+                        <div className="px-4 pb-3">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteConversation(conv.id)}
+                            disabled={deletingConversation === conv.id}
+                            className="inline-flex min-h-11 items-center rounded-lg border border-red-200 bg-red-50 px-3 text-sm font-medium text-red-700 disabled:opacity-50"
+                          >
+                            {deletingConversation === conv.id ? "…" : { el: "Διαγραφή συνομιλίας", en: "Delete conversation" }[lang]}
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -5751,28 +6256,41 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                             {selectedConversation.influencer_name} ↔ {selectedConversation.brand_name || selectedConversation.brand_email}
                           </h3>
                           <div className="text-sm text-slate-500 mt-1">
-                            Influencer: {selectedConversation.influencer_email} | Brand: {selectedConversation.brand_email}
-                            {selectedConversation.closed_at ? (lang === 'el' ? ' · Κλειστή' : ' · Closed') : ''}
+                            {{ el: "Δημιουργός", en: "Creator" }[lang]}: {selectedConversation.influencer_email} · {{ el: "Επιχείρηση", en: "Brand" }[lang]}: {selectedConversation.brand_email}
+                            {selectedConversation.closed_at ? { el: " · Κλειστή", en: " · Closed" }[lang] : ""}
                           </div>
                         </div>
-                        <div className="space-y-4">
-                          {conversationMessages.length === 0 ? (
-                            <div className="text-center text-slate-500 py-8">Δεν υπάρχουν μηνύματα</div>
+                        <div className="space-y-3 rounded-xl bg-slate-50 p-3">
+                          {messagesLoading && conversationMessages.length === 0 ? (
+                            <AdminListSkeleton rows={2} />
+                          ) : messagesError && conversationMessages.length === 0 ? (
+                            <AdminLoadError lang={lang} timedOut={messagesError === "timeout"} onRetry={() => void fetchConversationMessages(selectedConversation.id)} />
+                          ) : conversationMessages.length === 0 ? (
+                            <div className="text-center text-slate-500 py-8">{{ el: "Δεν υπάρχουν μηνύματα", en: "No messages" }[lang]}</div>
                           ) : (
-                            conversationMessages.map((msg) => {
-                              const isInfluencer = msg.sender_type === 'influencer';
+                            conversationMessages.map((msg, index) => {
+                              const isInfluencer = msg.sender_type === "influencer";
+                              const prev = conversationMessages[index - 1];
+                              const showDay = !prev || !sameChatDay(prev.created_at, msg.created_at);
+                              const senderName = msg.sender_name || (isInfluencer ? selectedConversation.influencer_name : selectedConversation.brand_name || selectedConversation.brand_email);
+                              const role = isInfluencer
+                                ? { el: "Δημιουργός", en: "Creator" }[lang]
+                                : { el: "Επιχείρηση", en: "Brand" }[lang];
                               return (
-                                <div
-                                  key={msg.id}
-                                  className={`flex ${isInfluencer ? 'justify-start' : 'justify-end'}`}
-                                >
-                                  <div
-                                    className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
-                                      isInfluencer
-                                        ? 'bg-slate-100 text-slate-900 border border-slate-200'
-                                        : 'bg-blue-600 text-white'
-                                    }`}
-                                  >
+                                <div key={msg.id}>
+                                  {showDay ? (
+                                    <div className="my-3 flex justify-center">
+                                      <span className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-[10px] font-medium text-slate-500">
+                                        {formatChatDayLabel(msg.created_at, lang)}
+                                      </span>
+                                    </div>
+                                  ) : null}
+                                  <div className={`flex ${isInfluencer ? "justify-start" : "justify-end"}`}>
+                                    <div className={`max-w-[85%] sm:max-w-md ${isInfluencer ? "items-start" : "items-end"} flex flex-col`}>
+                                      <p className={`mb-1 text-xs font-medium ${isInfluencer ? "text-slate-600" : "text-blue-800"}`}>
+                                        {senderName} · {role}
+                                      </p>
+                                      <div className={`px-3.5 py-2 rounded-2xl ${isInfluencer ? "bg-white text-slate-900 border border-slate-200 rounded-bl-md" : "bg-blue-600 text-white rounded-br-md"}`}>
                                     <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                                     {Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
                                       <div className="mt-2 space-y-1">
@@ -5799,20 +6317,31 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                       </div>
                                     )}
                                     <div className="flex items-center gap-2 mt-1">
-                                      <p className={`text-xs ${isInfluencer ? 'text-slate-500' : 'text-blue-100'}`}>
-                                        {new Date(msg.created_at).toLocaleString('el-GR')}
+                                      <p className={`text-xs tabular-nums ${isInfluencer ? "text-slate-500" : "text-blue-100"}`}>
+                                        {formatDate(msg.created_at, lang)} {formatTime(msg.created_at, lang)}
                                       </p>
                                       {msg.sent_via_email && (
                                         <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">
-                                          📧 Email
+                                          Email
                                         </span>
                                       )}
+                                    </div>
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
                               );
                             })
                           )}
+                          {messagesHasMore && selectedConversation ? (
+                            <button
+                              type="button"
+                              onClick={() => void fetchConversationMessages(selectedConversation.id, { before: conversationMessages[0]?.created_at })}
+                              className="inline-flex min-h-11 items-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700"
+                            >
+                              {{ el: "Παλαιότερα μηνύματα", en: "Older messages" }[lang]}
+                            </button>
+                          ) : null}
                         </div>
                       </>
                     ) : (
@@ -5829,10 +6358,36 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                   </div>
                 </div>
               )}
+              {conversationsTotal > 0 ? (
+                <AdminPager
+                  lang={lang}
+                  page={conversationsPage}
+                  total={conversationsTotal}
+                  pageSize={ADMIN_PAGE_SIZE}
+                  disabled={conversationsLoading}
+                  onPage={(page) => void fetchConversations({ page, q: conversationSearchDebounced, status: conversationStatus })}
+                />
+              ) : null}
             </div>
           )}
         </div>
+        )}
       </div>
+
+      <ToastViewport
+        toasts={toasts}
+        onDismiss={dismissToast}
+        dismissLabel={{ el: "Κλείσιμο", en: "Dismiss" }[lang]}
+      />
+      <ConfirmDialog
+        open={!!pendingConfirm}
+        title={pendingConfirm?.title || ""}
+        body={pendingConfirm?.body}
+        confirmLabel={pendingConfirm?.confirmLabel || ""}
+        cancelLabel={pendingConfirm?.cancelLabel || ""}
+        onConfirm={() => closeConfirm(true)}
+        onCancel={() => closeConfirm(false)}
+      />
 
       {showBrandEditModal && selectedBrand && (
         <EditBrandModal

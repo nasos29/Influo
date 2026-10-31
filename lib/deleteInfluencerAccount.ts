@@ -4,6 +4,7 @@ import {
   sendPushAdminInfluencerAccountDeleted,
   sendPushInfluencerAccountDeleted,
 } from '@/lib/push';
+import { isProtectedTestAccount } from '@/lib/protectedAccount';
 
 export type DeleteInfluencerInitiator = 'admin' | 'self';
 
@@ -151,6 +152,18 @@ export async function deleteInfluencerAccount(
 
   if (!influencerData && !authUserData) {
     return { success: false, error: 'Account not found' };
+  }
+
+  if (
+    isProtectedTestAccount({
+      display_name: typeof influencerData?.display_name === 'string' ? influencerData.display_name : null,
+      contact_email:
+        (typeof influencerData?.contact_email === 'string' ? influencerData.contact_email : null) ||
+        authUserData?.email ||
+        null,
+    })
+  ) {
+    return { success: false, error: 'protected_test_account' };
   }
 
   const displayName = String(influencerData?.display_name || 'Influencer').trim() || 'Influencer';
