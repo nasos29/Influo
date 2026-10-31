@@ -5,7 +5,7 @@ type Props = {
   busy?: boolean;
   lang: "el" | "en";
   onToggle: () => void;
-  variant?: "card" | "profile";
+  variant?: "card" | "profile" | "quiet";
 };
 
 export default function BrandSaveInfluencerButton({
@@ -19,6 +19,20 @@ export default function BrandSaveInfluencerButton({
   const label = saved
     ? el ? "Αποθηκευμένος" : "Saved"
     : el ? "Αποθήκευση" : "Save";
+
+  if (variant === "quiet") {
+    return (
+      <button
+        type="button"
+        disabled={busy}
+        onClick={onToggle}
+        className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+      >
+        <span aria-hidden>{saved ? "♥" : "♡"}</span>
+        {label}
+      </button>
+    );
+  }
 
   if (variant === "profile") {
     return (
