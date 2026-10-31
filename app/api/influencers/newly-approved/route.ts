@@ -8,8 +8,8 @@ import { loadInfluencerRows } from "@/lib/loadPublicInfluencers";
 import { getPastBrandsByInfluencerIds } from "@/lib/pastBrands";
 import { NEWLY_APPROVED_QUERY_COLUMNS, toPublicNewlyApproved } from "@/lib/publicInfluencer";
 
-/** Enough rows so the home can show 4 after excluding featured cards. */
-const LIMIT = 16;
+/** Enough rows so the home can show 8 after excluding directory preview cards. */
+const LIMIT = 24;
 
 export async function GET() {
   try {

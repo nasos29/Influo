@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactElement } from "react";
-import { Badge } from "../lib/badges";
+import { Badge, getBadgeStyles } from "../lib/badges";
 import Avatar from "./Avatar";
 import { categoryTranslations } from "./categoryTranslations";
 import { displayNameForLang } from "@/lib/greeklish";
@@ -103,6 +103,22 @@ function rankedPlatforms(
   return entries;
 }
 
+function PlatformPill({
+  platformKey,
+  count,
+}: {
+  platformKey: string;
+  count: number;
+}) {
+  const Icon = PLATFORM_META.find((p) => p.key === platformKey)?.Icon ?? InstagramIcon;
+  return (
+    <span className="inline-flex items-center gap-0.5 rounded-full bg-black/60 px-1.5 py-0.5 text-[9px] font-semibold text-white backdrop-blur-sm sm:gap-1 sm:px-2 sm:py-1 sm:text-[11px]">
+      <Icon className="h-2.5 w-2.5 shrink-0 sm:h-3.5 sm:w-3.5" />
+      <span className="tabular-nums">{formatNum(count)}</span>
+    </span>
+  );
+}
+
 export default function InfluencerCard({
   name,
   avatar,
@@ -123,9 +139,6 @@ export default function InfluencerCard({
   const photoSrc = cardUrl ? getCachedImageUrl(cardUrl) ?? cardUrl : null;
   const priceLabel = formatPriceTierLabel(price_tier);
   const ranked = rankedPlatforms(followers, socials);
-  const totalFollowers = ranked.reduce((sum, p) => sum + p.count, 0);
-  const visiblePlatforms = ranked.slice(0, 3);
-  const extraPlatforms = Math.max(0, ranked.length - visiblePlatforms.length);
 
   const categoryLine = categories
     .slice(0, 2)
@@ -133,27 +146,69 @@ export default function InfluencerCard({
     .filter(Boolean)
     .join(" · ");
 
-  // One overlay pill: unavailable → first badge → first trust chip
-  let overlayPill: { key: string; text: string; title?: string } | null = null;
+  // One top-right overlay: unavailable → first badge → first trust chip (original colors).
+  let overlay: ReactElement | null = null;
   if (!available) {
-    overlayPill = {
-      key: "unavailable",
-      text: lang === "el" ? "Μη διαθέσιμος" : "Unavailable",
-      title: lang === "el" ? "Μη διαθέσιμος προσωρινά" : "Temporarily unavailable",
-    };
+    overlay = (
+      <span
+        className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-800 ring-1 ring-amber-200/80 sm:px-2.5 sm:py-1"
+        title={lang === "el" ? "Μη διαθέσιμος προσωρινά" : "Temporarily unavailable"}
+      >
+        {lang === "el" ? "Μη διαθέσιμος" : "Unavailable"}
+      </span>
+    );
   } else if (badges[0]) {
-    overlayPill = {
-      key: `badge-${badges[0].type}`,
-      text: `${badges[0].icon} ${badges[0].label}`.trim(),
-      title: badges[0].label,
-    };
+    const badge = badges[0];
+    overlay = (
+      <span className={getBadgeStyles(badge)} title={badge.label}>
+        <span className="text-[10px]">{badge.icon}</span>
+        <span className="text-[9px] leading-none">{badge.label}</span>
+      </span>
+    );
   } else if (trustChips[0]) {
     const chip = trustChips[0];
-    overlayPill = {
-      key: `trust-${chip.kind}`,
-      text: lang === "el" ? chip.labelEl : chip.labelEn,
-      title: lang === "el" ? chip.titleEl : chip.titleEn,
-    };
+    overlay = (
+      <span
+        title={lang === "el" ? chip.titleEl : chip.titleEn}
+        className={
+          chip.kind === "private"
+            ? "inline-flex items-center rounded-full bg-slate-800/90 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white sm:px-2.5 sm:py-1"
+            : "inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-800 ring-1 ring-amber-200/80 sm:px-2.5 sm:py-1"
+        }
+      >
+        {lang === "el" ? chip.labelEl : chip.labelEn}
+      </span>
+    );
+  }
+
+  let platformRow: ReactElement | null = null;
+  if (ranked.length === 1) {
+    platformRow = (
+      <div className="flex justify-start">
+        <PlatformPill platformKey={ranked[0]!.key} count={ranked[0]!.count} />
+      </div>
+    );
+  } else if (ranked.length === 2 || ranked.length === 3) {
+    platformRow = (
+      <div className="flex items-end justify-between gap-1">
+        {ranked.map((p) => (
+          <PlatformPill key={p.key} platformKey={p.key} count={p.count} />
+        ))}
+      </div>
+    );
+  } else if (ranked.length > 3) {
+    platformRow = (
+      <div className="flex items-end justify-between gap-1">
+        <div className="flex min-w-0 items-center gap-1">
+          {ranked.slice(0, 2).map((p) => (
+            <PlatformPill key={p.key} platformKey={p.key} count={p.count} />
+          ))}
+        </div>
+        <span className="inline-flex items-center rounded-full bg-black/60 px-1.5 py-0.5 text-[9px] font-bold text-white backdrop-blur-sm sm:px-2 sm:py-1 sm:text-[11px]">
+          +{ranked.length - 2}
+        </span>
+      </div>
+    );
   }
 
   return (
@@ -172,33 +227,13 @@ export default function InfluencerCard({
           </div>
         )}
 
-        {overlayPill && (
-          <div className="absolute top-2.5 right-2.5 z-10 max-w-[70%]">
-            <span
-              title={overlayPill.title}
-              className="inline-flex max-w-full items-center truncate rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-semibold text-slate-800 shadow-sm backdrop-blur-sm"
-            >
-              {overlayPill.text}
-            </span>
-          </div>
+        {overlay && (
+          <div className="absolute top-2 right-2 z-10 max-w-[70%]">{overlay}</div>
         )}
 
-        {ranked.length > 0 && (
-          <div className="absolute bottom-2 left-2 z-10 max-w-[calc(100%-1rem)]">
-            <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur-sm sm:gap-1.5 sm:text-[11px]">
-              <span className="inline-flex shrink-0 items-center gap-0.5">
-                {visiblePlatforms.map(({ key }) => {
-                  const Icon = PLATFORM_META.find((p) => p.key === key)?.Icon ?? InstagramIcon;
-                  return <Icon key={key} className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />;
-                })}
-                {extraPlatforms > 0 ? (
-                  <span className="pl-0.5 text-[9px] font-bold opacity-90 sm:text-[10px]">
-                    +{extraPlatforms}
-                  </span>
-                ) : null}
-              </span>
-              <span className="min-w-0 truncate">{formatNum(totalFollowers)}</span>
-            </span>
+        {platformRow && (
+          <div className="absolute inset-x-0 bottom-0 z-10 px-2 pb-2 sm:px-2.5 sm:pb-2.5">
+            {platformRow}
           </div>
         )}
       </div>

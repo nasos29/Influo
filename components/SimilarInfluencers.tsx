@@ -1,8 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import InfluencerCard from "@/components/InfluencerCard";
+import InfluencerCardCarousel, {
+  INFLUENCER_CAROUSEL_CARD_CLASS,
+} from "@/components/InfluencerCardCarousel";
 import { parseStoredCategories } from "@/lib/categories";
 import { publicProfilePath } from "@/lib/profileSlug";
 import { displayNameForLang } from "@/lib/greeklish";
@@ -15,12 +18,7 @@ const COPY = {
     en: "Influencers similar to",
   },
   seeMore: { el: "Δες περισσότερους", en: "See more" },
-  prev: { el: "Προηγούμενοι", en: "Previous" },
-  next: { el: "Επόμενοι", en: "Next" },
 } as const;
-
-const scrollbarHide =
-  "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
 function directoryHrefFor(lang: "el" | "en", primaryCategory: string | null): string {
   const base = lang === "en" ? "/en/directory" : "/directory";
@@ -73,7 +71,6 @@ export default function SimilarInfluencers({
   lang: "el" | "en";
 }>) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const scrollerRef = useRef<HTMLDivElement>(null);
   const [near, setNear] = useState(false);
   const [items, setItems] = useState<SimilarInfluencerRow[] | null>(null);
 
@@ -132,14 +129,6 @@ export default function SimilarInfluencers({
     };
   }, [near, influencerId, catsKey, platformsKey]);
 
-  const scrollByCard = useCallback((dir: -1 | 1) => {
-    const el = scrollerRef.current;
-    if (!el) return;
-    const card = el.querySelector<HTMLElement>("[data-similar-card]");
-    const step = card ? card.offsetWidth + 16 : el.clientWidth * 0.5;
-    el.scrollBy({ left: dir * step, behavior: "smooth" });
-  }, []);
-
   if (!catsKey && !platformsKey) return null;
 
   const show = items && items.length > 0;
@@ -147,91 +136,17 @@ export default function SimilarInfluencers({
 
   return (
     <section ref={rootRef} className="max-w-6xl mx-auto px-4 sm:px-6 mt-10 mb-6">
-      {!items ? (
-        <div className="space-y-4" aria-hidden>
-          <div className="h-7 w-64 max-w-full rounded-full bg-slate-100 animate-pulse" />
-          <div className="flex gap-4 overflow-hidden">
-            {[0, 1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="w-[45%] shrink-0 md:w-[calc((100%-3*1.5rem)/4)]"
-              >
-                <div className="aspect-[4/5] rounded-2xl bg-slate-100 animate-pulse" />
-                <div className="mt-3 h-4 w-3/4 rounded bg-slate-100 animate-pulse" />
-                <div className="mt-2 h-3 w-1/2 rounded bg-slate-100 animate-pulse" />
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className="mb-4 flex items-start justify-between gap-3">
-            <h2 className="min-w-0 flex-1 text-lg font-bold text-slate-900 break-words sm:text-xl md:text-2xl">
-              {COPY.titlePrefix[lang]} {shownName}
-            </h2>
-            <div className="hidden shrink-0 items-center gap-2 md:flex">
-              <button
-                type="button"
-                onClick={() => scrollByCard(-1)}
-                aria-label={COPY.prev[lang]}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50"
-              >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                onClick={() => scrollByCard(1)}
-                aria-label={COPY.next[lang]}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50"
-              >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <div
-            ref={scrollerRef}
-            className={`flex gap-4 overflow-x-auto snap-x snap-mandatory pb-1 md:gap-6 ${scrollbarHide}`}
-          >
-            {items.map((row) => {
-              const name =
-                displayNameForLang(row.display_name || "", lang) || row.display_name || "";
-              const href = publicProfilePath(row.profile_slug, row.id);
-              const rowCats = parseStoredCategories(row.category);
-              const followers = followersFromAccounts(row.accounts);
-              const socials = socialsFromAccounts(row.accounts);
-              const verified = row.analytics_verified === true || row.verified === true;
-
-              return (
-                <div
-                  key={row.id}
-                  data-similar-card
-                  className="w-[45%] shrink-0 snap-start md:w-[calc((100%-3*1.5rem)/4)]"
-                >
-                  <Link href={href} className="block group">
-                    <InfluencerCard
-                      name={name}
-                      avatar={row.avatar_url || ""}
-                      verified={verified}
-                      socials={socials}
-                      followers={followers}
-                      categories={rowCats}
-                      lang={lang}
-                      location={row.location}
-                      price_tier={row.price_tier || "0"}
-                    />
-                  </Link>
-                </div>
-              );
-            })}
-          </div>
-
-          {primaryCategory ? (
-            <div className="mt-6 flex justify-center">
+      <InfluencerCardCarousel
+        lang={lang}
+        loading={!items}
+        title={
+          <>
+            {COPY.titlePrefix[lang]} {shownName}
+          </>
+        }
+        footer={
+          primaryCategory && items ? (
+            <div className="flex justify-center">
               <Link
                 href={directoryHref}
                 className="inline-flex items-center rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-300 hover:text-slate-900"
@@ -239,9 +154,37 @@ export default function SimilarInfluencers({
                 {COPY.seeMore[lang]}
               </Link>
             </div>
-          ) : null}
-        </>
-      )}
+          ) : null
+        }
+      >
+        {(items || []).map((row) => {
+          const name =
+            displayNameForLang(row.display_name || "", lang) || row.display_name || "";
+          const href = publicProfilePath(row.profile_slug, row.id);
+          const rowCats = parseStoredCategories(row.category);
+          const followers = followersFromAccounts(row.accounts);
+          const socials = socialsFromAccounts(row.accounts);
+          const verified = row.analytics_verified === true || row.verified === true;
+
+          return (
+            <div key={row.id} data-carousel-card className={INFLUENCER_CAROUSEL_CARD_CLASS}>
+              <Link href={href} className="block group">
+                <InfluencerCard
+                  name={name}
+                  avatar={row.avatar_url || ""}
+                  verified={verified}
+                  socials={socials}
+                  followers={followers}
+                  categories={rowCats}
+                  lang={lang}
+                  location={row.location}
+                  price_tier={row.price_tier || "0"}
+                />
+              </Link>
+            </div>
+          );
+        })}
+      </InfluencerCardCarousel>
     </section>
   );
 }

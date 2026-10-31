@@ -23,6 +23,7 @@ import {
   normalizeScoresLog1p,
   type TopScoreInfluencer,
 } from '@/lib/topInfluencerScore';
+import { priceTierFromMinRate } from '@/lib/publicInfluencer';
 
 const DEFAULT_DAYS = 30;
 export const TOP_INFLUENCERS_N = 10;
@@ -58,6 +59,11 @@ export type TopInfluencerRow = {
   accounts: TopScoreInfluencer['accounts'];
   category: string | null;
   profile_slug: string | null;
+  location: string | null;
+  price_tier: string;
+  verified: boolean;
+  analytics_verified: boolean;
+  availability_status: string | null;
   clicks: number;
   views: number;
 };
@@ -440,8 +446,9 @@ async function computeTopInfluencersUncached(
   if (candidateIds.length === 0) return [];
 
   // Only brandSafe from audit JSON — not the full auditpr_audit blob.
+  // min_rate stays server-side for price_tier; never returned to the client.
   const selectFull =
-    'id, display_name, avatar_url, bio, videos, accounts, category, location, analytics_verified, verified, auditpr_audit->brandSafe, min_rate, rate_card, total_reviews, avg_rating, created_at, audience_top_age, audience_male_percent, audience_female_percent, profile_slug, avg_response_time, completion_rate, last_social_refresh_at, approved_at, approved';
+    'id, display_name, avatar_url, bio, videos, accounts, category, location, analytics_verified, verified, availability_status, auditpr_audit->brandSafe, min_rate, rate_card, total_reviews, avg_rating, created_at, audience_top_age, audience_male_percent, audience_female_percent, profile_slug, avg_response_time, completion_rate, last_social_refresh_at, approved_at, approved';
   let influencers: TopScoreInfluencer[] | null = null;
   let infErr: { message: string } | null = null;
   {
@@ -454,11 +461,11 @@ async function computeTopInfluencersUncached(
     influencers = withBrandSafeOnly((full.data as Record<string, unknown>[] | null) ?? null);
   }
 
-  if (infErr && /column|brandSafe|auditpr_audit/i.test(infErr.message)) {
+  if (infErr && /column|brandSafe|auditpr_audit|availability_status/i.test(infErr.message)) {
     const fallback = await sb
       .from('influencers')
       .select(
-        'id, display_name, avatar_url, bio, videos, accounts, category, location, analytics_verified, verified, approved'
+        'id, display_name, avatar_url, bio, videos, accounts, category, location, analytics_verified, verified, approved, min_rate'
       )
       .eq('approved', true)
       .in('id', candidateIds);
@@ -526,6 +533,11 @@ async function computeTopInfluencersUncached(
       avatar_url?: string | null;
       category?: string | null;
       profile_slug?: string | null;
+      location?: string | null;
+      min_rate?: unknown;
+      verified?: boolean | null;
+      analytics_verified?: boolean | null;
+      availability_status?: string | null;
     };
     return {
       id: String(inf.id),
@@ -535,6 +547,11 @@ async function computeTopInfluencersUncached(
       accounts: inf.accounts ?? null,
       category: (inf.category as string | null) ?? null,
       profile_slug: inf.profile_slug ?? null,
+      location: inf.location ?? null,
+      price_tier: priceTierFromMinRate(inf.min_rate),
+      verified: inf.verified === true,
+      analytics_verified: inf.analytics_verified === true,
+      availability_status: inf.availability_status ?? null,
       clicks: Math.round(r.activityRaw),
       views: 0,
     };
