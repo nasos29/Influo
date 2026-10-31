@@ -23,19 +23,38 @@ const EMBED_TIMEOUT_MS = 8000;
 
 /** Unescape JSON / double-escaped Instagram embed fragments. */
 export function decodeIgEscapedUrl(raw: string): string {
-  let s = raw;
+  let s = String(raw || "");
   for (let i = 0; i < 5; i++) {
     const next = s
+      .replace(/\\u([0-9a-fA-F]{4})/gi, (_, hex: string) =>
+        String.fromCharCode(Number.parseInt(hex, 16))
+      )
       .replace(/\\u0026/gi, "&")
       .replace(/\\u003d/gi, "=")
       .replace(/\\u0025/gi, "%")
       .replace(/\\\//g, "/")
       .replace(/\\"/g, '"')
+      // Literal backslash before URL punctuation left by partial JSON unescape
+      // e.g. ig_cache_key=…\%3D\%3D → …%3D%3D
+      .replace(/\\([%&=?#+/])/g, "$1")
       .replace(/\\\\/g, "\\");
     if (next === s) break;
     s = next;
   }
   return s.trim();
+}
+
+/**
+ * Normalize Instagram CDN / media URLs for the image proxy (strip leftover escapes).
+ */
+export function normalizeIgMediaUrl(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  let url = decodeIgEscapedUrl(String(raw));
+  // Second pass for remaining \% sequences after slash collapsing
+  url = url.replace(/\\([%&=?#+/])/g, "$1");
+  if (!url.startsWith("http")) return null;
+  if (url.length >= 4000) return null;
+  return url;
 }
 
 export function extractVideoUrlFromEmbedHtml(html: string): string | null {
@@ -65,12 +84,14 @@ export function extractVideoUrlFromEmbedHtml(html: string): string | null {
 }
 
 function decodeHtmlAttrUrl(raw: string): string {
-  return decodeIgEscapedUrl(
-    raw
-      .replace(/&amp;/gi, "&")
-      .replace(/&quot;/gi, '"')
-      .replace(/&#x2F;/gi, "/")
-      .replace(/&#39;/gi, "'")
+  return (
+    normalizeIgMediaUrl(
+      raw
+        .replace(/&amp;/gi, "&")
+        .replace(/&quot;/gi, '"')
+        .replace(/&#x2F;/gi, "/")
+        .replace(/&#39;/gi, "'")
+    ) || ""
   );
 }
 
@@ -92,8 +113,8 @@ export function extractPosterFromEmbedHtml(html: string): string | null {
       new RegExp(`"${key}"\\s*:\\s*"(https:[^"]+)"`)
     );
     if (plain?.[1]) {
-      const url = decodeIgEscapedUrl(plain[1]);
-      if (url.startsWith("http") && !url.includes("display_resources")) return url;
+      const url = normalizeIgMediaUrl(plain[1]);
+      if (url && !url.includes("display_resources")) return url;
     }
     // Double-escaped crawler JSON: \"display_url\":\"https:\/\/…jpg…\"
     // Do not use (?:\\.|[^"\\])* — \\. consumes \" and over-reads the blob.
@@ -103,13 +124,13 @@ export function extractPosterFromEmbedHtml(html: string): string | null {
       )
     );
     if (escaped?.[1]) {
-      const url = decodeIgEscapedUrl(escaped[1]);
-      if (url.startsWith("http") && url.length < 4000) return url;
+      const url = normalizeIgMediaUrl(escaped[1]);
+      if (url) return url;
     }
   }
 
   const og = extractOgImageFromHtml(html);
-  if (og) return og;
+  if (og) return normalizeIgMediaUrl(og) || og;
 
   return null;
 }
@@ -122,38 +143,80 @@ const MAX_SIDECAR_IMAGES = 10;
  */
 export function extractSidecarImagesFromEmbedHtml(html: string): string[] {
   if (!html) return [];
-  const marker = "edge_sidecar_to_children";
-  // Prefer content after the marker so parent GraphSidecar display_url is excluded.
-  const start = html.indexOf(marker);
-  if (start < 0) return [];
-  const slice = html.slice(start, start + 80_000);
   const urls: string[] = [];
   const seen = new Set<string>();
 
   const push = (raw: string) => {
-    const url = decodeIgEscapedUrl(raw);
-    if (!url.startsWith("http") || url.length >= 4000) return;
+    const url = normalizeIgMediaUrl(raw);
+    if (!url) return;
     if (url.includes("display_resources")) return;
     if (seen.has(url)) return;
     seen.add(url);
     urls.push(url);
   };
 
-  const plainRe = /"display_url"\s*:\s*"(https:[^"]+)"/g;
-  let m: RegExpExecArray | null;
-  while ((m = plainRe.exec(slice)) !== null && urls.length < MAX_SIDECAR_IMAGES) {
-    push(m[1]);
+  const marker = "edge_sidecar_to_children";
+  // Prefer content after the marker so parent GraphSidecar display_url is excluded.
+  const start = html.indexOf(marker);
+  if (start >= 0) {
+    const slice = html.slice(start, start + 80_000);
+    const plainRe = /"display_url"\s*:\s*"(https:[^"]+)"/g;
+    let m: RegExpExecArray | null;
+    while ((m = plainRe.exec(slice)) !== null && urls.length < MAX_SIDECAR_IMAGES) {
+      push(m[1]);
+    }
+
+    if (urls.length === 0) {
+      const escRe =
+        /\\"display_url\\"\s*:\s*\\"(https:(?:\\[\\/u]|[^"\\])*)\\"/g;
+      while ((m = escRe.exec(slice)) !== null && urls.length < MAX_SIDECAR_IMAGES) {
+        push(m[1]);
+      }
+    }
   }
 
+  // Crawler /embed HTML without GraphQL: gather unique <img> posters.
   if (urls.length === 0) {
-    const escRe =
-      /\\"display_url\\"\s*:\s*\\"(https:(?:\\[\\/u]|[^"\\])*)\\"/g;
-    while ((m = escRe.exec(slice)) !== null && urls.length < MAX_SIDECAR_IMAGES) {
-      push(m[1]);
+    for (const img of extractEmbedDomImages(html)) {
+      push(img);
+      if (urls.length >= MAX_SIDECAR_IMAGES) break;
     }
   }
 
   return urls.slice(0, MAX_SIDECAR_IMAGES);
+}
+
+/**
+ * Unique http(s) image URLs from embed DOM (&lt;img&gt; / CSS), max 10.
+ * Skips static CDN assets (rsrc.php logos).
+ */
+export function extractEmbedDomImages(html: string): string[] {
+  if (!html) return [];
+  const urls: string[] = [];
+  const seen = new Set<string>();
+  const push = (raw: string) => {
+    const url = normalizeIgMediaUrl(decodeHtmlAttrUrl(raw) || raw);
+    if (!url) return;
+    if (/rsrc\.php|static\.cdninstagram\.com\/rsrc/i.test(url)) return;
+    if (!/cdninstagram|fbcdn|scontent\.|instagram\.f/i.test(url)) return;
+    if (seen.has(url)) return;
+    seen.add(url);
+    urls.push(url);
+  };
+
+  const imgRe =
+    /<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>|<img\b[^>]*\bsrcset=["']([^"']+)["'][^>]*>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = imgRe.exec(html)) !== null && urls.length < MAX_SIDECAR_IMAGES) {
+    const src = m[1];
+    const srcset = m[2];
+    if (src) push(src);
+    else if (srcset) {
+      const first = srcset.split(",")[0]?.trim().split(/\s+/)[0];
+      if (first) push(first);
+    }
+  }
+  return urls;
 }
 
 /** oEmbed thumbnail when embed HTML has no poster (login/error walls). */
@@ -305,11 +368,11 @@ export async function resolveInstagramEmbedVideo(
       if (images.length > bestImages.length) bestImages = images;
       if (kind || poster || images.length) bestHtml = html;
 
-      const videoUrl = extractVideoUrlFromEmbedHtml(html);
+      const videoUrl = normalizeIgMediaUrl(extractVideoUrlFromEmbedHtml(html));
       if (videoUrl) {
         return emptyResolve({
           videoUrl,
-          poster: poster || bestPoster,
+          poster: normalizeIgMediaUrl(poster || bestPoster),
           mediaType: kind || bestKind || "video",
           images: [],
           isVideo: true,
@@ -320,18 +383,24 @@ export async function resolveInstagramEmbedVideo(
       // Photos / carousels: no MP4 — stop once we have type (+ optional poster).
       const resolvedKind = kind || bestKind;
       if (resolvedKind === "image" || resolvedKind === "carousel") {
-        const imgs =
+        let imgs =
           resolvedKind === "carousel"
             ? images.length
               ? images
               : bestImages
             : [];
-        const cover = poster || bestPoster || imgs[0] || null;
+        if (resolvedKind === "carousel" && imgs.length === 0) {
+          imgs = extractEmbedDomImages(html);
+        }
+        const cover =
+          normalizeIgMediaUrl(poster || bestPoster || imgs[0] || null) ||
+          imgs[0] ||
+          null;
         return emptyResolve({
           videoUrl: null,
           poster: cover,
           mediaType: resolvedKind,
-          images: imgs,
+          images: imgs.map((u) => normalizeIgMediaUrl(u) || u).filter(Boolean),
           isVideo: false,
           fetched: true,
         });
@@ -351,10 +420,21 @@ export async function resolveInstagramEmbedVideo(
           : imagesForHtml(bestHtml, mediaType);
 
       // Old posts / login shells: no GraphQL — still recover image from HTML/og.
-      if (!mediaType && poster) {
-        mediaType = /EmbedSidecar|data-media-type="GraphSidecar"/i.test(bestHtml)
-          ? "carousel"
-          : "image";
+      if (!mediaType && bestHtml) {
+        if (
+          /<[^>]*\bEmbedSidecar\b/i.test(bestHtml) ||
+          /data-media-type=["']GraphSidecar["']/i.test(bestHtml)
+        ) {
+          mediaType = "carousel";
+        } else if (poster || /EmbeddedMediaImage/i.test(bestHtml)) {
+          mediaType = "image";
+        }
+      } else if (!mediaType && poster) {
+        mediaType = "image";
+      }
+
+      if (mediaType === "carousel" && images.length === 0 && bestHtml) {
+        images = extractEmbedDomImages(bestHtml);
       }
 
       if (!poster) {
@@ -366,6 +446,10 @@ export async function resolveInstagramEmbedVideo(
       if (mediaType === "carousel" && images.length === 0 && poster) {
         images = [poster];
       }
+      poster = normalizeIgMediaUrl(poster) || poster;
+      images = images
+        .map((u) => normalizeIgMediaUrl(u) || u)
+        .filter((u): u is string => !!u);
       if (!poster && images[0]) poster = images[0];
 
       const isVideo =
@@ -382,8 +466,8 @@ export async function resolveInstagramEmbedVideo(
     }
 
     // Last resort: oEmbed poster → treat as static image (never leave UI blank).
-    const poster = await fetchInstagramOEmbedPoster(
-      `https://www.instagram.com/p/${code}/`
+    const poster = normalizeIgMediaUrl(
+      await fetchInstagramOEmbedPoster(`https://www.instagram.com/p/${code}/`)
     );
     return emptyResolve({
       videoUrl: null,

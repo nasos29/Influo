@@ -5,8 +5,11 @@ import {
   decodeJsonEscapedUrl,
   extractOgImageFromHtml,
   extractTikTokCoverFromHtml,
+  extractTikTokImagePostCover,
   isCdnThumbnailUrl,
   isGenericLogoThumbnail,
+  isNearBlackImageBuffer,
+  tikTokHtmlIndicatesPhotoPost,
   toDisplayThumbnailSrc,
 } from "../lib/videoThumbnailExtract.ts";
 import { isAllowedThumbnailHost } from "../lib/thumbnailProxyHosts.ts";
@@ -100,6 +103,35 @@ test("extractOgImageFromHtml: Instagram-style meta", () => {
     extractOgImageFromHtml(`<meta property="og:image" content="https://x.com/static/images/logo.png" />`),
     null
   );
+});
+
+test("tikTokHtmlIndicatesPhotoPost: imagePost, /photo/, empty playAddr", () => {
+  assert.equal(tikTokHtmlIndicatesPhotoPost(`{"imagePost":{"images":[]}}`), true);
+  assert.equal(
+    tikTokHtmlIndicatesPhotoPost(`https://www.tiktok.com/@u/photo/1234567890`),
+    true
+  );
+  assert.equal(tikTokHtmlIndicatesPhotoPost(`{"playAddr":"","cover":"https://x.com/c.webp"}`), true);
+  assert.equal(
+    tikTokHtmlIndicatesPhotoPost(`{"playAddr":"https://v.tiktokcdn.com/a.mp4","cover":"https://x.com/c.webp"}`),
+    false
+  );
+});
+
+test("extractTikTokImagePostCover: first urlList entry", () => {
+  const html = `{"imagePost":{"images":[{"imageURL":{"urlList":["https:\\u002F\\u002Fp16.tiktokcdn.com\\u002Fobj\\u002Fframe1.webp"]}}]}}`;
+  assert.equal(
+    extractTikTokImagePostCover(html),
+    "https://p16.tiktokcdn.com/obj/frame1.webp"
+  );
+});
+
+test("isNearBlackImageBuffer: mostly-zero bytes", () => {
+  const black = new Uint8Array(4000);
+  assert.equal(isNearBlackImageBuffer(black), true);
+  const bright = new Uint8Array(4000);
+  bright.fill(200);
+  assert.equal(isNearBlackImageBuffer(bright), false);
 });
 
 test("toDisplayThumbnailSrc proxies CDN hosts immediately", () => {

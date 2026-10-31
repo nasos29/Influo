@@ -30,6 +30,8 @@ interface SocialEmbedCardProps {
 const COPY = {
   play: { el: "Αναπαραγωγή", en: "Play" },
   playVideo: { el: "Προβολή βίντεο", en: "Play video" },
+  viewPhotos: { el: "Προβολή άλμπουμ", en: "View album" },
+  viewPhoto: { el: "Προβολή φωτογραφίας", en: "View photo" },
   loading: { el: "Φόρτωση", en: "Loading" },
   error: { el: "Αποτυχία φόρτωσης", en: "Failed to load" },
   retry: { el: "Δοκιμή ξανά", en: "Try again" },
@@ -208,7 +210,11 @@ export default function SocialEmbedCard({
     onTapForSound: onTikTokTapForSound,
   } = useTikTokPlayerHost(isTikTokPlayer);
 
-  const { src: thumbSrc, onImgError } = useLazyVideoThumbnail(
+  const {
+    src: thumbSrc,
+    mediaType: thumbMediaType,
+    onImgError,
+  } = useLazyVideoThumbnail(
     originalUrl,
     // Static photos / carousels: still fetch cover if meta had no poster.
     nearViewport &&
@@ -219,11 +225,17 @@ export default function SocialEmbedCard({
       (isStaticImage || isInteractiveCarousel || (!activated && !iframeSrc && !nativeVideoUrl))
   );
 
-  // /p/ posts: never show ▶ until meta confirms video (photos stay static).
+  const isTikTokPhoto =
+    provider === "tiktok" &&
+    (thumbMediaType === "image" || /\/photo\/\d+/i.test(originalUrl));
+
+  // /p/ posts: never show ▶ unless meta confirms video. TikTok photos use album icon.
   const showPlayButton =
     !isStaticImage &&
     !isInteractiveCarousel &&
+    !isTikTokPhoto &&
     (!isIgPost || igKind === "video");
+  const showPhotoBadge = isTikTokPhoto && !iframeSrc;
 
   useEffect(() => {
     const node = rootRef.current;
@@ -401,7 +413,11 @@ export default function SocialEmbedCard({
   ]);
 
   const coverSrc = igPoster || thumbSrc || null;
-  const playLabel = isInstagram ? COPY.play[uiLang] : COPY.playVideo[uiLang];
+  const playLabel = isInstagram
+    ? COPY.play[uiLang]
+    : isTikTokPhoto
+      ? COPY.viewPhotos[uiLang]
+      : COPY.playVideo[uiLang];
   const showStaticPhoto = isStaticImage && !iframeSrc && !nativeVideoUrl;
   const showCarousel =
     isInteractiveCarousel && !iframeSrc && !nativeVideoUrl && carouselImages.length > 1;
@@ -457,6 +473,18 @@ export default function SocialEmbedCard({
                 />
               ) : null}
 
+              {/* Never leave a blank black TikTok card when cover is missing */}
+              {!iframeSrc && !nativeVideoUrl && !coverSrc && provider === "tiktok" ? (
+                <div
+                  className="absolute inset-0 z-[1] flex items-center justify-center bg-gradient-to-br from-black to-gray-900"
+                  aria-hidden
+                >
+                  <svg viewBox="0 0 24 24" className="h-14 w-14 fill-white/90" aria-hidden>
+                    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+                  </svg>
+                </div>
+              ) : null}
+
               {!activated || error ? (
                 <button
                   type="button"
@@ -475,15 +503,23 @@ export default function SocialEmbedCard({
                         <path d="M8 5v14l11-7z" />
                       </svg>
                     </span>
+                  ) : showPhotoBadge ? (
+                    <span className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg">
+                      <svg viewBox="0 0 24 24" className="h-8 w-8 fill-current" aria-hidden>
+                        <path d="M4 5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-2H6a2 2 0 0 1-2-2V5zm2 0v10h8V5H6zm10 4v10h2V9h-2z" />
+                      </svg>
+                    </span>
                   ) : igMetaLoading || (isIgPost && igKind === null) ? (
                     <div className="h-8 w-8 animate-spin rounded-full border-4 border-white border-t-transparent" />
                   ) : null}
                   <span className="text-base font-bold drop-shadow">
                     {error
                       ? COPY.retry[uiLang]
-                      : showPlayButton
+                      : showPlayButton || showPhotoBadge
                         ? playLabel
-                        : COPY.loading[uiLang]}
+                        : isIgPost
+                          ? COPY.loading[uiLang]
+                          : COPY.loading[uiLang]}
                   </span>
                   {error ? (
                     <span className="text-xs font-medium text-white/85">{COPY.error[uiLang]}</span>
