@@ -128,7 +128,8 @@ export async function POST(request: NextRequest) {
       patch.videos = prepared.videos;
       patch.hidden_videos = syncHiddenVideosWithVideos(
         prepared.videos,
-        existing.hidden_videos
+        existing.hidden_videos,
+        existing.accounts
       );
     }
 

@@ -12,7 +12,7 @@
 import { formatEuro } from "@/lib/formatEuro";
 import { isListedPrice, listedPriceMin } from "@/lib/parsePrice";
 import { sanitizeTopPosts } from "@/lib/topPosts";
-import { visibleVideos } from "@/lib/hiddenVideos";
+import { accountsWithoutHiddenTopPosts, visibleVideos } from "@/lib/hiddenVideos";
 import {
   RATE_CARD_PRICE_KEYS,
   commercialExtrasFromRateCard,
@@ -404,6 +404,7 @@ export function toPublicProfile(row: Record<string, unknown>): Record<string, un
     false
   );
   base.videos = visibleVideos(row.videos, row.hidden_videos);
+  base.accounts = accountsWithoutHiddenTopPosts(base.accounts, row.hidden_videos);
   delete base.hidden_videos;
   const displayPackages = packagesForViewer(row.service_packages, row.rate_card, row.accounts);
   base.has_min_rate = displayPackages.length > 0 || hasListedMinRate(row.min_rate);
