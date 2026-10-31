@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { rejectUnlessAdmin } from "@/lib/apiAuth";
+import { isProtectedTestAccount } from "@/lib/protectedAccount";
 
 // Server-side Supabase client με service role key (Admin privileges)
 const supabaseAdmin = createClient(
@@ -40,6 +41,10 @@ export async function POST(request: NextRequest) {
         { error: 'Brand not found' },
         { status: 404 }
       );
+    }
+
+    if (isProtectedTestAccount(brandData)) {
+      return NextResponse.json({ error: 'protected_test_account' }, { status: 403 });
     }
 
     // 1. Find auth user by email
