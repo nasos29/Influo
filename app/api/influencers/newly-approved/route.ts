@@ -1,6 +1,6 @@
 /**
- * Newly approved influencers for the homepage (last 8).
- * Same public allow-list as the directory, plus the media the cards display.
+ * Newly approved influencers for the homepage (buffer for excluding featured).
+ * Same public allow-list as the directory — never returns min_rate.
  */
 
 import { NextResponse } from "next/server";
@@ -8,7 +8,8 @@ import { loadInfluencerRows } from "@/lib/loadPublicInfluencers";
 import { getPastBrandsByInfluencerIds } from "@/lib/pastBrands";
 import { NEWLY_APPROVED_QUERY_COLUMNS, toPublicNewlyApproved } from "@/lib/publicInfluencer";
 
-const LIMIT = 8;
+/** Enough rows so the home can show 4 after excluding featured cards. */
+const LIMIT = 16;
 
 export async function GET() {
   try {

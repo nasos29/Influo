@@ -1,164 +1,100 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { getCachedImageUrl, getStorageCardUrl } from "@/lib/imageProxy";
-import { isDefinitelyImage } from "@/lib/videoThumbnail";
-import { categoryTranslations } from "@/components/categoryTranslations";
+import InfluencerCard from "@/components/InfluencerCard";
+import { parseStoredCategories } from "@/lib/categories";
 import { displayNameForLang } from "@/lib/greeklish";
-import { getBadges, getBadgeStyles, type Badge } from "@/lib/badges";
 import { getVisitorId } from "@/lib/visitorId";
 import { publicProfilePath } from "@/lib/profileSlug";
-import { badgeMinRateFromTier } from "@/lib/publicInfluencer";
-import FastImage from "@/components/FastImage";
+import { parseFollowerString } from "@/lib/parseFollowers";
 
 type Lang = "el" | "en";
 
-/** Raw row from API (select *), same shape as Directory source. */
+/** Public newly-approved card fields (never min_rate). */
 export type NewlyApprovedInfluencer = {
   id: string;
   display_name: string;
   display_name_en?: string | null;
   avatar_url: string | null;
-  videos?: string[] | null;
-  video_thumbnails?: Record<string, string> | null;
-  accounts?: Array<{ platform?: string; username?: string; followers?: string; engagement_rate?: string }> | null;
+  accounts?: Array<{
+    platform?: string;
+    username?: string;
+    followers?: string | number;
+  }> | null;
   category?: string | null;
   verified?: boolean;
   analytics_verified?: boolean;
-  created_at?: string | null;
-  engagement_rate?: string | Record<string, string> | null;
-  avg_likes?: string | Record<string, string> | null;
-  past_brands?: unknown[] | number | null;
-  total_reviews?: number | null;
-  avg_rating?: number | null;
+  location?: string | null;
   price_tier?: string | null;
   profile_slug?: string | null;
 };
 
-function getBestImageUrl(inf: NewlyApprovedInfluencer): string | null {
-  // Prefer avatar (usually on Supabase) — gallery/TikTok thumbs are slower / flaky.
-  if (inf.avatar_url) {
-    return getStorageCardUrl(inf.avatar_url, 400, 500) ?? inf.avatar_url;
-  }
-  const videos = inf.videos && Array.isArray(inf.videos) ? inf.videos : [];
-  for (const v of videos) {
-    if (v && isDefinitelyImage(v)) {
-      return getStorageCardUrl(v, 400, 500) ?? v;
-    }
-  }
-  const firstVideo = videos[0];
-  if (firstVideo) {
-    const thumb = inf.video_thumbnails?.[firstVideo];
-    if (thumb) return getStorageCardUrl(thumb, 400, 500) ?? thumb;
-    if (/youtube\.com|youtu\.be/i.test(firstVideo)) {
-      const m = firstVideo.match(/(?:v=|\/)([^"&?\/\s]{11})/);
-      if (m) return `https://img.youtube.com/vi/${m[1]}/hqdefault.jpg`;
-    }
-  }
-  return null;
-}
+const DISPLAY_LIMIT = 4;
 
-function formatNum(num?: number): string {
-  if (num === undefined || num === null) return "";
-  if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
-  if (num >= 1000) return (num / 1000).toFixed(1) + "k";
-  return num.toString();
-}
-
-function parseFollowers(acc: { followers?: string }): number {
-  const s = String(acc.followers || "").toLowerCase().replace(/\s/g, "").replace(/,/g, "");
-  if (!s) return 0;
-  if (s.includes("m")) return parseFloat(s) * 1000000;
-  if (s.includes("k") || s.includes("κ")) return parseFloat(s) * 1000;
-  return parseFloat(s) || 0;
-}
-
-function getTotalFollowers(accounts: NewlyApprovedInfluencer["accounts"]): number {
-  if (!Array.isArray(accounts)) return 0;
-  return accounts.reduce((sum, a) => sum + parseFollowers(a), 0);
-}
-
-function parseFollowerString(s?: string): number {
-  const str = String(s ?? "").toLowerCase().replace(/\s/g, "").replace(/,/g, "");
-  if (!str) return 0;
-  if (str.includes("m")) return Math.round(parseFloat(str) * 1000000);
-  if (str.includes("k") || str.includes("κ")) return Math.round(parseFloat(str) * 1000);
-  return parseInt(str, 10) || 0;
-}
-
-function buildFollowers(accounts: NewlyApprovedInfluencer["accounts"]): { [key: string]: number } {
-  const out: { [key: string]: number } = {};
+function buildSocials(accounts: NewlyApprovedInfluencer["accounts"]): {
+  [key: string]: string | undefined;
+} {
+  const out: { [key: string]: string | undefined } = {};
   if (!Array.isArray(accounts)) return out;
-  accounts.forEach((acc) => {
-    const platform = (acc.platform || "").toLowerCase();
-    if (platform) out[platform] = parseFollowerString(acc.followers);
-  });
+  for (const acc of accounts) {
+    const platform = String(acc.platform || "")
+      .trim()
+      .toLowerCase();
+    const username = typeof acc.username === "string" ? acc.username.trim() : "";
+    if (platform && username) out[platform] = username;
+  }
   return out;
 }
 
-function getAccountAgeDays(createdAt?: string | null): number {
-  if (!createdAt) return 999;
-  return Math.floor((Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24));
-}
-
-/** Same badge logic as Directory: build metrics from raw row, then getBadges. */
-function getPrimaryBadge(inf: NewlyApprovedInfluencer, lang: Lang): Badge | { type: string; label: string; icon: string; bgColor: string; color: string } {
-  const engagementRatesObj: { [key: string]: string } = {};
-  if (Array.isArray(inf.accounts)) {
-    inf.accounts.forEach((acc) => {
-      const key = (acc.platform || "").toLowerCase();
-      if (key && acc.engagement_rate) engagementRatesObj[key] = acc.engagement_rate;
-    });
+function buildFollowers(accounts: NewlyApprovedInfluencer["accounts"]): {
+  [key: string]: number | undefined;
+} {
+  const out: { [key: string]: number | undefined } = {};
+  if (!Array.isArray(accounts)) return out;
+  for (const acc of accounts) {
+    const platform = String(acc.platform || "")
+      .trim()
+      .toLowerCase();
+    if (platform) out[platform] = parseFollowerString(acc.followers);
   }
-  const engagementRate =
-    Object.keys(engagementRatesObj).length > 0 ? engagementRatesObj : (inf.engagement_rate as Record<string, string> | string) || undefined;
-  const badges = getBadges(
-    {
-      verified: inf.analytics_verified ?? inf.verified ?? false,
-      followers: buildFollowers(inf.accounts),
-      engagement_rate: engagementRate,
-      total_reviews: inf.total_reviews ?? 0,
-      avg_rating: inf.avg_rating ?? 0,
-      past_brands: Array.isArray(inf.past_brands) ? inf.past_brands.length : (inf.past_brands as number) ?? 0,
-      account_created_days: getAccountAgeDays(inf.created_at),
-      min_rate: badgeMinRateFromTier(inf.price_tier),
-    },
-    lang
-  );
-  if (badges[0]) return badges[0];
-  // Section is “newly approved” — fall back to New when no achievement badge.
-  return {
-    type: "new",
-    label: lang === "el" ? "Νέος" : "New",
-    icon: "✨",
-    bgColor: "bg-blue-50 border-blue-200",
-    color: "text-blue-700",
-  };
+  return out;
 }
 
 const t = {
   el: {
     badge: "Νέοι στο δίκτυο",
     title: "Νεοί Εγκεκριμένοι Creators",
-    subtitle: "Επαληθευμένοι creators που μόλις εντάχθηκαν στην πλατφόρμα. Όλοι έχουν λάβει έγκριση και είναι έτοιμοι για συνεργασίες.",
-    viewProfile: "Προφίλ",
+    subtitle:
+      "Επαληθευμένοι creators που μόλις εντάχθηκαν στην πλατφόρμα. Όλοι έχουν λάβει έγκριση και είναι έτοιμοι για συνεργασίες.",
     viewAll: "Δείτε όλο τον κατάλογο",
-    empty: "Οι νεοί εγκεκριμένοι creators θα εμφανίζονται εδώ μετά την έγκρισή τους από την πλατφόρμα.",
+    empty:
+      "Οι νεοί εγκεκριμένοι creators θα εμφανίζονται εδώ μετά την έγκρισή τους από την πλατφόρμα.",
   },
   en: {
     badge: "New to the network",
     title: "Newly Approved Creators",
-    subtitle: "Verified creators who just joined the platform. All have been approved and are ready for collaborations.",
-    viewProfile: "Profile",
+    subtitle:
+      "Verified creators who just joined the platform. All have been approved and are ready for collaborations.",
     viewAll: "View full directory",
     empty: "Newly approved creators will appear here once they are approved by the platform.",
   },
 };
 
-export default function NewlyApprovedInfluencersSection({ lang }: { lang: Lang }) {
+export default function NewlyApprovedInfluencersSection({
+  lang,
+  excludeIds = [],
+}: {
+  lang: Lang;
+  /** Featured / other home cards — skip these so sections do not overlap. */
+  excludeIds?: Array<string | number>;
+}) {
   const [influencers, setInfluencers] = useState<NewlyApprovedInfluencer[]>([]);
   const [loading, setLoading] = useState(true);
+  const excludeSet = useMemo(
+    () => new Set(excludeIds.map((id) => String(id))),
+    [excludeIds]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -176,8 +112,26 @@ export default function NewlyApprovedInfluencersSection({ lang }: { lang: Lang }
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  const visible = useMemo(() => {
+    const out: NewlyApprovedInfluencer[] = [];
+    const seen = new Set<string>();
+    for (const inf of influencers) {
+      const id = String(inf?.id || "");
+      if (!id || excludeSet.has(id) || seen.has(id)) continue;
+      seen.add(id);
+      out.push(inf);
+      if (out.length >= DISPLAY_LIMIT) break;
+    }
+    return out;
+  }, [influencers, excludeSet]);
+
+  const txt = t[lang];
+  const directoryHref = lang === "en" ? "/en/directory" : "/directory";
 
   if (loading) {
     return (
@@ -188,9 +142,13 @@ export default function NewlyApprovedInfluencersSection({ lang }: { lang: Lang }
             <div className="h-9 w-72 bg-slate-200 rounded animate-pulse mx-auto mb-3" />
             <div className="h-5 w-96 max-w-full bg-slate-100 rounded animate-pulse mx-auto" />
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-5 md:gap-6">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-              <div key={i} className="aspect-[4/5] rounded-2xl bg-slate-100 animate-pulse" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-6 md:gap-x-6 md:gap-y-8">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="animate-pulse">
+                <div className="aspect-[4/5] rounded-2xl bg-slate-100" />
+                <div className="mt-3 h-4 w-3/4 rounded bg-slate-100" />
+                <div className="mt-2 h-3 w-1/2 rounded bg-slate-100" />
+              </div>
             ))}
           </div>
         </div>
@@ -198,10 +156,11 @@ export default function NewlyApprovedInfluencersSection({ lang }: { lang: Lang }
     );
   }
 
-  const txt = t[lang];
-
   return (
-    <section className="relative py-16 md:py-20 px-6 bg-gradient-to-br from-slate-50 via-white to-blue-50/20 border-t border-slate-100" id="newly-approved">
+    <section
+      className="relative py-16 md:py-20 px-6 bg-gradient-to-br from-slate-50 via-white to-blue-50/20 border-t border-slate-100"
+      id="newly-approved"
+    >
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-12">
           <span className="inline-block px-3 py-1 text-xs font-semibold uppercase tracking-wider text-indigo-600 bg-indigo-50 rounded-full mb-4">
@@ -211,131 +170,86 @@ export default function NewlyApprovedInfluencersSection({ lang }: { lang: Lang }
           <p className="text-slate-600 max-w-2xl mx-auto mb-8">{txt.subtitle}</p>
         </div>
 
-        {influencers.length === 0 ? (
+        {visible.length === 0 ? (
           <div className="text-center py-12 px-6 bg-white/60 rounded-2xl border border-slate-200/80">
             <p className="text-slate-600 max-w-xl mx-auto mb-8">{txt.empty}</p>
             <a
-              href="/directory"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl transition-all shadow-md hover:shadow-lg"
+              href={directoryHref}
+              className="inline-flex items-center gap-2 rounded-full px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold transition-all shadow-md hover:shadow-lg"
             >
               {txt.viewAll}
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M17 8l4 4m0 0l-4 4m4-4H3"
+                />
               </svg>
             </a>
           </div>
         ) : (
-        <>
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-5 md:gap-6">
-          {influencers.map((inf, cardIdx) => {
-            if (!inf?.id) return null;
-            const imgUrl = getBestImageUrl(inf);
-            const name = displayNameForLang(
-              (lang === "en" && inf.display_name_en ? inf.display_name_en : inf.display_name) ?? "",
-              lang
-            );
-            const mainCat = inf.category
-              ? (typeof inf.category === "string" && inf.category.includes(",") ? inf.category.split(",")[0].trim() : inf.category)
-              : null;
-            const catLabel = mainCat ? (categoryTranslations[mainCat]?.[lang] || mainCat) : null;
-            const totalFol = getTotalFollowers(inf.accounts);
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-6 md:gap-x-6 md:gap-y-8">
+              {visible.map((inf) => {
+                const name = displayNameForLang(
+                  (lang === "en" && inf.display_name_en
+                    ? inf.display_name_en
+                    : inf.display_name) ?? "",
+                  lang
+                );
+                return (
+                  <Link
+                    key={String(inf.id)}
+                    href={publicProfilePath(inf.profile_slug, inf.id)}
+                    className="block group"
+                    onClick={() => {
+                      fetch("/api/analytics/track", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          influencerId: inf.id,
+                          eventType: "profile_click",
+                          visitorId: getVisitorId(),
+                          metadata: { source: "newly_approved" },
+                        }),
+                        keepalive: true,
+                      }).catch(() => {});
+                    }}
+                  >
+                    <InfluencerCard
+                      name={name}
+                      avatar={inf.avatar_url || ""}
+                      verified={inf.analytics_verified === true || inf.verified === true}
+                      socials={buildSocials(inf.accounts)}
+                      followers={buildFollowers(inf.accounts)}
+                      categories={parseStoredCategories(inf.category)}
+                      lang={lang}
+                      location={inf.location}
+                      price_tier={inf.price_tier || "0"}
+                    />
+                  </Link>
+                );
+              })}
+            </div>
 
-            return (
-              <Link
-                key={String(inf.id)}
-                href={publicProfilePath(inf.profile_slug, inf.id)}
-                className="group block"
-                onClick={() => {
-                  fetch("/api/analytics/track", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      influencerId: inf.id,
-                      eventType: "profile_click",
-                      visitorId: getVisitorId(),
-                      metadata: { source: "newly_approved" },
-                    }),
-                    keepalive: true
-                  }).catch(() => {});
-                }}
+            <div className="text-center mt-10">
+              <a
+                href={directoryHref}
+                className="inline-flex items-center gap-2 rounded-full px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold transition-all shadow-md hover:shadow-lg"
               >
-                <article className="h-full bg-white rounded-2xl overflow-hidden border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-indigo-200 transition-all duration-300 group-hover:-translate-y-1">
-                  <div className="relative aspect-[4/5] bg-slate-100 overflow-hidden">
-                    {imgUrl ? (
-                      <FastImage
-                        src={getCachedImageUrl(imgUrl) ?? imgUrl}
-                        alt={name}
-                        fill
-                        sizes="(max-width: 768px) 50vw, 25vw"
-                        quality={75}
-                        priority={cardIdx < 4}
-                        className="object-cover transition-transform duration-500 group-hover:scale-105"
-                        onError={(e) => {
-                          const el = e.currentTarget as HTMLImageElement;
-                          el.style.display = "none";
-                          const fallback = el.parentElement?.querySelector(
-                            "[data-fallback-initial]"
-                          ) as HTMLElement | null;
-                          if (fallback) fallback.style.display = "flex";
-                        }}
-                      />
-                    ) : null}
-                    <div
-                      data-fallback-initial
-                      className="absolute inset-0 w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-200 to-slate-300 text-slate-500 text-4xl"
-                      style={{ display: imgUrl ? "none" : "flex" }}
-                    >
-                      {name?.charAt(0) || "?"}
-                    </div>
-                    {(() => {
-                      const badge = getPrimaryBadge(inf, lang);
-                      const badgeStyles = "priority" in badge && typeof badge.priority === "number"
-                        ? getBadgeStyles(badge)
-                        : `${badge.bgColor} ${badge.color} border px-2 py-1 rounded-full text-[10px] font-bold inline-flex items-center gap-1`;
-                      return (
-                        <div className={`absolute top-3 left-3 flex items-center gap-1.5 px-2 py-1 rounded-full backdrop-blur-sm ${badgeStyles}`}>
-                          <span className="text-[10px]">{badge.icon}</span>
-                          <span>{badge.label}</span>
-                        </div>
-                      );
-                    })()}
-                    <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 to-transparent" />
-                    <div className="absolute bottom-3 left-3 right-3 text-white">
-                      <h3 className="font-bold text-base md:text-lg leading-tight drop-shadow-md">{name}</h3>
-                      {catLabel && (
-                        <p className="text-xs md:text-sm text-white/90 mt-0.5">{catLabel}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="px-4 py-3 flex items-center justify-between bg-slate-50/80 border-t border-slate-100">
-                    <div className="text-slate-600">
-                      {totalFol > 0 && (
-                        <span className="text-sm font-semibold">{formatNum(totalFol)} followers</span>
-                      )}
-                    </div>
-                    <span className="text-indigo-600 text-sm font-medium group-hover:underline">
-                      {txt.viewProfile}
-                    </span>
-                  </div>
-                </article>
-              </Link>
-            );
-          })}
-        </div>
-
-        <div className="text-center mt-10">
-          <a
-            href="/directory"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl transition-all shadow-md hover:shadow-lg"
-          >
-            {txt.viewAll}
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-            </svg>
-          </a>
-        </div>
-        </>
+                {txt.viewAll}
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 8l4 4m0 0l-4 4m4-4H3"
+                  />
+                </svg>
+              </a>
+            </div>
+          </>
         )}
       </div>
     </section>
