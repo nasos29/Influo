@@ -2,17 +2,16 @@
 
 import CountUp from "@/components/CountUp";
 import { floorToTens, type HomeTrustStats } from "@/lib/loadHomeTrustStats";
+import { openCampaignsLabel } from "@/lib/pluralize";
 
 type Lang = "el" | "en";
 
 const copy = {
   el: {
     influencers: "influencers",
-    campaigns: "ανοιχτές καμπάνιες",
   },
   en: {
     influencers: "influencers",
-    campaigns: "open campaigns",
   },
 } as const;
 
@@ -48,7 +47,7 @@ export default function HomeTrustStatsRow({
       key: "campaigns",
       value: stats.openCampaigns,
       suffix: "",
-      label: txt.campaigns,
+      label: openCampaignsLabel(stats.openCampaigns, lang),
     });
   }
 

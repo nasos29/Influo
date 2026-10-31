@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import SiteHeader from '@/components/SiteHeader';
 import { getStoredLanguage } from '@/lib/language';
+import { LEGAL_LAST_UPDATED } from '@/lib/legalDates';
 
 export default function TermsPage() {
   const pathname = usePathname();
@@ -143,7 +144,6 @@ export default function TermsPage() {
   };
 
   const txt = content[lang];
-  const currentDate = new Date().toLocaleDateString(lang === "el" ? "el-GR" : "en-US");
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
@@ -152,7 +152,7 @@ export default function TermsPage() {
       {/* Content */}
       <main className="max-w-4xl mx-auto px-6 py-12">
         <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">{txt.title}</h1>
-        <p className="text-slate-600 mb-8">{txt.lastUpdated} {currentDate}</p>
+        <p className="text-slate-600 mb-8">{txt.lastUpdated} {LEGAL_LAST_UPDATED}</p>
 
         <div className="prose prose-slate max-w-none space-y-8">
           <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">

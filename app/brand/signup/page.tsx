@@ -1,23 +1,29 @@
 "use client";
 
-import BrandSignupForm from '@/components/BrandSignupForm';
-import Image from 'next/image';
+import { useState } from "react";
+import BrandSignupForm from "@/components/BrandSignupForm";
+import SiteHeader from "@/components/SiteHeader";
+import { getStoredLanguage, setStoredLanguage, type Language } from "@/lib/language";
 
 export default function BrandSignupPage() {
+  const [lang, setLang] = useState<Language>(() =>
+    typeof window === "undefined" ? "el" : getStoredLanguage()
+  );
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-4xl">
-        <div className="flex justify-center mb-6">
-          <a href="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-xl">I</span>
-            </div>
-            <span className="text-2xl font-bold text-slate-900">Influo</span>
-          </a>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      <SiteHeader
+        lang={lang}
+        onLangChange={(next) => {
+          setStoredLanguage(next);
+          setLang(next);
+        }}
+      />
+      <div className="flex items-center justify-center p-4 py-10">
+        <div className="w-full max-w-4xl">
+          <BrandSignupForm />
         </div>
-        <BrandSignupForm />
       </div>
     </div>
   );
 }
-
