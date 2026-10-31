@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { changeProfileSlug, ensureProfileSlug } from '@/lib/profileSlugAssign';
 import { publicProfilePath } from '@/lib/profileSlug';
 import { SITE_URL } from '@/lib/site';
+import { revalidatePublicProfile } from '@/lib/revalidatePublicProfile';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -121,7 +122,9 @@ export async function POST(request: NextRequest) {
     if (!changed.ok) {
       return NextResponse.json({ error: changed.error }, { status: changed.status });
     }
+    const previousSlug = inf.profile_slug;
     inf.profile_slug = changed.slug;
+    revalidatePublicProfile({ id: inf.id, slug: changed.slug, previousSlug });
     return NextResponse.json(payload(inf, true));
   } catch (e: unknown) {
     return NextResponse.json(

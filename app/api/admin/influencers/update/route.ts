@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
+import { revalidatePublicProfileById } from '@/lib/revalidatePublicProfile';
 import { NextRequest, NextResponse } from 'next/server';
 import { insertFollowerSnapshot } from '@/lib/parseFollowers';
 import { requireAdmin } from '@/lib/apiAuth';
@@ -221,6 +222,10 @@ export async function POST(request: NextRequest) {
         ).catch((err) => console.error("[influencer approved email]", err));
       }
     }
+
+    await revalidatePublicProfileById(supabaseAdmin, influencerId).catch((err) => {
+      console.error('[admin/influencers/update] revalidate', err);
+    });
 
     const newEmail =
       typeof patch.contact_email === 'string' ? patch.contact_email : null;

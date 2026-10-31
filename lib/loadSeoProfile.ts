@@ -33,26 +33,47 @@ async function loadOne(filter: { id?: string; slug?: string }): Promise<SeoProfi
   };
 }
 
-const cachedBySlug = (slug: string) =>
-  unstable_cache(() => loadOne({ slug }), ["seo-profile-slug", slug], {
-    revalidate: 3600,
-    tags: [`profile-${slug}`],
-  })();
+const PROFILE_MISS = "PROFILE_MISS";
 
-const cachedById = (id: string) =>
-  unstable_cache(() => loadOne({ id }), ["seo-profile-id", id], {
-    revalidate: 3600,
-    tags: [`profile-id-${id}`],
-  })();
+function isProfileMiss(error: unknown): boolean {
+  if (error instanceof Error && error.message === PROFILE_MISS) return true;
+  if (error instanceof Error && error.cause instanceof Error && error.cause.message === PROFILE_MISS) return true;
+  return false;
+}
+
+/**
+ * Hits are cached for an hour and cleared with revalidateTag.
+ * Misses throw so unstable_cache does not keep a 404 for that hour.
+ */
+function cachedProfile(filter: { id?: string; slug?: string }, key: string[], tags: string[]) {
+  return unstable_cache(
+    async () => {
+      const profile = await loadOne(filter);
+      if (!profile) throw new Error(PROFILE_MISS);
+      return profile;
+    },
+    key,
+    { revalidate: 3600, tags }
+  )();
+}
+
+async function loadCached(filter: { id?: string; slug?: string }, key: string[], tags: string[]) {
+  try {
+    return await cachedProfile(filter, key, tags);
+  } catch (error) {
+    if (isProfileMiss(error)) return null;
+    throw error;
+  }
+}
 
 export const loadSeoProfileById = cache(async (id: string): Promise<SeoProfile | null> => {
   const clean = (id || "").trim();
   if (!UUID_RE.test(clean)) return null;
-  return cachedById(clean);
+  return loadCached({ id: clean }, ["seo-profile-id-v2", clean], [`profile-id-${clean}`]);
 });
 
 export const loadSeoProfileBySlug = cache(async (slug: string): Promise<SeoProfile | null> => {
   const clean = (slug || "").trim().toLowerCase();
   if (clean.length < 2 || clean.length > 80) return null;
-  return cachedBySlug(clean);
+  return loadCached({ slug: clean }, ["seo-profile-slug-v2", clean], [`profile-${clean}`]);
 });

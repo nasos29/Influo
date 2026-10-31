@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { isAdminUser, userFromBearer } from '@/lib/apiAuth';
+import { revalidatePublicProfileById } from '@/lib/revalidatePublicProfile';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -39,6 +40,10 @@ export async function POST(req: Request) {
         { status: 500 }
       );
     }
+
+    await revalidatePublicProfileById(supabaseAdmin, String(influencerId)).catch((err) => {
+      console.error('[profile-changes] revalidate', err);
+    });
 
     return NextResponse.json({ success: true, data });
   } catch (error: any) {

@@ -26,6 +26,7 @@ import {
   type VideoPlatform,
 } from "@/lib/videoLinkCheck";
 import { collectTopPosts, TOP_POSTS_DISPLAY_LIMIT } from "@/lib/topPosts";
+import { revalidatePublicProfileById } from "@/lib/revalidatePublicProfile";
 
 export const PORTFOLIO_VIDEO_BATCH_SIZE = 20;
 export const PORTFOLIO_VIDEO_DELAY_MS = 350;
@@ -573,6 +574,9 @@ async function removeLink(
 
   const updated = await admin.from("influencers").update(patch).eq("id", item.influencerId);
   if (updated.error) throw new Error(updated.error.message);
+  await revalidatePublicProfileById(admin, item.influencerId).catch((err) => {
+    console.error("[checkPortfolioVideos] revalidate", err);
+  });
 
   const logged = await admin.from("video_link_removals").insert({
     influencer_id: item.influencerId,
@@ -667,6 +671,11 @@ async function hideVideo(
     .from("influencers")
     .update({ hidden_videos: next })
     .eq("id", influencerId);
+  if (!upErr) {
+    await revalidatePublicProfileById(admin, influencerId).catch((err) => {
+      console.error("[checkPortfolioVideos] revalidate", err);
+    });
+  }
   return !upErr;
 }
 
@@ -690,5 +699,10 @@ async function unhideIfPresent(
     .from("influencers")
     .update({ hidden_videos: next })
     .eq("id", influencerId);
+  if (!upErr) {
+    await revalidatePublicProfileById(admin, influencerId).catch((err) => {
+      console.error("[checkPortfolioVideos] revalidate", err);
+    });
+  }
   return !upErr;
 }
