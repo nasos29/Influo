@@ -29,6 +29,14 @@ import {
   validateBirthDate,
 } from "@/lib/validateBirthDate";
 import { normalizeYouTubeUsernameForSave } from "@/lib/youtubeHandle";
+import ServicePackagesEditor from "./ServicePackagesEditor";
+import {
+  defaultPackages,
+  minRateFromPackages,
+  packagesForSave,
+  rateCardFromPackages,
+  type ServicePackage,
+} from "@/lib/servicePackages";
 
 type Account = { platform: string; username: string; followers: string; engagement_rate?: string; avg_likes?: string };
 type Lang = "el" | "en";
@@ -234,15 +242,9 @@ export default function InfluencerSignupForm() {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [insightFiles, setInsightFiles] = useState<File[]>([]); 
   const [videoRows, setVideoRows] = useState<VideoRow[]>(() => toVideoRows([""]));
-  const [minRate, setMinRate] = useState("");
   const [engagementRate, setEngagementRate] = useState("");
   const [avgLikes, setAvgLikes] = useState("");
-  
-  // Pricing fields
-  const [priceStory, setPriceStory] = useState("");
-  const [pricePost, setPricePost] = useState("");
-  const [priceReel, setPriceReel] = useState("");
-  const [priceYouTube, setPriceYouTube] = useState("");
+  const [servicePackages, setServicePackages] = useState<ServicePackage[]>(() => defaultPackages());
 
   // NEW AUDIENCE STATES
   const [malePercent, setMalePercent] = useState("");
@@ -738,12 +740,16 @@ export default function InfluencerSignupForm() {
           return { ...acc, username };
         });
 
-      const rateCardPayload = {
-        ...(priceStory.trim() ? { story: priceStory.trim() } : {}),
-        ...(pricePost.trim() ? { post: pricePost.trim() } : {}),
-        ...(priceReel.trim() ? { reel: priceReel.trim() } : {}),
-        ...(priceYouTube.trim() ? { youtube: priceYouTube.trim() } : {}),
-      };
+      const packagesPayload = packagesForSave(servicePackages);
+      if (packagesPayload.length < 1) {
+        throw new Error(
+          lang === "el"
+            ? "Προσθέστε τουλάχιστον ένα πακέτο με τιμή."
+            : "Add at least one package with a price."
+        );
+      }
+      const rateCardPayload = rateCardFromPackages(packagesPayload);
+      const minRateValue = minRateFromPackages(packagesPayload) || "";
 
       const baseRow: Record<string, unknown> = {
           id: authUser.id,
@@ -754,7 +760,7 @@ export default function InfluencerSignupForm() {
           location,
           birth_date: normalizedBirthDate,
           languages: languagesCodesToStored(selectedLanguages),
-          min_rate: minRate,
+          min_rate: minRateValue,
           contact_email: email,
           bio, 
           accounts: socialAccounts, 
@@ -767,15 +773,19 @@ export default function InfluencerSignupForm() {
       };
 
       let insertError = (
-        await supabase.from("influencers").insert([{ ...baseRow, rate_card: rateCardPayload }])
+        await supabase.from("influencers").insert([{
+          ...baseRow,
+          rate_card: rateCardPayload,
+          service_packages: packagesPayload,
+        }])
       ).error;
 
-      // DB may not have rate_card yet — retry without it so auth user is not left orphaned
+      // DB may not have rate_card / service_packages yet — retry without them
       if (
         insertError &&
-        (/rate_card/i.test(insertError.message || '') || insertError.code === '42703' || insertError.code === 'PGRST204')
+        (/(rate_card|service_packages)/i.test(insertError.message || '') || insertError.code === '42703' || insertError.code === 'PGRST204')
       ) {
-        console.warn('[Signup] rate_card column missing; inserting without it:', insertError.message);
+        console.warn('[Signup] pricing columns missing; inserting without them:', insertError.message);
         insertError = (await supabase.from("influencers").insert([baseRow])).error;
       }
 
@@ -1197,59 +1207,11 @@ export default function InfluencerSignupForm() {
                     <button type="button" onClick={addVideo} className="text-blue-600 text-sm font-bold hover:underline">{txt.addVideo}</button>
                 </div>
 
-                {/* Pricing Section */}
-                <div>
-                    <label className={labelClass}>{txt.pricingLabel}</label>
-                    <p className="text-xs text-slate-500 mb-3">{txt.pricingDesc}</p>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-900 mb-1">{txt.pricingStory}</label>
-                            <input 
-                                type="text" 
-                                className={inputClass} 
-                                value={priceStory} 
-                                onChange={(e) => setPriceStory(replaceCommaWithDot(e.target.value))} 
-                                placeholder="100" 
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-900 mb-1">{txt.pricingPost}</label>
-                            <input 
-                                type="text" 
-                                className={inputClass} 
-                                value={pricePost} 
-                                onChange={(e) => setPricePost(replaceCommaWithDot(e.target.value))} 
-                                placeholder="200" 
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-900 mb-1">{txt.pricingReel}</label>
-                            <input 
-                                type="text" 
-                                className={inputClass} 
-                                value={priceReel} 
-                                onChange={(e) => setPriceReel(replaceCommaWithDot(e.target.value))} 
-                                placeholder="300" 
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-900 mb-1">{txt.pricingYouTube}</label>
-                            <input 
-                                type="text" 
-                                className={inputClass} 
-                                value={priceYouTube} 
-                                onChange={(e) => setPriceYouTube(replaceCommaWithDot(e.target.value))} 
-                                placeholder="400" 
-                            />
-                        </div>
-                    </div>
-                </div>
-
-                {/* Rate */}
-                <div>
-                    <label className={labelClass}>{txt.rateLabel}</label>
-                    <input type="text" className={inputClass} value={minRate} onChange={(e) => setMinRate(replaceCommaWithDot(e.target.value))} placeholder="150" />
-                </div>
+                <ServicePackagesEditor
+                  lang={lang}
+                  packages={servicePackages}
+                  onChange={setServicePackages}
+                />
 
                 {message && <p className="text-red-600 text-sm text-center mt-2 font-medium bg-red-50 p-2 rounded">{message}</p>}
                 

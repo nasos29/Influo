@@ -47,6 +47,13 @@ import {
 } from '@/lib/dashboardBadges';
 import { displayNameForLang } from '@/lib/greeklish';
 import { normalizeYouTubeUsernameForSave } from '@/lib/youtubeHandle';
+import ServicePackagesEditor, { initialPackagesFromUser } from '@/components/ServicePackagesEditor';
+import {
+    minRateFromPackages,
+    packagesForSave,
+    rateCardFromPackages,
+    type ServicePackage,
+} from '@/lib/servicePackages';
 import {
     BIRTH_DATE_MIN,
     athensTodayYmd,
@@ -105,6 +112,7 @@ interface InfluencerData {
     insights_urls: string[] | null;
     availability_status?: string | null;
     rate_card?: { story?: string; post?: string; reel?: string; youtube?: string; facebook?: string } | null;
+    service_packages?: ServicePackage[] | null;
 }
 
 const HIDDEN_VIDEO_NOTICE = {
@@ -125,7 +133,6 @@ const EditModal = ({ user, onClose, onSave, lang = 'el' }: { user: InfluencerDat
     const L = (el: string, en: string) => (lang === 'en' ? en : el);
     const [name, setName] = useState(user.display_name);
     const [bio, setBio] = useState(user.bio || "");
-    const [minRate, setMinRate] = useState(user.min_rate || "");
     const [location, setLocation] = useState(user.location || "");
     const [birthDate, setBirthDate] = useState(user.birth_date || "");
     // Support multiple categories - parse comma-separated string or use single category
@@ -178,19 +185,9 @@ const EditModal = ({ user, onClose, onSave, lang = 'el' }: { user: InfluencerDat
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatar_url || null);
     
-    // Rate card prices (persisted as JSON on influencers.rate_card)
-  const [priceStory, setPriceStory] = useState(
-    (user as InfluencerData & { rate_card?: { story?: string } }).rate_card?.story || ''
-  );
-  const [pricePost, setPricePost] = useState(
-    (user as InfluencerData & { rate_card?: { post?: string } }).rate_card?.post || ''
-  );
-  const [priceReel, setPriceReel] = useState(
-    (user as InfluencerData & { rate_card?: { reel?: string } }).rate_card?.reel || ''
-  );
-  const [priceYouTube, setPriceYouTube] = useState(
-    (user as InfluencerData & { rate_card?: { youtube?: string } }).rate_card?.youtube || ''
-  );
+    const [servicePackages, setServicePackages] = useState<ServicePackage[]>(() =>
+        initialPackagesFromUser(user.service_packages, user.rate_card)
+    );
 
     // Helper function to replace commas with dots in numeric inputs
     const replaceCommaWithDot = (value: string): string => {
@@ -441,10 +438,19 @@ const EditModal = ({ user, onClose, onSave, lang = 'el' }: { user: InfluencerDat
                 user.hidden_videos
             );
 
+            const packagesPayload = packagesForSave(servicePackages);
+            if (packagesPayload.length < 1) {
+                alert(L("Προσθέστε τουλάχιστον ένα πακέτο με τιμή.", "Add at least one package with a price."));
+                setLoading(false);
+                return;
+            }
+            const rateCardPayload = rateCardFromPackages(packagesPayload);
+            const minRateValue = minRateFromPackages(packagesPayload) || "";
+
             const newValues: any = {
                 display_name: name, 
                 bio: bio, 
-                min_rate: minRate,
+                min_rate: minRateValue,
                 location: location,
                 birth_date: birthDate || null,
                 category: categoryString,
@@ -456,12 +462,8 @@ const EditModal = ({ user, onClose, onSave, lang = 'el' }: { user: InfluencerDat
                 audience_male_percent: malePercent ? parseInt(malePercent) : null,
                 audience_female_percent: femalePercent ? parseInt(femalePercent) : null,
                 audience_top_age: topAge || null,
-                rate_card: {
-                    ...(priceStory.trim() ? { story: priceStory.trim() } : {}),
-                    ...(pricePost.trim() ? { post: pricePost.trim() } : {}),
-                    ...(priceReel.trim() ? { reel: priceReel.trim() } : {}),
-                    ...(priceYouTube.trim() ? { youtube: priceYouTube.trim() } : {}),
-                },
+                rate_card: rateCardPayload,
+                service_packages: packagesPayload,
             };
 
             // Only update avatar_url if we have a new URL
@@ -551,14 +553,19 @@ const EditModal = ({ user, onClose, onSave, lang = 'el' }: { user: InfluencerDat
 
             if (
                 error &&
-                (/rate_card/i.test(error.message || '') || error.code === '42703' || error.code === 'PGRST204')
+                (/(rate_card|service_packages)/i.test(error.message || '') || error.code === '42703' || error.code === 'PGRST204')
             ) {
-                const { rate_card: _omit, ...withoutRateCard } = updateData as typeof updateData & {
+                const {
+                    rate_card: _omitRc,
+                    service_packages: _omitPkgs,
+                    ...withoutPricing
+                } = updateData as typeof updateData & {
                     rate_card?: unknown;
+                    service_packages?: unknown;
                 };
                 const retry = await supabase
                     .from('influencers')
-                    .update(withoutRateCard)
+                    .update(withoutPricing)
                     .eq('id', user.id)
                     .select(INFLUENCER_BROWSER_COLUMNS.join(","))
                     .single();
@@ -642,6 +649,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el' }: { user: InfluencerDat
                 min_rate: newValues.min_rate,
                 birth_date: newValues.birth_date,
                 rate_card: newValues.rate_card,
+                service_packages: newValues.service_packages,
                 insights_urls: user.insights_urls,
             });
             alert("Το προφίλ σου ενημερώθηκε! Θα ελέγξουμε τις αλλαγές και θα σε ενημερώσουμε όταν εγκριθεί ξανά.");
@@ -740,10 +748,6 @@ const EditModal = ({ user, onClose, onSave, lang = 'el' }: { user: InfluencerDat
                                     <option value="AI">AI (Artificial Intelligence)</option>
                                 </select>
                             </div>
-                            <div>
-                                <label className="block text-xs font-semibold text-slate-900 mb-1">{L("Ελάχιστη Χρέωση (€)", "Minimum Rate (€)")}</label>
-                                <input type="text" value={minRate} onChange={e => setMinRate(replaceCommaWithDot(e.target.value))} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" placeholder="250" />
-                            </div>
                         </div>
                         <div className="mt-3">
                             <label className="block text-xs font-semibold text-slate-900 mb-1">{L("Βιογραφικό", "Bio")}</label>
@@ -751,53 +755,14 @@ const EditModal = ({ user, onClose, onSave, lang = 'el' }: { user: InfluencerDat
                         </div>
                     </div>
 
-                    {/* Pricing Section - Compact */}
+                    <ServicePackagesEditor
+                        lang={lang}
+                        packages={servicePackages}
+                        onChange={setServicePackages}
+                    />
+
                     <div>
-                        <h3 className="text-sm font-semibold text-slate-700 mb-3 uppercase">{L("Τιμές Ανά Υπηρεσία", "Prices per Service")}</h3>
-                        <p className="text-xs text-slate-600 mb-3">{L('Αφήστε κενό για "Ρώτησε".', 'Leave empty for "Ask".')}</p>
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5">
-                            <div>
-                                <label className="block text-xs font-semibold text-slate-900 mb-1">{L("Instagram Story (€)", "Instagram Story (€)")}</label>
-                                <input 
-                                    type="text" 
-                                    value={priceStory} 
-                                    onChange={e => setPriceStory(replaceCommaWithDot(e.target.value))} 
-                                    className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" 
-                                    placeholder="100" 
-                                />
-                            </div>
-                        <div>
-                                <label className="block text-xs font-semibold text-slate-900 mb-1">{L("Instagram Post (€)", "Instagram Post (€)")}</label>
-                                <input 
-                                    type="text" 
-                                    value={pricePost} 
-                                    onChange={e => setPricePost(replaceCommaWithDot(e.target.value))} 
-                                    className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" 
-                                    placeholder="200" 
-                                />
-                        </div>
-                        <div>
-                                <label className="block text-xs font-semibold text-slate-900 mb-1">{L("Reel / TikTok (€)", "Reel / TikTok (€)")}</label>
-                                <input 
-                                    type="text" 
-                                    value={priceReel} 
-                                    onChange={e => setPriceReel(replaceCommaWithDot(e.target.value))} 
-                                    className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" 
-                                    placeholder="300" 
-                                />
-                        </div>
-                         <div>
-                                <label className="block text-xs font-semibold text-slate-900 mb-1">{L("YouTube Video (€)", "YouTube Video (€)")}</label>
-                                <input 
-                                    type="text" 
-                                    value={priceYouTube} 
-                                    onChange={e => setPriceYouTube(replaceCommaWithDot(e.target.value))} 
-                                    className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" 
-                                    placeholder="400" 
-                                />
-                        </div>
-                    </div>
-                            <div className="mt-6">
+                            <div className="mt-2">
                                 <label className="block text-sm font-semibold text-slate-900 mb-1">{L("Γλώσσες", "Languages")}</label>
                                 <div className="border-2 border-slate-200 rounded-lg p-3 bg-slate-50">
                                     <div className="grid grid-cols-2 md:grid-cols-5 gap-2">

@@ -138,7 +138,10 @@ export default function InfluencerCard({
   const displayName = displayNameForLang(name, lang || "el");
   const cardUrl = avatar ? getStorageCardUrl(avatar, 480, 600) : null;
   const photoSrc = cardUrl ? getCachedImageUrl(cardUrl) ?? cardUrl : null;
-  const priceLabel = formatPriceTierLabel(price_tier);
+  const tierLabel = formatPriceTierLabel(price_tier);
+  const priceLabel = tierLabel
+    ? `${lang === "en" ? "From" : "Από"} ${tierLabel}`
+    : null;
   const ranked = rankedPlatforms(followers, socials);
 
   const categoryLine = categories

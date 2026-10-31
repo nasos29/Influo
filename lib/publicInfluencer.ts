@@ -8,6 +8,13 @@
 
 import { sanitizeTopPosts } from "@/lib/topPosts";
 import { visibleVideos } from "@/lib/hiddenVideos";
+import {
+  minRateFromPackages,
+  resolvePackagesForDisplay,
+  toCommercialPackageView,
+  toPublicPackageView,
+  type PublicPackageView,
+} from "@/lib/servicePackages";
 
 export const DIRECTORY_CARD_COLUMNS = [
   "id",
@@ -94,12 +101,8 @@ const RATE_CARD_KEYS = ["story", "post", "reel", "facebook", "youtube"] as const
 
 export type RateCardFlags = Partial<Record<(typeof RATE_CARD_KEYS)[number], boolean>>;
 
-export type PublicServicePackage = {
-  name: string;
-  description: string;
-  includes: string[];
-  has_price: boolean;
-};
+/** @deprecated Prefer PublicPackageView from servicePackages. */
+export type PublicServicePackage = PublicPackageView;
 
 const BLOCKED_KEYS = new Set([
   "contact_email",
@@ -136,21 +139,17 @@ export function isConcretePrice(value: unknown): boolean {
  * Tiers are these caps so "up to X" and "5000+" keep the same matches
  * without sending the exact min_rate.
  */
-export const DIRECTORY_BUDGET_CAPS = [100, 200, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000] as const;
+export const DIRECTORY_BUDGET_CAPS = [50, 100, 200, 300, 500, 1000, 2000, 5000] as const;
 
 export type PriceTier =
   | "0"
+  | "50"
   | "100"
   | "200"
+  | "300"
   | "500"
   | "1000"
-  | "1500"
   | "2000"
-  | "2500"
-  | "3000"
-  | "3500"
-  | "4000"
-  | "4500"
   | "under_5000"
   | "5000"
   | "above_5000";
@@ -204,13 +203,14 @@ function formatEuroAmount(n: number): string {
 
 /**
  * Directory card price label from `price_tier` only (never min_rate).
- * "0" → null; "100" → "≤ €100"; numeric tiers use adjacent DIRECTORY_BUDGET_CAPS.
+ * "0" → null; "50" → "έως €50"; numeric tiers use adjacent DIRECTORY_BUDGET_CAPS.
+ * under_5000 → €2.000–€5.000; 5000+ → €5.000+.
  */
 export function formatPriceTierLabel(tier: string | null | undefined): string | null {
   const value = (tier || "0").trim();
   if (!value || value === "0") return null;
-  if (value === "100") return `≤ ${formatEuroAmount(100)}`;
-  if (value === "under_5000") return `${formatEuroAmount(4500)}–${formatEuroAmount(5000)}`;
+  if (value === "50") return `έως ${formatEuroAmount(50)}`;
+  if (value === "under_5000") return `${formatEuroAmount(2000)}–${formatEuroAmount(5000)}`;
   if (value === "5000" || value === "above_5000") return `${formatEuroAmount(5000)}+`;
 
   const ceiling = parseInt(value, 10);
@@ -323,24 +323,21 @@ export function rateCardFlags(raw: unknown): RateCardFlags {
   return flags;
 }
 
-export function publicServicePackages(raw: unknown): PublicServicePackage[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.map((item) => {
-    const src = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
-    const includes = Array.isArray(src.includes)
-      ? src.includes.filter((entry): entry is string => typeof entry === "string")
-      : [];
-    return {
-      name: typeof src.name === "string" ? src.name : "",
-      description: typeof src.description === "string" ? src.description : "",
-      includes,
-      has_price: isConcretePrice(src.price),
-    };
-  });
+/** Public packages: no exact prices. Falls back to rate_card for display only. */
+export function publicServicePackages(
+  raw: unknown,
+  rateCard?: unknown,
+  lang: "el" | "en" = "en"
+): PublicPackageView[] {
+  return resolvePackagesForDisplay(raw, rateCard).map((pkg) =>
+    toPublicPackageView(pkg, lang, priceTierFromMinRate)
+  );
 }
 
 function withFilterFields(base: Record<string, unknown>, row: Record<string, unknown>, includeAge: boolean) {
-  base.price_tier = priceTierFromMinRate(row.min_rate);
+  const displayPackages = resolvePackagesForDisplay(row.service_packages, row.rate_card);
+  const fromPackages = minRateFromPackages(displayPackages);
+  base.price_tier = priceTierFromMinRate(fromPackages ?? row.min_rate);
   if (includeAge) base.age = ageFromBirthDate(row.birth_date);
   return base;
 }
@@ -368,10 +365,12 @@ export function toPublicProfile(row: Record<string, unknown>): Record<string, un
   );
   base.videos = visibleVideos(row.videos, row.hidden_videos);
   delete base.hidden_videos;
-  base.has_min_rate = hasListedMinRate(row.min_rate);
-  base.has_priced_min_rate = hasPricedMinRate(row.min_rate);
+  const displayPackages = resolvePackagesForDisplay(row.service_packages, row.rate_card);
+  base.has_min_rate = displayPackages.length > 0 || hasListedMinRate(row.min_rate);
+  base.has_priced_min_rate =
+    displayPackages.some((p) => isConcretePrice(p.price)) || hasPricedMinRate(row.min_rate);
   base.rate_card_flags = rateCardFlags(row.rate_card);
-  base.service_packages = publicServicePackages(row.service_packages);
+  base.service_packages = publicServicePackages(row.service_packages, row.rate_card);
   return base;
 }
 
@@ -401,7 +400,7 @@ export type CommercialInfluencer = {
   id: string;
   min_rate: string | null;
   rate_card: Record<string, string> | null;
-  service_packages: Array<{ name: string; description: string; price: string; includes: string[] }>;
+  service_packages: PublicPackageView[];
 };
 
 function asPriceString(value: unknown): string | null {
@@ -426,20 +425,13 @@ function commercialRateCard(raw: unknown): Record<string, string> | null {
   return Object.keys(out).length ? out : null;
 }
 
-function commercialPackages(raw: unknown): CommercialInfluencer["service_packages"] {
-  if (!Array.isArray(raw)) return [];
-  return raw.map((item) => {
-    const src = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
-    const includes = Array.isArray(src.includes)
-      ? src.includes.filter((entry): entry is string => typeof entry === "string")
-      : [];
-    return {
-      name: typeof src.name === "string" ? src.name : "",
-      description: typeof src.description === "string" ? src.description : "",
-      price: asPriceString(src.price) || "",
-      includes,
-    };
-  });
+function commercialPackages(
+  raw: unknown,
+  rateCard: unknown
+): CommercialInfluencer["service_packages"] {
+  return resolvePackagesForDisplay(raw, rateCard).map((pkg) =>
+    toCommercialPackageView(pkg, "en", priceTierFromMinRate)
+  );
 }
 
 /** Exact prices for a logged-in brand. No email, birth date, or auth id. */
@@ -448,7 +440,7 @@ export function toCommercialInfluencer(row: Record<string, unknown>): Commercial
     id: String(row.id ?? ""),
     min_rate: listedRate(row.min_rate),
     rate_card: commercialRateCard(row.rate_card),
-    service_packages: commercialPackages(row.service_packages) || [],
+    service_packages: commercialPackages(row.service_packages, row.rate_card),
   };
 }
 
