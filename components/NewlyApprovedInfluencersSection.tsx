@@ -166,6 +166,7 @@ export default function NewlyApprovedInfluencersSection({
           <InfluencerCardCarousel
             lang={lang}
             loading={loading}
+            centerHeader
             eyebrow={
               <span className="inline-block px-3 py-1 text-xs font-semibold uppercase tracking-wider text-indigo-600 bg-indigo-50 rounded-full">
                 {txt.badge}

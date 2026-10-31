@@ -15,9 +15,47 @@ export const INFLUENCER_CAROUSEL_CARD_CLASS =
 
 type Lang = "el" | "en";
 
+function NavButtons({
+  lang,
+  onPrev,
+  onNext,
+  className = "",
+}: {
+  lang: Lang;
+  onPrev: () => void;
+  onNext: () => void;
+  className?: string;
+}) {
+  return (
+    <div className={`hidden shrink-0 items-center gap-2 md:flex ${className}`}>
+      <button
+        type="button"
+        onClick={onPrev}
+        aria-label={NAV_COPY.prev[lang]}
+        className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50"
+      >
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        onClick={onNext}
+        aria-label={NAV_COPY.next[lang]}
+        className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50"
+      >
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
 /**
- * Shared horizontal snap carousel used by SimilarInfluencers and
- * NewlyApprovedInfluencersSection (mobile ~2 visible, desktop 4 + ‹ ›).
+ * Shared horizontal snap carousel used by SimilarInfluencers,
+ * NewlyApprovedInfluencersSection, and TopInfluencersSection
+ * (mobile ~2 visible, desktop 4 + ‹ ›).
  */
 export default function InfluencerCardCarousel({
   lang,
@@ -25,6 +63,7 @@ export default function InfluencerCardCarousel({
   subtitle,
   eyebrow,
   loading = false,
+  centerHeader = false,
   children,
   footer,
   className = "",
@@ -35,6 +74,8 @@ export default function InfluencerCardCarousel({
   subtitle?: ReactNode;
   eyebrow?: ReactNode;
   loading?: boolean;
+  /** Center eyebrow/title/subtitle; arrows overlay absolute so they do not shift the copy. */
+  centerHeader?: boolean;
   children: ReactNode;
   footer?: ReactNode;
   className?: string;
@@ -50,39 +91,50 @@ export default function InfluencerCardCarousel({
     el.scrollBy({ left: dir * step, behavior: "smooth" });
   }, []);
 
+  const titleBlock = (
+    <>
+      {eyebrow ? <div className="mb-2">{eyebrow}</div> : null}
+      <div className={titleClassName}>{title}</div>
+      {subtitle ? (
+        <div
+          className={
+            centerHeader
+              ? "mt-2 text-slate-600 text-sm sm:text-base mx-auto max-w-2xl"
+              : "mt-2 text-slate-600 text-sm sm:text-base"
+          }
+        >
+          {subtitle}
+        </div>
+      ) : null}
+    </>
+  );
+
   return (
     <div className={className}>
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          {eyebrow ? <div className="mb-2">{eyebrow}</div> : null}
-          <div className={titleClassName}>{title}</div>
-          {subtitle ? <div className="mt-2 text-slate-600 text-sm sm:text-base">{subtitle}</div> : null}
+      {centerHeader ? (
+        <div className="relative mb-4">
+          <div className="mx-auto max-w-3xl text-center">{titleBlock}</div>
+          {!loading ? (
+            <NavButtons
+              lang={lang}
+              onPrev={() => scrollByCard(-1)}
+              onNext={() => scrollByCard(1)}
+              className="absolute right-0 bottom-0"
+            />
+          ) : null}
         </div>
-        {!loading ? (
-          <div className="hidden shrink-0 items-center gap-2 md:flex">
-            <button
-              type="button"
-              onClick={() => scrollByCard(-1)}
-              aria-label={NAV_COPY.prev[lang]}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50"
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollByCard(1)}
-              aria-label={NAV_COPY.next[lang]}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50"
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          </div>
-        ) : null}
-      </div>
+      ) : (
+        <div className="mb-4 flex items-end justify-between gap-3">
+          <div className="min-w-0 flex-1">{titleBlock}</div>
+          {!loading ? (
+            <NavButtons
+              lang={lang}
+              onPrev={() => scrollByCard(-1)}
+              onNext={() => scrollByCard(1)}
+            />
+          ) : null}
+        </div>
+      )}
 
       {loading ? (
         <div className={`flex gap-4 overflow-hidden md:gap-6 ${SCROLLBAR_HIDE}`} aria-hidden>
