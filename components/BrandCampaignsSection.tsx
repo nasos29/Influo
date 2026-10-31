@@ -18,6 +18,8 @@ import CampaignCover from "@/components/CampaignCover";
 import { prepareCampaignCover } from "@/lib/prepareCampaignCover";
 import { displayNameForLang } from "@/lib/greeklish";
 import { SECTION_TITLE_CLASS } from "@/lib/sectionTitle";
+import { formatDate } from "@/lib/formatDateTime";
+import { isTimeoutError, withTimeout } from "@/lib/withTimeout";
 
 const CONTACT_BLOCKED: { el: string; en: string } = {
   el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
@@ -342,12 +344,6 @@ function ymd(value: string | null | undefined): string {
   return value.slice(0, 10);
 }
 
-function dmy(value: string | null | undefined): string {
-  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(ymd(value));
-  if (!match) return "";
-  return `${match[3]}/${match[2]}/${match[1]}`;
-}
-
 export default function BrandCampaignsSection({
   brandId,
   lang,
@@ -371,6 +367,10 @@ export default function BrandCampaignsSection({
   const [rows, setRows] = useState<BrandCampaignRow[]>([]);
   const [appCounts, setAppCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [panel, setPanel] = useState<"campaigns" | "applications">("campaigns");
+  const [appsPanelLoading, setAppsPanelLoading] = useState(false);
+  const [appsPanelError, setAppsPanelError] = useState<string | null>(null);
   const [schemaError, setSchemaError] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [appsByCampaign, setAppsByCampaign] = useState<Record<string, ApplicationRow[]>>({});
@@ -392,6 +392,7 @@ export default function BrandCampaignsSection({
   const load = useCallback(async () => {
     setLoading(true);
     setSchemaError(false);
+    setLoadError(null);
     const baseColumns =
       "id, brand_id, title, description, budget, category, deliverables, status, deadline, created_at, opened_at, updated_at, platforms, min_followers, location, starts_on, compensation_type";
     const fetchRows = (columns: string) =>
@@ -400,13 +401,37 @@ export default function BrandCampaignsSection({
         .select(columns)
         .eq("brand_id", brandId)
         .order("created_at", { ascending: false });
-    let { data, error } = await fetchRows(`${baseColumns}, cover_url`);
+    let data: unknown;
+    let error: { code?: string; message?: string } | null = null;
+    try {
+      const first = await withTimeout(
+        Promise.resolve(fetchRows(`${baseColumns}, cover_url`)) as Promise<{
+          data: unknown;
+          error: { code?: string; message?: string } | null;
+        }>,
+        20000
+      );
+      data = first.data;
+      error = first.error;
+    } catch (err) {
+      setLoadError(
+        isTimeoutError(err)
+          ? (lang === "el" ? "Η φόρτωση άργησε." : "Loading took too long.")
+          : (lang === "el" ? "Οι καμπάνιες δεν φορτώθηκαν." : "Campaigns could not be loaded.")
+      );
+      setRows([]);
+      setLoading(false);
+      return;
+    }
     // cover_url column not migrated yet (docs/ADD_CAMPAIGN_COVER_URL.sql): retry without it.
     if (error && /cover_url/i.test(error.message || "")) {
       ({ data, error } = await fetchRows(baseColumns));
     }
     if (error) {
       if (error.code === "42P01" || error.message?.includes("brand_campaigns")) setSchemaError(true);
+      else {
+        setLoadError(lang === "el" ? "Οι καμπάνιες δεν φορτώθηκαν." : "Campaigns could not be loaded.");
+      }
       console.error(error);
       setRows([]);
       setLoading(false);
@@ -431,7 +456,7 @@ export default function BrandCampaignsSection({
     setRows(list);
     setAppCounts(counts);
     setLoading(false);
-  }, [brandId]);
+  }, [brandId, lang]);
 
   useEffect(() => {
     load();
@@ -509,12 +534,35 @@ export default function BrandCampaignsSection({
   }, []);
 
   useEffect(() => {
-    if (!focusApplications || !rows.length) return;
-    const withApps = rows.find((row) => row.status !== "draft") || rows[0];
-    if (!withApps) return;
-    setExpandedId(withApps.id);
-    void loadApplications(withApps.id);
-  }, [focusApplications, rows, loadApplications]);
+    if (!focusApplications) return;
+    setPanel("applications");
+  }, [focusApplications]);
+
+  const campaignKey = rows.map((row) => row.id).join(",");
+  const loadApplicationPanel = useCallback(async () => {
+    if (!rows.length) {
+      setAppsPanelError(null);
+      return;
+    }
+    setAppsPanelLoading(true);
+    setAppsPanelError(null);
+    try {
+      await withTimeout(Promise.all(rows.map((row) => loadApplications(row.id))), 20000);
+    } catch (err) {
+      setAppsPanelError(
+        isTimeoutError(err)
+          ? (lang === "el" ? "Η φόρτωση άργησε." : "Loading took too long.")
+          : (lang === "el" ? "Οι αιτήσεις δεν φορτώθηκαν." : "Applications could not be loaded.")
+      );
+    } finally {
+      setAppsPanelLoading(false);
+    }
+  }, [rows, loadApplications, lang]);
+
+  useEffect(() => {
+    if (panel !== "applications") return;
+    void loadApplicationPanel();
+  }, [panel, campaignKey, loadApplicationPanel]);
 
   const openNew = () => {
     setForm(emptyForm());
@@ -938,17 +986,34 @@ export default function BrandCampaignsSection({
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className={SECTION_TITLE_CLASS}>{t.title}</h2>
-            <span className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-700">
-              <span className="text-slate-500">·</span>
+          <div role="tablist" aria-label={t.title} className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={panel === "campaigns"}
+              onClick={() => setPanel("campaigns")}
+              className={`inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold ${
+                panel === "campaigns" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+              }`}
+            >
+              {t.title}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={panel === "applications"}
+              onClick={() => setPanel("applications")}
+              className={`inline-flex min-h-11 items-center gap-1.5 rounded-full px-4 text-sm font-semibold ${
+                panel === "applications" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+              }`}
+            >
               {t.applications_heading}
               {pendingApplicationsCount > 0 && (
-                <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-amber-500 text-white text-xs font-bold">
+                <span className={`inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full text-xs font-bold ${panel === "applications" ? "bg-white text-slate-900" : "bg-amber-500 text-white"}`}>
                   {pendingApplicationsCount > 99 ? "99+" : pendingApplicationsCount}
                 </span>
               )}
-            </span>
+            </button>
           </div>
           <p className="text-slate-600 text-sm mt-1 max-w-2xl">{t.subtitle}</p>
           <Link href={lang === "en" ? "/en/campaigns" : "/campaigns"} className="inline-block mt-2 text-sm text-blue-600 hover:text-blue-800 font-medium">
@@ -1248,6 +1313,72 @@ export default function BrandCampaignsSection({
       )}
 
       <div>
+        {loadError && !loading ? (
+          <div className="rounded-xl border border-slate-200 bg-white p-8 text-center">
+            <p className="text-sm text-slate-600">{loadError}</p>
+            <button type="button" onClick={() => void load()} className="mt-4 inline-flex min-h-11 items-center px-5 rounded-xl bg-slate-900 text-white text-sm font-semibold">
+              {lang === "el" ? "Δοκίμασε ξανά" : "Try again"}
+            </button>
+          </div>
+        ) : panel === "applications" ? (
+          <div>
+            <h3 className="text-lg font-medium text-slate-900 mb-3">{t.applications_heading}</h3>
+            {loading || appsPanelLoading ? (
+              <div className="h-24 rounded-xl bg-slate-100 animate-pulse" />
+            ) : appsPanelError ? (
+              <div className="rounded-xl border border-slate-200 bg-white p-8 text-center">
+                <p className="text-sm text-slate-600">{appsPanelError}</p>
+                <button type="button" onClick={() => void loadApplicationPanel()} className="mt-4 inline-flex min-h-11 items-center px-5 rounded-xl bg-slate-900 text-white text-sm font-semibold">
+                  {lang === "el" ? "Δοκίμασε ξανά" : "Try again"}
+                </button>
+              </div>
+            ) : rows.length === 0 ? (
+              <div className="text-slate-500 text-sm border border-dashed border-slate-200 rounded-xl p-8 text-center space-y-4">
+                <p>{t.empty}</p>
+                <button type="button" onClick={() => { setPanel("campaigns"); openNew(); }} className="inline-flex min-h-11 items-center px-5 rounded-lg bg-slate-900 text-white text-sm font-semibold">
+                  {t.empty_cta}
+                </button>
+              </div>
+            ) : rows.every((row) => (appsByCampaign[row.id]?.length ?? 0) === 0) ? (
+              <div className="text-slate-500 text-sm border border-dashed border-slate-200 rounded-xl p-8 text-center space-y-4">
+                <p>{t.no_apps}</p>
+                <button type="button" onClick={() => setPanel("campaigns")} className="inline-flex min-h-11 items-center px-5 rounded-lg bg-slate-900 text-white text-sm font-semibold">
+                  {t.title}
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {rows.map((row) => {
+                  const apps = appsByCampaign[row.id] || [];
+                  if (!apps.length) return null;
+                  return (
+                    <section key={row.id} className="space-y-3">
+                      <h4 className="text-sm font-semibold text-slate-900">{row.title}</h4>
+                      <ul className="space-y-2">
+                        {apps.map((app) => (
+                          <li key={app.id} className="rounded-xl border border-slate-200 bg-white p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-slate-900">{displayNameForLang(app.influencers?.display_name || "Creator", lang)}</p>
+                              <p className="text-xs text-slate-500 mt-1">{app.message || "—"}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => onOpenInfluencerMessage?.({ influencerId: app.influencer_id, displayName: displayNameForLang(app.influencers?.display_name || "Influencer", lang) })}
+                              className="inline-flex min-h-11 items-center px-3 rounded-lg bg-blue-600 text-white text-sm font-medium"
+                            >
+                              {t.btn_chat}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ) : (
+        <>
         <h3 className="text-lg font-medium text-slate-900 mb-3">{t.list_title}</h3>
         {loading ? (
           <div className="space-y-3">
@@ -1277,7 +1408,7 @@ export default function BrandCampaignsSection({
                     <div className="flex flex-col gap-3">
                       <p className="text-xs text-slate-600">
                         {[
-                          row.starts_on ? `${x.card_start} ${dmy(row.starts_on)}` : "",
+                          row.starts_on ? `${x.card_start} ${formatDate(row.starts_on, lang)}` : "",
                           `${appCounts[row.id] ?? 0} ${t.applications}`,
                         ]
                           .filter(Boolean)
@@ -1403,6 +1534,8 @@ export default function BrandCampaignsSection({
               </li>
             ))}
           </ul>
+        )}
+        </>
         )}
       </div>
     </div>

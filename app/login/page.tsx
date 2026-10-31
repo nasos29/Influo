@@ -1,7 +1,7 @@
 // app/login/page.tsx
 "use client";
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabaseClient';
 import { loadOwnProfiles } from '@/lib/ownProfile'; 
@@ -52,6 +52,9 @@ function LoginPageContent() {
     const [showForgotPassword, setShowForgotPassword] = useState(false);
     const [resetLoading, setResetLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const emailRef = useRef<HTMLInputElement>(null);
+    const passwordRef = useRef<HTMLInputElement>(null);
+    const submittingRef = useRef(false);
     const router = useRouter();
     const searchParams = useSearchParams();
     const txt = t[lang];
@@ -101,18 +104,38 @@ function LoginPageContent() {
         const emailParam = searchParams?.get('email');
         if (emailParam) {
             setEmail(emailParam);
+            if (emailRef.current) emailRef.current.value = emailParam;
         }
     }, [searchParams]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (submittingRef.current) return;
+
+        // Read the DOM value. Controlled state stays empty when the browser
+        // autofills, and the first click was only committing those credentials.
+        const emailValue = (emailRef.current?.value || email).trim();
+        const passwordValue = passwordRef.current?.value || password;
+        if (emailValue !== email) setEmail(emailValue);
+        if (passwordValue !== password) setPassword(passwordValue);
+
+        if (!emailValue || !passwordValue) {
+            setMessage(lang === 'el'
+                ? 'Συμπλήρωσε email και κωδικό.'
+                : 'Enter your email and password.');
+            setMessageType('error');
+            return;
+        }
+
+        submittingRef.current = true;
         setLoading(true);
         setMessage('');
 
+        try {
         // 1. Sign In με Email/Password
         const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
+            email: emailValue,
+            password: passwordValue,
         });
 
         if (error) {
@@ -139,7 +162,6 @@ function LoginPageContent() {
             
             setMessage(translatedMessage);
             setMessageType('error');
-            setLoading(false);
             return;
         }
 
@@ -151,7 +173,6 @@ function LoginPageContent() {
                 ? 'Σφάλμα: Δεν μπόρεσε να γίνει σύνδεση. Παρακαλώ δοκιμάστε ξανά.' 
                 : 'Error: Could not sign in. Please try again.');
             setMessageType('error');
-            setLoading(false);
             return;
         }
 
@@ -162,7 +183,6 @@ function LoginPageContent() {
 
         if (isAdmin) {
             router.push('/admin');
-            setLoading(false);
             return;
         }
 
@@ -171,19 +191,25 @@ function LoginPageContent() {
         if (!profiles.ok) {
             setMessage(profiles.message);
             setMessageType('error');
-            setLoading(false);
             return;
         }
         if (profiles.brand) {
             router.push(redirectParam || '/brand/dashboard');
-            setLoading(false);
             return;
         }
 
         const redirectPath = redirectParam || '/dashboard';
         router.push(redirectPath);
-
-        setLoading(false);
+        } catch (err) {
+            const detail = err instanceof Error ? err.message : '';
+            setMessage(lang === 'el'
+                ? `Δεν ολοκληρώθηκε η σύνδεση.${detail ? ` ${detail}` : ''}`
+                : `Sign-in did not finish.${detail ? ` ${detail}` : ''}`);
+            setMessageType('error');
+        } finally {
+            submittingRef.current = false;
+            setLoading(false);
+        }
     };
 
     const handleForgotPassword = async (e: React.FormEvent) => {
@@ -288,10 +314,13 @@ function LoginPageContent() {
                         <div>
                             <label className="block text-sm font-semibold text-slate-700 mb-2">{txt.email_label}</label>
                             <input
+                                ref={emailRef}
+                                name="email"
                                 type="email"
-                                value={email}
-                                onChange={(e) => {
-                                    setEmail(e.target.value);
+                                autoComplete="username"
+                                defaultValue={email}
+                                onInput={(e) => {
+                                    setEmail(e.currentTarget.value);
                                     if (messageType === 'error') setMessage('');
                                 }}
                                 required
@@ -304,10 +333,13 @@ function LoginPageContent() {
                             <label className="block text-sm font-semibold text-slate-700 mb-2">{txt.password_label}</label>
                             <div className="relative">
                                 <input
-                                    type={showPassword ? "text" : "password"} 
-                                    value={password}
-                                    onChange={(e) => {
-                                        setPassword(e.target.value);
+                                    ref={passwordRef}
+                                    name="password"
+                                    autoComplete="current-password"
+                                    type={showPassword ? "text" : "password"}
+                                    defaultValue={password}
+                                    onInput={(e) => {
+                                        setPassword(e.currentTarget.value);
                                         if (messageType === 'error') setMessage('');
                                     }}
                                     required
@@ -317,7 +349,7 @@ function LoginPageContent() {
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 transition-colors focus:outline-none"
+                                    className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex min-h-11 min-w-11 items-center justify-center text-slate-500 hover:text-slate-700 transition-colors focus:outline-none"
                                     aria-label={showPassword ? "Hide password" : "Show password"}
                                 >
                                     {showPassword ? (
@@ -337,7 +369,10 @@ function LoginPageContent() {
                         <div className="flex justify-end">
                             <button
                                 type="button"
-                                onClick={() => setShowForgotPassword(true)}
+                                onClick={() => {
+                                    setEmail(emailRef.current?.value || email);
+                                    setShowForgotPassword(true);
+                                }}
                                 className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
                             >
                                 {txt.forgot_password}
@@ -357,7 +392,13 @@ function LoginPageContent() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3.5 rounded-xl disabled:opacity-50 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 transition-all transform hover:-translate-y-0.5"
+                            onMouseDown={(event) => {
+                                if (event.button !== 0 || loading) return;
+                                // Password managers dismiss on the first click and never submit.
+                                event.preventDefault();
+                                event.currentTarget.form?.requestSubmit();
+                            }}
+                            className="w-full min-h-11 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3.5 rounded-xl disabled:opacity-50 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 transition-colors"
                         >
                             {loading ? (
                                 <span className="flex items-center justify-center gap-2">
@@ -417,7 +458,7 @@ function LoginPageContent() {
                             <button
                                 type="submit"
                                 disabled={resetLoading}
-                                className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3.5 rounded-xl disabled:opacity-50 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 transition-all"
+                                className="flex-1 min-h-11 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3.5 rounded-xl disabled:opacity-50 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 transition-colors"
                             >
                                 {resetLoading ? (
                                     <span className="flex items-center justify-center gap-2">

@@ -98,13 +98,13 @@ const CHECKLIST_LABELS = {
 } as const;
 
 const SECTION_TITLES: Record<ToolSectionId, { el: string; en: string }> = {
-  budget: { el: "Budget estimator", en: "Budget estimator" },
-  export: { el: "Export shortlist", en: "Export shortlist" },
+  budget: { el: "Εκτίμηση budget", en: "Budget estimator" },
+  export: { el: "Εξαγωγή λίστας", en: "Export shortlist" },
   compare: { el: "Σύγκριση creators", en: "Compare creators" },
-  checklist: { el: "Campaign checklist", en: "Campaign checklist" },
-  utm: { el: "UTM builder", en: "UTM builder" },
-  brief: { el: "Campaign brief", en: "Campaign brief" },
-  roi: { el: "ROI / αποτελέσματα", en: "ROI / results log" },
+  checklist: { el: "Λίστα ελέγχου καμπάνιας", en: "Campaign checklist" },
+  utm: { el: "Δημιουργία UTM", en: "UTM builder" },
+  brief: { el: "Brief καμπάνιας", en: "Campaign brief" },
+  roi: { el: "ROI / αποτελέσματα", en: "ROI / results" },
   kit: { el: "Brand kit", en: "Brand kit" },
   snippets: { el: "Έτοιμα μηνύματα", en: "Message snippets" },
 };
@@ -113,41 +113,59 @@ function ToolCard({
   title,
   index,
   total,
+  open,
+  onToggle,
   onMove,
+  moveUpLabel,
+  moveDownLabel,
   children,
 }: {
   title: string;
   index: number;
   total: number;
+  open: boolean;
+  onToggle: () => void;
   onMove: (dir: -1 | 1) => void;
+  moveUpLabel: string;
+  moveDownLabel: string;
   children: ReactNode;
 }) {
   return (
-    <section className="bg-white border border-slate-200 rounded-xl p-5 md:p-6 space-y-4">
-      <div className="flex items-start justify-between gap-3">
-        <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">{title}</h3>
-        <div className="flex items-center gap-1 shrink-0">
+    <section className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+      <div className="flex items-stretch">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={open}
+          className="flex min-h-11 flex-1 items-center gap-3 px-4 py-3 text-left md:px-6"
+        >
+          <span className={`text-slate-400 transition-transform ${open ? "rotate-90" : ""}`} aria-hidden="true">
+            ›
+          </span>
+          <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+        </button>
+        <div className="flex items-center gap-1 shrink-0 pr-2">
           <button
             type="button"
-            aria-label="Move up"
+            aria-label={moveUpLabel}
             disabled={index === 0}
             onClick={() => onMove(-1)}
-            className="w-8 h-8 rounded-md border border-slate-300 text-slate-800 hover:bg-slate-50 disabled:opacity-30 disabled:hover:bg-white text-sm font-bold"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-slate-300 text-slate-800 hover:bg-slate-50 disabled:opacity-30 md:h-8 md:w-8 md:min-h-0 md:min-w-0 text-sm font-bold"
           >
             ↑
           </button>
           <button
             type="button"
-            aria-label="Move down"
+            aria-label={moveDownLabel}
             disabled={index >= total - 1}
             onClick={() => onMove(1)}
-            className="w-8 h-8 rounded-md border border-slate-300 text-slate-800 hover:bg-slate-50 disabled:opacity-30 disabled:hover:bg-white text-sm font-bold"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-slate-300 text-slate-800 hover:bg-slate-50 disabled:opacity-30 md:h-8 md:w-8 md:min-h-0 md:min-w-0 text-sm font-bold"
           >
             ↓
           </button>
         </div>
       </div>
-      {children}
+      {open ? <div className="space-y-4 border-t border-slate-100 px-4 py-4 md:px-6 md:py-5">{children}</div> : null}
     </section>
   );
 }
@@ -168,6 +186,7 @@ export default function BrandToolsPanel({
   const [units, setUnits] = useState(1);
   const [copied, setCopied] = useState("");
   const [order, setOrder] = useState<ToolSectionId[]>(defaultToolOrder);
+  const [openId, setOpenId] = useState<ToolSectionId | null>(defaultToolOrder()[0] ?? null);
   const [goal, setGoal] = useState(
     el ? "Αύξηση awareness / πωλήσεων για το νέο launch" : "Raise awareness / sales for the new launch"
   );
@@ -481,7 +500,17 @@ export default function BrandToolsPanel({
   const renderSection = (id: ToolSectionId, index: number) => {
     const title = SECTION_TITLES[id][el ? "el" : "en"];
     const wrap = (children: ReactNode) => (
-      <ToolCard key={id} title={title} index={index} total={order.length} onMove={(dir) => moveSection(id, dir)}>
+      <ToolCard
+        key={id}
+        title={title}
+        index={index}
+        total={order.length}
+        open={openId === id}
+        onToggle={() => setOpenId((current) => (current === id ? null : id))}
+        onMove={(dir) => moveSection(id, dir)}
+        moveUpLabel={el ? "Μετακίνηση πάνω" : "Move up"}
+        moveDownLabel={el ? "Μετακίνηση κάτω" : "Move down"}
+      >
         {children}
       </ToolCard>
     );
@@ -934,8 +963,8 @@ export default function BrandToolsPanel({
           <h2 className="text-xl font-semibold text-slate-900">{el ? "Εργαλεία brand" : "Brand tools"}</h2>
           <p className="text-sm text-slate-700 mt-1">
             {el
-              ? "Μετακινήστε τα εργαλεία με ↑ ↓ για να ορίσετε τη σειρά που σας βολεύει."
-              : "Use ↑ ↓ to rearrange tools in the order you prefer."}
+              ? "Άνοιξε ένα εργαλείο. Με ↑ ↓ αλλάζεις τη σειρά."
+              : "Open one tool at a time. Use ↑ ↓ to rearrange them."}
           </p>
         </div>
         <button

@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { sessionFetch } from '@/lib/sessionFetch';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { recommendInfluencers, sharedCategoryKeys, sharedCategoryReason, type InfluencerProfile, type BrandProfile } from '@/lib/recommendations';
+import { recommendInfluencers, sharedCategoryKeys, type InfluencerProfile, type BrandProfile } from '@/lib/recommendations';
 import { lookupAuthUser, logoutEverywhere } from '@/lib/authSession';
 import CreatorPhoto from '@/components/CreatorPhoto';
 import PlatformFollowers from '@/components/PlatformFollowers';
@@ -46,6 +46,25 @@ import {
   readIdList,
   writeIdList,
 } from '@/lib/dashboardBadges';
+import { formatDate, formatTime } from '@/lib/formatDateTime';
+import { isTimeoutError, withTimeout } from '@/lib/withTimeout';
+import ToastViewport, { useToasts } from '@/components/ui/Toast';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import {
+  Bell,
+  Bookmark,
+  FileText,
+  Home,
+  LayoutDashboard,
+  LifeBuoy,
+  LogOut,
+  Megaphone,
+  Menu,
+  MessageSquare,
+  Sparkles,
+  Wrench,
+  X,
+} from 'lucide-react';
 
 interface Proposal {
   id: string;
@@ -71,6 +90,24 @@ interface Influencer {
   avatar_url?: string;
 }
 
+function asAuditText(value: unknown): string | null {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) {
+    const text = value.filter((item) => typeof item === "string").join(" ");
+    return text || null;
+  }
+  return null;
+}
+
+function asAuditList(value: unknown): string[] | null {
+  if (Array.isArray(value)) {
+    const list = value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+    return list.length ? list : null;
+  }
+  if (typeof value === "string" && value.trim()) return [value.trim()];
+  return null;
+}
+
 // Edit Brand Modal Component Props
 type EditBrandModalProps = {
   brand: any;
@@ -79,6 +116,7 @@ type EditBrandModalProps = {
   updating: boolean;
   lang: 'el' | 'en';
   txt: any;
+  onToast: (message: string, tone: 'success' | 'error') => void;
 };
 
 const t = {
@@ -217,7 +255,7 @@ const t = {
 };
 
 // Edit Brand Modal Component
-function EditBrandModal({ brand, onClose, onSave, updating, lang, txt }: EditBrandModalProps) {
+function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, onToast }: EditBrandModalProps) {
   const [brandName, setBrandName] = useState(brand.brand_name || '');
   const [contactPerson, setContactPerson] = useState(brand.contact_person || '');
   const [website, setWebsite] = useState(brand.website || '');
@@ -265,7 +303,7 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt }: EditBra
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (parseStoredCategories(categories).length === 0) {
-      alert(lang === 'el' ? 'Επιλέξτε τουλάχιστον μία κατηγορία.' : 'Select at least one category.');
+      onToast(lang === 'el' ? 'Επιλέξτε τουλάχιστον μία κατηγορία.' : 'Select at least one category.', 'error');
       return;
     }
     
@@ -312,7 +350,7 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt }: EditBra
         logoUrl = publicUrl;
       } catch (err: any) {
         console.error('Error uploading logo:', err);
-        alert(lang === 'el' ? `Σφάλμα κατά το ανέβασμα λογοτύπου: ${err.message}` : `Error uploading logo: ${err.message}`);
+        onToast(lang === 'el' ? `Σφάλμα κατά το ανέβασμα λογοτύπου: ${err.message}` : `Error uploading logo: ${err.message}`, 'error');
         setUploadingLogo(false);
         return;
       } finally {
@@ -340,14 +378,14 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt }: EditBra
     try {
       nextWebsite = parseHttpsUrl(website, "website");
     } catch {
-      alert(lang === "el" ? "Μη έγκυρη ιστοσελίδα." : "Invalid website URL.");
+      onToast(lang === "el" ? "Μη έγκυρη ιστοσελίδα." : "Invalid website URL.", "error");
       return;
     }
     if (hasInstagram) {
       try {
         nextInstagram = parseHttpsUrl(instagram, "instagram");
       } catch {
-        alert(lang === "el" ? "Μη έγκυρο Instagram (handle ή URL)." : "Invalid Instagram handle or URL.");
+        onToast(lang === "el" ? "Μη έγκυρο Instagram (handle ή URL)." : "Invalid Instagram handle or URL.", "error");
         return;
       }
     }
@@ -391,16 +429,18 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt }: EditBra
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white rounded-t-2xl">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold">{txt.edit_profile}</h2>
             <button
+              type="button"
               onClick={onClose}
-              className="text-white hover:text-gray-200 text-2xl font-bold"
+              aria-label={lang === 'el' ? 'Κλείσιμο' : 'Close'}
+              className="inline-flex min-h-11 min-w-11 items-center justify-center text-white hover:text-gray-200"
             >
-              ×
+              <X className="w-5 h-5" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -429,7 +469,8 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt }: EditBra
               type="text"
               value={contactPerson}
               onChange={(e) => setContactPerson(e.target.value)}
-              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+              placeholder={lang === 'el' ? 'π.χ. Μαρία Παπαδοπούλου' : 'e.g. Maria Papadopoulou'}
+              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400"
             />
           </div>
 
@@ -646,8 +687,23 @@ async function fetchPendingApplicationIds(brandId: string): Promise<string[] | n
   return (data || []).map((row) => String(row.id));
 }
 
+type BrandTab =
+  | 'overview'
+  | 'recommendations'
+  | 'campaigns'
+  | 'proposals'
+  | 'messages'
+  | 'shortlist'
+  | 'tools'
+  | 'announcements';
+
+const RETRY_LABEL = { el: 'Δοκίμασε ξανά', en: 'Try again' } as const;
+
 export default function BrandDashboardContent() {
   const [lang, setLang] = useState<'el' | 'en'>('el'); // Default to Greek, will be updated in useEffect
+  const { toasts, push: pushToast, dismiss: dismissToast } = useToasts();
+  const notify = (message: string, tone: 'success' | 'error' | 'info' = 'info') => pushToast(message, tone);
+  const [confirmRejectId, setConfirmRejectId] = useState<string | null>(null);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [influencers, setInfluencers] = useState<Record<string, Influencer>>({});
   const [loading, setLoading] = useState(true);
@@ -667,6 +723,7 @@ export default function BrandDashboardContent() {
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(true);
   const [recommendationsReady, setRecommendationsReady] = useState(false);
+  const [recommendationsError, setRecommendationsError] = useState<string | null>(null);
   const [brandData, setBrandData] = useState<any>(null);
 
   useOwnPresenceHeartbeat(
@@ -714,10 +771,12 @@ export default function BrandDashboardContent() {
       localStorage.setItem('brandDashboardStats', JSON.stringify(recommendationStats));
     }
   }, [recommendationStats]);
-  const [activeTab, setActiveTab] = useState<
-    'recommendations' | 'campaigns' | 'proposals' | 'messages' | 'shortlist' | 'tools' | 'announcements'
-  >('recommendations');
+  const [activeTab, setActiveTab] = useState<BrandTab>('overview');
+  const tabsNavRef = useRef<HTMLElement | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [shortlist, setShortlist] = useState<BrandShortlistItem[]>([]);
+  const [shortlistLoading, setShortlistLoading] = useState(false);
+  const [shortlistError, setShortlistError] = useState<string | null>(null);
   const [shortlistMissingTable, setShortlistMissingTable] = useState(false);
   const [shortlistBusyId, setShortlistBusyId] = useState<string | null>(null);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
@@ -726,6 +785,8 @@ export default function BrandDashboardContent() {
   >([]);
   const [unreadAnnouncementsCount, setUnreadAnnouncementsCount] = useState(0);
   const [announcementsLoading, setAnnouncementsLoading] = useState(false);
+  const [announcementsError, setAnnouncementsError] = useState<string | null>(null);
+  const [activeCampaignCount, setActiveCampaignCount] = useState(0);
   const [pendingCampaignApplicationsCount, setPendingCampaignApplicationsCount] = useState(0);
   const [pendingApplicationIds, setPendingApplicationIds] = useState<string[]>([]);
   const [applicationsLoaded, setApplicationsLoaded] = useState(false);
@@ -747,6 +808,7 @@ export default function BrandDashboardContent() {
   useEffect(() => {
     const tab = searchParams?.get('tab');
     if (
+      tab === 'overview' ||
       tab === 'campaigns' ||
       tab === 'messages' ||
       tab === 'proposals' ||
@@ -757,12 +819,22 @@ export default function BrandDashboardContent() {
     ) {
       setActiveTab(tab);
     } else if (!tab) {
-      setActiveTab('recommendations');
+      setActiveTab('overview');
     }
   }, [searchParams]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (window.matchMedia('(min-width: 768px)').matches) return;
+    const nav = tabsNavRef.current;
+    if (!nav) return;
+    const btn = nav.querySelector<HTMLElement>(`[data-brand-tab="${activeTab}"]`);
+    btn?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+  }, [activeTab]);
+
+  useEffect(() => {
     const titlesEl: Record<string, string> = {
+      overview: "Επισκόπηση | Influo",
       recommendations: "Προτάσεις | Influo",
       campaigns: "Καμπάνιες | Influo",
       proposals: "Προσφορές | Influo",
@@ -772,6 +844,7 @@ export default function BrandDashboardContent() {
       announcements: "Ανακοινώσεις | Influo",
     };
     const titlesEn: Record<string, string> = {
+      overview: "Overview | Influo",
       recommendations: "Recommendations | Influo",
       campaigns: "Campaigns | Influo",
       proposals: "Proposals | Influo",
@@ -848,53 +921,77 @@ export default function BrandDashboardContent() {
     };
   }, [brandData?.id, activeTab]);
 
-  useEffect(() => {
-    if (activeTab !== "announcements" || !brandData?.id) return;
-    let cancelled = false;
-    (async () => {
-      setAnnouncementsLoading(true);
-      try {
-        const res = await sessionFetch("/api/brand/announcements", { cache: "no-store" });
-        const data = await res.json().catch(() => ({ data: [] }));
-        if (!res.ok || cancelled) return;
-        const rows = (Array.isArray(data.data) ? data.data : []) as typeof announcementsList;
-        const unread = rows.filter((row) => !row.read);
-        setAnnouncementsList(rows);
-        setUnreadAnnouncementsCount(unread.length);
-        await Promise.all(
+  const loadAnnouncements = async (markRead: boolean) => {
+    setAnnouncementsLoading(true);
+    setAnnouncementsError(null);
+    try {
+      const res = await withTimeout(
+        sessionFetch("/api/brand/announcements", { cache: "no-store" }),
+        20000
+      );
+      const data = await res.json().catch(() => ({ data: [] }));
+      if (!res.ok) throw new Error("announcements");
+      const rows = (Array.isArray(data.data) ? data.data : []) as typeof announcementsList;
+      const unread = rows.filter((row) => !row.read);
+      setAnnouncementsList(rows);
+      setUnreadAnnouncementsCount(unread.length);
+      if (!markRead) return;
+      await withTimeout(
+        Promise.all(
           unread.map((row) =>
             sessionFetch(`/api/brand/announcements/${row.id}/read`, { method: "POST" })
           )
+        ),
+        20000
+      );
+      if (unread.length > 0) {
+        setAnnouncementsList((prev) =>
+          prev.map((x) =>
+            unread.some((u) => u.id === x.id)
+              ? { ...x, read: true, read_at: x.read_at || new Date().toISOString() }
+              : x
+          )
         );
-        if (!cancelled && unread.length > 0) {
-          setAnnouncementsList((prev) =>
-            prev.map((x) =>
-              unread.some((u) => u.id === x.id)
-                ? { ...x, read: true, read_at: x.read_at || new Date().toISOString() }
-                : x
-            )
-          );
-          setUnreadAnnouncementsCount(0);
-        }
-      } catch (e) {
-        console.error("Error loading announcements:", e);
-      } finally {
-        if (!cancelled) setAnnouncementsLoading(false);
+        setUnreadAnnouncementsCount(0);
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
+    } catch (e) {
+      console.error("Error loading announcements:", e);
+      setAnnouncementsError(
+        isTimeoutError(e)
+          ? (lang === "el" ? "Η φόρτωση άργησε." : "Loading took too long.")
+          : (lang === "el" ? "Οι ανακοινώσεις δεν φορτώθηκαν." : "Announcements could not be loaded.")
+      );
+    } finally {
+      setAnnouncementsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!brandData?.id) return;
+    if (activeTab !== "announcements" && activeTab !== "overview") return;
+    void loadAnnouncements(activeTab === "announcements");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, brandData?.id]);
 
   const loadShortlist = async () => {
+    setShortlistLoading(true);
+    setShortlistError(null);
     try {
-      const items = await fetchBrandShortlist();
+      const items = await withTimeout(fetchBrandShortlist(), 20000);
       setShortlist(items);
       setShortlistMissingTable(false);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "";
       if (msg === "missing_table") setShortlistMissingTable(true);
+      else {
+        setShortlistError(
+          isTimeoutError(e)
+            ? (lang === 'el' ? 'Η φόρτωση άργησε.' : 'Loading took too long.')
+            : (lang === 'el' ? 'Η λίστα δεν φορτώθηκε.' : 'The list could not be loaded.')
+        );
+      }
+    } finally {
+      setShortlistLoading(false);
     }
   };
 
@@ -916,7 +1013,7 @@ export default function BrandDashboardContent() {
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "";
       if (msg === "missing_table") setShortlistMissingTable(true);
-      else alert(lang === "el" ? "Δεν αποθηκεύτηκε. Δοκιμάστε ξανά." : "Could not save. Try again.");
+      else notify(lang === "el" ? "Δεν αποθηκεύτηκε. Δοκιμάστε ξανά." : "Could not save. Try again.", "error");
     } finally {
       setShortlistBusyId(null);
     }
@@ -932,11 +1029,24 @@ export default function BrandDashboardContent() {
     }
     let cancelled = false;
     (async () => {
-      const ids = await fetchPendingApplicationIds(String(brandData.id));
-      if (cancelled || ids === null) return;
-      setPendingApplicationIds(ids);
-      setPendingCampaignApplicationsCount(ids.length);
-      setApplicationsLoaded(true);
+      try {
+        const ids = await withTimeout(fetchPendingApplicationIds(String(brandData.id)), 20000);
+        if (cancelled) return;
+        if (ids !== null) {
+          setPendingApplicationIds(ids);
+          setPendingCampaignApplicationsCount(ids.length);
+        }
+        const { count } = await supabase
+          .from("brand_campaigns")
+          .select("id", { count: "exact", head: true })
+          .eq("brand_id", brandData.id)
+          .eq("status", "open");
+        if (!cancelled && typeof count === "number") setActiveCampaignCount(count);
+      } catch (error) {
+        console.error("[Brand Dashboard] campaign snapshot", error);
+      } finally {
+        if (!cancelled) setApplicationsLoaded(true);
+      }
     })();
     return () => {
       cancelled = true;
@@ -1027,6 +1137,7 @@ export default function BrandDashboardContent() {
   const loadData = async () => {
     try {
       setLoadError(null);
+      await withTimeout((async () => {
       const auth = await lookupAuthUser(8000);
       if (!auth.user) {
         if (auth.timedOut) {
@@ -1101,8 +1212,17 @@ export default function BrandDashboardContent() {
           }
           setInfluencers(influencersMap);
         }
+      setLoadError(null);
+      })(), 20000);
     } catch (err) {
       console.error('Error loading data:', err);
+      setLoadError(
+        isTimeoutError(err)
+          ? (lang === 'el' ? 'Η φόρτωση άργησε.' : 'Loading took too long.')
+          : (err instanceof Error && err.message
+              ? err.message
+              : (lang === 'el' ? 'Κάτι πήγε στραβά.' : 'Something went wrong.'))
+      );
     } finally {
       setLoading(false);
     }
@@ -1153,9 +1273,9 @@ export default function BrandDashboardContent() {
 
   const handleAcceptAgreement = async () => {
     if (!selectedProposal || !agreementAccepted) {
-      alert(lang === 'el' 
+      notify(lang === 'el' 
         ? 'Παρακαλώ αποδεχτείτε τους όρους χρήσης' 
-        : 'Please accept the terms of service');
+        : 'Please accept the terms of service', 'error');
       return;
     }
 
@@ -1189,15 +1309,15 @@ export default function BrandDashboardContent() {
         setShowAgreementModal(false);
         setSelectedProposal(null);
         setAgreementAccepted(false);
-        alert(lang === 'el' 
+        notify(lang === 'el' 
           ? 'Η συμφωνία αποδεχτήθηκε!' 
-          : 'Agreement accepted!');
+          : 'Agreement accepted!', 'success');
       } else {
         throw new Error(result.error || 'Error accepting agreement');
       }
     } catch (err: any) {
       console.error('Error accepting agreement:', err);
-      alert(err.message || txt.error);
+      notify(err.message || txt.error, 'error');
     } finally {
       setSavingAgreement(false);
     }
@@ -1205,9 +1325,10 @@ export default function BrandDashboardContent() {
 
   const loadRecommendations = async (brand: any) => {
     setRecommendationsLoading(true);
+    setRecommendationsError(null);
     try {
       // Cached approved list — no bio / full auditpr_audit (JSON paths only).
-      const influencersData = await getApprovedInfluencersForRecommendations();
+      const influencersData = await withTimeout(getApprovedInfluencersForRecommendations(), 20000);
 
       const ids = (influencersData || [])
         .map((inf) => String(inf.id || ""))
@@ -1218,10 +1339,10 @@ export default function BrandDashboardContent() {
         const { data: sessionData } = await supabase.auth.getSession();
         const token = sessionData.session?.access_token;
         if (token && ids.length) {
-          const priceRes = await fetch(
+          const priceRes = await withTimeout(fetch(
             `/api/influencers/commercial?ids=${encodeURIComponent(ids.join(","))}`,
             { headers: { Authorization: `Bearer ${token}` } }
-          );
+          ));
           if (priceRes.ok) {
             const priceBody = await priceRes.json();
             const payload = priceBody?.data ?? priceBody;
@@ -1245,9 +1366,9 @@ export default function BrandDashboardContent() {
 
       try {
         if (ids.length) {
-          const pastRes = await fetch(
+          const pastRes = await withTimeout(fetch(
             `/api/influencers/past-brands?ids=${encodeURIComponent(ids.join(","))}`
-          );
+          ));
           if (pastRes.ok) {
             const pastBody = await pastRes.json();
             const payload = pastBody?.data;
@@ -1351,6 +1472,10 @@ export default function BrandDashboardContent() {
             brandSafe: (inf as { brandSafe?: boolean }).brandSafe ?? (inf.auditpr_audit as { brandSafe?: boolean } | null)?.brandSafe,
             niche: (inf as { niche?: string }).niche ?? (inf.auditpr_audit as { niche?: string } | null)?.niche,
             niche_en: (inf as { niche_en?: string }).niche_en ?? (inf.auditpr_audit as { niche_en?: string } | null)?.niche_en,
+            positives: asAuditList((inf as { positives?: unknown }).positives ?? (inf.auditpr_audit as { positives?: unknown } | null)?.positives),
+            positives_en: asAuditList((inf as { positives_en?: unknown }).positives_en ?? (inf.auditpr_audit as { positives_en?: unknown } | null)?.positives_en),
+            whyWorkWithThem: asAuditText((inf as { whyWorkWithThem?: unknown }).whyWorkWithThem ?? (inf.auditpr_audit as { whyWorkWithThem?: unknown } | null)?.whyWorkWithThem),
+            whyWorkWithThem_en: asAuditText((inf as { whyWorkWithThem_en?: unknown }).whyWorkWithThem_en ?? (inf.auditpr_audit as { whyWorkWithThem_en?: unknown } | null)?.whyWorkWithThem_en),
           },
           profile_slug: inf.profile_slug ?? null,
         };
@@ -1469,6 +1594,11 @@ export default function BrandDashboardContent() {
       }));
     } catch (err) {
       console.error('Error loading recommendations:', err);
+      setRecommendationsError(
+        isTimeoutError(err)
+          ? (lang === 'el' ? 'Η φόρτωση άργησε.' : 'Loading took too long.')
+          : (lang === 'el' ? 'Οι προτάσεις δεν φορτώθηκαν.' : 'Recommendations could not be loaded.')
+      );
     } finally {
       setRecommendationsLoading(false);
       setRecommendationsReady(true);
@@ -1529,10 +1659,10 @@ export default function BrandDashboardContent() {
       await loadData();
       setShowEditModal(false);
       
-      alert(txt.profile_updated);
+      notify(txt.profile_updated, 'success');
     } catch (err: any) {
       console.error('Error updating profile:', err);
-      alert(txt.error_updating + ': ' + (err?.message || ''));
+      notify(txt.error_updating + ': ' + (err?.message || ''), 'error');
     } finally {
       setUpdating(false);
     }
@@ -1548,12 +1678,11 @@ export default function BrandDashboardContent() {
     p => p.counter_proposal_status === 'pending' && p.counter_proposal_budget
   );
 
-  const openBrandTab = (
-    tab: 'recommendations' | 'campaigns' | 'proposals' | 'messages' | 'shortlist' | 'tools' | 'announcements'
-  ) => {
+  const openBrandTab = (tab: BrandTab) => {
+    setMenuOpen(false);
     // Update URL immediately so ?tab= matches this click (not one behind).
     setActiveTab(tab);
-    const url = tab === 'recommendations' ? '/brand/dashboard' : `/brand/dashboard?tab=${tab}`;
+    const url = tab === 'overview' ? '/brand/dashboard' : `/brand/dashboard?tab=${tab}`;
     if (typeof window !== 'undefined') {
       window.history.replaceState(
         { ...(window.history.state || {}), as: url, url },
@@ -1576,27 +1705,22 @@ export default function BrandDashboardContent() {
       const result = await response.json();
       if (result.success) {
         await loadData();
-        alert(lang === 'el' 
+        notify(lang === 'el' 
           ? 'Η αντιπρόταση αποδεχθηκε επιτυχώς!' 
-          : 'Counter proposal accepted successfully!');
+          : 'Counter proposal accepted successfully!', 'success');
       } else {
         throw new Error(result.error || 'Error accepting counter proposal');
       }
     } catch (err: any) {
       console.error('Error accepting counter proposal:', err);
-      alert(err.message || (lang === 'el' ? 'Σφάλμα αποδοχής αντιπρότασης' : 'Error accepting counter proposal'));
+      notify(err.message || (lang === 'el' ? 'Σφάλμα αποδοχής αντιπρότασης' : 'Error accepting counter proposal'), 'error');
     } finally {
       setProcessingCounterProposal(null);
     }
   };
 
   const handleRejectCounterProposal = async (proposalId: string) => {
-    if (!confirm(lang === 'el' 
-      ? 'Είστε σίγουρος ότι θέλετε να απορρίψετε την αντιπρόταση;'
-      : 'Are you sure you want to reject the counter proposal?')) {
-      return;
-    }
-
+    setConfirmRejectId(null);
     setProcessingCounterProposal(proposalId);
     try {
       const response = await sessionFetch('/api/proposals/counter/reject', {
@@ -1608,19 +1732,74 @@ export default function BrandDashboardContent() {
       const result = await response.json();
       if (result.success) {
         await loadData();
-        alert(lang === 'el' 
+        notify(lang === 'el' 
           ? 'Η αντιπρόταση απορρίφθηκε.' 
-          : 'Counter proposal rejected.');
+          : 'Counter proposal rejected.', 'success');
       } else {
         throw new Error(result.error || 'Error rejecting counter proposal');
       }
     } catch (err: any) {
       console.error('Error rejecting counter proposal:', err);
-      alert(err.message || (lang === 'el' ? 'Σφάλμα απόρριψης αντιπρότασης' : 'Error rejecting counter proposal'));
+      notify(err.message || (lang === 'el' ? 'Σφάλμα απόρριψης αντιπρότασης' : 'Error rejecting counter proposal'), 'error');
     } finally {
       setProcessingCounterProposal(null);
     }
   };
+
+  const overviewSteps = (
+    [
+      !brandData?.verified
+        ? {
+            id: "verify",
+            text: lang === "el" ? "Ο λογαριασμός περιμένει έγκριση. Μπορείς να ετοιμάσεις πρόχειρες καμπάνιες." : "Your account is waiting for approval. You can prepare draft campaigns.",
+            tab: "campaigns" as const,
+            cta: lang === "el" ? "Καμπάνιες" : "Campaigns",
+          }
+        : null,
+      activeCampaignCount === 0
+        ? {
+            id: "campaign",
+            text: lang === "el" ? "Δημοσίευσε μια καμπάνια για να λάβεις αιτήσεις." : "Publish a campaign to start receiving applications.",
+            tab: "campaigns" as const,
+            cta: lang === "el" ? "Νέα καμπάνια" : "New campaign",
+          }
+        : null,
+      proposals.filter((p) => p.status === "pending" || p.status === "accepted").length === 0
+        ? {
+            id: "proposal",
+            text: lang === "el" ? "Στείλε την πρώτη προσφορά σε creator που ταιριάζει." : "Send your first proposal to a matching creator.",
+            tab: "recommendations" as const,
+            cta: lang === "el" ? "Προτάσεις" : "Matches",
+          }
+        : null,
+      unreadMessageCount > 0
+        ? {
+            id: "messages",
+            text: lang === "el" ? `Έχεις ${unreadMessageCount} αδιάβαστα μηνύματα.` : `You have ${unreadMessageCount} unread messages.`,
+            tab: "messages" as const,
+            cta: lang === "el" ? "Άνοιγμα" : "Open",
+          }
+        : null,
+      openAgreements > 0
+        ? {
+            id: "agreements",
+            text: lang === "el" ? "Υπάρχουν συμφωνίες που δεν έχουν κλείσει και από τις δύο πλευρές." : "Some agreements are not signed by both sides yet.",
+            tab: "proposals" as const,
+            cta: lang === "el" ? "Συμφωνίες" : "Agreements",
+          }
+        : null,
+      shortlist.length === 0
+        ? {
+            id: "saved",
+            text: lang === "el" ? "Αποθήκευσε creators για να τους συγκρίνεις αργότερα." : "Save creators so you can compare them later.",
+            tab: "recommendations" as const,
+            cta: lang === "el" ? "Αποθήκευση" : "Save",
+          }
+        : null,
+    ] as Array<{ id: string; text: string; tab: BrandTab; cta: string } | null>
+  )
+    .filter((step): step is { id: string; text: string; tab: BrandTab; cta: string } => step !== null)
+    .slice(0, 4);
 
   if (loading || leaving) {
     return (
@@ -1656,7 +1835,7 @@ export default function BrandDashboardContent() {
             }}
             className="mt-6 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700"
           >
-            {lang === "el" ? "Δοκιμάστε ξανά" : "Try again"}
+            {RETRY_LABEL[lang]}
           </button>
         </div>
       </div>
@@ -1668,9 +1847,9 @@ export default function BrandDashboardContent() {
       <PushNotificationPrompt userType="brand" userIdentifier={brandData?.contact_email || ''} lang={lang} />
       <div className="bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-            <div className="flex items-center gap-4 sm:gap-6">
-              <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-4 sm:gap-6 min-w-0">
+              <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity shrink-0">
                 <Image 
                   src="/logo.svg" 
                   alt="Influo.gr Logo" 
@@ -1679,28 +1858,32 @@ export default function BrandDashboardContent() {
                   className="h-6 sm:h-8 w-auto"
                 />
               </Link>
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-900">{txt.title}</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 truncate">{txt.title}</h1>
             </div>
-            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+            <div className="hidden md:flex flex-wrap items-center gap-2 sm:gap-4">
               <Link
                 href="/"
-                className="text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-900 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-slate-100 transition-colors border border-slate-200"
+                className="text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-900 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-slate-100 transition-colors border border-slate-200 inline-flex items-center gap-1.5"
               >
-                {lang === "el" ? "🏠 Αρχική" : "🏠 Home"}
+                <Home className="w-3.5 h-3.5" aria-hidden="true" />
+                {lang === "el" ? "Αρχική" : "Home"}
               </Link>
               <Link
                 href="/help-desk"
-                className="text-xs sm:text-sm font-medium text-purple-600 hover:text-purple-700 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-purple-50 transition-colors border border-purple-200"
+                className="text-xs sm:text-sm font-medium text-purple-600 hover:text-purple-700 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-purple-50 transition-colors border border-purple-200 inline-flex items-center gap-1.5"
               >
-                📧 Help Desk
+                <LifeBuoy className="w-3.5 h-3.5" aria-hidden="true" />
+                Help Desk
               </Link>
               <button
+                type="button"
                 onClick={() => setShowEditModal(true)}
                 className="text-xs sm:text-sm font-medium text-blue-600 hover:text-blue-700 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-blue-50 transition-colors border border-blue-200"
               >
                 {txt.edit_profile}
               </button>
               <button
+                type="button"
                 onClick={() => {
                   const newLang = lang === 'el' ? 'en' : 'el';
                   setLang(newLang);
@@ -1711,13 +1894,54 @@ export default function BrandDashboardContent() {
                 {lang === 'el' ? 'EN' : 'ΕΛ'}
               </button>
               <button
+                type="button"
                 onClick={handleLogout}
-                className="text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-900 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-slate-100 transition-colors"
+                className="text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-900 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-slate-100 transition-colors inline-flex items-center gap-1.5"
               >
+                <LogOut className="w-3.5 h-3.5" aria-hidden="true" />
                 {txt.logout}
               </button>
             </div>
+            <button
+              type="button"
+              className="md:hidden inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-slate-200 text-slate-700"
+              aria-label={lang === 'el' ? 'Μενού' : 'Menu'}
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((open) => !open)}
+            >
+              {menuOpen ? <X className="w-5 h-5" aria-hidden="true" /> : <Menu className="w-5 h-5" aria-hidden="true" />}
+            </button>
           </div>
+          {menuOpen ? (
+            <div className="md:hidden mt-3 flex flex-col gap-2 border-t border-slate-100 pt-3">
+              <Link href="/" className="min-h-11 inline-flex items-center gap-2 rounded-lg px-3 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                <Home className="w-4 h-4" aria-hidden="true" />
+                {lang === 'el' ? 'Αρχική' : 'Home'}
+              </Link>
+              <Link href="/help-desk" className="min-h-11 inline-flex items-center gap-2 rounded-lg px-3 text-sm font-medium text-purple-700 hover:bg-purple-50">
+                <LifeBuoy className="w-4 h-4" aria-hidden="true" />
+                Help Desk
+              </Link>
+              <button type="button" onClick={() => { setMenuOpen(false); setShowEditModal(true); }} className="min-h-11 text-left rounded-lg px-3 text-sm font-medium text-blue-700 hover:bg-blue-50">
+                {txt.edit_profile}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const newLang = lang === 'el' ? 'en' : 'el';
+                  setLang(newLang);
+                  setStoredLanguage(newLang);
+                }}
+                className="min-h-11 text-left rounded-lg px-3 text-sm font-medium text-blue-700 hover:bg-blue-50"
+              >
+                {lang === 'el' ? 'English' : 'Ελληνικά'}
+              </button>
+              <button type="button" onClick={handleLogout} className="min-h-11 inline-flex items-center gap-2 rounded-lg px-3 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                <LogOut className="w-4 h-4" aria-hidden="true" />
+                {txt.logout}
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -1759,119 +1983,155 @@ export default function BrandDashboardContent() {
           }}
         />
 
-        {/* Tabs */}
-        <div className="bg-white rounded-xl border border-slate-200 mb-6 overflow-hidden">
-          <div className="border-b border-slate-200 overflow-x-auto">
-            <div className="flex min-w-max sm:min-w-0">
-              <button
-                onClick={() => openBrandTab('recommendations')}
-                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === 'recommendations'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                {lang === 'el' ? '🤖 Προτάσεις' : '🤖 Recommendations'}
-              </button>
-              <button
-                onClick={() => openBrandTab('shortlist')}
-                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors whitespace-nowrap relative ${
-                  activeTab === 'shortlist'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                {lang === 'el' ? '★ Οι influencers μου' : '★ My influencers'}
-                {shortlist.length > 0 && (
-                  <span className="ml-2 bg-amber-500 text-white text-xs font-bold rounded-full min-w-[16px] sm:min-w-[18px] h-[16px] sm:h-[18px] inline-flex items-center justify-center px-1">
-                    {shortlist.length > 99 ? '99+' : shortlist.length}
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={() => openBrandTab('campaigns')}
-                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors whitespace-nowrap relative ${
-                  activeTab === 'campaigns'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                {lang === 'el' ? '📣 Καμπάνιες' : '📣 Campaigns'}
-                {unseenApplicationCount > 0 && (
-                  <span className="absolute top-1.5 sm:top-2 right-0 sm:right-1 bg-red-500 text-white text-[10px] sm:text-xs font-bold rounded-full min-w-[16px] sm:min-w-[18px] h-[16px] sm:h-[18px] flex items-center justify-center px-1">
-                    {unseenApplicationCount > 99 ? '99+' : unseenApplicationCount}
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={() => openBrandTab('proposals')}
-                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors whitespace-nowrap relative ${
-                  activeTab === 'proposals'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                {lang === 'el' ? '📋 Προσφορές' : '📋 Proposals'}
-                {unseenProposalCount > 0 && (
-                  <span className="ml-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[16px] sm:min-w-[18px] h-[16px] sm:h-[18px] flex items-center justify-center px-1">
-                    {unseenProposalCount > 99 ? '99+' : unseenProposalCount}
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={() => openBrandTab('tools')}
-                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === 'tools'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                {lang === 'el' ? 'Εργαλεία' : 'Tools'}
-              </button>
-              <button
-                onClick={() => openBrandTab('announcements')}
-                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors relative whitespace-nowrap ${
-                  activeTab === 'announcements'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                {lang === 'el' ? 'Ανακοινώσεις' : 'Announcements'}
-                {unreadAnnouncementsCount > 0 && (
-                  <span className="absolute top-1.5 sm:top-2 right-0 sm:right-1 bg-red-500 text-white text-[10px] sm:text-xs font-bold rounded-full min-w-[16px] sm:min-w-[18px] h-[16px] sm:h-[18px] flex items-center justify-center px-1">
-                    {unreadAnnouncementsCount > 99
-                      ? '99+'
-                      : unreadAnnouncementsCount > 9
-                        ? '9+'
-                        : unreadAnnouncementsCount}
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={() => openBrandTab('messages')}
-                className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors relative whitespace-nowrap ${
-                  activeTab === 'messages'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                {lang === 'el' ? '💬 Μηνύματα' : '💬 Messages'}
-                {unreadMessageCount > 0 && (
-                  <span className="absolute top-1.5 sm:top-2 right-1 sm:right-2 bg-red-500 text-white text-[10px] sm:text-xs font-bold rounded-full min-w-[16px] sm:min-w-[18px] h-[16px] sm:h-[18px] flex items-center justify-center px-1">
-                    {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
-                  </span>
-                )}
-              </button>
-            </div>
+        {/* Tabs — mobile: horizontal pills, snap, right fade. Desktop keeps the underline bar. */}
+        <div className="relative bg-white rounded-xl border border-slate-200 mb-6 overflow-hidden">
+          <div className="relative border-b border-slate-200 md:border-b">
+            <nav
+              ref={tabsNavRef}
+              role="tablist"
+              aria-label={lang === 'el' ? 'Ενότητες πίνακα' : 'Dashboard sections'}
+              className="flex gap-2 overflow-x-auto snap-x snap-mandatory px-3 py-2 md:gap-0 md:overflow-visible md:snap-none md:px-0 md:py-0 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              {(
+                [
+                  { id: 'overview' as const, label: lang === 'el' ? 'Επισκόπηση' : 'Overview', icon: LayoutDashboard, count: 0 },
+                  { id: 'recommendations' as const, label: lang === 'el' ? 'Προτάσεις' : 'Recommendations', icon: Sparkles, count: 0 },
+                  { id: 'shortlist' as const, label: lang === 'el' ? 'Οι influencers μου' : 'My influencers', icon: Bookmark, count: shortlist.length },
+                  { id: 'campaigns' as const, label: lang === 'el' ? 'Καμπάνιες' : 'Campaigns', icon: Megaphone, count: unseenApplicationCount },
+                  { id: 'proposals' as const, label: lang === 'el' ? 'Προσφορές' : 'Proposals', icon: FileText, count: unseenProposalCount },
+                  { id: 'tools' as const, label: lang === 'el' ? 'Εργαλεία' : 'Tools', icon: Wrench, count: 0 },
+                  { id: 'announcements' as const, label: lang === 'el' ? 'Ανακοινώσεις' : 'Announcements', icon: Bell, count: unreadAnnouncementsCount },
+                  { id: 'messages' as const, label: lang === 'el' ? 'Μηνύματα' : 'Messages', icon: MessageSquare, count: unreadMessageCount },
+                ]
+              ).map((tab) => {
+                const selected = activeTab === tab.id;
+                const Icon = tab.icon;
+                const badge = tab.count > 99 ? '99+' : tab.count > 9 && tab.id === 'announcements' ? '9+' : String(tab.count);
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    data-brand-tab={tab.id}
+                    aria-selected={selected}
+                    onClick={() => openBrandTab(tab.id)}
+                    className={`inline-flex min-h-11 shrink-0 snap-start items-center gap-2 rounded-full px-4 text-sm font-medium whitespace-nowrap transition-colors md:min-h-0 md:rounded-none md:px-6 md:py-4 md:text-base md:border-b-2 ${
+                      selected
+                        ? 'bg-blue-600 text-white md:bg-transparent md:text-blue-600 md:border-blue-600'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 md:bg-transparent md:text-slate-500 md:hover:text-slate-700 md:border-transparent'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
+                    {tab.label}
+                    {tab.count > 0 ? (
+                      <span className={`text-xs font-bold rounded-full min-w-[18px] h-[18px] inline-flex items-center justify-center px-1 ${selected ? 'bg-white text-blue-700 md:bg-red-500 md:text-white' : 'bg-red-500 text-white'}`}>
+                        {badge}
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </nav>
+            <div
+              className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-white to-transparent md:hidden"
+              aria-hidden="true"
+            />
           </div>
         </div>
+
+        {activeTab === 'overview' && (
+          <div className="mb-12 space-y-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {(
+                [
+                  { label: lang === 'el' ? 'Ενεργές προσφορές' : 'Active proposals', value: proposals.filter((p) => p.status === 'pending' || p.status === 'accepted').length, tab: 'proposals' as const },
+                  { label: lang === 'el' ? 'Αδιάβαστα μηνύματα' : 'Unread messages', value: unreadMessageCount, tab: 'messages' as const },
+                  { label: lang === 'el' ? 'Ενεργές καμπάνιες' : 'Active campaigns', value: activeCampaignCount, tab: 'campaigns' as const },
+                  { label: lang === 'el' ? 'Αποθηκευμένοι creators' : 'Saved creators', value: shortlist.length, tab: 'shortlist' as const },
+                ]
+              ).map((card) => (
+                <button
+                  key={card.label}
+                  type="button"
+                  onClick={() => openBrandTab(card.tab)}
+                  className="min-h-[88px] rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-slate-300 hover:shadow-sm transition-shadow"
+                >
+                  <p className="text-2xl font-semibold text-slate-900 tabular-nums">{card.value}</p>
+                  <p className="mt-1 text-sm text-slate-600">{card.label}</p>
+                </button>
+              ))}
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              <section className="rounded-xl border border-slate-200 bg-white p-5">
+                <h2 className="text-lg font-semibold text-slate-900">
+                  {lang === 'el' ? 'Επόμενα βήματα' : 'Next steps'}
+                </h2>
+                <ul className="mt-4 space-y-3">
+                  {overviewSteps.length === 0 ? (
+                    <li className="text-sm text-slate-600">
+                      {lang === 'el' ? 'Είσαι ενήμερος. Δεν εκκρεμεί κάποιο βήμα.' : 'You are up to date. Nothing is waiting.'}
+                    </li>
+                  ) : (
+                    overviewSteps.map((step) => (
+                      <li key={step.id} className="flex items-start justify-between gap-3">
+                        <p className="text-sm text-slate-700 leading-relaxed">{step.text}</p>
+                        <button type="button" onClick={() => openBrandTab(step.tab)} className="shrink-0 min-h-11 px-3 text-sm font-medium text-blue-700 hover:bg-blue-50 rounded-lg">
+                          {step.cta}
+                        </button>
+                      </li>
+                    ))
+                  )}
+                </ul>
+              </section>
+
+              <section className="rounded-xl border border-slate-200 bg-white p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-lg font-semibold text-slate-900">
+                    {lang === 'el' ? 'Ανακοινώσεις' : 'Announcements'}
+                  </h2>
+                  <button type="button" onClick={() => openBrandTab('announcements')} className="min-h-11 text-sm font-medium text-blue-700">
+                    {lang === 'el' ? 'Όλες' : 'All'}
+                  </button>
+                </div>
+                {announcementsLoading && announcementsList.length === 0 ? (
+                  <div className="mt-4 h-24 rounded-lg bg-slate-100 animate-pulse" />
+                ) : announcementsError ? (
+                  <div className="mt-4 text-sm text-slate-600">
+                    <p>{announcementsError}</p>
+                    <button type="button" onClick={() => void loadAnnouncements(false)} className="mt-3 min-h-11 px-4 rounded-lg bg-slate-900 text-white text-sm font-medium">
+                      {RETRY_LABEL[lang]}
+                    </button>
+                  </div>
+                ) : announcementsList.length === 0 ? (
+                  <p className="mt-4 text-sm text-slate-600">
+                    {lang === 'el' ? 'Δεν υπάρχουν ανακοινώσεις.' : 'No announcements yet.'}
+                  </p>
+                ) : (
+                  <ul className="mt-4 space-y-3">
+                    {announcementsList.slice(0, 3).map((item) => (
+                      <li key={item.id} className="border-b border-slate-100 pb-3 last:border-0">
+                        <p className="text-sm font-medium text-slate-900">{item.title}</p>
+                        <p className="text-xs text-slate-500 mt-1">{formatDate(item.created_at, lang)} {formatTime(item.created_at, lang)}</p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            </div>
+          </div>
+        )}
 
         {activeTab === 'shortlist' && (
           <div className="mb-12">
             <BrandShortlistPanel
               lang={lang}
               items={shortlist}
+              loading={shortlistLoading}
+              error={shortlistError}
+              onRetry={() => void loadShortlist()}
               missingTable={shortlistMissingTable}
+              onBrowse={() => openBrandTab('recommendations')}
               onNoteSave={async (influencerId, note) => {
                 await updateBrandShortlistNote(influencerId, note);
                 setShortlist((rows) =>
@@ -1917,6 +2177,13 @@ export default function BrandDashboardContent() {
               <div className="text-center py-8 text-slate-500">
                 {lang === 'el' ? 'Φόρτωση...' : 'Loading...'}
               </div>
+            ) : announcementsError ? (
+              <div className="text-center py-12">
+                <p className="text-slate-600">{announcementsError}</p>
+                <button type="button" onClick={() => void loadAnnouncements(true)} className="mt-4 min-h-11 px-5 rounded-xl bg-slate-900 text-white text-sm font-medium">
+                  {RETRY_LABEL[lang]}
+                </button>
+              </div>
             ) : announcementsList.length === 0 ? (
               <div className="text-center py-12 text-slate-500">
                 {lang === 'el' ? 'Δεν υπάρχουν ανακοινώσεις.' : 'No announcements yet.'}
@@ -1945,18 +2212,12 @@ export default function BrandDashboardContent() {
                         </div>
                         <p className="text-sm text-slate-600 mt-1 whitespace-pre-wrap">{a.body}</p>
                         <p className="text-xs text-slate-500 mt-2">
-                          {new Date(a.created_at).toLocaleString(lang === 'el' ? 'el-GR' : 'en-GB', {
-                            dateStyle: 'medium',
-                            timeStyle: 'short',
-                          })}
+                          {formatDate(a.created_at, lang)} {formatTime(a.created_at, lang)}
                           {a.read && a.read_at && (
                             <span className="ml-2">
                               ·{' '}
                               {lang === 'el' ? 'Διαβάστηκε' : 'Read'}{' '}
-                              {new Date(a.read_at).toLocaleString(lang === 'el' ? 'el-GR' : 'en-GB', {
-                                dateStyle: 'short',
-                                timeStyle: 'short',
-                              })}
+                              {formatDate(a.read_at, lang)} {formatTime(a.read_at, lang)}
                             </span>
                           )}
                         </p>
@@ -2203,7 +2464,18 @@ export default function BrandDashboardContent() {
             </div>
           )}
           
-          {recommendationsLoading || !recommendationsReady ? (
+          {recommendationsError && !recommendationsLoading ? (
+            <div className="bg-white rounded-xl p-8 text-center border border-slate-200">
+              <p className="text-slate-600">{recommendationsError}</p>
+              <button
+                type="button"
+                onClick={() => brandData && void loadRecommendations(brandData)}
+                className="mt-4 min-h-11 px-5 rounded-xl bg-slate-900 text-white text-sm font-medium"
+              >
+                {RETRY_LABEL[lang]}
+              </button>
+            </div>
+          ) : recommendationsLoading || !recommendationsReady ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6" aria-busy="true">
               {Array.from({ length: 4 }, (_, i) => (
                 <div key={i} className="bg-white rounded-xl border border-slate-200 overflow-hidden animate-pulse">
@@ -2230,11 +2502,7 @@ export default function BrandDashboardContent() {
                 const cats = (Array.isArray(inf.categories) ? inf.categories : inf.category ? [inf.category] : [])
                   .filter((cat: unknown): cat is string => typeof cat === "string" && cat.length > 0);
                 const orderedCats = [...cats.filter((cat: string) => shared.has(cat)), ...cats.filter((cat: string) => !shared.has(cat))].slice(0, 3);
-                const sharedLine = sharedCategoryReason(brandData?.industry, creatorCats, lang);
-                const otherReasons = (Array.isArray(match.reasons) ? match.reasons : []).filter(
-                  (reason: string) => !/^(Κοινές κατηγορίες|Shared categories|Κατηγορίες creator|Creator categories)\s*:/.test(reason)
-                );
-                const reasons = (sharedLine ? [sharedLine, ...otherReasons] : otherReasons).slice(0, 3);
+                const reasons = (Array.isArray(match.reasons) ? match.reasons : []).slice(0, 2);
                 return (
                   <div
                     key={inf.id}
@@ -2372,19 +2640,38 @@ export default function BrandDashboardContent() {
                         >
                           {txt.view_profile}
                         </Link>
+                        {brandData?.verified ? (
                         <Link
                           href={`${publicProfilePath(inf.profile_slug, inf.id)}#proposal`}
                           onClick={() => {
-                            // Set session flag to indicate user is brand
                             if (typeof window !== 'undefined') {
                               sessionStorage.setItem('isBrand', 'true');
                             }
-                            // Note: proposalsSent is now updated only after successful proposal submission
                           }}
-                          className="flex-1 px-3 py-2 text-sm font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-lg text-center transition-colors"
+                          className="flex-1 min-h-11 md:min-h-0 px-3 py-2 text-sm font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-lg text-center transition-colors inline-flex items-center justify-center"
                         >
                           {txt.send_proposal}
                         </Link>
+                        ) : (
+                        <span
+                          className="flex-1 relative group"
+                          title={lang === 'el' ? 'Διαθέσιμο μετά την έγκριση του λογαριασμού' : 'Available once your account is approved'}
+                        >
+                          <button
+                            type="button"
+                            disabled
+                            className="w-full min-h-11 md:min-h-0 px-3 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg opacity-50 cursor-not-allowed"
+                          >
+                            {txt.send_proposal}
+                          </button>
+                          <span
+                            role="tooltip"
+                            className="pointer-events-none absolute left-1/2 bottom-full z-20 mb-2 w-56 -translate-x-1/2 rounded-lg bg-slate-900 px-3 py-2 text-xs text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                          >
+                            {lang === 'el' ? 'Διαθέσιμο μετά την έγκριση του λογαριασμού' : 'Available once your account is approved'}
+                          </span>
+                        </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 mt-2">
                         <InfluencerPresenceDot influencerId={String(inf.id)} lang={lang} />
@@ -2398,9 +2685,9 @@ export default function BrandDashboardContent() {
                             });
                             openBrandTab("messages");
                           }}
-                          className="flex-1 px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors"
+                          className="flex-1 min-h-11 md:min-h-0 px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors"
                         >
-                          {lang === "el" ? "💬 Μήνυμα" : "💬 Message"}
+                          {lang === "el" ? "Μήνυμα" : "Message"}
                         </button>
                         <BrandSaveInfluencerButton
                           lang={lang}
@@ -2432,6 +2719,14 @@ export default function BrandDashboardContent() {
               mode="brand"
               lang={lang}
               onUnreadCountChange={setUnreadMessageCount}
+              onLeaveThread={() => {
+                setMessageTargetInfluencer(null);
+                setThreadConversationId(null);
+              }}
+              emptyCta={{
+                label: lang === 'el' ? 'Δες προτάσεις creators' : 'Browse creator matches',
+                onClick: () => openBrandTab('recommendations'),
+              }}
             />
           </div>
         )}
@@ -2439,6 +2734,21 @@ export default function BrandDashboardContent() {
         {/* Proposals Section */}
         {activeTab === 'proposals' && (
         <div className="mb-6 space-y-8">
+          {proposals.length === 0 ? (
+            <div className="bg-white rounded-xl p-8 text-center border border-dashed border-slate-200">
+              <p className="text-slate-600">
+                {lang === 'el' ? 'Δεν έχεις στείλει προσφορά ακόμα.' : 'You have not sent a proposal yet.'}
+              </p>
+              <button
+                type="button"
+                onClick={() => openBrandTab('recommendations')}
+                className="mt-4 inline-flex min-h-11 items-center justify-center px-5 rounded-xl bg-slate-900 text-white text-sm font-semibold"
+              >
+                {lang === 'el' ? 'Στείλε προσφορά' : 'Send a proposal'}
+              </button>
+            </div>
+          ) : (
+          <>
           {/* Pending Counter Proposals */}
           {pendingCounterProposals.length > 0 && (
             <div>
@@ -2495,7 +2805,7 @@ export default function BrandDashboardContent() {
                           {isProcessing ? (lang === 'el' ? 'Επεξεργασία...' : 'Processing...') : (lang === 'el' ? '✅ Αποδοχή Αντιπρότασης' : '✅ Accept Counter Proposal')}
                         </button>
                         <button
-                          onClick={() => handleRejectCounterProposal(proposal.id)}
+                          onClick={() => setConfirmRejectId(proposal.id)}
                           disabled={isProcessing}
                           className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed text-white font-medium px-4 py-2 rounded-lg transition-colors"
                         >
@@ -2602,6 +2912,8 @@ export default function BrandDashboardContent() {
               <p className="text-slate-600">{txt.no_pending}</p>
             </div>
           )}
+          </>
+          )}
         </div>
         )}
 
@@ -2614,6 +2926,7 @@ export default function BrandDashboardContent() {
             updating={updating}
             lang={lang}
             txt={txt}
+            onToast={notify}
           />
         )}
 
@@ -2624,14 +2937,16 @@ export default function BrandDashboardContent() {
             <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
               <h3 className="text-2xl font-bold text-slate-900">{txt.agreement_terms}</h3>
               <button
+                type="button"
                 onClick={() => {
                   setShowAgreementModal(false);
                   setSelectedProposal(null);
                   setAgreementAccepted(false);
                 }}
-                className="text-slate-400 hover:text-slate-600 text-2xl"
+                aria-label={lang === 'el' ? 'Κλείσιμο' : 'Close'}
+                className="inline-flex min-h-11 min-w-11 items-center justify-center text-slate-400 hover:text-slate-600"
               >
-                ×
+                <X className="w-5 h-5" aria-hidden="true" />
               </button>
             </div>
             
@@ -2917,6 +3232,24 @@ export default function BrandDashboardContent() {
           </div>
         </div>
       )}
+      <ToastViewport
+        toasts={toasts}
+        onDismiss={dismissToast}
+        dismissLabel={lang === 'el' ? 'Κλείσιμο' : 'Close'}
+      />
+      <ConfirmDialog
+        open={!!confirmRejectId}
+        title={lang === 'el' ? 'Απόρριψη αντιπρότασης' : 'Reject counter proposal'}
+        body={lang === 'el'
+          ? 'Είστε σίγουρος ότι θέλετε να απορρίψετε την αντιπρόταση;'
+          : 'Are you sure you want to reject the counter proposal?'}
+        confirmLabel={lang === 'el' ? 'Απόρριψη' : 'Reject'}
+        cancelLabel={lang === 'el' ? 'Ακύρωση' : 'Cancel'}
+        onCancel={() => setConfirmRejectId(null)}
+        onConfirm={() => {
+          if (confirmRejectId) void handleRejectCounterProposal(confirmRejectId);
+        }}
+      />
       </div>
     </div>
   );

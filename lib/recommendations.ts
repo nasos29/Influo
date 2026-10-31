@@ -461,6 +461,41 @@ function calculateLocationMatch(
   return 0.3; // Different locations
 }
 
+type ReasonBit = { text: string; generic: boolean };
+
+/** Two lines that are not the same sentence on every card. */
+function pickDistinctiveReasons(pool: ReasonBit[], freq: Map<string, number>): string[] {
+  const ranked = [...pool].sort((a, b) => {
+    if (a.generic !== b.generic) return a.generic ? 1 : -1;
+    return (freq.get(a.text) || 0) - (freq.get(b.text) || 0);
+  });
+  const distinctive = ranked.filter((reason) => !reason.generic);
+  const picked = (distinctive.length >= 2 ? distinctive : ranked).slice(0, 2);
+  if (picked.length < 2) {
+    const filler = ranked.find((reason) => !picked.some((item) => item.text === reason.text));
+    if (filler) picked.push(filler);
+  }
+  return picked.map((reason) => reason.text);
+}
+
+/**
+ * Cap a tied cluster so the list never shows 100% and identical scores spread out.
+ * Order stays the incoming rank (highest raw score first).
+ */
+function spreadDisplayedScores<T extends { score: number }>(ranked: T[]): void {
+  let nextShown = 95;
+  let lastRaw: number | null = null;
+  for (const match of ranked) {
+    if (lastRaw === null || match.score < lastRaw) {
+      nextShown = Math.min(95, match.score);
+      lastRaw = match.score;
+    } else {
+      nextShown = Math.max(1, nextShown - 1);
+    }
+    match.score = nextShown;
+  }
+}
+
 /**
  * Main recommendation function – professional algorithm for brands (category/niche, engagement, brand safe, value).
  */
@@ -485,8 +520,8 @@ export function recommendInfluencers(
   const list = Array.isArray(influencers) ? influencers : [];
   console.log('[Recommendations] Processing', list.length, 'influencers for brand:', brand.brand_name, 'category:', brand.category || brand.industry);
 
-  const scores: MatchScore[] = list
-    .flatMap((influencer): MatchScore[] => {
+  const scores: Array<MatchScore & { pool: ReasonBit[] }> = list
+    .flatMap((influencer): Array<MatchScore & { pool: ReasonBit[] }> => {
       try {
       const audit = influencer.auditpr_audit;
       const overlap = sharedCategoryKeys(
@@ -552,77 +587,127 @@ export function recommendInfluencers(
       score += bonusPoints;
       score = Math.min(score, 100);
 
-      const reasons: string[] = [];
+      const pool: ReasonBit[] = [];
+      const addReason = (text: string | null | undefined, generic: boolean) => {
+        const clean = clipReason(asText(text));
+        if (!clean) return;
+        if (pool.some((reason) => reason.text === clean)) return;
+        pool.push({ text: clean, generic });
+      };
+
       const sharedLine = sharedCategoryReason(
         brand.category || brand.industry,
         influencer.categories?.length ? influencer.categories : influencer.category,
         lang
       );
-      if (sharedLine) reasons.push(sharedLine);
+      if (sharedLine) addReason(sharedLine, true);
+
+      const location = asText(influencer.location);
+      if (location) addReason(isEn ? `Based in ${location}` : `Έδρα: ${location}`, false);
+
+      if (typeof influencer.audience_top_age === "string" && influencer.audience_top_age.trim()) {
+        addReason(
+          isEn
+            ? `Main audience age ${influencer.audience_top_age.trim()}`
+            : `Κύρια ηλικία κοινού ${influencer.audience_top_age.trim()}`,
+          false
+        );
+      }
+      if (typeof influencer.audience_female_percent === "number" && influencer.audience_female_percent >= 60) {
+        const pct = Math.round(influencer.audience_female_percent);
+        addReason(isEn ? `${pct}% women in the audience` : `${pct}% γυναίκες στο κοινό`, false);
+      } else if (typeof influencer.audience_male_percent === "number" && influencer.audience_male_percent >= 60) {
+        const pct = Math.round(influencer.audience_male_percent);
+        addReason(isEn ? `${pct}% men in the audience` : `${pct}% άντρες στο κοινό`, false);
+      }
+
+      const accounts = Array.isArray(influencer.accounts) ? influencer.accounts : [];
+      let topAccount: { platform: string; followers: string; n: number } | null = null;
+      for (const account of accounts) {
+        const followers = asText(account?.followers);
+        const n = parseFollowers(followers);
+        if (!followers || !(n > 0)) continue;
+        if (!topAccount || n > topAccount.n) {
+          topAccount = { platform: asText(account.platform) || "social", followers, n };
+        }
+      }
+      if (topAccount) {
+        addReason(
+          isEn
+            ? `${topAccount.followers} followers on ${topAccount.platform}`
+            : `${topAccount.followers} ακόλουθοι στο ${topAccount.platform}`,
+          false
+        );
+      }
 
       if (strengths.engagementQuality >= 0.9) {
         const rate = parseEngagementRate(influencer.engagement_rate);
-        reasons.push(isEn ? `Excellent engagement (${rate.toFixed(1)}%) ⭐` : `Εξαιρετικό engagement (${rate.toFixed(1)}%) ⭐`);
+        addReason(isEn ? `Excellent engagement (${rate.toFixed(1)}%)` : `Εξαιρετικό engagement (${rate.toFixed(1)}%)`, false);
       } else if (strengths.engagementQuality >= 0.7) {
         const rate = parseEngagementRate(influencer.engagement_rate);
-        reasons.push(isEn ? `High engagement rate (${rate.toFixed(1)}%)` : `Υψηλό engagement rate (${rate.toFixed(1)}%)`);
+        addReason(isEn ? `High engagement rate (${rate.toFixed(1)}%)` : `Υψηλό engagement (${rate.toFixed(1)}%)`, false);
       }
 
-      if (influencer.total_reviews && influencer.total_reviews > 0) {
-        if (strengths.ratingQuality >= 0.9 && influencer.avg_rating && influencer.avg_rating >= 4.5) {
-          reasons.push(isEn ? `Top rated (${influencer.avg_rating.toFixed(1)}/5, ${influencer.total_reviews} reviews) 🏆` : `Εξαιρετική αξιολόγηση (${influencer.avg_rating.toFixed(1)}/5 από ${influencer.total_reviews} reviews) 🏆`);
-        } else if (strengths.ratingQuality >= 0.7 && influencer.avg_rating && influencer.avg_rating >= 4.0) {
-          reasons.push(isEn ? `Good rating (${influencer.avg_rating.toFixed(1)}/5)` : `Καλή αξιολόγηση (${influencer.avg_rating.toFixed(1)}/5)`);
+      if (influencer.total_reviews && influencer.total_reviews > 0 && influencer.avg_rating) {
+        if (strengths.ratingQuality >= 0.9 && influencer.avg_rating >= 4.5) {
+          addReason(
+            isEn
+              ? `Top rated (${influencer.avg_rating.toFixed(1)}/5, ${influencer.total_reviews} reviews)`
+              : `Εξαιρετική αξιολόγηση (${influencer.avg_rating.toFixed(1)}/5 από ${influencer.total_reviews})`,
+            false
+          );
+        } else if (strengths.ratingQuality >= 0.7 && influencer.avg_rating >= 4.0) {
+          addReason(
+            isEn
+              ? `Good rating (${influencer.avg_rating.toFixed(1)}/5)`
+              : `Καλή αξιολόγηση (${influencer.avg_rating.toFixed(1)}/5)`,
+            false
+          );
         }
       }
 
       if (strengths.valuePrice >= 0.8) {
-        reasons.push(isEn ? 'Great value for money 💰' : 'Εξαιρετική αναλογία τιμής/ποιότητας 💰');
+        addReason(isEn ? "Great value for money" : "Εξαιρετική αναλογία τιμής/ποιότητας", true);
       } else if (strengths.valuePrice >= 0.6) {
-        reasons.push(isEn ? 'Good value' : 'Καλή αναλογία τιμής/ποιότητας');
+        addReason(isEn ? "Good value" : "Καλή αναλογία τιμής/ποιότητας", true);
       }
 
       if (influencer.total_reviews && influencer.total_reviews >= 20) {
-        reasons.push(isEn ? `Experienced (${influencer.total_reviews}+ collaborations)` : `Έμπειρος με ${influencer.total_reviews}+ συνεργασίες`);
+        addReason(
+          isEn
+            ? `Experienced (${influencer.total_reviews}+ collaborations)`
+            : `Έμπειρος με ${influencer.total_reviews}+ συνεργασίες`,
+          false
+        );
       } else if (influencer.total_reviews && influencer.total_reviews >= 10) {
-        reasons.push(isEn ? 'Experienced creator' : 'Έμπειρος creator');
+        addReason(isEn ? "Experienced creator" : "Έμπειρος creator", true);
       }
 
-      if (influencer.verified) {
-        reasons.push(isEn ? 'Verified ✅' : 'Επαληθευμένος ✅');
-      }
-
+      if (influencer.verified) addReason(isEn ? "Verified" : "Επαληθευμένος", true);
       if (audit?.brandSafe === true) {
-        reasons.push(isEn ? 'Brand Safe – low risk for campaigns ✓' : 'Ασφαλής για brands – χαμηλό ρίσκο για καμπάνιες ✓');
+        addReason(isEn ? "Brand safe for campaigns" : "Ασφαλής για καμπάνιες", true);
       }
 
       const positives = asTextList(isEn ? (audit?.positives_en || audit?.positives) : (audit?.positives || audit?.positives_en));
-      if (positives.length && reasons.length < 5) {
-        const shortPositive = positives.find((p) => p.length <= 120) || positives[0];
-        if (shortPositive) {
-          const text = shortPositive.length > 100 ? shortPositive.slice(0, 97) + '...' : shortPositive;
-          if (!reasons.some((r) => r.includes(text.slice(0, 30)))) reasons.push(text);
-        }
-      }
+      const shortPositive = positives.find((item) => item.length <= 120) || positives[0];
+      if (shortPositive) addReason(shortPositive, false);
 
       const whyLine = asText(isEn ? (audit?.whyWorkWithThem_en || audit?.whyWorkWithThem) : (audit?.whyWorkWithThem || audit?.whyWorkWithThem_en));
       const firstSentence = whyLine.split(/[.!]/)[0]?.trim() || "";
       const auditWhyLine = whyLine
         ? (firstSentence ? `${firstSentence}${whyLine.includes(".") ? "." : ""}` : whyLine.slice(0, 120))
         : null;
-      if (auditWhyLine && reasons.length < 5) {
-        const trimmed = auditWhyLine.length > 100 ? auditWhyLine.slice(0, 97) + '...' : auditWhyLine;
-        if (!reasons.includes(trimmed)) reasons.push(trimmed);
-      }
+      if (auditWhyLine) addReason(auditWhyLine, false);
 
-      if (reasons.length === 0) {
-        reasons.push(isEn ? 'Good fit for your brand' : 'Καλή επιλογή για το brand σας');
+      if (pool.length === 0) {
+        addReason(isEn ? "Good fit for your brand" : "Καλή επιλογή για το brand σας", true);
       }
 
       return [{
         influencer,
         score: Math.round(score),
-        reasons: reasons.map((reason) => clipReason(reason)),
+        reasons: pool.map((reason) => reason.text),
+        pool,
         auditWhyLine: auditWhyLine || null,
         strengths,
       }];
@@ -632,13 +717,23 @@ export function recommendInfluencers(
       }
     })
     .filter((match) => match.score >= minScore)
-    .sort((a, b) => b.score - a.score) // Sort by score descending
-    .slice(0, limit); // Limit results
-    
-  console.log('[Recommendations] Final matches:', scores.length, 'out of', list.length, 'influencers');
-  console.log('[Recommendations] Top matches:', scores.slice(0, 5).map(m => ({ name: m.influencer.display_name, score: m.score })));
-  
-  return scores;
+    .sort((a, b) => b.score - a.score);
+
+  spreadDisplayedScores(scores);
+  const visible = scores.slice(0, limit);
+  const freq = new Map<string, number>();
+  for (const match of visible) {
+    for (const reason of match.pool) freq.set(reason.text, (freq.get(reason.text) || 0) + 1);
+  }
+  const presented = visible.map((match) => {
+    const { pool, ...rest } = match;
+    return { ...rest, reasons: pickDistinctiveReasons(pool, freq) };
+  });
+
+  console.log('[Recommendations] Final matches:', presented.length, 'out of', list.length, 'influencers');
+  console.log('[Recommendations] Top matches:', presented.slice(0, 5).map(m => ({ name: m.influencer.display_name, score: m.score })));
+
+  return presented;
 }
 
 /**
