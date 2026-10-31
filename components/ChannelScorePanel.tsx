@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { formatEuro } from "@/lib/formatEuro";
 import InfoTooltip from "@/components/InfoTooltip";
 import {
@@ -16,9 +15,6 @@ import {
 
 type Props = {
   lang: "el" | "en";
-  isBrand: boolean;
-  /** Logged-out visitors: show the price lock without putting the amount in the page. */
-  integrationLocked?: boolean;
   axes: ChannelAxis[];
   influoScore: number;
   coopPotential: number;
@@ -105,8 +101,6 @@ function TitleWithTip({
 
 export default function ChannelScorePanel({
   lang,
-  isBrand,
-  integrationLocked = false,
   axes,
   influoScore,
   coopPotential,
@@ -266,24 +260,14 @@ export default function ChannelScorePanel({
             ariaLabel={tipAria}
             className="text-xs font-semibold uppercase tracking-wide text-slate-500"
           />
-          {showIntegrationRange && isBrand ? (
+          {showIntegrationRange ? (
             <div className="mt-1 text-lg font-extrabold text-slate-900 tabular-nums">
               {money(integrationFrom!)} – {money(integrationTo!)}
             </div>
-          ) : showIntegrationFromOnly && isBrand ? (
+          ) : showIntegrationFromOnly ? (
             <div className="mt-1 text-lg font-extrabold text-slate-900 tabular-nums">
               {el ? `Από ${money(integrationFrom!)}` : `From ${money(integrationFrom!)}`}
             </div>
-          ) : integrationLocked ? (
-            <>
-              <div className="mt-1 text-lg font-extrabold text-slate-900 blur-md select-none">••••</div>
-              <p className="text-[11px] text-slate-500 mt-1 leading-snug">
-                <Link href="/login" className="text-blue-600 underline hover:text-blue-800">
-                  {el ? "Σύνδεση" : "Login"}
-                </Link>
-                {el ? " επιχείρησης για να δείτε την τιμή." : " as a brand to see the price."}
-              </p>
-            </>
           ) : (
             <div className="mt-1 text-lg font-bold text-slate-400">
               {el ? "Κατόπιν συνεννόησης" : "On request"}

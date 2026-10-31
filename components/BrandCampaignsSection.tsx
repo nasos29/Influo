@@ -78,8 +78,29 @@ type ApplicationRow = {
   deliverable_note?: string | null;
   deliverable_status?: string | null;
   deliverable_review_note?: string | null;
+  initiated_by?: string | null;
   influencers: InfluencerBits;
 };
+
+let inviteColumnSupported: boolean | null = null;
+
+async function attachInitiatedBy(apps: ApplicationRow[]) {
+  if (!apps.length || inviteColumnSupported === false) return;
+  const { data, error } = await supabase
+    .from("campaign_applications")
+    .select("id, initiated_by")
+    .in(
+      "id",
+      apps.map((app) => app.id)
+    );
+  if (error) {
+    if (/initiated_by|schema cache|column/i.test(error.message)) inviteColumnSupported = false;
+    return;
+  }
+  inviteColumnSupported = true;
+  const byId = new Map((data || []).map((row) => [String(row.id), (row as { initiated_by?: string | null }).initiated_by]));
+  for (const app of apps) app.initiated_by = byId.get(app.id) ?? null;
+}
 
 type InviteMatch = {
   id: string;
@@ -353,6 +374,7 @@ export default function BrandCampaignsSection({
   focusApplications = 0,
   onApplicationsUpdated,
   onOpenInfluencerMessage,
+  startNew = false,
 }: {
   brandId: string;
   lang: "el" | "en";
@@ -361,6 +383,8 @@ export default function BrandCampaignsSection({
   focusApplications?: number;
   onApplicationsUpdated?: () => void;
   onOpenInfluencerMessage?: (p: { influencerId: string; displayName: string; conversationId?: string | null }) => void;
+  /** Opens the existing create form once, from /brand/dashboard?tab=campaigns&new=1. */
+  startNew?: boolean;
 }) {
   const t = txt[lang];
   const x = extra[lang];
@@ -529,6 +553,7 @@ export default function BrandCampaignsSection({
       } catch {
         /* prices are optional */
       }
+      await attachInitiatedBy(apps);
       setAppsByCampaign((prev) => ({ ...prev, [campaignId]: apps }));
     }
     setLoadingApps(null);
@@ -564,6 +589,16 @@ export default function BrandCampaignsSection({
     if (panel !== "applications") return;
     void loadApplicationPanel();
   }, [panel, campaignKey, loadApplicationPanel]);
+
+  const startNewOnce = useRef(false);
+  useEffect(() => {
+    if (!startNew || startNewOnce.current || loading) return;
+    startNewOnce.current = true;
+    setForm(emptyForm());
+    setStep(1);
+    setContactFieldErrors({});
+    setEditing("new");
+  }, [startNew, loading]);
 
   const openNew = () => {
     setForm(emptyForm());
@@ -1473,6 +1508,11 @@ export default function BrandCampaignsSection({
                                     <InfluencerPresenceDot influencerId={app.influencer_id} lang={lang} />
                                     <p className="font-medium text-slate-900">{inf?.display_name ? displayNameForLang(inf.display_name, lang) : app.influencer_id}</p>
                                     <span className={`text-[11px] font-medium px-2.5 py-1 rounded-full ${appStatusChip}`}>{appStatusText}</span>
+                                    {app.initiated_by === "brand" ? (
+                                      <span className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-purple-100 text-purple-800">
+                                        {lang === "el" ? "Πρόσκληση" : "Invite"}
+                                      </span>
+                                    ) : null}
                                     <Link href={publicProfilePath(inf?.profile_slug, app.influencer_id)} className="text-xs text-blue-600 hover:underline">{x.profile}</Link>
                                   </div>
                                   <PlatformFollowers accounts={inf?.accounts} lang={lang} className="mt-1" showDeclared />

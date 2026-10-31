@@ -1,6 +1,8 @@
 // node --experimental-strip-types --import ./scripts/resolve-ts-imports.mjs --test scripts/parse-price.test.mts
 import assert from "node:assert/strict";
 import test from "node:test";
+import { formatEuro } from "../lib/formatEuro.ts";
+import { offerPriceLabel } from "../lib/offerPriceLabel.ts";
 import {
   formatListedPrice,
   formatPriceSpan,
@@ -75,6 +77,7 @@ test("invalid prices are ignored, including digit-joined ranges", () => {
 
 test("polyxeni rate card: cards show the span, min and filters use 30", () => {
   assert.equal(lowestListedPrice(POLYXENI), 30);
+  assert.equal(formatEuro(lowestListedPrice(POLYXENI) || 0, "el"), "30 €");
   assert.equal(formatFromPriceLabel(lowestListedPrice(POLYXENI), "el"), "Από 30 €");
   assert.equal(priceTierFromMinRate(lowestListedPrice(POLYXENI)), "50");
   assert.equal(budgetTierMatches(priceTierFromMinRate(lowestListedPrice(POLYXENI)), "50"), true);
@@ -90,16 +93,29 @@ test("polyxeni rate card: cards show the span, min and filters use 30", () => {
   const youtube = packages.find((pkg) => pkg.type === "video");
   assert.equal(story?.from_price, 30);
   assert.equal(story?.price_max, 100);
-  assert.equal(story?.price, undefined);
-  assert.equal(formatPriceSpan(story?.from_price || 0, story?.price_max || 0), "30–100 €");
+  assert.equal(story?.price, "30-100");
+  assert.equal(
+    offerPriceLabel({ price: story?.price, fromPrice: story?.from_price, priceMax: story?.price_max, lang: "el" }),
+    "30–100 €"
+  );
   assert.equal(post?.from_price, 100);
   assert.equal(post?.price_max, 300);
-  assert.equal(formatPriceSpan(post?.from_price || 0, post?.price_max || 0), "100–300 €");
+  assert.equal(
+    offerPriceLabel({ price: post?.price, fromPrice: post?.from_price, priceMax: post?.price_max, lang: "el" }),
+    "100–300 €"
+  );
   assert.equal(reel?.from_price, 120);
   assert.equal(reel?.price_max, 300);
+  assert.equal(
+    offerPriceLabel({ price: reel?.price, fromPrice: reel?.from_price, priceMax: reel?.price_max, lang: "el" }),
+    "120–300 €"
+  );
   assert.equal(youtube?.from_price, 500);
   assert.equal(youtube?.price_max, null);
-  assert.equal(formatFromPriceLabel(youtube?.from_price, "el"), "Από 500 €");
+  assert.equal(
+    offerPriceLabel({ price: youtube?.price, fromPrice: youtube?.from_price, lang: "el" }),
+    "500 €"
+  );
 });
 
 test("creator price form accepts only plain numbers", () => {

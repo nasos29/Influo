@@ -44,12 +44,33 @@ type MyApplication = {
   deliverable_note?: string | null;
   deliverable_status?: string | null;
   deliverable_review_note?: string | null;
+  initiated_by?: string | null;
   brand_campaigns: {
     title: string;
     status: string;
     brands: { brand_name: string } | null;
   } | null;
 };
+
+let inviteColumnSupported: boolean | null = null;
+
+async function attachInitiatedBy(rows: MyApplication[]) {
+  if (!rows.length || inviteColumnSupported === false) return;
+  const { data, error } = await supabase
+    .from("campaign_applications")
+    .select("id, initiated_by")
+    .in(
+      "id",
+      rows.map((row) => row.id)
+    );
+  if (error) {
+    if (/initiated_by|schema cache|column/i.test(error.message)) inviteColumnSupported = false;
+    return;
+  }
+  inviteColumnSupported = true;
+  const byId = new Map((data || []).map((row) => [String(row.id), (row as { initiated_by?: string | null }).initiated_by]));
+  for (const row of rows) row.initiated_by = byId.get(row.id) ?? null;
+}
 
 const pendingCopy = {
   el: {
@@ -215,7 +236,9 @@ export default function InfluencerCampaignsPanel({
       }
 
       if (!mineRes.error && mineRes.data) {
-        setMine(mineRes.data as unknown as MyApplication[]);
+        const mineRows = mineRes.data as unknown as MyApplication[];
+        await attachInitiatedBy(mineRows);
+        setMine(mineRows);
       } else if (mineRes.error) {
         console.error(mineRes.error);
         setLoadError("error");
@@ -549,6 +572,9 @@ export default function InfluencerCampaignsPanel({
           <ul className="grid gap-4 md:grid-cols-2">
             {campaigns.map((c) => {
               const already = appliedCampaignIds.has(c.id);
+              const invited = mine.some(
+                (row) => row.campaign_id === c.id && row.initiated_by === "brand" && row.status !== "withdrawn"
+              );
               return (
                 <li key={c.id}>
                   <CampaignCard
@@ -557,7 +583,13 @@ export default function InfluencerCampaignsPanel({
                     footer={
                       already ? (
                         <span className="inline-block text-xs font-medium px-3 py-1.5 rounded-full bg-green-100 text-green-800">
-                          {uiLang === "el" ? "Έχετε ήδη αίτηση" : "Already applied"}
+                          {invited
+                            ? uiLang === "el"
+                              ? "Πρόσκληση brand"
+                              : "Brand invite"
+                            : uiLang === "el"
+                              ? "Έχετε ήδη αίτηση"
+                              : "Already applied"}
                         </span>
                       ) : (
                         <button
@@ -617,7 +649,11 @@ export default function InfluencerCampaignsPanel({
                     <p className="text-xs text-slate-500 mt-1">
                       {formatDate(m.created_at, uiLang)} {formatTime(m.created_at, uiLang)} ·{" "}
                       <span className="font-medium">
-                        {(applicationStatusUi[uiLang] as Record<string, string>)[m.status] || m.status}
+                        {m.initiated_by === "brand" && m.status === "pending"
+                          ? uiLang === "el"
+                            ? "Πρόσκληση"
+                            : "Invite"
+                          : (applicationStatusUi[uiLang] as Record<string, string>)[m.status] || m.status}
                       </span>
                       {showDeliver && (
                         <>

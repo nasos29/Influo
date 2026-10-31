@@ -49,11 +49,15 @@ import { creatorHasHardErOnMainAccount, displayErFlag, erFlagHint, erFlagLabel }
 import type { FollowerGrowthPoint } from "@/lib/followerGrowth";
 import { displayLanguageLabel } from "@/lib/languages";
 import { formatEuro, formatEuroAmount } from "@/lib/formatEuro";
-import { formatFromPriceLabel, lowestListedPrice } from "@/lib/publicInfluencer";
+import { lowestListedPrice } from "@/lib/publicInfluencer";
 import ProfileOffersPanel from "@/components/ProfileOffersPanel";
+import CampaignInviteButton from "@/components/CampaignInviteButton";
+import { showCampaignInviteButton } from "@/lib/gateAvatars";
+import BrandGateModal from "@/components/BrandGateModal";
 import {
   EXTRA_LABEL,
   packageTitle,
+  rateCardFromPackages,
   type PublicExtraView,
   type PublicPackageView,
 } from "@/lib/servicePackages";
@@ -256,11 +260,22 @@ const formatNum = (num?: number) => {
   return num.toString();
 };
 
-function scoreChannelFromProfile(
-  profile: ProInfluencer,
-  growthPct: number | null,
-  revealPrices: boolean
-) {
+/** Service prices already on the public profile, or the commercial rate card when loaded. */
+function listedRateCard(profile: ProInfluencer): Record<string, string> | undefined {
+  if (profile.rate_card && Object.keys(profile.rate_card).length) return profile.rate_card;
+  const card = rateCardFromPackages(
+    (profile.service_packages || []).map((pkg) => ({
+      id: pkg.id,
+      platform: pkg.platform,
+      type: pkg.type,
+      quantity: pkg.quantity || 1,
+      price: pkg.price || (pkg.from_price != null ? String(pkg.from_price) : ""),
+    }))
+  );
+  return Object.keys(card).length ? card : undefined;
+}
+
+function scoreChannelFromProfile(profile: ProInfluencer, growthPct: number | null) {
   const followerVals = Object.values(profile.followers || {});
   const followersTotal = followerVals.reduce(
     (sum: number, n) => sum + (typeof n === "number" ? n : 0),
@@ -281,9 +296,10 @@ function scoreChannelFromProfile(
     reviewCount: profile.total_reviews || 0,
     completionRate: profile.calculatedCompletionRate,
     growthPct,
-    minRate: revealPrices ? profile.min_rate : undefined,
-    rateCard: revealPrices ? profile.rate_card : undefined,
-    hasPricedMinRate: !!profile.has_priced_min_rate,
+    minRate:
+      profile.min_rate || (profile.from_price != null ? String(profile.from_price) : undefined),
+    rateCard: listedRateCard(profile),
+    hasPricedMinRate: !!profile.has_priced_min_rate || profile.from_price != null,
     erFlagged: creatorHasHardErOnMainAccount(profile.accounts),
     avgResponseHours:
       profile.avg_response_time != null && Number.isFinite(profile.avg_response_time)
@@ -360,9 +376,6 @@ const t = {
     price_note: "* Οι τιμές ενδέχεται να αλλάξουν ανάλογα το project.",
     min_rate: "Ελάχιστη Χρέωση",
     min_rate_desc: "Η ελάχιστη χρέωση για κάθε συνεργασία",
-    min_rate_cta_login: "Σύνδεση",
-    min_rate_cta_signup: "Εγγραφή επιχείρησης",
-    min_rate_cta_suffix: "για να δείτε την τιμή",
     modal_title: "Συνεργασία με",
     modal_sub: "Στείλε την πρότασή σου. Θα ειδοποιηθούν άμεσα.",
     modal_srv: "Επιλογή Υπηρεσίας",
@@ -453,9 +466,6 @@ const t = {
     price_note: "* Prices may vary depending on project scope.",
     min_rate: "Minimum Rate",
     min_rate_desc: "The minimum charge for each collaboration",
-    min_rate_cta_login: "Login",
-    min_rate_cta_signup: "Register your company",
-    min_rate_cta_suffix: "to see the price",
     modal_title: "Work with",
     modal_sub: "Send a proposal. We'll notify them instantly.",
     modal_srv: "Select Service",
@@ -631,13 +641,14 @@ export default function InfluencerProfile(props: {
   const [reviewProjectType, setReviewProjectType] = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [isBrand, setIsBrand] = useState(false);
+  const [brandId, setBrandId] = useState<string | null>(null);
+  const [brandGateOpen, setBrandGateOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [sessionChecked, setSessionChecked] = useState(false);
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [hasSession, setHasSession] = useState(false);
-  /** Exact € after client auth — never from ISR HTML. Brand, admin, or own creator. */
+  /** Commercial row (raw min_rate) still loads only for brand, admin, or the owner. */
   const revealPrices = isBrand || isAdmin || isOwnProfile;
-  /** Brand login CTA only for logged-out visitors. */
-  const showBrandPriceCta = !hasSession;
   const commercialRef = useRef<{
     min_rate?: string;
     rate_card?: ProInfluencer["rate_card"];
@@ -661,6 +672,7 @@ export default function InfluencerProfile(props: {
         setHasSession(!!session?.access_token);
         if (!session?.access_token) {
           setIsBrand(false);
+          setBrandId(null);
           setIsAdmin(false);
           setIsOwnProfile(false);
           sessionStorage.removeItem("isBrand");
@@ -674,6 +686,7 @@ export default function InfluencerProfile(props: {
         if (cancelled) return;
         const brand = profiles.ok ? profiles.brand : null;
         setIsBrand(!!brand);
+        setBrandId(brand && brand.id != null ? String(brand.id) : null);
         if (brand) {
           sessionStorage.setItem("isBrand", "true");
           const name = typeof brand.brand_name === "string" ? brand.brand_name.trim() : "";
@@ -683,6 +696,7 @@ export default function InfluencerProfile(props: {
           if (email) setBrandEmail(email);
         } else {
           sessionStorage.removeItem("isBrand");
+          setBrandId(null);
         }
 
         const ownInf = profiles.ok ? profiles.influencer : null;
@@ -699,9 +713,12 @@ export default function InfluencerProfile(props: {
         console.error("Error checking user type:", error);
         if (!cancelled) {
           setIsBrand(false);
+          setBrandId(null);
           setIsAdmin(false);
           setIsOwnProfile(false);
         }
+      } finally {
+        if (!cancelled) setSessionChecked(true);
       }
     })();
     return () => {
@@ -1433,6 +1450,12 @@ export default function InfluencerProfile(props: {
   return (
     <div className="bg-white min-h-screen pb-20 font-sans relative text-slate-900">
       <SiteHeader lang={lang} onLangChange={setLang} />
+      <BrandGateModal
+        open={brandGateOpen}
+        onClose={() => setBrandGateOpen(false)}
+        lang={lang}
+        returnPath={publicPath}
+      />
 
       {/* PROPOSAL MODAL */}
       {showProposalModal && (
@@ -1973,6 +1996,23 @@ export default function InfluencerProfile(props: {
                   </div>
                 ) : null;
               })()}
+              {showCampaignInviteButton({
+                sessionChecked,
+                hasSession,
+                isBrand,
+                isAdmin,
+              }) ? (
+                <CampaignInviteButton
+                  lang={lang}
+                  isBrand={isBrand}
+                  isAdmin={isAdmin}
+                  brandId={brandId}
+                  influencerId={String(id)}
+                  creatorName={displayNameForLang(profile.name, lang)}
+                  gender={profile.gender}
+                  onNeedBrand={() => setBrandGateOpen(true)}
+                />
+              ) : null}
               {/* Action Buttons */}
               <div className={`grid w-full gap-2 ${isBrand ? "grid-cols-2" : "grid-cols-1 sm:grid-cols-2"}`}>
                 {isBrand && (
@@ -2117,9 +2157,13 @@ export default function InfluencerProfile(props: {
                 rate_card: profile.rate_card,
                 min_rate: profile.min_rate,
               });
-              const cpmValue = estimateCpm(pricedFloor ?? profile.min_rate, avgViewsForCpm);
-              const showCpmCard =
-                !!(profile.has_min_rate || profile.min_rate) && avgViewsForCpm >= 100;
+              const cpmValue = estimateCpm(
+                pricedFloor ?? profile.min_rate ?? profile.from_price,
+                avgViewsForCpm
+              );
+              const minChargeLabel = pricedFloor
+                ? formatEuro(pricedFloor, lang)
+                : formatEuroAmount(profile.from_price, lang);
               const statsUpdatedLabel = statsUpdatedAt
                 ? formatStatsUpdatedAt(statsUpdatedAt, lang)
                 : "";
@@ -2384,7 +2428,7 @@ export default function InfluencerProfile(props: {
                   </ProfileStatCard>
                   ) : null}
 
-                  {(profile.has_min_rate || profile.min_rate) && (
+                  {(minChargeLabel || profile.has_min_rate || profile.min_rate) && (
                     <ProfileStatCard
                       label={txt.min_rate}
                       tip={txt.tip_min_rate}
@@ -2397,44 +2441,16 @@ export default function InfluencerProfile(props: {
                         </MetricIcon>
                       }
                     >
-                      {revealPrices && (pricedFloor || profile.min_rate) ? (
-                        <div>
-                          <p className="text-2xl font-semibold tracking-tight text-blue-700 tabular-nums">
-                            {pricedFloor
-                              ? formatEuro(pricedFloor, lang)
-                              : formatEuroAmount(profile.min_rate, lang)}
-                          </p>
-                          <p className="mt-0.5 text-xs text-blue-600/80">{txt.min_rate_desc}</p>
-                        </div>
-                      ) : (
-                        <div>
-                          <p className="text-2xl font-semibold tracking-tight text-blue-700 tabular-nums">
-                            {formatFromPriceLabel(profile.from_price, lang) || "—"}
-                          </p>
-                          {showBrandPriceCta ? (
-                            <p className="mt-1 text-xs leading-snug text-slate-600">
-                              <Link
-                                href="/login"
-                                className="inline-flex min-h-[44px] items-center font-medium text-blue-600 underline-offset-2 hover:underline sm:min-h-0"
-                              >
-                                {txt.min_rate_cta_login}
-                              </Link>
-                              {lang === "el" ? " ή " : " or "}
-                              <Link
-                                href="/brand/signup"
-                                className="inline-flex min-h-[44px] items-center font-medium text-blue-600 underline-offset-2 hover:underline sm:min-h-0"
-                              >
-                                {txt.min_rate_cta_signup}
-                              </Link>{" "}
-                              {lang === "el" ? "ως brand για τιμές" : "as a brand for prices"}
-                            </p>
-                          ) : null}
-                        </div>
-                      )}
+                      <div>
+                        <p className="text-2xl font-semibold tracking-tight text-blue-700 tabular-nums">
+                          {minChargeLabel || "—"}
+                        </p>
+                        <p className="mt-0.5 text-xs text-blue-600/80">{txt.min_rate_desc}</p>
+                      </div>
                     </ProfileStatCard>
                   )}
 
-                  {showCpmCard && (
+                  {cpmValue != null && (
                     <ProfileStatCard
                       label={txt.cpm}
                       tip={txt.tip_cpm}
@@ -2449,38 +2465,12 @@ export default function InfluencerProfile(props: {
                         </MetricIcon>
                       }
                     >
-                      {revealPrices && profile.min_rate && cpmValue != null ? (
-                        <div>
-                          <p className="text-2xl font-semibold tracking-tight text-violet-700 tabular-nums">
-                            {formatCpmEuro(cpmValue, lang)}
-                          </p>
-                          <p className="mt-0.5 text-xs text-violet-700/80">{txt.cpm_desc}</p>
-                        </div>
-                      ) : (
-                        <div>
-                          <p className="select-none text-2xl font-semibold tracking-tight text-violet-700 blur-md tabular-nums">
-                            ••••
-                          </p>
-                          {showBrandPriceCta ? (
-                            <p className="mt-1 text-xs leading-snug text-slate-600">
-                            <Link
-                              href="/login"
-                              className="inline-flex min-h-[44px] items-center font-medium text-blue-600 underline-offset-2 hover:underline sm:min-h-0"
-                            >
-                              {txt.min_rate_cta_login}
-                            </Link>
-                            {lang === "el" ? " ή " : " or "}
-                            <Link
-                              href="/brand/signup"
-                              className="inline-flex min-h-[44px] items-center font-medium text-blue-600 underline-offset-2 hover:underline sm:min-h-0"
-                            >
-                              {txt.min_rate_cta_signup}
-                            </Link>{" "}
-                            {txt.min_rate_cta_suffix}
-                            </p>
-                          ) : null}
-                        </div>
-                      )}
+                      <div>
+                        <p className="text-2xl font-semibold tracking-tight text-violet-700 tabular-nums">
+                          {formatCpmEuro(cpmValue, lang)}
+                        </p>
+                        <p className="mt-0.5 text-xs text-violet-700/80">{txt.cpm_desc}</p>
+                      </div>
                     </ProfileStatCard>
                   )}
 
@@ -2562,13 +2552,7 @@ export default function InfluencerProfile(props: {
               <div className="lg:col-span-3 space-y-8 min-w-0">
                 <ChannelScorePanel
                   lang={lang}
-                  isBrand={isBrand}
-                  integrationLocked={
-                    !revealPrices &&
-                    (!!profile.has_priced_min_rate ||
-                      Object.values(profile.rate_card_flags || {}).some(Boolean))
-                  }
-                  {...scoreChannelFromProfile(profile, growth30d?.growthPct ?? null, revealPrices)}
+                  {...scoreChannelFromProfile(profile, growth30d?.growthPct ?? null)}
                 />
                 <FollowerGrowthChart lang={lang} points={growthSeries} />
                 <StatsInsightsPanel
@@ -2922,39 +2906,32 @@ export default function InfluencerProfile(props: {
                 )}
                 {activeTab === "pricing" && (
                      <div className="bg-white p-4 sm:p-8 rounded-2xl shadow-sm border border-slate-100">
-                        <h2 className="text-xl font-bold text-slate-900 mb-2">
+                        <h2 className="text-xl font-bold text-slate-900 mb-1">
                           {lang === "el" ? "Πακέτα" : "Packages"}
                         </h2>
                         <p className="text-sm text-slate-500 mb-6">
                           {lang === "el"
-                            ? "Έτοιμες υπηρεσίες με τίτλο, παράδοση και δικαιώματα χρήσης."
-                            : "Ready-made services with title, delivery, and usage rights."}
+                            ? "Διάλεξε πακέτο ή πρότεινε το δικό σου"
+                            : "Choose a package or propose your own"}
                         </p>
 
                         <ProfileOffersPanel
                           packages={Array.isArray(profile.service_packages) ? profile.service_packages : []}
                           extras={Array.isArray(profile.service_extras) ? profile.service_extras : []}
                           lang={lang}
-                          revealPrices={revealPrices}
-                          onRequestQuote={(label) => {
-                            setProposalType(label);
+                          creatorName={displayNameForLang(profile.name, lang)}
+                          gender={profile.gender}
+                          isBrand={isBrand}
+                          influencerId={String(id)}
+                          onNeedBrand={() => setBrandGateOpen(true)}
+                          onContinue={(choice) => {
+                            setProposalType(choice.label);
+                            if (choice.budget) setBudget(choice.budget);
                             setShowProposalModal(true);
                           }}
                         />
 
-                        {showBrandPriceCta && (
-                          <p className="mt-4 text-sm text-slate-600 text-center">
-                            {lang === "el" ? "Συνδεθείτε ως brand για τιμές" : "Sign in as a brand for prices"}
-                            {" — "}
-                            <Link href="/login" className="inline-flex min-h-[44px] items-center text-blue-600 underline hover:text-blue-800 sm:min-h-0">{txt.min_rate_cta_login}</Link>
-                            {lang === "el" ? " ή " : " or "}
-                            <Link href="/brand/signup" className="inline-flex min-h-[44px] items-center text-blue-600 underline hover:text-blue-800 sm:min-h-0">{txt.min_rate_cta_signup}</Link>
-                          </p>
-                        )}
                         <p className="mt-6 text-xs text-slate-400 text-center">{txt.price_note}</p>
-                        <button onClick={() => setShowProposalModal(true)} className="w-full mt-6 bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-black transition-colors">
-                            {txt.contact_btn}
-                        </button>
                      </div>
                 )}
                 
