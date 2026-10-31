@@ -3,6 +3,7 @@ import { Resend } from 'resend';
 import { sendPushInfluencerAccountApproved } from '@/lib/push';
 import { ensureBilingualBio } from '@/lib/bioTranslate';
 import { ensureProfileSlug } from '@/lib/profileSlugAssign';
+import { revalidatePublicProfileById } from '@/lib/revalidatePublicProfile';
 
 function escapeHtml(s: string): string {
   return String(s)
@@ -111,6 +112,9 @@ export async function finalizeNewInfluencerApproval(
 
   await ensureProfileSlug(supabaseAdmin, influencerId).catch((e) => {
     console.error('[approve-new] slug', e);
+  });
+  await revalidatePublicProfileById(supabaseAdmin, influencerId).catch((err) => {
+    console.error('[approve-new] revalidate', err);
   });
   await markProfileChangesReviewed(supabaseAdmin, influencerId).catch(() => undefined);
   const name = inf.display_name || String(influencerId);

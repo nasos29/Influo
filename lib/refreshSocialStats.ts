@@ -5,6 +5,7 @@
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { revalidatePublicProfileById } from '@/lib/revalidatePublicProfile';
 import {
   fetchInstagramFromAuditpr,
   fetchTiktokFromAuditpr,
@@ -276,7 +277,12 @@ export async function doRefreshSocialStats(
     if (!anySuccess) {
       const markedPrivate = updatedAccounts.some((a) => a?.is_private === true);
       if (markedPrivate) {
-        await supabaseAdmin.from('influencers').update({ accounts: updatedAccounts }).eq('id', inf.id);
+        const marked = await supabaseAdmin.from('influencers').update({ accounts: updatedAccounts }).eq('id', inf.id);
+        if (!marked.error) {
+          await revalidatePublicProfileById(supabaseAdmin, String(inf.id)).catch((err) => {
+            console.error('[refreshSocialStats] revalidate', err);
+          });
+        }
       }
       results.push({
         id: String(inf.id),
@@ -389,6 +395,9 @@ export async function doRefreshSocialStats(
     if (updateError) {
       errors.push(`DB update: ${updateError.message}`);
     } else {
+      await revalidatePublicProfileById(supabaseAdmin, String(inf.id)).catch((err) => {
+        console.error('[refreshSocialStats] revalidate', err);
+      });
       const total = totalFollowersFromAccounts(updatePayload.accounts);
       const totalPosts = totalPostsFromAccounts(updatePayload.accounts);
       if (total > 0) {

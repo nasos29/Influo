@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { isAdminUser, supabaseService, userFromBearer } from "@/lib/apiAuth";
+import { revalidatePublicProfileById } from "@/lib/revalidatePublicProfile";
 import { FIXED_PRICE_MESSAGE, hasUnfixedCreatorPrice, packagesForViewer, minRateFromPackages } from "@/lib/servicePackages";
 
 /**
@@ -65,6 +66,10 @@ export async function POST(request: Request) {
     if (updateErr) {
       return NextResponse.json({ error: updateErr.message }, { status: 500 });
     }
+
+    await revalidatePublicProfileById(admin, influencerId).catch((err) => {
+      console.error("[influencer/sync-min-rate] revalidate", err);
+    });
 
     return NextResponse.json({ ok: true, unchanged: false, min_rate: derived });
   } catch (error: unknown) {

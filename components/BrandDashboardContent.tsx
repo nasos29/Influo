@@ -776,6 +776,7 @@ export default function BrandDashboardContent() {
   }, [recommendationStats]);
   const [activeTab, setActiveTab] = useState<BrandTab>('overview');
   const tabsNavRef = useRef<HTMLElement | null>(null);
+  const loadSeq = useRef(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [shortlist, setShortlist] = useState<BrandShortlistItem[]>([]);
   const [shortlistLoading, setShortlistLoading] = useState(false);
@@ -1138,14 +1139,16 @@ export default function BrandDashboardContent() {
   };
 
   const loadData = async () => {
+    const seq = ++loadSeq.current;
+    setLeaving(false);
+    setLoadError(null);
+    setLoading(true);
     try {
-      setLoadError(null);
-      await withTimeout((async () => {
-      const auth = await lookupAuthUser(8000);
-      if (!auth.user) {
-        if (auth.timedOut) {
+      const auth = await withTimeout(lookupAuthUser(8000), 12000);
+      if (seq !== loadSeq.current) return;
+      if (!auth?.user) {
+        if (!auth || auth.timedOut) {
           setLoadError(lang === 'el' ? 'Η σύνδεση άργησε να απαντήσει. Δοκιμάστε ξανά.' : 'Sign-in took too long. Try again.');
-          setLoading(false);
           return;
         }
         router.replace('/login');
@@ -1153,7 +1156,12 @@ export default function BrandDashboardContent() {
       }
       setViewerId(auth.user.id);
 
-      const profiles = await loadOwnProfiles(supabase);
+      const profiles = await withTimeout(loadOwnProfiles(supabase), 12000);
+      if (seq !== loadSeq.current) return;
+      if (!profiles) {
+        setLoadError(lang === 'el' ? 'Η φόρτωση άργησε.' : 'Loading took too long.');
+        return;
+      }
       if (!profiles.ok) {
         setLoadError(profiles.message);
         return;
@@ -1168,10 +1176,13 @@ export default function BrandDashboardContent() {
       console.log(`[Brand Dashboard] Loaded brandData:`, brandData);
       console.log(`[Brand Dashboard] Brand email: ${brandData.contact_email}`);
       setBrandData(brandData);
+      setLoadError(null);
       setLoading(false);
 
-      // Start suggestions before the claim call so the empty state cannot show during that wait.
+      // Proposals and recommendations must not fail the whole dashboard.
       void loadRecommendations(brandData);
+      try {
+      if (seq !== loadSeq.current) return;
       await sessionFetch('/api/proposals/claim', { method: 'POST' }).catch(() => {});
 
       const proposalsResponse = await sessionFetch('/api/proposals?role=brand', { cache: 'no-store' });
@@ -1215,9 +1226,11 @@ export default function BrandDashboardContent() {
           }
           setInfluencers(influencersMap);
         }
-      setLoadError(null);
-      })(), 20000);
+      } catch (proposalErr) {
+        console.error('Error loading proposals:', proposalErr);
+      }
     } catch (err) {
+      if (seq !== loadSeq.current) return;
       console.error('Error loading data:', err);
       setLoadError(
         isTimeoutError(err)
@@ -1227,7 +1240,7 @@ export default function BrandDashboardContent() {
               : (lang === 'el' ? 'Κάτι πήγε στραβά.' : 'Something went wrong.'))
       );
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   };
 
@@ -1833,7 +1846,6 @@ export default function BrandDashboardContent() {
           <button
             type="button"
             onClick={() => {
-              setLoading(true);
               void loadData();
             }}
             className="mt-6 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700"

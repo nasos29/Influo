@@ -15,6 +15,7 @@ import { createClient } from '@supabase/supabase-js';
 import { copyAuditprErExtras } from '@/lib/engagementFlags';
 import { GEMINI_PAUSED_MSG, isGeminiPaused } from '@/lib/geminiPause';
 import { doRefreshSocialStats, type InstagramOverrides, type TikTokOverrides, type YouTubeOverrides } from '@/lib/refreshSocialStats';
+import { revalidatePublicProfileById } from '@/lib/revalidatePublicProfile';
 import { sanitizeTopPosts } from '@/lib/topPosts';
 import {
   appendSocialRefreshLog,
@@ -275,6 +276,11 @@ export async function POST(request: NextRequest) {
             username: acc.username || null,
             event: 'profile_error',
             message: String(acc.error || 'Unknown profile error'),
+          });
+        }
+        if (!unapproveErr) {
+          await revalidatePublicProfileById(supabaseAdmin, influencerId).catch((err) => {
+            console.error('[social-refresh-batch] revalidate', err);
           });
         }
         await incrementRunCounters(runId, 'influencers_unapproved');

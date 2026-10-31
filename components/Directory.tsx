@@ -309,7 +309,7 @@ export default function Directory({
   const skipPageResetRef = useRef(true);
   const isHomePreview = typeof homeLimit === "number" && homeLimit > 0;
 
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(() => (searchParams.get("q") || "").trim());
   const [locationQuery, setLocationQuery] = useState("");
   const [platformFilter, setPlatformFilter] = useState("All");
   const [categoryFilter, setCategoryFilter] = useState(() =>
@@ -626,13 +626,15 @@ export default function Directory({
     setCategoryFilter((prev) => (prev === fromUrlCat ? prev : fromUrlCat));
     const fromUrlPage = pageFromSearchParam(searchParams.get("page"));
     setPage((prev) => (prev === fromUrlPage ? prev : fromUrlPage));
+    const fromUrlQuery = (searchParams.get("q") || "").trim();
+    setSearchQuery((prev) => (prev === fromUrlQuery ? prev : fromUrlQuery));
   }, [searchParams]);
 
   const clearFilters = () => {
     setSearchQuery("");
     setLocationQuery("");
     setPlatformFilter("All");
-    setCategoryFilterAndUrl("All");
+    setCategoryFilter("All");
     setGenderFilter("All");
     setFollowerRange("All");
     setBudgetMax("All");
@@ -644,6 +646,11 @@ export default function Directory({
     setBadgeFilter("All");
     setAvailabilityFilter("available");
     setPage(1);
+    replaceUrlParams((params) => {
+      params.delete("q");
+      params.delete("category");
+      params.delete("page");
+    });
   };
 
   type ActiveChip = { id: string; label: string; clear: () => void };
@@ -654,7 +661,14 @@ export default function Directory({
 
     const q = searchQuery.trim();
     if (q) {
-      chips.push({ id: "search", label: q, clear: () => setSearchQuery("") });
+      chips.push({
+        id: "search",
+        label: q,
+        clear: () => {
+          setSearchQuery("");
+          replaceUrlParams((params) => params.delete("q"));
+        },
+      });
     }
     if (platformFilter !== "All") {
       chips.push({

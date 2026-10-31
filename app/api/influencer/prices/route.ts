@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePublicProfileById } from "@/lib/revalidatePublicProfile";
 import { isAdminUser, supabaseService, userFromBearer } from "@/lib/apiAuth";
 import {
   FIXED_PRICE_MESSAGE,
@@ -95,6 +96,10 @@ export async function POST(request: Request) {
     if (updateErr) {
       return NextResponse.json({ error: updateErr.message }, { status: 500 });
     }
+
+    await revalidatePublicProfileById(admin, influencerId).catch((err) => {
+      console.error("[influencer/prices] revalidate", err);
+    });
 
     return NextResponse.json({
       ok: true,
