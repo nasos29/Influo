@@ -52,6 +52,7 @@ import { formatEuroAmount } from "@/lib/formatEuro";
 import { formatFromPriceLabel } from "@/lib/publicInfluencer";
 import ProfileOffersPanel from "@/components/ProfileOffersPanel";
 import CampaignInviteButton from "@/components/CampaignInviteButton";
+import { showCampaignInviteButton } from "@/lib/gateAvatars";
 import BrandGateModal from "@/components/BrandGateModal";
 import {
   EXTRA_LABEL,
@@ -636,6 +637,7 @@ export default function InfluencerProfile(props: {
   const [brandId, setBrandId] = useState<string | null>(null);
   const [brandGateOpen, setBrandGateOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [sessionChecked, setSessionChecked] = useState(false);
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [hasSession, setHasSession] = useState(false);
   /** Exact € after client auth — never from ISR HTML. Brand, admin, or own creator. */
@@ -710,6 +712,8 @@ export default function InfluencerProfile(props: {
           setIsAdmin(false);
           setIsOwnProfile(false);
         }
+      } finally {
+        if (!cancelled) setSessionChecked(true);
       }
     })();
     return () => {
@@ -1987,15 +1991,23 @@ export default function InfluencerProfile(props: {
                   </div>
                 ) : null;
               })()}
-              <CampaignInviteButton
-                lang={lang}
-                isBrand={isBrand}
-                brandId={brandId}
-                influencerId={String(id)}
-                creatorName={displayNameForLang(profile.name, lang)}
-                gender={profile.gender}
-                onNeedBrand={() => setBrandGateOpen(true)}
-              />
+              {showCampaignInviteButton({
+                sessionChecked,
+                hasSession,
+                isBrand,
+                isAdmin,
+              }) ? (
+                <CampaignInviteButton
+                  lang={lang}
+                  isBrand={isBrand}
+                  isAdmin={isAdmin}
+                  brandId={brandId}
+                  influencerId={String(id)}
+                  creatorName={displayNameForLang(profile.name, lang)}
+                  gender={profile.gender}
+                  onNeedBrand={() => setBrandGateOpen(true)}
+                />
+              ) : null}
               {/* Action Buttons */}
               <div className={`grid w-full gap-2 ${isBrand ? "grid-cols-2" : "grid-cols-1 sm:grid-cols-2"}`}>
                 {isBrand && (

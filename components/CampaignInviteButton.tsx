@@ -5,11 +5,13 @@ import { supabase } from "@/lib/supabaseClient";
 import { sessionFetch } from "@/lib/sessionFetch";
 import { inviteHeading } from "@/lib/creatorAddress";
 import {
+  AdminNoBrandModal,
   CampaignLoadError,
   CampaignPickModal,
   NoCampaignModal,
   type InviteCampaign,
 } from "@/components/CampaignInviteModals";
+import { inviteOpenResult } from "@/lib/gateAvatars";
 
 const COPY = {
   el: {
@@ -24,11 +26,12 @@ const COPY = {
   },
 } as const;
 
-type Mode = "closed" | "empty" | "pick" | "error";
+type Mode = "closed" | "empty" | "pick" | "error" | "admin";
 
 export default function CampaignInviteButton({
   lang,
   isBrand,
+  isAdmin = false,
   brandId,
   influencerId,
   creatorName,
@@ -37,6 +40,7 @@ export default function CampaignInviteButton({
 }: {
   lang: "el" | "en";
   isBrand: boolean;
+  isAdmin?: boolean;
   brandId: string | null;
   influencerId: string;
   creatorName: string;
@@ -50,8 +54,13 @@ export default function CampaignInviteButton({
   const close = useCallback(() => setMode("closed"), []);
 
   const open = async () => {
-    if (!isBrand || !brandId) {
+    const next = inviteOpenResult({ isBrand, hasBrandId: !!brandId, isAdmin });
+    if (next === "login") {
       onNeedBrand();
+      return;
+    }
+    if (next === "admin-notice" || !brandId) {
+      setMode("admin");
       return;
     }
     setBusy(true);
@@ -124,6 +133,7 @@ export default function CampaignInviteButton({
         + {copy.button}
       </button>
       <NoCampaignModal open={mode === "empty"} onClose={close} lang={lang} />
+      <AdminNoBrandModal open={mode === "admin"} onClose={close} lang={lang} />
       <CampaignLoadError open={mode === "error"} onClose={close} lang={lang} />
       {mode === "pick" ? (
         <CampaignPickModal
