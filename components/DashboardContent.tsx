@@ -52,6 +52,7 @@ import { displayServiceType } from '@/lib/campaignServiceLabel';
 import { displayProposalMessage } from '@/lib/proposalThreadCopy';
 import { normalizeYouTubeUsernameForSave } from '@/lib/youtubeHandle';
 import CreatorPlatformPrices from '@/components/CreatorPlatformPrices';
+import LocationTypeahead from '@/components/LocationTypeahead';
 import {
     creatorPricesHaveInvalid,
     creatorServicePricesFromStored,
@@ -897,8 +898,14 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                                 <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" required />
                             </div>
                             <div>
-                                <label className="block text-sm font-semibold text-slate-900 mb-1">{L("Τοποθεσία", "Location")}</label>
-                                <input type="text" value={location} onChange={e => setLocation(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" />
+                                <label className="block text-sm font-semibold text-slate-900 mb-1" htmlFor="edit-location">{L("Τοποθεσία", "Location")}</label>
+                                <LocationTypeahead
+                                  id="edit-location"
+                                  lang={lang}
+                                  value={location}
+                                  onChange={setLocation}
+                                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900"
+                                />
                             </div>
                             <div>
                                 <label className="block text-sm font-semibold text-slate-900 mb-1">{L("Ημερομηνία Γέννησης", "Date of Birth")}</label>
