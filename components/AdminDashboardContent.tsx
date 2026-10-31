@@ -4210,6 +4210,9 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
           <button type="button" onClick={() => refreshSocialStats(u)} disabled={refreshingSocialFor === String(u.id)} className="inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-3 text-sm font-medium text-slate-700 disabled:opacity-50">
             {refreshingSocialFor === String(u.id) ? "..." : txt.refresh_social}
           </button>
+          <button type="button" onClick={() => refreshAudit(u)} disabled={refreshingAuditFor === String(u.id)} className="inline-flex min-h-11 items-center rounded-lg border border-violet-200 bg-violet-50 px-3 text-sm font-medium text-violet-800 disabled:opacity-50">
+            {refreshingAuditFor === String(u.id) ? "..." : txt.refresh_audit}
+          </button>
         </div>
         <div className="flex flex-wrap gap-2 border-t border-red-100 pt-2">
           {u.approved && (
