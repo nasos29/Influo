@@ -43,6 +43,9 @@ export async function POST(request: NextRequest) {
     });
 
     if (!result.success) {
+      if (result.error === 'protected_test_account') {
+        return NextResponse.json({ error: 'protected_test_account' }, { status: 403 });
+      }
       return NextResponse.json(
         { error: 'Failed to delete user', details: result.error },
         { status: 500 }

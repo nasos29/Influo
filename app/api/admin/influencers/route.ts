@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { rejectUnlessAdmin, supabaseService } from "@/lib/apiAuth";
+import { sevenDaysAgoIso } from "@/lib/adminPaging";
 import { parseFollowerString } from "@/lib/parseFollowers";
 import { findApprovedDuplicateIds } from "@/lib/socialAccountIdentity";
 
@@ -142,22 +143,35 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    const since = sevenDaysAgoIso();
     const [
       { count: totalCount, error: totalErr },
       { count: approvedCount, error: approvedErr },
       { count: pendingCount, error: pendingErr },
       { count: analyticsCount, error: analyticsErr },
+      { count: recentCount, error: recentErr },
+      attentionProbe,
       hiddenProbe,
     ] = await Promise.all([
       admin.from("influencers").select("id", { count: "exact", head: true }),
       admin.from("influencers").select("id", { count: "exact", head: true }).eq("approved", true),
       admin.from("influencers").select("id", { count: "exact", head: true }).or("approved.is.false,approved.is.null"),
       admin.from("influencers").select("id", { count: "exact", head: true }).eq("analytics_verified", true),
+      admin.from("influencers").select("id", { count: "exact", head: true }).gte("created_at", since),
+      admin
+        .from("influencers")
+        .select("id, display_name, contact_email, created_at")
+        .or("approved.is.false,approved.is.null")
+        .order("created_at", { ascending: false })
+        .limit(5),
       admin.from("influencers").select("id, display_name, hidden_videos").not("hidden_videos", "eq", "[]"),
     ]);
 
-    if (totalErr || approvedErr || pendingErr || analyticsErr) {
-      console.error("[admin/influencers] count error", totalErr || approvedErr || pendingErr || analyticsErr);
+    if (totalErr || approvedErr || pendingErr || analyticsErr || recentErr) {
+      console.error(
+        "[admin/influencers] count error",
+        totalErr || approvedErr || pendingErr || analyticsErr || recentErr
+      );
     }
 
     let hiddenVideoCount: number | undefined;
@@ -255,11 +269,13 @@ export async function GET(request: NextRequest) {
           total: totalCount ?? 0,
           approved: approvedCount ?? 0,
           pending: pendingCount ?? 0,
+          recent: recentCount ?? 0,
           analyticsVerified: analyticsCount ?? 0,
           ...(typeof hiddenVideoCount === "number" ? { hiddenVideos: hiddenVideoCount } : {}),
           ...(typeof reach === "number" ? { reach } : {}),
         },
         hiddenByProfile,
+        attention: attentionProbe.error ? [] : attentionProbe.data || [],
         searchIncludesUsername: await hasAccountsTextColumn(admin),
       },
       { headers: { "Cache-Control": "private, no-store" } }
