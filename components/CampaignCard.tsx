@@ -2,14 +2,13 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import FastImage from "@/components/FastImage";
 import { categoryLabel } from "@/lib/categories";
 import { campaignClosesAt, daysUntilCampaignCloses } from "@/lib/campaignLifecycle";
 import { formatFollowerCount } from "@/lib/platformStats";
-import { getCachedImageUrl } from "@/lib/imageProxy";
 import { campaignPublicBadgeLabel } from "@/lib/campaignPublicBadge";
 import { CampaignDescriptionText } from "@/lib/campaignDescription";
 import { displayLocation } from "@/lib/displayLocation";
+import CampaignCover from "@/components/CampaignCover";
 
 export type CampaignCardBrand = {
   brand_name?: string | null;
@@ -28,6 +27,7 @@ export type CampaignCardData = {
   created_at?: string | null;
   opened_at?: string | null;
   platforms?: string[] | null;
+  cover_url?: string | null;
   compensation_type?: string | null;
   min_followers?: number | null;
   location?: string | null;
@@ -125,48 +125,6 @@ function statusClass(status: string | null | undefined): string {
   return "bg-slate-100 text-slate-700";
 }
 
-function PlatformIcon({ platform }: { platform: string }) {
-  const common = "w-3.5 h-3.5 shrink-0";
-  if (platform === "instagram") {
-    return (
-      <svg viewBox="0 0 24 24" className={`${common} text-pink-600`} fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-        <rect x="3" y="3" width="18" height="18" rx="5" />
-        <circle cx="12" cy="12" r="4" />
-        <circle cx="17.5" cy="6.5" r="0.8" fill="currentColor" />
-      </svg>
-    );
-  }
-  if (platform === "tiktok") {
-    return (
-      <svg viewBox="0 0 24 24" className={`${common} text-slate-900`} fill="currentColor" aria-hidden>
-        <path d="M14 3h2.2a5.2 5.2 0 0 0 3.6 2.1v2.3a7.4 7.4 0 0 1-3.6-1v6.7a5.6 5.6 0 1 1-5.6-5.6c.3 0 .6 0 .9.1v2.4a3.2 3.2 0 1 0 2.5 3.1V3z" />
-      </svg>
-    );
-  }
-  if (platform === "youtube") {
-    return (
-      <svg viewBox="0 0 24 24" className={`${common} text-red-600`} fill="currentColor" aria-hidden>
-        <path d="M23 12.2s0-3.2-.4-4.6a3 3 0 0 0-2.1-2.1C18.9 5 12 5 12 5s-6.9 0-8.5.5a3 3 0 0 0-2.1 2.1C1 9 1 12.2 1 12.2s0 3.2.4 4.6a3 3 0 0 0 2.1 2.1C5.1 19.4 12 19.4 12 19.4s6.9 0 8.5-.5a3 3 0 0 0 2.1-2.1c.4-1.4.4-4.6.4-4.6zM9.8 15.5v-6.6l6.2 3.3-6.2 3.3z" />
-      </svg>
-    );
-  }
-  if (platform === "facebook") {
-    return (
-      <svg viewBox="0 0 24 24" className={`${common} text-blue-600`} fill="currentColor" aria-hidden>
-        <path d="M14 9h3V6h-3c-2.2 0-4 1.8-4 4v2H8v3h2v7h3v-7h2.6l.4-3H13v-2c0-.6.4-1 1-1z" />
-      </svg>
-    );
-  }
-  return null;
-}
-
-const PLATFORM_LABEL: Record<string, { el: string; en: string }> = {
-  instagram: { el: "Instagram", en: "Instagram" },
-  tiktok: { el: "TikTok", en: "TikTok" },
-  youtube: { el: "YouTube", en: "YouTube" },
-  facebook: { el: "Facebook", en: "Facebook" },
-};
-
 function splitDeliverables(raw: string | null | undefined): string[] {
   if (!raw?.trim()) return [];
   return raw
@@ -211,7 +169,6 @@ export default function CampaignCard({
   const cat = campaign.category ? categoryLabel(campaign.category, lang) || campaign.category : "";
   const deliverableChips = splitDeliverables(campaign.deliverables);
   const platforms = Array.isArray(campaign.platforms) ? campaign.platforms : [];
-  const logoSrc = brand?.logo_url ? getCachedImageUrl(brand.logo_url) ?? brand.logo_url : null;
   const locale = lang === "el" ? "el-GR" : "en-GB";
   const showBudget = Number(campaign.budget) > 0;
   const publicBadge = campaignPublicBadgeLabel(campaign.applications_count, campaign.opened_at, lang);
@@ -223,154 +180,147 @@ export default function CampaignCard({
 
   return (
     <article
-      className={`group relative bg-white border border-slate-200 rounded-2xl p-5 shadow-sm cursor-pointer transition-[box-shadow,border-color] hover:shadow-md hover:border-slate-300 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-blue-500 has-[:focus-visible]:ring-offset-2 ${className}`}
+      className={`group relative bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm cursor-pointer transition-[box-shadow,border-color] hover:shadow-md hover:border-slate-300 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-blue-500 has-[:focus-visible]:ring-offset-2 ${className}`}
     >
-      {!hideBrand && (
-        <div className="flex items-start gap-3">
-          {logoSrc ? (
-            <div className="relative w-12 h-12 rounded-xl overflow-hidden border border-slate-100 bg-slate-50 shrink-0">
-              <FastImage src={logoSrc} alt={brand?.brand_name || "Brand"} fill className="object-cover" sizes="48px" />
-            </div>
-          ) : (
-            <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-100 flex items-center justify-center text-slate-500 text-lg font-semibold shrink-0">
-              {(brand?.brand_name || "B").slice(0, 1).toUpperCase()}
-            </div>
-          )}
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <p className="text-sm font-medium text-slate-800 truncate">{brand?.brand_name || "Brand"}</p>
-              {brand?.verified ? <VerifiedTick /> : null}
-            </div>
-            {published && <p className="text-xs text-slate-500 mt-0.5">{published}</p>}
-          </div>
-          {statusText && (
-            <span className={`text-[11px] font-medium px-2.5 py-1 rounded-full shrink-0 ${statusClass(campaign.status)}`}>
-              {statusText}
-            </span>
-          )}
-        </div>
-      )}
-
-      {hideBrand && (
-        <div className="flex items-start justify-between gap-2 mb-1">
-          <div className="min-w-0">
-            {published && <p className="text-xs text-slate-500">{published}</p>}
-          </div>
-          {statusText && (
-            <span className={`text-[11px] font-medium px-2.5 py-1 rounded-full shrink-0 ${statusClass(campaign.status)}`}>
-              {statusText}
-            </span>
-          )}
-        </div>
-      )}
-
-      <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
-        <h3 className="min-w-0 flex-1 text-xl font-bold text-slate-900 leading-snug">
-          <Link
-            href={link}
-            className="text-inherit after:absolute after:inset-0 after:z-0 after:rounded-2xl after:content-[''] focus-visible:outline-none group-hover:text-blue-700"
-          >
-            {campaign.title}
-          </Link>
-        </h3>
-        {publicBadge ? (
-          <span
-            className={`relative z-10 pointer-events-none inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold ${
-              isApplicationsBadge
-                ? "bg-blue-600 text-white"
-                : "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
-            }`}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              className="h-4 w-4 shrink-0"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
-            >
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
-            {publicBadge}
-          </span>
-        ) : null}
-      </div>
-
-      <div className="mt-3 flex flex-wrap gap-2 text-xs">
-        {showBudget && (
-          <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-900 text-white font-semibold">
-            €{Number(campaign.budget).toLocaleString(locale)}
-          </span>
-        )}
-        {!showBudget && comp && (
-          <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-800 font-medium">
-            {comp}
-          </span>
-        )}
-        {showBudget && comp && campaign.compensation_type !== "money" && (
-          <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-800 font-medium">
-            {comp}
+      <div className="relative">
+        <CampaignCover
+          coverUrl={campaign.cover_url}
+          title={campaign.title}
+          brandName={hideBrand ? null : brand?.brand_name}
+          logoUrl={hideBrand ? null : brand?.logo_url}
+          category={campaign.category}
+          platforms={platforms}
+          aspect="4/3"
+        />
+        {statusText && (
+          <span className={`absolute left-3 top-3 text-[11px] font-medium px-2.5 py-1 rounded-full shadow-sm ${statusClass(campaign.status)}`}>
+            {statusText}
           </span>
         )}
         {closes && (
           <span
-            className={`inline-flex items-center px-2.5 py-1 rounded-full font-medium ${
-              closes.urgent ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-700"
+            className={`absolute right-3 top-3 text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-sm ${
+              closes.urgent ? "bg-red-600 text-white" : "bg-white/95 text-slate-800"
             }`}
           >
             {closes.text}
           </span>
         )}
-        {campaign.location ? (
-          <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
-            {displayLocation(campaign.location, lang)}
-          </span>
-        ) : null}
-        {campaign.min_followers ? (
-          <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
-            {lang === "el" ? "Από" : "From"} {formatFollowerCount(campaign.min_followers)}{" "}
-            {lang === "el" ? "ακόλουθοι" : "followers"}
-          </span>
-        ) : null}
       </div>
 
-      <p className="mt-3 text-sm text-slate-600 line-clamp-3 whitespace-pre-wrap">
-        <CampaignDescriptionText text={campaign.description} />
-      </p>
+      <div className="p-5">
+        <div className="flex items-center gap-1.5 min-h-[1.25rem]">
+          {!hideBrand && (
+            <>
+              <p className="text-sm font-medium text-slate-800 truncate">{brand?.brand_name || "Brand"}</p>
+              {brand?.verified ? <VerifiedTick /> : null}
+              {published && <span className="text-xs text-slate-500 shrink-0">· {published}</span>}
+            </>
+          )}
+          {hideBrand && published && <p className="text-xs text-slate-500">{published}</p>}
+        </div>
 
-      {(platforms.length > 0 || cat || deliverableChips.length > 0) && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {platforms.map((p) => (
-            <span
-              key={p}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-slate-200 bg-white text-xs font-medium text-slate-800"
+        <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
+          <h3 className="min-w-0 flex-1 text-lg font-bold text-slate-900 leading-snug line-clamp-2">
+            <Link
+              href={link}
+              className="text-inherit after:absolute after:inset-0 after:z-0 after:rounded-2xl after:content-[''] focus-visible:outline-none group-hover:text-blue-700"
             >
-              <PlatformIcon platform={p} />
-              {PLATFORM_LABEL[p]?.[lang] || p}
-            </span>
-          ))}
-          {cat ? (
-            <span className="inline-flex items-center px-2.5 py-1 rounded-full border border-slate-200 bg-white text-xs font-medium text-slate-800">
-              {cat}
+              {campaign.title}
+            </Link>
+          </h3>
+          {publicBadge ? (
+            <span
+              className={`relative z-10 pointer-events-none inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold ${
+                isApplicationsBadge
+                  ? "bg-blue-600 text-white"
+                  : "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+              }`}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="h-4 w-4 shrink-0"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+              {publicBadge}
             </span>
           ) : null}
-          {deliverableChips.map((d) => (
-            <span
-              key={d}
-              className="inline-flex items-center px-2.5 py-1 rounded-full border border-slate-200 bg-slate-50 text-xs text-slate-700"
-            >
-              {d}
-            </span>
-          ))}
         </div>
-      )}
 
-      {footer ? <div className="relative z-10 mt-4 pt-3 border-t border-slate-100">{footer}</div> : null}
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+          {showBudget && (
+            <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-900 text-white font-semibold">
+              €{Number(campaign.budget).toLocaleString(locale)}
+            </span>
+          )}
+          {!showBudget && comp && (
+            <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-800 font-medium">
+              {comp}
+            </span>
+          )}
+          {showBudget && comp && campaign.compensation_type !== "money" && (
+            <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-800 font-medium">
+              {comp}
+            </span>
+          )}
+          {campaign.location ? (
+            <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
+              {displayLocation(campaign.location, lang)}
+            </span>
+          ) : null}
+          {campaign.min_followers ? (
+            <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
+              {lang === "el" ? "Από" : "From"} {formatFollowerCount(campaign.min_followers)}{" "}
+              {lang === "el" ? "ακόλουθοι" : "followers"}
+            </span>
+          ) : null}
+        </div>
+
+        <p className="mt-3 text-sm text-slate-600 line-clamp-2 whitespace-pre-wrap">
+          <CampaignDescriptionText text={campaign.description} />
+        </p>
+
+        {(cat || deliverableChips.length > 0) && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {cat ? (
+              <span className="inline-flex items-center px-2.5 py-1 rounded-full border border-slate-200 bg-white text-xs font-medium text-slate-800">
+                {cat}
+              </span>
+            ) : null}
+            {deliverableChips.slice(0, 4).map((d) => (
+              <span
+                key={d}
+                className="inline-flex items-center px-2.5 py-1 rounded-full border border-slate-200 bg-slate-50 text-xs text-slate-700"
+              >
+                {d}
+              </span>
+            ))}
+            {deliverableChips.length > 4 ? (
+              <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-50 text-xs text-slate-500">
+                +{deliverableChips.length - 4}
+              </span>
+            ) : null}
+          </div>
+        )}
+
+        {!publicBadge && appsCount > 0 && (
+          <p className="mt-3 text-xs text-slate-500">
+            {appsCount} {lang === "el" ? (appsCount === 1 ? "αίτηση" : "αιτήσεις") : appsCount === 1 ? "application" : "applications"}
+          </p>
+        )}
+
+        {footer ? <div className="relative z-10 mt-4 pt-3 border-t border-slate-100">{footer}</div> : null}
+      </div>
     </article>
   );
 }

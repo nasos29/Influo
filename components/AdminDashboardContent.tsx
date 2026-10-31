@@ -275,22 +275,23 @@ interface BlogPost {
 
 const t = {
   el: {
-    title: "Admin Dashboard",
+    title: "Πίνακας Διαχείρισης",
     sub: "Επισκόπηση & Διαχείριση",
     back: "Πίσω στο Site",
+    logout: "Αποσύνδεση",
     users: "Συνολικοί Χρήστες",
     pending: "Εκκρεμούν",
     pending_brands: "Εκκρεμείς επιχειρήσεις",
     verified: "Εγκεκριμένοι",
     reach: "Απήχηση",
     pipeline: "Pipeline",
-    tab_inf: "Influencers",
+    tab_inf: "Δημιουργοί",
     tab_inf_analytics: "Στατιστικά",
-    tab_deals: "Proposals",
-    tab_brands: "Companies",
+    tab_deals: "Προτάσεις",
+    tab_brands: "Επιχειρήσεις",
     tab_campaigns: "Καμπάνιες brands",
     tab_blog: "Blog",
-    col_inf: "Influencer",
+    col_inf: "Δημιουργός",
     col_loc: "Τοποθεσία",
     col_status: "Status",
     col_act: "Ενέργειες",
@@ -326,7 +327,7 @@ const t = {
     category: "Κατηγορία",
     engagement: "Engagement",
     min_rate_label: "Min Rate",
-    col_brand: "Brand",
+    col_brand: "Επιχείρηση",
     col_bud: "Budget",
     col_srv: "Υπηρεσία",
     col_date: "Ημερομηνία",
@@ -376,6 +377,7 @@ const t = {
     title: "Admin Dashboard",
     sub: "Overview & Management",
     back: "Back to Site",
+    logout: "Logout",
     users: "Total Users",
     pending: "Pending",
     pending_brands: "Pending companies",
@@ -3887,9 +3889,9 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                 className="text-xs font-medium border border-slate-200 px-2 sm:px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
                 aria-label="Toggle language"
               >
-                {lang === "el" ? "EN" : "EL"}
+                {lang === "el" ? "EN" : "ΕΛ"}
               </button>
-              <button type="button" onClick={() => void logoutEverywhere("/login")} className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors">Logout</button>
+              <button type="button" onClick={() => void logoutEverywhere("/login")} className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors">{txt.logout}</button>
               <a href="/" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors">{txt.back}</a>
             </div>
           </div>
@@ -4461,6 +4463,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                   const list = (pickerUsers.length ? pickerUsers : users).map((u) => ({
                     id: u.id,
                     display_name: u.display_name,
+                    contact_email: u.contact_email,
                   }));
                   const seen = new Set<string>();
                   return list.filter((u) => {

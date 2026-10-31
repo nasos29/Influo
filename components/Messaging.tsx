@@ -293,8 +293,13 @@ export default function Messaging({
   }, [proposalId, selectedConversation, conversations]);
 
   // Load conversations
+  // NOTE: depends on `mode` only (never `lang`) so a language flip does not
+  // re-trigger the loading gate. The timer is a safety net so the list can
+  // never stay on "Loading…" if a request hangs.
   useEffect(() => {
-    loadConversations();
+    const safety = window.setTimeout(() => setLoading(false), 20000);
+    void loadConversations().finally(() => window.clearTimeout(safety));
+    return () => window.clearTimeout(safety);
   }, [mode]);
 
   // Auto-select conversation when proposalId and brandEmail are provided
@@ -1676,7 +1681,7 @@ export default function Messaging({
             showMobileList ? 'flex flex-col' : 'hidden'
           } sm:flex sm:flex-col`}
         >
-          {loading ? (
+          {loading && conversations.length === 0 ? (
             <div className="p-4 text-center text-sm text-slate-500">{txt.loading}</div>
           ) : conversations.length === 0 ? (
             <div className="p-6 text-center text-sm text-slate-500">{txt.noConversations}</div>

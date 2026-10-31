@@ -121,7 +121,8 @@ const HIDDEN_VIDEO_NOTICE = {
 } as const;
 
 // --- COMPREHENSIVE EDIT MODAL WITH SOCIAL ACCOUNTS ---
-const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: () => void, onSave: (updatedUser: InfluencerData) => void }) => {
+const EditModal = ({ user, onClose, onSave, lang = 'el' }: { user: InfluencerData, onClose: () => void, onSave: (updatedUser: InfluencerData) => void, lang?: 'el' | 'en' }) => {
+    const L = (el: string, en: string) => (lang === 'en' ? en : el);
     const [name, setName] = useState(user.display_name);
     const [bio, setBio] = useState(user.bio || "");
     const [minRate, setMinRate] = useState(user.min_rate || "");
@@ -657,25 +658,25 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
             <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto my-8">
                 <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-                    <h2 className="text-xl font-semibold text-slate-900">Επεξεργασία Προφίλ</h2>
+                    <h2 className="text-xl font-semibold text-slate-900">{L("Επεξεργασία Προφίλ", "Edit Profile")}</h2>
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-600">✕</button>
                 </div>
                 
                 <form onSubmit={handleSave} className="p-6 space-y-6">
                     {/* Basic Info */}
                     <div>
-                        <h3 className="text-sm font-semibold text-slate-700 mb-3 uppercase">Βασικές Πληροφορίες</h3>
+                        <h3 className="text-sm font-semibold text-slate-700 mb-3 uppercase">{L("Βασικές Πληροφορίες", "Basic Information")}</h3>
                         
                         {/* Avatar Upload */}
                         <div className="mb-4">
-                            <label className="block text-sm font-semibold text-slate-900 mb-2">Φωτογραφία Προφίλ</label>
+                            <label className="block text-sm font-semibold text-slate-900 mb-2">{L("Φωτογραφία Προφίλ", "Profile Photo")}</label>
                             <div className="flex items-center gap-4">
                                 <div className="relative w-20 h-20 rounded-full border-2 border-slate-300 overflow-hidden bg-slate-100">
                                     {avatarPreview ? (
                                         <img src={avatarPreview} alt="Avatar preview" className="w-full h-full object-cover" />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center bg-gray-200">
-                                            <span className="text-gray-500 text-xs font-medium">ΧΩΡΙΣ ΦΩΤΟ</span>
+                                            <span className="text-gray-500 text-xs font-medium">{L("ΧΩΡΙΣ ΦΩΤΟ", "NO PHOTO")}</span>
                                         </div>
                                     )}
                                 </div>
@@ -704,15 +705,15 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
 
                         <div className="grid md:grid-cols-2 gap-3">
                             <div>
-                                <label className="block text-sm font-semibold text-slate-900 mb-1">Ονοματεπώνυμο *</label>
+                                <label className="block text-sm font-semibold text-slate-900 mb-1">{L("Ονοματεπώνυμο *", "Full name *")}</label>
                                 <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" required />
                             </div>
                             <div>
-                                <label className="block text-sm font-semibold text-slate-900 mb-1">Τοποθεσία</label>
+                                <label className="block text-sm font-semibold text-slate-900 mb-1">{L("Τοποθεσία", "Location")}</label>
                                 <input type="text" value={location} onChange={e => setLocation(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" />
                             </div>
                             <div>
-                                <label className="block text-sm font-semibold text-slate-900 mb-1">Ημερομηνία Γέννησης</label>
+                                <label className="block text-sm font-semibold text-slate-900 mb-1">{L("Ημερομηνία Γέννησης", "Date of Birth")}</label>
                                 <input
                                     type="date"
                                     value={birthDate}
@@ -723,7 +724,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                 />
                             </div>
                             <CategoryCheckboxList
-                                lang="el"
+                                lang={lang}
                                 selected={categories}
                                 onChange={setCategories}
                                 label="Κατηγορίες *"
@@ -732,7 +733,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                 compact
                             />
                             <div>
-                                <label className="block text-xs font-semibold text-slate-900 mb-1">Φύλο</label>
+                                <label className="block text-xs font-semibold text-slate-900 mb-1">{L("Φύλο", "Gender")}</label>
                                 <select value={gender} onChange={e => setGender(normalizeGender(e.target.value))} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900">
                                     <option value="Female">Γυναίκα</option>
                                     <option value="Male">Άνδρας</option>
@@ -740,23 +741,23 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-xs font-semibold text-slate-900 mb-1">Ελάχιστη Χρέωση (€)</label>
+                                <label className="block text-xs font-semibold text-slate-900 mb-1">{L("Ελάχιστη Χρέωση (€)", "Minimum Rate (€)")}</label>
                                 <input type="text" value={minRate} onChange={e => setMinRate(replaceCommaWithDot(e.target.value))} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" placeholder="250" />
                             </div>
                         </div>
                         <div className="mt-3">
-                            <label className="block text-xs font-semibold text-slate-900 mb-1">Βιογραφικό</label>
+                            <label className="block text-xs font-semibold text-slate-900 mb-1">{L("Βιογραφικό", "Bio")}</label>
                             <textarea value={bio} onChange={e => setBio(e.target.value)} rows={2} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900" />
                         </div>
                     </div>
 
                     {/* Pricing Section - Compact */}
                     <div>
-                        <h3 className="text-sm font-semibold text-slate-700 mb-3 uppercase">Τιμές Ανά Υπηρεσία</h3>
-                        <p className="text-xs text-slate-600 mb-3">Αφήστε κενό για "Ρώτησε".</p>
+                        <h3 className="text-sm font-semibold text-slate-700 mb-3 uppercase">{L("Τιμές Ανά Υπηρεσία", "Prices per Service")}</h3>
+                        <p className="text-xs text-slate-600 mb-3">{L('Αφήστε κενό για "Ρώτησε".', 'Leave empty for "Ask".')}</p>
                         <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5">
                             <div>
-                                <label className="block text-xs font-semibold text-slate-900 mb-1">Instagram Story (€)</label>
+                                <label className="block text-xs font-semibold text-slate-900 mb-1">{L("Instagram Story (€)", "Instagram Story (€)")}</label>
                                 <input 
                                     type="text" 
                                     value={priceStory} 
@@ -766,7 +767,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                 />
                             </div>
                         <div>
-                                <label className="block text-xs font-semibold text-slate-900 mb-1">Instagram Post (€)</label>
+                                <label className="block text-xs font-semibold text-slate-900 mb-1">{L("Instagram Post (€)", "Instagram Post (€)")}</label>
                                 <input 
                                     type="text" 
                                     value={pricePost} 
@@ -776,7 +777,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                 />
                         </div>
                         <div>
-                                <label className="block text-xs font-semibold text-slate-900 mb-1">Reel / TikTok (€)</label>
+                                <label className="block text-xs font-semibold text-slate-900 mb-1">{L("Reel / TikTok (€)", "Reel / TikTok (€)")}</label>
                                 <input 
                                     type="text" 
                                     value={priceReel} 
@@ -786,7 +787,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                 />
                         </div>
                          <div>
-                                <label className="block text-xs font-semibold text-slate-900 mb-1">YouTube Video (€)</label>
+                                <label className="block text-xs font-semibold text-slate-900 mb-1">{L("YouTube Video (€)", "YouTube Video (€)")}</label>
                                 <input 
                                     type="text" 
                                     value={priceYouTube} 
@@ -797,7 +798,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                         </div>
                     </div>
                             <div className="mt-6">
-                                <label className="block text-sm font-semibold text-slate-900 mb-1">Γλώσσες</label>
+                                <label className="block text-sm font-semibold text-slate-900 mb-1">{L("Γλώσσες", "Languages")}</label>
                                 <div className="border-2 border-slate-200 rounded-lg p-3 bg-slate-50">
                                     <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                                         {LANGUAGES.map(langItem => {
@@ -836,7 +837,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
 
                     {/* Social Accounts */}
                     <div>
-                        <h3 className="text-sm font-bold text-slate-900 mb-3 uppercase">Κανάλια Social Media</h3>
+                        <h3 className="text-sm font-bold text-slate-900 mb-3 uppercase">{L("Κανάλια Social Media", "Social Media Channels")}</h3>
                         <div className="space-y-2">
                             {accounts.map((acc, i) => (
                                 <div key={i} className="flex gap-3 items-start p-3 border border-slate-200 rounded-lg">
@@ -850,24 +851,24 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                     )}
                                 </div>
                             ))}
-                            <button type="button" onClick={addAccount} className="text-sm text-blue-600 hover:text-blue-700 font-medium">+ Προσθήκη Καναλιού</button>
+                            <button type="button" onClick={addAccount} className="text-sm text-blue-600 hover:text-blue-700 font-medium">{L("+ Προσθήκη Καναλιού", "+ Add Channel")}</button>
                         </div>
                     </div>
 
                     {/* Audience */}
                     <div>
-                        <h3 className="text-sm font-bold text-slate-900 mb-3 uppercase">Κοινό</h3>
+                        <h3 className="text-sm font-bold text-slate-900 mb-3 uppercase">{L("Κοινό", "Audience")}</h3>
                         <div className="grid md:grid-cols-3 gap-3">
                             <div>
-                                <label className="block text-xs font-semibold text-slate-900 mb-1">Άνδρες (%)</label>
+                                <label className="block text-xs font-semibold text-slate-900 mb-1">{L("Άνδρες (%)", "Men (%)")}</label>
                                 <input type="number" value={malePercent} onChange={e => setMalePercent(e.target.value)} min="0" max="100" className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" />
                             </div>
                             <div>
-                                <label className="block text-xs font-semibold text-slate-900 mb-1">Γυναίκες (%)</label>
+                                <label className="block text-xs font-semibold text-slate-900 mb-1">{L("Γυναίκες (%)", "Women (%)")}</label>
                                 <input type="number" value={femalePercent} onChange={e => setFemalePercent(e.target.value)} min="0" max="100" className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" />
                             </div>
                             <div>
-                                <label className="block text-xs font-semibold text-slate-900 mb-1">Κύρια Ηλικιακή Ομάδα</label>
+                                <label className="block text-xs font-semibold text-slate-900 mb-1">{L("Κύρια Ηλικιακή Ομάδα", "Main Age Group")}</label>
                                 <input 
                                     type="text" 
                                     value={topAge} 
@@ -891,8 +892,8 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
 
                     {/* Videos */}
                     <div>
-                        <h3 className="text-sm font-bold text-slate-900 mb-3 uppercase">Video Links / Φωτογραφίες</h3>
-                        <p className="text-xs text-slate-600 mb-2">Μπορείτε να προσθέσετε links από TikTok, Reels, YouTube ή φωτογραφίες από δουλειές σας.</p>
+                        <h3 className="text-sm font-bold text-slate-900 mb-3 uppercase">{L("Video Links / Φωτογραφίες", "Video Links / Photos")}</h3>
+                        <p className="text-xs text-slate-600 mb-2">{L('Μπορείτε να προσθέσετε links από TikTok, Reels, YouTube ή φωτογραφίες από δουλειές σας.', 'You can add links from TikTok, Reels, YouTube or photos of your work.')}</p>
                         {parseHiddenVideos(user.hidden_videos).map((hidden) => {
                           const short =
                             hidden.url.length > 64 ? `${hidden.url.slice(0, 61)}…` : hidden.url;
@@ -901,9 +902,9 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                               key={normalizeVideoUrlKey(hidden.url)}
                               className="mb-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-3 text-sm text-amber-900"
                             >
-                              <p className="font-semibold">{HIDDEN_VIDEO_NOTICE.title.el}</p>
+                              <p className="font-semibold">{HIDDEN_VIDEO_NOTICE.title[lang]}</p>
                               <p className="mt-1 break-all text-amber-800/90">{short}</p>
-                              <p className="mt-1">{HIDDEN_VIDEO_NOTICE.body.el}</p>
+                              <p className="mt-1">{HIDDEN_VIDEO_NOTICE.body[lang]}</p>
                               <div className="mt-2 flex flex-wrap gap-2">
                                 <button
                                   type="button"
@@ -920,7 +921,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                     }
                                   }}
                                 >
-                                  {HIDDEN_VIDEO_NOTICE.replace.el}
+                                  {HIDDEN_VIDEO_NOTICE.replace[lang]}
                                 </button>
                                 <button
                                   type="button"
@@ -936,7 +937,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                     }
                                   }}
                                 >
-                                  {HIDDEN_VIDEO_NOTICE.remove.el}
+                                  {HIDDEN_VIDEO_NOTICE.remove[lang]}
                                 </button>
                               </div>
                             </div>
@@ -980,7 +981,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                                     ? "border-amber-400 bg-amber-50/40"
                                                     : "border-slate-300"
                                                 }`}
-                                                placeholder="https://youtube.com/... ή https://image.com/..." 
+                                                placeholder={L("https://youtube.com/... ή https://image.com/...", "https://youtube.com/... or https://image.com/...")} 
                                                 autoComplete="off"
                                             />
                                             {checkingById[row.id] ? (
@@ -993,7 +994,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                             ) : null}
                                             {isProfileNotVideo && !rejected && (
                                               <p className="mt-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                                                {videoProfileWarn.el}
+                                                {videoProfileWarn[lang]}
                                               </p>
                                             )}
                                             {!rejected && video && isEmbeddableVideoUrl(video) && (
@@ -1035,21 +1036,21 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                 {videoLinkError}
                               </p>
                             ) : null}
-                            <button type="button" onClick={addVideo} className="text-sm text-blue-600 hover:text-blue-700 font-medium">+ Προσθήκη Video Link / Φωτογραφίας</button>
+                            <button type="button" onClick={addVideo} className="text-sm text-blue-600 hover:text-blue-700 font-medium">{L("+ Προσθήκη Video Link / Φωτογραφίας", "+ Add Video Link / Photo")}</button>
                         </div>
                     </div>
 
                     {/* Warning */}
                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                         <p className="text-sm text-yellow-800">
-                            ⚠️ <strong>Σημαντικό:</strong> Μετά την αποθήκευση, το προφίλ σου θα μεταβεί σε κατάσταση «Εκκρεμότητα» και θα χρειαστεί επαν-επαλήθευση από τον admin.
+                            ⚠️ <strong>{L('Σημαντικό:', 'Important:')}</strong> {L('Μετά την αποθήκευση, το προφίλ σου θα μεταβεί σε κατάσταση «Εκκρεμότητα» και θα χρειαστεί επαν-επαλήθευση από τον admin.', 'After saving, your profile will switch to "Pending" and will need to be re-verified by an admin.')}
                         </p>
                     </div>
                     
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
-                        <button type="button" onClick={onClose} className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg font-medium transition-colors">Ακύρωση</button>
+                        <button type="button" onClick={onClose} className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg font-medium transition-colors">{L("Ακύρωση", "Cancel")}</button>
                         <button type="submit" disabled={loading || videosChecking || videosNotPlayable} className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium disabled:opacity-50 transition-colors">
-                            {loading ? 'Αποθήκευση...' : 'Αποθήκευση Αλλαγών'}
+                            {loading ? L('Αποθήκευση...', 'Saving...') : L('Αποθήκευση Αλλαγών', 'Save Changes')}
                         </button>
                     </div>
                 </form>
@@ -1117,6 +1118,35 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
             'Account deletion is permanent and removes your profile, conversations, and related data from the platform.',
           channelAnalytics: 'Channel Analytics',
           dangerZone: 'Danger zone',
+          tabProfile: 'Profile',
+          tabTools: 'Tools',
+          tabCampaigns: 'Campaigns',
+          tabOffers: 'Offers',
+          tabMessages: 'Messages',
+          tabStats: 'Analytics',
+          tabAnnouncements: 'Announcements',
+          campaignsTitle: 'Campaigns · expressions of interest',
+          offersTitle: 'Offers from Brands',
+          offersEmpty: 'No offers yet.',
+          announcementsTitle: 'Announcements',
+          announcementsLoading: 'Loading...',
+          announcementsEmpty: 'No announcements.',
+          unreadTitle: 'Unread',
+          markRead: 'Mark as read',
+          readAt: 'Read',
+          hideFromList: 'Hide from list',
+          deleteLabel: 'Delete',
+          profileOverview: 'Profile Overview',
+          editProfile: 'Edit Profile',
+          availabilityTitle: 'Availability status',
+          availabilityHint: 'Shown on the "Status" card of your public profile.',
+          available: 'Available',
+          unavailable: 'Temporarily unavailable',
+          availableHint: 'Open to new collaborations',
+          unavailableHint: 'Pausing new collaborations for now',
+          saving: 'Saving…',
+          socialChannels: 'Social Media Channels',
+          docTitle: 'Creator Dashboard | Influo',
         }
       : {
           welcome: 'Καλώς ήρθες,',
@@ -1142,7 +1172,44 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
             'Η διαγραφή λογαριασμού είναι οριστική και αφαιρεί το προφίλ σας, τις συνομιλίες και όλα τα σχετικά δεδομένα από την πλατφόρμα.',
           channelAnalytics: 'Αναλυτικά Καναλιού',
           dangerZone: 'Επικίνδυνη ζώνη',
+          tabProfile: 'Προφίλ',
+          tabTools: 'Εργαλεία',
+          tabCampaigns: 'Καμπάνιες',
+          tabOffers: 'Προσφορές',
+          tabMessages: 'Μηνύματα',
+          tabStats: 'Στατιστικά',
+          tabAnnouncements: 'Ανακοινώσεις',
+          campaignsTitle: 'Καμπάνιες · αιτήσεις ενδιαφέροντος',
+          offersTitle: 'Προσφορές από Brands',
+          offersEmpty: 'Δεν υπάρχουν προσφορές ακόμα.',
+          announcementsTitle: 'Ανακοινώσεις',
+          announcementsLoading: 'Φόρτωση...',
+          announcementsEmpty: 'Δεν υπάρχουν ανακοινώσεις.',
+          unreadTitle: 'Μη διαβασμένο',
+          markRead: 'Σήμανση ως διαβασμένο',
+          readAt: 'Διαβάστηκε',
+          hideFromList: 'Απόκρυψη από τη λίστα',
+          deleteLabel: 'Διαγραφή',
+          profileOverview: 'Επισκόπηση Προφίλ',
+          editProfile: 'Επεξεργασία Προφίλ',
+          availabilityTitle: 'Κατάσταση διαθεσιμότητας',
+          availabilityHint: 'Εμφανίζεται στην κάρτα «Κατάσταση» του δημόσιου προφίλ σου.',
+          available: 'Διαθέσιμος',
+          unavailable: 'Μη διαθέσιμος προσωρινά',
+          availableHint: 'Ανοιχτός σε νέες συνεργασίες',
+          unavailableHint: 'Παύση νέων συνεργασιών προς το παρόν',
+          saving: 'Αποθήκευση…',
+          socialChannels: 'Κανάλια Social Media',
+          docTitle: 'Πίνακας δημιουργού | Influo',
         };
+
+    useEffect(() => {
+        if (typeof document === 'undefined') return;
+        document.title = ui.docTitle;
+    }, [ui.docTitle]);
+
+    const dateLocale = lang === 'en' ? 'en-GB' : 'el-GR';
+    const T = (el: string, en: string) => (lang === 'en' ? en : el);
 
     const switchLang = (next: 'el' | 'en') => {
       setLang(next);
@@ -1590,7 +1657,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                         : 'border-transparent text-slate-500 hover:text-slate-700'
                                 }`}
                             >
-                                Προφίλ
+                                {ui.tabProfile}
                             </button>
                             <button
                                 onClick={() => setActiveTab('tools')}
@@ -1600,7 +1667,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                         : 'border-transparent text-slate-500 hover:text-slate-700'
                                 }`}
                             >
-                                <span className="hidden md:inline">🧰 </span>Εργαλεία
+                                <span className="hidden md:inline">🧰 </span>{ui.tabTools}
                             </button>
                             <button
                                 onClick={() => setActiveTab('campaigns')}
@@ -1610,7 +1677,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                         : 'border-transparent text-slate-500 hover:text-slate-700'
                                 }`}
                             >
-                                <span className="hidden md:inline">📣 </span>Καμπάνιες
+                                <span className="hidden md:inline">📣 </span>{ui.tabCampaigns}
                                 {unseenCampaignCount > 0 && (
                                     <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 bg-red-500 text-white text-[9px] sm:text-[10px] font-bold rounded-full min-w-[14px] sm:min-w-[16px] h-[14px] sm:h-[16px] flex items-center justify-center px-0.5">
                                         {tabBadgeText(unseenCampaignCount)}
@@ -1630,7 +1697,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                         : 'border-transparent text-slate-500 hover:text-slate-700'
                                 }`}
                             >
-                                <span className="hidden md:inline">📋 </span>Προσφορές
+                                <span className="hidden md:inline">📋 </span>{ui.tabOffers}
                                 {unseenProposalCount > 0 && (
                                     <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 bg-red-500 text-white text-[9px] sm:text-[10px] font-bold rounded-full min-w-[14px] sm:min-w-[16px] h-[14px] sm:h-[16px] flex items-center justify-center px-0.5">
                                         {tabBadgeText(unseenProposalCount)}
@@ -1645,7 +1712,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                         : 'border-transparent text-slate-500 hover:text-slate-700'
                                 }`}
                             >
-                                <span className="hidden md:inline">💬 </span>Μηνύματα
+                                <span className="hidden md:inline">💬 </span>{ui.tabMessages}
                                 {unreadMessagesCount > 0 && (
                                     <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 bg-red-500 text-white text-[9px] sm:text-[10px] font-bold rounded-full min-w-[14px] sm:min-w-[16px] h-[14px] sm:h-[16px] flex items-center justify-center px-0.5">
                                         {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
@@ -1660,7 +1727,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                         : 'border-transparent text-slate-500 hover:text-slate-700'
                                 }`}
                             >
-                                <span className="hidden md:inline">📊 </span>Στατιστικά
+                                <span className="hidden md:inline">📊 </span>{ui.tabStats}
                             </button>
                             <button
                                 onClick={() => setActiveTab('announcements')}
@@ -1670,7 +1737,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                         : 'border-transparent text-slate-500 hover:text-slate-700'
                                 }`}
                             >
-                                <span className="hidden md:inline">📢 </span>Ανακοινώσεις
+                                <span className="hidden md:inline">📢 </span>{ui.tabAnnouncements}
                                 {unreadAnnouncementsCount > 0 && (
                                     <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 bg-red-500 text-white text-[9px] sm:text-[10px] font-bold rounded-full min-w-[14px] sm:min-w-[16px] h-[14px] sm:h-[16px] flex items-center justify-center px-0.5">
                                         {unreadAnnouncementsCount > 99 ? '99+' : unreadAnnouncementsCount > 9 ? '9+' : unreadAnnouncementsCount}
@@ -1696,7 +1763,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                             />
                         ) : activeTab === 'campaigns' ? (
                             <div className="space-y-4">
-                                <h2 className="text-xl font-semibold text-slate-900">Καμπάνιες · αιτήσεις ενδιαφέροντος</h2>
+                                <h2 className="text-xl font-semibold text-slate-900">{ui.campaignsTitle}</h2>
                                 <InfluencerCampaignsPanel
                                   influencerId={profile.id}
                                   approved={!!profile.approved}
@@ -1706,11 +1773,11 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                             </div>
                         ) : activeTab === 'proposals' ? (
                             <div className="space-y-4">
-                                <h2 className="text-xl font-semibold text-slate-900">Προσφορές από Brands</h2>
+                                <h2 className="text-xl font-semibold text-slate-900">{ui.offersTitle}</h2>
                                 
                                 {proposals.length === 0 ? (
                                     <div className="text-center py-12 text-slate-500">
-                                        <p>Δεν υπάρχουν προσφορές ακόμα.</p>
+                                        <p>{ui.offersEmpty}</p>
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
@@ -1724,12 +1791,12 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                     {needsAgreement && (
                                                         <div className="mb-3 p-3 bg-amber-100 border border-amber-300 rounded-lg">
                                                             <p className="text-sm font-semibold text-amber-900 flex items-center gap-2">
-                                                                💡 <span>Γιατί να αποδεχτείτε τη συμφωνία;</span>
+                                                                💡 <span>{T("Γιατί να αποδεχτείτε τη συμφωνία;", "Why accept the agreement?")}</span>
                                                             </p>
                                                             <ul className="text-xs text-amber-800 mt-2 space-y-1 ml-5 list-disc">
-                                                                <li>Θα μπορείτε να λάβετε αξιολογήσεις που βελτιώνουν την αξιοπιστία σας</li>
-                                                                <li>Το brand θα εμφανίζεται στις συνεργασίες σας, αυξάνοντας την προβολή</li>
-                                                                <li>Περισσότερες συνεργασίες = πιο επαγγελματικό προφίλ</li>
+                                                                <li>{T("Θα μπορείτε να λάβετε αξιολογήσεις που βελτιώνουν την αξιοπιστία σας", "You can receive reviews that improve your credibility")}</li>
+                                                                <li>{T("Το brand θα εμφανίζεται στις συνεργασίες σας, αυξάνοντας την προβολή", "The brand will appear in your collaborations, boosting your visibility")}</li>
+                                                                <li>{T("Περισσότερες συνεργασίες = πιο επαγγελματικό προφίλ", "More collaborations = a more professional profile")}</li>
                                                             </ul>
                                                         </div>
                                                     )}
@@ -1744,30 +1811,30 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                         ? 'bg-red-100 text-red-700'
                                                                         : 'bg-blue-100 text-blue-700'
                                                                 }`}>
-                                                                    {prop.status === 'pending' ? 'Εκκρεμεί' : 
-                                                                     prop.status === 'accepted' ? (hasAgreement ? '✅ Συμφωνία Αποδεκτή' : 'Αποδεκτή - Αναμένεται Συμφωνία') :
-                                                                     prop.status === 'completed' ? (hasAgreement ? '✅ Ολοκληρωμένη' : 'Ολοκληρωμένη - Αναμένεται Συμφωνία') :
-                                                                     prop.status === 'rejected' ? 'Απορρίφθηκε' : prop.status}
+                                                                    {prop.status === 'pending' ? T("Εκκρεμεί", "Pending") : 
+                                                                     prop.status === 'accepted' ? (hasAgreement ? T("✅ Συμφωνία Αποδεκτή", "✅ Agreement Accepted") : T("Αποδεκτή - Αναμένεται Συμφωνία", "Accepted - Awaiting Agreement")) :
+                                                                     prop.status === 'completed' ? (hasAgreement ? T("✅ Ολοκληρωμένη", "✅ Completed") : T("Ολοκληρωμένη - Αναμένεται Συμφωνία", "Completed - Awaiting Agreement")) :
+                                                                     prop.status === 'rejected' ? T("Απορρίφθηκε", "Rejected") : prop.status}
                                                                 </span>
                                                             </div>
                                                             <p className="text-sm text-slate-600 mb-2">
-                                                                <strong>Υπηρεσία:</strong> {prop.service_type} • <strong>Budget:</strong> {prop.budget}€
+                                                                <strong>{T("Υπηρεσία:", "Service:")}</strong> {prop.service_type} • <strong>Budget:</strong> {prop.budget}€
                                                             </p>
                                                             {prop.message && (
                                                                 <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg mt-2">{prop.message}</p>
                                                             )}
                                                             {prop.counter_proposal_budget && prop.counter_proposal_status === 'pending' && (
                                                                 <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                                                    <p className="text-sm font-semibold text-blue-900 mb-1">💰 Αντιπρόταση στάλθηκε</p>
-                                                                    <p className="text-xs text-blue-700">Νέα προτεινόμενη τιμή: <strong>{prop.counter_proposal_budget}€</strong></p>
+                                                                    <p className="text-sm font-semibold text-blue-900 mb-1">💰 {T("Αντιπρόταση στάλθηκε", "Counter-offer sent")}</p>
+                                                                    <p className="text-xs text-blue-700">{T("Νέα προτεινόμενη τιμή:", "New proposed price:")} <strong>{prop.counter_proposal_budget}€</strong></p>
                                                                     {prop.counter_proposal_message && (
                                                                         <p className="text-xs text-blue-600 mt-1 italic">"{prop.counter_proposal_message}"</p>
                                                                     )}
-                                                                    <p className="text-xs text-blue-500 mt-2">⏳ Αναμένεται απάντηση από το brand</p>
+                                                                    <p className="text-xs text-blue-500 mt-2">⏳ {T("Αναμένεται απάντηση από το brand", "Awaiting reply from the brand")}</p>
                                                                 </div>
                                                             )}
                                                             <p className="text-xs text-slate-500 mt-2">
-                                                                {new Date(prop.created_at).toLocaleDateString('el-GR', { 
+                                                                {new Date(prop.created_at).toLocaleDateString(dateLocale, { 
                                                                     day: 'numeric', 
                                                                     month: 'long', 
                                                                     year: 'numeric' 
@@ -1783,7 +1850,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                     }}
                                                                     className="px-4 py-2 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-semibold rounded-lg transition-all text-xs whitespace-nowrap shadow-lg hover:shadow-xl"
                                                                 >
-                                                                    ⚠️ Συμφωνία
+                                                                    ⚠️ {T("Συμφωνία", "Agreement")}
                                                                 </button>
                                                             )}
                                                             {prop.status === 'pending' && !prop.counter_proposal_budget && (
@@ -1806,20 +1873,20 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                                         setShowAgreementModal(true);
                                                                                     }
                                                                                 } else {
-                                                                                    alert('Σφάλμα: ' + (result.error || 'Αποτυχία αποδοχής προσφοράς'));
+                                                                                    alert(T("Σφάλμα: ", "Error: ") + (result.error || T("Αποτυχία αποδοχής προσφοράς", "Failed to accept offer")));
                                                                                 }
                                                                             } catch (error: any) {
                                                                                 console.error('Error accepting proposal:', error);
-                                                                                alert('Σφάλμα: ' + error.message);
+                                                                                alert(T("Σφάλμα: ", "Error: ") + error.message);
                                                                             }
                                                                         }}
                                                                         className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-all text-xs whitespace-nowrap"
                                                                     >
-                                                                        ✅ Αποδοχή
+                                                                        ✅ {T("Αποδοχή", "Accept")}
                                                                     </button>
                                                                     <button
                                                                         onClick={async () => {
-                                                                            if (!confirm('Να απορριφθεί η πρόταση; Το brand θα ειδοποιηθεί.')) return;
+                                                                            if (!confirm(T("Να απορριφθεί η πρόταση; Το brand θα ειδοποιηθεί.", "Reject this offer? The brand will be notified."))) return;
                                                                             try {
                                                                                 const response = await sessionFetch('/api/proposals/reject', {
                                                                                     method: 'POST',
@@ -1830,15 +1897,15 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                                 if (result.success) {
                                                                                     await reloadProposals();
                                                                                 } else {
-                                                                                    alert('Σφάλμα: ' + (result.error || 'Αποτυχία απόρριψης'));
+                                                                                    alert(T("Σφάλμα: ", "Error: ") + (result.error || T("Αποτυχία απόρριψης", "Failed to reject")));
                                                                                 }
                                                                             } catch (error: any) {
-                                                                                alert('Σφάλμα: ' + error.message);
+                                                                                alert(T("Σφάλμα: ", "Error: ") + error.message);
                                                                             }
                                                                         }}
                                                                         className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-all text-xs whitespace-nowrap"
                                                                     >
-                                                                        Απόρριψη
+                                                                        {T("Απόρριψη", "Reject")}
                                                                     </button>
                                                                     <button
                                                                         onClick={() => {
@@ -1849,7 +1916,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                         }}
                                                                         className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all text-xs whitespace-nowrap"
                                                                     >
-                                                                        💰 Αντιπρόταση
+                                                                        💰 {T("Αντιπρόταση", "Counter-offer")}
                                                                     </button>
                                                                     <button
                                                                         onClick={async () => {
@@ -1867,13 +1934,13 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                         }}
                                                                         className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white font-semibold rounded-lg transition-all text-xs whitespace-nowrap"
                                                                     >
-                                                                        💬 Συζήτησε το
+                                                                        💬 {T("Συζήτησε το", "Discuss")}
                                                                     </button>
                                                                 </>
                                                             )}
                                                             {hasAgreement && (
                                                                 <div className="px-4 py-2 bg-green-100 text-green-700 font-medium rounded-lg text-xs whitespace-nowrap text-center">
-                                                                    ✅ Συμφωνία
+                                                                    ✅ {T("Συμφωνία", "Agreement")}
                                                                 </div>
                                                             )}
                                                         </div>
@@ -1888,12 +1955,12 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                             <Analytics influencerId={profile.id} lang={lang} />
                         ) : activeTab === 'announcements' ? (
                             <div className="space-y-4">
-                                <h2 className="text-xl font-semibold text-slate-900">Ανακοινώσεις</h2>
+                                <h2 className="text-xl font-semibold text-slate-900">{ui.announcementsTitle}</h2>
                                 {announcementsLoading ? (
-                                    <div className="text-center py-8 text-slate-500">Φόρτωση...</div>
+                                    <div className="text-center py-8 text-slate-500">{ui.announcementsLoading}</div>
                                 ) : announcementsList.length === 0 ? (
                                     <div className="text-center py-12 text-slate-500">
-                                        Δεν υπάρχουν ανακοινώσεις.
+                                        {ui.announcementsEmpty}
                                     </div>
                                 ) : (
                                     <ul className="space-y-3">
@@ -1909,14 +1976,14 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                         <div className="font-semibold text-slate-900 flex items-center gap-2">
                                                             {a.title}
                                                             {!a.read && (
-                                                                <span className="shrink-0 inline-flex items-center justify-center w-2.5 h-2.5 rounded-full bg-red-500" title="Μη διαβασμένο" />
+                                                                <span className="shrink-0 inline-flex items-center justify-center w-2.5 h-2.5 rounded-full bg-red-500" title={ui.unreadTitle} />
                                                             )}
                                                         </div>
                                                         <p className="text-sm text-slate-600 mt-1 whitespace-pre-wrap">{a.body}</p>
                                                         <p className="text-xs text-slate-500 mt-2">
-                                                            {new Date(a.created_at).toLocaleString('el-GR', { dateStyle: 'medium', timeStyle: 'short' })}
+                                                            {new Date(a.created_at).toLocaleString(dateLocale, { dateStyle: 'medium', timeStyle: 'short' })}
                                                             {a.read && a.read_at && (
-                                                                <span className="ml-2">· Διαβάστηκε {new Date(a.read_at).toLocaleString('el-GR', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                                                                <span className="ml-2">· {ui.readAt} {new Date(a.read_at).toLocaleString(dateLocale, { dateStyle: 'short', timeStyle: 'short' })}</span>
                                                             )}
                                                         </p>
                                                     </div>
@@ -1944,7 +2011,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                 }}
                                                                 className="px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
                                                             >
-                                                                Σήμανση ως διαβασμένο
+                                                                {ui.markRead}
                                                             </button>
                                                         )}
                                                         <button
@@ -1966,9 +2033,9 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                 }
                                                             }}
                                                             className="px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
-                                                            title="Απόκρυψη από τη λίστα"
+                                                            title={ui.hideFromList}
                                                         >
-                                                            Διαγραφή
+                                                            {ui.deleteLabel}
                                                         </button>
                                                     </div>
                                                 </div>
@@ -1980,9 +2047,9 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                         ) : activeTab === 'profile' ? (
                             <div className="space-y-6">
                                 <div className="flex items-center justify-between">
-                                    <h2 className="text-xl font-semibold text-slate-900">Επισκόπηση Προφίλ</h2>
+                                    <h2 className="text-xl font-semibold text-slate-900">{ui.profileOverview}</h2>
                                     <button onClick={() => setShowEditModal(true)} className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium transition-colors">
-                                        ✏️ Επεξεργασία Προφίλ
+                                        ✏️ {ui.editProfile}
                                     </button>
                                 </div>
 
@@ -1998,15 +2065,15 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                           key={normalizeVideoUrlKey(hidden.url)}
                                           className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 shadow-sm"
                                         >
-                                          <p className="font-semibold">{HIDDEN_VIDEO_NOTICE.title.el}</p>
+                                          <p className="font-semibold">{HIDDEN_VIDEO_NOTICE.title[lang]}</p>
                                           <p className="mt-1 break-all text-amber-900/80">{short}</p>
-                                          <p className="mt-1">{HIDDEN_VIDEO_NOTICE.body.el}</p>
+                                          <p className="mt-1">{HIDDEN_VIDEO_NOTICE.body[lang]}</p>
                                           <button
                                             type="button"
                                             onClick={() => setShowEditModal(true)}
                                             className="mt-2 rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-900 ring-1 ring-amber-300 hover:bg-amber-200"
                                           >
-                                            {HIDDEN_VIDEO_NOTICE.replace.el}
+                                            {HIDDEN_VIDEO_NOTICE.replace[lang]}
                                           </button>
                                         </div>
                                       );
@@ -2017,9 +2084,9 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
                                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                         <div>
-                                            <h3 className="text-sm font-semibold text-slate-900">Κατάσταση διαθεσιμότητας</h3>
+                                            <h3 className="text-sm font-semibold text-slate-900">{ui.availabilityTitle}</h3>
                                             <p className="mt-1 text-sm text-slate-500">
-                                                Εμφανίζεται στην κάρτα «Κατάσταση» του δημόσιου προφίλ σου.
+                                                {ui.availabilityHint}
                                             </p>
                                         </div>
                                         <span
@@ -2034,7 +2101,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                     isAvailable ? 'bg-emerald-500' : 'bg-amber-500'
                                                 }`}
                                             />
-                                            {isAvailable ? 'Διαθέσιμος' : 'Μη διαθέσιμος προσωρινά'}
+                                            {isAvailable ? ui.available : ui.unavailable}
                                         </span>
                                     </div>
 
@@ -2049,9 +2116,9 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                     : 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-white'
                                             } ${availabilitySaving ? 'opacity-60 cursor-wait' : ''}`}
                                         >
-                                            <div className="text-sm font-semibold text-slate-900">Διαθέσιμος</div>
+                                            <div className="text-sm font-semibold text-slate-900">{ui.available}</div>
                                             <div className="mt-0.5 text-xs text-slate-500">
-                                                Ανοιχτός σε νέες συνεργασίες
+                                                {ui.availableHint}
                                             </div>
                                         </button>
                                         <button
@@ -2065,15 +2132,15 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                             } ${availabilitySaving ? 'opacity-60 cursor-wait' : ''}`}
                                         >
                                             <div className="text-sm font-semibold text-slate-900">
-                                                Μη διαθέσιμος προσωρινά
+                                                {ui.unavailable}
                                             </div>
                                             <div className="mt-0.5 text-xs text-slate-500">
-                                                Παύση νέων συνεργασιών προς το παρόν
+                                                {ui.unavailableHint}
                                             </div>
                                         </button>
                                     </div>
                                     {availabilitySaving && (
-                                        <p className="mt-2 text-xs text-slate-500">Αποθήκευση…</p>
+                                        <p className="mt-2 text-xs text-slate-500">{ui.saving}</p>
                                     )}
                                     {availabilityError && (
                                         <p className="mt-2 text-xs text-red-600">{availabilityError}</p>
@@ -2105,7 +2172,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                     {profile.accounts && profile.accounts.length > 0 && (
                         <div>
                             <h3 className="text-sm font-semibold text-slate-700 mb-3">
-                              {lang === 'en' ? 'Social Media Channels' : 'Κανάλια Social Media'}
+                              {ui.socialChannels}
                             </h3>
                             <div className="grid md:grid-cols-2 gap-3">
                                 {profile.accounts.map((acc, i) => (
@@ -2160,6 +2227,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                     user={profile}
                     onClose={() => setShowEditModal(false)}
                     onSave={handleProfileSave}
+                    lang={lang}
                 />
             )}
 

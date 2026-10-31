@@ -158,7 +158,7 @@ export default function AdminInfluencerStatsTab({
   influencers,
   lang,
 }: {
-  influencers: { id: string | number; display_name: string }[];
+  influencers: { id: string | number; display_name: string; contact_email?: string | null }[];
   lang: "el" | "en";
 }) {
   const txt = tr[lang];
@@ -178,20 +178,45 @@ export default function AdminInfluencerStatsTab({
 
   const uniqueInfluencers = useMemo(() => {
     const seen = new Set<string>();
-    const out: typeof influencers = [];
+    const deduped: typeof influencers = [];
     for (const u of influencers) {
       const id = String(u.id);
       if (seen.has(id)) continue;
       seen.add(id);
-      out.push(u);
+      deduped.push(u);
     }
+
+    // Count display names (case-insensitive) so same-named profiles can be told apart.
+    const nameKey = (u: (typeof influencers)[number]) => (u.display_name || "").trim().toLowerCase();
+    const nameCounts = new Map<string, number>();
+    for (const u of deduped) nameCounts.set(nameKey(u), (nameCounts.get(nameKey(u)) ?? 0) + 1);
+
+    // Within a shared name, count emails too: if emails also collide, fall back to the short id.
+    const nameEmailCounts = new Map<string, number>();
+    for (const u of deduped) {
+      const k = `${nameKey(u)}|${(u.contact_email || "").trim().toLowerCase()}`;
+      nameEmailCounts.set(k, (nameEmailCounts.get(k) ?? 0) + 1);
+    }
+
+    const out = deduped.map((u) => {
+      const base = (u.display_name || "").trim() || String(u.id);
+      if ((nameCounts.get(nameKey(u)) ?? 0) < 2) return { ...u, label: base };
+      const email = (u.contact_email || "").trim();
+      const shortId = String(u.id).slice(0, 8);
+      const emailUnique =
+        !!email && (nameEmailCounts.get(`${nameKey(u)}|${email.toLowerCase()}`) ?? 0) < 2;
+      const suffix = emailUnique ? email : email ? `${email} · #${shortId}` : `#${shortId}`;
+      return { ...u, label: `${base} (${suffix})` };
+    });
+
+    out.sort((a, b) => a.label.localeCompare(b.label, "el", { sensitivity: "base" }));
     return out;
   }, [influencers]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return uniqueInfluencers;
-    return uniqueInfluencers.filter((u) => u.display_name?.toLowerCase().includes(q));
+    return uniqueInfluencers.filter((u) => u.label.toLowerCase().includes(q));
   }, [uniqueInfluencers, query]);
 
   useEffect(() => {
@@ -337,7 +362,7 @@ export default function AdminInfluencerStatsTab({
             ) : (
               filtered.map((u) => (
                 <option key={String(u.id)} value={String(u.id)}>
-                  {u.display_name}
+                  {u.label}
                 </option>
               ))
             )}

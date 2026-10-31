@@ -2507,6 +2507,25 @@ export default function InfluencerProfile(props: {
                                         </span>
                                     )}
                                 </div>
+                                {lang === 'en' && (() => {
+                                  const audit = profile.auditpr_audit;
+                                  const hasEnBreakdown = Array.isArray(audit.scoreBreakdown_en) && audit.scoreBreakdown_en.length > 0;
+                                  const hasEnWhy = !!(audit.whyWorkWithThem_en && String(audit.whyWorkWithThem_en).trim());
+                                  const hasEnPos = Array.isArray(audit.positives_en) && audit.positives_en.filter(Boolean).length > 0;
+                                  const hasEnNeg = Array.isArray(audit.negatives_en) && audit.negatives_en.filter(Boolean).length > 0;
+                                  const hasElOnly =
+                                    !hasEnBreakdown &&
+                                    !hasEnWhy &&
+                                    !hasEnPos &&
+                                    !hasEnNeg &&
+                                    ((Array.isArray(audit.scoreBreakdown) && audit.scoreBreakdown.length > 0) ||
+                                      !!(audit.whyWorkWithThem && String(audit.whyWorkWithThem).trim()) ||
+                                      (Array.isArray(audit.positives) && audit.positives.filter(Boolean).length > 0) ||
+                                      (Array.isArray(audit.negatives) && audit.negatives.filter(Boolean).length > 0));
+                                  return hasElOnly ? (
+                                    <p className="mb-3 text-xs text-slate-500 italic">Available in Greek</p>
+                                  ) : null;
+                                })()}
                                 <ul className="space-y-2 text-slate-600 text-sm leading-relaxed list-none">
                                     {(lang === 'en' && profile.auditpr_audit.scoreBreakdown_en?.length ? profile.auditpr_audit.scoreBreakdown_en : profile.auditpr_audit.scoreBreakdown).map((item, idx) => (
                                         <li key={idx} className="flex gap-2">

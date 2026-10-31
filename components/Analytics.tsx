@@ -82,7 +82,12 @@ export default function Analytics({ influencerId, lang = 'el' }: AnalyticsProps)
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
 
+  // NOTE: `lang` is intentionally NOT a dependency here. Language only affects
+  // labels; re-running the request on a lang flip could leave the spinner stuck.
   useEffect(() => {
+    let cancelled = false;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 20000);
     const loadStats = async () => {
       setLoading(true);
       try {
@@ -115,19 +120,28 @@ export default function Analytics({ influencerId, lang = 'el' }: AnalyticsProps)
           ...(period === 'custom' && customEndDate && { endDate: new Date(customEndDate).toISOString() })
         });
 
-        const response = await fetch(`/api/analytics/stats?${params.toString()}`);
+        const response = await fetch(`/api/analytics/stats?${params.toString()}`, {
+          signal: controller.signal,
+        });
         if (response.ok) {
           const result = await response.json();
-          setStats(result.stats);
+          if (!cancelled) setStats(result.stats);
         }
       } catch (error) {
-        console.error('Error loading analytics:', error);
+        if (!cancelled) console.error('Error loading analytics:', error);
       } finally {
-        setLoading(false);
+        window.clearTimeout(timeout);
+        // A superseded request is replaced by a newer effect run that owns `loading`.
+        if (!cancelled) setLoading(false);
       }
     };
 
     loadStats();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
   }, [influencerId, period, customStartDate, customEndDate]);
 
   // Chart uses the same eventsByDate window as the KPI cards (selected period).
