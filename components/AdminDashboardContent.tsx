@@ -138,6 +138,8 @@ interface DbInfluencer {
   audience_top_age: string | null;
   category?: string;
   birth_date?: string | null;
+  /** Server-computed: approved row shares IG/TikTok username with another approved profile. */
+  possible_duplicate?: boolean;
 }
 
 interface Proposal {
@@ -803,7 +805,18 @@ const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClos
   );
 };
 
-const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClose: () => void, onSave: (updatedUser: DbInfluencer) => void }) => {
+const EditProfileModal = ({
+    user,
+    onClose,
+    onSave,
+    lang = "el",
+}: {
+    user: DbInfluencer;
+    onClose: () => void;
+    onSave: (updatedUser: DbInfluencer) => void;
+    lang?: "el" | "en";
+}) => {
+    const L = (el: string, en: string) => (lang === "en" ? en : el);
     const [name, setName] = useState(user.display_name);
     const [contactEmail, setContactEmail] = useState(user.contact_email || "");
     const [bio, setBio] = useState(user.bio || "");
@@ -1515,14 +1528,14 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
 
                         {/* Basic Info */}
                         <div>
-                            <h3 className="text-sm font-bold text-slate-900 uppercase mb-3">Basic Information</h3>
+                            <h3 className="text-sm font-bold text-slate-900 uppercase mb-3">{L("Βασικά Στοιχεία", "Basic Information")}</h3>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-semibold text-slate-900 mb-1">Full Name</label>
+                                    <label className="block text-sm font-semibold text-slate-900 mb-1">{L("Ονοματεπώνυμο", "Full Name")}</label>
                                     <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" required />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-semibold text-slate-900 mb-1">Email</label>
+                                    <label className="block text-sm font-semibold text-slate-900 mb-1">{L("Email", "Email")}</label>
                                     <input
                                         type="email"
                                         value={contactEmail}
@@ -1533,11 +1546,11 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-semibold text-slate-900 mb-1">Location</label>
+                                    <label className="block text-sm font-semibold text-slate-900 mb-1">{L("Τοποθεσία", "Location")}</label>
                                     <input type="text" value={location} onChange={e => setLocation(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-semibold text-slate-900 mb-1">Ημερομηνία Γέννησης</label>
+                                    <label className="block text-sm font-semibold text-slate-900 mb-1">{L("Ημερομηνία Γέννησης", "Date of Birth")}</label>
                                     <input
                                         type="date"
                                         value={birthDate}
@@ -1546,27 +1559,27 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                         max={athensTodayYmd()}
                                         className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900"
                                     />
-                                    <p className="text-xs text-slate-500 mt-1">Η ηλικία υπολογίζεται από αυτή την ημερομηνία</p>
+                                    <p className="text-xs text-slate-500 mt-1">{L("Η ηλικία υπολογίζεται από αυτή την ημερομηνία", "Age is calculated from this date")}</p>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-semibold text-slate-900 mb-1">Gender</label>
+                                    <label className="block text-sm font-semibold text-slate-900 mb-1">{L("Φύλο", "Gender")}</label>
                                     <select value={gender} onChange={e => setGender(normalizeGender(e.target.value))} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900">
-                                        <option value="Female">Female</option>
-                                        <option value="Male">Male</option>
+                                        <option value="Female">{L("Γυναίκα", "Female")}</option>
+                                        <option value="Male">{L("Άνδρας", "Male")}</option>
                                         <option value="AI">AI (Artificial Intelligence)</option>
                                     </select>
                                 </div>
                                 <CategoryCheckboxList
-                                    lang="en"
+                                    lang={lang}
                                     selected={categories}
                                     onChange={setCategories}
-                                    label="Categories *"
-                                    description="Select one or more categories"
+                                    label={L("Κατηγορίες *", "Categories *")}
+                                    description={L("Επιλέξτε μία ή περισσότερες κατηγορίες", "Select one or more categories")}
                                     emptyFallback="Lifestyle"
                                     compact
                                 />
                                 <div>
-                                    <label className="block text-sm font-semibold text-slate-900 mb-1">Languages</label>
+                                    <label className="block text-sm font-semibold text-slate-900 mb-1">{L("Γλώσσες", "Languages")}</label>
                                     <div className="border-2 border-slate-200 rounded-lg p-3 bg-slate-50">
                                         <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                                             {LANGUAGES.map(langItem => {
@@ -1594,7 +1607,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                                             className="w-4 h-4 text-blue-600 border-2 border-slate-300 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                                                         />
                                                         <span className={`text-xs font-medium ${isSelected ? 'text-blue-900' : 'text-slate-700'}`}>
-                                                            {langItem.en}
+                                                            {lang === "en" ? langItem.en : langItem.el}
                                                         </span>
                                                     </label>
                                                 );
@@ -1631,18 +1644,18 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                 }}
                                 rows={4}
                                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900"
-                                placeholder="Biography in English..."
+                                placeholder={L("Βιογραφία στα Αγγλικά...", "Biography in English...")}
                             />
-                            <p className="text-xs text-slate-500 mt-1">Αυτή η βιογραφία θα εμφανίζεται όταν ο χρήστης επιλέξει Αγγλικά ως γλώσσα</p>
+                            <p className="text-xs text-slate-500 mt-1">{L("Αυτή η βιογραφία θα εμφανίζεται όταν ο χρήστης επιλέξει Αγγλικά ως γλώσσα", "This bio is shown when the visitor selects English")}</p>
                         </div>
 
                         {/* Social Accounts */}
                         <div>
-                            <h3 className="text-sm font-bold text-slate-900 uppercase mb-3">Social Accounts</h3>
+                            <h3 className="text-sm font-bold text-slate-900 uppercase mb-3">{L("Κοινωνικοί Λογαριασμοί", "Social Accounts")}</h3>
                             {accounts.map((account, i) => (
                                 <div key={i} className="flex gap-2 mb-3 items-end">
                                     <div className="flex-1">
-                                        <label className="block text-xs font-semibold text-slate-700 mb-1">Platform</label>
+                                        <label className="block text-xs font-semibold text-slate-700 mb-1">{L("Πλατφόρμα", "Platform")}</label>
                                         <select value={account.platform} onChange={e => handleAccountChange(i, 'platform', e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900">
                                             <option value="Instagram">Instagram</option>
                                             <option value="TikTok">TikTok</option>
@@ -1651,50 +1664,50 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                         </select>
                                     </div>
                                     <div className="flex-1">
-                                        <label className="block text-xs font-semibold text-slate-700 mb-1">Username</label>
+                                        <label className="block text-xs font-semibold text-slate-700 mb-1">{L("Username", "Username")}</label>
                                         <input type="text" value={account.username} onChange={e => handleAccountChange(i, 'username', e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" placeholder="username" />
                                     </div>
                                     <div className="flex-1">
-                                        <label className="block text-xs font-semibold text-slate-700 mb-1">Followers</label>
+                                        <label className="block text-xs font-semibold text-slate-700 mb-1">{L("Followers", "Followers")}</label>
                                         <input type="text" value={account.followers} onChange={e => handleAccountChange(i, 'followers', e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" placeholder="e.g. 15k" />
                                     </div>
                                     <div className="flex-1">
-                                        <label className="block text-xs font-semibold text-slate-700 mb-1">Engagement Rate (%)</label>
+                                        <label className="block text-xs font-semibold text-slate-700 mb-1">{L("Engagement Rate (%)", "Engagement Rate (%)")}</label>
                                         <input type="text" value={account.engagement_rate || ""} onChange={e => handleAccountChange(i, 'engagement_rate', e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" placeholder="e.g. 5.5%" />
                                     </div>
                                     <div className="flex-1">
-                                        <label className="block text-xs font-semibold text-slate-700 mb-1">Avg Likes</label>
+                                        <label className="block text-xs font-semibold text-slate-700 mb-1">{L("Μέσα Likes", "Avg Likes")}</label>
                                         <input type="text" value={account.avg_likes || ""} onChange={e => handleAccountChange(i, 'avg_likes', e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" placeholder="e.g. 3.2k" />
                                     </div>
                                     <button type="button" onClick={() => removeAccount(i)} className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">✕</button>
                                 </div>
                             ))}
-                            <button type="button" onClick={addAccount} className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm">+ Add Account</button>
+                            <button type="button" onClick={addAccount} className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm">{L("+ Προσθήκη λογαριασμού", "+ Add Account")}</button>
                         </div>
 
                         {/* Analytics */}
                         <div>
-                            <h3 className="text-sm font-bold text-slate-900 uppercase mb-3">Analytics</h3>
+                            <h3 className="text-sm font-bold text-slate-900 uppercase mb-3">{L("Αναλυτικά", "Analytics")}</h3>
                             <div>
-                                <label className="block text-sm font-semibold text-slate-900 mb-1">Min Rate (€)</label>
+                                <label className="block text-sm font-semibold text-slate-900 mb-1">{L("Ελάχ. τιμή (€)", "Min Rate (€)")}</label>
                                 <input type="text" value={minRate} onChange={e => setMinRate(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
                             </div>
                         </div>
 
                         {/* Audience Data */}
                         <div>
-                            <h3 className="text-sm font-bold text-slate-900 uppercase mb-3">Audience Demographics</h3>
+                            <h3 className="text-sm font-bold text-slate-900 uppercase mb-3">{L("Δημογραφικά Κοινού", "Audience Demographics")}</h3>
                             <div className="grid grid-cols-3 gap-4">
                                 <div>
-                                    <label className="block text-sm font-semibold text-slate-900 mb-1">Male (%)</label>
+                                    <label className="block text-sm font-semibold text-slate-900 mb-1">{L("Άνδρες (%)", "Male (%)")}</label>
                                     <input type="number" value={malePercent} onChange={e => setMalePercent(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" min="0" max="100" />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-semibold text-slate-900 mb-1">Female (%)</label>
+                                    <label className="block text-sm font-semibold text-slate-900 mb-1">{L("Γυναίκες (%)", "Female (%)")}</label>
                                     <input type="number" value={femalePercent} onChange={e => setFemalePercent(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" min="0" max="100" />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-semibold text-slate-900 mb-1">Top Age Group</label>
+                                    <label className="block text-sm font-semibold text-slate-900 mb-1">{L("Κύρια Ηλικιακή Ομάδα", "Top Age Group")}</label>
                                     <input 
                                         type="text" 
                                         value={topAge} 
@@ -1855,7 +1868,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                                                                     provider={provider}
                                                                     originalUrl={video}
                                                                     embedUrl={embedUrl}
-                                                                    lang="el"
+                                                                    lang={lang}
                                                                 />
                                                             </div>
                                                         );
@@ -1902,7 +1915,7 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                         {/* Insights Screenshots */}
                         {user.insights_urls && user.insights_urls.length > 0 && (
                             <div>
-                                <h3 className="text-sm font-bold text-slate-900 uppercase mb-3">Insights Screenshots</h3>
+                                <h3 className="text-sm font-bold text-slate-900 uppercase mb-3">{L("Στιγμιότυπα Insights", "Insights Screenshots")}</h3>
                                 <div className="grid grid-cols-3 gap-4">
                                     {user.insights_urls.map((url, i) => (
                                         <div key={i} className="relative aspect-[3/4] rounded-lg overflow-hidden border border-slate-300">
@@ -1920,9 +1933,9 @@ const EditProfileModal = ({ user, onClose, onSave }: { user: DbInfluencer, onClo
                         )}
                     </div>
                     <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-200">
-                        <button type="button" onClick={onClose} className="px-6 py-2 text-slate-900 hover:bg-slate-100 rounded-lg font-semibold transition-colors border border-slate-300">Cancel</button>
+                        <button type="button" onClick={onClose} className="px-6 py-2 text-slate-900 hover:bg-slate-100 rounded-lg font-semibold transition-colors border border-slate-300">{L("Ακύρωση", "Cancel")}</button>
                         <button type="submit" disabled={loading || videosChecking || videosNotPlayable} className="px-6 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-semibold disabled:opacity-50 transition-colors">
-                            {loading ? 'Saving...' : 'Save Changes'}
+                            {loading ? L("Αποθήκευση...", "Saving...") : L("Αποθήκευση", "Save Changes")}
                         </button>
                     </div>
                 </form>
@@ -3889,7 +3902,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                 className="text-xs font-medium border border-slate-200 px-2 sm:px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
                 aria-label="Toggle language"
               >
-                {lang === "el" ? "EN" : "ΕΛ"}
+                {lang === "el" ? "EN" : "EL"}
               </button>
               <button type="button" onClick={() => void logoutEverywhere("/login")} className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors">{txt.logout}</button>
               <a href="/" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors">{txt.back}</a>
@@ -4291,7 +4304,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                   />
                                 </div>
                               ) : (
-                                <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200 flex items-center justify-center text-slate-400 text-xs">No Photo</div>
+                                <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200 flex items-center justify-center text-slate-400 text-xs">{lang === "el" ? "Χωρίς φωτό" : "No Photo"}</div>
                               )}
                               <div>
                                 <div className="font-medium text-slate-900">{u.display_name}</div>
@@ -4353,6 +4366,11 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               ) : (
                                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">Μη Επαληθευμένα</span>
                               )}
+                              {u.possible_duplicate ? (
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                                  {lang === "el" ? "Πιθανό διπλό" : "Possible duplicate"}
+                                </span>
+                              ) : null}
                             </div>
                           </td>
                           <td className="px-4 py-3">
@@ -5646,7 +5664,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
               {loading ? (
                 <div className="p-8 text-center text-slate-500">Loading conversations...</div>
               ) : conversations.length === 0 ? (
-                <div className="p-8 text-center text-slate-500">No conversations yet</div>
+                <div className="p-8 text-center text-slate-500">{lang === "el" ? "Δεν υπάρχουν συνομιλίες ακόμα" : "No conversations yet"}</div>
               ) : (
                 <div className="flex flex-col sm:flex-row h-[500px] sm:h-[600px] relative min-h-[400px]">
                   {/* Mobile: Backdrop overlay when conversations drawer is open */}
@@ -5852,6 +5870,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
           <EditProfileModal
             key={String(selectedUser.id) + (editDetailLoading ? "-l" : "-f")}
             user={selectedUser}
+            lang={lang}
             onClose={() => {
               setShowEditModal(false);
               setSelectedUser(null);

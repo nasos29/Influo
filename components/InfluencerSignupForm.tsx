@@ -622,6 +622,32 @@ export default function InfluencerSignupForm() {
         setLoading(false);
         return;
       }
+
+      // Block duplicate Instagram/TikTok usernames before creating an auth user.
+      const accountsForDupCheck = accounts.map((acc) => ({
+        platform: acc.platform,
+        username: normalizeUsername(acc.username),
+      }));
+      try {
+        const dupRes = await fetch("/api/check-social-accounts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ accounts: accountsForDupCheck }),
+        });
+        const dupBody = await dupRes.json().catch(() => ({}));
+        if (dupRes.ok && dupBody.exists) {
+          throw new Error(
+            lang === "el"
+              ? "Υπάρχει ήδη προφίλ με αυτό το λογαριασμό. Συνδεθείτε ή επικοινωνήστε με support@influo.gr"
+              : "A profile with this account already exists. Log in or contact support@influo.gr"
+          );
+        }
+      } catch (dupErr: unknown) {
+        if (dupErr instanceof Error && /προφίλ|profile with this account/i.test(dupErr.message)) {
+          throw dupErr;
+        }
+        console.warn("[Signup] social duplicate check failed:", dupErr);
+      }
       
       // 1. Auth: Δημιουργία Χρήστη (Sign Up)
       let authData: any;

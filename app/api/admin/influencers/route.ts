@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { rejectUnlessAdmin, supabaseService } from "@/lib/apiAuth";
 import { parseFollowerString } from "@/lib/parseFollowers";
+import { findApprovedDuplicateIds } from "@/lib/socialAccountIdentity";
 
 /** Columns needed by the admin influencers table / row actions (not full profile). */
 const LIST_COLUMNS = [
@@ -215,10 +216,37 @@ export async function GET(request: NextRequest) {
       if (reachOk) reach = reachSum;
     }
 
+    // Possible-duplicate badge: approved rows sharing IG/TikTok username (no schema change).
+    const duplicateIds = new Set<string>();
+    {
+      const pageSizeDup = 1000;
+      const approvedForDup: Array<{ id: string; accounts?: unknown; approved?: boolean | null }> = [];
+      for (let from = 0; ; from += pageSizeDup) {
+        const { data: dupRows, error: dupErr } = await admin
+          .from("influencers")
+          .select("id, accounts, approved")
+          .eq("approved", true)
+          .range(from, from + pageSizeDup - 1);
+        if (dupErr) {
+          console.error("[admin/influencers] duplicate probe error", dupErr);
+          break;
+        }
+        const rows = (dupRows || []) as Array<{ id: string; accounts?: unknown; approved?: boolean | null }>;
+        approvedForDup.push(...rows);
+        if (rows.length < pageSizeDup) break;
+      }
+      for (const id of findApprovedDuplicateIds(approvedForDup)) duplicateIds.add(id);
+    }
+
+    const influencers = ((data || []) as unknown as Array<Record<string, unknown>>).map((row) => ({
+      ...row,
+      possible_duplicate: duplicateIds.has(String(row.id ?? "")),
+    }));
+
     const total = count ?? 0;
     return NextResponse.json(
       {
-        influencers: data || [],
+        influencers,
         page,
         pageSize,
         total,

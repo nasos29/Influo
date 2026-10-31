@@ -448,10 +448,10 @@ export default function Home({
               <ul className="flex gap-6 text-sm font-medium text-slate-700">
                 {!isLoggedIn && (
                   <>
-                    <li><button onClick={() => { setSignupType("influencer"); setShowModal(true); }} className="hover:text-slate-900 transition-colors">
+                    <li><button onClick={() => { setSignupType("influencer"); setShowModal(true); }} className="inline-flex min-h-[44px] items-center hover:text-slate-900 transition-colors">
                       {txt.nav_join}
                     </button></li>
-                    <li><a href="/brand/signup" className="hover:text-slate-900 transition-colors">
+                    <li><a href="/brand/signup" className="inline-flex min-h-[44px] items-center hover:text-slate-900 transition-colors">
                       {txt.nav_brand}
                     </a></li>
                   </>
@@ -469,7 +469,7 @@ export default function Home({
                     {lang === "el" ? "Dashboard" : "Dashboard"}
                   </a></li>
                 ) : (
-                  <li><a href="/login" className="hover:text-slate-900 transition-colors">
+                  <li><a href="/login" className="inline-flex min-h-[44px] items-center hover:text-slate-900 transition-colors">
                     {lang === "el" ? "Σύνδεση" : "Sign In"}
                   </a></li>
                 )}
@@ -507,7 +507,7 @@ export default function Home({
                   if (newLang === "en") router.push("/en");
                   else router.push("/");
                 }}
-                className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
+                className="inline-flex min-h-[44px] items-center text-xs font-medium border border-slate-200 px-3 rounded hover:bg-slate-50 text-slate-600 transition-colors"
                 aria-label="Toggle language"
               >
                 {lang === "el" ? "EN" : "EL"}
@@ -549,7 +549,7 @@ export default function Home({
                   if (newLang === "en") router.push("/en");
                   else router.push("/");
                 }}
-                className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
+                className="inline-flex min-h-[44px] items-center text-xs font-medium border border-slate-200 px-3 rounded hover:bg-slate-50 text-slate-600 transition-colors"
                 aria-label="Toggle language"
               >
                 {lang === "el" ? "EN" : "EL"}
@@ -557,7 +557,7 @@ export default function Home({
             </div>
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+              className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center p-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
               aria-label="Toggle mobile menu"
               aria-expanded={mobileMenuOpen}
             >

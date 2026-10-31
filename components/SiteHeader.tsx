@@ -113,7 +113,10 @@ export default function SiteHeader({
   };
 
   const accountLink = identityReady ? (
-    <Link href={dashboardPath} className="text-sm font-medium text-blue-600 hover:underline whitespace-nowrap">
+    <Link
+      href={dashboardPath}
+      className="inline-flex min-h-[44px] items-center text-sm font-medium text-blue-600 hover:underline whitespace-nowrap"
+    >
       {dashboardLabel}
     </Link>
   ) : (
@@ -124,7 +127,7 @@ export default function SiteHeader({
     <button
       type="button"
       onClick={switchLang}
-      className="text-xs font-medium border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50 text-slate-600 transition-colors"
+      className="inline-flex min-h-[44px] items-center text-xs font-medium border border-slate-200 px-3 rounded hover:bg-slate-50 text-slate-600 transition-colors"
       aria-label="Toggle language"
     >
       {lang === "el" ? "EN" : "EL"}
