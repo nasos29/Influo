@@ -50,8 +50,10 @@ export interface Influencer {
   languages?: string[];
   avg_likes?: string | { [key: string]: string };
   engagement_rate?: string | { [key: string]: string };
-  /** Server-side bracket. Exact prices stay off this public payload. */
+  /** Ceiling tier for the budget filter. Guest copy uses `from_price`. */
   price_tier?: string | null;
+  /** Exact lowest price. Guest label is «Από X €». */
+  from_price?: number | null;
   past_brands?: any[] | number;
   total_reviews?: number;
   avg_rating?: number;
@@ -430,6 +432,7 @@ export default function Directory({
               gender: normalizeGender(inf.gender),
               location: inf.location,
               price_tier: inf.price_tier || "0",
+              from_price: typeof inf.from_price === "number" && inf.from_price > 0 ? inf.from_price : null,
               avg_likes: inf.avg_likes,
               engagement_rate:
                 Object.keys(engagementRatesObj).length > 0
@@ -1198,7 +1201,7 @@ export default function Directory({
                     trustChips={trustChipsFromAccounts(inf.accounts)}
                     availabilityStatus={inf.availability_status}
                     location={displayLocation(inf.location, lang) || inf.location}
-                    price_tier={inf.price_tier}
+                    from_price={inf.from_price}
                   />
                 </Link>
               );

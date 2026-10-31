@@ -178,7 +178,7 @@ export default function SimilarInfluencers({
                   categories={rowCats}
                   lang={lang}
                   location={row.location}
-                  price_tier={row.price_tier || "0"}
+                  from_price={row.from_price}
                 />
               </Link>
             </div>

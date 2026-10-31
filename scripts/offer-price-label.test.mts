@@ -16,9 +16,9 @@ test("everyone sees the exact service price, with the euro sign after it", () =>
   );
 });
 
-test("a package without a concrete price falls back to the public tier", () => {
-  assert.equal(offerPriceLabel({ price: "", priceTier: "200", lang: "el" }), formatFromPriceLabel("200", "el"));
-  assert.equal(offerPriceLabel({ priceTier: "200", lang: "el" }), "Από 100 €");
+test("a package without a price string falls back to Από X €", () => {
+  assert.equal(offerPriceLabel({ price: "", fromPrice: 40, lang: "el" }), formatFromPriceLabel(40, "el"));
+  assert.equal(offerPriceLabel({ fromPrice: 40, lang: "el" }), "Από 40 €");
 });
 
 test("package row titles drop a leading 1 and keep UGC and carousel", () => {

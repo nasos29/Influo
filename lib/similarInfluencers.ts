@@ -17,8 +17,10 @@ export type SimilarInfluencerRow = {
   verified?: boolean | null;
   analytics_verified?: boolean | null;
   location?: string | null;
-  /** Public bracket only — never min_rate. */
+  /** Ceiling tier for filters. Guest copy uses `from_price`. */
   price_tier?: string | null;
+  /** Exact lowest price for «Από X €». */
+  from_price?: number | null;
 };
 
 /** Returns a float in [0, 1). Injected in tests for determinism. */

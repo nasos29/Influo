@@ -2,8 +2,10 @@
  * Explicit allow-lists for influencer data that can leave the server
  * without a logged-in brand session.
  *
- * Prices, rate cards, contact email, birth date, and auth ids are never
- * copied here. Callers must not spread the raw database row into a response.
+ * Raw rate cards, contact email, birth date, and auth ids are never copied
+ * here. Guests get `from_price` (the cheapest service, or min_rate) and each
+ * public package's own `from_price`. Callers must not spread the raw database
+ * row into a response.
  */
 
 import { formatEuro } from "@/lib/formatEuro";
@@ -12,6 +14,7 @@ import { visibleVideos } from "@/lib/hiddenVideos";
 import {
   RATE_CARD_PRICE_KEYS,
   commercialExtrasFromRateCard,
+  listedPriceAmount,
   minRateFromPackages,
   publicExtrasFromRateCard,
   resolvePackagesForDisplay,
@@ -212,7 +215,7 @@ export function badgeMinRateFromTier(tier: string | null | undefined): string | 
 }
 
 /**
- * Directory card price label from `price_tier` only (never min_rate).
+ * Legacy range copy from a ceiling tier. Guest UI uses `formatFromPriceLabel`.
  * "0" → null; "50" → "έως 50 €" (prices under 50).
  * Numeric tiers are half-open up to that cap; 5000+ stays "5.000 €+".
  */
@@ -232,39 +235,38 @@ export function formatPriceTierLabel(tier: string | null | undefined): string | 
 }
 
 /**
- * Full "from / up to" price copy for cards and non-brand UI (never min_rate).
- * Tier "50" (prices under 50) → Έως/Up to 50 €.
- * Later tiers → Από/From the previous cap, which is the largest cap ≤ the price.
- * 5000+ stays Από/From 5.000 € (VIP), same as before.
- * Never produces "Από έως" / "From up to". Euro sign is always on the right.
+ * Guest label for an exact amount: «Από 40 €» / «From 40 €».
+ * The euro sign stays to the right of the amount, with a space.
+ * Never produces «Από έως» / «From up to».
  */
 export function formatFromPriceLabel(
-  tier: string | null | undefined,
+  amount: unknown,
   lang: "el" | "en" = "el"
 ): string | null {
-  const value = (tier || "0").trim();
-  if (!value || value === "0") return null;
+  const n = parseDirectoryPrice(amount);
+  if (!(n > 0)) return null;
+  const formatted = formatEuro(n, lang);
+  if (!formatted) return null;
+  return lang === "en" ? `From ${formatted}` : `Από ${formatted}`;
+}
 
-  if (value === "50") {
-    return lang === "en" ? `Up to ${formatEuro(50, "en")}` : `Έως ${formatEuro(50, "el")}`;
-  }
-
-  if (value === "5000" || value === "above_5000") {
-    return lang === "en" ? `From ${formatEuro(5000, "en")}` : `Από ${formatEuro(5000, "el")}`;
-  }
-
-  let lower: number | null = null;
-  if (value === "under_5000") {
-    lower = 2000;
-  } else {
-    const ceiling = parseInt(value, 10);
-    if (!Number.isFinite(ceiling)) return null;
-    const idx = DIRECTORY_BUDGET_CAPS.indexOf(ceiling as (typeof DIRECTORY_BUDGET_CAPS)[number]);
-    if (idx <= 0) return null;
-    lower = DIRECTORY_BUDGET_CAPS[idx - 1]!;
-  }
-
-  return lang === "en" ? `From ${formatEuro(lower, "en")}` : `Από ${formatEuro(lower, "el")}`;
+/**
+ * Cheapest positive price on rate_card / service_packages
+ * (same path as `resolvePackagesForDisplay` + `minRateFromPackages`).
+ * When that list is empty, falls back to `min_rate`.
+ */
+export function lowestListedPrice(row: {
+  service_packages?: unknown;
+  rate_card?: unknown;
+  min_rate?: unknown;
+}): number | null {
+  const fromPackages = minRateFromPackages(
+    resolvePackagesForDisplay(row.service_packages, row.rate_card)
+  );
+  const fromList = listedPriceAmount(fromPackages);
+  if (fromList != null) return fromList;
+  const fallback = parseDirectoryPrice(row.min_rate);
+  return fallback > 0 ? fallback : null;
 }
 
 const ATHENS = "Europe/Athens";
@@ -381,9 +383,10 @@ export function publicServicePackages(
 }
 
 function withFilterFields(base: Record<string, unknown>, row: Record<string, unknown>, includeAge: boolean) {
-  const displayPackages = resolvePackagesForDisplay(row.service_packages, row.rate_card);
-  const fromPackages = minRateFromPackages(displayPackages);
-  base.price_tier = priceTierFromMinRate(fromPackages ?? row.min_rate);
+  const fromPrice = lowestListedPrice(row);
+  base.from_price = fromPrice;
+  // Budget filters still use the ceiling tier. The guest label uses from_price.
+  base.price_tier = priceTierFromMinRate(fromPrice ?? row.min_rate);
   if (includeAge) base.age = ageFromBirthDate(row.birth_date);
   return base;
 }
@@ -421,11 +424,15 @@ export function toPublicProfile(row: Record<string, unknown>): Record<string, un
   return base;
 }
 
-export const DIRECTORY_QUERY_COLUMNS = [...DIRECTORY_CARD_COLUMNS, "birth_date", "min_rate"] as const;
+export const DIRECTORY_QUERY_COLUMNS = [
+  ...DIRECTORY_CARD_COLUMNS,
+  "birth_date",
+  ...PRICING_SOURCE_COLUMNS,
+] as const;
 export const NEWLY_APPROVED_QUERY_COLUMNS = [
   ...DIRECTORY_CARD_COLUMNS,
   ...NEWLY_APPROVED_EXTRA_COLUMNS,
-  "min_rate",
+  ...PRICING_SOURCE_COLUMNS,
 ] as const;
 export const PROFILE_QUERY_COLUMNS = [
   ...DIRECTORY_CARD_COLUMNS,
@@ -435,7 +442,9 @@ export const PROFILE_QUERY_COLUMNS = [
 
 /**
  * Columns rendered into public HTML, metadata, and JSON-LD.
- * Private columns (email, birth date, prices, auth id) are not selected.
+ * Private columns (email, birth date, prices, auth id) are not in this list.
+ * Profile loaders also read PRICING_SOURCE_COLUMNS server-side and publish
+ * only `from_price`.
  */
 export const SEO_PROFILE_COLUMNS = [
   ...DIRECTORY_CARD_COLUMNS,

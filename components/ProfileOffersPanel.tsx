@@ -370,11 +370,11 @@ export function NegotiateDialog({
 
 function rowPrice(
   price: string | undefined,
-  priceTier: string | undefined,
+  fromPrice: number | null | undefined,
   suffix: string | null,
   lang: "el" | "en"
 ): { label: string | null; budget?: string } {
-  const label = offerPriceLabel({ price, priceTier, suffix, lang });
+  const label = offerPriceLabel({ price, fromPrice, suffix, lang });
   if (price && formatEuroAmount(price, lang)) return { label, budget: price };
   return { label };
 }
@@ -415,7 +415,7 @@ export default function ProfileOffersPanel({
           : pkg.title;
       const priced = rowPrice(
         pkg.price,
-        pkg.price_tier,
+        pkg.from_price,
         pkg.type ? packagePriceSuffix(pkg.type, lang) : null,
         lang
       );
@@ -435,7 +435,7 @@ export default function ProfileOffersPanel({
       .map((extra) => {
         const priced = rowPrice(
           extra.price,
-          extra.price_tier,
+          extra.from_price,
           extraPriceSuffix(extra.key, lang),
           lang
         );

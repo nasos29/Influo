@@ -2,13 +2,13 @@ import { formatEuroAmount } from "@/lib/formatEuro";
 import { formatFromPriceLabel } from "@/lib/publicInfluencer";
 
 /**
- * Exact service amount for every viewer. The euro sign sits after the number.
- * A tier label is only a fallback when the package has no concrete price.
- * This never reads min_rate.
+ * Exact service amount for every viewer: "120 €".
+ * When the row has no price string, fall back to the guest «Από X €» label
+ * built from `from_price`. This never reads min_rate.
  */
 export function offerPriceLabel(input: {
   price?: string | null;
-  priceTier?: string | null;
+  fromPrice?: number | null;
   suffix?: string | null;
   lang: "el" | "en";
 }): string | null {
@@ -16,5 +16,5 @@ export function offerPriceLabel(input: {
     const amount = formatEuroAmount(input.price, input.lang);
     if (amount) return input.suffix ? `${amount} ${input.suffix}` : amount;
   }
-  return formatFromPriceLabel(input.priceTier, input.lang);
+  return formatFromPriceLabel(input.fromPrice, input.lang);
 }

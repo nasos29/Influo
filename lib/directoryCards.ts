@@ -49,6 +49,7 @@ export function mapDirectoryCard(row: Record<string, unknown>): Influencer {
     gender: normalizeGender(typeof row.gender === "string" ? row.gender : null),
     location: typeof row.location === "string" ? row.location : undefined,
     price_tier: typeof row.price_tier === "string" ? row.price_tier : "0",
+    from_price: typeof row.from_price === "number" && row.from_price > 0 ? row.from_price : null,
     avg_likes: typeof row.avg_likes === "string" ? row.avg_likes : undefined,
     engagement_rate: Object.keys(engagementRates).length
       ? engagementRates

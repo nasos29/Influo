@@ -120,10 +120,10 @@ function statusLabel(status: string | null | undefined, lang: "el" | "en"): stri
 }
 
 function statusClass(status: string | null | undefined): string {
-  if (status === "open") return "bg-emerald-100 text-emerald-800";
-  if (status === "closed") return "bg-slate-200 text-slate-700";
-  if (status === "draft") return "bg-amber-100 text-amber-900";
-  return "bg-slate-100 text-slate-700";
+  if (status === "open") return "bg-white/80 text-emerald-900 ring-1 ring-white/70 backdrop-blur-md";
+  if (status === "closed") return "bg-white/75 text-slate-800 ring-1 ring-white/60 backdrop-blur-md";
+  if (status === "draft") return "bg-amber-100/90 text-amber-950 ring-1 ring-amber-200/80 backdrop-blur-md";
+  return "bg-white/75 text-slate-800 ring-1 ring-white/60 backdrop-blur-md";
 }
 
 function splitDeliverables(raw: string | null | undefined): string[] {
@@ -193,14 +193,16 @@ export default function CampaignCard({
           aspect="4/3"
         />
         {statusText && (
-          <span className={`absolute left-3 top-3 text-[11px] font-medium px-2.5 py-1 rounded-full shadow-sm ${statusClass(campaign.status)}`}>
+          <span className={`absolute left-3 top-3 z-20 text-[11px] font-medium px-2.5 py-1 rounded-full shadow-sm ${statusClass(campaign.status)}`}>
             {statusText}
           </span>
         )}
         {closes && (
           <span
-            className={`absolute right-3 top-3 text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-sm ${
-              closes.urgent ? "bg-red-600 text-white" : "bg-white/95 text-slate-800"
+            className={`absolute right-3 top-3 z-20 text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-sm ${
+              closes.urgent
+                ? "bg-red-600/90 text-white ring-1 ring-white/30 backdrop-blur-md"
+                : "bg-white/80 text-slate-900 ring-1 ring-white/70 backdrop-blur-md"
             }`}
           >
             {closes.text}

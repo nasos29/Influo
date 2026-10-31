@@ -25,12 +25,13 @@ function asPublicSimilarRow(row: Record<string, unknown>): SimilarInfluencerRow 
     analytics_verified: pub.analytics_verified === true,
     location: typeof pub.location === "string" ? pub.location : null,
     price_tier: typeof pub.price_tier === "string" ? pub.price_tier : "0",
+    from_price: typeof pub.from_price === "number" && pub.from_price > 0 ? pub.from_price : null,
   };
 }
 
 /**
  * Public similar-creators payload for profile pages.
- * Selects pricing columns server-side only and returns price_tier — never min_rate.
+ * Selects pricing columns server-side only and returns from_price — never min_rate.
  */
 export async function GET(request: NextRequest) {
   try {

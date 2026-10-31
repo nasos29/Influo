@@ -4,6 +4,12 @@
 
 import webpush from 'web-push';
 import { createClient } from '@supabase/supabase-js';
+import {
+  CREATOR_PROFILE_EDIT_PATH,
+  countMatchedPushUsers,
+  filterInfluencerEmailSubscriptions,
+  influencerSubscriptionOrFilter,
+} from '@/lib/influencerPushBroadcast';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -251,6 +257,59 @@ async function getSubscriptions(
   return data;
 }
 
+type PushSubscriptionRow = {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+};
+
+function pushStatusCode(err: unknown): number | undefined {
+  if (!err || typeof err !== 'object' || !('statusCode' in err)) return undefined;
+  const code = (err as { statusCode?: unknown }).statusCode;
+  return typeof code === 'number' ? code : undefined;
+}
+
+function pushErrorMessage(err: unknown): string {
+  if (err instanceof Error && err.message) return err.message;
+  return 'unknown error';
+}
+
+/** Send one payload. 404/410 subscriptions are removed (expired or gone). */
+async function deliverToSubscriptions(
+  subs: PushSubscriptionRow[],
+  pushPayload: string
+): Promise<{ sent: number; failed: number }> {
+  let sent = 0;
+  let failed = 0;
+
+  for (const sub of subs) {
+    try {
+      await webpush.sendNotification(
+        {
+          endpoint: sub.endpoint,
+          keys: { p256dh: sub.p256dh, auth: sub.auth },
+        },
+        pushPayload,
+        { TTL: 86400 } // 24h
+      );
+      sent++;
+    } catch (err: unknown) {
+      failed++;
+      const statusCode = pushStatusCode(err);
+      if (statusCode === 410 || statusCode === 404) {
+        await supabaseAdmin
+          .from('push_subscriptions')
+          .delete()
+          .eq('endpoint', sub.endpoint);
+      } else {
+        console.error('[Push] Failed to send:', pushErrorMessage(err));
+      }
+    }
+  }
+
+  return { sent, failed };
+}
+
 export async function sendPushToInfluencer(
   influencerId: string,
   payload: PushPayload
@@ -270,35 +329,7 @@ export async function sendPushToInfluencer(
     tag: payload.tag || 'influo-notification',
   });
 
-  let sent = 0;
-  let failed = 0;
-
-  for (const sub of subs) {
-    try {
-      await webpush.sendNotification(
-        {
-          endpoint: sub.endpoint,
-          keys: { p256dh: sub.p256dh, auth: sub.auth },
-        },
-        pushPayload,
-        { TTL: 86400 } // 24h
-      );
-      sent++;
-    } catch (err: any) {
-      failed++;
-      if (err.statusCode === 410 || err.statusCode === 404) {
-        // Subscription expired - remove from DB
-        await supabaseAdmin
-          .from('push_subscriptions')
-          .delete()
-          .eq('endpoint', sub.endpoint);
-      } else {
-        console.error('[Push] Failed to send:', err.message);
-      }
-    }
-  }
-
-  return { sent, failed };
+  return deliverToSubscriptions(subs, pushPayload);
 }
 
 /** Όταν ένα verified brand δημοσιεύει ανοιχτή καμπάνια — ειδοποίηση όλων των εγκεκριμένων influencers. */
@@ -381,32 +412,51 @@ export async function sendPushToBrand(
     tag: payload.tag || 'influo-notification',
   });
 
-  let sent = 0;
-  let failed = 0;
+  return deliverToSubscriptions(subs, pushPayload);
+}
 
-  for (const sub of subs) {
-    try {
-      await webpush.sendNotification(
-        {
-          endpoint: sub.endpoint,
-          keys: { p256dh: sub.p256dh, auth: sub.auth },
-        },
-        pushPayload,
-        { TTL: 86400 }
-      );
-      sent++;
-    } catch (err: any) {
-      failed++;
-      if (err.statusCode === 410 || err.statusCode === 404) {
-        await supabaseAdmin
-          .from('push_subscriptions')
-          .delete()
-          .eq('endpoint', sub.endpoint);
-      } else {
-        console.error('[Push] Failed to send:', err.message);
-      }
-    }
+/**
+ * Web push to influencer subscriptions whose user_identifier is one of `emails`
+ * (case-insensitive). Expired endpoints (404/410) are deleted like other sends.
+ */
+export async function broadcastPushToInfluencerEmails(
+  emails: string[],
+  payload: PushPayload
+): Promise<{ sent: number; failed: number; matchedUsers: number }> {
+  const identifiers = [...new Set(emails.map((email) => email.trim().toLowerCase()).filter(Boolean))];
+  if (!identifiers.length) return { sent: 0, failed: 0, matchedUsers: 0 };
+
+  const orFilter = influencerSubscriptionOrFilter(identifiers);
+  const { data, error } = await supabaseAdmin
+    .from('push_subscriptions')
+    .select('user_type, user_identifier, endpoint, p256dh, auth')
+    .eq('user_type', 'influencer')
+    .or(orFilter);
+
+  if (error) {
+    console.error('[Push] broadcast influencers', error);
+    throw new Error(error.message);
   }
 
-  return { sent, failed };
+  const matched = filterInfluencerEmailSubscriptions(data ?? [], identifiers).filter(
+    (row): row is typeof row & PushSubscriptionRow =>
+      Boolean(row.endpoint && row.p256dh && row.auth)
+  );
+  const matchedUsers = countMatchedPushUsers(matched);
+  if (!matched.length) return { sent: 0, failed: 0, matchedUsers: 0 };
+
+  if (!vapidPublicKey || !vapidPrivateKey) {
+    console.warn('[Push] VAPID keys not set, skipping');
+    return { sent: 0, failed: 0, matchedUsers };
+  }
+
+  const pushPayload = JSON.stringify({
+    title: payload.title,
+    body: payload.body,
+    url: payload.url || CREATOR_PROFILE_EDIT_PATH,
+    tag: payload.tag || `admin-influencer-broadcast-${Date.now()}`,
+  });
+
+  const result = await deliverToSubscriptions(matched, pushPayload);
+  return { sent: result.sent, failed: result.failed, matchedUsers };
 }

@@ -26,6 +26,7 @@ export type TopInfluencer = {
   profile_slug?: string | null;
   location?: string | null;
   price_tier?: string | null;
+  from_price?: number | null;
   verified?: boolean;
   analytics_verified?: boolean;
   availability_status?: string | null;
@@ -170,7 +171,7 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
                     trustChips={trustChipsFromAccounts(accounts)}
                     availabilityStatus={inf.availability_status}
                     location={inf.location}
-                    price_tier={inf.price_tier || "0"}
+                    from_price={inf.from_price}
                   />
                 </Link>
               </div>
