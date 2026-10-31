@@ -31,6 +31,7 @@ export type NewlyApprovedInfluencer = {
   analytics_verified?: boolean;
   location?: string | null;
   price_tier?: string | null;
+  from_price?: number | null;
   profile_slug?: string | null;
 };
 
@@ -217,7 +218,7 @@ export default function NewlyApprovedInfluencersSection({
                       categories={parseStoredCategories(inf.category)}
                       lang={lang}
                       location={inf.location}
-                      price_tier={inf.price_tier || "0"}
+                      from_price={inf.from_price}
                     />
                   </Link>
                 </div>

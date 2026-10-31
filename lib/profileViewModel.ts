@@ -21,6 +21,8 @@ export type ProfileViewModel = {
   languages: string[];
   has_min_rate: boolean;
   has_priced_min_rate: boolean;
+  /** Exact lowest price for the guest «Από X €» label. */
+  from_price: number | null;
   price_tier: string;
   videos: string[];
   video_thumbnails: Record<string, string> | null;
@@ -116,6 +118,7 @@ export function viewModelFromPublicRow(row: Record<string, unknown>): ProfileVie
     languages: asStringArray(data.languages),
     has_min_rate: !!data.has_min_rate,
     has_priced_min_rate: !!data.has_priced_min_rate,
+    from_price: typeof data.from_price === "number" && data.from_price > 0 ? data.from_price : null,
     price_tier: typeof data.price_tier === "string" ? data.price_tier : "0",
     videos: Array.isArray(data.videos) ? data.videos.filter((item): item is string => typeof item === "string") : [],
     video_thumbnails:

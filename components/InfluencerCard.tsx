@@ -26,7 +26,8 @@ interface InfluencerCardProps {
   trustChips?: TrustChip[];
   availabilityStatus?: string | null;
   location?: string | null;
-  price_tier?: string | null;
+  /** Exact lowest price. Shown as «Από X €» / «From X €». */
+  from_price?: number | null;
 }
 
 const InstagramIcon = ({ className = "w-3.5 h-3.5" }: { className?: string }) => (
@@ -132,13 +133,13 @@ export default function InfluencerCard({
   trustChips = [],
   availabilityStatus,
   location,
-  price_tier,
+  from_price,
 }: InfluencerCardProps) {
   const available = isAvailableStatus(availabilityStatus);
   const displayName = displayNameForLang(name, lang || "el");
   const cardUrl = avatar ? getStorageCardUrl(avatar, 480, 600) : null;
   const photoSrc = cardUrl ? getCachedImageUrl(cardUrl) ?? cardUrl : null;
-  const priceLabel = formatFromPriceLabel(price_tier, lang === "en" ? "en" : "el");
+  const priceLabel = formatFromPriceLabel(from_price, lang === "en" ? "en" : "el");
   const ranked = rankedPlatforms(followers, socials);
 
   const categoryLine = categories

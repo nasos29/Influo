@@ -23,7 +23,7 @@ import {
   normalizeScoresLog1p,
   type TopScoreInfluencer,
 } from '@/lib/topInfluencerScore';
-import { priceTierFromMinRate } from '@/lib/publicInfluencer';
+import { lowestListedPrice, priceTierFromMinRate } from '@/lib/publicInfluencer';
 
 const DEFAULT_DAYS = 30;
 export const TOP_INFLUENCERS_N = 10;
@@ -61,6 +61,7 @@ export type TopInfluencerRow = {
   profile_slug: string | null;
   location: string | null;
   price_tier: string;
+  from_price: number | null;
   verified: boolean;
   analytics_verified: boolean;
   availability_status: string | null;
@@ -446,9 +447,9 @@ async function computeTopInfluencersUncached(
   if (candidateIds.length === 0) return [];
 
   // Only brandSafe from audit JSON — not the full auditpr_audit blob.
-  // min_rate stays server-side for price_tier; never returned to the client.
+  // Raw prices stay server-side. The client gets from_price, never min_rate.
   const selectFull =
-    'id, display_name, avatar_url, bio, videos, accounts, category, location, analytics_verified, verified, availability_status, auditpr_audit->brandSafe, min_rate, rate_card, total_reviews, avg_rating, created_at, audience_top_age, audience_male_percent, audience_female_percent, profile_slug, avg_response_time, completion_rate, last_social_refresh_at, approved_at, approved';
+    'id, display_name, avatar_url, bio, videos, accounts, category, location, analytics_verified, verified, availability_status, auditpr_audit->brandSafe, min_rate, rate_card, service_packages, total_reviews, avg_rating, created_at, audience_top_age, audience_male_percent, audience_female_percent, profile_slug, avg_response_time, completion_rate, last_social_refresh_at, approved_at, approved';
   let influencers: TopScoreInfluencer[] | null = null;
   let infErr: { message: string } | null = null;
   {
@@ -535,10 +536,13 @@ async function computeTopInfluencersUncached(
       profile_slug?: string | null;
       location?: string | null;
       min_rate?: unknown;
+      rate_card?: unknown;
+      service_packages?: unknown;
       verified?: boolean | null;
       analytics_verified?: boolean | null;
       availability_status?: string | null;
     };
+    const fromPrice = lowestListedPrice(inf);
     return {
       id: String(inf.id),
       display_name: inf.display_name ?? '',
@@ -548,7 +552,8 @@ async function computeTopInfluencersUncached(
       category: (inf.category as string | null) ?? null,
       profile_slug: inf.profile_slug ?? null,
       location: inf.location ?? null,
-      price_tier: priceTierFromMinRate(inf.min_rate),
+      from_price: fromPrice,
+      price_tier: priceTierFromMinRate(fromPrice ?? inf.min_rate),
       verified: inf.verified === true,
       analytics_verified: inf.analytics_verified === true,
       availability_status: inf.availability_status ?? null,

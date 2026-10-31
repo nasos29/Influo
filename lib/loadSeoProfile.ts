@@ -3,7 +3,7 @@ import { cache } from "react";
 import { loadInfluencerRows } from "@/lib/loadPublicInfluencers";
 import { getPastBrandsForInfluencer } from "@/lib/pastBrands";
 import { viewModelFromPublicRow, type ProfileViewModel } from "@/lib/profileViewModel";
-import { findPrivateFieldPaths, SEO_PROFILE_COLUMNS } from "@/lib/publicInfluencer";
+import { findPrivateFieldPaths, PRICING_SOURCE_COLUMNS, SEO_PROFILE_COLUMNS } from "@/lib/publicInfluencer";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -14,7 +14,10 @@ export type SeoProfile = {
 };
 
 async function loadOne(filter: { id?: string; slug?: string }): Promise<SeoProfile | null> {
-  const rows = await loadInfluencerRows(SEO_PROFILE_COLUMNS, filter);
+  const rows = await loadInfluencerRows(
+    [...SEO_PROFILE_COLUMNS, ...PRICING_SOURCE_COLUMNS],
+    filter
+  );
   const row = rows[0];
   if (!row?.id) return null;
   const past_brands = await getPastBrandsForInfluencer(String(row.id));

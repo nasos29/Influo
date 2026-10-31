@@ -89,6 +89,7 @@ interface ProInfluencer extends Influencer {
   video_thumbnails?: Record<string, string> | null;
   has_min_rate?: boolean;
   has_priced_min_rate?: boolean;
+  from_price?: number | null;
   price_tier?: string | null;
   rate_card_flags?: { story?: boolean; post?: boolean; reel?: boolean; facebook?: boolean; youtube?: boolean; ugc_video?: boolean; ugc_photo?: boolean; carousel?: boolean };
   min_rate?: string;
@@ -1007,6 +1008,7 @@ export default function InfluencerProfile(props: {
           : [],
         has_min_rate: !!data.has_min_rate,
         has_priced_min_rate: !!data.has_priced_min_rate,
+        from_price: typeof data.from_price === "number" && data.from_price > 0 ? data.from_price : null,
         price_tier: data.price_tier || "0",
         videos: Array.isArray(data.videos) ? data.videos : [],
         video_thumbnails: data.video_thumbnails || null,
@@ -2400,7 +2402,7 @@ export default function InfluencerProfile(props: {
                       ) : (
                         <div>
                           <p className="text-2xl font-semibold tracking-tight text-blue-700 tabular-nums">
-                            {formatFromPriceLabel(profile.price_tier, lang) || "—"}
+                            {formatFromPriceLabel(profile.from_price, lang) || "—"}
                           </p>
                           {showBrandPriceCta ? (
                             <p className="mt-1 text-xs leading-snug text-slate-600">

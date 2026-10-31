@@ -22,6 +22,12 @@ function parsePackagePrice(price: unknown): number {
   return parsed || 0;
 }
 
+/** Positive listed amount, or null. Same parsing as the package minimum. */
+export function listedPriceAmount(price: unknown): number | null {
+  const n = parsePackagePrice(price);
+  return n > 0 ? n : null;
+}
+
 /** Empty is allowed. A filled price must be a number greater than 0. */
 export function isPositivePriceInput(price: string): boolean {
   const trimmed = price.trim();
@@ -131,8 +137,10 @@ export type PublicPackageView = {
   delivery_days: number | null;
   usage_rights: UsageRights | null;
   has_price: boolean;
-  /** Ceiling tier string from priceTierFromMinRate (e.g. "100"). */
+  /** Ceiling tier string from priceTierFromMinRate (e.g. "100"). Budget filters only. */
   price_tier: string;
+  /** Exact amount for the guest «Από X €» label. */
+  from_price: number | null;
   /** Exact price — only present in commercial/brand payloads. */
   price?: string;
 };
@@ -140,8 +148,10 @@ export type PublicPackageView = {
 export type PublicExtraView = {
   key: RateCardExtraKey;
   has_price: boolean;
-  /** Ceiling tier. Visitors see this scale, never the exact amount. */
+  /** Ceiling tier. Budget filters only — guests read `from_price`. */
   price_tier: string;
+  /** Exact amount for the guest «Από X €» label. */
+  from_price: number | null;
   /** Exact price — only present in commercial/brand payloads. */
   price?: string;
 };
@@ -404,6 +414,7 @@ export function toPublicPackageView(
     usage_rights: pkg.usage_rights ?? null,
     has_price: isConcretePrice(pkg.price),
     price_tier: tierFromPrice(pkg.price),
+    from_price: listedPriceAmount(pkg.price),
   };
 }
 
@@ -504,6 +515,7 @@ export function toPublicExtraView(
     key,
     has_price: priced,
     price_tier: priced ? tierFromPrice(price) : "0",
+    from_price: priced ? listedPriceAmount(price) : null,
   };
 }
 
@@ -524,7 +536,7 @@ function extraSource(rateCard: unknown): Record<string, unknown> {
   return rateCard as Record<string, unknown>;
 }
 
-/** Public extras: scale only, no exact amount. Omits keys without a price. */
+/** Public extras. Guests see `from_price`, not the raw rate card. Omits keys without a price. */
 export function publicExtrasFromRateCard(
   rateCard: unknown,
   tierFromPrice: (price: unknown) => string = () => "0"
