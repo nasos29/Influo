@@ -1,6 +1,10 @@
 /**
- * Nightly portfolio playability pass (checkVideoPlayable).
- * Hides links only after 2 consecutive unplayable results. Never deletes from videos.
+ * Unified nightly portfolio video pass.
+ * One status per link: missing | unplayable | ok | unknown.
+ * - missing → prune after 2 misses ≥72h apart (video_link_*)
+ * - unplayable → hide after 2 consecutive (portfolio_video_strikes / hidden_videos)
+ * - ok → clear strikes / restore hide; clear missing count
+ * - unknown → no action (timeouts, login walls, 5xx, vm→homepage)
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -14,25 +18,51 @@ import {
   upsertHiddenVideo,
   type HiddenVideoEntry,
 } from "@/lib/hiddenVideos";
+import {
+  checkVideoLink,
+  classifyVideoUrl,
+  decideRemoval,
+  type LinkOutcome,
+  type VideoPlatform,
+} from "@/lib/videoLinkCheck";
 
 export const PORTFOLIO_VIDEO_BATCH_SIZE = 20;
 export const PORTFOLIO_VIDEO_DELAY_MS = 350;
 export const PORTFOLIO_VIDEO_TIME_BUDGET_MS = 45_000;
 
+export type PortfolioLinkStatus = "missing" | "unplayable" | "ok" | "unknown";
+
+export type PortfolioLinkResult = {
+  status: PortfolioLinkStatus;
+  platform: VideoPlatform;
+  httpStatus: number | null;
+  detail: string;
+};
+
 type Item = {
   influencerId: string;
+  displayName: string;
   url: string;
+};
+
+type CheckRow = {
+  missing_count: number | null;
+  first_missing_at: string | null;
 };
 
 export type PortfolioVideoCheckSummary = {
   checked: number;
-  playable: number;
+  missing: number;
   unplayable: number;
-  unchecked: number;
+  /** Links that exist and play. Named okCount so JSON `{ ok: true, ... }` stays unambiguous. */
+  okCount: number;
+  unknown: number;
+  removed: number;
   hidden: number;
   restored: number;
   remaining: number;
   cursor: { influencerId: string; url: string } | null;
+  removals: { influencerId: string; displayName: string; url: string; platform: VideoPlatform }[];
   stoppedEarly: boolean;
 };
 
@@ -49,9 +79,94 @@ function missingTable(error: { message?: string; code?: string } | null): boolea
   if (!error) return false;
   if (error.code === "42P01" || error.code === "PGRST205") return true;
   return (
-    /portfolio_video_strikes|portfolio_video_check_state|hidden_videos/i.test(error.message || "") &&
-    /does not exist|schema cache|could not find/i.test(error.message || "")
+    /video_link_checks|video_link_removals|video_link_check_state|portfolio_video_strikes|portfolio_video_check_state|hidden_videos/i.test(
+      error.message || ""
+    ) && /does not exist|schema cache|could not find/i.test(error.message || "")
   );
+}
+
+/**
+ * Single logical check: existence first, then playability only when the post exists.
+ * Timeouts / walls / 5xx / vm→homepage stay unknown.
+ */
+export async function checkPortfolioLinkStatus(url: string): Promise<PortfolioLinkResult | null> {
+  const classified = classifyVideoUrl(url);
+  if (!classified) return null;
+
+  let existence: Awaited<ReturnType<typeof checkVideoLink>>;
+  try {
+    existence = await checkVideoLink(url);
+  } catch (error) {
+    return {
+      status: "unknown",
+      platform: classified.platform,
+      httpStatus: null,
+      detail: error instanceof Error ? error.message : "check failed",
+    };
+  }
+  if (!existence) return null;
+
+  if (existence.outcome === "missing") {
+    return {
+      status: "missing",
+      platform: existence.platform,
+      httpStatus: existence.httpStatus,
+      detail: existence.detail,
+    };
+  }
+  if (existence.outcome === "unknown") {
+    return {
+      status: "unknown",
+      platform: existence.platform,
+      httpStatus: existence.httpStatus,
+      detail: existence.detail,
+    };
+  }
+
+  // Post exists — check whether Influo can play it.
+  let playable: Awaited<ReturnType<typeof checkVideoPlayable>>;
+  try {
+    playable = await checkVideoPlayable(url);
+  } catch (error) {
+    return {
+      status: "unknown",
+      platform: existence.platform,
+      httpStatus: existence.httpStatus,
+      detail: error instanceof Error ? error.message : "playable check failed",
+    };
+  }
+
+  const reason = playable.reason || "";
+  const isUnchecked =
+    reason === "unchecked" || reason === "empty" || reason === "unsupported_host";
+  if (isUnchecked) {
+    return {
+      status: "unknown",
+      platform: existence.platform,
+      httpStatus: existence.httpStatus,
+      detail: reason || "unchecked",
+    };
+  }
+  if (!playable.playable) {
+    return {
+      status: "unplayable",
+      platform: existence.platform,
+      httpStatus: existence.httpStatus,
+      detail: reason || "unplayable",
+    };
+  }
+  return {
+    status: "ok",
+    platform: existence.platform,
+    httpStatus: existence.httpStatus,
+    detail: reason || existence.detail || "ok",
+  };
+}
+
+function outcomeForMissingState(status: PortfolioLinkStatus): LinkOutcome {
+  if (status === "missing") return "missing";
+  if (status === "ok" || status === "unplayable") return "live";
+  return "unknown";
 }
 
 export async function runCheckPortfolioVideos(
@@ -61,19 +176,25 @@ export async function runCheckPortfolioVideos(
     batchSize?: number;
     delayMs?: number;
     timeBudgetMs?: number;
-    check?: typeof checkVideoPlayable;
+    check?: (url: string) => Promise<PortfolioLinkResult | null>;
   }
 ): Promise<PortfolioVideoCheckSummary> {
   const batchSize = options?.batchSize ?? PORTFOLIO_VIDEO_BATCH_SIZE;
   const delayMs = options?.delayMs ?? PORTFOLIO_VIDEO_DELAY_MS;
   const timeBudgetMs = options?.timeBudgetMs ?? PORTFOLIO_VIDEO_TIME_BUDGET_MS;
-  const check = options?.check ?? checkVideoPlayable;
+  const check = options?.check ?? checkPortfolioLinkStatus;
 
-  const ready = await admin.from("portfolio_video_check_state").select("id").limit(1);
-  if (ready.error && missingTable(ready.error)) {
+  const linkReady = await admin.from("video_link_checks").select("influencer_id").limit(1);
+  if (linkReady.error && missingTable(linkReady.error)) {
+    throw new Error("Run docs/VIDEO_LINK_CHECKS.sql in the Supabase SQL editor before this cron.");
+  }
+  if (linkReady.error) throw new Error(linkReady.error.message);
+
+  const portfolioReady = await admin.from("portfolio_video_check_state").select("id").limit(1);
+  if (portfolioReady.error && missingTable(portfolioReady.error)) {
     throw new Error("Run docs/PORTFOLIO_VIDEO_CHECKS.sql in the Supabase SQL editor before this cron.");
   }
-  if (ready.error) throw new Error(ready.error.message);
+  if (portfolioReady.error) throw new Error(portfolioReady.error.message);
 
   const items = await loadCheckableLinks(admin);
   const cursor = await loadCursor(admin);
@@ -81,13 +202,16 @@ export async function runCheckPortfolioVideos(
 
   const summary: PortfolioVideoCheckSummary = {
     checked: 0,
-    playable: 0,
+    missing: 0,
     unplayable: 0,
-    unchecked: 0,
+    okCount: 0,
+    unknown: 0,
+    removed: 0,
     hidden: 0,
     restored: 0,
     remaining: 0,
     cursor: batch.nextCursor,
+    removals: [],
     stoppedEarly: false,
   };
 
@@ -109,41 +233,99 @@ export async function runCheckPortfolioVideos(
     const item = batch.items[index]!;
     summary.cursor = { influencerId: item.influencerId, url: item.url };
 
-    let result: Awaited<ReturnType<typeof checkVideoPlayable>>;
+    let result: PortfolioLinkResult | null;
     try {
       result = await check(item.url);
     } catch {
-      result = { playable: true, reason: "unchecked" };
+      result = {
+        status: "unknown",
+        platform: classifyVideoUrl(item.url)?.platform ?? "instagram",
+        httpStatus: null,
+        detail: "check threw",
+      };
     }
-
-    const reason = result.reason || "";
-    const isUnchecked = reason === "unchecked" || reason === "empty" || reason === "unsupported_host";
-    const isPlayable = result.playable === true;
-    const isUnplayable = !isPlayable && !isUnchecked;
+    if (!result) continue;
 
     summary.checked += 1;
-    if (isUnchecked) summary.unchecked += 1;
-    else if (isPlayable) summary.playable += 1;
-    else summary.unplayable += 1;
+    if (result.status === "ok") summary.okCount += 1;
+    else summary[result.status] += 1;
 
-    if (isUnchecked) {
-      // Technical / inconclusive — leave strikes and visibility alone.
+    // --- missing path (prune) ---
+    const previous = await loadMissingCheck(admin, item.influencerId, item.url);
+    const decision = decideRemoval(
+      previous
+        ? { missingCount: previous.missing_count ?? 0, firstMissingAt: previous.first_missing_at }
+        : null,
+      outcomeForMissingState(result.status),
+      now
+    );
+
+    if (result.status === "missing" && decision.remove) {
+      const removed = await removeLink(
+        admin,
+        item,
+        result.platform,
+        result.httpStatus,
+        result.detail,
+        now
+      );
+      if (removed) {
+        summary.removed += 1;
+        summary.removals.push({
+          influencerId: item.influencerId,
+          displayName: item.displayName,
+          url: item.url,
+          platform: result.platform,
+        });
+        await admin
+          .from("video_link_checks")
+          .delete()
+          .eq("influencer_id", item.influencerId)
+          .eq("url", item.url);
+        await clearStrike(admin, item.influencerId, item.url);
+        continue;
+      }
+    }
+
+    await saveMissingCheck(
+      admin,
+      item,
+      result.platform,
+      outcomeForMissingState(result.status),
+      result.httpStatus,
+      result.detail,
+      decision,
+      now
+    );
+
+    // --- unplayable / ok / unknown for hide path ---
+    if (result.status === "unknown") {
       continue;
     }
 
-    if (isPlayable) {
+    if (result.status === "ok") {
       await clearStrike(admin, item.influencerId, item.url);
       const restored = await unhideIfPresent(admin, item.influencerId, item.url);
       if (restored) summary.restored += 1;
       continue;
     }
 
-    // Unplayable
-    const strikes = await bumpStrike(admin, item.influencerId, item.url, reason, now);
-    if (strikes >= 2) {
-      const hid = await hideVideo(admin, item.influencerId, item.url, reason, now);
-      if (hid) summary.hidden += 1;
+    if (result.status === "unplayable") {
+      const strikes = await bumpStrike(
+        admin,
+        item.influencerId,
+        item.url,
+        result.detail,
+        now
+      );
+      if (strikes >= 2) {
+        const hid = await hideVideo(admin, item.influencerId, item.url, result.detail, now);
+        if (hid) summary.hidden += 1;
+      }
+      continue;
     }
+
+    // missing but not yet removed — leave hide/strikes alone
   }
 
   if (!summary.stoppedEarly) summary.cursor = batch.nextCursor;
@@ -166,15 +348,14 @@ function countAfter(items: Item[], cursor: { influencerId: string; url: string }
   return next >= 0 ? items.length - next : 0;
 }
 
-/** Approved influencers only; select id, videos, hidden_videos (egress-safe). */
+/** All influencers with classified portfolio posts (same coverage as the old prune pass). */
 async function loadCheckableLinks(admin: SupabaseClient): Promise<Item[]> {
   const pageSize = 1000;
   const items: Item[] = [];
   for (let from = 0; ; from += pageSize) {
     const { data, error } = await admin
       .from("influencers")
-      .select("id, videos, hidden_videos")
-      .eq("approved", true)
+      .select("id, display_name, videos")
       .not("videos", "is", null)
       .order("id", { ascending: true })
       .range(from, from + pageSize - 1);
@@ -184,13 +365,13 @@ async function loadCheckableLinks(admin: SupabaseClient): Promise<Item[]> {
       const seen = new Set<string>();
       for (const url of asUrlList(row.videos)) {
         const key = normalizeVideoUrlKey(url);
-        if (!key || seen.has(key)) continue;
-        // Only IG / TikTok / YouTube portfolio hosts (same as checkVideoPlayable).
-        if (!/instagram\.com|tiktok\.com|(vm|vt)\.tiktok\.com|youtube\.com|youtu\.be/i.test(url)) {
-          continue;
-        }
+        if (!key || seen.has(key) || !classifyVideoUrl(url)) continue;
         seen.add(key);
-        items.push({ influencerId: String(row.id), url });
+        items.push({
+          influencerId: String(row.id),
+          displayName: typeof row.display_name === "string" ? row.display_name : "",
+          url,
+        });
       }
     }
     if (rows.length < pageSize) break;
@@ -229,19 +410,36 @@ function sliceBatch(
   };
 }
 
+/** Prefer portfolio cursor; fall back to prune cursor so one nightly pass continues cleanly. */
 async function loadCursor(
   admin: SupabaseClient
 ): Promise<{ influencerId: string; url: string } | null> {
-  const { data, error } = await admin
+  const portfolio = await admin
     .from("portfolio_video_check_state")
     .select("cursor_influencer_id, cursor_url")
     .eq("id", 1)
     .maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!data?.cursor_influencer_id || !data?.cursor_url) return null;
+  if (portfolio.error) throw new Error(portfolio.error.message);
+  if (portfolio.data?.cursor_influencer_id && portfolio.data?.cursor_url) {
+    return {
+      influencerId: String(portfolio.data.cursor_influencer_id),
+      url: String(portfolio.data.cursor_url),
+    };
+  }
+
+  const prune = await admin
+    .from("video_link_check_state")
+    .select("cursor_influencer_id, cursor_url")
+    .eq("id", 1)
+    .maybeSingle();
+  if (prune.error) {
+    if (missingTable(prune.error)) return null;
+    throw new Error(prune.error.message);
+  }
+  if (!prune.data?.cursor_influencer_id || !prune.data.cursor_url) return null;
   return {
-    influencerId: String(data.cursor_influencer_id),
-    url: String(data.cursor_url),
+    influencerId: String(prune.data.cursor_influencer_id),
+    url: String(prune.data.cursor_url),
   };
 }
 
@@ -250,15 +448,123 @@ async function saveCursor(
   cursor: { influencerId: string; url: string } | null,
   now: Date
 ): Promise<void> {
-  await admin.from("portfolio_video_check_state").upsert(
-    {
-      id: 1,
-      cursor_influencer_id: cursor?.influencerId ?? null,
-      cursor_url: cursor?.url ?? null,
-      updated_at: now.toISOString(),
-    },
-    { onConflict: "id" }
-  );
+  const row = {
+    id: 1,
+    cursor_influencer_id: cursor?.influencerId ?? null,
+    cursor_url: cursor?.url ?? null,
+    updated_at: now.toISOString(),
+  };
+  const a = await admin.from("portfolio_video_check_state").upsert(row, { onConflict: "id" });
+  if (a.error) throw new Error(a.error.message);
+  const b = await admin.from("video_link_check_state").upsert(row, { onConflict: "id" });
+  if (b.error) throw new Error(b.error.message);
+}
+
+async function loadMissingCheck(
+  admin: SupabaseClient,
+  influencerId: string,
+  url: string
+): Promise<CheckRow | null> {
+  const { data, error } = await admin
+    .from("video_link_checks")
+    .select("missing_count, first_missing_at")
+    .eq("influencer_id", influencerId)
+    .eq("url", url)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+async function saveMissingCheck(
+  admin: SupabaseClient,
+  item: Item,
+  platform: VideoPlatform,
+  outcome: LinkOutcome,
+  httpStatus: number | null,
+  detail: string,
+  decision: { missingCount: number; firstMissingAt: string | null },
+  now: Date
+): Promise<void> {
+  const { error } = await admin.from("video_link_checks").upsert({
+    influencer_id: item.influencerId,
+    url: item.url,
+    platform,
+    missing_count: decision.missingCount,
+    first_missing_at: decision.firstMissingAt,
+    last_checked_at: now.toISOString(),
+    last_status: outcome,
+    last_http_status: httpStatus,
+    last_detail: detail.slice(0, 300),
+  });
+  if (error) throw new Error(error.message);
+}
+
+async function removeLink(
+  admin: SupabaseClient,
+  item: Item,
+  platform: VideoPlatform,
+  httpStatus: number | null,
+  detail: string,
+  now: Date
+): Promise<boolean> {
+  const { data, error } = await admin
+    .from("influencers")
+    .select("videos, video_thumbnails")
+    .eq("id", item.influencerId)
+    .maybeSingle();
+  if (error || !data) return false;
+
+  const videos = Array.isArray(data.videos) ? data.videos : [];
+  if (!videos.includes(item.url)) return false;
+  const nextVideos = videos.filter((url) => url !== item.url);
+
+  const patch: Record<string, unknown> = { videos: nextVideos };
+  const thumbs = data.video_thumbnails;
+  if (thumbs && typeof thumbs === "object" && !Array.isArray(thumbs) && item.url in thumbs) {
+    const nextThumbs = { ...(thumbs as Record<string, unknown>) };
+    delete nextThumbs[item.url];
+    patch.video_thumbnails = nextThumbs;
+  }
+
+  // Also drop from hidden_videos if present
+  const hiddenRow = await admin
+    .from("influencers")
+    .select("hidden_videos")
+    .eq("id", item.influencerId)
+    .maybeSingle();
+  if (!hiddenRow.error && hiddenRow.data) {
+    const before = parseHiddenVideos(hiddenRow.data.hidden_videos);
+    if (before.some((h) => normalizeVideoUrlKey(h.url) === normalizeVideoUrlKey(item.url))) {
+      patch.hidden_videos = removeHiddenVideo(hiddenRow.data.hidden_videos, item.url);
+    }
+  }
+
+  const updated = await admin.from("influencers").update(patch).eq("id", item.influencerId);
+  if (updated.error) throw new Error(updated.error.message);
+
+  const logged = await admin.from("video_link_removals").insert({
+    influencer_id: item.influencerId,
+    display_name: item.displayName,
+    url: item.url,
+    platform,
+    removed_at: now.toISOString(),
+    http_status: httpStatus,
+    detail: detail.slice(0, 300),
+  });
+  if (logged.error) {
+    await admin
+      .from("influencers")
+      .update({
+        videos: data.videos,
+        video_thumbnails: data.video_thumbnails,
+        ...(patch.hidden_videos !== undefined
+          ? { hidden_videos: hiddenRow.data?.hidden_videos ?? null }
+          : {}),
+      })
+      .eq("id", item.influencerId);
+    throw new Error(logged.error.message);
+  }
+  return true;
 }
 
 async function bumpStrike(
