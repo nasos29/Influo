@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { LOCATION_SEED_RECORDS, searchLocations } from "../lib/locationCatalog.ts";
+import { LOCATION_CATALOG, LOCATION_SEED_RECORDS, searchLocations } from "../lib/locationCatalog.ts";
 
 const json = JSON.parse(readFileSync(new URL("../data/locations.json", import.meta.url), "utf8"));
 const sql = readFileSync(
@@ -11,11 +11,11 @@ const sql = readFileSync(
 );
 
 test("static catalog matches the seed and the unapplied migration", () => {
-  assert.equal(json.length, 176);
-  assert.equal(LOCATION_SEED_RECORDS.length, json.length);
-  assert.deepEqual(json, LOCATION_SEED_RECORDS);
+  assert.equal(LOCATION_SEED_RECORDS.length, 176);
+  assert.deepEqual(json, LOCATION_CATALOG);
+  assert.equal(json.filter((row: { country: string }) => row.country !== "EU").length, 176);
   const inserts = sql.split("\n").filter((line) => line.trim().startsWith("('"));
-  assert.equal(inserts.length, json.length);
+  assert.equal(inserts.length, LOCATION_SEED_RECORDS.length);
   assert.match(sql, /FOR SELECT/);
   assert.equal(/FOR INSERT|FOR UPDATE|FOR DELETE/i.test(sql), false);
   const body = sql.replace(/^--.*$/gm, "");
@@ -33,4 +33,6 @@ test("typeahead matches Greek, greeklish, and English without tones", () => {
   assert.equal(searchLocations("πελοπόννησος", "el", 8, json)[0]?.type, "region");
   assert.equal(searchLocations("kolonaki", "el", 8, json).length, 0);
   assert.equal(searchLocations("", "el", 8, json).length, 0);
+  assert.equal(searchLocations("Lond", "en", 8, json)[0]?.name_en, "London");
+  assert.equal(searchLocations("London", "el", 8, json)[0]?.name_el, "Λονδίνο");
 });

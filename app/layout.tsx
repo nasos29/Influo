@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Roboto } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
+import ChunkErrorReload from "@/components/ChunkErrorReload";
 import CookieConsent from "@/components/CookieConsent";
 import FeedbackHost from "@/components/Feedback";
 import HtmlLang from "@/components/HtmlLang";
@@ -173,6 +174,7 @@ export default async function RootLayout({
           `}
         </Script>
         {children}
+        <ChunkErrorReload />
         <HtmlLang />
         <FeedbackHost />
         <CookieConsent />
