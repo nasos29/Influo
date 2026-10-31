@@ -19,16 +19,56 @@ export function listedPriceAmount(price: unknown): number | null {
   return listedPriceMin(price);
 }
 
+/** Shown when a creator or admin enters a range or anything other than one positive integer. */
+export const FIXED_PRICE_MESSAGE = {
+  el: "Βάλε μία σταθερή τιμή, όχι εύρος",
+  en: "Enter one fixed price, not a range.",
+} as const;
+
+const RANGE_MARK = /[-–—]/;
+
 /**
- * Editor input. Empty is allowed. A filled price must be a plain number above 0
- * (digits and an optional decimal). Ranges and currency text are not accepted;
- * the form has no min–max field.
+ * Editor and API input. Empty is allowed. A filled price must be one positive
+ * integer in euros (1, 2, 150). Ranges, decimals, and other text are rejected.
  */
 export function isPositivePriceInput(price: string): boolean {
   const trimmed = price.trim();
   if (!trimmed) return true;
-  if (!/^\d+(\.\d+)?$/.test(trimmed)) return false;
-  return parseFloat(trimmed) > 0;
+  if (RANGE_MARK.test(trimmed)) return false;
+  if (!/^[1-9]\d*$/.test(trimmed)) return false;
+  const n = Number(trimmed);
+  return Number.isSafeInteger(n) && n >= 1;
+}
+
+function fixedIntegerText(price: unknown): string | null {
+  const text = typeof price === "number" && Number.isInteger(price) ? String(price) : typeof price === "string" ? price.trim() : "";
+  if (!text || !isPositivePriceInput(text)) return null;
+  return text;
+}
+
+function isBlankOrZero(price: unknown): boolean {
+  if (price == null || price === "") return true;
+  if (typeof price === "number") return price === 0;
+  if (typeof price === "string") return price.trim() === "" || price.trim() === "0";
+  return false;
+}
+
+/** True when a package or rate-card value is filled but not one positive integer. */
+export function hasUnfixedCreatorPrice(servicePackages: unknown, rateCard: unknown): boolean {
+  const bad = (price: unknown) => !isBlankOrZero(price) && !fixedIntegerText(price);
+  if (Array.isArray(servicePackages)) {
+    for (const pkg of servicePackages) {
+      if (!pkg || typeof pkg !== "object") continue;
+      if (bad((pkg as { price?: unknown }).price)) return true;
+    }
+  }
+  if (rateCard && typeof rateCard === "object" && !Array.isArray(rateCard)) {
+    const src = rateCard as Record<string, unknown>;
+    for (const key of [...RATE_CARD_PRICE_KEYS, ...RATE_CARD_EXTRA_KEYS]) {
+      if (bad(src[key])) return true;
+    }
+  }
+  return false;
 }
 
 export function packagesHaveInvalidPrice(packages: Array<{ price?: string | null }>): boolean {
@@ -466,8 +506,9 @@ export function minRateFromPackages(packages: ServicePackage[]): string | null {
 export function rateCardFromPackages(packages: ServicePackage[]): Record<string, string> {
   const buckets: Record<string, number> = {};
   for (const p of packages) {
-    const n = parsePackagePrice(p.price);
-    if (!(n > 0)) continue;
+    const text = fixedIntegerText(p.price);
+    if (!text) continue;
+    const n = Number(text);
     let key: string | null = null;
     if (p.type === "story") key = "story";
     else if (p.type === "post") key = p.platform === "facebook" ? "facebook" : "post";
@@ -504,12 +545,12 @@ export function extrasHaveInvalidPrice(extras: ServiceExtras): boolean {
   return RATE_CARD_EXTRA_KEYS.some((key) => !isPositivePriceInput(String(extras[key] ?? "")));
 }
 
-/** Priced extras only. Blank, zero, and non-numeric text are dropped. */
+/** Priced extras only. Blank and anything other than one positive integer are dropped. */
 export function extrasForSave(extras: ServiceExtras): Record<string, string> {
   const out: Record<string, string> = {};
   for (const key of RATE_CARD_EXTRA_KEYS) {
-    const n = parsePackagePrice(extras[key]);
-    if (n > 0) out[key] = String(n);
+    const text = fixedIntegerText(extras[key]);
+    if (text) out[key] = text;
   }
   return out;
 }
@@ -581,17 +622,17 @@ export function commercialExtrasFromRateCard(
   return out;
 }
 
-/** Persist shape for jsonb (max 6). */
+/** Persist shape for jsonb (max 6). Only positive integers. Ranges are not saved. */
 export function packagesForSave(packages: ServicePackage[]): ServicePackage[] {
   return normalizeServicePackages(packages)
-    .filter((p) => parsePackagePrice(p.price) > 0)
+    .filter((p) => fixedIntegerText(p.price) != null)
     .slice(0, 6)
     .map((p) => ({
       id: p.id,
       platform: p.platform,
       type: p.type,
       quantity: p.quantity,
-      price: String(parsePackagePrice(p.price)),
+      price: fixedIntegerText(p.price) || "",
       delivery_days: p.delivery_days ?? null,
       usage_rights: p.usage_rights ?? null,
       description: p.description || "",

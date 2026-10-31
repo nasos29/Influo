@@ -35,6 +35,7 @@ import {
   defaultPackages,
   emptyExtras,
   extrasHaveInvalidPrice,
+  FIXED_PRICE_MESSAGE,
   mergeRateCard,
   packagesHaveInvalidPrice,
   packagesForSave,
@@ -771,11 +772,7 @@ export default function InfluencerSignupForm() {
         });
 
       if (packagesHaveInvalidPrice(servicePackages) || extrasHaveInvalidPrice(serviceExtras)) {
-        throw new Error(
-          lang === "el"
-            ? "Κάθε τιμή πρέπει να είναι πάνω από 0, ή κενή."
-            : "Each price must be greater than 0, or left empty."
-        );
+        throw new Error(FIXED_PRICE_MESSAGE[lang]);
       }
       const packagesPayload = packagesForSave(servicePackages);
       if (packagesPayload.length < 1) {
@@ -807,13 +804,7 @@ export default function InfluencerSignupForm() {
           audience_top_age: topAge,
       };
 
-      let insertError = (
-        await supabase.from("influencers").insert([{
-          ...baseRow,
-          rate_card: rateCardPayload,
-          service_packages: packagesPayload,
-        }])
-      ).error;
+      let insertError = (await supabase.from("influencers").insert([baseRow])).error;
 
       // DB may not have rate_card / service_packages yet — retry without them
       if (
@@ -825,26 +816,36 @@ export default function InfluencerSignupForm() {
       }
 
       if (!insertError) {
-        try {
-          const token = authData?.session?.access_token as string | undefined;
-          const headers: Record<string, string> = { "Content-Type": "application/json" };
-          if (token) headers.Authorization = `Bearer ${token}`;
-          const sync = token
-            ? await fetch("/api/influencer/sync-min-rate", {
-                method: "POST",
-                headers,
-                body: JSON.stringify({ influencerId: authUser.id }),
-              })
-            : await sessionFetch("/api/influencer/sync-min-rate", {
-                method: "POST",
-                headers,
-                body: JSON.stringify({ influencerId: authUser.id }),
-              });
-          if (!sync.ok) {
-            console.error("[Signup] min_rate sync failed:", sync.status);
-          }
-        } catch (syncErr) {
-          console.error("[Signup] min_rate sync failed:", syncErr);
+        const token = authData?.session?.access_token as string | undefined;
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (token) headers.Authorization = `Bearer ${token}`;
+        const priceRes = token
+          ? await fetch("/api/influencer/prices", {
+              method: "POST",
+              headers,
+              body: JSON.stringify({
+                influencerId: authUser.id,
+                service_packages: packagesPayload,
+                rate_card: rateCardPayload,
+              }),
+            })
+          : await sessionFetch("/api/influencer/prices", {
+              method: "POST",
+              headers,
+              body: JSON.stringify({
+                influencerId: authUser.id,
+                service_packages: packagesPayload,
+                rate_card: rateCardPayload,
+              }),
+            });
+        if (!priceRes.ok) {
+          const priceBody = await priceRes.json().catch(() => ({}));
+          const message = priceBody?.message;
+          throw new Error(
+            message && typeof message === "object"
+              ? (lang === "en" ? message.en : message.el) || FIXED_PRICE_MESSAGE[lang]
+              : priceBody?.error || FIXED_PRICE_MESSAGE[lang]
+          );
         }
       }
 

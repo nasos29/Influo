@@ -15,6 +15,7 @@ import {
   emptyExtras,
   extraPriceSuffix,
   extrasFromRateCard,
+  FIXED_PRICE_MESSAGE,
   isPositivePriceInput,
   isUgcPackageType,
   newPackageId,
@@ -192,7 +193,7 @@ export default function ServicePackagesEditor({
   };
 
   const setExtra = (key: RateCardExtraKey, value: string) => {
-    onExtrasChange?.({ ...extraValues, [key]: value.replace(/,/g, ".") });
+    onExtrasChange?.({ ...extraValues, [key]: value });
   };
 
   const chipBtn = (active: boolean) =>
@@ -290,8 +291,10 @@ export default function ServicePackagesEditor({
                   <div className="relative">
                     <input
                       id={`extra-${key}`}
-                      type="text"
-                      inputMode="decimal"
+                      type="number"
+                      min={1}
+                      step={1}
+                      inputMode="numeric"
                       value={value}
                       onChange={(e) => setExtra(key, e.target.value)}
                       placeholder="50"
@@ -306,7 +309,7 @@ export default function ServicePackagesEditor({
                   </div>
                   {invalid ? (
                     <p className="mt-1 text-[11px] text-red-600">
-                      {L("Πάνω από 0, ή κενό.", "Greater than 0, or empty.")}
+                      {FIXED_PRICE_MESSAGE[lang]}
                     </p>
                   ) : preview ? (
                     <p className="mt-1 text-[11px] font-semibold tabular-nums text-slate-600">
@@ -482,11 +485,14 @@ function PackageCard({
           <label className="mb-1 block text-[10px] font-semibold uppercase text-slate-500">{priceLabel}</label>
           <div className="relative">
             <input
-              type="text"
-              inputMode="decimal"
+              type="number"
+              min={1}
+              step={1}
+              inputMode="numeric"
               value={pkg.price}
-              onChange={(e) => onUpdate(pkg.id, { price: e.target.value.replace(/,/g, ".") })}
+              onChange={(e) => onUpdate(pkg.id, { price: e.target.value })}
               placeholder="150"
+              aria-invalid={pkg.price.trim() !== "" && !isPositivePriceInput(pkg.price)}
               className={`w-full rounded-lg border bg-white px-2 py-2 pr-7 text-sm text-slate-900 sm:py-1.5 ${
                 pkg.price.trim() && !isPositivePriceInput(pkg.price) ? "border-red-400" : "border-slate-300"
               }`}
@@ -496,7 +502,7 @@ function PackageCard({
             </span>
           </div>
           {pkg.price.trim() && !isPositivePriceInput(pkg.price) ? (
-            <p className="mt-1 text-[10px] text-red-600">{L("Πάνω από 0, ή κενό.", "Greater than 0, or empty.")}</p>
+            <p className="mt-1 text-[10px] text-red-600">{FIXED_PRICE_MESSAGE[lang]}</p>
           ) : null}
         </div>
         <div>

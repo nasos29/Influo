@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   deriveMinRate,
+  FIXED_PRICE_MESSAGE,
+  hasUnfixedCreatorPrice,
   mergeRateCard,
   packageTitle,
   packagesForSave,
@@ -34,12 +36,17 @@ test("deriveMinRate uses the smallest positive package or rate-card price", () =
   assert.equal(deriveMinRate([{ id: "a", platform: "instagram", type: "reel", quantity: 1, price: "-5" }], null), null);
 });
 
-test("package prices must be empty or greater than 0", () => {
+test("package prices must be empty or a positive integer", () => {
   assert.equal(isPositivePriceInput(""), true);
   assert.equal(isPositivePriceInput("150"), true);
-  assert.equal(isPositivePriceInput("0.5"), true);
+  assert.equal(isPositivePriceInput("1"), true);
+  assert.equal(isPositivePriceInput("0.5"), false);
+  assert.equal(isPositivePriceInput("10.0"), false);
   assert.equal(isPositivePriceInput("0"), false);
   assert.equal(isPositivePriceInput("-3"), false);
+  assert.equal(isPositivePriceInput("30-100"), false);
+  assert.equal(isPositivePriceInput("30–100"), false);
+  assert.equal(isPositivePriceInput("30 - 100"), false);
   assert.equal(isPositivePriceInput("abc"), false);
 
   const saved = packagesForSave([
@@ -47,6 +54,31 @@ test("package prices must be empty or greater than 0", () => {
     { id: "b", platform: "instagram", type: "story", quantity: 1, price: "40" },
   ] as ServicePackage[]);
   assert.deepEqual(saved.map((p) => p.price), ["40"]);
+});
+
+test("a range is rejected and is not saved as its lower bound", () => {
+  assert.equal(FIXED_PRICE_MESSAGE.el, "Βάλε μία σταθερή τιμή, όχι εύρος");
+  assert.equal(
+    hasUnfixedCreatorPrice([{ price: "30-100" }], { story: "30–100", post: "80" }),
+    true
+  );
+  assert.equal(
+    hasUnfixedCreatorPrice([{ price: "80" }], { story: "40", usage_rights_ads: "15" }),
+    false
+  );
+  assert.equal(hasUnfixedCreatorPrice([{ price: "0" }], { reel: "0", post: "" }), false);
+  const saved = packagesForSave([
+    { id: "a", platform: "instagram", type: "story", quantity: 1, price: "30-100" },
+    { id: "b", platform: "instagram", type: "reel", quantity: 1, price: "80" },
+  ] as ServicePackage[]);
+  assert.deepEqual(saved.map((p) => p.price), ["80"]);
+  assert.deepEqual(
+    rateCardFromPackages([
+      { id: "a", platform: "instagram", type: "story", quantity: 1, price: "30-100" },
+      { id: "b", platform: "instagram", type: "reel", quantity: 1, price: "80" },
+    ] as ServicePackage[]),
+    { reel: "80" }
+  );
 });
 
 test("ugc and carousel prices lower min_rate; extras never do", () => {
