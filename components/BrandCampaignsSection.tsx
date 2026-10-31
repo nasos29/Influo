@@ -202,6 +202,7 @@ const txt = langPack({
   delete: { el: "Διαγραφή", en: "Delete" },
   list_title: { el: "Οι καμπάνιες σας", en: "Your campaigns" },
   empty: { el: "Δεν έχετε καμπάνια ακόμα. Δημιουργήστε μία για να λάβετε αιτήσεις από influencers.", en: "No campaigns yet. Create one to receive applications from influencers." },
+  empty_cta: { el: "Δημιούργησε την πρώτη σου καμπάνια", en: "Create your first campaign" },
   form_title: { el: "Τίτλος", en: "Title" },
   form_desc: { el: "Περιγραφή", en: "Description" },
   form_budget: { el: "Budget (€)", en: "Budget (€)" },
@@ -902,7 +903,16 @@ export default function BrandCampaignsSection({
             <div className="h-24 rounded-xl bg-slate-100 animate-pulse" />
           </div>
         ) : rows.length === 0 ? (
-          <p className="text-slate-500 text-sm border border-dashed border-slate-200 rounded-xl p-8 text-center">{t.empty}</p>
+          <div className="text-slate-500 text-sm border border-dashed border-slate-200 rounded-xl p-8 text-center space-y-4">
+            <p>{t.empty}</p>
+            <button
+              type="button"
+              onClick={openNew}
+              className="inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800"
+            >
+              {t.empty_cta}
+            </button>
+          </div>
         ) : (
           <ul className="grid gap-4 md:grid-cols-2">
             {rows.map((row) => (

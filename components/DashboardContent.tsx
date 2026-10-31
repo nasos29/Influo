@@ -53,6 +53,7 @@ import {
     birthDateErrorText,
     validateBirthDate,
 } from '@/lib/validateBirthDate';
+import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 
 // --- LANGUAGES LIST ---
 const LANGUAGES = [
@@ -341,7 +342,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
         e.preventDefault();
         
         if (!confirm(
-            "Οι αλλαγές στο προφίλ σου θα απαιτήσουν επαν-επαλήθευση. Το προφίλ σου θα μεταβεί σε 'Pending' status μέχρι να εγκριθεί ξανά. Θέλεις να συνεχίσεις;"
+            "Οι αλλαγές στο προφίλ σου θα απαιτήσουν επαν-επαλήθευση. Το προφίλ σου θα μεταβεί σε κατάσταση «Εκκρεμότητα» μέχρι να εγκριθεί ξανά. Θέλεις να συνεχίσεις;"
         )) {
             return;
         }
@@ -849,7 +850,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                                     )}
                                 </div>
                             ))}
-                            <button type="button" onClick={addAccount} className="text-sm text-blue-600 hover:text-blue-700 font-medium">+ Προσθήκη Κανάλιου</button>
+                            <button type="button" onClick={addAccount} className="text-sm text-blue-600 hover:text-blue-700 font-medium">+ Προσθήκη Καναλιού</button>
                         </div>
                     </div>
 
@@ -1041,7 +1042,7 @@ const EditModal = ({ user, onClose, onSave }: { user: InfluencerData, onClose: (
                     {/* Warning */}
                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                         <p className="text-sm text-yellow-800">
-                            ⚠️ <strong>Σημαντικό:</strong> Μετά την αποθήκευση, το προφίλ σου θα μεταβεί σε "Pending" status και θα χρειαστεί επαν-επαλήθευση από τον admin.
+                            ⚠️ <strong>Σημαντικό:</strong> Μετά την αποθήκευση, το προφίλ σου θα μεταβεί σε κατάσταση «Εκκρεμότητα» και θα χρειαστεί επαν-επαλήθευση από τον admin.
                         </p>
                     </div>
                     
@@ -1090,6 +1091,63 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     const activeTabRef = useRef(activeTab);
     activeTabRef.current = activeTab;
     const searchParams = useSearchParams();
+    const [lang, setLang] = useState<'el' | 'en'>(() => getStoredLanguage());
+    const ui = lang === 'en'
+      ? {
+          welcome: 'Welcome,',
+          subtitle: 'Manage your profile and settings',
+          backHome: 'Back to Home',
+          status: 'Status',
+          minRate: 'Min Rate',
+          engagement: 'Engagement',
+          approved: 'Approved',
+          pending: 'Pending',
+          pendingHint:
+            'Pending means you cannot yet view or apply to campaigns. Other dashboard tabs stay available. The team usually reviews within 1–2 business days.',
+          logout: 'Log out',
+          deleteAccount: 'Delete Account',
+          deleteAccountTitle: 'Delete account',
+          deleteAccountBody1: 'Are you sure you want to permanently delete your account?',
+          deleteAccountBody2:
+            'Your profile, conversations, collaboration proposals, campaign applications, and Influo access will be removed. This action cannot be undone.',
+          deleteCancel: 'No, cancel',
+          deleteConfirm: 'Yes, delete',
+          deleting: 'Deleting…',
+          dangerHint:
+            'Account deletion is permanent and removes your profile, conversations, and related data from the platform.',
+          channelAnalytics: 'Channel Analytics',
+          dangerZone: 'Danger zone',
+        }
+      : {
+          welcome: 'Καλώς ήρθες,',
+          subtitle: 'Διαχείριση προφίλ και ρυθμίσεων',
+          backHome: 'Επιστροφή στην Αρχική',
+          status: 'Κατάσταση',
+          minRate: 'Ελάχ. τιμή',
+          engagement: 'Απήχηση',
+          approved: 'Εγκεκριμένο',
+          pending: 'Σε Εκκρεμότητα',
+          pendingHint:
+            'Η εκκρεμότητα σημαίνει ότι δεν μπορείτε ακόμη να δείτε ή να κάνετε αίτηση σε καμπάνιες. Τα υπόλοιπα tabs του dashboard παραμένουν διαθέσιμα. Η ομάδα ελέγχει το προφίλ, συνήθως εντός 1–2 εργάσιμων ημερών.',
+          logout: 'Αποσύνδεση',
+          deleteAccount: 'Διαγραφή Λογαριασμού',
+          deleteAccountTitle: 'Διαγραφή λογαριασμού',
+          deleteAccountBody1: 'Είστε σίγουροι/η ότι θέλετε να διαγράψετε οριστικά τον λογαριασμό σας;',
+          deleteAccountBody2:
+            'Θα διαγραφούν όλα τα στοιχεία του προφίλ σας, οι συνομιλίες, οι προτάσεις συνεργασίας, οι αιτήσεις σε καμπάνιες και η πρόσβασή σας στην Influo. Η ενέργεια δεν μπορεί να αναιρεθεί.',
+          deleteCancel: 'Όχι, ακύρωση',
+          deleteConfirm: 'Ναι, διαγραφή',
+          deleting: 'Διαγραφή…',
+          dangerHint:
+            'Η διαγραφή λογαριασμού είναι οριστική και αφαιρεί το προφίλ σας, τις συνομιλίες και όλα τα σχετικά δεδομένα από την πλατφόρμα.',
+          channelAnalytics: 'Αναλυτικά Καναλιού',
+          dangerZone: 'Επικίνδυνη ζώνη',
+        };
+
+    const switchLang = (next: 'el' | 'en') => {
+      setLang(next);
+      setStoredLanguage(next);
+    };
 
     const isAvailable =
         !profile.availability_status ||
@@ -1484,7 +1542,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
 
     return (
         <div className="min-h-screen p-6 md:p-8 bg-slate-50">
-            <PushNotificationPrompt userType="influencer" userIdentifier={profile?.id || ''} lang="el" />
+            <PushNotificationPrompt userType="influencer" userIdentifier={profile?.id || ''} lang={lang} />
             <div className="max-w-6xl mx-auto">
                 {/* Back to Home Link */}
                 <div className="mb-4">
@@ -1492,23 +1550,32 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                         href="/" 
                         className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors text-sm font-medium"
                     >
-                        <span>←</span> Επιστροφή στην Αρχική
+                        <span>←</span> {ui.backHome}
                     </a>
                 </div>
                 <div className="mb-8 flex flex-wrap items-start justify-between gap-3">
                     <div>
                     <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">
-                        Καλώς ήρθες, <span className="text-slate-900">{displayNameForLang(profile.display_name, 'el')}</span>!
+                        {ui.welcome} <span className="text-slate-900">{displayNameForLang(profile.display_name, lang)}</span>!
                 </h1>
-                    <p className="text-slate-600">Διαχείριση προφίλ και ρυθμίσεων</p>
+                    <p className="text-slate-600">{ui.subtitle}</p>
                     </div>
+                    <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => switchLang(lang === 'el' ? 'en' : 'el')}
+                        className="px-3 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 rounded-lg hover:bg-blue-50 transition-colors"
+                    >
+                        {lang === 'el' ? 'EN' : 'ΕΛ'}
+                    </button>
                     <button
                         type="button"
                         onClick={() => logoutEverywhere("/login")}
                         className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium text-sm transition-colors"
                     >
-                        Αποσύνδεση
+                        {ui.logout}
                     </button>
+                    </div>
                 </div>
                 
                 <div className="bg-white rounded-lg border border-slate-200">
@@ -1818,7 +1885,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 )}
                             </div>
                         ) : activeTab === 'analytics' ? (
-                            <Analytics influencerId={profile.id} lang="el" />
+                            <Analytics influencerId={profile.id} lang={lang} />
                         ) : activeTab === 'announcements' ? (
                             <div className="space-y-4">
                                 <h2 className="text-xl font-semibold text-slate-900">Ανακοινώσεις</h2>
@@ -2015,29 +2082,31 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                            <span className="block text-xs text-slate-500 uppercase font-medium mb-2">Status</span>
+                            <span className="block text-xs text-slate-500 uppercase font-medium mb-2">{ui.status}</span>
                             <span className={`text-lg font-semibold ${profile.approved ? 'text-green-600' : 'text-yellow-600'}`}>
-                                {profile.approved ? '✅ Εγκεκριμένο' : '⏳ Σε Εκκρεμότητα'}
+                                {profile.approved ? `✅ ${ui.approved}` : `⏳ ${ui.pending}`}
                             </span>
                             {!profile.approved && (
                                 <p className="text-sm text-amber-800 mt-2 leading-relaxed">
-                                    Η εκκρεμότητα σημαίνει ότι δεν μπορείτε ακόμη να δείτε ή να κάνετε αίτηση σε καμπάνιες. Τα υπόλοιπα tabs του dashboard παραμένουν διαθέσιμα. Η ομάδα ελέγχει το προφίλ, συνήθως εντός 1–2 εργάσιμων ημερών.
+                                    {ui.pendingHint}
                                 </p>
                             )}
                         </div>
                         <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                            <span className="block text-xs text-slate-500 uppercase font-medium mb-2">Min Rate</span>
-                            <span className="text-lg font-semibold text-slate-900">{profile.min_rate || 'N/A'}€</span>
+                            <span className="block text-xs text-slate-500 uppercase font-medium mb-2">{ui.minRate}</span>
+                            <span className="text-lg font-semibold text-slate-900">{profile.min_rate || '—'}€</span>
                         </div>
                         <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                            <span className="block text-xs text-slate-500 uppercase font-medium mb-2">Engagement</span>
-                            <span className="text-lg font-semibold text-slate-900">{profile.engagement_rate || 'N/A'}</span>
+                            <span className="block text-xs text-slate-500 uppercase font-medium mb-2">{ui.engagement}</span>
+                            <span className="text-lg font-semibold text-slate-900">{profile.engagement_rate || '—'}</span>
                         </div>
                     </div>
                     
                     {profile.accounts && profile.accounts.length > 0 && (
                         <div>
-                            <h3 className="text-sm font-semibold text-slate-700 mb-3">Κανάλια Social Media</h3>
+                            <h3 className="text-sm font-semibold text-slate-700 mb-3">
+                              {lang === 'en' ? 'Social Media Channels' : 'Κανάλια Social Media'}
+                            </h3>
                             <div className="grid md:grid-cols-2 gap-3">
                                 {profile.accounts.map((acc, i) => (
                                     <div key={i} className="p-3 border border-slate-200 rounded-lg">
@@ -2052,25 +2121,21 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                         </div>
                                 )}
                                 
-                                <div className="pt-4 border-t border-slate-200 space-y-4">
-                                    <div className="flex flex-col sm:flex-row gap-3">
-                                        <button type="button" onClick={() => void logoutEverywhere("/login")} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium text-center transition-colors">
-                                            Αποσύνδεση
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setDeleteAccountError(null);
-                                                setShowDeleteAccountModal(true);
-                                            }}
-                                            className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg font-medium transition-colors"
-                                        >
-                                            Διαγραφή Λογαριασμού
-                                        </button>
-                                    </div>
+                                <div className="pt-6 mt-2 border-t-2 border-red-100 space-y-3">
+                                    <h3 className="text-sm font-semibold text-red-800 uppercase tracking-wide">{ui.dangerZone}</h3>
                                     <p className="text-xs text-slate-500 max-w-xl">
-                                        Η διαγραφή λογαριασμού είναι οριστική και αφαιρεί το προφίλ σας, τις συνομιλίες και όλα τα σχετικά δεδομένα από την πλατφόρμα.
+                                        {ui.dangerHint}
                                     </p>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setDeleteAccountError(null);
+                                            setShowDeleteAccountModal(true);
+                                        }}
+                                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+                                    >
+                                        {ui.deleteAccount}
+                                    </button>
                                 </div>
                             </div>
                         ) : (
@@ -2082,7 +2147,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 proposalId={selectedProposalForMessaging?.id}
                                 initialConversationId={searchParams?.get('conversation')}
                                 mode="influencer"
-                                lang="el"
+                                lang={lang}
                                 onUnreadCountChange={setUnreadMessagesCount}
                             />
                         )}
@@ -2102,14 +2167,14 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
                         <div className="px-6 py-5 border-b border-slate-200">
-                            <h2 className="text-xl font-bold text-slate-900">Διαγραφή λογαριασμού</h2>
+                            <h2 className="text-xl font-bold text-slate-900">{ui.deleteAccountTitle}</h2>
                         </div>
                         <div className="px-6 py-5 space-y-4">
                             <p className="text-sm text-slate-600 leading-relaxed">
-                                Είστε σίγουροι/η ότι θέλετε να διαγράψετε οριστικά τον λογαριασμό σας;
+                                {ui.deleteAccountBody1}
                             </p>
                             <p className="text-sm text-slate-600 leading-relaxed">
-                                Θα διαγραφούν όλα τα στοιχεία του προφίλ σας, οι συνομιλίες, οι προτάσεις συνεργασίας, οι αιτήσεις σε καμπάνιες και η πρόσβασή σας στην Influo. Η ενέργεια <strong>δεν μπορεί να αναιρεθεί</strong>.
+                                {ui.deleteAccountBody2}
                             </p>
                             {deleteAccountError && (
                                 <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
@@ -2128,7 +2193,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 disabled={deletingAccount}
                                 className="px-4 py-2 rounded-lg font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-60"
                             >
-                                Όχι, ακύρωση
+                                {ui.deleteCancel}
                             </button>
                             <button
                                 type="button"
@@ -2136,7 +2201,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 disabled={deletingAccount}
                                 className="px-4 py-2 rounded-lg font-medium bg-red-600 hover:bg-red-700 text-white disabled:opacity-60"
                             >
-                                {deletingAccount ? 'Διαγραφή…' : 'Ναι, διαγραφή'}
+                                {deletingAccount ? ui.deleting : ui.deleteConfirm}
                             </button>
                         </div>
                     </div>

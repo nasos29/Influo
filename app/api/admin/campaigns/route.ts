@@ -100,6 +100,7 @@ export async function GET(request: NextRequest) {
         `
         )
         .in("campaign_id", ids)
+        .neq("status", "withdrawn")
         .order("created_at", { ascending: false });
 
       if (appsError) {
@@ -118,6 +119,7 @@ export async function GET(request: NextRequest) {
       return {
         ...c,
         applications,
+        // Same rule as public /campaigns: exclude withdrawn.
         applications_count: applications.length,
       };
     });

@@ -28,6 +28,7 @@ import { readSessionAvatar, writeSessionAvatar } from '@/lib/sessionAvatarCache'
 import { publicProfilePath } from '@/lib/profileSlug';
 import { CATEGORIES, categoriesMatchFilter, categoryLabel, formatStoredCategories, parseStoredCategories } from "@/lib/categories";
 import CategoryCheckboxList from "@/components/CategoryCheckboxList";
+import { parseHttpsUrl } from "@/lib/brandProfile";
 import {
   addBrandShortlist,
   fetchBrandShortlist,
@@ -332,8 +333,22 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt }: EditBra
     const strEq = (a: unknown, b: unknown) => String(a ?? "") === String(b ?? "");
     const nextName = brandName.trim();
     const nextContact = contactPerson.trim() || null;
-    const nextWebsite = website.trim() || null;
-    const nextInstagram = instagram.trim() || null;
+    let nextWebsite: string | null = null;
+    let nextInstagram: string | null = null;
+    try {
+      nextWebsite = parseHttpsUrl(website, "website");
+    } catch {
+      alert(lang === "el" ? "Μη έγκυρη ιστοσελίδα." : "Invalid website URL.");
+      return;
+    }
+    if (hasInstagram) {
+      try {
+        nextInstagram = parseHttpsUrl(instagram, "instagram");
+      } catch {
+        alert(lang === "el" ? "Μη έγκυρο Instagram (handle ή URL)." : "Invalid Instagram handle or URL.");
+        return;
+      }
+    }
     const nextCity = city.trim() || null;
     const nextBio = bio.trim() || null;
     const nextIndustry = formatStoredCategories(categories) || null;
@@ -497,14 +512,18 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt }: EditBra
               {txt.edit_website}
             </label>
             <input
-              type="url"
+              type="text"
+              inputMode="url"
+              autoComplete="url"
               value={website}
               onChange={(e) => setWebsite(e.target.value)}
-              placeholder="https://example.com"
+              placeholder="example.com"
               className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
             />
             <p className="text-xs text-slate-500 mt-1">
-              {lang === 'el' ? 'Μόνο έγκυρα https URLs.' : 'Valid https URLs only.'}
+              {lang === "el"
+                ? "Χωρίς https:// είναι εντάξει — θα προστεθεί αυτόματα."
+                : "https:// is optional — we’ll add it automatically."}
             </p>
           </div>
 
@@ -514,14 +533,18 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt }: EditBra
                 {txt.edit_instagram}
               </label>
               <input
-                type="url"
+                type="text"
+                inputMode="url"
+                autoComplete="off"
                 value={instagram}
                 onChange={(e) => setInstagram(e.target.value)}
-                placeholder="https://www.instagram.com/yourbrand"
+                placeholder="@yourbrand"
                 className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
               />
               <p className="text-xs text-slate-500 mt-1">
-                {lang === 'el' ? 'Μόνο https URLs του instagram.com.' : 'https instagram.com URLs only.'}
+                {lang === "el"
+                  ? "Handle ή URL — χωρίς @ / https:// είναι εντάξει."
+                  : "Handle or URL — @ and https:// are optional."}
               </p>
             </div>
           )}
@@ -634,6 +657,11 @@ export default function BrandDashboardContent() {
   useEffect(() => {
     setLang(getStoredLanguage());
   }, []);
+
+  useEffect(() => {
+    document.title = lang === "en" ? "Brand Dashboard | Influo" : "Πίνακας επιχείρησης | Influo";
+  }, [lang]);
+
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
   const [savingAgreement, setSavingAgreement] = useState(false);
@@ -1424,6 +1452,12 @@ export default function BrandDashboardContent() {
     }
   };
 
+  useEffect(() => {
+    if (brandData) void loadRecommendations(brandData);
+    // Re-run match reasons when UI language changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lang]);
+
   const handleLogout = async () => {
     const email = brandData?.contact_email;
     if (email) {
@@ -1699,7 +1733,7 @@ export default function BrandDashboardContent() {
           <div className="border-b border-slate-200 overflow-x-auto">
             <div className="flex min-w-max sm:min-w-0">
               <button
-                onClick={() => setActiveTab('recommendations')}
+                onClick={() => openBrandTab('recommendations')}
                 className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === 'recommendations'
                     ? 'border-blue-600 text-blue-600'
@@ -1724,7 +1758,7 @@ export default function BrandDashboardContent() {
                 )}
               </button>
               <button
-                onClick={() => setActiveTab('campaigns')}
+                onClick={() => openBrandTab('campaigns')}
                 className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors whitespace-nowrap relative ${
                   activeTab === 'campaigns'
                     ? 'border-blue-600 text-blue-600'
@@ -1739,7 +1773,7 @@ export default function BrandDashboardContent() {
                 )}
               </button>
               <button
-                onClick={() => setActiveTab('proposals')}
+                onClick={() => openBrandTab('proposals')}
                 className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors whitespace-nowrap relative ${
                   activeTab === 'proposals'
                     ? 'border-blue-600 text-blue-600'
@@ -1783,7 +1817,7 @@ export default function BrandDashboardContent() {
                 )}
               </button>
               <button
-                onClick={() => setActiveTab('messages')}
+                onClick={() => openBrandTab('messages')}
                 className={`px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium border-b-2 transition-colors relative whitespace-nowrap ${
                   activeTab === 'messages'
                     ? 'border-blue-600 text-blue-600'

@@ -176,11 +176,23 @@ export default function AdminInfluencerStatsTab({
     growthPct?: number;
   } | null>(null);
 
+  const uniqueInfluencers = useMemo(() => {
+    const seen = new Set<string>();
+    const out: typeof influencers = [];
+    for (const u of influencers) {
+      const id = String(u.id);
+      if (seen.has(id)) continue;
+      seen.add(id);
+      out.push(u);
+    }
+    return out;
+  }, [influencers]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return influencers;
-    return influencers.filter((u) => u.display_name?.toLowerCase().includes(q));
-  }, [influencers, query]);
+    if (!q) return uniqueInfluencers;
+    return uniqueInfluencers.filter((u) => u.display_name?.toLowerCase().includes(q));
+  }, [uniqueInfluencers, query]);
 
   useEffect(() => {
     if (!selectedId && filtered.length > 0) {

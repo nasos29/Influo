@@ -130,29 +130,38 @@ export default function Analytics({ influencerId, lang = 'el' }: AnalyticsProps)
     loadStats();
   }, [influencerId, period, customStartDate, customEndDate]);
 
-  // Calculate max value for chart scaling
-  const maxValue = stats ? Math.max(
-    stats.profileViews,
-    stats.profileClicks,
-    stats.socialOutboundClicks ?? 0,
-    stats.proposalsSent,
-    stats.messagesSent,
-    stats.conversationsStarted
-  ) : 0;
+  // Chart uses the same eventsByDate window as the KPI cards (selected period).
+  const chartData = stats
+    ? Object.entries(stats.eventsByDate)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([date, data]) => ({
+          date: new Date(date).toLocaleDateString(lang === "el" ? "el-GR" : "en-US", {
+            month: "short",
+            day: "numeric",
+          }),
+          views: data.views,
+          clicks: data.clicks,
+          socialOutbound: data.socialOutbound ?? 0,
+          proposals: data.proposals,
+          messages: data.messages,
+          conversations: data.conversations,
+        }))
+    : [];
 
-  // Prepare chart data (last 30 days)
-  const chartData = stats ? Object.entries(stats.eventsByDate)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .slice(-30)
-    .map(([date, data]) => ({
-      date: new Date(date).toLocaleDateString(lang === 'el' ? 'el-GR' : 'en-US', { month: 'short', day: 'numeric' }),
-      views: data.views,
-      clicks: data.clicks,
-      socialOutbound: data.socialOutbound ?? 0,
-      proposals: data.proposals,
-      messages: data.messages,
-      conversations: data.conversations
-    })) : [];
+  // Scale bars against the busiest day in the same window (not the period totals).
+  const maxValue = chartData.reduce(
+    (max, item) =>
+      Math.max(
+        max,
+        item.views,
+        item.clicks,
+        item.socialOutbound,
+        item.proposals,
+        item.messages,
+        item.conversations
+      ),
+    0
+  );
 
   if (loading) {
     return (
