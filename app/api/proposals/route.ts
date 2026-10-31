@@ -82,7 +82,16 @@ export async function POST(request: Request) {
     const budget = cleanBudget(body.budget);
     const message = clipText(body.message, 4000);
     if (!influencerId || !service || !budget) {
-      return NextResponse.json({ error: "Συμπληρώστε υπηρεσία, budget και influencer." }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: "Συμπληρώστε υπηρεσία, budget και influencer.",
+          message: {
+            el: "Συμπληρώστε υπηρεσία, budget και influencer.",
+            en: "Enter a service, budget, and influencer.",
+          },
+        },
+        { status: 400 }
+      );
     }
 
     const profile = await supabaseService().from("influencers").select("id, display_name").eq("id", influencerId).maybeSingle();
@@ -96,10 +105,28 @@ export async function POST(request: Request) {
 
     if (session) {
       if (!session.actor.brandEmail || !session.actor.brandId) {
-        return NextResponse.json({ error: "Συνδεθείτε ως επιχείρηση για να στείλετε πρόταση." }, { status: 403 });
+        return NextResponse.json(
+          {
+            error: "Συνδεθείτε ως επιχείρηση για να στείλετε πρόταση.",
+            message: {
+              el: "Συνδεθείτε ως επιχείρηση για να στείλετε πρόταση.",
+              en: "Sign in as a brand to send a proposal.",
+            },
+          },
+          { status: 403 }
+        );
       }
       if (session.actor.influencerId && session.actor.influencerId === influencerId) {
-        return NextResponse.json({ error: "Δεν μπορείτε να στείλετε πρόταση στον εαυτό σας." }, { status: 403 });
+        return NextResponse.json(
+          {
+            error: "Δεν μπορείτε να στείλετε πρόταση στον εαυτό σας.",
+            message: {
+              el: "Δεν μπορείτε να στείλετε πρόταση στον εαυτό σας.",
+              en: "You cannot send a proposal to yourself.",
+            },
+          },
+          { status: 403 }
+        );
       }
       brandEmail = session.actor.brandEmail;
       brandName = session.actor.brandName || brandEmail;
@@ -109,12 +136,25 @@ export async function POST(request: Request) {
       brandName = clipText(body.brandName, 120);
       brandEmail = normEmail(body.brandEmail);
       if (!brandName || !isPlausibleEmail(brandEmail)) {
-        return NextResponse.json({ error: "Συμπληρώστε όνομα και έγκυρο email επιχείρησης." }, { status: 400 });
+        return NextResponse.json(
+          {
+            error: "Συμπληρώστε όνομα και έγκυρο email επιχείρησης.",
+            message: {
+              el: "Συμπληρώστε όνομα και έγκυρο email επιχείρησης.",
+              en: "Enter a business name and a valid email.",
+            },
+          },
+          { status: 400 }
+        );
       }
       if (guestCreateDecision(await brandHasAccount(brandEmail)) === "login_required") {
         return NextResponse.json(
           {
             error: "Αυτό το email ανήκει σε λογαριασμό. Συνδεθείτε για να στείλετε την πρόταση.",
+            message: {
+              el: "Αυτό το email ανήκει σε λογαριασμό. Συνδεθείτε για να στείλετε την πρόταση.",
+              en: "This email already has an account. Sign in to send the proposal.",
+            },
             code: "login_required",
           },
           { status: 401 }
@@ -124,7 +164,16 @@ export async function POST(request: Request) {
 
     const influencer = await influencerContact(influencerId);
     if (normEmail(influencer.email) && normEmail(influencer.email) === brandEmail) {
-      return NextResponse.json({ error: "Δεν μπορείτε να στείλετε πρόταση στον εαυτό σας." }, { status: 403 });
+      return NextResponse.json(
+        {
+          error: "Δεν μπορείτε να στείλετε πρόταση στον εαυτό σας.",
+          message: {
+            el: "Δεν μπορείτε να στείλετε πρόταση στον εαυτό σας.",
+            en: "You cannot send a proposal to yourself.",
+          },
+        },
+        { status: 403 }
+      );
     }
 
     const saved = await insertProposal({

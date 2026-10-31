@@ -48,6 +48,8 @@ import {
     writeIdList,
 } from '@/lib/dashboardBadges';
 import { displayNameForLang } from '@/lib/greeklish';
+import { displayServiceType } from '@/lib/campaignServiceLabel';
+import { displayProposalMessage } from '@/lib/proposalThreadCopy';
 import { normalizeYouTubeUsernameForSave } from '@/lib/youtubeHandle';
 import CreatorPlatformPrices from '@/components/CreatorPlatformPrices';
 import {
@@ -2228,10 +2230,10 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                 </span>
                                                             </div>
                                                             <p className="text-sm text-slate-600 mb-2">
-                                                                <strong>{T("Υπηρεσία:", "Service:")}</strong> {prop.service_type} • <strong>{T("Προϋπολογισμός:", "Budget:")}</strong> {formatEuroAmount(prop.budget, lang)}
+                                                                <strong>{T("Υπηρεσία:", "Service:")}</strong> {displayServiceType(prop.service_type, lang)} • <strong>{T("Προϋπολογισμός:", "Budget:")}</strong> {formatEuroAmount(prop.budget, lang)}
                                                             </p>
                                                             {prop.message && (
-                                                                <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg mt-2">{prop.message}</p>
+                                                                <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg mt-2">{displayProposalMessage(prop.message, lang)}</p>
                                                             )}
                                                             {prop.counter_proposal_budget && prop.counter_proposal_status === 'pending' && (
                                                                 <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
@@ -2711,7 +2713,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                     {T('Συνεργασία με:', 'Collaboration with:')} <strong>{selectedProposal.brand_name}</strong>
                                 </p>
                                 <p className="text-sm text-blue-800">
-                                    {T('Υπηρεσία:', 'Service:')} {selectedProposal.service_type} • {T('Προϋπολογισμός:', 'Budget:')} {formatEuroAmount(selectedProposal.budget, lang)}
+                                    {T('Υπηρεσία:', 'Service:')} {displayServiceType(selectedProposal.service_type, lang)} • {T('Προϋπολογισμός:', 'Budget:')} {formatEuroAmount(selectedProposal.budget, lang)}
                                 </p>
                             </div>
 
@@ -2862,7 +2864,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                     {T('Αυτή τη στιγμή η επιχείρηση', 'Right now')} <strong>{selectedProposal.brand_name}</strong> {T('προτείνει', 'offers')}
                                 </p>
                                 <p className="text-sm text-blue-800">
-                                    <strong>{selectedProposal.service_type}</strong> • <strong>{formatEuroAmount(selectedProposal.budget, lang)}</strong>
+                                    <strong>{displayServiceType(selectedProposal.service_type, lang)}</strong> • <strong>{formatEuroAmount(selectedProposal.budget, lang)}</strong>
                                 </p>
                             </div>
 

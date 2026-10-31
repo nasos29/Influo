@@ -12,6 +12,8 @@ import {
   type InviteCampaign,
 } from "@/components/CampaignInviteModals";
 import { inviteOpenResult } from "@/lib/gateAvatars";
+import { campaignServiceType } from "@/lib/campaignServiceLabel";
+import { responseText } from "@/lib/bilingualError";
 
 const COPY = {
   el: {
@@ -96,14 +98,14 @@ export default function CampaignInviteButton({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         influencerId,
-        serviceType: `Καμπάνια: ${campaign.title}`.slice(0, 120),
+        serviceType: campaignServiceType(campaign.title, lang),
         budget: String(budget),
         message,
       }),
     });
     const proposalBody = await proposal.json().catch(() => ({}));
     if (!proposal.ok || !proposalBody.success) {
-      throw new Error(typeof proposalBody.error === "string" ? proposalBody.error : copy.fallback);
+      throw new Error(responseText(proposalBody, lang, copy.fallback));
     }
     // Best-effort link on campaign_applications. Missing initiated_by column is fine:
     // the proposal, message, and notification above are the invite.
@@ -115,6 +117,7 @@ export default function CampaignInviteButton({
           influencerId,
           campaignId: campaign.id,
           message,
+          lang,
         }),
       });
     } catch {

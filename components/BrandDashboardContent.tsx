@@ -17,6 +17,7 @@ import { useOwnPresenceHeartbeat } from '@/lib/useOwnPresenceHeartbeat';
 import PushNotificationPrompt from '@/components/PushNotificationPrompt';
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 import { displayNameForLang } from '@/lib/greeklish';
+import { displayServiceType } from '@/lib/campaignServiceLabel';
 import { prepareImageForStorage } from '@/lib/prepareImageForStorage';
 import BrandCampaignsSection from '@/components/BrandCampaignsSection';
 import BrandActionInbox from '@/components/BrandActionInbox';
@@ -2772,7 +2773,7 @@ export default function BrandDashboardContent() {
                           <div className="grid grid-cols-2 gap-4 text-sm mb-3">
                             <div>
                               <span className="text-slate-500">{txt.service}:</span>{' '}
-                              <span className="font-medium text-slate-900">{proposal.service_type}</span>
+                              <span className="font-medium text-slate-900">{displayServiceType(proposal.service_type, lang)}</span>
                             </div>
                             <div>
                               <span className="text-slate-500">{lang === 'el' ? 'Προσφερόμενη Τιμή:' : 'Original Price:'}</span>{' '}
@@ -2836,7 +2837,7 @@ export default function BrandDashboardContent() {
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
                               <span className="text-slate-500">{txt.service}:</span>{' '}
-                              <span className="font-medium text-slate-900">{proposal.service_type}</span>
+                              <span className="font-medium text-slate-900">{displayServiceType(proposal.service_type, lang)}</span>
                             </div>
                             <div>
                               <span className="text-slate-500">{txt.budget}:</span>{' '}
@@ -2886,7 +2887,7 @@ export default function BrandDashboardContent() {
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
                           <span className="text-slate-500">{txt.service}:</span>{' '}
-                          <span className="font-medium text-slate-900">{proposal.service_type}</span>
+                          <span className="font-medium text-slate-900">{displayServiceType(proposal.service_type, lang)}</span>
                         </div>
                         <div>
                           <span className="text-slate-500">{txt.budget}:</span>{' '}
@@ -2960,7 +2961,7 @@ export default function BrandDashboardContent() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-blue-700 font-medium">{txt.service}:</span>
-                    <span className="text-blue-900 font-bold">{selectedProposal.service_type}</span>
+                    <span className="text-blue-900 font-bold">{displayServiceType(selectedProposal.service_type, lang)}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-blue-700 font-medium">{txt.budget}:</span>

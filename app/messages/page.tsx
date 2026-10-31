@@ -22,6 +22,22 @@ function MessagesContent() {
   const [brandName, setBrandName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [lang, setLang] = useState<'el' | 'en'>('el');
+  const copy = {
+    el: {
+      title: "Μηνύματα",
+      signIn: "Συνδεθείτε ως επιχείρηση για να δείτε τις συνομιλίες σας.",
+      login: "Σύνδεση",
+      back: "← Πίνακας ελέγχου",
+      withName: (name: string) => `Μηνύματα με ${name}`,
+    },
+    en: {
+      title: "Messages",
+      signIn: "Sign in as a brand to see your conversations.",
+      login: "Sign in",
+      back: "← Dashboard",
+      withName: (name: string) => `Messages with ${name}`,
+    },
+  }[lang];
 
   useEffect(() => {
     setLang(getStoredLanguage());
@@ -75,11 +91,11 @@ function MessagesContent() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
         <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md text-center">
-          <h1 className="text-2xl font-bold text-slate-900 mb-4">Μηνύματα</h1>
+          <h1 className="text-2xl font-bold text-slate-900 mb-4">{copy.title}</h1>
           <p className="text-slate-600 mb-6">
-            Συνδεθείτε ως επιχείρηση για να δείτε τις συνομιλίες σας.
+            {copy.signIn}
           </p>
-          <a href="/login?redirect=/brand/dashboard" className="text-blue-600 hover:underline">Σύνδεση</a>
+          <a href="/login?redirect=/brand/dashboard" className="text-blue-600 hover:underline">{copy.login}</a>
         </div>
       </div>
     );
@@ -89,9 +105,9 @@ function MessagesContent() {
     <div className="min-h-screen bg-slate-50 p-4 sm:p-6">
       <div className="max-w-6xl mx-auto">
         <div className="mb-6">
-          <a href="/brand/dashboard?tab=messages" className="text-blue-600 hover:underline mb-4 inline-block">← Πίνακας ελέγχου</a>
+          <a href="/brand/dashboard?tab=messages" className="text-blue-600 hover:underline mb-4 inline-block">{copy.back}</a>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
-            {influencerData ? `Μηνύματα με ${displayNameForLang(influencerData.name, lang)}` : 'Μηνύματα'}
+            {influencerData ? copy.withName(displayNameForLang(influencerData.name, lang)) : copy.title}
           </h1>
         </div>
         <Messaging

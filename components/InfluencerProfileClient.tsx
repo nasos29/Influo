@@ -50,6 +50,8 @@ import type { FollowerGrowthPoint } from "@/lib/followerGrowth";
 import { displayLanguageLabel } from "@/lib/languages";
 import { formatEuro, formatEuroAmount } from "@/lib/formatEuro";
 import { lowestListedPrice } from "@/lib/publicInfluencer";
+import { displayServiceType } from "@/lib/campaignServiceLabel";
+import { responseText } from "@/lib/bilingualError";
 import ProfileOffersPanel from "@/components/ProfileOffersPanel";
 import ProfileHireCard from "@/components/ProfileHireCard";
 import CampaignInviteButton from "@/components/CampaignInviteButton";
@@ -1251,7 +1253,7 @@ export default function InfluencerProfile(props: {
         const result = await response.json().catch(() => ({}));
         if (!response.ok || !result.success) {
             const fallback = lang === 'el' ? "Κάτι πήγε στραβά. Παρακαλώ δοκιμάστε ξανά." : "Something went wrong. Please try again.";
-            alert(result.error || fallback);
+            alert(responseText(result, lang, fallback));
             setSending(false);
             return;
         }
@@ -3106,7 +3108,7 @@ export default function InfluencerProfile(props: {
               <div className="space-y-3">
                 <div>
                   <span className="text-sm font-semibold text-slate-600">Υπηρεσία:</span>
-                  <p className="text-lg font-bold text-slate-900">{counterProposal.service_type}</p>
+                  <p className="text-lg font-bold text-slate-900">{displayServiceType(counterProposal.service_type, lang)}</p>
                 </div>
                 <div className="flex items-center justify-between border-t border-amber-300 pt-3">
                   <div>
