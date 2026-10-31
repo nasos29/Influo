@@ -19,6 +19,8 @@ import { campaignPublicBadgeLabel } from "@/lib/campaignPublicBadge";
 import BrandAboutCard from "@/components/BrandAboutCard";
 import { CampaignDescriptionText } from "@/lib/campaignDescription";
 import { displayLocation } from "@/lib/displayLocation";
+import CampaignCover, { PlatformIcon } from "@/components/CampaignCover";
+import FastImage from "@/components/FastImage";
 
 const CONTACT_BLOCKED = {
   el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
@@ -44,6 +46,7 @@ type Campaign = {
   location?: string | null;
   min_followers?: number | null;
   platforms?: string[] | null;
+  cover_url?: string | null;
   compensation_type?: string | null;
   status: string;
   applications_count?: number | null;
@@ -90,18 +93,21 @@ const PLATFORM_LABEL: Record<string, { el: string; en: string }> = {
 export default function CampaignPublicView({
   id,
   applicationsCount = 0,
+  initialCampaign = null,
 }: {
   id: string;
   /** Non-withdrawn application count only — no applicant details. */
   applicationsCount?: number;
+  /** Server-loaded with the same visibility rule as /campaigns list. */
+  initialCampaign?: Campaign | null;
 }) {
   const pathname = usePathname();
   const [lang, setLang] = useState<"el" | "en">(pathname?.startsWith("/en") ? "en" : getStoredLanguage() === "en" ? "en" : "el");
   const el = lang === "el";
-  const [campaign, setCampaign] = useState<Campaign | null>(null);
-  const [missing, setMissing] = useState(false);
+  const [campaign, setCampaign] = useState<Campaign | null>(initialCampaign);
+  const [missing, setMissing] = useState(!initialCampaign);
   const [loadError, setLoadError] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialCampaign);
   const [audience, setAudience] = useState<CampaignAudience>({ kind: "anonymous" });
   const [influencerId, setInfluencerId] = useState<string | null>(null);
   const [approved, setApproved] = useState(false);
@@ -121,60 +127,21 @@ export default function CampaignPublicView({
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      setLoading(true);
       setLoadError(false);
-      setMissing(false);
       setApplied(false);
       setInfluencerId(null);
       setApproved(false);
       setAudience({ kind: "anonymous" });
-      let timedOut = false;
-      const nowIso = new Date().toISOString();
-      const brandSelectFull =
-        "brands(brand_name, logo_url, bio, city, website, instagram)";
-      const brandSelectBasic = "brands(brand_name, logo_url)";
-      const query = supabase
-        .from("brand_campaigns")
-        .select(
-          `id, brand_id, title, description, budget, category, deliverables, deadline, opened_at, created_at, starts_on, location, min_followers, platforms, compensation_type, status, ${brandSelectFull}`
-        )
-        .eq("id", id)
-        .eq("status", "open")
-        .or(`deadline.is.null,deadline.gt.${nowIso}`)
-        .maybeSingle();
-      const timeout = new Promise<null>((resolve) => setTimeout(() => {
-        timedOut = true;
-        resolve(null);
-      }, 10000));
-      const result = await Promise.race([query, timeout]);
-      if (cancelled) return;
-      if (!result) {
-        if (timedOut) setLoadError(true);
-        else setMissing(true);
+      // Prefer server-loaded row (same visibility as /campaigns). Avoid RLS drift on client.
+      let loadedRow: Campaign | null = initialCampaign;
+      if (loadedRow) {
+        setCampaign(loadedRow);
+        setMissing(false);
         setLoading(false);
-        return;
-      }
-      const { data, error } = result;
-      let loadedRow: Campaign | null = null;
-      if (error && /column|schema cache/i.test(error.message || "")) {
-        const basic = await supabase
-          .from("brand_campaigns")
-          .select(
-            `id, brand_id, title, description, budget, category, deliverables, deadline, opened_at, created_at, status, ${brandSelectBasic}`
-          )
-          .eq("id", id)
-          .eq("status", "open")
-          .or(`deadline.is.null,deadline.gt.${nowIso}`)
-          .maybeSingle();
-        if (!basic.error && basic.data && (basic.data as Campaign).status === "open") {
-          loadedRow = basic.data as Campaign;
-          setCampaign(loadedRow);
-        } else setMissing(true);
-      } else if (error || !data || data.status !== "open") {
-        setMissing(true);
       } else {
-        loadedRow = data;
-        setCampaign(data);
+        setMissing(true);
+        setCampaign(null);
+        setLoading(false);
       }
       const { data: sessionData } = await supabase.auth.getSession();
       const signedIn = !!sessionData.session;
@@ -220,7 +187,7 @@ export default function CampaignPublicView({
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, initialCampaign]);
 
   const markAvailable = async () => {
     if (!influencerId) return;
@@ -309,6 +276,23 @@ export default function CampaignPublicView({
     ? campaignPublicBadgeLabel(appsCount, campaign.opened_at, lang === "en" ? "en" : "el")
     : null;
 
+  const compensationText =
+    campaign?.compensation_type === "money"
+      ? el ? "Χρήματα" : "Money"
+      : campaign?.compensation_type === "product"
+        ? el ? "Προϊόν" : "Product"
+        : campaign?.compensation_type === "both"
+          ? el ? "Χρήματα και προϊόν" : "Money & product"
+          : null;
+
+  const scrollToApply = () => {
+    const anchors = Array.from(document.querySelectorAll<HTMLElement>("[data-apply-anchor]"));
+    const target = anchors.find((node) => node.offsetParent !== null) || anchors[0];
+    if (!target) return;
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    const focusable = target.querySelector<HTMLElement>("textarea, input, select, a[href], button:not([disabled])");
+    window.setTimeout(() => focusable?.focus({ preventScroll: true }), 350);
+  };
   const applyBlock = (
     <div className="space-y-3">
       {audience.kind === "anonymous" && (
@@ -386,7 +370,7 @@ export default function CampaignPublicView({
   );
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div className="min-h-screen flex flex-col bg-slate-50 pb-20">
       <SiteHeader lang={lang === "en" ? "en" : "el"} onLangChange={setLang} />
       <main className="flex-1 max-w-5xl mx-auto px-4 py-10 w-full">
         <Link href={lang === "en" ? "/en/campaigns" : "/campaigns"} className="text-sm text-blue-600 hover:underline">
@@ -407,111 +391,211 @@ export default function CampaignPublicView({
             <p className="text-slate-600 mt-2">{el ? "Τα πρόχειρα και οι κλειστές καμπάνιες δεν είναι δημόσιες." : "Draft and closed campaigns are not public."}</p>
           </div>
         ) : (
-          <div className="mt-6 grid gap-6 md:grid-cols-[minmax(0,1fr)_320px] md:items-start">
-            <article className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-              <div className="flex flex-wrap items-start gap-3">
-                <h1 className="text-3xl font-bold text-slate-900 flex-1 min-w-0">{campaign.title}</h1>
-                {publicBadge ? (
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-blue-50 text-blue-800 text-sm font-medium shrink-0">
-                    {publicBadge}
-                  </span>
-                ) : null}
-              </div>
-              {brand?.brand_name ? (
-                <p className="mt-2 text-sm text-slate-500">
-                  {el ? "Από" : "By"}{" "}
-                  <span className="font-medium text-slate-700">{brand.brand_name}</span>
-                  {brand.city ? <span className="text-slate-400"> · {brand.city}</span> : null}
-                </p>
-              ) : null}
-              <p className="text-slate-700 mt-4 whitespace-pre-wrap">
-                <CampaignDescriptionText text={campaign.description} />
-              </p>
+          <div className="mt-6 space-y-6">
+            <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-white">
+              <CampaignCover
+                coverUrl={campaign.cover_url}
+                title={campaign.title}
+                brandName={brand?.brand_name}
+                logoUrl={brand?.logo_url}
+                category={campaign.category}
+                platforms={platforms}
+                aspect="16/9"
+                sizes="(max-width: 1024px) 100vw, 1024px"
+                priority
+              />
+            </div>
 
-              {deliverables.length > 0 && (
-                <div className="mt-8">
-                  <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
-                    {el ? "Παραδοτέα" : "Deliverables"}
-                  </h2>
-                  <ul className="mt-3 space-y-2">
-                    {deliverables.map((d) => (
-                      <li key={d} className="flex gap-2 text-sm text-slate-700">
-                        <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400 shrink-0" />
-                        <span>
-                          <CampaignDescriptionText text={d} />
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
+            <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_320px] md:items-start">
+              <article className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                <div className="flex flex-wrap items-start gap-3">
+                  <h1 className="text-3xl font-bold text-slate-900 flex-1 min-w-0">{campaign.title}</h1>
+                  {publicBadge ? (
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-blue-50 text-blue-800 text-sm font-medium shrink-0">
+                      {publicBadge}
+                    </span>
+                  ) : null}
                 </div>
-              )}
 
-              <div className="mt-8">
-                <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
-                  {el ? "Απαιτήσεις" : "Requirements"}
-                </h2>
-                <ul className="mt-3 space-y-2 text-sm text-slate-800">
-                  {platforms.length > 0 && (
-                    <li>
-                      <span className="text-slate-500">{el ? "Πλατφόρμες" : "Platforms"}: </span>
-                      {platforms.map((p) => PLATFORM_LABEL[p]?.[lang === "en" ? "en" : "el"] || p).join(", ")}
-                    </li>
-                  )}
-                  {campaign.min_followers ? (
-                    <li>
-                      <span className="text-slate-500">{el ? "Ελάχιστοι ακόλουθοι" : "Minimum followers"}: </span>
-                      {formatFollowerCount(campaign.min_followers)}
-                    </li>
-                  ) : null}
-                  {campaign.location ? (
-                    <li>
-                      <span className="text-slate-500">{el ? "Τοποθεσία" : "Location"}: </span>
-                      {displayLocation(campaign.location, el ? "el" : "en")}
-                    </li>
-                  ) : null}
-                  {campaign.starts_on ? (
-                    <li>
-                      <span className="text-slate-500">{el ? "Έναρξη" : "Starts"}: </span>
-                      {new Date(campaign.starts_on).toLocaleDateString(locale)}
-                    </li>
-                  ) : null}
-                  {campaign.category ? (
-                    <li>
-                      <span className="text-slate-500">{el ? "Κατηγορία" : "Category"}: </span>
-                      {categoryLabel(campaign.category, lang) || campaign.category}
-                    </li>
-                  ) : null}
-                </ul>
-              </div>
-
-              <div className="mt-8 md:hidden border-t border-slate-100 pt-6">{applyBlock}</div>
-            </article>
-
-            <aside className="space-y-4 md:sticky md:top-6">
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{el ? "Budget" : "Budget"}</p>
-                <p className="mt-1 text-2xl font-bold text-slate-900">
-                  €{Number(campaign.budget).toLocaleString(locale)}
-                </p>
-                {closes && (
-                  <div className="mt-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      {el ? "Προθεσμία" : "Deadline"}
-                    </p>
-                    <p className={`mt-1 text-sm font-semibold ${closes.urgent ? "text-red-700" : "text-slate-800"}`}>
-                      {closes.text}
-                    </p>
-                    {closes.dateLabel && <p className="text-xs text-slate-500 mt-0.5">{closes.dateLabel}</p>}
+                {brand?.brand_name ? (
+                  <div className="mt-4 flex items-center gap-3">
+                    <div className="relative w-11 h-11 rounded-xl overflow-hidden border border-slate-200 bg-slate-50 shrink-0 flex items-center justify-center">
+                      {brand.logo_url ? (
+                        <FastImage src={brand.logo_url} alt={brand.brand_name} fill className="object-cover" sizes="44px" />
+                      ) : (
+                        <span className="text-lg font-semibold text-slate-600">{brand.brand_name.slice(0, 1).toUpperCase()}</span>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs text-slate-500">{el ? "Από" : "By"}</p>
+                      <p className="text-sm font-semibold text-slate-900 truncate">
+                        {brand.brand_name}
+                        {brand.city ? <span className="font-normal text-slate-500"> · {brand.city}</span> : null}
+                      </p>
+                    </div>
                   </div>
-                )}
-                <div className="mt-5 hidden md:block">{applyBlock}</div>
-              </div>
+                ) : null}
 
-              <BrandAboutCard brand={brand} lang={lang === "en" ? "en" : "el"} />
-            </aside>
+                <section className="mt-8">
+                  <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
+                    {el ? "Περιγραφή" : "Description"}
+                  </h2>
+                  <p className="text-slate-700 mt-3 whitespace-pre-wrap">
+                    <CampaignDescriptionText text={campaign.description} />
+                  </p>
+                </section>
+
+                {(deliverables.length > 0 || platforms.length > 0) && (
+                  <section className="mt-8">
+                    <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
+                      {el ? "Παραδοτέα" : "Deliverables"}
+                    </h2>
+                    {platforms.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {platforms.map((p) => (
+                          <span key={p} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-slate-200 bg-white text-xs font-medium text-slate-800">
+                            <PlatformIcon platform={p} />
+                            {PLATFORM_LABEL[p]?.[lang === "en" ? "en" : "el"] || p}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {deliverables.length > 0 && (
+                      <ul className="mt-3 space-y-2">
+                        {deliverables.map((d) => (
+                          <li key={d} className="flex gap-2 text-sm text-slate-700">
+                            <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400 shrink-0" />
+                            <span>
+                              <CampaignDescriptionText text={d} />
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </section>
+                )}
+
+                <section className="mt-8">
+                  <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
+                    {el ? "Απαιτήσεις" : "Requirements"}
+                  </h2>
+                  <ul className="mt-3 space-y-2 text-sm text-slate-800">
+                    {campaign.category ? (
+                      <li>
+                        <span className="text-slate-500">{el ? "Κατηγορία" : "Category"}: </span>
+                        {categoryLabel(campaign.category, lang) || campaign.category}
+                      </li>
+                    ) : null}
+                    {campaign.min_followers ? (
+                      <li>
+                        <span className="text-slate-500">{el ? "Ελάχιστοι ακόλουθοι" : "Minimum followers"}: </span>
+                        {formatFollowerCount(campaign.min_followers)}
+                      </li>
+                    ) : null}
+                    {campaign.location ? (
+                      <li>
+                        <span className="text-slate-500">{el ? "Τοποθεσία" : "Location"}: </span>
+                        {displayLocation(campaign.location, el ? "el" : "en")}
+                      </li>
+                    ) : null}
+                    {!campaign.category && !campaign.min_followers && !campaign.location ? (
+                      <li className="text-slate-500">—</li>
+                    ) : null}
+                  </ul>
+                </section>
+
+                <section className="mt-8">
+                  <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
+                    {el ? "Αμοιβή" : "Compensation"}
+                  </h2>
+                  <ul className="mt-3 space-y-2 text-sm text-slate-800">
+                    {compensationText ? (
+                      <li>
+                        <span className="text-slate-500">{el ? "Τύπος" : "Type"}: </span>
+                        {compensationText}
+                      </li>
+                    ) : null}
+                    {Number(campaign.budget) > 0 ? (
+                      <li>
+                        <span className="text-slate-500">Budget: </span>
+                        <span className="font-semibold">€{Number(campaign.budget).toLocaleString(locale)}</span>
+                      </li>
+                    ) : null}
+                    {!compensationText && !(Number(campaign.budget) > 0) ? <li className="text-slate-500">—</li> : null}
+                  </ul>
+                </section>
+
+                <section className="mt-8">
+                  <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
+                    {el ? "Ημερομηνίες" : "Dates"}
+                  </h2>
+                  <ul className="mt-3 space-y-2 text-sm text-slate-800">
+                    {campaign.starts_on ? (
+                      <li>
+                        <span className="text-slate-500">{el ? "Έναρξη" : "Starts"}: </span>
+                        {new Date(campaign.starts_on).toLocaleDateString(locale)}
+                      </li>
+                    ) : null}
+                    {closes ? (
+                      <li>
+                        <span className="text-slate-500">{el ? "Προθεσμία" : "Deadline"}: </span>
+                        {closes.dateLabel ? `${closes.dateLabel} · ` : ""}
+                        <span className={closes.urgent ? "font-semibold text-red-700" : ""}>{closes.text}</span>
+                      </li>
+                    ) : null}
+                    {!campaign.starts_on && !closes ? <li className="text-slate-500">—</li> : null}
+                  </ul>
+                </section>
+
+                <div data-apply-anchor className="mt-8 md:hidden border-t border-slate-100 pt-6 scroll-mt-4">{applyBlock}</div>
+              </article>
+
+              <aside className="space-y-4 md:sticky md:top-6">
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{el ? "Budget" : "Budget"}</p>
+                  <p className="mt-1 text-2xl font-bold text-slate-900">
+                    €{Number(campaign.budget).toLocaleString(locale)}
+                  </p>
+                  {closes && (
+                    <div className="mt-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        {el ? "Προθεσμία" : "Deadline"}
+                      </p>
+                      <p className={`mt-1 text-sm font-semibold ${closes.urgent ? "text-red-700" : "text-slate-800"}`}>
+                        {closes.text}
+                      </p>
+                      {closes.dateLabel && <p className="text-xs text-slate-500 mt-0.5">{closes.dateLabel}</p>}
+                    </div>
+                  )}
+                  <div data-apply-anchor className="mt-5 hidden md:block scroll-mt-24">{applyBlock}</div>
+                </div>
+
+                <BrandAboutCard brand={brand} lang={lang === "en" ? "en" : "el"} />
+              </aside>
+            </div>
           </div>
         )}
       </main>
+      {campaign && !loading && !missing && !loadError && audience.kind !== "brand" && (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur px-4 py-3 shadow-[0_-4px_16px_rgba(15,23,42,0.08)]">
+          <div className="max-w-5xl mx-auto flex items-center gap-3">
+            <div className="min-w-0 flex-1 hidden sm:block">
+              <p className="text-sm font-semibold text-slate-900 truncate">{campaign.title}</p>
+              {closes && <p className={`text-xs ${closes.urgent ? "text-red-700" : "text-slate-500"}`}>{closes.text}</p>}
+            </div>
+            <button
+              type="button"
+              onClick={scrollToApply}
+              disabled={audience.kind === "influencer" && approved && applied}
+              className="w-full sm:w-auto sm:min-w-[200px] px-6 py-3 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:bg-emerald-600 disabled:opacity-90"
+            >
+              {audience.kind === "influencer" && approved && applied
+                ? el ? "Έχετε κάνει αίτηση" : "Applied"
+                : el ? "Κάνε αίτηση" : "Apply"}
+            </button>
+          </div>
+        </div>
+      )}
       <Footer lang={lang === "en" ? "en" : "el"} />
     </div>
   );

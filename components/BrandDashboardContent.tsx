@@ -123,11 +123,12 @@ const t = {
     recommendations_subtitle: "Βάσει του industry σας, της στρατηγικής αξιολόγησης (niche, engagement) και της αξίας για τα brands",
     recommendations_loading: "Φόρτωση προτάσεων...",
     recommendations_empty: "Δεν βρέθηκαν προτάσεις αυτή τη στιγμή",
-    match_score: "Match Score",
+    match_score: "Βαθμός ταιριάσματος",
+    match_label: "Ταίριασμα",
     why_match: "Γιατί ταιριάζει",
     view_profile: "Δείτε Προφίλ",
     send_proposal: "Στείλτε Προσφορά",
-    engagement_rate: "Engagement Rate",
+    engagement_rate: "Ποσοστό αλληλεπίδρασης",
     rating: "Αξιολόγηση",
     reviews: "Reviews",
     followers: "Ακόλουθοι",
@@ -177,6 +178,7 @@ const t = {
     recommendations_loading: "Loading recommendations...",
     recommendations_empty: "No recommendations found at this time",
     match_score: "Match Score",
+    match_label: "Match",
     why_match: "Why This Match",
     view_profile: "View Profile",
     send_proposal: "Send Proposal",
@@ -658,10 +660,6 @@ export default function BrandDashboardContent() {
     setLang(getStoredLanguage());
   }, []);
 
-  useEffect(() => {
-    document.title = lang === "en" ? "Brand Dashboard | Influo" : "Πίνακας επιχείρησης | Influo";
-  }, [lang]);
-
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
   const [savingAgreement, setSavingAgreement] = useState(false);
@@ -758,8 +756,33 @@ export default function BrandDashboardContent() {
       tab === 'announcements'
     ) {
       setActiveTab(tab);
+    } else if (!tab) {
+      setActiveTab('recommendations');
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    const titlesEl: Record<string, string> = {
+      recommendations: "Προτάσεις | Influo",
+      campaigns: "Καμπάνιες | Influo",
+      proposals: "Προσφορές | Influo",
+      messages: "Μηνύματα | Influo",
+      shortlist: "Shortlist | Influo",
+      tools: "Εργαλεία | Influo",
+      announcements: "Ανακοινώσεις | Influo",
+    };
+    const titlesEn: Record<string, string> = {
+      recommendations: "Recommendations | Influo",
+      campaigns: "Campaigns | Influo",
+      proposals: "Proposals | Influo",
+      messages: "Messages | Influo",
+      shortlist: "Shortlist | Influo",
+      tools: "Tools | Influo",
+      announcements: "Announcements | Influo",
+    };
+    const map = lang === "en" ? titlesEn : titlesEl;
+    document.title = map[activeTab] || (lang === "en" ? "Brand Dashboard | Influo" : "Πίνακας επιχείρησης | Influo");
+  }, [lang, activeTab]);
 
   useEffect(() => {
     loadData();
@@ -1528,8 +1551,16 @@ export default function BrandDashboardContent() {
   const openBrandTab = (
     tab: 'recommendations' | 'campaigns' | 'proposals' | 'messages' | 'shortlist' | 'tools' | 'announcements'
   ) => {
+    // Update URL immediately so ?tab= matches this click (not one behind).
     setActiveTab(tab);
     const url = tab === 'recommendations' ? '/brand/dashboard' : `/brand/dashboard?tab=${tab}`;
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(
+        { ...(window.history.state || {}), as: url, url },
+        '',
+        url
+      );
+    }
     router.replace(url, { scroll: false });
   };
 
@@ -2014,11 +2045,16 @@ export default function BrandDashboardContent() {
                   name: p.displayName,
                 });
                 setThreadConversationId(p.conversationId || null);
-                setActiveTab("messages");
-                const url = p.conversationId
-                  ? `/brand/dashboard?tab=messages&conversation=${encodeURIComponent(p.conversationId)}`
-                  : "/brand/dashboard?tab=messages";
-                router.replace(url, { scroll: false });
+                openBrandTab("messages");
+                if (p.conversationId && typeof window !== "undefined") {
+                  const url = `/brand/dashboard?tab=messages&conversation=${encodeURIComponent(p.conversationId)}`;
+                  window.history.replaceState(
+                    { ...(window.history.state || {}), as: url, url },
+                    "",
+                    url
+                  );
+                  router.replace(url, { scroll: false });
+                }
               }}
             />
           </div>
@@ -2211,7 +2247,7 @@ export default function BrandDashboardContent() {
                           match.score >= 65 ? 'bg-blue-600' :
                           'bg-slate-500'
                         }`}>
-                          {match.score}% {lang === 'el' ? 'Match' : 'Match'}
+                          {match.score}% {txt.match_label}
                         </span>
                       </div>
                       
@@ -2360,7 +2396,7 @@ export default function BrandDashboardContent() {
                               id: String(inf.id),
                               name: inf.display_name,
                             });
-                            setActiveTab("messages");
+                            openBrandTab("messages");
                           }}
                           className="flex-1 px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors"
                         >

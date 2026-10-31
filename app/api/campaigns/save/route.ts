@@ -70,6 +70,24 @@ export async function POST(request: NextRequest) {
   if (!title || !description) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
+
+  // cover_url: undefined = leave untouched, null/"" = clear, https URL = set.
+  let coverUrl: string | null | undefined;
+  if (body.cover_url === null || body.cover_url === "") {
+    coverUrl = null;
+  } else if (typeof body.cover_url === "string") {
+    const trimmed = body.cover_url.trim();
+    let valid = false;
+    try {
+      valid = new URL(trimmed).protocol === "https:" && trimmed.length <= 1000;
+    } catch {
+      valid = false;
+    }
+    if (!valid) return NextResponse.json({ error: "Invalid cover_url" }, { status: 400 });
+    coverUrl = trimmed;
+  } else if (body.cover_url !== undefined) {
+    return NextResponse.json({ error: "Invalid cover_url" }, { status: 400 });
+  }
   if (!ALLOWED_STATUSES.has(status)) {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });
   }
@@ -173,6 +191,8 @@ export async function POST(request: NextRequest) {
     updated_at: nowIso,
   };
 
+  if (coverUrl !== undefined) payload.cover_url = coverUrl;
+
   // Server-owned reopen / close stamps — never trust client opened_at / brand_id.
   if (status === "open" && !wasOpen) {
     payload.opened_at = nowIso;
@@ -202,6 +222,12 @@ export async function POST(request: NextRequest) {
   };
 
   let result = await write(payload);
+  // cover_url column may not be migrated yet: retry once without it, keeping all other fields.
+  if (result.error && "cover_url" in payload && /cover_url/i.test(result.error.message)) {
+    const { cover_url: _ignored, ...withoutCover } = payload;
+    void _ignored;
+    result = await write(withoutCover);
+  }
   if (
     result.error &&
     /column|schema cache|compensation|platforms|starts_on|min_followers/i.test(result.error.message)

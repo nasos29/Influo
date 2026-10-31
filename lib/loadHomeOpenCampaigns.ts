@@ -1,5 +1,6 @@
 import { supabaseService } from "@/lib/apiAuth";
 import type { CampaignCardData } from "@/components/CampaignCard";
+import { brandVerifiedFromJoin } from "@/lib/publicCampaignVisibility";
 
 const SELECT = `
   id,
@@ -16,6 +17,7 @@ const SELECT = `
   location,
   status,
   opened_at,
+  cover_url,
   brands ( brand_name, logo_url, verified )
 `;
 
@@ -47,19 +49,29 @@ async function loadApplicationsCounts(campaignIds: string[]): Promise<Map<string
 export async function loadOpenCampaigns(limit?: number): Promise<CampaignCardData[]> {
   try {
     const nowIso = new Date().toISOString();
-    let query = supabaseService()
-      .from("brand_campaigns")
-      .select(SELECT)
-      .eq("status", "open")
-      .or(`deadline.is.null,deadline.gt.${nowIso}`)
-      .order("created_at", { ascending: false });
-    if (typeof limit === "number") query = query.limit(limit);
-    const { data, error } = await query;
+    const run = (select: string) => {
+      let query = supabaseService()
+        .from("brand_campaigns")
+        .select(select)
+        .eq("status", "open")
+        .or(`deadline.is.null,deadline.gt.${nowIso}`)
+        .order("created_at", { ascending: false });
+      if (typeof limit === "number") query = query.limit(limit);
+      return query;
+    };
+    let { data, error } = await run(SELECT);
+    // cover_url column not migrated yet: retry without it.
+    if (error && /cover_url/i.test(error.message || "")) {
+      ({ data, error } = await run(SELECT.replace(/\s*cover_url,/, "")));
+    }
     if (error) {
       console.error("loadOpenCampaigns", error);
       return [];
     }
-    const rows = (data as unknown as CampaignCardData[]) || [];
+    // Same rule as detail page: only verified brands (list previously omitted this).
+    const rows = ((data as unknown as CampaignCardData[]) || []).filter((row) =>
+      brandVerifiedFromJoin(row.brands)
+    );
     const ids = rows.map((r) => r.id).filter(Boolean);
     const counts = await loadApplicationsCounts(ids);
     return rows.map((row) => ({

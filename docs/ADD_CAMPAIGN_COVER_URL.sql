@@ -1,0 +1,34 @@
+-- Campaign cover image (Collabstr-style). Safe to re-run.
+-- NOT executed automatically: run manually in the Supabase SQL editor.
+-- The app works without this column (cover_url is dropped on save and ignored on load).
+
+ALTER TABLE brand_campaigns ADD COLUMN IF NOT EXISTS cover_url TEXT;
+
+-- ---------------------------------------------------------------------------
+-- Storage bucket (create once, via Dashboard -> Storage -> New bucket, or SQL):
+--
+--   Name:   campaign-covers
+--   Public: YES (covers are shown on public campaign pages)
+--   Limit:  ~512 KB, mime types image/webp, image/jpeg, image/png
+--
+--   INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+--   VALUES ('campaign-covers', 'campaign-covers', true, 524288,
+--           ARRAY['image/webp', 'image/jpeg', 'image/png'])
+--   ON CONFLICT (id) DO UPDATE SET public = true;
+--
+--   -- Public read
+--   DROP POLICY IF EXISTS "campaign_covers_public_read" ON storage.objects;
+--   CREATE POLICY "campaign_covers_public_read" ON storage.objects
+--     FOR SELECT TO public USING (bucket_id = 'campaign-covers');
+--
+--   -- Brands upload into their own folder: <auth.uid()>/<file>
+--   DROP POLICY IF EXISTS "campaign_covers_owner_insert" ON storage.objects;
+--   CREATE POLICY "campaign_covers_owner_insert" ON storage.objects
+--     FOR INSERT TO authenticated
+--     WITH CHECK (bucket_id = 'campaign-covers' AND (storage.foldername(name))[1] = auth.uid()::text);
+--
+--   DROP POLICY IF EXISTS "campaign_covers_owner_delete" ON storage.objects;
+--   CREATE POLICY "campaign_covers_owner_delete" ON storage.objects
+--     FOR DELETE TO authenticated
+--     USING (bucket_id = 'campaign-covers' AND (storage.foldername(name))[1] = auth.uid()::text);
+-- ---------------------------------------------------------------------------

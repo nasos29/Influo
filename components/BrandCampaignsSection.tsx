@@ -14,6 +14,8 @@ import { publicProfilePath } from "@/lib/profileSlug";
 import { mergeApplicantProfile } from "@/lib/applicantProfile";
 import { findContactInfo, filterWorkLinks } from "@/lib/contactFilter";
 import CampaignCard from "@/components/CampaignCard";
+import CampaignCover from "@/components/CampaignCover";
+import { prepareCampaignCover } from "@/lib/prepareCampaignCover";
 import { displayNameForLang } from "@/lib/greeklish";
 import { SECTION_TITLE_CLASS } from "@/lib/sectionTitle";
 
@@ -47,6 +49,7 @@ export type BrandCampaignRow = {
   location?: string | null;
   starts_on?: string | null;
   compensation_type?: "money" | "product" | "both" | null;
+  cover_url?: string | null;
 };
 
 type InfluencerBits = {
@@ -239,6 +242,84 @@ const txt = langPack({
   },
 });
 
+const wiz = langPack({
+  step_of: { el: "Βήμα", en: "Step" },
+  step1: { el: "Βασικά", en: "Basics" },
+  step2: { el: "Παραδοτέα", en: "Deliverables" },
+  step3: { el: "Στόχευση", en: "Targeting" },
+  step4: { el: "Αμοιβή & έλεγχος", en: "Budget & review" },
+  next: { el: "Επόμενο", en: "Next" },
+  back: { el: "Πίσω", en: "Back" },
+  cover_label: { el: "Εικόνα καμπάνιας (προαιρετικό)", en: "Campaign image (optional)" },
+  cover_hint: {
+    el: "Οι καμπάνιες με εικόνα παίρνουν περισσότερες αιτήσεις",
+    en: "Campaigns with an image get more applications",
+  },
+  cover_choose: { el: "Επιλογή εικόνας", en: "Choose image" },
+  cover_change: { el: "Αλλαγή", en: "Change" },
+  cover_remove: { el: "Αφαίρεση", en: "Remove" },
+  cover_uploading: { el: "Ανέβασμα…", en: "Uploading…" },
+  cover_error: { el: "Δεν ήταν δυνατό το ανέβασμα της εικόνας. Δοκιμάστε άλλη εικόνα.", en: "Could not upload the image. Try a different one." },
+  cover_not_image: { el: "Επιλέξτε αρχείο εικόνας (JPG, PNG ή WebP).", en: "Choose an image file (JPG, PNG or WebP)." },
+  chips_label: { el: "Τι πρέπει να παραδώσει ο creator", en: "What the creator should deliver" },
+  chips_hint: { el: "Πατήστε σε ένα είδος και ορίστε πόσα χρειάζεστε.", en: "Tap a type and set how many you need." },
+  other_deliverables: { el: "Άλλα παραδοτέα / σημειώσεις (προαιρετικό)", en: "Other deliverables / notes (optional)" },
+  review: { el: "Έλεγχος πριν την αποθήκευση", en: "Review before saving" },
+  review_none: { el: "—", en: "—" },
+  deliverables_short: { el: "Παραδοτέα", en: "Deliverables" },
+});
+
+const DELIVERABLE_CHIPS = [
+  { id: "reel", platform: "instagram", el: "Reel", en: "Reel", one: "Reel", many: "Reels" },
+  { id: "story", platform: "instagram", el: "Story", en: "Story", one: "Story", many: "Stories" },
+  { id: "post", platform: "instagram", el: "Post", en: "Post", one: "Post", many: "Posts" },
+  { id: "tiktok", platform: "tiktok", el: "TikTok", en: "TikTok", one: "TikTok", many: "TikToks" },
+  { id: "youtube", platform: "youtube", el: "YouTube", en: "YouTube", one: "YouTube", many: "YouTube" },
+] as const;
+
+const CHIP_PARSE = /^(\d{1,2})\s*[x×]?\s*(reels?|stor(?:y|ies)|posts?|tiktoks?|youtubes?)$/i;
+
+function chipIdFromWord(word: string): string | null {
+  const w = word.toLowerCase();
+  if (w.startsWith("reel")) return "reel";
+  if (w.startsWith("stor")) return "story";
+  if (w.startsWith("post")) return "post";
+  if (w.startsWith("tiktok")) return "tiktok";
+  if (w.startsWith("youtube")) return "youtube";
+  return null;
+}
+
+/** Split a stored deliverables string into chip counts + leftover free text (round-trips with buildDeliverables). */
+function parseDeliverables(raw: string | null | undefined): { chips: Record<string, number>; rest: string } {
+  const chips: Record<string, number> = {};
+  const rest: string[] = [];
+  const parts = (raw || "").split(/[\n,;+]+/).map((s) => s.trim()).filter(Boolean);
+  let parsedAny = false;
+  for (const part of parts) {
+    const m = CHIP_PARSE.exec(part);
+    const id = m ? chipIdFromWord(m[2]) : null;
+    if (m && id) {
+      chips[id] = (chips[id] || 0) + parseInt(m[1], 10);
+      parsedAny = true;
+    } else {
+      rest.push(part);
+    }
+  }
+  if (!parsedAny) return { chips: {}, rest: raw || "" };
+  return { chips, rest: rest.join(", ") };
+}
+
+function buildDeliverables(chips: Record<string, number>, rest: string): string {
+  const parts: string[] = [];
+  for (const chip of DELIVERABLE_CHIPS) {
+    const n = chips[chip.id] || 0;
+    if (n > 0) parts.push(`${n} ${n === 1 ? chip.one : chip.many}`);
+  }
+  const free = rest.trim();
+  if (free) parts.push(free);
+  return parts.join(", ");
+}
+
 const emptyForm = () => ({
   title: "",
   description: "",
@@ -250,6 +331,8 @@ const emptyForm = () => ({
   location: "",
   min_followers: "",
   platforms: [] as string[],
+  cover_url: "",
+  chips: {} as Record<string, number>,
   compensation_type: "" as "" | "money" | "product" | "both",
   status: "draft" as "draft" | "open" | "closed",
 });
@@ -284,6 +367,7 @@ export default function BrandCampaignsSection({
 }) {
   const t = txt[lang];
   const x = extra[lang];
+  const wz = wiz[lang];
   const [rows, setRows] = useState<BrandCampaignRow[]>([]);
   const [appCounts, setAppCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -300,17 +384,27 @@ export default function BrandCampaignsSection({
   const [inviteCampaignId, setInviteCampaignId] = useState<string | null>(null);
   const [invitingId, setInvitingId] = useState<string | null>(null);
   const [deadlineClearedNotice, setDeadlineClearedNotice] = useState(false);
+  const [step, setStep] = useState(1);
+  const [coverUploading, setCoverUploading] = useState(false);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setSchemaError(false);
-    const { data, error } = await supabase
-      .from("brand_campaigns")
-      .select(
-        "id, brand_id, title, description, budget, category, deliverables, status, deadline, created_at, opened_at, updated_at, platforms, min_followers, location, starts_on, compensation_type"
-      )
-      .eq("brand_id", brandId)
-      .order("created_at", { ascending: false });
+    const baseColumns =
+      "id, brand_id, title, description, budget, category, deliverables, status, deadline, created_at, opened_at, updated_at, platforms, min_followers, location, starts_on, compensation_type";
+    const fetchRows = (columns: string) =>
+      supabase
+        .from("brand_campaigns")
+        .select(columns)
+        .eq("brand_id", brandId)
+        .order("created_at", { ascending: false });
+    let { data, error } = await fetchRows(`${baseColumns}, cover_url`);
+    // cover_url column not migrated yet (docs/ADD_CAMPAIGN_COVER_URL.sql): retry without it.
+    if (error && /cover_url/i.test(error.message || "")) {
+      ({ data, error } = await fetchRows(baseColumns));
+    }
     if (error) {
       if (error.code === "42P01" || error.message?.includes("brand_campaigns")) setSchemaError(true);
       console.error(error);
@@ -318,7 +412,7 @@ export default function BrandCampaignsSection({
       setLoading(false);
       return;
     }
-    const list = (data as BrandCampaignRow[]) || [];
+    const list = (data as unknown as BrandCampaignRow[]) || [];
     const counts: Record<string, number> = {};
     for (const row of list) counts[row.id] = 0;
     if (list.length) {
@@ -424,22 +518,29 @@ export default function BrandCampaignsSection({
 
   const openNew = () => {
     setForm(emptyForm());
+    setStep(1);
     setContactFieldErrors({});
     setEditing("new");
   };
 
   const openEdit = (row: BrandCampaignRow) => {
+    const parsed = parseDeliverables(row.deliverables);
+    const rowPlatforms = Array.isArray(row.platforms) ? row.platforms : [];
+    const chipPlatforms = DELIVERABLE_CHIPS.filter((chip) => (parsed.chips[chip.id] || 0) > 0).map((chip) => chip.platform as string);
+    setStep(1);
     setForm({
       title: row.title,
       description: row.description,
       budget: String(row.budget ?? ""),
       category: normalizeCategoryToken(row.category) || row.category || "",
-      deliverables: row.deliverables || "",
+      deliverables: parsed.rest,
+      cover_url: row.cover_url || "",
+      chips: parsed.chips,
       deadline: ymd(row.deadline),
       starts_on: ymd(row.starts_on),
       location: row.location || "",
       min_followers: row.min_followers != null ? String(row.min_followers) : "",
-      platforms: Array.isArray(row.platforms) ? row.platforms : [],
+      platforms: [...new Set([...rowPlatforms, ...chipPlatforms])],
       compensation_type: row.compensation_type || "",
       status: row.status,
     });
@@ -454,8 +555,103 @@ export default function BrandCampaignsSection({
     }));
   };
 
+  const setChipCount = (chipId: string, count: number) => {
+    const next = Math.max(0, Math.min(20, count));
+    setForm((prev) => {
+      const chips = { ...prev.chips };
+      if (next > 0) chips[chipId] = next;
+      else delete chips[chipId];
+      const chip = DELIVERABLE_CHIPS.find((c) => c.id === chipId);
+      let platforms = prev.platforms;
+      if (chip) {
+        const stillUsed = DELIVERABLE_CHIPS.some((c) => c.platform === chip.platform && (chips[c.id] || 0) > 0);
+        if (stillUsed && !platforms.includes(chip.platform)) platforms = [...platforms, chip.platform];
+        else if (!stillUsed && next === 0 && platforms.includes(chip.platform)) {
+          platforms = platforms.filter((p) => p !== chip.platform);
+        }
+      }
+      return { ...prev, chips, platforms };
+    });
+  };
+
+  const handleCoverFile = async (file: File | null | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/") || file.type === "image/svg+xml") {
+      toastError(wz.cover_not_image);
+      return;
+    }
+    setCoverUploading(true);
+    try {
+      const prepared = await prepareCampaignCover(file);
+      const rand = Math.random().toString(36).slice(2, 8);
+      const path = `${brandId}/${Date.now()}-${rand}.${prepared.type === "image/webp" ? "webp" : "jpg"}`;
+      const { error: uploadError } = await supabase.storage
+        .from("campaign-covers")
+        .upload(path, prepared, { cacheControl: "31536000", upsert: false, contentType: prepared.type });
+      if (uploadError) throw uploadError;
+      const { data: pub } = supabase.storage.from("campaign-covers").getPublicUrl(path);
+      if (!pub?.publicUrl) throw new Error("no-public-url");
+      setForm((prev) => ({ ...prev, cover_url: pub.publicUrl }));
+    } catch (err) {
+      console.error("[campaign cover]", err);
+      toastError(wz.cover_error);
+    } finally {
+      setCoverUploading(false);
+      if (coverInputRef.current) coverInputRef.current.value = "";
+    }
+  };
+
+  const goToStep = (next: number) => {
+    setStep(Math.max(1, Math.min(4, next)));
+    requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
+  };
+
+  /** Returns an error message for the given step, or null if it can proceed. */
+  const validateStep = (n: number): string | null => {
+    if (n === 1) {
+      if (!form.title.trim() || !form.description.trim()) {
+        return lang === "el" ? "Συμπληρώστε τίτλο και περιγραφή." : "Fill in the title and description.";
+      }
+      const blockedFields: Array<"title" | "description"> = ["title", "description"];
+      for (const field of blockedFields) {
+        if (form[field].trim() && findContactInfo(form[field])) {
+          setContactFieldErrors((prev) => ({ ...prev, [field]: CONTACT_BLOCKED[lang] }));
+          return CONTACT_BLOCKED[lang];
+        }
+      }
+    }
+    if (n === 2) {
+      if (!form.platforms.length) return lang === "el" ? "Επιλέξτε τουλάχιστον μία πλατφόρμα." : "Pick at least one platform.";
+      if (form.deliverables.trim() && findContactInfo(form.deliverables)) {
+        setContactFieldErrors((prev) => ({ ...prev, deliverables: CONTACT_BLOCKED[lang] }));
+        return CONTACT_BLOCKED[lang];
+      }
+    }
+    if (n === 3) {
+      if (!form.category) return lang === "el" ? "Η κατηγορία είναι υποχρεωτική." : "Category is required.";
+      if (form.location.trim() && findContactInfo(form.location)) {
+        setContactFieldErrors((prev) => ({ ...prev, location: CONTACT_BLOCKED[lang] }));
+        return CONTACT_BLOCKED[lang];
+      }
+    }
+    return null;
+  };
+
+  const goNext = () => {
+    const problem = validateStep(step);
+    if (problem) {
+      toastError(problem);
+      return;
+    }
+    goToStep(step + 1);
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (step < 4) {
+      goNext();
+      return;
+    }
     if (saveLock.current) return;
     saveLock.current = true;
     try {
@@ -466,7 +662,10 @@ export default function BrandCampaignsSection({
   };
 
   const saveCampaign = async () => {
-    if (!form.title.trim() || !form.description.trim()) return;
+    if (!form.title.trim() || !form.description.trim()) {
+      setStep(1);
+      return;
+    }
     const blockedMsg = CONTACT_BLOCKED[lang];
     const nextErrors: typeof contactFieldErrors = {};
     const textFields: Array<keyof typeof nextErrors> = ["title", "description", "deliverables", "location"];
@@ -476,14 +675,17 @@ export default function BrandCampaignsSection({
     }
     setContactFieldErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
+      setStep(nextErrors.title || nextErrors.description ? 1 : nextErrors.deliverables ? 2 : 3);
       toastError(blockedMsg);
       return;
     }
     if (!form.category) {
+      setStep(3);
       toastError(lang === "el" ? "Η κατηγορία είναι υποχρεωτική." : "Category is required.");
       return;
     }
     if (!form.platforms.length) {
+      setStep(2);
       toastError(lang === "el" ? "Επιλέξτε τουλάχιστον μία πλατφόρμα." : "Pick at least one platform.");
       return;
     }
@@ -529,7 +731,7 @@ export default function BrandCampaignsSection({
         description: form.description.trim(),
         budget: form.budget,
         category: normalizeCategoryToken(form.category) || form.category,
-        deliverables: form.deliverables.trim(),
+        deliverables: buildDeliverables(form.chips, form.deliverables),
         status: form.status,
         deadline: form.deadline || null,
         starts_on: form.starts_on,
@@ -541,6 +743,9 @@ export default function BrandCampaignsSection({
       if (editing !== "new" && editing && "id" in editing) {
         saveBody.id = editing.id;
       }
+      // Only send cover_url when it changed, so saving never touches a missing column unnecessarily.
+      const originalCover = editing !== "new" && editing && "id" in editing ? editing.cover_url || "" : "";
+      if (form.cover_url !== originalCover) saveBody.cover_url = form.cover_url || null;
 
       const res = await sessionFetch("/api/campaigns/save", {
         method: "POST",
@@ -562,6 +767,7 @@ export default function BrandCampaignsSection({
             (typeof data.message === "object" && data.message?.[lang]) || CONTACT_BLOCKED[lang];
           if (data.field === "title" || data.field === "description" || data.field === "deliverables" || data.field === "location") {
             setContactFieldErrors({ [data.field]: blockedMsg });
+            setStep(data.field === "title" || data.field === "description" ? 1 : data.field === "deliverables" ? 2 : 3);
           }
           throw new Error(blockedMsg);
         }
@@ -755,101 +961,247 @@ export default function BrandCampaignsSection({
       </div>
 
       {editing && (
-        <form onSubmit={submit} className="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 space-y-4 shadow-sm">
+        <form ref={formRef} onSubmit={submit} className="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 space-y-5 shadow-sm">
           <h3 className="font-semibold text-slate-900">{editing === "new" ? t.new : t.edit}</h3>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t.form_title}{req}</label>
-              <input required value={form.title} onChange={(e) => { setForm({ ...form, title: e.target.value }); setContactFieldErrors((prev) => ({ ...prev, title: undefined })); }} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
-              <p className="text-xs text-slate-500 mt-1">{x.contact_hint}</p>
-              {contactFieldErrors.title && <p className="text-xs text-red-600 mt-1">{contactFieldErrors.title}</p>}
+
+          <div>
+            <div className="flex items-center justify-between text-xs font-medium text-slate-600 mb-2">
+              <span>{wz.step_of} {step}/4 · {[wz.step1, wz.step2, wz.step3, wz.step4][step - 1]}</span>
             </div>
-            <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t.form_desc}{req}</label>
-              <textarea required rows={4} value={form.description} onChange={(e) => { setForm({ ...form, description: e.target.value }); setContactFieldErrors((prev) => ({ ...prev, description: undefined })); }} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
-              <p className="text-xs text-slate-500 mt-1">{x.contact_hint}</p>
-              {contactFieldErrors.description && <p className="text-xs text-red-600 mt-1">{contactFieldErrors.description}</p>}
+            <div
+              className="h-2 rounded-full bg-slate-100 overflow-hidden"
+              role="progressbar"
+              aria-valuemin={1}
+              aria-valuemax={4}
+              aria-valuenow={step}
+              aria-label={`${wz.step_of} ${step}/4`}
+            >
+              <div className="h-full rounded-full bg-blue-600 transition-[width] duration-300" style={{ width: `${(step / 4) * 100}%` }} />
             </div>
-            <div className="sm:col-span-2">
-              <p className="block text-sm font-medium text-slate-700 mb-2">{x.form_platforms}{req}</p>
-              <div className="flex flex-wrap gap-3">
-                {PLATFORMS.map((platform) => (
-                  <label key={platform.id} className="inline-flex items-center gap-2 text-sm text-slate-800">
-                    <input type="checkbox" checked={form.platforms.includes(platform.id)} onChange={() => togglePlatform(platform.id)} />
-                    {lang === "el" ? platform.el : platform.en}
-                  </label>
-                ))}
+            <ol className="mt-2 grid grid-cols-4 gap-1 text-[11px] sm:text-xs">
+              {[wz.step1, wz.step2, wz.step3, wz.step4].map((label, index) => {
+                const n = index + 1;
+                const done = n < step;
+                return (
+                  <li key={n} className="min-w-0">
+                    <button
+                      type="button"
+                      disabled={n >= step}
+                      onClick={() => goToStep(n)}
+                      className={`w-full truncate text-left ${n === step ? "font-semibold text-blue-700" : done ? "text-slate-700 hover:text-blue-700" : "text-slate-400"}`}
+                    >
+                      {n}. {label}
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+
+          {step === 1 && (
+            <div className="grid gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t.form_title}{req}</label>
+                <input required value={form.title} onChange={(e) => { setForm({ ...form, title: e.target.value }); setContactFieldErrors((prev) => ({ ...prev, title: undefined })); }} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
+                <p className="text-xs text-slate-500 mt-1">{x.contact_hint}</p>
+                {contactFieldErrors.title && <p className="text-xs text-red-600 mt-1">{contactFieldErrors.title}</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{wz.cover_label}</label>
+                <input
+                  ref={coverInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => void handleCoverFile(e.target.files?.[0])}
+                />
+                {form.cover_url ? (
+                  <div className="space-y-2">
+                    <div className="max-w-md rounded-xl overflow-hidden border border-slate-200">
+                      <CampaignCover coverUrl={form.cover_url} title={form.title || "Campaign"} category={form.category} platforms={form.platforms} aspect="16/9" sizes="448px" />
+                    </div>
+                    <div className="flex gap-2">
+                      <button type="button" disabled={coverUploading} onClick={() => coverInputRef.current?.click()} className="text-sm px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+                        {coverUploading ? wz.cover_uploading : wz.cover_change}
+                      </button>
+                      <button type="button" disabled={coverUploading} onClick={() => setForm({ ...form, cover_url: "" })} className="text-sm px-3 py-1.5 rounded-lg border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-50">
+                        {wz.cover_remove}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={coverUploading}
+                    onClick={() => coverInputRef.current?.click()}
+                    className="w-full max-w-md aspect-video rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-600 text-sm font-medium flex items-center justify-center disabled:opacity-60"
+                  >
+                    {coverUploading ? wz.cover_uploading : `+ ${wz.cover_choose}`}
+                  </button>
+                )}
+                <p className="text-xs text-slate-500 mt-1">{wz.cover_hint}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t.form_desc}{req}</label>
+                <textarea required rows={5} value={form.description} onChange={(e) => { setForm({ ...form, description: e.target.value }); setContactFieldErrors((prev) => ({ ...prev, description: undefined })); }} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
+                <p className="text-xs text-slate-500 mt-1">{x.contact_hint}</p>
+                {contactFieldErrors.description && <p className="text-xs text-red-600 mt-1">{contactFieldErrors.description}</p>}
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{x.form_compensation}{req}</label>
-              <select required value={form.compensation_type} onChange={(e) => setForm({ ...form, compensation_type: e.target.value as typeof form.compensation_type })} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 bg-white">
-                <option value="">—</option>
-                <option value="money">{x.comp_money}</option>
-                <option value="product">{x.comp_product}</option>
-                <option value="both">{x.comp_both}</option>
-              </select>
+          )}
+
+          {step === 2 && (
+            <div className="grid gap-4">
+              <div>
+                <p className="block text-sm font-medium text-slate-700">{wz.chips_label}</p>
+                <p className="text-xs text-slate-500 mb-2">{wz.chips_hint}</p>
+                <div className="flex flex-wrap gap-2">
+                  {DELIVERABLE_CHIPS.map((chip) => {
+                    const count = form.chips[chip.id] || 0;
+                    const label = lang === "el" ? chip.el : chip.en;
+                    return count > 0 ? (
+                      <div key={chip.id} className="inline-flex items-center gap-1 rounded-full border border-blue-600 bg-blue-50 pl-3 pr-1 py-1 text-sm font-medium text-blue-800">
+                        <span>{label}</span>
+                        <button type="button" onClick={() => setChipCount(chip.id, count - 1)} className="w-6 h-6 rounded-full hover:bg-blue-100 leading-none" aria-label={`${label} −`}>−</button>
+                        <span className="min-w-[1.25rem] text-center tabular-nums">{count}</span>
+                        <button type="button" onClick={() => setChipCount(chip.id, count + 1)} className="w-6 h-6 rounded-full hover:bg-blue-100 leading-none" aria-label={`${label} +`}>+</button>
+                      </div>
+                    ) : (
+                      <button
+                        key={chip.id}
+                        type="button"
+                        onClick={() => setChipCount(chip.id, 1)}
+                        className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:border-blue-400 hover:bg-blue-50"
+                      >
+                        <span aria-hidden>+</span> {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <p className="block text-sm font-medium text-slate-700 mb-2">{x.form_platforms}{req}</p>
+                <div className="flex flex-wrap gap-3">
+                  {PLATFORMS.map((platform) => (
+                    <label key={platform.id} className="inline-flex items-center gap-2 text-sm text-slate-800">
+                      <input type="checkbox" checked={form.platforms.includes(platform.id)} onChange={() => togglePlatform(platform.id)} />
+                      {lang === "el" ? platform.el : platform.en}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{wz.other_deliverables}</label>
+                <textarea rows={2} value={form.deliverables} onChange={(e) => { setForm({ ...form, deliverables: e.target.value }); setContactFieldErrors((prev) => ({ ...prev, deliverables: undefined })); }} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" placeholder={lang === "el" ? "π.χ. unboxing βίντεο" : "e.g. unboxing video"} />
+                <p className="text-xs text-slate-500 mt-1">{x.contact_hint}</p>
+                {contactFieldErrors.deliverables && <p className="text-xs text-red-600 mt-1">{contactFieldErrors.deliverables}</p>}
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                {t.form_budget}
-                {(form.compensation_type === "money" || form.compensation_type === "both") && req}
-              </label>
-              <input type="number" min={0} step={0.01} required={form.compensation_type === "money" || form.compensation_type === "both"} value={form.budget} onChange={(e) => setForm({ ...form, budget: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
+          )}
+
+          {step === 3 && (
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t.form_category}{req}</label>
+                <select required value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 bg-white">
+                  <option value="">—</option>
+                  {CATEGORIES.map((c) => (
+                    <option key={c} value={c}>{categoryLabel(c, lang)}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{x.form_min_followers}</label>
+                <input type="number" min={0} value={form.min_followers} onChange={(e) => setForm({ ...form, min_followers: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-1">{x.form_location}</label>
+                <input value={form.location} onChange={(e) => { setForm({ ...form, location: e.target.value }); setContactFieldErrors((prev) => ({ ...prev, location: undefined })); }} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" placeholder={lang === "el" ? "π.χ. Αθήνα" : "e.g. Athens"} />
+                {contactFieldErrors.location && <p className="text-xs text-red-600 mt-1">{contactFieldErrors.location}</p>}
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t.form_category}{req}</label>
-              <select required value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 bg-white">
-                <option value="">—</option>
-                {CATEGORIES.map((c) => (
-                  <option key={c} value={c}>{categoryLabel(c, lang)}</option>
-                ))}
-              </select>
+          )}
+
+          {step === 4 && (
+            <div className="grid gap-4">
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{x.form_compensation}{req}</label>
+                  <select required value={form.compensation_type} onChange={(e) => setForm({ ...form, compensation_type: e.target.value as typeof form.compensation_type })} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 bg-white">
+                    <option value="">—</option>
+                    <option value="money">{x.comp_money}</option>
+                    <option value="product">{x.comp_product}</option>
+                    <option value="both">{x.comp_both}</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    {t.form_budget}
+                    {(form.compensation_type === "money" || form.compensation_type === "both") && req}
+                  </label>
+                  <input type="number" min={0} step={0.01} required={form.compensation_type === "money" || form.compensation_type === "both"} value={form.budget} onChange={(e) => setForm({ ...form, budget: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{x.form_start}{req}</label>
+                  <DmyDateField required value={form.starts_on} onChange={(starts_on) => setForm({ ...form, starts_on })} />
+                  <p className="text-xs text-slate-500 mt-1">{x.date_order}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t.form_deadline}</label>
+                  <DmyDateField value={form.deadline} onChange={(deadline) => setForm({ ...form, deadline })} />
+                  <p className="text-xs text-slate-500 mt-1">{x.deadline_auto_close}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t.form_status}</label>
+                  <select
+                    value={form.status}
+                    onChange={(e) => setForm({ ...form, status: e.target.value as typeof form.status })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 bg-white"
+                  >
+                    <option value="draft">{t.status_draft}</option>
+                    <option value="open" disabled={!brandVerified}>{t.status_open}</option>
+                    <option value="closed">{t.status_closed}</option>
+                  </select>
+                  {!brandVerified && <p className="text-xs text-amber-800 mt-1">{x.open_locked}</p>}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm font-semibold text-slate-900 mb-2">{wz.review}</p>
+                <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 text-sm">
+                  <dt className="text-slate-500">{t.form_title}</dt>
+                  <dd className="text-slate-900 truncate">{form.title || wz.review_none}</dd>
+                  <dt className="text-slate-500">{t.form_category}</dt>
+                  <dd className="text-slate-900">{form.category ? categoryLabel(form.category, lang) || form.category : wz.review_none}</dd>
+                  <dt className="text-slate-500">{x.form_platforms}</dt>
+                  <dd className="text-slate-900">{form.platforms.length ? form.platforms.map((id) => PLATFORMS.find((p) => p.id === id)?.[lang] || id).join(", ") : wz.review_none}</dd>
+                  <dt className="text-slate-500">{wz.deliverables_short}</dt>
+                  <dd className="text-slate-900">{buildDeliverables(form.chips, form.deliverables) || wz.review_none}</dd>
+                  <dt className="text-slate-500">{x.form_min_followers}</dt>
+                  <dd className="text-slate-900">{form.min_followers || wz.review_none}</dd>
+                  <dt className="text-slate-500">{x.form_location}</dt>
+                  <dd className="text-slate-900">{form.location || wz.review_none}</dd>
+                </dl>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{x.form_min_followers}</label>
-              <input type="number" min={0} value={form.min_followers} onChange={(e) => setForm({ ...form, min_followers: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{x.form_location}</label>
-              <input value={form.location} onChange={(e) => { setForm({ ...form, location: e.target.value }); setContactFieldErrors((prev) => ({ ...prev, location: undefined })); }} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" placeholder={lang === "el" ? "π.χ. Αθήνα" : "e.g. Athens"} />
-              {contactFieldErrors.location && <p className="text-xs text-red-600 mt-1">{contactFieldErrors.location}</p>}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{x.form_start}{req}</label>
-              <DmyDateField required value={form.starts_on} onChange={(starts_on) => setForm({ ...form, starts_on })} />
-              <p className="text-xs text-slate-500 mt-1">{x.date_order}</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t.form_deadline}</label>
-              <DmyDateField value={form.deadline} onChange={(deadline) => setForm({ ...form, deadline })} />
-              <p className="text-xs text-slate-500 mt-1">{x.deadline_auto_close}</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t.form_status}</label>
-              <select
-                value={form.status}
-                onChange={(e) => setForm({ ...form, status: e.target.value as typeof form.status })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 bg-white"
-              >
-                <option value="draft">{t.status_draft}</option>
-                <option value="open" disabled={!brandVerified}>{t.status_open}</option>
-                <option value="closed">{t.status_closed}</option>
-              </select>
-              {!brandVerified && <p className="text-xs text-amber-800 mt-1">{x.open_locked}</p>}
-            </div>
-            <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t.form_deliverables}</label>
-              <textarea rows={2} value={form.deliverables} onChange={(e) => { setForm({ ...form, deliverables: e.target.value }); setContactFieldErrors((prev) => ({ ...prev, deliverables: undefined })); }} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" placeholder={lang === "el" ? "π.χ. 2 Reels + 1 Story" : "e.g. 2 Reels + 1 Story"} />
-              <p className="text-xs text-slate-500 mt-1">{x.contact_hint}</p>
-              {contactFieldErrors.deliverables && <p className="text-xs text-red-600 mt-1">{contactFieldErrors.deliverables}</p>}
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
-              {saving ? "…" : t.save}
-            </button>
-            <button type="button" onClick={() => setEditing(null)} className="px-4 py-2 rounded-lg border border-slate-300 text-sm text-slate-700">{t.cancel}</button>
+          )}
+
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            {step > 1 && (
+              <button type="button" onClick={() => goToStep(step - 1)} className="px-4 py-2 rounded-lg border border-slate-300 text-sm text-slate-700 hover:bg-slate-50">
+                {wz.back}
+              </button>
+            )}
+            {step < 4 ? (
+              <button key="next" type="button" onClick={goNext} disabled={coverUploading} className="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 disabled:opacity-50">
+                {wz.next}
+              </button>
+            ) : (
+              <button key="save" type="submit" disabled={saving || coverUploading} className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+                {saving ? "…" : t.save}
+              </button>
+            )}
+            <button type="button" onClick={() => setEditing(null)} className="px-4 py-2 rounded-lg border border-slate-300 text-sm text-slate-700 sm:ml-auto">{t.cancel}</button>
           </div>
         </form>
       )}
