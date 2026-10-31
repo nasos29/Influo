@@ -134,12 +134,15 @@ export default function PublicCampaignsPage({
           <div className="mt-6 flex flex-wrap gap-3 text-sm items-center">
             <Link
               href={lang === "en" ? "/en/for-influencers" : "/for-influencers"}
-              className="text-slate-700 hover:underline"
+              className="inline-flex min-h-[44px] items-center text-slate-700 hover:underline"
             >
               {t.signupInf}
             </Link>
             <span className="text-slate-300">|</span>
-            <Link href={lang === "en" ? "/en/for-brands" : "/for-brands"} className="text-slate-700 hover:underline">
+            <Link
+              href={lang === "en" ? "/en/for-brands" : "/for-brands"}
+              className="inline-flex min-h-[44px] items-center text-slate-700 hover:underline"
+            >
               {t.signupBrand}
             </Link>
           </div>

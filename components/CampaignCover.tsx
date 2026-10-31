@@ -126,7 +126,7 @@ export default function CampaignCover({
         </>
       )}
       {platformList.length > 0 && (
-        <div className="absolute right-3 bottom-3 flex items-center gap-1.5 rounded-full bg-black/45 backdrop-blur-sm px-2.5 py-1.5">
+        <div className="absolute right-3 bottom-3 inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-black/45 backdrop-blur-sm px-3 py-2 sm:min-h-0 sm:px-2.5 sm:py-1.5">
           {platformList.map((p) => (
             <PlatformIcon key={p} platform={p} colored={false} className="w-4 h-4" />
           ))}

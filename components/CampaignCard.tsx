@@ -224,7 +224,7 @@ export default function CampaignCard({
           <h3 className="min-w-0 flex-1 text-lg font-bold text-slate-900 leading-snug line-clamp-2">
             <Link
               href={link}
-              className="text-inherit after:absolute after:inset-0 after:z-0 after:rounded-2xl after:content-[''] focus-visible:outline-none group-hover:text-blue-700"
+              className="inline-flex min-h-[44px] items-center text-inherit after:absolute after:inset-0 after:z-0 after:rounded-2xl after:content-[''] focus-visible:outline-none group-hover:text-blue-700 sm:min-h-0"
             >
               {campaign.title}
             </Link>

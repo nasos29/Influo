@@ -576,21 +576,27 @@ function ProfilePackagesSection({
   return (
     <div>
       {platforms.length > 1 && (
-        <div className="mb-4 flex flex-wrap gap-2">
-          {platforms.map((p) => (
-            <button
-              key={p}
-              type="button"
-              onClick={() => setTab(p)}
-              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-                tab === p
-                  ? "bg-slate-900 text-white"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
-            >
-              {PLATFORM_TAB_LABEL[p][lang]}
-            </button>
-          ))}
+        <div className="relative mb-4">
+          <div className="flex gap-2 overflow-x-auto snap-x snap-mandatory pb-1 sm:flex-wrap sm:overflow-visible sm:snap-none sm:pb-0 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {platforms.map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setTab(p)}
+                className={`inline-flex min-h-[44px] shrink-0 snap-start items-center rounded-full px-3 text-xs font-semibold transition-colors sm:min-h-0 sm:py-1.5 ${
+                  tab === p
+                    ? "bg-slate-900 text-white"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                {PLATFORM_TAB_LABEL[p][lang]}
+              </button>
+            ))}
+          </div>
+          <div
+            className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-white to-transparent sm:hidden"
+            aria-hidden
+          />
         </div>
       )}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -2461,14 +2467,14 @@ export default function InfluencerProfile(props: {
                             <p className="mt-1 text-xs leading-snug text-slate-600">
                               <Link
                                 href="/login"
-                                className="font-medium text-blue-600 underline-offset-2 hover:underline"
+                                className="inline-flex min-h-[44px] items-center font-medium text-blue-600 underline-offset-2 hover:underline sm:min-h-0"
                               >
                                 {txt.min_rate_cta_login}
                               </Link>
                               {lang === "el" ? " ή " : " or "}
                               <Link
                                 href="/brand/signup"
-                                className="font-medium text-blue-600 underline-offset-2 hover:underline"
+                                className="inline-flex min-h-[44px] items-center font-medium text-blue-600 underline-offset-2 hover:underline sm:min-h-0"
                               >
                                 {txt.min_rate_cta_signup}
                               </Link>{" "}
@@ -2509,20 +2515,20 @@ export default function InfluencerProfile(props: {
                           </p>
                           {showBrandPriceCta ? (
                             <p className="mt-1 text-xs leading-snug text-slate-600">
-                              <Link
-                                href="/login"
-                                className="font-medium text-blue-600 underline-offset-2 hover:underline"
-                              >
-                                {txt.min_rate_cta_login}
-                              </Link>
-                              {lang === "el" ? " ή " : " or "}
-                              <Link
-                                href="/brand/signup"
-                                className="font-medium text-blue-600 underline-offset-2 hover:underline"
-                              >
-                                {txt.min_rate_cta_signup}
-                              </Link>{" "}
-                              {txt.min_rate_cta_suffix}
+                            <Link
+                              href="/login"
+                              className="inline-flex min-h-[44px] items-center font-medium text-blue-600 underline-offset-2 hover:underline sm:min-h-0"
+                            >
+                              {txt.min_rate_cta_login}
+                            </Link>
+                            {lang === "el" ? " ή " : " or "}
+                            <Link
+                              href="/brand/signup"
+                              className="inline-flex min-h-[44px] items-center font-medium text-blue-600 underline-offset-2 hover:underline sm:min-h-0"
+                            >
+                              {txt.min_rate_cta_signup}
+                            </Link>{" "}
+                            {txt.min_rate_cta_suffix}
                             </p>
                           ) : null}
                         </div>
@@ -2565,13 +2571,17 @@ export default function InfluencerProfile(props: {
         </div>
 
         {/* TABS */}
-        <div className="mt-8 border-b border-slate-200">
-            <nav className="flex gap-8 overflow-x-auto">
-                <button onClick={() => setActiveTab("overview")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === "overview" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-700 hover:text-slate-900"}`}>{txt.tab_over}</button>
-                <button onClick={() => setActiveTab("audience")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === "audience" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-700 hover:text-slate-900"}`}>{txt.tab_aud}</button>
-                <button onClick={() => setActiveTab("pricing")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === "pricing" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-700 hover:text-slate-900"}`}>{txt.tab_price}</button>
-                <button onClick={() => setActiveTab("reviews")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === "reviews" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-700 hover:text-slate-900"}`}>{txt.tab_reviews} {profile.total_reviews ? `(${profile.total_reviews})` : ''}</button>
+        <div className="relative mt-8 border-b border-slate-200">
+            <nav className="flex gap-6 overflow-x-auto snap-x snap-mandatory sm:gap-8 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <button onClick={() => setActiveTab("overview")} className={`inline-flex min-h-[44px] shrink-0 snap-start items-center pb-1 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap sm:min-h-0 sm:pb-4 ${activeTab === "overview" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-700 hover:text-slate-900"}`}>{txt.tab_over}</button>
+                <button onClick={() => setActiveTab("audience")} className={`inline-flex min-h-[44px] shrink-0 snap-start items-center pb-1 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap sm:min-h-0 sm:pb-4 ${activeTab === "audience" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-700 hover:text-slate-900"}`}>{txt.tab_aud}</button>
+                <button onClick={() => setActiveTab("pricing")} className={`inline-flex min-h-[44px] shrink-0 snap-start items-center pb-1 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap sm:min-h-0 sm:pb-4 ${activeTab === "pricing" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-700 hover:text-slate-900"}`}>{txt.tab_price}</button>
+                <button onClick={() => setActiveTab("reviews")} className={`inline-flex min-h-[44px] shrink-0 snap-start items-center pb-1 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap sm:min-h-0 sm:pb-4 ${activeTab === "reviews" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-700 hover:text-slate-900"}`}>{txt.tab_reviews} {profile.total_reviews ? `(${profile.total_reviews})` : ''}</button>
             </nav>
+            <div
+              className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-white to-transparent sm:hidden"
+              aria-hidden
+            />
         </div>
 
         {/* CONTENT */}
@@ -2978,9 +2988,9 @@ export default function InfluencerProfile(props: {
                           <p className="mt-4 text-sm text-slate-600 text-center">
                             {lang === "el" ? "Συνδεθείτε ως brand για τιμές" : "Sign in as a brand for prices"}
                             {" — "}
-                            <Link href="/login" className="text-blue-600 underline hover:text-blue-800">{txt.min_rate_cta_login}</Link>
+                            <Link href="/login" className="inline-flex min-h-[44px] items-center text-blue-600 underline hover:text-blue-800 sm:min-h-0">{txt.min_rate_cta_login}</Link>
                             {lang === "el" ? " ή " : " or "}
-                            <Link href="/brand/signup" className="text-blue-600 underline hover:text-blue-800">{txt.min_rate_cta_signup}</Link>
+                            <Link href="/brand/signup" className="inline-flex min-h-[44px] items-center text-blue-600 underline hover:text-blue-800 sm:min-h-0">{txt.min_rate_cta_signup}</Link>
                           </p>
                         )}
                         <p className="mt-6 text-xs text-slate-400 text-center">{txt.price_note}</p>
