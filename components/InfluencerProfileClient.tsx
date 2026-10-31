@@ -2497,14 +2497,14 @@ export default function InfluencerProfile(props: {
                             <p className="mt-1 text-xs leading-snug text-slate-600">
                               <Link
                                 href="/login"
-                                className="font-medium text-blue-600 underline-offset-2 hover:underline"
+                                className="inline-flex min-h-[44px] items-center font-medium text-blue-600 underline-offset-2 hover:underline sm:min-h-0"
                               >
                                 {txt.min_rate_cta_login}
                               </Link>
                               {lang === "el" ? " ή " : " or "}
                               <Link
                                 href="/brand/signup"
-                                className="font-medium text-blue-600 underline-offset-2 hover:underline"
+                                className="inline-flex min-h-[44px] items-center font-medium text-blue-600 underline-offset-2 hover:underline sm:min-h-0"
                               >
                                 {txt.min_rate_cta_signup}
                               </Link>{" "}
@@ -2545,20 +2545,20 @@ export default function InfluencerProfile(props: {
                           </p>
                           {showBrandPriceCta ? (
                             <p className="mt-1 text-xs leading-snug text-slate-600">
-                              <Link
-                                href="/login"
-                                className="font-medium text-blue-600 underline-offset-2 hover:underline"
-                              >
-                                {txt.min_rate_cta_login}
-                              </Link>
-                              {lang === "el" ? " ή " : " or "}
-                              <Link
-                                href="/brand/signup"
-                                className="font-medium text-blue-600 underline-offset-2 hover:underline"
-                              >
-                                {txt.min_rate_cta_signup}
-                              </Link>{" "}
-                              {txt.min_rate_cta_suffix}
+                            <Link
+                              href="/login"
+                              className="inline-flex min-h-[44px] items-center font-medium text-blue-600 underline-offset-2 hover:underline sm:min-h-0"
+                            >
+                              {txt.min_rate_cta_login}
+                            </Link>
+                            {lang === "el" ? " ή " : " or "}
+                            <Link
+                              href="/brand/signup"
+                              className="inline-flex min-h-[44px] items-center font-medium text-blue-600 underline-offset-2 hover:underline sm:min-h-0"
+                            >
+                              {txt.min_rate_cta_signup}
+                            </Link>{" "}
+                            {txt.min_rate_cta_suffix}
                             </p>
                           ) : null}
                         </div>
@@ -3042,9 +3042,9 @@ export default function InfluencerProfile(props: {
                           <p className="mt-4 text-sm text-slate-600 text-center">
                             {lang === "el" ? "Συνδεθείτε ως brand για τιμές" : "Sign in as a brand for prices"}
                             {" — "}
-                            <Link href="/login" className="text-blue-600 underline hover:text-blue-800">{txt.min_rate_cta_login}</Link>
+                            <Link href="/login" className="inline-flex min-h-[44px] items-center text-blue-600 underline hover:text-blue-800 sm:min-h-0">{txt.min_rate_cta_login}</Link>
                             {lang === "el" ? " ή " : " or "}
-                            <Link href="/brand/signup" className="text-blue-600 underline hover:text-blue-800">{txt.min_rate_cta_signup}</Link>
+                            <Link href="/brand/signup" className="inline-flex min-h-[44px] items-center text-blue-600 underline hover:text-blue-800 sm:min-h-0">{txt.min_rate_cta_signup}</Link>
                           </p>
                         )}
                         <p className="mt-6 text-xs text-slate-400 text-center">{txt.price_note}</p>

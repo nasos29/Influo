@@ -453,7 +453,7 @@ export default function CampaignPublicView({
                     {platforms.length > 0 && (
                       <div className="mt-3 flex flex-wrap gap-2">
                         {platforms.map((p) => (
-                          <span key={p} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-slate-200 bg-white text-xs font-medium text-slate-800">
+                          <span key={p} className="inline-flex min-h-[44px] items-center gap-1.5 px-3 py-2 sm:min-h-0 sm:px-2.5 sm:py-1 rounded-full border border-slate-200 bg-white text-xs font-medium text-slate-800">
                             <PlatformIcon platform={p} />
                             {PLATFORM_LABEL[p]?.[lang === "en" ? "en" : "el"] || p}
                           </span>
