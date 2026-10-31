@@ -4,6 +4,7 @@ import { requireActor, influencerContact, brandHasAccount, listForRole, loadProp
 import { ensureProposalThread } from "@/lib/proposalChat";
 import { mailNewProposal } from "@/lib/proposalMail";
 import { deferAfterResponse, pushParty } from "@/lib/proposalNotify";
+import { formatEuroAmount } from "@/lib/formatEuro";
 import {
   cleanBudget,
   clipText,
@@ -139,7 +140,7 @@ export async function POST(request: Request) {
     });
     if ("error" in saved) return NextResponse.json({ error: saved.error }, { status: 500 });
 
-    const content = `Νέα πρόταση: ${service} | Budget: €${budget}${message ? `\n\n${message}` : ""}`;
+    const content = `Νέα πρόταση: ${service} | Budget: ${formatEuroAmount(budget) || budget}${message ? `\n\n${message}` : ""}`;
     let conversationId: string | null = null;
     try {
       conversationId = await ensureProposalThread({
@@ -176,7 +177,7 @@ export async function POST(request: Request) {
           conversationId,
           payload: {
             title: "Νέα πρόταση συνεργασίας",
-            body: `${brandName}: ${service} | €${budget}`,
+            body: `${brandName}: ${service} | ${formatEuroAmount(budget) || budget}`,
             url: "/dashboard",
             tag: "proposal",
           },

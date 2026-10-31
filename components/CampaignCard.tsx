@@ -9,6 +9,7 @@ import { campaignPublicBadgeLabel } from "@/lib/campaignPublicBadge";
 import { CampaignDescriptionText } from "@/lib/campaignDescription";
 import { displayLocation } from "@/lib/displayLocation";
 import CampaignCover from "@/components/CampaignCover";
+import { formatEuro } from "@/lib/formatEuro";
 
 export type CampaignCardBrand = {
   brand_name?: string | null;
@@ -169,7 +170,6 @@ export default function CampaignCard({
   const cat = campaign.category ? categoryLabel(campaign.category, lang) || campaign.category : "";
   const deliverableChips = splitDeliverables(campaign.deliverables);
   const platforms = Array.isArray(campaign.platforms) ? campaign.platforms : [];
-  const locale = lang === "el" ? "el-GR" : "en-GB";
   const showBudget = Number(campaign.budget) > 0;
   const publicBadge = campaignPublicBadgeLabel(campaign.applications_count, campaign.opened_at, lang);
   const appsCount =
@@ -260,7 +260,7 @@ export default function CampaignCard({
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
           {showBudget && (
             <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-900 text-white font-semibold">
-              €{Number(campaign.budget).toLocaleString(locale)}
+              {formatEuro(Number(campaign.budget), lang === "en" ? "en" : "el")}
             </span>
           )}
           {!showBudget && comp && (

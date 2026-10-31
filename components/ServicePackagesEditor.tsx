@@ -7,6 +7,7 @@ import {
   USAGE_RIGHTS_LABEL,
   defaultPackages,
   newPackageId,
+  isPositivePriceInput,
   normalizeServicePackages,
   packageTitle,
   type PackagePlatform,
@@ -238,7 +239,7 @@ export default function ServicePackagesEditor({ lang, packages, onChange, classN
               </div>
               <div>
                 <label className="mb-1 block text-[10px] font-semibold uppercase text-slate-500">
-                  {L("Τιμή €", "Price €")}
+                  {L("Τιμή (€)", "Price (€)")}
                 </label>
                 <input
                   type="text"
@@ -246,8 +247,17 @@ export default function ServicePackagesEditor({ lang, packages, onChange, classN
                   value={pkg.price}
                   onChange={(e) => update(pkg.id, { price: e.target.value.replace(/,/g, ".") })}
                   placeholder="150"
-                  className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm text-slate-900"
+                  className={`w-full rounded-lg border px-2 py-1.5 text-sm text-slate-900 ${
+                    pkg.price.trim() && !isPositivePriceInput(pkg.price)
+                      ? "border-red-400"
+                      : "border-slate-300"
+                  }`}
                 />
+                {pkg.price.trim() && !isPositivePriceInput(pkg.price) ? (
+                  <p className="mt-1 text-[10px] text-red-600">
+                    {L("Πάνω από 0, ή κενό.", "Greater than 0, or empty.")}
+                  </p>
+                ) : null}
               </div>
               <div>
                 <label className="mb-1 block text-[10px] font-semibold uppercase text-slate-500">

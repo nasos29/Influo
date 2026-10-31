@@ -48,6 +48,7 @@ import { loadOwnBrand, loadOwnProfiles } from "@/lib/ownProfile";
 import { creatorHasHardErOnMainAccount, displayErFlag, erFlagHint, erFlagLabel } from "@/lib/engagementFlags";
 import type { FollowerGrowthPoint } from "@/lib/followerGrowth";
 import { displayLanguageLabel } from "@/lib/languages";
+import { formatEuroAmount } from "@/lib/formatEuro";
 import { formatFromPriceLabel } from "@/lib/publicInfluencer";
 import {
   PACKAGE_PLATFORMS,
@@ -654,7 +655,7 @@ function ProfilePackagesSection({
               <div className="mt-4 flex-1">
                 {revealPrices && pkg.price ? (
                   <p className="text-2xl font-extrabold text-blue-700 tabular-nums">
-                    {pkg.price}€
+                    {formatEuroAmount(pkg.price, lang)}
                   </p>
                 ) : fromLabel ? (
                   <p className="text-xl font-bold text-slate-800 tabular-nums">{fromLabel}</p>
@@ -2484,7 +2485,7 @@ export default function InfluencerProfile(props: {
                       {revealPrices && profile.min_rate ? (
                         <div>
                           <p className="text-2xl font-semibold tracking-tight text-blue-700 tabular-nums">
-                            {profile.min_rate}€
+                            {formatEuroAmount(profile.min_rate, lang)}
                           </p>
                           <p className="mt-0.5 text-xs text-blue-600/80">{txt.min_rate_desc}</p>
                         </div>
@@ -2534,7 +2535,7 @@ export default function InfluencerProfile(props: {
                       {revealPrices && profile.min_rate && cpmValue != null ? (
                         <div>
                           <p className="text-2xl font-semibold tracking-tight text-violet-700 tabular-nums">
-                            {formatCpmEuro(cpmValue)}
+                            {formatCpmEuro(cpmValue, lang)}
                           </p>
                           <p className="mt-0.5 text-xs text-violet-700/80">{txt.cpm_desc}</p>
                         </div>
@@ -3180,11 +3181,11 @@ export default function InfluencerProfile(props: {
                 <div className="flex items-center justify-between border-t border-amber-300 pt-3">
                   <div>
                     <span className="text-sm text-slate-600">Προσφερόμενη Τιμή:</span>
-                    <p className="text-lg text-slate-500 line-through">€{counterProposal.budget}</p>
+                    <p className="text-lg text-slate-500 line-through">{formatEuroAmount(counterProposal.budget, lang)}</p>
                   </div>
                   <div className="text-right">
                     <span className="text-sm font-semibold text-amber-700">Αντιπρόταση:</span>
-                    <p className="text-2xl font-extrabold text-amber-600">€{counterProposal.counter_proposal_budget}</p>
+                    <p className="text-2xl font-extrabold text-amber-600">{formatEuroAmount(counterProposal.counter_proposal_budget, lang)}</p>
                   </div>
                 </div>
                 {counterProposal.counter_proposal_message && (

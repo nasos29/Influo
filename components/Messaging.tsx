@@ -18,6 +18,7 @@ import { formatActiveLabel, presenceOnline } from '@/lib/presenceStatus';
 import { counterpartyBrandPresence } from '@/lib/presenceIdentity';
 import { getInfluencerPresenceCached } from '@/lib/presenceCache';
 import { sessionFetch } from '@/lib/sessionFetch';
+import { formatEuroAmount } from '@/lib/formatEuro';
 
 interface MessageAttachment {
   url: string;
@@ -1969,11 +1970,11 @@ export default function Messaging({
                     <p className="text-xs text-slate-600">
                       <strong>{proposalInfo.service_type}</strong>
                       {' · '}
-                      {txt.proposalOffered}: <strong>{proposalInfo.budget}€</strong>
+                      {txt.proposalOffered}: <strong>{formatEuroAmount(proposalInfo.budget, lang === 'en' ? 'en' : 'el')}</strong>
                       {proposalInfo.counter_proposal_budget && proposalInfo.counter_proposal_status === 'pending' && (
                         <span className="text-amber-700">
                           {' · '}
-                          {txt.proposalCounter}: <strong>{proposalInfo.counter_proposal_budget}€</strong>
+                          {txt.proposalCounter}: <strong>{formatEuroAmount(proposalInfo.counter_proposal_budget, lang === 'en' ? 'en' : 'el')}</strong>
                         </span>
                       )}
                     </p>
@@ -2289,7 +2290,7 @@ export default function Messaging({
                   </strong>
                 </p>
                 <p className="text-sm text-blue-800">
-                  {lang === 'el' ? 'Υπηρεσία:' : 'Service:'} {proposalInfo.service_type} • {lang === 'el' ? 'Budget:' : 'Budget:'} €{proposalInfo.counter_proposal_budget || proposalInfo.budget}
+                  {lang === 'el' ? 'Υπηρεσία:' : 'Service:'} {proposalInfo.service_type} • {lang === 'el' ? 'Budget:' : 'Budget:'} {formatEuroAmount(proposalInfo.counter_proposal_budget || proposalInfo.budget, lang === 'en' ? 'en' : 'el')}
                 </p>
               </div>
 

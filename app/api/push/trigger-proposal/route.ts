@@ -2,6 +2,7 @@
 // Called from influencer profile page (client) after proposal insert
 
 import { NextResponse } from 'next/server';
+import { formatEuroAmount } from '@/lib/formatEuro';
 import { sendPushToInfluencer } from '@/lib/push';
 
 export async function POST(req: Request) {
@@ -19,7 +20,7 @@ export async function POST(req: Request) {
 
     await sendPushToInfluencer(String(influencerId), {
       title: '📨 Νέα Πρόταση Συνεργασίας',
-      body: `${brandName || 'Brand'}: ${proposalType || 'Συνεργασία'} | €${budget || ''}`,
+      body: `${brandName || 'Brand'}: ${proposalType || 'Συνεργασία'} | ${formatEuroAmount(budget) || ""}`,
       url: '/dashboard',
       tag: 'proposal',
     });

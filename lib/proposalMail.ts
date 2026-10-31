@@ -1,6 +1,14 @@
 import { Resend } from "resend";
 import { logEmail } from "@/lib/deliveryLog";
+import { formatEuroAmount } from "@/lib/formatEuro";
 import { escapeHtml } from "@/lib/proposalParty";
+
+function euroHtml(amount: unknown): string {
+  const formatted = formatEuroAmount(amount);
+  if (formatted) return formatted;
+  const raw = String(amount ?? "").replace(/€/g, "").trim();
+  return raw ? `${escapeHtml(raw)} €` : "—";
+}
 
 const SENDER = "Influo <noreply@influo.gr>";
 
@@ -61,7 +69,6 @@ export async function mailNewProposal(input: {
   const influencerName = escapeHtml(input.influencerName);
   const brandName = escapeHtml(input.brandName);
   const service = escapeHtml(input.service);
-  const budget = escapeHtml(input.budget);
   const message = escapeHtml(input.message).replace(/\n/g, "<br/>");
   const note = message
     ? `<p style="margin: 12px 0 0; white-space: pre-wrap;">${message}</p>`
@@ -76,7 +83,7 @@ export async function mailNewProposal(input: {
       "Νέα πρόταση συνεργασίας",
       `<p>Γεια σου ${influencerName},</p>
        <p>Το brand <strong>${brandName}</strong> σου έστειλε πρόταση.</p>
-       <p><strong>Υπηρεσία:</strong> ${service}<br/><strong>Budget:</strong> €${budget}</p>
+       <p><strong>Υπηρεσία:</strong> ${service}<br/><strong>Budget:</strong> ${euroHtml(input.budget)}</p>
        ${note}
        <p><a href="${siteUrl()}/dashboard">Άνοιξε τις προσφορές στο dashboard</a></p>`
     )
@@ -101,7 +108,7 @@ export async function mailNewProposal(input: {
         <strong>Email:</strong> ${escapeHtml(input.brandEmail)}<br/>
         <strong>Influencer:</strong> ${influencerName}<br/>
         <strong>Υπηρεσία:</strong> ${service}<br/>
-        <strong>Budget:</strong> €${budget}</p>
+        <strong>Budget:</strong> ${euroHtml(input.budget)}</p>
        ${note}
        <p><a href="${siteUrl()}/admin">Admin</a></p>`
     )
@@ -135,7 +142,7 @@ export async function mailProposalDecision(input: {
     shell(
       title,
       `<p>Γεια σας ${brandName},</p><p>${lead}</p>
-       <p><strong>Υπηρεσία:</strong> ${escapeHtml(input.service)}<br/><strong>Budget:</strong> €${escapeHtml(input.budget)}</p>
+       <p><strong>Υπηρεσία:</strong> ${escapeHtml(input.service)}<br/><strong>Budget:</strong> ${euroHtml(input.budget)}</p>
        ${next}`
     )
   );
@@ -164,8 +171,8 @@ export async function mailCounter(input: {
       `<p>Γεια σας ${escapeHtml(input.brandName)},</p>
        <p>Ο/Η <strong>${escapeHtml(input.influencerName)}</strong> προτείνει άλλη τιμή.</p>
        <p><strong>Υπηρεσία:</strong> ${escapeHtml(input.service)}<br/>
-          <strong>Αρχικό budget:</strong> €${escapeHtml(input.budget)}<br/>
-          <strong>Αντιπρόταση:</strong> €${escapeHtml(input.counterBudget)}</p>
+          <strong>Αρχικό budget:</strong> ${euroHtml(input.budget)}<br/>
+          <strong>Αντιπρόταση:</strong> ${euroHtml(input.counterBudget)}</p>
        ${comment}
        <p>Η απάντηση γίνεται από τον λογαριασμό της επιχείρησης, στην καρτέλα Προσφορές.</p>
        <p><a href="${link}">${input.brandHasAccount ? "Σύνδεση στο dashboard" : "Δημιουργία λογαριασμού"}</a></p>`
@@ -183,7 +190,7 @@ export async function mailCounterDecision(input: {
 }): Promise<void> {
   const title = input.accepted ? "Η αντιπρόταση έγινε αποδεκτή" : "Η αντιπρόταση απορρίφθηκε";
   const lead = input.accepted
-    ? `Η <strong>${escapeHtml(input.brandName)}</strong> αποδέχτηκε την αντιπρότασή σου. Η τιμή της πρότασης είναι πλέον €${escapeHtml(input.budget)}.`
+    ? `Η <strong>${escapeHtml(input.brandName)}</strong> αποδέχτηκε την αντιπρότασή σου. Η τιμή της πρότασης είναι πλέον ${euroHtml(input.budget)}.`
     : `Η <strong>${escapeHtml(input.brandName)}</strong> απέρριψε την αντιπρόταση. Η αρχική πρόταση παραμένει ανοιχτή.`;
   await send(
     input.accepted ? "counter_accepted" : "counter_rejected",
@@ -219,7 +226,7 @@ export async function mailAgreement(input: {
       "Η συμφωνία αποδεχτήκε από τη μία πλευρά",
       `<p>Γεια σας ${escapeHtml(input.recipientName)},</p>
        <p>Ο/Η <strong>${escapeHtml(input.otherName)}</strong> αποδέχτηκε τη συμφωνία. Χρειάζεται και η δική σας αποδοχή.</p>
-       <p><strong>Υπηρεσία:</strong> ${escapeHtml(input.service)}<br/><strong>Budget:</strong> €${escapeHtml(input.budget)}</p>
+       <p><strong>Υπηρεσία:</strong> ${escapeHtml(input.service)}<br/><strong>Budget:</strong> ${euroHtml(input.budget)}</p>
        <p><a href="${link}">${input.toBrand && !input.brandHasAccount ? "Δημιουργία λογαριασμού" : "Άνοιγμα προσφορών"}</a></p>`
     )
   );

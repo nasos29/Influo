@@ -14,11 +14,45 @@ function isConcretePrice(value: unknown): boolean {
 }
 
 function parsePackagePrice(price: unknown): number {
-  if (price == null || price === "") return 0;
-  const raw = typeof price === "number" ? String(price) : typeof price === "string" ? price : "";
-  if (!raw) return 0;
+  if (typeof price === "number") return Number.isFinite(price) && price > 0 ? price : 0;
+  if (typeof price !== "string") return 0;
+  const raw = price.trim();
+  if (!raw || raw.startsWith("-")) return 0;
   const parsed = parseFloat(raw.replace(/[^0-9.]/g, ""));
   return parsed || 0;
+}
+
+/** Empty is allowed. A filled price must be a number greater than 0. */
+export function isPositivePriceInput(price: string): boolean {
+  const trimmed = price.trim();
+  if (!trimmed) return true;
+  if (!/^\d+(\.\d+)?$/.test(trimmed)) return false;
+  return parseFloat(trimmed) > 0;
+}
+
+export function packagesHaveInvalidPrice(packages: Array<{ price?: string | null }>): boolean {
+  return packages.some((p) => !isPositivePriceInput(String(p.price ?? "")));
+}
+
+const RATE_CARD_PRICE_KEYS = ["story", "post", "reel", "facebook", "youtube"] as const;
+
+/**
+ * Smallest positive package or rate-card amount, or null when none exist.
+ * Zeros, blanks, and non-numeric text are ignored.
+ */
+export function deriveMinRate(servicePackages: unknown, rateCard: unknown): string | null {
+  let min = Infinity;
+  const consider = (value: unknown) => {
+    const n = parsePackagePrice(value);
+    if (n > 0 && n < min) min = n;
+  };
+  for (const pkg of normalizeServicePackages(servicePackages)) consider(pkg.price);
+  if (rateCard && typeof rateCard === "object" && !Array.isArray(rateCard)) {
+    const src = rateCard as Record<string, unknown>;
+    for (const key of RATE_CARD_PRICE_KEYS) consider(src[key]);
+  }
+  if (!Number.isFinite(min) || min === Infinity) return null;
+  return String(min);
 }
 
 export const PACKAGE_PLATFORMS = ["instagram", "tiktok", "youtube", "facebook"] as const;
@@ -298,14 +332,14 @@ export function rateCardFromPackages(packages: ServicePackage[]): Record<string,
 /** Persist shape for jsonb (max 6). */
 export function packagesForSave(packages: ServicePackage[]): ServicePackage[] {
   return normalizeServicePackages(packages)
-    .filter((p) => isConcretePrice(p.price))
+    .filter((p) => parsePackagePrice(p.price) > 0)
     .slice(0, 6)
     .map((p) => ({
       id: p.id,
       platform: p.platform,
       type: p.type,
       quantity: p.quantity,
-      price: String(parsePackagePrice(p.price) || p.price).trim(),
+      price: String(parsePackagePrice(p.price)),
       delivery_days: p.delivery_days ?? null,
       usage_rights: p.usage_rights ?? null,
       description: p.description || "",

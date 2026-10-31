@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { formatEuro } from "@/lib/formatEuro";
 import InfoTooltip from "@/components/InfoTooltip";
 import {
   AXIS_LABELS,
@@ -134,7 +135,7 @@ export default function ChannelScorePanel({
     " Z";
   const labelPts = ORDER.map((id, i) => ({ id, ...polar(cx, cy, labelR, i, n) }));
 
-  const money = (n: number) => `${Math.round(n).toLocaleString(el ? "el-GR" : "en-US")}€`;
+  const money = (n: number) => formatEuro(Math.round(n), el ? "el" : "en");
   const labelAnchor = (x: number): "start" | "middle" | "end" => {
     if (x < cx - 12) return "end";
     if (x > cx + 12) return "start";
