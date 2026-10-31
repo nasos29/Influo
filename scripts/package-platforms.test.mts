@@ -3,9 +3,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { lowestListedPrice, toPublicProfile } from "../lib/publicInfluencer.ts";
 import {
+  creatorServicePricesFromStored,
   packageBlurb,
   packageTitle,
   packagesForViewer,
+  packagesFromCreatorPrices,
+  rateCardFromPackages,
   type PublicPackageView,
 } from "../lib/servicePackages.ts";
 
@@ -63,6 +66,37 @@ test("YouTube is shown only with a YouTube account", () => {
     lowestListedPrice({ rate_card: card, min_rate: "9", accounts: [{ platform: "YouTube" }] }),
     500
   );
+});
+
+test("an explicit tiktok key stays a TikTok Video next to Instagram", () => {
+  const packages = packagesForViewer([], { story: "10", reel: "20", tiktok: "30", youtube: "40" }, [
+    { platform: "Instagram" },
+    { platform: "TikTok" },
+  ]);
+  assert.deepEqual(
+    packages.map((pkg) => packageTitle(pkg.platform, pkg.type, 1, "en")),
+    ["1 Instagram Story", "1 Instagram Reel", "1 TikTok Video"]
+  );
+  assert.equal(packages.find((pkg) => pkg.platform === "tiktok")?.price, "30");
+});
+
+test("TikTok-only prefers the tiktok key over a legacy reel", () => {
+  const packages = packagesForViewer([], { reel: "20", tiktok: "30", story: "10" }, [{ platform: "TikTok" }]);
+  assert.equal(packages.length, 1);
+  assert.equal(packages[0]?.price, "30");
+  assert.equal(packageTitle(packages[0]!.platform, packages[0]!.type, 1, "en"), "1 TikTok Video");
+});
+
+test("the price form writes a tiktok key and prefills TikTok-only from the old reel", () => {
+  const prefilled = creatorServicePricesFromStored([], { reel: "90", story: "15" }, [{ platform: "TikTok" }]);
+  assert.equal(prefilled.tiktok, "90");
+  assert.equal(prefilled.story, "15");
+  const saved = packagesFromCreatorPrices(
+    { ...prefilled, tiktok: "90", ugc_video: "40" },
+    [{ platform: "TikTok" }]
+  );
+  assert.deepEqual(rateCardFromPackages(saved), { tiktok: "90", ugc_video: "40" });
+  assert.equal(saved.find((pkg) => pkg.platform === "tiktok")?.type, "video");
 });
 
 test("no recognized account leaves the rate card unchanged", () => {

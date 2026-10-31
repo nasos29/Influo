@@ -48,16 +48,20 @@ import {
 } from '@/lib/dashboardBadges';
 import { displayNameForLang } from '@/lib/greeklish';
 import { normalizeYouTubeUsernameForSave } from '@/lib/youtubeHandle';
-import ServicePackagesEditor, { initialPackagesFromUser } from '@/components/ServicePackagesEditor';
+import CreatorPlatformPrices from '@/components/CreatorPlatformPrices';
 import {
+    creatorPricesHaveInvalid,
+    creatorServicePricesFromStored,
     deriveMinRate,
     extrasFromRateCard,
     extrasHaveInvalidPrice,
     FIXED_PRICE_MESSAGE,
     mergeRateCard,
-    packagesHaveInvalidPrice,
     packagesForSave,
+    packagesFromCreatorPrices,
     rateCardFromPackages,
+    rateCardKeepingUnmanaged,
+    type CreatorServicePrices,
     type ServiceExtras,
     type ServicePackage,
 } from '@/lib/servicePackages';
@@ -216,8 +220,8 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatar_url || null);
     
-    const [servicePackages, setServicePackages] = useState<ServicePackage[]>(() =>
-        initialPackagesFromUser(user.service_packages, user.rate_card)
+    const [servicePrices, setServicePrices] = useState<CreatorServicePrices>(() =>
+        creatorServicePricesFromStored(user.service_packages, user.rate_card, user.accounts)
     );
     const [serviceExtras, setServiceExtras] = useState<ServiceExtras>(() =>
         extrasFromRateCard(user.rate_card)
@@ -333,7 +337,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
         topAge,
         videos: videoRows.map((row) => row.url),
         avatarPreview,
-        servicePackages,
+        servicePrices,
         serviceExtras,
     });
     const baselineRef = useRef<string | null>(null);
@@ -499,20 +503,23 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                 user.hidden_videos
             );
 
-            if (packagesHaveInvalidPrice(servicePackages) || extrasHaveInvalidPrice(serviceExtras)) {
+            if (creatorPricesHaveInvalid(servicePrices, accounts) || extrasHaveInvalidPrice(serviceExtras)) {
                 notify(FIXED_PRICE_MESSAGE[lang], 'error');
                 setSection('packages');
                 setLoading(false);
                 return;
             }
-            const packagesPayload = packagesForSave(servicePackages);
+            const packagesPayload = packagesForSave(packagesFromCreatorPrices(servicePrices, accounts));
             if (packagesPayload.length < 1) {
                 notify(L("Προσθέστε τουλάχιστον ένα πακέτο με τιμή.", "Add at least one package with a price."), 'error');
                 setSection('packages');
                 setLoading(false);
                 return;
             }
-            const rateCardPayload = mergeRateCard(rateCardFromPackages(packagesPayload), serviceExtras);
+            const rateCardPayload = mergeRateCard(
+                rateCardKeepingUnmanaged(rateCardFromPackages(packagesPayload), user.rate_card),
+                serviceExtras
+            );
 
             const newValues: any = {
                 display_name: name, 
@@ -918,12 +925,11 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                     ) : null}
 
                     {section === 'packages' ? (
-                    <ServicePackagesEditor
+                    <CreatorPlatformPrices
                         lang={lang}
-                        packages={servicePackages}
-                        extras={serviceExtras}
-                        onChange={setServicePackages}
-                        onExtrasChange={setServiceExtras}
+                        accounts={accounts}
+                        prices={servicePrices}
+                        onChange={setServicePrices}
                     />
                     ) : null}
 

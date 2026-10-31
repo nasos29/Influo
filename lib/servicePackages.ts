@@ -80,6 +80,7 @@ export const RATE_CARD_PRICE_KEYS = [
   "story",
   "post",
   "reel",
+  "tiktok",
   "facebook",
   "youtube",
   "ugc_video",
@@ -417,6 +418,7 @@ export function packagesFromRateCard(rateCard: unknown): ServicePackage[] {
     { key: "story", platform: "instagram", type: "story" },
     { key: "post", platform: "instagram", type: "post" },
     { key: "reel", platform: "instagram", type: "reel" },
+    { key: "tiktok", platform: "tiktok", type: "video" },
     { key: "youtube", platform: "youtube", type: "video" },
     { key: "facebook", platform: "facebook", type: "post" },
     { key: "carousel", platform: "instagram", type: "carousel" },
@@ -438,7 +440,7 @@ export function packagesFromRateCard(rateCard: unknown): ServicePackage[] {
       usage_rights: null,
       description: "",
     });
-    if (out.length >= 8) break;
+    if (out.length >= 12) break;
   }
   return out;
 }
@@ -512,13 +514,16 @@ export function alignPackagesToAccounts(packages: ServicePackage[], accounts: un
       if (!isUgcService(pkg) && pkg.platform === "instagram") push(pkg);
     }
   } else if (networks.tiktok) {
-    const reel = packages.find((pkg) => !isUgcService(pkg) && (pkg.type === "reel" || pkg.type === "short"));
-    const post = packages.find(
-      (pkg) => !isUgcService(pkg) && pkg.type === "post" && pkg.platform !== "facebook"
-    );
-    const source = reel || post;
-    if (source) {
-      push({ ...source, platform: "tiktok", type: "video" });
+    const explicit = packages.filter((pkg) => pkg.platform === "tiktok");
+    if (explicit.length) {
+      explicit.forEach(push);
+    } else {
+      const reel = packages.find((pkg) => !isUgcService(pkg) && (pkg.type === "reel" || pkg.type === "short"));
+      const post = packages.find(
+        (pkg) => !isUgcService(pkg) && pkg.type === "post" && pkg.platform !== "facebook"
+      );
+      const source = reel || post;
+      if (source) push({ ...source, platform: "tiktok", type: "video" });
     }
   }
 
@@ -566,6 +571,114 @@ export function packageBlurb(
   if (type === "ugc_video") return el ? "Βίντεο που το χρησιμοποιεί το brand." : "A video the brand can publish.";
   if (type === "ugc_photo") return el ? "Φωτογραφία που τη χρησιμοποιεί το brand." : "A photo the brand can publish.";
   return el ? "Υπηρεσία για συνεργασία." : "A service for a collaboration.";
+}
+
+export type CreatorServicePrices = {
+  story: string;
+  post: string;
+  reel: string;
+  tiktok: string;
+  youtube: string;
+  ugc_video: string;
+};
+
+export function emptyCreatorServicePrices(): CreatorServicePrices {
+  return { story: "", post: "", reel: "", tiktok: "", youtube: "", ugc_video: "" };
+}
+
+function cardText(rateCard: unknown, key: string): string {
+  if (!rateCard || typeof rateCard !== "object" || Array.isArray(rateCard)) return "";
+  const value = (rateCard as Record<string, unknown>)[key];
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  if (typeof value === "string") return value.trim();
+  return "";
+}
+
+function packagePrice(packages: ServicePackage[], platform: PackagePlatform, type: PackageType): string {
+  const found = packages.find((pkg) => pkg.platform === platform && pkg.type === type);
+  return found ? String(found.price || "").trim() : "";
+}
+
+/** Prefill the price form. A TikTok-only creator's old reel/post fills TikTok Video. */
+export function creatorServicePricesFromStored(
+  servicePackages: unknown,
+  rateCard: unknown,
+  accounts: unknown
+): CreatorServicePrices {
+  const prices = emptyCreatorServicePrices();
+  const networks = creatorNetworksFromAccounts(accounts);
+  const packages = normalizeServicePackages(servicePackages);
+  prices.story = packagePrice(packages, "instagram", "story") || cardText(rateCard, "story");
+  prices.post = packagePrice(packages, "instagram", "post") || cardText(rateCard, "post");
+  prices.reel = packagePrice(packages, "instagram", "reel") || cardText(rateCard, "reel");
+  prices.tiktok = packagePrice(packages, "tiktok", "video") || cardText(rateCard, "tiktok");
+  if (!prices.tiktok && networks.tiktok && !networks.instagram) {
+    prices.tiktok =
+      cardText(rateCard, "reel") ||
+      packagePrice(packages, "instagram", "reel") ||
+      cardText(rateCard, "post") ||
+      packagePrice(packages, "instagram", "post");
+  }
+  prices.youtube = packagePrice(packages, "youtube", "video") || cardText(rateCard, "youtube");
+  prices.ugc_video = packagePrice(packages, "ugc", "ugc_video") || cardText(rateCard, "ugc_video");
+  return prices;
+}
+
+/** Packages for the platforms currently on the account list, plus optional UGC video. */
+export function packagesFromCreatorPrices(
+  prices: CreatorServicePrices,
+  accounts: unknown
+): ServicePackage[] {
+  const networks = creatorNetworksFromAccounts(accounts);
+  const out: ServicePackage[] = [];
+  const push = (platform: PackagePlatform, type: PackageType, price: string, id: string) => {
+    const text = price.trim();
+    if (!text) return;
+    out.push({
+      id,
+      platform,
+      type,
+      quantity: 1,
+      price: text,
+      delivery_days: null,
+      usage_rights: "none",
+      description: "",
+    });
+  };
+  if (networks.instagram) {
+    push("instagram", "story", prices.story, "price_story");
+    push("instagram", "post", prices.post, "price_post");
+    push("instagram", "reel", prices.reel, "price_reel");
+  }
+  if (networks.tiktok) push("tiktok", "video", prices.tiktok, "price_tiktok");
+  if (networks.youtube) push("youtube", "video", prices.youtube, "price_youtube");
+  push("ugc", "ugc_video", prices.ugc_video, "price_ugc_video");
+  return out;
+}
+
+export function creatorPricesHaveInvalid(prices: CreatorServicePrices, accounts: unknown): boolean {
+  const networks = creatorNetworksFromAccounts(accounts);
+  const values = [prices.ugc_video];
+  if (networks.instagram) values.push(prices.story, prices.post, prices.reel);
+  if (networks.tiktok) values.push(prices.tiktok);
+  if (networks.youtube) values.push(prices.youtube);
+  return values.some((value) => !isPositivePriceInput(value));
+}
+
+/** Keep add-on and unedited keys when the price form rewrites story/post/reel/tiktok/youtube/ugc_video. */
+export function rateCardKeepingUnmanaged(
+  next: Record<string, string>,
+  previous: unknown
+): Record<string, string> {
+  const out = { ...next };
+  if (!previous || typeof previous !== "object" || Array.isArray(previous)) return out;
+  const src = previous as Record<string, unknown>;
+  for (const key of ["facebook", "carousel", "ugc_photo", ...RATE_CARD_EXTRA_KEYS]) {
+    if (out[key]) continue;
+    const text = fixedIntegerText(src[key]);
+    if (text) out[key] = text;
+  }
+  return out;
 }
 
 /** `tierFromPrice` supplied by caller (usually priceTierFromMinRate) to avoid import cycles. */
@@ -629,7 +742,11 @@ export function rateCardFromPackages(packages: ServicePackage[]): Record<string,
     if (p.type === "story") key = "story";
     else if (p.type === "post") key = p.platform === "facebook" ? "facebook" : "post";
     else if (p.type === "reel" || p.type === "short") key = "reel";
-    else if (p.type === "video") key = p.platform === "youtube" ? "youtube" : "reel";
+    else if (p.type === "video") {
+      if (p.platform === "youtube") key = "youtube";
+      else if (p.platform === "tiktok") key = "tiktok";
+      else key = "reel";
+    }
     else if (p.type === "carousel") key = "carousel";
     else if (p.type === "ugc_video") key = "ugc_video";
     else if (p.type === "ugc_photo") key = "ugc_photo";

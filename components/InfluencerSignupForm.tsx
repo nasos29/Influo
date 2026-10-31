@@ -30,18 +30,19 @@ import {
   validateBirthDate,
 } from "@/lib/validateBirthDate";
 import { normalizeYouTubeUsernameForSave } from "@/lib/youtubeHandle";
-import ServicePackagesEditor from "./ServicePackagesEditor";
+import CreatorPlatformPrices from "@/components/CreatorPlatformPrices";
 import {
-  defaultPackages,
+  creatorPricesHaveInvalid,
+  emptyCreatorServicePrices,
   emptyExtras,
   extrasHaveInvalidPrice,
   FIXED_PRICE_MESSAGE,
   mergeRateCard,
-  packagesHaveInvalidPrice,
   packagesForSave,
+  packagesFromCreatorPrices,
   rateCardFromPackages,
+  type CreatorServicePrices,
   type ServiceExtras,
-  type ServicePackage,
 } from "@/lib/servicePackages";
 
 type Account = { platform: string; username: string; followers: string; engagement_rate?: string; avg_likes?: string };
@@ -248,7 +249,7 @@ export default function InfluencerSignupForm() {
   const [videoRows, setVideoRows] = useState<VideoRow[]>(() => toVideoRows([""]));
   const [engagementRate, setEngagementRate] = useState("");
   const [avgLikes, setAvgLikes] = useState("");
-  const [servicePackages, setServicePackages] = useState<ServicePackage[]>(() => defaultPackages());
+  const [servicePrices, setServicePrices] = useState<CreatorServicePrices>(() => emptyCreatorServicePrices());
   const [serviceExtras, setServiceExtras] = useState<ServiceExtras>(() => emptyExtras());
 
   // NEW AUDIENCE STATES
@@ -771,10 +772,10 @@ export default function InfluencerSignupForm() {
           return { ...acc, username };
         });
 
-      if (packagesHaveInvalidPrice(servicePackages) || extrasHaveInvalidPrice(serviceExtras)) {
+      if (creatorPricesHaveInvalid(servicePrices, accounts) || extrasHaveInvalidPrice(serviceExtras)) {
         throw new Error(FIXED_PRICE_MESSAGE[lang]);
       }
-      const packagesPayload = packagesForSave(servicePackages);
+      const packagesPayload = packagesForSave(packagesFromCreatorPrices(servicePrices, accounts));
       if (packagesPayload.length < 1) {
         throw new Error(
           lang === "el"
@@ -1267,12 +1268,11 @@ export default function InfluencerSignupForm() {
                     <button type="button" onClick={addVideo} className="text-blue-600 text-sm font-bold hover:underline">{txt.addVideo}</button>
                 </div>
 
-                <ServicePackagesEditor
+                <CreatorPlatformPrices
                   lang={lang}
-                  packages={servicePackages}
-                  extras={serviceExtras}
-                  onChange={setServicePackages}
-                  onExtrasChange={setServiceExtras}
+                  accounts={accounts}
+                  prices={servicePrices}
+                  onChange={setServicePrices}
                 />
 
                 {message && <p className="text-red-600 text-sm text-center mt-2 font-medium bg-red-50 p-2 rounded">{message}</p>}
