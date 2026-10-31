@@ -8,6 +8,7 @@ import { sessionFetch } from "@/lib/sessionFetch";
 import { formatEuroAmount, parseEuroNumber } from "@/lib/formatEuro";
 import { listedPriceMin } from "@/lib/parsePrice";
 import { averageRateNote, negotiateLead } from "@/lib/creatorAddress";
+import { responseText } from "@/lib/bilingualError";
 import { offerPriceLabel } from "@/lib/offerPriceLabel";
 import {
   EXTRA_HINT,
@@ -289,7 +290,7 @@ export function NegotiateDialog({
                   });
                   const body = await response.json().catch(() => ({}));
                   if (!response.ok || !body.success) {
-                    throw new Error(typeof body.error === "string" ? body.error : copy.sendError);
+                    throw new Error(responseText(body, lang, copy.sendError));
                   }
                   setSent(true);
                 } catch (err) {

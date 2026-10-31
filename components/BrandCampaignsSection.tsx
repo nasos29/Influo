@@ -21,6 +21,8 @@ import { displayNameForLang } from "@/lib/greeklish";
 import { SECTION_TITLE_CLASS } from "@/lib/sectionTitle";
 import { formatDate } from "@/lib/formatDateTime";
 import { isTimeoutError, withTimeout } from "@/lib/withTimeout";
+import { campaignServiceType } from "@/lib/campaignServiceLabel";
+import { responseText } from "@/lib/bilingualError";
 
 const CONTACT_BLOCKED: { el: string; en: string } = {
   el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
@@ -986,7 +988,7 @@ export default function BrandCampaignsSection({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           influencerId: match.id,
-          serviceType: `Καμπάνια: ${campaign?.title || ""}`.slice(0, 120),
+          serviceType: campaignServiceType(campaign?.title || "", lang),
           budget,
           message:
             lang === "el"
@@ -995,7 +997,7 @@ export default function BrandCampaignsSection({
         }),
       });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.error || "Error");
+      if (!res.ok) throw new Error(responseText(body, lang, "Error"));
       toastSuccess(x.invited);
       setInvites((prev) => prev.filter((row) => row.id !== match.id));
     } catch (err: unknown) {

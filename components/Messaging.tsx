@@ -19,6 +19,8 @@ import { counterpartyBrandPresence } from '@/lib/presenceIdentity';
 import { getInfluencerPresenceCached } from '@/lib/presenceCache';
 import { sessionFetch } from '@/lib/sessionFetch';
 import { formatEuroAmount } from '@/lib/formatEuro';
+import { displayServiceType } from '@/lib/campaignServiceLabel';
+import { displayProposalThread } from '@/lib/proposalThreadCopy';
 
 interface MessageAttachment {
   url: string;
@@ -1788,7 +1790,7 @@ export default function Messaging({
                     </div>
                     <div className="flex items-center justify-between gap-2 mt-0.5">
                       <p className="text-xs text-slate-500 truncate">
-                        {clipChatPreview(conv.last_message_preview || '') || '—'}
+                        {clipChatPreview(displayProposalThread(conv.last_message_preview || '', lang)) || '—'}
                       </p>
                       <div className="flex items-center gap-1 shrink-0">
                         {isClosed && (
@@ -1968,7 +1970,7 @@ export default function Messaging({
                   <div className="mt-2 p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
                     <p className="text-[11px] font-semibold text-slate-700 mb-0.5">{txt.proposalCardTitle}</p>
                     <p className="text-xs text-slate-600">
-                      <strong>{proposalInfo.service_type}</strong>
+                      <strong>{displayServiceType(proposalInfo.service_type, lang)}</strong>
                       {' · '}
                       {txt.proposalOffered}: <strong>{formatEuroAmount(proposalInfo.budget, lang === 'en' ? 'en' : 'el')}</strong>
                       {proposalInfo.counter_proposal_budget && proposalInfo.counter_proposal_status === 'pending' && (
@@ -2015,7 +2017,7 @@ export default function Messaging({
                           }`}
                         >
                           {msg.content ? (
-                            <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                            <p className="text-sm whitespace-pre-wrap leading-relaxed">{displayProposalThread(msg.content, lang)}</p>
                           ) : null}
                           {Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
                             <div className={`mt-1.5 space-y-1.5 ${msg.content ? '' : ''}`}>
@@ -2290,7 +2292,7 @@ export default function Messaging({
                   </strong>
                 </p>
                 <p className="text-sm text-blue-800">
-                  {lang === 'el' ? 'Υπηρεσία:' : 'Service:'} {proposalInfo.service_type} • {lang === 'el' ? 'Budget:' : 'Budget:'} {formatEuroAmount(proposalInfo.counter_proposal_budget || proposalInfo.budget, lang === 'en' ? 'en' : 'el')}
+                  {lang === 'el' ? 'Υπηρεσία:' : 'Service:'} {displayServiceType(proposalInfo.service_type, lang)} • {lang === 'el' ? 'Budget:' : 'Budget:'} {formatEuroAmount(proposalInfo.counter_proposal_budget || proposalInfo.budget, lang === 'en' ? 'en' : 'el')}
                 </p>
               </div>
 

@@ -13,13 +13,23 @@ import { findContactInfo } from "@/lib/contactFilter";
  * If initiated_by does not exist yet (docs/CAMPAIGN_BRAND_INVITE.sql is not applied),
  * the insert is skipped and the response is still ok.
  */
+const INVITE_ERRORS = {
+  brand: { el: "Συνδεθείτε ως επιχείρηση.", en: "Sign in as a brand." },
+  self: { el: "Δεν μπορείτε να προσκαλέσετε τον εαυτό σας.", en: "You cannot invite yourself." },
+} as const;
+
 export async function POST(request: Request) {
+  const raw = await request.json().catch(() => ({}));
+  const body = raw && typeof raw === "object" ? raw : {};
+  const lang = body.lang === "en" ? "en" : "el";
+  const say = (copy: { el: string; en: string }, status: number) =>
+    NextResponse.json({ error: copy[lang], message: copy }, { status });
+
   const session = await requireActor(request);
   if (!session?.actor.brandId) {
-    return NextResponse.json({ error: "Συνδεθείτε ως επιχείρηση." }, { status: 401 });
+    return say(INVITE_ERRORS.brand, 401);
   }
 
-  const body = await request.json().catch(() => ({}));
   const campaignId = clipText(body.campaignId, 80);
   const influencerId = clipText(body.influencerId, 80);
   const message = clipText(body.message, 2000);
@@ -27,7 +37,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
   if (session.actor.influencerId && session.actor.influencerId === influencerId) {
-    return NextResponse.json({ error: "Δεν μπορείτε να προσκαλέσετε τον εαυτό σας." }, { status: 403 });
+    return say(INVITE_ERRORS.self, 403);
   }
   const contactHit = findContactInfo(message);
   if (contactHit) {

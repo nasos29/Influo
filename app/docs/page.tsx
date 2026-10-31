@@ -15,7 +15,7 @@ type Lang = "el" | "en";
 const t = {
   el: {
     title: "Οδηγός Χρήστη",
-    subtitle: "Για Influencers & Brands",
+    subtitle: "Για creators και επιχειρήσεις",
     back: "Επιστροφή",
     nav_home: "Αρχική",
     back_top: "Πίσω στην κορυφή",
@@ -24,7 +24,7 @@ const t = {
   },
   en: {
     title: "User Guide",
-    subtitle: "For Influencers & Brands",
+    subtitle: "For creators and businesses",
     back: "Back",
     nav_home: "Home",
     back_top: "Back to top",
@@ -35,25 +35,27 @@ const t = {
 
 const TOC_GROUPS: DocsTocGroup[] = [
   {
-    title: { el: "Για brands", en: "For brands" },
+    title: { el: "Για creators", en: "For creators" },
     items: [
-      { id: "campaigns", label: { el: "Καμπάνιες", en: "Campaigns" } },
-      { id: "proposals", label: { el: "Προσφορές", en: "Proposals" } },
-      { id: "brand-tools", label: { el: "Εργαλεία brand", en: "Brand tools" } },
+      { id: "services", label: { el: "Υπηρεσίες και τιμές", en: "Services and prices" } },
+      { id: "profile", label: { el: "Προφίλ και στατιστικά", en: "Profile and stats" } },
+      { id: "influencer-tools", label: { el: "Εργαλεία creator", en: "Creator tools" } },
+      { id: "counter", label: { el: "Αντιπροσφορά", en: "Counter-proposal" } },
     ],
   },
   {
-    title: { el: "Για influencers", en: "For influencers" },
+    title: { el: "Για επιχειρήσεις", en: "For businesses" },
     items: [
-      { id: "badges", label: { el: "Badges", en: "Badges" } },
-      { id: "influencer-tools", label: { el: "Εργαλεία influencer", en: "Influencer tools" } },
-      { id: "counter", label: { el: "Αντιπροσφορά", en: "Counter-proposal" } },
+      { id: "hire", label: { el: "Συνεργασία και πρόσκληση", en: "Collaborate and invite" } },
+      { id: "campaigns", label: { el: "Καμπάνιες", en: "Campaigns" } },
+      { id: "proposals", label: { el: "Προσφορές", en: "Proposals" } },
+      { id: "brand-tools", label: { el: "Εργαλεία επιχείρησης", en: "Business tools" } },
     ],
   },
   {
     title: { el: "Γενικά", en: "General" },
     items: [
-      { id: "profile", label: { el: "Προφίλ & εμπιστοσύνη", en: "Profile & trust" } },
+      { id: "badges", label: { el: "Badges", en: "Badges" } },
       { id: "agreement", label: { el: "Συμφωνία", en: "Agreement" } },
       { id: "messages", label: { el: "Μηνύματα", en: "Messages" } },
       { id: "reviews", label: { el: "Reviews", en: "Reviews" } },
@@ -188,6 +190,46 @@ type FaqEntry = { q: Record<Lang, string>; a: Record<Lang, string> };
 const FAQ_ITEMS: FaqEntry[] = [
   {
     q: {
+      el: "Πώς ορίζω τιμές και τι σημαίνει «Από 50 €»;",
+      en: "How do I set prices, and what does “From 50 €” mean?",
+    },
+    a: {
+      el: "Στην εγγραφή ή στο Dashboard βάζετε έναν ακέραιο σε ευρώ ανά υπηρεσία, για παράδειγμα 50 €. Κενό σημαίνει ότι δεν την προσφέρετε. Οι υπηρεσίες Instagram, TikTok και YouTube ανοίγουν μόνο με δηλωμένο λογαριασμό. UGC και «Άλλα» μένουν διαθέσιμα. Το «Από» είναι η φθηνότερη υπηρεσία· οι επιπλέον χρεώσεις δεν μετρούν. Οι τιμές φαίνονται σε όλους.",
+      en: "At signup or in the Dashboard you enter one whole number in euros per service, for example 50 €. Empty means you do not offer it. Instagram, TikTok, and YouTube services open only when that account is added. UGC and Other stay available. “From” is the cheapest service; extra charges do not count. Prices are visible to everyone.",
+    },
+  },
+  {
+    q: {
+      el: "Πώς στέλνω πρόσκληση σε καμπάνια και πού τη βλέπει ο creator;",
+      en: "How do I invite someone to a campaign, and where does the creator see it?",
+    },
+    a: {
+      el: "Στο προφίλ, το κουμπί «Πρόσκληση σε καμπάνια» ανοίγει τις ανοιχτές και πρόχειρες καμπάνιες σας. Χωρίς καμπάνια, σας ζητά να δημιουργήσετε μία. Με την αποστολή, ο creator παίρνει πρόταση με υπηρεσία «Καμπάνια: …» και μήνυμα. Στις καμπάνιες του φαίνεται ως πρόσκληση όταν η πρόσκληση καταγραφεί.",
+      en: "On the profile, Invite to campaign opens your open and draft campaigns. With none, it asks you to create one. After you send it, the creator gets a proposal whose service is “Campaign: …” plus a message. On their campaign list it shows as an invite when the invite is recorded.",
+    },
+  },
+  {
+    q: {
+      el: "Πώς υπολογίζεται το CPM και τι είναι τα κορυφαία posts;",
+      en: "How is CPM calculated, and what are top posts?",
+    },
+    a: {
+      el: "Το CPM είναι η τιμή του βίντεο της πλατφόρμας διά τις μέσες προβολές της ίδιας πλατφόρμας, επί 1.000. Instagram: Reel. TikTok και YouTube: Video. Φαίνεται μόνο με τουλάχιστον 100 μέσες προβολές. Τα κορυφαία posts (έως 6) είναι στην καρτέλα Στατιστικά και ανοίγουν όπως το portfolio. Η ανανέωση κάθε 15 ημέρες τα κρατά όταν η απάντηση τα περιλαμβάνει.",
+      en: "CPM is that platform’s video price divided by its own average views, times 1,000. Instagram uses the Reel. TikTok and YouTube use the Video. It appears only with at least 100 average views. Top posts (up to 6) are on the Stats tab and open like the portfolio. The 15-day refresh keeps them when the response includes them.",
+    },
+  },
+  {
+    q: {
+      el: "Πώς εγγράφομαι από τη σελίδα σύνδεσης;",
+      en: "How do I sign up from the login page?",
+    },
+    a: {
+      el: "Κάτω από το κουμπί εισόδου, το «Εγγραφείτε» ανοίγει την ίδια επιλογή με την αρχική: λογαριασμός creator ή λογαριασμός επιχείρησης.",
+      en: "Under the sign-in button, Sign up opens the same choice as the homepage: a creator account or a business account.",
+    },
+  },
+  {
+    q: {
       el: "Πώς μπορώ να αυξήσω το engagement rate μου;",
       en: "How can I increase my engagement rate?",
     },
@@ -252,8 +294,8 @@ const FAQ_ITEMS: FaqEntry[] = [
       en: "Is signing up and using Influo free?",
     },
     a: {
-      el: "Η εγγραφή, η δημοσίευση καμπάνιας και η αίτηση είναι δωρεάν. Δεν παίρνουμε προμήθεια από τις συνεργασίες σας. Ελέγξτε τους όρους χρήσης για εμπορικές λεπτομέρειες.",
-      en: "Signing up, publishing a campaign, and applying are free, no commission. See the Terms of Service for commercial details.",
+      el: "Η εγγραφή, η δημοσίευση καμπάνιας και η αίτηση είναι δωρεάν. Το Influo δεν παίρνει προμήθεια. Η πληρωμή της συνεργασίας γίνεται απευθείας μεταξύ επιχείρησης και creator. Ελέγξτε τους όρους χρήσης για εμπορικές λεπτομέρειες.",
+      en: "Signing up, publishing a campaign, and applying are free. Influo takes no commission. Payment for a collaboration happens directly between the business and the creator. See the Terms of Service for commercial details.",
     },
   },
   {
@@ -431,9 +473,63 @@ export default function DocsPage() {
           {/* Documentation Content */}
           <div className="min-w-0 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 sm:p-8 md:p-10">
           
-          {/* Campaigns first (brands) — then badges etc. keep reading order via TOC */}
-          {/* Badges System */}
           <section className="mb-12">
+            <SectionHeading id="services" icon={icons.counter}>
+              {lang === "el" ? "Υπηρεσίες και τιμές" : "Services and prices"}
+            </SectionHeading>
+            <p className="text-slate-600 mb-6 max-w-prose">
+              {lang === "el"
+                ? "Οι τιμές στο προφίλ είναι δημόσιες. Τις βλέπουν όλοι, και χωρίς σύνδεση. Το ευρώ γράφεται μετά το ποσό, με κενό: 50 €."
+                : "Prices on a profile are public. Anyone can see them, including visitors who are not signed in. The euro sign sits after the amount, with a space: 50 €."}
+            </p>
+            <div className="grid md:grid-cols-2 gap-4 my-6">
+              <div className="border border-slate-200 rounded-xl p-5 bg-slate-50">
+                <h3 className="font-bold text-slate-900 mt-0 mb-2">
+                  {lang === "el" ? "Μία σταθερή τιμή" : "One fixed price"}
+                </h3>
+                <p className="text-sm text-slate-700 mb-0">
+                  {lang === "el"
+                    ? "Κάθε υπηρεσία έχει έναν ακέραιο αριθμό σε ευρώ, για παράδειγμα 50 €. Κενό πεδίο σημαίνει ότι δεν την προσφέρετε. Εύρος τιμών δεν γίνεται δεκτό."
+                    : "Each service has one whole number in euros, for example 50 €. An empty field means you do not offer it. A price range is not accepted."}
+                </p>
+              </div>
+              <div className="border border-blue-200 rounded-xl p-5 bg-blue-50/80">
+                <h3 className="font-bold text-blue-900 mt-0 mb-2">
+                  {lang === "el" ? "Ποιες υπηρεσίες ανοίγουν" : "Which services open"}
+                </h3>
+                <ul className="text-sm text-slate-700 space-y-2 list-disc list-inside mb-0">
+                  <li>
+                    {lang === "el"
+                      ? "Instagram, TikTok και YouTube ανοίγουν μόνο αν έχετε δηλώσει τον αντίστοιχο λογαριασμό."
+                      : "Instagram, TikTok, and YouTube open only when you have added that account."}
+                  </li>
+                  <li>
+                    {lang === "el"
+                      ? "Το UGC (βίντεο και φωτογραφίες) και τα «Άλλα» (παρουσία σε event, link in bio, giveaway) μένουν διαθέσιμα χωρίς λογαριασμό."
+                      : "UGC (video and photos) and Other (event appearance, link in bio, giveaway) stay available without an account."}
+                  </li>
+                  <li>
+                    {lang === "el"
+                      ? "Οι επιπλέον χρεώσεις (δικαιώματα χρήσης 30 ημερών, αποκλειστικότητα, raw footage, γρήγορη παράδοση) είναι προαιρετικές και δεν μπαίνουν στο «Από»."
+                      : "Extra charges (usage rights for 30 days, exclusivity, raw footage, fast delivery) are optional and are not part of the “from” price."}
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-5">
+              <h3 className="font-bold text-emerald-900 mt-0 mb-2">
+                {lang === "el" ? "Τι σημαίνει «Από 50 €»" : "What “From 50 €” means"}
+              </h3>
+              <p className="text-sm text-slate-700 mb-0">
+                {lang === "el"
+                  ? "Είναι η φθηνότερη δηλωμένη υπηρεσία. Οι επιπλέον χρεώσεις δεν μετρούν. Αν δεν υπάρχει τιμή υπηρεσίας, χρησιμοποιείται η ελάχιστη τιμή του προφίλ. Στο κουτί συνεργασίας, η λέξη «Από» μένει μόνο όσο το επιλεγμένο πακέτο έχει αυτή τη φθηνότερη τιμή."
+                  : "It is the cheapest listed service. Extra charges do not count. If there is no service price, the profile’s minimum price is used. In the collaboration box, the word “From” stays only while the selected package is that cheapest price."}
+              </p>
+            </div>
+          </section>
+
+          {/* Badges System */}
+          <section className="mb-12 border-t border-slate-200 pt-12">
             <SectionHeading id="badges" icon={icons.badge}>
               {lang === 'el' ? 'Badges' : 'Badges'}
             </SectionHeading>
@@ -463,7 +559,7 @@ export default function DocsPage() {
                   </h4>
                 </div>
                 <p className="text-sm text-slate-700 mb-2">
-                  <strong>{lang === 'el' ? 'Πότε αποκτάται:' : 'When earned:'}</strong> {lang === 'el' ? `Όταν το account είναι λιγότερο από ${NEW_BADGE_MAX_DAYS} ημέρες` : `When account is less than ${NEW_BADGE_MAX_DAYS} days old`}
+                  <strong>{lang === 'el' ? 'Πότε αποκτάται:' : 'When earned:'}</strong> {lang === 'el' ? `Όταν το account είναι λιγότερο από ${NEW_BADGE_MAX_DAYS} ημέρες και δεν υπάρχει ήδη badge υψηλότερης προτεραιότητας` : `When the account is less than ${NEW_BADGE_MAX_DAYS} days old and no higher-priority badge is already shown`}
                 </p>
                 <p className="text-sm text-slate-600">
                   {lang === 'el' ? 'Σημασία: Νέος influencer στην πλατφόρμα' : 'Meaning: New influencer on the platform'}
@@ -507,7 +603,7 @@ export default function DocsPage() {
                   <h4 className="font-bold text-amber-900 m-0">Pro</h4>
                 </div>
                 <p className="text-sm text-slate-700 mb-2">
-                  <strong>{lang === 'el' ? 'Πότε αποκτάται:' : 'When earned:'}</strong> {lang === 'el' ? '5+ συνεργασίες ή 10+ reviews με rating >4.0' : '5+ collaborations or 10+ reviews with rating >4.0'}
+                  <strong>{lang === 'el' ? 'Πότε αποκτάται:' : 'When earned:'}</strong> {lang === 'el' ? '5+ συνεργασίες ή 10+ reviews με rating 4,0 ή υψηλότερο' : '5+ collaborations or 10+ reviews with a rating of 4.0 or higher'}
                 </p>
                 <p className="text-sm text-slate-600">
                   {lang === 'el' ? 'Σημασία: Επαγγελματική εμπειρία και αξιολόγηση' : 'Meaning: Professional experience and evaluation'}
@@ -521,7 +617,7 @@ export default function DocsPage() {
                   <h4 className="font-bold text-indigo-900 m-0">Elite</h4>
                 </div>
                 <p className="text-sm text-slate-700 mb-2">
-                  <strong>{lang === 'el' ? 'Πότε αποκτάται:' : 'When earned:'}</strong> {lang === 'el' ? '500k+ followers ή 20+ συνεργασίες με rating >4.5' : '500k+ followers or 20+ collaborations with rating >4.5'}
+                  <strong>{lang === 'el' ? 'Πότε αποκτάται:' : 'When earned:'}</strong> {lang === 'el' ? '500k+ followers ή 20+ συνεργασίες με rating 4,5 ή υψηλότερο' : '500k+ followers, or 20+ collaborations with a rating of 4.5 or higher'}
                 </p>
                 <p className="text-sm text-slate-600">
                   {lang === 'el' ? 'Σημασία: Κορυφαίος influencer με εξαιρετική φήμη' : 'Meaning: Top influencer with excellent reputation'}
@@ -535,7 +631,7 @@ export default function DocsPage() {
                   <h4 className="font-bold text-yellow-900 m-0">VIP</h4>
                 </div>
                 <p className="text-sm text-slate-700 mb-2">
-                  <strong>{lang === 'el' ? 'Πότε αποκτάται:' : 'When earned:'}</strong> {lang === 'el' ? '1M+ followers ή min_rate >5.000 € ή 50+ συνεργασίες με rating >4.8' : '1M+ followers or min_rate >5,000 € or 50+ collaborations with rating >4.8'}
+                  <strong>{lang === 'el' ? 'Πότε αποκτάται:' : 'When earned:'}</strong> {lang === 'el' ? '1M+ followers ή ελάχιστη τιμή από 5.000 € ή 50+ συνεργασίες με rating 4,8 ή υψηλότερο' : '1M+ followers, or a minimum price of 5,000 € or more, or 50+ collaborations with a rating of 4.8 or higher'}
                 </p>
                 <p className="text-sm text-slate-600">
                   {lang === 'el' ? 'Σημασία: Premium influencer, top tier' : 'Meaning: Premium influencer, top tier'}
@@ -547,7 +643,7 @@ export default function DocsPage() {
           {/* Availability, trust, rate card, metrics */}
           <section className="mb-12 border-t border-slate-200 pt-12">
             <SectionHeading id="profile" icon={icons.profile}>
-              {lang === 'el' ? 'Προφίλ, κατάλογος & εμπιστοσύνη' : 'Profile, directory & trust'}
+              {lang === 'el' ? 'Προφίλ, κατάλογος και στατιστικά' : 'Profile, directory, and stats'}
             </SectionHeading>
             <p className="text-slate-600 mb-6">
               {lang === 'el'
@@ -599,18 +695,18 @@ export default function DocsPage() {
 
               <div className="border border-blue-200 rounded-xl p-5 bg-blue-50/80">
                 <h3 className="font-bold text-blue-900 mt-0 mb-2">
-                  {lang === 'el' ? 'Rate card (τιμές πακέτων)' : 'Rate card (package prices)'}
+                  {lang === "el" ? "Τιμές στο προφίλ" : "Prices on the profile"}
                 </h3>
                 <ul className="text-sm text-slate-700 space-y-2 list-disc list-inside mb-0">
                   <li>
-                    {lang === 'el'
-                      ? 'Κατά την εγγραφή ή από το Dashboard μπορείτε να ορίσετε τιμές (π.χ. Story, Post, Reel).'
-                      : 'At signup or from the Dashboard you can set prices (e.g. Story, Post, Reel).'}
+                    {lang === "el"
+                      ? "Στην εγγραφή και στο Dashboard → τιμές υπηρεσιών ορίζετε μία σταθερή τιμή ανά υπηρεσία."
+                      : "At signup and in Dashboard → service prices you set one fixed price per service."}
                   </li>
                   <li>
-                    {lang === 'el'
-                      ? 'Αποθηκεύονται στο προφίλ ώστε τα brands να συγκρίνουν πακέτα πέρα από το ελάχιστο rate.'
-                      : 'Saved on the profile so brands can compare packages beyond a minimum rate.'}
+                    {lang === "el"
+                      ? "Στο δημόσιο προφίλ οι υπηρεσίες χωρίζονται σε καρτέλες: Όλα, και μία καρτέλα για κάθε πλατφόρμα που έχει τιμή (Instagram, TikTok, YouTube, UGC, Άλλα)."
+                      : "On the public profile, services are tabs: All, plus one tab for each platform that has a price (Instagram, TikTok, YouTube, UGC, Other)."}
                   </li>
                 </ul>
               </div>
@@ -634,6 +730,27 @@ export default function DocsPage() {
               </div>
             </div>
 
+            <div className="grid md:grid-cols-2 gap-4 mb-6">
+              <div className="border border-slate-200 rounded-xl p-5 bg-white">
+                <h3 className="font-bold text-slate-900 mt-0 mb-2">
+                  {lang === "el" ? "Κορυφαία posts" : "Top posts"}
+                </h3>
+                <p className="text-sm text-slate-700 mb-0">
+                  {lang === "el"
+                    ? "Στα Στατιστικά, αν υπάρχουν, φαίνονται έως 6 posts από Instagram, TikTok ή YouTube. Ανοίγουν με το ίδιο πρόγραμμα αναπαραγωγής όπως το portfolio, με ένα πάτημα. Η ανανέωση στατιστικών κάθε 15 ημέρες τα αποθηκεύει όταν η απάντηση τα περιλαμβάνει και δεν σβήνει όσα υπάρχουν ήδη αν λείπουν από την απάντηση. Posts που δεν είναι διαθέσιμα κρύβονται, όπως τα βίντεο του portfolio."
+                    : "On Stats, when they exist, up to 6 posts from Instagram, TikTok, or YouTube are shown. They open in the same player as the portfolio, with one tap. The stats refresh every 15 days saves them when the response includes them, and does not delete posts already saved if the response omits them. Posts that are not available are hidden, the same way as portfolio videos."}
+                </p>
+              </div>
+              <div className="border border-slate-200 rounded-xl p-5 bg-white">
+                <h3 className="font-bold text-slate-900 mt-0 mb-2">CPM</h3>
+                <p className="text-sm text-slate-700 mb-0">
+                  {lang === "el"
+                    ? "Για Instagram, TikTok και YouTube ξεχωριστά: τιμή του βίντεο της πλατφόρμας διά τις μέσες προβολές της ίδιας πλατφόρμας, επί 1.000. Στο Instagram μετρά το Reel, στο TikTok και στο YouTube το Video. Εμφανίζεται μόνο όταν οι μέσες προβολές είναι τουλάχιστον 100. Stories, UGC, «Άλλα», επιπλέον χρεώσεις και σκέτη ελάχιστη τιμή δεν μπαίνουν στον υπολογισμό."
+                    : "For Instagram, TikTok, and YouTube separately: that platform’s video price divided by its own average views, times 1,000. Instagram uses the Reel. TikTok and YouTube use the Video. It is shown only when average views are at least 100. Stories, UGC, Other, extra charges, and a bare minimum price are not included."}
+                </p>
+              </div>
+            </div>
+
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
               <h4 className="font-bold text-slate-900 mb-2 mt-0">
                 {lang === 'el' ? 'Shortlist brands («Οι influencers μου»)' : 'Brand shortlist (“My influencers”)'}
@@ -644,6 +761,88 @@ export default function DocsPage() {
                   : 'From recommendations or a profile, brands can save creators with a note and open them later from Brand Dashboard → shortlist / “My influencers”.'}
               </p>
             </div>
+          </section>
+
+          <section className="mb-12 border-t border-slate-200 pt-12">
+            <SectionHeading id="hire" icon={icons.messages}>
+              {lang === "el" ? "Συνεργασία, μήνυμα και πρόσκληση" : "Collaborate, message, and invite"}
+            </SectionHeading>
+            <p className="text-slate-600 mb-6 max-w-prose">
+              {lang === "el"
+                ? "Στο προφίλ ενός άλλου creator εμφανίζεται το κουτί συνεργασίας. Δεν φαίνεται στο δικό σας προφίλ."
+                : "On someone else’s creator profile, a collaboration box is shown. It is hidden on your own profile."}
+            </p>
+            <div className="grid md:grid-cols-2 gap-4 my-6">
+              <div className="border border-slate-200 rounded-xl p-5 bg-white">
+                <h3 className="font-bold text-slate-900 mt-0 mb-2">
+                  {lang === "el" ? "Κουτί και μπάρα" : "Box and bar"}
+                </h3>
+                <ul className="text-sm text-slate-700 space-y-2 list-disc list-inside mb-0">
+                  <li>
+                    {lang === "el"
+                      ? "Σε μεγάλη οθόνη το κουτί είναι δεξιά, πάνω από τη «Σύνδεση», και μένει ορατό στο scroll. Δεν εμφανίζεται στην καρτέλα Στατιστικά."
+                      : "On a large screen the box sits on the right, above Connect, and stays visible as you scroll. It is hidden on the Stats tab."}
+                  </li>
+                  <li>
+                    {lang === "el"
+                      ? "Στο κινητό, μπάρα στο κάτω μέρος μένει σε όλες τις καρτέλες: τιμή, εικονίδιο μηνύματος και «Συνεργασία»."
+                      : "On a phone, a bar stays at the bottom on every tab: the price, a message icon, and Contact for Work."}
+                  </li>
+                </ul>
+              </div>
+              <div className="border border-slate-200 rounded-xl p-5 bg-white">
+                <h3 className="font-bold text-slate-900 mt-0 mb-2">
+                  {lang === "el" ? "Τι κάνουν τα κουμπιά" : "What the buttons do"}
+                </h3>
+                <ul className="text-sm text-slate-700 space-y-2 list-disc list-inside mb-0">
+                  <li>
+                    {lang === "el"
+                      ? "«Συνεργασία» ανοίγει την πρόταση με το επιλεγμένο πακέτο."
+                      : "Contact for Work opens the proposal with the selected package."}
+                  </li>
+                  <li>
+                    {lang === "el"
+                      ? "«Μήνυμα» ζητά σύνδεση ως επιχείρηση και ανοίγει τη συνομιλία."
+                      : "Message asks you to sign in as a brand and opens the conversation."}
+                  </li>
+                  <li>
+                    {lang === "el"
+                      ? "«Διαπραγμάτευση πακέτου», στο κουτί και στο τέλος της λίστας, ανοίγει φόρμα για δικό σας πακέτο και τιμή."
+                      : "Negotiate a package, in the box and at the end of the list, opens a form for your own package and price."}
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-5 mb-6">
+              <p className="text-sm text-slate-700 mb-0">
+                {lang === "el"
+                  ? "Το Influo δεν παίρνει προμήθεια. Η πληρωμή γίνεται απευθείας μεταξύ επιχείρησης και creator."
+                  : "Influo takes no commission. Payment happens directly between the business and the creator."}
+              </p>
+            </div>
+            <h3 className="text-lg font-semibold text-slate-900 mt-2 mb-3">
+              {lang === "el" ? "Πρόσκληση σε καμπάνια" : "Invite to a campaign"}
+            </h3>
+            <NumberedSteps
+              steps={
+                lang === "el"
+                  ? [
+                      "Το κουμπί φαίνεται σε επισκέπτες και σε συνδεδεμένες επιχειρήσεις. Δεν φαίνεται σε creator.",
+                      "Χωρίς ανοιχτή ή πρόχειρη καμπάνια, ανοίγει παράθυρο για να δημιουργήσετε μία. Αλλιώς διαλέγετε καμπάνια και προαιρετικό μήνυμα.",
+                      "Ο creator τη βλέπει ως πρόταση, με υπηρεσία «Καμπάνια: …», και στα μηνύματα. Στη λίστα καμπανιών του σημειώνεται ως πρόσκληση όταν η πρόσκληση καταγραφεί. Πρόσκληση μπορεί να σταλεί και από τις καμπάνιες στο dashboard της επιχείρησης.",
+                    ]
+                  : [
+                      "The button is shown to visitors and to signed-in businesses. Creators do not see it.",
+                      "With no open or draft campaign, a window asks you to create one. Otherwise you pick a campaign and an optional message.",
+                      "The creator sees it as a proposal, with the service “Campaign: …”, and in messages. On their campaign list it is marked as an invite when the invite is recorded. An invite can also be sent from Campaigns in the business dashboard.",
+                    ]
+              }
+            />
+            <p className="text-sm text-slate-600 max-w-prose">
+              {lang === "el"
+                ? "Η εγγραφή ξεκινά και από τη σελίδα σύνδεσης: κάτω από το κουμπί εισόδου, το «Εγγραφείτε» ανοίγει την επιλογή λογαριασμού creator ή επιχείρησης."
+                : "You can also start signup from the login page: under the sign-in button, Sign up opens the choice between a creator account and a business account."}
+            </p>
           </section>
 
           {/* Proposals Section */}
@@ -660,14 +859,14 @@ export default function DocsPage() {
               steps={
                 lang === 'el'
                   ? [
-                      'Αναζήτηση influencer: Κατάλογος → φίλτρα → κλικ στο προφίλ.',
-                      'Στο προφίλ: «Συνεργασία» και φόρμα (υπηρεσία, budget, περιγραφή, deadline).',
-                      'Αποστολή: η προσφορά πάει στον influencer· λαμβάνετε email ειδοποίησης.',
+                      'Αναζήτηση creator: Κατάλογος → φίλτρα → κλικ στο προφίλ.',
+                      'Στο προφίλ: «Συνεργασία» στο κουτί (ή στη μπάρα στο κινητό) και φόρμα με το επιλεγμένο πακέτο.',
+                      'Αποστολή: η προσφορά πάει στον creator· λαμβάνετε email ειδοποίησης.',
                     ]
                   : [
-                      'Search influencer: Directory → filters → open profile.',
-                      'On the profile: Collaborate and fill the form (service, budget, description, deadline).',
-                      'Send: the proposal goes to the influencer; you get an email notification.',
+                      'Search for a creator: Directory → filters → open the profile.',
+                      'On the profile: Contact for Work in the box (or the phone bar) opens the form with the selected package.',
+                      'Send: the proposal goes to the creator; you get an email notification.',
                     ]
               }
             />
@@ -1101,7 +1300,7 @@ export default function DocsPage() {
             </h3>
 
             <ul className="list-disc list-inside space-y-3 text-slate-700 mb-6">
-              <li>{lang === 'el' ? 'Από Profile Page (brand): Κάντε κλικ στο "Μήνυμα" ή "Ρώτησε", γράψτε και στείλτε' : 'From Profile Page (brand): Click "Message" or "Ask", write and send'}</li>
+              <li>{lang === 'el' ? 'Από το προφίλ (επιχείρηση): «Μήνυμα» ανοίγει τη συνομιλία. Χωρίς λογαριασμό επιχείρησης ζητείται σύνδεση ή εγγραφή.' : 'From a profile (business): Message opens the conversation. Without a business account you are asked to sign in or register.'}</li>
               <li>{lang === 'el' ? 'Από Dashboard: Influencers → Messages, Brands → Conversations / Messages' : 'From Dashboard: Influencers → Messages, Brands → Conversations / Messages'}</li>
               <li>{lang === 'el' ? 'Οι influencers απαντούν σε υπάρχουσα συνομιλία (δεν ξεκινούν cold message σε τυχαίο brand).' : 'Influencers reply in an existing thread (they do not cold-message arbitrary brands).'}</li>
             </ul>
@@ -1167,7 +1366,7 @@ export default function DocsPage() {
                   {lang === 'el' ? 'Για Influencers' : 'For Influencers'}
                 </h3>
                 <ul className="space-y-3 text-slate-700 text-sm list-disc list-inside">
-                  <li>{lang === 'el' ? 'Συμπληρώστε το Profile: bio, avatar, rate card, ρεαλιστικές τιμές' : 'Complete Profile: bio, avatar, rate card, realistic pricing'}</li>
+                  <li>{lang === 'el' ? 'Συμπληρώστε το προφίλ: bio, φωτογραφία και μία σταθερή τιμή ανά υπηρεσία' : 'Complete your profile: bio, photo, and one fixed price per service'}</li>
                   <li>{lang === 'el' ? 'Ορίστε διαθεσιμότητα όταν είστε ανοιχτοί σε deals' : 'Set availability when you are open to deals'}</li>
                   <li>{lang === 'el' ? 'Βάλτε το Influo link στο bio (Dashboard → Εργαλεία) και μοιραστείτε QR / media kit' : 'Put your Influo link in your bio (Dashboard → Tools) and share QR / media kit'}</li>
                   <li>{lang === 'el' ? 'Καλή Απόδοση: Υψηλό engagement, consistent posting' : 'Good Performance: High engagement, consistent posting'}</li>
