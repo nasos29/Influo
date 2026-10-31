@@ -32,10 +32,24 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Build query with date filters
+    // Overview KPI: one count, no event rows.
+    if (searchParams.get('metric') === 'profile_views') {
+      const { count, error: countError } = await supabaseAdmin
+        .from('influencer_analytics')
+        .select('id', { count: 'exact', head: true })
+        .eq('influencer_id', influencerId)
+        .eq('event_type', 'profile_view');
+      if (countError) {
+        console.error('[Analytics Stats API] profile view count', countError);
+        return NextResponse.json({ error: countError.message }, { status: 500 });
+      }
+      return NextResponse.json({ profileViews: count ?? 0 });
+    }
+
+    // Build query with date filters. Only the columns the dashboard and admin table read.
     let query = supabaseAdmin
       .from('influencer_analytics')
-      .select('*')
+      .select('id, event_type, metadata, created_at')
       .eq('influencer_id', influencerId);
 
     if (startDate) {

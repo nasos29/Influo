@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+import { formatDate } from '@/lib/formatDateTime';
+import { isTimeoutError, withTimeout } from '@/lib/withTimeout';
 
 interface AnalyticsStats {
   profileViews: number;
@@ -47,6 +48,9 @@ const t = {
     totalEarnings: "Κέρδος",
     total: "Σύνολο",
     loading: "Φόρτωση...",
+    loadError: "Τα στατιστικά δεν φορτώθηκαν.",
+    timeout: "Η φόρτωση άργησε. Δοκίμασε ξανά.",
+    retry: "Δοκίμασε ξανά",
     noData: "Δεν υπάρχουν δεδομένα για αυτή την περίοδο",
     from: "Από",
     to: "Έως"
@@ -68,6 +72,9 @@ const t = {
     totalEarnings: "Earnings",
     total: "Total",
     loading: "Loading...",
+    loadError: "Analytics could not be loaded.",
+    timeout: "This took too long. Try again.",
+    retry: "Try again",
     noData: "No data available for this period",
     from: "From",
     to: "To"
@@ -78,6 +85,8 @@ export default function Analytics({ influencerId, lang = 'el' }: AnalyticsProps)
   const txt = t[lang];
   const [stats, setStats] = useState<AnalyticsStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<null | 'timeout' | 'error'>(null);
+  const [attempt, setAttempt] = useState(0);
   const [period, setPeriod] = useState<'7d' | '30d' | 'quarter' | 'year' | 'custom'>('30d');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
@@ -90,6 +99,7 @@ export default function Analytics({ influencerId, lang = 'el' }: AnalyticsProps)
     const timeout = window.setTimeout(() => controller.abort(), 20000);
     const loadStats = async () => {
       setLoading(true);
+      setLoadError(null);
       try {
         let startDate: string | null = null;
         const endDate = new Date().toISOString();
@@ -120,15 +130,21 @@ export default function Analytics({ influencerId, lang = 'el' }: AnalyticsProps)
           ...(period === 'custom' && customEndDate && { endDate: new Date(customEndDate).toISOString() })
         });
 
-        const response = await fetch(`/api/analytics/stats?${params.toString()}`, {
-          signal: controller.signal,
-        });
-        if (response.ok) {
-          const result = await response.json();
-          if (!cancelled) setStats(result.stats);
-        }
+        const response = await withTimeout(
+          fetch(`/api/analytics/stats?${params.toString()}`, {
+            signal: controller.signal,
+          }),
+          20000
+        );
+        if (!response.ok) throw new Error('stats');
+        const result = await response.json();
+        if (!cancelled) setStats(result.stats);
       } catch (error) {
-        if (!cancelled) console.error('Error loading analytics:', error);
+        if (!cancelled) {
+          console.error('Error loading analytics:', error);
+          setStats(null);
+          setLoadError(isTimeoutError(error) || (error instanceof DOMException && error.name === 'AbortError') ? 'timeout' : 'error');
+        }
       } finally {
         window.clearTimeout(timeout);
         // A superseded request is replaced by a newer effect run that owns `loading`.
@@ -142,17 +158,14 @@ export default function Analytics({ influencerId, lang = 'el' }: AnalyticsProps)
       window.clearTimeout(timeout);
       controller.abort();
     };
-  }, [influencerId, period, customStartDate, customEndDate]);
+  }, [influencerId, period, customStartDate, customEndDate, attempt]);
 
   // Chart uses the same eventsByDate window as the KPI cards (selected period).
   const chartData = stats
     ? Object.entries(stats.eventsByDate)
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([date, data]) => ({
-          date: new Date(date).toLocaleDateString(lang === "el" ? "el-GR" : "en-US", {
-            month: "short",
-            day: "numeric",
-          }),
+          date: formatDate(date, lang),
           views: data.views,
           clicks: data.clicks,
           socialOutbound: data.socialOutbound ?? 0,
@@ -179,8 +192,29 @@ export default function Analytics({ influencerId, lang = 'el' }: AnalyticsProps)
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl border border-slate-200 p-8">
-        <div className="text-center text-slate-500">{txt.loading}</div>
+      <div className="space-y-4" aria-busy="true">
+        <div className="h-24 rounded-xl bg-white border border-slate-200 animate-pulse" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="h-24 rounded-xl bg-white border border-slate-200 animate-pulse" />
+          <div className="h-24 rounded-xl bg-white border border-slate-200 animate-pulse" />
+          <div className="h-24 rounded-xl bg-white border border-slate-200 animate-pulse" />
+          <div className="h-24 rounded-xl bg-white border border-slate-200 animate-pulse" />
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
+        <p className="text-slate-600">{loadError === 'timeout' ? txt.timeout : txt.loadError}</p>
+        <button
+          type="button"
+          onClick={() => setAttempt((n) => n + 1)}
+          className="mt-4 inline-flex min-h-11 items-center justify-center px-5 rounded-xl bg-slate-900 text-white text-sm font-medium"
+        >
+          {txt.retry}
+        </button>
       </div>
     );
   }
@@ -201,7 +235,7 @@ export default function Analytics({ influencerId, lang = 'el' }: AnalyticsProps)
         <div className="flex flex-wrap gap-3">
           <button
             onClick={() => setPeriod('7d')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`inline-flex min-h-11 items-center px-4 rounded-lg font-medium transition-colors ${
               period === '7d'
                 ? 'bg-blue-600 text-white'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -211,7 +245,7 @@ export default function Analytics({ influencerId, lang = 'el' }: AnalyticsProps)
           </button>
           <button
             onClick={() => setPeriod('30d')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`inline-flex min-h-11 items-center px-4 rounded-lg font-medium transition-colors ${
               period === '30d'
                 ? 'bg-blue-600 text-white'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -221,7 +255,7 @@ export default function Analytics({ influencerId, lang = 'el' }: AnalyticsProps)
           </button>
           <button
             onClick={() => setPeriod('quarter')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`inline-flex min-h-11 items-center px-4 rounded-lg font-medium transition-colors ${
               period === 'quarter'
                 ? 'bg-blue-600 text-white'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -231,7 +265,7 @@ export default function Analytics({ influencerId, lang = 'el' }: AnalyticsProps)
           </button>
           <button
             onClick={() => setPeriod('year')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`inline-flex min-h-11 items-center px-4 rounded-lg font-medium transition-colors ${
               period === 'year'
                 ? 'bg-blue-600 text-white'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -241,7 +275,7 @@ export default function Analytics({ influencerId, lang = 'el' }: AnalyticsProps)
           </button>
           <button
             onClick={() => setPeriod('custom')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`inline-flex min-h-11 items-center px-4 rounded-lg font-medium transition-colors ${
               period === 'custom'
                 ? 'bg-blue-600 text-white'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
