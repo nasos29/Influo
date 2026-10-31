@@ -106,33 +106,43 @@ const t = {
     locPlace: "Τοποθεσία (π.χ. Αθήνα)",
     results: "Αποτελέσματα",
     clear: "Καθαρισμός",
+    clearAll: "Καθαρισμός όλων",
     filters: "Φίλτρα",
     platAll: "Πλατφόρμα: Όλες",
     catAll: "Κατηγορία: Όλες",
-    genAll: "Φύλο: Όλα",
+    fieldGender: "Φύλο",
+    fieldAvailability: "Διαθεσιμότητα",
+    fieldFollowers: "Ακόλουθοι",
+    fieldBudget: "Budget",
+    fieldEngagement: "Engagement",
+    fieldLanguage: "Γλώσσα",
+    fieldRating: "Αξιολόγηση",
+    fieldBadges: "Badges",
+    fieldAge: "Ηλικία",
+    genAll: "Όλα",
     genFem: "Γυναίκα",
     genMal: "Άνδρας",
     genAi: "AI (Artificial Intelligence)",
-    follAll: "Ακόλουθοι: Όλοι",
+    follAll: "Όλοι",
     follNano: "Nano (1k-10k)",
     follMicro: "Micro (10k-100k)",
     follMacro: "Macro (100k+)",
-    budAll: "Προϋπολογισμός: Όλα",
+    budAll: "Όλα",
     budUpTo: "Έως",
     budUnlimited: "5000€+ (VIP)",
-    engAll: "Αλληλεπίδραση: Όλα",
+    engAll: "Όλα",
     engMin: "Ελάχ.",
     engGood: "Καλό",
     engHigh: "Υψηλό",
-    langAll: "Γλώσσα: Όλες",
-    ratingAll: "Αξιολόγηση: Όλες",
+    langAll: "Όλες",
+    ratingAll: "Όλες",
     ratingMin: "Ελάχ.",
-    badgeAll: "Badge: Όλα",
+    badgeAll: "Όλα",
     ageAll: "Ηλικία: Όλες",
     ageRange: "Ηλικία",
     ageFrom: "Από",
     ageTo: "Έως",
-    availAll: "Διαθεσιμότητα: Όλες",
+    availAll: "Όλες",
     availYes: "Διαθέσιμοι",
     availNo: "Μη διαθέσιμοι",
     noResults: "Δεν βρέθηκαν influencers",
@@ -148,33 +158,43 @@ const t = {
     locPlace: "Location (e.g. Athens)",
     results: "Results",
     clear: "Clear",
+    clearAll: "Clear all",
     filters: "Filters",
     platAll: "Platform: All",
     catAll: "Category: All",
-    genAll: "Gender: Any",
+    fieldGender: "Gender",
+    fieldAvailability: "Availability",
+    fieldFollowers: "Followers",
+    fieldBudget: "Budget",
+    fieldEngagement: "Engagement",
+    fieldLanguage: "Language",
+    fieldRating: "Rating",
+    fieldBadges: "Badges",
+    fieldAge: "Age",
+    genAll: "Any",
     genFem: "Female",
     genMal: "Male",
     genAi: "AI (Artificial Intelligence)",
-    follAll: "Followers: Any",
+    follAll: "Any",
     follNano: "Nano (1k-10k)",
     follMicro: "Micro (10k-100k)",
     follMacro: "Macro (100k+)",
-    budAll: "Budget: Any",
+    budAll: "Any",
     budUpTo: "Up to",
     budUnlimited: "5000€+ (VIP)",
-    engAll: "Engage: Any",
+    engAll: "Any",
     engMin: "Min",
     engGood: "Good",
     engHigh: "High",
-    langAll: "Language: All",
-    ratingAll: "Rating: Any",
+    langAll: "All",
+    ratingAll: "Any",
     ratingMin: "Min",
-    badgeAll: "Badge: Any",
+    badgeAll: "Any",
     ageAll: "Age: All",
     ageRange: "Age",
     ageFrom: "From",
     ageTo: "To",
-    availAll: "Availability: Any",
+    availAll: "Any",
     availYes: "Available",
     availNo: "Unavailable",
     noResults: "No influencers found",
@@ -256,9 +276,12 @@ const badgesForInfluencer = (inf: Influencer, lang: "el" | "en") => {
 };
 
 const pillSelect =
-  "w-full appearance-none rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 cursor-pointer";
+  "h-11 w-full appearance-none rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/20 cursor-pointer";
 const pillInput =
-  "w-full rounded-full border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm font-medium text-slate-700 outline-none transition-colors placeholder:text-slate-400 hover:border-slate-300 focus:border-slate-900 focus:ring-1 focus:ring-slate-900";
+  "h-11 w-full rounded-full border border-slate-200 bg-white pl-10 pr-4 text-sm font-medium text-slate-700 outline-none transition-colors placeholder:text-slate-400 hover:border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/20";
+const fieldLabel = "mb-1.5 block text-xs font-semibold text-slate-500";
+const chipBtn =
+  "inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-900/20";
 
 export default function Directory({
   lang = "el",
@@ -289,7 +312,9 @@ export default function Directory({
     categoryFromSearchParam(searchParams.get("category"))
   );
   const [genderFilter, setGenderFilter] = useState("All");
+  // Always start closed for SSR; open on lg+ after mount (except home preview).
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const advancedDefaultAppliedRef = useRef(false);
 
   const [followerRange, setFollowerRange] = useState("All");
   const [budgetMax, setBudgetMax] = useState("All");
@@ -304,6 +329,13 @@ export default function Directory({
   );
   const [loading, setLoading] = useState(initialInfluencers.length === 0);
   const [page, setPage] = useState(() => pageFromSearchParam(searchParams.get("page")));
+
+  useEffect(() => {
+    if (isHomePreview || advancedDefaultAppliedRef.current) return;
+    advancedDefaultAppliedRef.current = true;
+    const mq = window.matchMedia("(min-width: 1024px)");
+    if (mq.matches) setShowAdvanced(true);
+  }, [isHomePreview]);
 
   const sortInfluencers = (influencersList: Influencer[]): Influencer[] => {
     return [...influencersList].sort((a, b) => {
@@ -609,6 +641,149 @@ export default function Directory({
     setPage(1);
   };
 
+  type ActiveChip = { id: string; label: string; clear: () => void };
+
+  const { activeChips, extraFilterCount } = useMemo(() => {
+    const chips: ActiveChip[] = [];
+    let extra = 0;
+
+    const q = searchQuery.trim();
+    if (q) {
+      chips.push({ id: "search", label: q, clear: () => setSearchQuery("") });
+    }
+    const loc = locationQuery.trim();
+    if (loc) {
+      chips.push({ id: "location", label: loc, clear: () => setLocationQuery("") });
+    }
+    if (platformFilter !== "All") {
+      chips.push({
+        id: "platform",
+        label: platformFilter,
+        clear: () => setPlatformFilter("All"),
+      });
+    }
+    if (categoryFilter !== "All") {
+      chips.push({
+        id: "category",
+        label: categoryTranslations[categoryFilter]
+          ? categoryTranslations[categoryFilter][lang]
+          : categoryFilter,
+        clear: () => setCategoryFilterAndUrl("All"),
+      });
+    }
+    if (genderFilter !== "All") {
+      extra += 1;
+      const genderLabel =
+        genderFilter === "Female"
+          ? txt.genFem
+          : genderFilter === "Male"
+            ? txt.genMal
+            : genderFilter === "AI"
+              ? txt.genAi
+              : genderFilter;
+      chips.push({ id: "gender", label: genderLabel, clear: () => setGenderFilter("All") });
+    }
+    // Default availability ("available") does not count as an active filter.
+    if (availabilityFilter !== "available") {
+      extra += 1;
+      chips.push({
+        id: "availability",
+        label: availabilityFilter === "unavailable" ? txt.availNo : txt.availAll,
+        clear: () => setAvailabilityFilter("available"),
+      });
+    }
+    if (followerRange !== "All") {
+      extra += 1;
+      const follLabel =
+        followerRange === "Nano"
+          ? "Nano"
+          : followerRange === "Micro"
+            ? "Micro"
+            : followerRange === "Macro"
+              ? "Macro"
+              : followerRange;
+      chips.push({
+        id: "followers",
+        label: follLabel,
+        clear: () => setFollowerRange("All"),
+      });
+    }
+    if (budgetMax !== "All") {
+      extra += 1;
+      chips.push({
+        id: "budget",
+        label: budgetMax === "Unlimited" ? txt.budUnlimited : `${txt.budUpTo} ${budgetMax}€`,
+        clear: () => setBudgetMax("All"),
+      });
+    }
+    if (minEngagement !== "All") {
+      extra += 1;
+      chips.push({
+        id: "engagement",
+        label: `${txt.engMin} ${minEngagement}%`,
+        clear: () => setMinEngagement("All"),
+      });
+    }
+    if (languageFilter !== "All") {
+      extra += 1;
+      const langItem = LANGUAGES.find((l) => l.code === languageFilter);
+      chips.push({
+        id: "language",
+        label: langItem ? langItem[lang] : languageFilter,
+        clear: () => setLanguageFilter("All"),
+      });
+    }
+    if (minRating !== "All") {
+      extra += 1;
+      chips.push({
+        id: "rating",
+        label: `${txt.ratingMin} ${minRating}★`,
+        clear: () => setMinRating("All"),
+      });
+    }
+    if (badgeFilter !== "All") {
+      extra += 1;
+      chips.push({
+        id: "badge",
+        label: getBadgeFilterLabel(badgeFilter, lang),
+        clear: () => setBadgeFilter("All"),
+      });
+    }
+    if (ageMin.trim() || ageMax.trim()) {
+      extra += 1;
+      const from = ageMin.trim() || "…";
+      const to = ageMax.trim() || "…";
+      chips.push({
+        id: "age",
+        label: `${from}–${to}`,
+        clear: () => {
+          setAgeMin("");
+          setAgeMax("");
+        },
+      });
+    }
+
+    return { activeChips: chips, extraFilterCount: extra };
+  }, [
+    searchQuery,
+    locationQuery,
+    platformFilter,
+    categoryFilter,
+    genderFilter,
+    availabilityFilter,
+    followerRange,
+    budgetMax,
+    minEngagement,
+    languageFilter,
+    minRating,
+    badgeFilter,
+    ageMin,
+    ageMax,
+    lang,
+    txt,
+    setCategoryFilterAndUrl,
+  ]);
+
   // Reset to page 1 when filters change (skip first mount so ?page= is kept).
   // Do not depend on replaceUrlParams — its identity changes when ?page= updates.
   useEffect(() => {
@@ -679,187 +854,24 @@ export default function Directory({
     <div>
       {/* Filter bar — Collabstr-style pills */}
       <div className="mb-6 space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="min-w-[140px] flex-1 sm:min-w-[160px] sm:flex-none sm:w-44">
-            <select
-              value={platformFilter}
-              onChange={(e) => setPlatformFilter(e.target.value)}
-              className={pillSelect}
-            >
-              <option value="All">{txt.platAll}</option>
-              <option value="Instagram">Instagram</option>
-              <option value="TikTok">TikTok</option>
-              <option value="YouTube">YouTube</option>
-            </select>
-          </div>
-          <div className="min-w-[140px] flex-1 sm:min-w-[160px] sm:flex-none sm:w-52">
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilterAndUrl(e.target.value)}
-              className={pillSelect}
-            >
-              <option value="All">{txt.catAll}</option>
-              {CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>
-                  {categoryTranslations[cat] ? categoryTranslations[cat][lang] : cat}
-                </option>
-              ))}
-            </select>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            className={`inline-flex items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-semibold transition-colors ${
-              showAdvanced
-                ? "border-slate-900 bg-slate-900 text-white"
-                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
-            }`}
-          >
-            <FilterIcon /> {txt.filters} <ChevronDown />
-          </button>
-          <span className="ml-auto hidden text-xs font-medium text-slate-400 sm:inline">
-            {filtered.length} {txt.results}
-          </span>
-        </div>
-
-        <div
-          className={`overflow-hidden transition-all duration-300 ${
-            showAdvanced ? "max-h-[720px] opacity-100" : "max-h-0 opacity-0"
-          }`}
-        >
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-6 pt-1">
-            <select
-              value={genderFilter}
-              onChange={(e) => setGenderFilter(e.target.value)}
-              className={pillSelect}
-            >
-              <option value="All">{txt.genAll}</option>
-              <option value="Female">{txt.genFem}</option>
-              <option value="Male">{txt.genMal}</option>
-              <option value="AI">{txt.genAi}</option>
-            </select>
-
-            <select
-              value={availabilityFilter}
-              onChange={(e) =>
-                setAvailabilityFilter(e.target.value as "All" | "available" | "unavailable")
-              }
-              className={pillSelect}
-            >
-              <option value="All">{txt.availAll}</option>
-              <option value="available">{txt.availYes}</option>
-              <option value="unavailable">{txt.availNo}</option>
-            </select>
-
-            <select
-              value={followerRange}
-              onChange={(e) => setFollowerRange(e.target.value)}
-              className={pillSelect}
-            >
-              <option value="All">{txt.follAll}</option>
-              <option value="Nano">{txt.follNano}</option>
-              <option value="Micro">{txt.follMicro}</option>
-              <option value="Macro">{txt.follMacro}</option>
-            </select>
-
-            <select
-              value={budgetMax}
-              onChange={(e) => setBudgetMax(e.target.value)}
-              className={pillSelect}
-            >
-              <option value="All">{txt.budAll}</option>
-              {DIRECTORY_BUDGET_CAPS.map((cap) => (
-                <option key={cap} value={String(cap)}>
-                  {txt.budUpTo} {cap}€
-                </option>
-              ))}
-              <option value="Unlimited">{txt.budUnlimited}</option>
-            </select>
-
-            <select
-              value={minEngagement}
-              onChange={(e) => setMinEngagement(e.target.value)}
-              className={pillSelect}
-            >
-              <option value="All">{txt.engAll}</option>
-              <option value="1">
-                {txt.engMin} 1%
-              </option>
-              <option value="3">
-                {txt.engMin} 3% ({txt.engGood})
-              </option>
-              <option value="5">
-                {txt.engMin} 5% ({txt.engHigh})
-              </option>
-            </select>
-
-            <select
-              value={languageFilter}
-              onChange={(e) => setLanguageFilter(e.target.value)}
-              className={pillSelect}
-            >
-              <option value="All">{txt.langAll}</option>
-              {LANGUAGES.map((langItem) => (
-                <option key={langItem.code} value={langItem.code}>
-                  {langItem[lang]}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={minRating}
-              onChange={(e) => setMinRating(e.target.value)}
-              className={pillSelect}
-            >
-              <option value="All">{txt.ratingAll}</option>
-              <option value="3">
-                {txt.ratingMin} 3★
-              </option>
-              <option value="4">
-                {txt.ratingMin} 4★
-              </option>
-              <option value="4.5">
-                {txt.ratingMin} 4.5★
-              </option>
-            </select>
-
-            <select
-              value={badgeFilter}
-              onChange={(e) => setBadgeFilter(e.target.value as BadgeType | "All")}
-              className={pillSelect}
-            >
-              <option value="All">{txt.badgeAll}</option>
-              {BADGE_FILTER_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {getBadgeFilterLabel(type, lang)}
-                </option>
-              ))}
-            </select>
-
-            <div className="col-span-2 flex items-center gap-2 md:col-span-2 lg:col-span-2">
-              <span className="shrink-0 text-xs font-semibold text-slate-500">{txt.ageRange}</span>
-              <input
-                type="number"
-                min={18}
-                max={99}
-                placeholder={txt.ageFrom}
-                value={ageMin}
-                onChange={(e) => setAgeMin(e.target.value)}
-                className={`${pillSelect} !py-2`}
-              />
-              <span className="text-slate-300">–</span>
-              <input
-                type="number"
-                min={18}
-                max={99}
-                placeholder={txt.ageTo}
-                value={ageMax}
-                onChange={(e) => setAgeMax(e.target.value)}
-                className={`${pillSelect} !py-2`}
-              />
+        {/* Top row: search alone on mobile; search + location + platform + category + filters + count on sm+ */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="relative w-full sm:min-w-[200px] sm:flex-1">
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
+              <SearchIcon />
             </div>
+            <input
+              type="text"
+              placeholder={txt.searchPlace}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className={pillInput}
+              aria-label={txt.searchPlace}
+            />
+          </div>
 
-            <div className="relative col-span-2 md:col-span-1 lg:col-span-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative min-w-[140px] flex-1 sm:flex-none sm:w-44">
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
                 <LocationIcon />
               </div>
@@ -869,34 +881,270 @@ export default function Directory({
                 value={locationQuery}
                 onChange={(e) => setLocationQuery(e.target.value)}
                 className={pillInput}
+                aria-label={txt.locPlace}
               />
             </div>
 
-            <div className="relative col-span-2 md:col-span-1 lg:col-span-2">
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
-                <SearchIcon />
-              </div>
-              <input
-                type="text"
-                placeholder={txt.searchPlace}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={pillInput}
-              />
+            <div className="min-w-[120px] flex-1 sm:flex-none sm:w-40">
+              <select
+                value={platformFilter}
+                onChange={(e) => setPlatformFilter(e.target.value)}
+                className={pillSelect}
+                aria-label={txt.platAll}
+              >
+                <option value="All">{txt.platAll}</option>
+                <option value="Instagram">Instagram</option>
+                <option value="TikTok">TikTok</option>
+                <option value="YouTube">YouTube</option>
+              </select>
             </div>
-          </div>
 
-          <div className="mt-3 flex items-center justify-between">
-            <p className="text-xs text-slate-400 sm:hidden">
+            <div className="min-w-[120px] flex-1 sm:flex-none sm:w-48">
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilterAndUrl(e.target.value)}
+                className={pillSelect}
+                aria-label={txt.catAll}
+              >
+                <option value="All">{txt.catAll}</option>
+                {CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {categoryTranslations[cat] ? categoryTranslations[cat][lang] : cat}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowAdvanced((v) => !v)}
+              aria-expanded={showAdvanced}
+              className={`inline-flex h-11 items-center gap-2 rounded-full border px-4 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-slate-900/20 ${
+                showAdvanced
+                  ? "border-slate-900 bg-slate-900 text-white"
+                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+              }`}
+            >
+              <FilterIcon />
+              <span>{txt.filters}</span>
+              {extraFilterCount > 0 ? (
+                <span
+                  className={`inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${
+                    showAdvanced ? "bg-white text-slate-900" : "bg-slate-900 text-white"
+                  }`}
+                >
+                  {extraFilterCount}
+                </span>
+              ) : null}
+              <span className={`transition-transform ${showAdvanced ? "rotate-180" : ""}`}>
+                <ChevronDown />
+              </span>
+            </button>
+
+            <span className="ml-auto shrink-0 text-xs font-medium text-slate-400 sm:ml-0 sm:pl-1">
               {filtered.length} {txt.results}
-            </p>
+            </span>
+          </div>
+        </div>
+
+        {/* Active filter chips */}
+        {activeChips.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {activeChips.map((chip) => (
+              <button
+                key={chip.id}
+                type="button"
+                onClick={chip.clear}
+                className={chipBtn}
+                aria-label={`${txt.clear}: ${chip.label}`}
+              >
+                <span className="max-w-[12rem] truncate">{chip.label}</span>
+                <span aria-hidden className="text-slate-400">
+                  ×
+                </span>
+              </button>
+            ))}
             <button
               type="button"
               onClick={clearFilters}
-              className="rounded-full border border-slate-200 bg-white px-4 py-1.5 text-sm font-semibold text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900"
+              className="text-xs font-semibold text-slate-500 underline-offset-2 transition-colors hover:text-slate-900 hover:underline focus:outline-none focus:ring-2 focus:ring-slate-900/20 rounded"
             >
-              {txt.clear}
+              {txt.clearAll}
             </button>
+          </div>
+        ) : null}
+
+        {/* Advanced filters panel — grid collapse (no max-h clip) */}
+        <div
+          className={`grid transition-[grid-template-rows] duration-300 ease-out ${
+            showAdvanced ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+          }`}
+        >
+          <div className="overflow-hidden min-h-0">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5">
+              <div className="grid grid-cols-2 gap-x-3 gap-y-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4">
+                <div>
+                  <label className={fieldLabel}>{txt.fieldGender}</label>
+                  <select
+                    value={genderFilter}
+                    onChange={(e) => setGenderFilter(e.target.value)}
+                    className={pillSelect}
+                  >
+                    <option value="All">{txt.genAll}</option>
+                    <option value="Female">{txt.genFem}</option>
+                    <option value="Male">{txt.genMal}</option>
+                    <option value="AI">{txt.genAi}</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className={fieldLabel}>{txt.fieldAvailability}</label>
+                  <select
+                    value={availabilityFilter}
+                    onChange={(e) =>
+                      setAvailabilityFilter(e.target.value as "All" | "available" | "unavailable")
+                    }
+                    className={pillSelect}
+                  >
+                    <option value="All">{txt.availAll}</option>
+                    <option value="available">{txt.availYes}</option>
+                    <option value="unavailable">{txt.availNo}</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className={fieldLabel}>{txt.fieldFollowers}</label>
+                  <select
+                    value={followerRange}
+                    onChange={(e) => setFollowerRange(e.target.value)}
+                    className={pillSelect}
+                  >
+                    <option value="All">{txt.follAll}</option>
+                    <option value="Nano">{txt.follNano}</option>
+                    <option value="Micro">{txt.follMicro}</option>
+                    <option value="Macro">{txt.follMacro}</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className={fieldLabel}>{txt.fieldBudget}</label>
+                  <select
+                    value={budgetMax}
+                    onChange={(e) => setBudgetMax(e.target.value)}
+                    className={pillSelect}
+                  >
+                    <option value="All">{txt.budAll}</option>
+                    {DIRECTORY_BUDGET_CAPS.map((cap) => (
+                      <option key={cap} value={String(cap)}>
+                        {txt.budUpTo} {cap}€
+                      </option>
+                    ))}
+                    <option value="Unlimited">{txt.budUnlimited}</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className={fieldLabel}>{txt.fieldEngagement}</label>
+                  <select
+                    value={minEngagement}
+                    onChange={(e) => setMinEngagement(e.target.value)}
+                    className={pillSelect}
+                  >
+                    <option value="All">{txt.engAll}</option>
+                    <option value="1">
+                      {txt.engMin} 1%
+                    </option>
+                    <option value="3">
+                      {txt.engMin} 3% ({txt.engGood})
+                    </option>
+                    <option value="5">
+                      {txt.engMin} 5% ({txt.engHigh})
+                    </option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className={fieldLabel}>{txt.fieldLanguage}</label>
+                  <select
+                    value={languageFilter}
+                    onChange={(e) => setLanguageFilter(e.target.value)}
+                    className={pillSelect}
+                  >
+                    <option value="All">{txt.langAll}</option>
+                    {LANGUAGES.map((langItem) => (
+                      <option key={langItem.code} value={langItem.code}>
+                        {langItem[lang]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className={fieldLabel}>{txt.fieldRating}</label>
+                  <select
+                    value={minRating}
+                    onChange={(e) => setMinRating(e.target.value)}
+                    className={pillSelect}
+                  >
+                    <option value="All">{txt.ratingAll}</option>
+                    <option value="3">
+                      {txt.ratingMin} 3★
+                    </option>
+                    <option value="4">
+                      {txt.ratingMin} 4★
+                    </option>
+                    <option value="4.5">
+                      {txt.ratingMin} 4.5★
+                    </option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className={fieldLabel}>{txt.fieldBadges}</label>
+                  <select
+                    value={badgeFilter}
+                    onChange={(e) => setBadgeFilter(e.target.value as BadgeType | "All")}
+                    className={pillSelect}
+                  >
+                    <option value="All">{txt.badgeAll}</option>
+                    {BADGE_FILTER_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {getBadgeFilterLabel(type, lang)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="col-span-1">
+                  <label className={fieldLabel}>{txt.fieldAge}</label>
+                  <div className="flex h-11 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 transition-colors hover:border-slate-300 focus-within:border-slate-900 focus-within:ring-2 focus-within:ring-slate-900/20">
+                    <input
+                      type="number"
+                      min={18}
+                      max={99}
+                      placeholder={txt.ageFrom}
+                      value={ageMin}
+                      onChange={(e) => setAgeMin(e.target.value)}
+                      className="h-full w-full min-w-0 bg-transparent text-sm font-medium text-slate-700 outline-none placeholder:text-slate-400"
+                      aria-label={txt.ageFrom}
+                    />
+                    <span className="shrink-0 text-slate-300" aria-hidden>
+                      –
+                    </span>
+                    <input
+                      type="number"
+                      min={18}
+                      max={99}
+                      placeholder={txt.ageTo}
+                      value={ageMax}
+                      onChange={(e) => setAgeMax(e.target.value)}
+                      className="h-full w-full min-w-0 bg-transparent text-sm font-medium text-slate-700 outline-none placeholder:text-slate-400"
+                      aria-label={txt.ageTo}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
