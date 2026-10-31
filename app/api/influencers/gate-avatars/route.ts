@@ -3,7 +3,11 @@ import { unstable_cache } from "next/cache";
 import { supabaseService } from "@/lib/apiAuth";
 import { pickGateAvatarUrls } from "@/lib/gateAvatars";
 
-/** One small read: id + avatar only, cached for an hour. */
+/**
+ * One small read: id + avatar only, cached for an hour.
+ * Uses the service role so a logged-in brand's JWT / RLS never filters the faces.
+ * The browser calls this without credentials.
+ */
 const loadGateAvatars = unstable_cache(
   async (): Promise<string[]> => {
     const { data, error } = await supabaseService()

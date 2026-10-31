@@ -1,4 +1,10 @@
-/** Decorative faces for the logged-out invite popup. Eight URLs, nothing else. */
+/** Decorative faces for invite popups. Eight URLs, nothing else. */
+
+/** Do not send the brand session. The list is public and must ignore RLS. */
+export const GATE_AVATAR_FETCH: RequestInit = {
+  credentials: "omit",
+  cache: "force-cache",
+};
 
 const PLACEHOLDER = /placeholder|default-avatar|no-photo|ui-avatars\.com\/api/i;
 

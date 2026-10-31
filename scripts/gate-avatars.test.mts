@@ -1,7 +1,7 @@
 // node --experimental-strip-types --import ./scripts/resolve-ts-imports.mjs --test scripts/gate-avatars.test.mts
 import assert from "node:assert/strict";
 import test from "node:test";
-import { inviteOpenResult, pickGateAvatarUrls, showCampaignInviteButton } from "../lib/gateAvatars.ts";
+import { GATE_AVATAR_FETCH, inviteOpenResult, pickGateAvatarUrls, showCampaignInviteButton } from "../lib/gateAvatars.ts";
 
 test("picks eight real avatar urls and skips blanks", () => {
   const rows = [
@@ -25,6 +25,10 @@ test("invite button is for visitors, brands, and admins", () => {
   assert.equal(showCampaignInviteButton({ ...base, hasSession: true, isAdmin: true }), true);
   assert.equal(showCampaignInviteButton({ ...base, hasSession: true }), false);
   assert.equal(showCampaignInviteButton({ ...base, sessionChecked: false }), false);
+});
+
+test("avatar fetch does not send the brand session", () => {
+  assert.equal(GATE_AVATAR_FETCH.credentials, "omit");
 });
 
 test("admin without a brand does not get the login popup", () => {
