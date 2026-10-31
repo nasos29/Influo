@@ -4,6 +4,7 @@ import {
   budgetTierMatches,
   DIRECTORY_BUDGET_CAPS,
   findPrivateFieldPaths,
+  formatFromPriceLabel,
   formatPriceTierLabel,
   parseDirectoryPrice,
   priceTierFromMinRate,
@@ -169,6 +170,23 @@ assert.equal(formatPriceTierLabel("2000"), "€1.000–€2.000");
 assert.equal(formatPriceTierLabel("under_5000"), "€2.000–€5.000");
 assert.equal(formatPriceTierLabel("5000"), "€5.000+");
 assert.equal(formatPriceTierLabel("above_5000"), "€5.000+");
+
+assert.equal(formatFromPriceLabel("0"), null);
+assert.equal(formatFromPriceLabel("50", "el"), "Έως €50");
+assert.equal(formatFromPriceLabel("50", "en"), "Up to €50");
+assert.equal(formatFromPriceLabel("100", "el"), "Από €50");
+assert.equal(formatFromPriceLabel("100", "en"), "From €50");
+assert.equal(formatFromPriceLabel("200", "el"), "Από €100");
+assert.equal(formatFromPriceLabel("300", "el"), "Από €200");
+assert.equal(formatFromPriceLabel("500", "el"), "Από €300");
+assert.equal(formatFromPriceLabel("1000", "el"), "Από €500");
+assert.equal(formatFromPriceLabel("2000", "el"), "Από €1.000");
+assert.equal(formatFromPriceLabel("under_5000", "el"), "Από €2.000");
+assert.equal(formatFromPriceLabel("5000", "el"), "Από €5.000");
+assert.equal(formatFromPriceLabel("5000", "en"), "From €5,000");
+assert.equal(formatFromPriceLabel("above_5000", "en"), "From €5,000");
+assert.equal(/Από έως|From up to|Από έως/i.test(formatFromPriceLabel("50", "el") || ""), false);
+assert.equal(/Από έως|From up to/i.test(formatFromPriceLabel("50", "en") || ""), false);
 
 assert.equal(priceTierFromMinRate("40"), "50");
 assert.equal(priceTierFromMinRate("50"), "50");
