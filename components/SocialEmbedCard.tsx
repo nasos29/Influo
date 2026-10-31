@@ -206,30 +206,6 @@ export default function SocialEmbedCard({
   const isStaticImage =
     igKind === "image" || (igKind === "carousel" && !isInteractiveCarousel);
 
-  const isTikTokPlayer =
-    provider === "tiktok" && !!iframeSrc && /tiktok\.com\/player\/v1\//i.test(iframeSrc);
-  const isYouTubePlayer =
-    provider === "youtube" && !!iframeSrc && /youtube\.com\/embed\//i.test(iframeSrc);
-  const portfolioKind: PortfolioMediaKind | null = nativeVideoUrl
-    ? "native"
-    : isTikTokPlayer
-      ? "tiktok"
-      : isYouTubePlayer
-        ? "youtube"
-        : null;
-  const portfolioActive = !!portfolioKind && (!!iframeSrc || !!nativeVideoUrl) && !loading;
-  const {
-    iframeRef: mediaIframeRef,
-    videoRef: mediaVideoRef,
-    playing: mediaPlaying,
-    toggle: toggleMediaPlayback,
-  } = usePortfolioMediaControls(portfolioKind, portfolioActive);
-  const {
-    iframeRef: tikTokIframeRef,
-    showSoundPrompt: showTikTokSoundPrompt,
-    onTapForSound: onTikTokTapForSound,
-  } = useTikTokPlayerHost(isTikTokPlayer, mediaIframeRef);
-
   const {
     src: thumbSrc,
     mediaType: thumbMediaType,
@@ -248,6 +224,37 @@ export default function SocialEmbedCard({
   const isTikTokPhoto =
     provider === "tiktok" &&
     (thumbMediaType === "image" || /\/photo\/\d+/i.test(originalUrl));
+
+  const isTikTokPlayer =
+    provider === "tiktok" && !!iframeSrc && /tiktok\.com\/player\/v1\//i.test(iframeSrc);
+  const isYouTubePlayer =
+    provider === "youtube" && !!iframeSrc && /youtube\.com\/embed\//i.test(iframeSrc);
+  const portfolioKind: PortfolioMediaKind | null = nativeVideoUrl
+    ? "native"
+    : isTikTokPlayer
+      ? "tiktok"
+      : isYouTubePlayer
+        ? "youtube"
+        : null;
+  // Never put play/pause overlay on photos / carousels (blocks ‹ › and dots).
+  const portfolioActive =
+    !!portfolioKind &&
+    (!!iframeSrc || !!nativeVideoUrl) &&
+    !loading &&
+    !isStaticImage &&
+    !isInteractiveCarousel &&
+    !isTikTokPhoto;
+  const {
+    iframeRef: mediaIframeRef,
+    videoRef: mediaVideoRef,
+    playing: mediaPlaying,
+    toggle: toggleMediaPlayback,
+  } = usePortfolioMediaControls(portfolioKind, portfolioActive);
+  const {
+    iframeRef: tikTokIframeRef,
+    showSoundPrompt: showTikTokSoundPrompt,
+    onTapForSound: onTikTokTapForSound,
+  } = useTikTokPlayerHost(isTikTokPlayer, mediaIframeRef);
 
   // /p/ posts: never show ▶ unless meta confirms video. TikTok photos use album icon.
   const showPlayButton =
@@ -613,7 +620,7 @@ export default function SocialEmbedCard({
               ) : null}
 
               {/* Transparent toggle overlay — iframe clicks are otherwise swallowed.
-                  Leaves bottom strip free for native controls / TikTok sound button (z-30). */}
+                  Skipped for photos/carousels. Sound button is z-40 with stopPropagation. */}
               {portfolioActive ? (
                 <button
                   type="button"

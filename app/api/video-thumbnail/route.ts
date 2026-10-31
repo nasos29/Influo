@@ -5,6 +5,7 @@ import {
   extractOgImageFromHtml,
   extractTikTokCoverFromHtml,
   extractTikTokImagePostCover,
+  isCdnThumbnailUrl,
   isGenericLogoThumbnail,
   isNearBlackImageBuffer,
   tikTokHtmlIndicatesPhotoPost,
@@ -112,9 +113,16 @@ async function saveThumbnailCache(
   }
 }
 
+/**
+ * Client-facing thumbnail URL. Never expose raw tiktokcdn / fbcdn / ig CDN —
+ * only Storage via /api/image-proxy (or null so the UI can show a placeholder).
+ */
 function forClient(url: string | null): string | null {
   if (!url) return null;
-  return (getCachedImageUrl(url) as string | null | undefined) ?? url;
+  if (isCdnThumbnailUrl(url)) return null;
+  const proxied = getCachedImageUrl(url);
+  if (typeof proxied === "string" && proxied) return proxied;
+  return isVideoThumbsStorageUrl(url) ? url : null;
 }
 
 function jsonThumb(
@@ -403,21 +411,28 @@ async function readCache(
   }
 }
 
+/**
+ * Download CDN cover → video-thumbs Storage. Never caches / returns raw CDN URLs.
+ */
 async function persistAndCache(
   cleanUrl: string,
   platform: "tiktok" | "instagram",
   remoteThumb: string,
   mediaType?: MediaType
-): Promise<string> {
+): Promise<string | null> {
+  if (isVideoThumbsStorageUrl(remoteThumb)) {
+    await saveThumbnailCache(cleanUrl, remoteThumb, platform, mediaType);
+    return remoteThumb;
+  }
   const stored = await persistVideoThumbToStorage(
     supabaseAdmin,
     platform,
     cleanUrl,
     remoteThumb
   );
-  const finalUrl = stored || remoteThumb;
-  await saveThumbnailCache(cleanUrl, finalUrl, platform, mediaType);
-  return finalUrl;
+  if (!stored) return null;
+  await saveThumbnailCache(cleanUrl, stored, platform, mediaType);
+  return stored;
 }
 
 export async function GET(req: NextRequest) {
@@ -457,9 +472,33 @@ export async function GET(req: NextRequest) {
         /\/photo\/\d+/i.test(cleanUrl) || /\/photo\/\d+/i.test(url)
           ? "image"
           : cached.mediaType;
-      return jsonThumb(cached.thumbnail, cached.platform, {
-        ...(mediaType ? { mediaType } : {}),
-      });
+      // Legacy cache may still hold raw tiktokcdn/fbcdn — re-persist before serving.
+      if (
+        cached.thumbnail &&
+        isCdnThumbnailUrl(cached.thumbnail) &&
+        (cached.platform === "tiktok" || cached.platform === "instagram")
+      ) {
+        const stored = await persistAndCache(
+          cleanUrl,
+          cached.platform,
+          cached.thumbnail,
+          mediaType
+        );
+        if (stored) {
+          return jsonThumb(stored, cached.platform, {
+            ...(mediaType ? { mediaType } : {}),
+          });
+        }
+        // Drop unusable CDN cache entry; fall through to re-resolve.
+        await supabaseAdmin
+          .from("video_thumbnail_cache")
+          .delete()
+          .eq("original_url", cleanUrl);
+      } else {
+        return jsonThumb(cached.thumbnail, cached.platform, {
+          ...(mediaType ? { mediaType } : {}),
+        });
+      }
     }
 
     const ytId = resolveYouTubeVideoId(url);
@@ -485,9 +524,11 @@ export async function GET(req: NextRequest) {
       const thumb = await resolveInstagramThumbnail(url);
       if (thumb) {
         const finalUrl = await persistAndCache(cleanUrl, "instagram", thumb, mediaType);
-        return jsonThumb(finalUrl, "instagram", {
-          ...(mediaType ? { mediaType } : {}),
-        });
+        if (finalUrl) {
+          return jsonThumb(finalUrl, "instagram", {
+            ...(mediaType ? { mediaType } : {}),
+          });
+        }
       }
       return jsonThumb(null, "instagram", {
         fallback: true,
@@ -506,9 +547,11 @@ export async function GET(req: NextRequest) {
       const { thumbnail: thumb, mediaType } = await resolveTikTokThumbnail(url);
       if (thumb && !isGenericLogoThumbnail(thumb)) {
         const finalUrl = await persistAndCache(cleanUrl, "tiktok", thumb, mediaType);
-        return jsonThumb(finalUrl, "tiktok", {
-          ...(mediaType ? { mediaType } : {}),
-        });
+        if (finalUrl) {
+          return jsonThumb(finalUrl, "tiktok", {
+            ...(mediaType ? { mediaType } : {}),
+          });
+        }
       }
       return jsonThumb(null, "tiktok", {
         fallback: true,
