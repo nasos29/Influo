@@ -2,7 +2,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { offerPriceLabel } from "../lib/offerPriceLabel.ts";
-import { formatFromPriceLabel } from "../lib/publicInfluencer.ts";
 import { packageRowTitle } from "../lib/servicePackages.ts";
 import { inviteHeading, negotiateLead } from "../lib/creatorAddress.ts";
 import { campaignChoiceLine, closesInLabel } from "../lib/campaignChoiceMeta.ts";
@@ -16,9 +15,11 @@ test("everyone sees the exact service price, with the euro sign after it", () =>
   );
 });
 
-test("a package without a price string falls back to Από X €", () => {
-  assert.equal(offerPriceLabel({ price: "", fromPrice: 40, lang: "el" }), formatFromPriceLabel(40, "el"));
-  assert.equal(offerPriceLabel({ fromPrice: 40, lang: "el" }), "Από 40 €");
+test("a package without a price string still shows the exact amount", () => {
+  assert.equal(offerPriceLabel({ price: "", fromPrice: 40, lang: "el" }), "40 €");
+  assert.equal(offerPriceLabel({ fromPrice: 40, lang: "el" }), "40 €");
+  assert.equal(offerPriceLabel({ fromPrice: 40, suffix: "/ μήνα", lang: "el" }), "40 € / μήνα");
+  assert.equal(offerPriceLabel({ fromPrice: 0, lang: "el" }), null);
 });
 
 test("package row titles drop a leading 1 and keep UGC and carousel", () => {
