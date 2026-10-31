@@ -8,6 +8,7 @@ import { loadOwnProfiles } from '@/lib/ownProfile';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 import { clearLoggedOutMark, clearSupabaseAuthStorage, isLoggedOutMarked } from '@/lib/authSession';
+import SignupChoiceModal from '@/components/SignupChoiceModal';
 
 const t = {
   el: {
@@ -20,6 +21,8 @@ const t = {
     forgot_password: "Ξέχασα τον κωδικό μου",
     login_button: "Σύνδεση",
     logging_in: "Σύνδεση...",
+    no_account: "Δεν έχετε λογαριασμό;",
+    sign_up: "Εγγραφείτε",
     footer_note: "Για Influencers, Επιχειρήσεις και Admins.",
     back: "Πίσω στο Site",
     reset_email_sent: "Στάλθηκε email επαναφοράς κωδικού. Ελέγξτε το inbox σας.",
@@ -35,6 +38,8 @@ const t = {
     forgot_password: "Forgot Password?",
     login_button: "Log In",
     logging_in: "Logging In...",
+    no_account: "Don't have an account?",
+    sign_up: "Sign up",
     footer_note: "For Influencers, Brands and Admins.",
     back: "Back to Site",
     reset_email_sent: "Password reset email sent. Please check your inbox.",
@@ -52,6 +57,7 @@ function LoginPageContent() {
     const [showForgotPassword, setShowForgotPassword] = useState(false);
     const [resetLoading, setResetLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [showSignup, setShowSignup] = useState(false);
     const emailRef = useRef<HTMLInputElement>(null);
     const passwordRef = useRef<HTMLInputElement>(null);
     const submittingRef = useRef(false);
@@ -410,6 +416,17 @@ function LoginPageContent() {
                                 </span>
                             ) : txt.login_button}
                         </button>
+
+                        <p className="text-center text-sm leading-6 text-slate-600">
+                            {txt.no_account}{" "}
+                            <button
+                                type="button"
+                                onClick={() => setShowSignup(true)}
+                                className="inline-flex min-h-11 items-center font-semibold text-blue-600 underline decoration-blue-600/30 underline-offset-2 hover:text-blue-800"
+                            >
+                                {txt.sign_up}
+                            </button>
+                        </p>
                         
                         <p className="text-xs text-slate-500 text-center pt-2">
                             {txt.footer_note}
@@ -474,6 +491,7 @@ function LoginPageContent() {
                     </form>
                 )}
             </div>
+            <SignupChoiceModal open={showSignup} onClose={() => setShowSignup(false)} lang={lang} />
         </div>
     );
 }

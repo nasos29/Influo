@@ -3027,7 +3027,7 @@ export default function InfluencerProfile(props: {
                 )}
             </div>
             <div className="flex flex-col gap-6">
-                 {showHireBar ? (
+                 {showHireBar && activeTab !== "audience" ? (
                    <div className="sticky top-24 z-30 hidden lg:block">
                      <ProfileHireCard variant="desktop" {...hireCardProps} />
                    </div>

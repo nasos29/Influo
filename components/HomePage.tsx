@@ -4,8 +4,7 @@ import { Suspense, useState, useEffect, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import Directory, { type Influencer } from "@/components/Directory";
-import InfluencerSignupForm from "@/components/InfluencerSignupForm";
-import BrandSignupForm from "@/components/BrandSignupForm";
+import SignupChoiceModal from "@/components/SignupChoiceModal";
 import Footer from "@/components/Footer";
 import TopInfluencersSection from "@/components/TopInfluencersSection";
 import NewlyApprovedInfluencersSection from "@/components/NewlyApprovedInfluencersSection";
@@ -80,9 +79,6 @@ const t = {
     hero_brand_title_1: "Βρες τους σωστούς influencers",
     hero_brand_title_2: "στην Ελλάδα για το brand σου",
     hero_brand_desc: "Έχετε επιχείρηση; Ανακαλύψτε influencers που ταιριάζουν στο κοινό σας, προβάλετε τα προϊόντα ή τις υπηρεσίες σας και ξεκινήστε συνεργασίες μέσα από το Influo. Η εγγραφή είναι δωρεάν.",
-    signup_as: "Εγγραφή ως:",
-    signup_choice_influencer: "Είμαι Influencer",
-    signup_choice_brand: "Έχω Επιχείρηση",
     brand_section_title: "Έχετε Επιχείρηση;",
     brand_section_desc: "Βρείτε τους κατάλληλους influencers για το brand σας. Αναζητήστε, επικοινωνήστε και συνεργαστείτε με verified creators — με AI προτάσεις χωρίς επιπλέον κόστος.",
     brand_section_btn: "Δημιούργησε Λογαριασμό Επιχείρησης",
@@ -136,9 +132,6 @@ const t = {
     hero_brand_title_1: "Find the right influencers",
     hero_brand_title_2: "in Greece for your brand",
     hero_brand_desc: "Own a business? Find influencers that match your audience, promote your products or services and start successful collaborations through Influo. Registration is free.",
-    signup_as: "Sign up as:",
-    signup_choice_influencer: "I am an Influencer",
-    signup_choice_brand: "I have a Company",
     brand_section_title: "Are you a Company?",
     brand_section_desc: "Find the right influencers for your brand. Search, connect and collaborate with verified creators — with AI recommendations included at no extra cost.",
     brand_section_btn: "Create Company Account",
@@ -990,77 +983,12 @@ export default function Home({
       {/* Footer */}
       <Footer lang={lang} />
 
-      {/* Modal */}
-      {showModal && (
-          <div
-            className="fixed inset-0 bg-slate-900/70 backdrop-blur-md flex justify-center items-center z-50 p-4 animate-in fade-in duration-200"
-            onClick={() => setShowModal(false)}
-          >
-            <div
-              className="relative w-full max-w-5xl animate-in zoom-in duration-300"
-              onClick={(e) => e.stopPropagation()}
-            >
-            <div className="mb-5 sm:mb-6">
-              <p className="mb-2 text-sm font-bold tracking-wide text-white sm:text-base">
-                {txt.signup_as}
-              </p>
-              <div
-                role="group"
-                aria-label={txt.signup_as}
-                className="grid grid-cols-2 gap-2 rounded-2xl border-2 border-white bg-slate-950/55 p-2 shadow-xl"
-              >
-                <button
-                  type="button"
-                  aria-pressed={signupType === "influencer"}
-                  onClick={() => setSignupType("influencer")}
-                  className={`flex min-h-[56px] items-center justify-center gap-2 rounded-xl px-2 py-3 text-center text-sm font-bold leading-tight transition-all sm:min-h-[60px] sm:px-4 sm:text-base ${
-                    signupType === "influencer"
-                      ? "bg-white text-slate-900 shadow-md ring-2 ring-blue-500"
-                      : "border border-white/80 bg-transparent text-white hover:bg-white/10"
-                  }`}
-                >
-                  {signupType === "influencer" && (
-                    <svg viewBox="0 0 20 20" className="h-5 w-5 shrink-0 text-blue-600" fill="currentColor" aria-hidden>
-                      <path fillRule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.2 7.2a1 1 0 0 1-1.4 0L3.3 9.1a1 1 0 1 1 1.4-1.4l4.1 4.1 6.5-6.5a1 1 0 0 1 1.4 0Z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                  {txt.signup_choice_influencer}
-                </button>
-                <button
-                  type="button"
-                  aria-pressed={signupType === "brand"}
-                  onClick={() => setSignupType("brand")}
-                  className={`flex min-h-[56px] items-center justify-center gap-2 rounded-xl px-2 py-3 text-center text-sm font-bold leading-tight transition-all sm:min-h-[60px] sm:px-4 sm:text-base ${
-                    signupType === "brand"
-                      ? "bg-white text-slate-900 shadow-md ring-2 ring-blue-500"
-                      : "border border-white/80 bg-transparent text-white hover:bg-white/10"
-                  }`}
-                >
-                  {signupType === "brand" && (
-                    <svg viewBox="0 0 20 20" className="h-5 w-5 shrink-0 text-blue-600" fill="currentColor" aria-hidden>
-                      <path fillRule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.2 7.2a1 1 0 0 1-1.4 0L3.3 9.1a1 1 0 1 1 1.4-1.4l4.1 4.1 6.5-6.5a1 1 0 0 1 1.4 0Z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                  {txt.signup_choice_brand}
-                </button>
-              </div>
-            </div>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                aria-label={lang === "el" ? "Κλείσιμο" : "Close"}
-                className="absolute top-3 right-3 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 transition-colors border border-red-200 shadow-sm"
-              >
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M18 6L6 18" />
-                </svg>
-              </button>
-              {signupType === "influencer" ? <InfluencerSignupForm /> : <BrandSignupForm embedded />}
-            </div>
-          </div>
-        </div>
-      )}
+      <SignupChoiceModal
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        lang={lang}
+        initialType={signupType}
+      />
     </div>
     </>
   );
