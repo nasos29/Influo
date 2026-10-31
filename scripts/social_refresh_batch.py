@@ -175,7 +175,7 @@ def scrape(platform: str, username: str) -> dict[str, Any]:
         return {"ok": False, "error": f"Λάθος username: το προφίλ @{username} δεν υπάρχει."}
     engagement = data.get("engagement_rate")
     avg_views_n = parse_count(data.get("avg_views") or data.get("avg_plays") or data.get("average_views"))
-    return {
+    result: dict[str, Any] = {
         "ok": True,
         "followers": format_followers(followers_n),
         "engagement_rate": engagement if isinstance(engagement, str) else str(engagement or "N/A"),
@@ -185,6 +185,11 @@ def scrape(platform: str, username: str) -> dict[str, Any]:
         "suspected_fake_penalty": bool(data.get("suspected_fake_penalty")),
         "engagement_hidden": bool(data.get("engagement_hidden")),
     }
+    # Same metrics response already fetched above. Omit the key when Auditpr
+    # did not send it so Influo keeps the posts already stored.
+    if "top_posts" in data and data.get("top_posts") is not None:
+        result["top_posts"] = data.get("top_posts")
+    return result
 
 
 def main() -> None:
@@ -270,6 +275,8 @@ def main() -> None:
                 "avg_views": result.get("avg_views"),
                 "error": result.get("error"),
             }
+            if "top_posts" in result:
+                row["top_posts"] = result.get("top_posts")
             scraped.append(row)
             if not row["ok"] and is_session_dead(str(row.get("error") or "")):
                 influo_request(

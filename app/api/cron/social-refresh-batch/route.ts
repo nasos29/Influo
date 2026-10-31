@@ -15,6 +15,7 @@ import { createClient } from '@supabase/supabase-js';
 import { copyAuditprErExtras } from '@/lib/engagementFlags';
 import { GEMINI_PAUSED_MSG, isGeminiPaused } from '@/lib/geminiPause';
 import { doRefreshSocialStats, type InstagramOverrides, type TikTokOverrides, type YouTubeOverrides } from '@/lib/refreshSocialStats';
+import { sanitizeTopPosts } from '@/lib/topPosts';
 import {
   appendSocialRefreshLog,
   createSocialRefreshRun,
@@ -62,6 +63,8 @@ type ScrapedAccount = {
   quality_penalty_percent?: number | string;
   er_penalty_percent?: number | string;
   penalty_percent?: number | string;
+  /** Present only when Auditpr included top_posts in the metrics JSON already fetched. */
+  top_posts?: unknown;
   error?: string;
 };
 
@@ -296,6 +299,11 @@ export async function POST(request: NextRequest) {
           ...(acc.posts_count != null ? { posts_count: Number(acc.posts_count) } : {}),
           ...(acc.avg_views != null && Number(acc.avg_views) > 0 ? { avg_views: Number(acc.avg_views) } : {}),
           ...copyAuditprErExtras(acc),
+          // Same cap and field cleanup as the admin refresh. Omit the key when
+          // Auditpr did not send it so stored top_posts (and hidden_videos) stay.
+          ...(Object.hasOwn(acc, 'top_posts')
+            ? { top_posts: sanitizeTopPosts(acc.top_posts) }
+            : {}),
         };
         if (platform === 'instagram') instagramOverrides[username] = metrics;
         else if (platform === 'tiktok') tiktokOverrides[username] = metrics;
