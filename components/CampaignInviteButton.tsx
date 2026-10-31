@@ -128,7 +128,7 @@ export default function CampaignInviteButton({
         type="button"
         onClick={() => void open()}
         disabled={busy}
-        className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:from-blue-700 hover:to-purple-700 disabled:opacity-60 md:w-auto"
+        className="inline-flex min-h-11 w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:from-blue-700 hover:to-purple-700 disabled:cursor-not-allowed disabled:opacity-60 md:w-auto"
       >
         + {copy.button}
       </button>
