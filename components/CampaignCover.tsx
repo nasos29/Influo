@@ -59,6 +59,17 @@ function gradientFor(category: string | null | undefined): string {
   return GRADIENTS[hash % (GRADIENTS.length - 1)];
 }
 
+/** Up to two letters: first of each word, or the first two of a single word. */
+function brandInitials(name: string | null | undefined): string {
+  const raw = (name || "").trim();
+  if (!raw) return "B";
+  const words = raw.split(/\s+/).filter(Boolean);
+  if (words.length >= 2) {
+    return `${words[0]?.[0] || ""}${words[1]?.[0] || ""}`.toUpperCase() || "B";
+  }
+  return words[0].slice(0, 2).toUpperCase() || "B";
+}
+
 export default function CampaignCover({
   coverUrl,
   title,
@@ -86,22 +97,45 @@ export default function CampaignCover({
   const [logoFailed, setLogoFailed] = useState(false);
   const aspectClass = aspect === "16/9" ? "aspect-video" : "aspect-[4/3]";
   const hasCover = Boolean(coverUrl) && !coverFailed;
+  // One resolved URL for the sharp mark and the blurred backdrop so the second
+  // paint is a browser-cache hit (no extra Supabase egress).
   const logoSrc = logoUrl && !logoFailed ? getCachedImageUrl(logoUrl) ?? logoUrl : null;
-  const initial = (brandName || title || "B").trim().slice(0, 1).toUpperCase() || "B";
+  const initials = brandInitials(brandName || title);
   const platformList = Array.isArray(platforms) ? platforms.filter((p) => ["instagram", "tiktok", "youtube", "facebook"].includes(p)) : [];
+  const imageLoading = priority ? "eager" : "lazy";
+  const imagePriority = priority ? "high" : "auto";
 
-  const logoBadge = (sizeClass: string, textClass: string, extra = "") => (
-    <div className={`relative ${sizeClass} rounded-xl overflow-hidden border-2 border-white shadow-md bg-white flex items-center justify-center ${extra}`}>
+  const logoMark = (sizeClass: string, textClass: string, onPhoto = false) => (
+    <div
+      className={`relative ${sizeClass} overflow-hidden rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.28)] ring-1 ring-white/40 flex items-center justify-center ${
+        logoSrc ? "bg-white/10" : onPhoto ? "bg-slate-950/55 backdrop-blur-md" : "bg-white/15 backdrop-blur-sm"
+      }`}
+    >
       {logoSrc ? (
-        <FastImage src={logoSrc} alt={brandName || "Brand"} fill className="object-cover" sizes="96px" onError={() => setLogoFailed(true)} />
+        // Same URL as the blurred backdrop — do not run it through a resizer.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={logoSrc}
+          alt={brandName ? "" : "Brand"}
+          className="absolute inset-0 h-full w-full object-cover"
+          loading={imageLoading}
+          decoding="async"
+          fetchPriority={imagePriority}
+          draggable={false}
+          onError={() => setLogoFailed(true)}
+        />
       ) : (
-        <span className={`${textClass} font-bold text-slate-700`}>{initial}</span>
+        <span className={`${textClass} font-semibold tracking-wide text-white`}>{initials}</span>
       )}
     </div>
   );
 
   return (
-    <div className={`relative w-full ${aspectClass} overflow-hidden bg-gradient-to-br ${gradientFor(category)} ${className}`}>
+    <div
+      className={`relative w-full ${aspectClass} overflow-hidden ${
+        hasCover ? `bg-gradient-to-br ${gradientFor(category)}` : logoSrc ? "bg-slate-800" : "bg-gradient-to-br from-slate-500 via-slate-600 to-slate-700"
+      } ${className}`}
+    >
       {hasCover ? (
         <>
           <FastImage
@@ -114,19 +148,43 @@ export default function CampaignCover({
             onError={() => setCoverFailed(true)}
           />
           <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
-          <div className="absolute left-3 bottom-3">{logoBadge("w-10 h-10 sm:w-12 sm:h-12", "text-lg")}</div>
+          <div className="absolute left-3 bottom-3 z-10">{logoMark("w-10 h-10 sm:w-12 sm:h-12", "text-base", true)}</div>
         </>
       ) : (
         <>
-          <div className="absolute inset-0 opacity-25 bg-[radial-gradient(circle_at_20%_20%,white,transparent_45%),radial-gradient(circle_at_85%_85%,white,transparent_40%)]" />
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-4">
-            {logoBadge("w-16 h-16 sm:w-20 sm:h-20", "text-3xl")}
-            {brandName ? <p className="text-white/95 text-sm font-semibold drop-shadow truncate max-w-full">{brandName}</p> : null}
+          {logoSrc ? (
+            <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={logoSrc}
+                alt=""
+                className="absolute inset-0 h-full w-full origin-center scale-[1.35] object-cover blur-[36px]"
+                loading={imageLoading}
+                decoding="async"
+                fetchPriority={imagePriority}
+                draggable={false}
+                onError={() => setLogoFailed(true)}
+              />
+              <div className="absolute inset-0 bg-black/40" />
+            </div>
+          ) : (
+            <div
+              className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_28%_18%,rgba(255,255,255,0.18),transparent_42%),radial-gradient(circle_at_82%_84%,rgba(15,23,42,0.18),transparent_46%)]"
+              aria-hidden
+            />
+          )}
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 px-4">
+            {logoMark("w-16 h-16 sm:w-20 sm:h-20", "text-2xl sm:text-3xl")}
+            {brandName ? (
+              <p className="max-w-full truncate text-sm font-semibold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.55)]">
+                {brandName}
+              </p>
+            ) : null}
           </div>
         </>
       )}
       {platformList.length > 0 && (
-        <div className="absolute right-3 bottom-3 inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-black/45 backdrop-blur-sm px-3 py-2 sm:min-h-0 sm:px-2.5 sm:py-1.5">
+        <div className="absolute right-3 bottom-3 z-20 inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-slate-950/50 px-3 py-2 ring-1 ring-white/30 backdrop-blur-md sm:min-h-0 sm:px-2.5 sm:py-1.5">
           {platformList.map((p) => (
             <PlatformIcon key={p} platform={p} colored={false} className="w-4 h-4" />
           ))}
