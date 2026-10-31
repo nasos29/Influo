@@ -110,6 +110,8 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
           lang={lang}
           loading={loading}
           centerHeader
+          autoPlay
+          autoPlayInterval={4000}
           eyebrow={
             <span className="inline-block px-3 py-1 text-xs font-semibold uppercase tracking-wider text-blue-600 bg-blue-50 rounded-full">
               Trending
