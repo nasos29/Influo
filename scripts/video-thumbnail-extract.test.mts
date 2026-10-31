@@ -126,6 +126,39 @@ test("extractTikTokImagePostCover: first urlList entry", () => {
   );
 });
 
+test("extractTikTokCoverFromHtml: embed covers[] + imagePost sample (oEmbed-empty path)", () => {
+  const embedLike = `
+    <script id="__FRONTITY_CONNECT_STATE__" type="application/json">
+    {"videoData":{"itemInfos":{
+      "imagePostInfo":null,
+      "covers":["https://p16-common-sign.tiktokcdn-eu.com/tos-no1a-p-0037-no/frameA~tplv-tiktokx-origin.image?dr=10395\\u0026x-expires=1"],
+      "coversDynamic":["https://p16-common-sign.tiktokcdn-eu.com/tos-no1a-p-0037-no/frameB~tplv-tiktokx-origin.image?dr=10395"]
+    },"imagePostInfo":null}}
+    </script>`;
+  assert.equal(
+    extractTikTokCoverFromHtml(embedLike),
+    "https://p16-common-sign.tiktokcdn-eu.com/tos-no1a-p-0037-no/frameA~tplv-tiktokx-origin.image?dr=10395&x-expires=1"
+  );
+
+  const withImagePost = `
+    <script id="__UNIVERSAL_DATA_FOR_REHYDRATION__" type="application/json">
+    {"__DEFAULT_SCOPE__":{"webapp.video-detail":{"itemInfo":{"itemStruct":{
+      "imagePost":{"images":[{"imageURL":{"urlList":[
+        "https:\\u002F\\u002Fp16.tiktokcdn.com\\u002Fobj\\u002Fphoto-frame0.webp",
+        "https:\\u002F\\u002Fp16.tiktokcdn.com\\u002Fobj\\u002Fphoto-frame1.webp"
+      ]}}]},
+      "cover":"https:\\u002F\\u002Fp16.tiktokcdn.com\\u002Fobj\\u002Fshould-not-win.webp"
+    }}}}}
+    </script>`;
+  assert.equal(
+    extractTikTokCoverFromHtml(withImagePost),
+    "https://p16.tiktokcdn.com/obj/photo-frame0.webp"
+  );
+  assert.equal(extractTikTokImagePostCover(withImagePost), "https://p16.tiktokcdn.com/obj/photo-frame0.webp");
+  // imagePostInfo:null must not count as imagePost cover
+  assert.equal(extractTikTokImagePostCover(`{"imagePostInfo":null,"covers":["https://p16.tiktokcdn.com/obj/x.webp"]}`), null);
+});
+
 test("isNearBlackImageBuffer: mostly-zero bytes", () => {
   const black = new Uint8Array(4000);
   assert.equal(isNearBlackImageBuffer(black), true);

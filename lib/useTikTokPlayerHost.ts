@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import {
   isTikTokPlayerMessage,
   postTikTokPlayer,
@@ -18,8 +18,12 @@ export const TIKTOK_SOUND_COPY = {
  * Host TikTok player/v1 iframe: after onPlayerReady (or first onStateChange),
  * send unMute + play. If still muted after ~1.5s, expose a Tap-for-sound prompt.
  */
-export function useTikTokPlayerHost(enabled: boolean) {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+export function useTikTokPlayerHost(
+  enabled: boolean,
+  externalIframeRef?: RefObject<HTMLIFrameElement | null>
+) {
+  const localRef = useRef<HTMLIFrameElement>(null);
+  const iframeRef = externalIframeRef ?? localRef;
   const [showSoundPrompt, setShowSoundPrompt] = useState(false);
   const unmutedRef = useRef(false);
   const triedUnmuteRef = useRef(false);
