@@ -4,6 +4,7 @@ import {
   budgetTierMatches,
   DIRECTORY_BUDGET_CAPS,
   findPrivateFieldPaths,
+  formatPriceTierLabel,
   parseDirectoryPrice,
   priceTierFromMinRate,
   toPublicDirectoryCard,
@@ -125,5 +126,12 @@ assert.equal(ageFromBirthDate("2000-10-11", new Date("2026-10-11T12:00:00Z")), 2
 assert.equal(ageFromBirthDate("2000-10-11", new Date("2026-10-10T22:30:00Z")), 26);
 assert.equal(ageFromBirthDate(""), null);
 assert.equal(ageFromBirthDate(null), null);
+
+assert.equal(formatPriceTierLabel("0"), null);
+assert.equal(formatPriceTierLabel("100"), "≤ €100");
+assert.equal(formatPriceTierLabel("200"), "€100–€200");
+assert.equal(formatPriceTierLabel("under_5000"), "€4.500–€5.000");
+assert.equal(formatPriceTierLabel("5000"), "€5.000+");
+assert.equal(formatPriceTierLabel("above_5000"), "€5.000+");
 
 console.log("public influencer payload checks passed");
