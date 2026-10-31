@@ -1,4 +1,5 @@
 import { parseMoney } from "@/lib/channelScore";
+import { formatEuro, type EuroLang } from "@/lib/formatEuro";
 import { parseFollowerString } from "@/lib/parseFollowers";
 
 /**
@@ -20,9 +21,9 @@ export function estimateCpm(
   return Math.round((rate / views) * 1000 * 100) / 100;
 }
 
-/** Format CPM with exactly 2 decimal places and a euro sign. */
-export function formatCpmEuro(cpm: number): string {
-  return `${cpm.toFixed(2)}€`;
+/** Format CPM with exactly 2 decimal places and the euro sign on the right. */
+export function formatCpmEuro(cpm: number, lang: EuroLang = "el"): string {
+  return formatEuro(cpm, lang, 2);
 }
 
 /**

@@ -7,8 +7,9 @@ test("estimateCpm: min_rate / avg_views * 1000 with 2-decimal rounding", () => {
   assert.equal(estimateCpm("100", 10000), 10);
   assert.equal(estimateCpm(150, "5k"), 30);
   assert.equal(estimateCpm("99,5", 1000), 99.5);
-  assert.equal(formatCpmEuro(10), "10.00€");
-  assert.equal(formatCpmEuro(12.5), "12.50€");
+  assert.equal(formatCpmEuro(10), "10,00 €");
+  assert.equal(formatCpmEuro(12.5), "12,50 €");
+  assert.equal(formatCpmEuro(12.5, "en"), "12.50 €");
 });
 
 test("estimateCpm: missing rate or views < 100 → null", () => {

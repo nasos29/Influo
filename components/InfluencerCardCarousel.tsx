@@ -6,6 +6,9 @@ import { SECTION_TITLE_CLASS } from "@/lib/sectionTitle";
 const SCROLLBAR_HIDE =
   "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
+/** Autoplay slide length. Shorter than the browser's default smooth scroll, still eased. */
+const AUTO_SCROLL_MS = 380;
+
 const NAV_COPY = {
   prev: { el: "Προηγούμενοι", en: "Previous" },
   next: { el: "Επόμενοι", en: "Next" },
@@ -71,6 +74,7 @@ export default function InfluencerCardCarousel({
   titleClassName = SECTION_TITLE_CLASS,
   autoPlay = false,
   autoPlayInterval = 4000,
+  autoPlayInitialDelay,
 }: {
   lang: Lang;
   title: ReactNode;
@@ -85,8 +89,13 @@ export default function InfluencerCardCarousel({
   titleClassName?: string;
   /** When true, advances one card on an interval (Top 10 only). */
   autoPlay?: boolean;
-  /** Ms between auto advances. Default 4000. */
+  /** Ms between auto advances after the first. Default 4000. */
   autoPlayInterval?: number;
+  /**
+   * Ms after the cards load before the first auto advance.
+   * Defaults to autoPlayInterval. Top 10 passes a shorter delay.
+   */
+  autoPlayInitialDelay?: number;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -96,10 +105,16 @@ export default function InfluencerCardCarousel({
   const visibleRef = useRef(false);
   const reducedMotionRef = useRef(false);
   const programmaticScrollRef = useRef(false);
+  const programmaticTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoPlayRef = useRef(autoPlay);
   const intervalRef = useRef(autoPlayInterval);
+  const initialDelayRef = useRef(autoPlayInitialDelay ?? autoPlayInterval);
+  const initialDelayPendingRef = useRef(true);
+  const scrollAnimRef = useRef<number | null>(null);
+  const snapRestoreRef = useRef<string | null>(null);
   autoPlayRef.current = autoPlay;
   intervalRef.current = autoPlayInterval;
+  initialDelayRef.current = autoPlayInitialDelay ?? autoPlayInterval;
 
   const clearAdvanceTimer = useCallback(() => {
     if (timerRef.current != null) {
@@ -115,11 +130,15 @@ export default function InfluencerCardCarousel({
     }
   }, []);
 
-  const markProgrammaticScroll = useCallback(() => {
+  const markProgrammaticScroll = useCallback((holdMs = 600) => {
     programmaticScrollRef.current = true;
-    window.setTimeout(() => {
+    if (programmaticTimerRef.current != null) {
+      clearTimeout(programmaticTimerRef.current);
+    }
+    programmaticTimerRef.current = setTimeout(() => {
       programmaticScrollRef.current = false;
-    }, 600);
+      programmaticTimerRef.current = null;
+    }, holdMs);
   }, []);
 
   const scrollByCard = useCallback(
@@ -134,28 +153,69 @@ export default function InfluencerCardCarousel({
     [markProgrammaticScroll]
   );
 
+  const animateAutoScroll = useCallback(
+    (el: HTMLElement, targetLeft: number) => {
+      const target = Math.max(0, targetLeft);
+      const start = el.scrollLeft;
+      const delta = target - start;
+      if (Math.abs(delta) < 1) return;
+
+      if (scrollAnimRef.current != null) {
+        cancelAnimationFrame(scrollAnimRef.current);
+        scrollAnimRef.current = null;
+      }
+      if (snapRestoreRef.current == null) {
+        snapRestoreRef.current = el.style.scrollSnapType;
+      }
+      // Snap fights a scripted slide; restore it once we land.
+      el.style.scrollSnapType = "none";
+      // Cover the slide plus the snap restore so that adjustment is not treated as a user scroll.
+      markProgrammaticScroll(AUTO_SCROLL_MS + 250);
+      const startTime = performance.now();
+
+      const tick = (now: number) => {
+        const t = Math.min(1, (now - startTime) / AUTO_SCROLL_MS);
+        const eased = 1 - Math.pow(1 - t, 3);
+        el.scrollLeft = start + delta * eased;
+        if (t < 1) {
+          scrollAnimRef.current = requestAnimationFrame(tick);
+          return;
+        }
+        el.scrollLeft = target;
+        if (snapRestoreRef.current != null) {
+          el.style.scrollSnapType = snapRestoreRef.current;
+          snapRestoreRef.current = null;
+        }
+        scrollAnimRef.current = null;
+      };
+      scrollAnimRef.current = requestAnimationFrame(tick);
+    },
+    [markProgrammaticScroll]
+  );
+
   const advanceAuto = useCallback(() => {
     const el = scrollerRef.current;
     if (!el) return;
-    const card = el.querySelector<HTMLElement>("[data-carousel-card]");
-    const step = card ? card.offsetWidth + 16 : el.clientWidth * 0.5;
     const maxScroll = el.scrollWidth - el.clientWidth;
     if (maxScroll <= 2) return;
-    markProgrammaticScroll();
     // At (or past) last snap: smoothly loop back to #1.
     if (el.scrollLeft >= maxScroll - 4) {
-      el.scrollTo({ left: 0, behavior: "smooth" });
+      animateAutoScroll(el, 0);
       return;
     }
-    const next = el.scrollLeft + step;
-    if (next >= maxScroll - 4) {
-      el.scrollTo({ left: maxScroll, behavior: "smooth" });
-    } else {
-      el.scrollBy({ left: step, behavior: "smooth" });
+    const scrollerLeft = el.getBoundingClientRect().left;
+    let target = maxScroll;
+    for (const card of el.querySelectorAll<HTMLElement>("[data-carousel-card]")) {
+      const cardLeft = card.getBoundingClientRect().left - scrollerLeft + el.scrollLeft;
+      if (cardLeft > el.scrollLeft + 4) {
+        target = Math.min(cardLeft, maxScroll);
+        break;
+      }
     }
-  }, [markProgrammaticScroll]);
+    animateAutoScroll(el, target);
+  }, [animateAutoScroll]);
 
-  const scheduleAdvance = useCallback(() => {
+  const scheduleAdvance = useCallback((kind: "initial" | "interval" = "interval") => {
     clearAdvanceTimer();
     if (
       !autoPlayRef.current ||
@@ -166,11 +226,29 @@ export default function InfluencerCardCarousel({
     ) {
       return;
     }
+    // First move after the cards load uses the short delay. Later moves,
+    // including resume after hover/touch, keep the full interval.
+    const useInitial = kind === "initial" && initialDelayPendingRef.current;
+    if (!useInitial) initialDelayPendingRef.current = false;
+    const delay = useInitial ? initialDelayRef.current : intervalRef.current;
     timerRef.current = setTimeout(() => {
+      initialDelayPendingRef.current = false;
       advanceAuto();
       scheduleAdvance();
-    }, intervalRef.current);
+    }, delay);
   }, [advanceAuto, clearAdvanceTimer, loading]);
+
+  const cancelAutoScroll = useCallback(() => {
+    if (scrollAnimRef.current != null) {
+      cancelAnimationFrame(scrollAnimRef.current);
+      scrollAnimRef.current = null;
+    }
+    const el = scrollerRef.current;
+    if (el && snapRestoreRef.current != null) {
+      el.style.scrollSnapType = snapRestoreRef.current;
+      snapRestoreRef.current = null;
+    }
+  }, []);
 
   const pauseAuto = useCallback(() => {
     pausedRef.current = true;
@@ -207,6 +285,8 @@ export default function InfluencerCardCarousel({
     const root = rootRef.current;
     if (!root) return;
 
+    initialDelayPendingRef.current = true;
+
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
     reducedMotionRef.current = mq.matches;
     const onMotionChange = () => {
@@ -224,7 +304,7 @@ export default function InfluencerCardCarousel({
       (entries) => {
         const entry = entries[0];
         visibleRef.current = !!entry?.isIntersecting;
-        if (visibleRef.current) scheduleAdvance();
+        if (visibleRef.current) scheduleAdvance("initial");
         else clearAdvanceTimer();
       },
       { threshold: 0.25 }
@@ -248,7 +328,12 @@ export default function InfluencerCardCarousel({
       if (next && root.contains(next)) return;
       resumeAutoAfterIdle();
     };
-    const onTouchStart = () => pauseAuto();
+    const onTouchStart = () => {
+      // Let the finger take over instead of fighting the in-flight slide.
+      cancelAutoScroll();
+      programmaticScrollRef.current = false;
+      pauseAuto();
+    };
     const onTouchEnd = () => resumeAutoAfterIdle();
     const onTouchCancel = () => resumeAutoAfterIdle();
 
@@ -268,7 +353,7 @@ export default function InfluencerCardCarousel({
     };
     scroller?.addEventListener("scroll", onUserScroll, { passive: true });
 
-    scheduleAdvance();
+    scheduleAdvance("initial");
 
     return () => {
       mq.removeEventListener("change", onMotionChange);
@@ -284,6 +369,7 @@ export default function InfluencerCardCarousel({
       scroller?.removeEventListener("scroll", onUserScroll);
       clearAdvanceTimer();
       clearResumeTimer();
+      cancelAutoScroll();
     };
   }, [
     autoPlay,
@@ -293,6 +379,7 @@ export default function InfluencerCardCarousel({
     resumeAutoAfterIdle,
     clearAdvanceTimer,
     clearResumeTimer,
+    cancelAutoScroll,
   ]);
 
   const titleBlock = (

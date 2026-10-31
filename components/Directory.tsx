@@ -10,6 +10,7 @@ import { normalizeGender, type GenderValue } from "../lib/gender";
 import { isAvailableStatus, trustChipsFromAccounts } from "@/lib/trustSignals";
 import { publicProfilePath } from "@/lib/profileSlug";
 import { CATEGORIES, categoriesMatchFilter, categoryTranslations, parseStoredCategories } from "@/lib/categories";
+import { formatEuro } from "@/lib/formatEuro";
 import {
   badgeMinRateFromTier,
   budgetTierMatches,
@@ -129,7 +130,7 @@ const t = {
     follMacro: "Macro (100k+)",
     budAll: "Όλα",
     budUpTo: "Έως",
-    budUnlimited: "5000€+ (VIP)",
+    budUnlimited: "5.000 €+ (VIP)",
     engAll: "Όλα",
     engMin: "Ελάχ.",
     engGood: "Καλό",
@@ -181,7 +182,7 @@ const t = {
     follMacro: "Macro (100k+)",
     budAll: "Any",
     budUpTo: "Up to",
-    budUnlimited: "5000€+ (VIP)",
+    budUnlimited: "5,000 €+ (VIP)",
     engAll: "Any",
     engMin: "Min",
     engGood: "Good",
@@ -651,10 +652,6 @@ export default function Directory({
     if (q) {
       chips.push({ id: "search", label: q, clear: () => setSearchQuery("") });
     }
-    const loc = locationQuery.trim();
-    if (loc) {
-      chips.push({ id: "location", label: loc, clear: () => setLocationQuery("") });
-    }
     if (platformFilter !== "All") {
       chips.push({
         id: "platform",
@@ -671,25 +668,19 @@ export default function Directory({
         clear: () => setCategoryFilterAndUrl("All"),
       });
     }
-    if (genderFilter !== "All") {
-      extra += 1;
-      const genderLabel =
-        genderFilter === "Female"
-          ? txt.genFem
-          : genderFilter === "Male"
-            ? txt.genMal
-            : genderFilter === "AI"
-              ? txt.genAi
-              : genderFilter;
-      chips.push({ id: "gender", label: genderLabel, clear: () => setGenderFilter("All") });
+    const loc = locationQuery.trim();
+    if (loc) {
+      chips.push({ id: "location", label: loc, clear: () => setLocationQuery("") });
     }
-    // Default availability ("available") does not count as an active filter.
-    if (availabilityFilter !== "available") {
+    if (budgetMax !== "All") {
       extra += 1;
       chips.push({
-        id: "availability",
-        label: availabilityFilter === "unavailable" ? txt.availNo : txt.availAll,
-        clear: () => setAvailabilityFilter("available"),
+        id: "budget",
+        label:
+          budgetMax === "Unlimited"
+            ? txt.budUnlimited
+            : `${txt.budUpTo} ${formatEuro(Number(budgetMax), lang)}`,
+        clear: () => setBudgetMax("All"),
       });
     }
     if (followerRange !== "All") {
@@ -706,14 +697,6 @@ export default function Directory({
         id: "followers",
         label: follLabel,
         clear: () => setFollowerRange("All"),
-      });
-    }
-    if (budgetMax !== "All") {
-      extra += 1;
-      chips.push({
-        id: "budget",
-        label: budgetMax === "Unlimited" ? txt.budUnlimited : `${txt.budUpTo} ${budgetMax}€`,
-        clear: () => setBudgetMax("All"),
       });
     }
     if (minEngagement !== "All") {
@@ -733,21 +716,17 @@ export default function Directory({
         clear: () => setLanguageFilter("All"),
       });
     }
-    if (minRating !== "All") {
+    if (genderFilter !== "All") {
       extra += 1;
-      chips.push({
-        id: "rating",
-        label: `${txt.ratingMin} ${minRating}★`,
-        clear: () => setMinRating("All"),
-      });
-    }
-    if (badgeFilter !== "All") {
-      extra += 1;
-      chips.push({
-        id: "badge",
-        label: getBadgeFilterLabel(badgeFilter, lang),
-        clear: () => setBadgeFilter("All"),
-      });
+      const genderLabel =
+        genderFilter === "Female"
+          ? txt.genFem
+          : genderFilter === "Male"
+            ? txt.genMal
+            : genderFilter === "AI"
+              ? txt.genAi
+              : genderFilter;
+      chips.push({ id: "gender", label: genderLabel, clear: () => setGenderFilter("All") });
     }
     if (ageMin.trim() || ageMax.trim()) {
       extra += 1;
@@ -760,6 +739,31 @@ export default function Directory({
           setAgeMin("");
           setAgeMax("");
         },
+      });
+    }
+    if (minRating !== "All") {
+      extra += 1;
+      chips.push({
+        id: "rating",
+        label: `${txt.ratingMin} ${minRating}★`,
+        clear: () => setMinRating("All"),
+      });
+    }
+    // Default availability ("available") does not count as an active filter.
+    if (availabilityFilter !== "available") {
+      extra += 1;
+      chips.push({
+        id: "availability",
+        label: availabilityFilter === "unavailable" ? txt.availNo : txt.availAll,
+        clear: () => setAvailabilityFilter("available"),
+      });
+    }
+    if (badgeFilter !== "All") {
+      extra += 1;
+      chips.push({
+        id: "badge",
+        label: getBadgeFilterLabel(badgeFilter, lang),
+        clear: () => setBadgeFilter("All"),
       });
     }
 
@@ -854,7 +858,7 @@ export default function Directory({
     <div>
       {/* Filter bar — Collabstr-style pills */}
       <div className="mb-6 space-y-3">
-        {/* Top row: search alone on mobile; search + location + platform + category + filters + count on sm+ */}
+        {/* Top row: search → platform → category → location → filters → count */}
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           <div className="relative w-full sm:min-w-[200px] sm:flex-1">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
@@ -870,22 +874,8 @@ export default function Directory({
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative min-w-[140px] flex-1 sm:flex-none sm:w-44">
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
-                <LocationIcon />
-              </div>
-              <input
-                type="text"
-                placeholder={txt.locPlace}
-                value={locationQuery}
-                onChange={(e) => setLocationQuery(e.target.value)}
-                className={pillInput}
-                aria-label={txt.locPlace}
-              />
-            </div>
-
-            <div className="min-w-[120px] flex-1 sm:flex-none sm:w-40">
+          <div className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap sm:items-center">
+            <div className="min-w-0 sm:min-w-[120px] sm:flex-none sm:w-40">
               <select
                 value={platformFilter}
                 onChange={(e) => setPlatformFilter(e.target.value)}
@@ -899,7 +889,7 @@ export default function Directory({
               </select>
             </div>
 
-            <div className="min-w-[120px] flex-1 sm:flex-none sm:w-48">
+            <div className="min-w-0 sm:min-w-[120px] sm:flex-none sm:w-48">
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilterAndUrl(e.target.value)}
@@ -915,11 +905,25 @@ export default function Directory({
               </select>
             </div>
 
+            <div className="relative min-w-0 sm:min-w-[140px] sm:flex-none sm:w-44">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
+                <LocationIcon />
+              </div>
+              <input
+                type="text"
+                placeholder={txt.locPlace}
+                value={locationQuery}
+                onChange={(e) => setLocationQuery(e.target.value)}
+                className={pillInput}
+                aria-label={txt.locPlace}
+              />
+            </div>
+
             <button
               type="button"
               onClick={() => setShowAdvanced((v) => !v)}
               aria-expanded={showAdvanced}
-              className={`inline-flex h-11 items-center gap-2 rounded-full border px-4 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-slate-900/20 ${
+              className={`inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border px-4 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-slate-900/20 sm:w-auto sm:justify-start ${
                 showAdvanced
                   ? "border-slate-900 bg-slate-900 text-white"
                   : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
@@ -941,7 +945,7 @@ export default function Directory({
               </span>
             </button>
 
-            <span className="ml-auto shrink-0 text-xs font-medium text-slate-400 sm:ml-0 sm:pl-1">
+            <span className="col-span-2 ml-auto shrink-0 text-right text-xs font-medium text-slate-400 sm:col-span-1 sm:ml-0 sm:pl-1 sm:text-left">
               {filtered.length} {txt.results}
             </span>
           </div>
@@ -984,31 +988,19 @@ export default function Directory({
             <div className="rounded-2xl border border-slate-200 bg-white p-5">
               <div className="grid grid-cols-2 gap-x-3 gap-y-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4">
                 <div>
-                  <label className={fieldLabel}>{txt.fieldGender}</label>
+                  <label className={fieldLabel}>{txt.fieldBudget}</label>
                   <select
-                    value={genderFilter}
-                    onChange={(e) => setGenderFilter(e.target.value)}
+                    value={budgetMax}
+                    onChange={(e) => setBudgetMax(e.target.value)}
                     className={pillSelect}
                   >
-                    <option value="All">{txt.genAll}</option>
-                    <option value="Female">{txt.genFem}</option>
-                    <option value="Male">{txt.genMal}</option>
-                    <option value="AI">{txt.genAi}</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className={fieldLabel}>{txt.fieldAvailability}</label>
-                  <select
-                    value={availabilityFilter}
-                    onChange={(e) =>
-                      setAvailabilityFilter(e.target.value as "All" | "available" | "unavailable")
-                    }
-                    className={pillSelect}
-                  >
-                    <option value="All">{txt.availAll}</option>
-                    <option value="available">{txt.availYes}</option>
-                    <option value="unavailable">{txt.availNo}</option>
+                    <option value="All">{txt.budAll}</option>
+                    {DIRECTORY_BUDGET_CAPS.map((cap) => (
+                      <option key={cap} value={String(cap)}>
+                        {txt.budUpTo} {formatEuro(cap, lang)}
+                      </option>
+                    ))}
+                    <option value="Unlimited">{txt.budUnlimited}</option>
                   </select>
                 </div>
 
@@ -1023,23 +1015,6 @@ export default function Directory({
                     <option value="Nano">{txt.follNano}</option>
                     <option value="Micro">{txt.follMicro}</option>
                     <option value="Macro">{txt.follMacro}</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className={fieldLabel}>{txt.fieldBudget}</label>
-                  <select
-                    value={budgetMax}
-                    onChange={(e) => setBudgetMax(e.target.value)}
-                    className={pillSelect}
-                  >
-                    <option value="All">{txt.budAll}</option>
-                    {DIRECTORY_BUDGET_CAPS.map((cap) => (
-                      <option key={cap} value={String(cap)}>
-                        {txt.budUpTo} {cap}€
-                      </option>
-                    ))}
-                    <option value="Unlimited">{txt.budUnlimited}</option>
                   </select>
                 </div>
 
@@ -1080,38 +1055,16 @@ export default function Directory({
                 </div>
 
                 <div>
-                  <label className={fieldLabel}>{txt.fieldRating}</label>
+                  <label className={fieldLabel}>{txt.fieldGender}</label>
                   <select
-                    value={minRating}
-                    onChange={(e) => setMinRating(e.target.value)}
+                    value={genderFilter}
+                    onChange={(e) => setGenderFilter(e.target.value)}
                     className={pillSelect}
                   >
-                    <option value="All">{txt.ratingAll}</option>
-                    <option value="3">
-                      {txt.ratingMin} 3★
-                    </option>
-                    <option value="4">
-                      {txt.ratingMin} 4★
-                    </option>
-                    <option value="4.5">
-                      {txt.ratingMin} 4.5★
-                    </option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className={fieldLabel}>{txt.fieldBadges}</label>
-                  <select
-                    value={badgeFilter}
-                    onChange={(e) => setBadgeFilter(e.target.value as BadgeType | "All")}
-                    className={pillSelect}
-                  >
-                    <option value="All">{txt.badgeAll}</option>
-                    {BADGE_FILTER_TYPES.map((type) => (
-                      <option key={type} value={type}>
-                        {getBadgeFilterLabel(type, lang)}
-                      </option>
-                    ))}
+                    <option value="All">{txt.genAll}</option>
+                    <option value="Female">{txt.genFem}</option>
+                    <option value="Male">{txt.genMal}</option>
+                    <option value="AI">{txt.genAi}</option>
                   </select>
                 </div>
 
@@ -1142,6 +1095,57 @@ export default function Directory({
                       aria-label={txt.ageTo}
                     />
                   </div>
+                </div>
+
+                <div>
+                  <label className={fieldLabel}>{txt.fieldRating}</label>
+                  <select
+                    value={minRating}
+                    onChange={(e) => setMinRating(e.target.value)}
+                    className={pillSelect}
+                  >
+                    <option value="All">{txt.ratingAll}</option>
+                    <option value="3">
+                      {txt.ratingMin} 3★
+                    </option>
+                    <option value="4">
+                      {txt.ratingMin} 4★
+                    </option>
+                    <option value="4.5">
+                      {txt.ratingMin} 4.5★
+                    </option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className={fieldLabel}>{txt.fieldAvailability}</label>
+                  <select
+                    value={availabilityFilter}
+                    onChange={(e) =>
+                      setAvailabilityFilter(e.target.value as "All" | "available" | "unavailable")
+                    }
+                    className={pillSelect}
+                  >
+                    <option value="All">{txt.availAll}</option>
+                    <option value="available">{txt.availYes}</option>
+                    <option value="unavailable">{txt.availNo}</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className={fieldLabel}>{txt.fieldBadges}</label>
+                  <select
+                    value={badgeFilter}
+                    onChange={(e) => setBadgeFilter(e.target.value as BadgeType | "All")}
+                    className={pillSelect}
+                  >
+                    <option value="All">{txt.badgeAll}</option>
+                    {BADGE_FILTER_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {getBadgeFilterLabel(type, lang)}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>

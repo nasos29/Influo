@@ -1,3 +1,5 @@
+import { formatEuroAmount } from "@/lib/formatEuro";
+
 export type MediaKitAccount = {
   platform?: string;
   username?: string;
@@ -68,7 +70,8 @@ export function buildMediaKitHtml(profile: MediaKitProfile): string {
   const location = esc((profile.location || '').trim());
   const category = esc((profile.category || '').trim() || 'Creator');
   const rate = (profile.minRate || '').toString().trim();
-  const rateLabel = rate ? `${esc(rate)}€` : 'Κατόπιν συνεννόησης';
+  const formattedRate = rate ? formatEuroAmount(rate) || `${rate.replace(/€/g, "").trim()} €` : "";
+  const rateLabel = formattedRate ? esc(formattedRate) : 'Κατόπιν συνεννόησης';
   const url = esc(profile.profileUrl);
   const qr = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(profile.profileUrl)}`;
   const avatar = profile.avatarUrl

@@ -81,7 +81,7 @@ function InfluoPhoneMockup({ lang, className }: { lang: Lang; className?: string
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[9px] font-semibold text-white">
-                €1.200
+                1.200 €
               </span>
               <span className="inline-flex items-center gap-1 rounded-full bg-blue-600 px-2 py-0.5 text-[9px] font-semibold text-white">
                 <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>

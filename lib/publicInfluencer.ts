@@ -6,6 +6,7 @@
  * copied here. Callers must not spread the raw database row into a response.
  */
 
+import { formatEuro } from "@/lib/formatEuro";
 import { sanitizeTopPosts } from "@/lib/topPosts";
 import { visibleVideos } from "@/lib/hiddenVideos";
 import {
@@ -163,19 +164,29 @@ export function parseDirectoryPrice(price: unknown): number {
   return parsed || 0;
 }
 
+/**
+ * Half-open buckets: a price equal to a cap belongs to that cap's "from" scale,
+ * not the previous one. 49 → "50" (up to 50), 50 and 80 → "100" (from 50),
+ * 100 and 150 → "200" (from 100), 200 → "300" (from 200). 5000+ stays VIP.
+ */
 export function priceTierFromMinRate(minRate: unknown): PriceTier {
   const rate = parseDirectoryPrice(minRate);
   if (!(rate > 0)) return "0";
   for (const cap of DIRECTORY_BUDGET_CAPS) {
     if (cap === 5000) break;
-    if (rate <= cap) return String(cap) as PriceTier;
+    if (rate < cap) return String(cap) as PriceTier;
   }
   if (rate < 5000) return "under_5000";
-  if (rate <= 5000) return "5000";
+  if (rate === 5000) return "5000";
   return "above_5000";
 }
 
-/** Drop-in for the directory budget dropdown. Matches the old min_rate comparison. */
+/**
+ * Directory "up to X" filter. Tiers below 5000 are half-open, so "up to X"
+ * includes tiers whose exclusive ceiling is <= X (every price in them is < X).
+ * A price exactly on a cap sits in the next tier and shows up from the next cap.
+ * 5000 and above stay on the VIP tiers.
+ */
 export function budgetTierMatches(tier: string | null | undefined, budgetMax: string): boolean {
   if (!budgetMax || budgetMax === "All") return true;
   const value = tier || "0";
@@ -196,39 +207,32 @@ export function badgeMinRateFromTier(tier: string | null | undefined): string | 
   return undefined;
 }
 
-/** Format a euro amount with Greek grouping (e.g. €4.500). */
-function formatEuroAmount(n: number): string {
-  return `€${n.toLocaleString("el-GR")}`;
-}
-
-function formatEuroAmountForLang(n: number, lang: "el" | "en"): string {
-  return `€${n.toLocaleString(lang === "en" ? "en-US" : "el-GR")}`;
-}
-
 /**
  * Directory card price label from `price_tier` only (never min_rate).
- * "0" → null; "50" → "έως €50"; numeric tiers use adjacent DIRECTORY_BUDGET_CAPS.
- * under_5000 → €2.000–€5.000; 5000+ → €5.000+.
+ * "0" → null; "50" → "έως 50 €" (prices under 50).
+ * Numeric tiers are half-open up to that cap; 5000+ stays "5.000 €+".
  */
 export function formatPriceTierLabel(tier: string | null | undefined): string | null {
   const value = (tier || "0").trim();
   if (!value || value === "0") return null;
-  if (value === "50") return `έως ${formatEuroAmount(50)}`;
-  if (value === "under_5000") return `${formatEuroAmount(2000)}–${formatEuroAmount(5000)}`;
-  if (value === "5000" || value === "above_5000") return `${formatEuroAmount(5000)}+`;
+  if (value === "50") return `έως ${formatEuro(50)}`;
+  if (value === "under_5000") return `${formatEuro(2000)}–${formatEuro(5000)}`;
+  if (value === "5000" || value === "above_5000") return `${formatEuro(5000)}+`;
 
   const ceiling = parseInt(value, 10);
   if (!Number.isFinite(ceiling)) return null;
   const idx = DIRECTORY_BUDGET_CAPS.indexOf(ceiling as (typeof DIRECTORY_BUDGET_CAPS)[number]);
-  if (idx <= 0) return formatEuroAmount(ceiling);
+  if (idx <= 0) return formatEuro(ceiling);
   const prev = DIRECTORY_BUDGET_CAPS[idx - 1]!;
-  return `${formatEuroAmount(prev)}–${formatEuroAmount(ceiling)}`;
+  return `${formatEuro(prev)}–${formatEuro(ceiling)}`;
 }
 
 /**
  * Full "from / up to" price copy for cards and non-brand UI (never min_rate).
- * First tier → Έως/Up to €50; mid tiers → Από/From {lower bound}; top → Από/From €5.000.
- * Never produces "Από έως" / "From up to".
+ * Tier "50" (prices under 50) → Έως/Up to 50 €.
+ * Later tiers → Από/From the previous cap, which is the largest cap ≤ the price.
+ * 5000+ stays Από/From 5.000 € (VIP), same as before.
+ * Never produces "Από έως" / "From up to". Euro sign is always on the right.
  */
 export function formatFromPriceLabel(
   tier: string | null | undefined,
@@ -238,15 +242,11 @@ export function formatFromPriceLabel(
   if (!value || value === "0") return null;
 
   if (value === "50") {
-    return lang === "en"
-      ? `Up to ${formatEuroAmountForLang(50, "en")}`
-      : `Έως ${formatEuroAmountForLang(50, "el")}`;
+    return lang === "en" ? `Up to ${formatEuro(50, "en")}` : `Έως ${formatEuro(50, "el")}`;
   }
 
   if (value === "5000" || value === "above_5000") {
-    return lang === "en"
-      ? `From ${formatEuroAmountForLang(5000, "en")}`
-      : `Από ${formatEuroAmountForLang(5000, "el")}`;
+    return lang === "en" ? `From ${formatEuro(5000, "en")}` : `Από ${formatEuro(5000, "el")}`;
   }
 
   let lower: number | null = null;
@@ -260,9 +260,7 @@ export function formatFromPriceLabel(
     lower = DIRECTORY_BUDGET_CAPS[idx - 1]!;
   }
 
-  return lang === "en"
-    ? `From ${formatEuroAmountForLang(lower, "en")}`
-    : `Από ${formatEuroAmountForLang(lower, "el")}`;
+  return lang === "en" ? `From ${formatEuro(lower, "en")}` : `Από ${formatEuro(lower, "el")}`;
 }
 
 const ATHENS = "Europe/Athens";

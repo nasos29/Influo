@@ -3,6 +3,7 @@ import { supabaseService } from "@/lib/apiAuth";
 import { brandHasAccount, guardProposalAction, influencerContact, isGuardFailure } from "@/lib/proposalAccess";
 import { mailCounter } from "@/lib/proposalMail";
 import { deferAfterResponse, pushParty } from "@/lib/proposalNotify";
+import { formatEuroAmount } from "@/lib/formatEuro";
 import { cleanBudget, clipText } from "@/lib/proposalParty";
 
 export async function POST(request: Request) {
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
           brandEmail: email,
           payload: {
             title: "Νέα αντιπρόταση",
-            body: `${influencer.name} προτείνει €${counterBudget}.`,
+            body: `${influencer.name} προτείνει ${formatEuroAmount(counterBudget) || counterBudget}.`,
             url: "/brand/dashboard",
             tag: "counter-proposal",
           },

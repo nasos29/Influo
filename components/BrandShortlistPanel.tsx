@@ -6,6 +6,7 @@ import { getCachedImageUrl } from "@/lib/imageProxy";
 import { SHORTLIST_NOTE_MAX, type BrandShortlistItem } from "@/lib/brandShortlist";
 import { publicProfilePath } from "@/lib/profileSlug";
 import FastImage from "@/components/FastImage";
+import { formatEuroAmount } from "@/lib/formatEuro";
 
 type Props = {
   lang: "el" | "en";
@@ -126,14 +127,14 @@ export default function BrandShortlistPanel({
                   <div className="font-semibold text-slate-900 truncate">{item.displayName}</div>
                   <div className="text-xs text-slate-500 mt-0.5">
                     {item.category || "Creator"}
-                    {item.minRate ? ` · από ${item.minRate}€` : ""}
+                    {item.minRate ? ` · ${el ? "από" : "from"} ${formatEuroAmount(item.minRate, el ? "el" : "en")}` : ""}
                     {!item.approved ? (el ? " · μη εγκεκριμένος" : " · not approved") : ""}
                   </div>
                   <textarea
                     value={note}
                     maxLength={SHORTLIST_NOTE_MAX}
                     rows={2}
-                    placeholder={el ? "Σημείωση, π.χ. μίλησα, θέλει 200€" : "Note, e.g. talked, wants €200"}
+                    placeholder={el ? "Σημείωση, π.χ. μίλησα, θέλει 200 €" : "Note, e.g. talked, wants 200 €"}
                     onChange={(e) => setDrafts((d) => ({ ...d, [item.influencerId]: e.target.value }))}
                     className="mt-2 w-full text-sm border border-slate-200 rounded-lg px-2.5 py-2 text-slate-800 placeholder:text-slate-400"
                   />

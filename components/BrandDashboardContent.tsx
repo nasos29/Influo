@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { sessionFetch } from '@/lib/sessionFetch';
+import { formatEuroAmount } from '@/lib/formatEuro';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -2779,13 +2780,13 @@ export default function BrandDashboardContent() {
                             </div>
                             <div>
                               <span className="text-slate-500">{lang === 'el' ? 'Προσφερόμενη Τιμή:' : 'Original Price:'}</span>{' '}
-                              <span className="font-medium text-slate-600 line-through">€{proposal.budget}</span>
+                              <span className="font-medium text-slate-600 line-through">{formatEuroAmount(proposal.budget, lang)}</span>
                             </div>
                           </div>
                           <div className="bg-white rounded-lg p-4 mb-3 border border-amber-300">
                             <div className="flex items-center justify-between">
                               <span className="text-slate-600 text-sm font-medium">{lang === 'el' ? 'Αντιπρόταση:' : 'Counter Proposal:'}</span>
-                              <span className="text-amber-700 text-xl font-bold">€{proposal.counter_proposal_budget}</span>
+                              <span className="text-amber-700 text-xl font-bold">{formatEuroAmount(proposal.counter_proposal_budget, lang)}</span>
                             </div>
                             {proposal.counter_proposal_message && (
                               <div className="mt-3 pt-3 border-t border-amber-200">
@@ -2844,7 +2845,7 @@ export default function BrandDashboardContent() {
                             <div>
                               <span className="text-slate-500">{txt.budget}:</span>{' '}
                               <span className="font-medium text-slate-900">
-                                €{proposal.counter_proposal_budget || proposal.budget}
+                                {formatEuroAmount(proposal.counter_proposal_budget || proposal.budget, lang)}
                               </span>
                             </div>
                           </div>
@@ -2894,7 +2895,7 @@ export default function BrandDashboardContent() {
                         <div>
                           <span className="text-slate-500">{txt.budget}:</span>{' '}
                           <span className="font-medium text-slate-900">
-                            €{proposal.counter_proposal_budget || proposal.budget}
+                            {formatEuroAmount(proposal.counter_proposal_budget || proposal.budget, lang)}
                           </span>
                         </div>
                       </div>
@@ -2968,7 +2969,7 @@ export default function BrandDashboardContent() {
                   <div className="flex items-center justify-between">
                     <span className="text-blue-700 font-medium">{txt.budget}:</span>
                     <span className="text-blue-900 font-bold text-lg">
-                      €{selectedProposal.counter_proposal_budget || selectedProposal.budget}
+                      {formatEuroAmount(selectedProposal.counter_proposal_budget || selectedProposal.budget, lang)}
                     </span>
                   </div>
                   {selectedProposal.description && (

@@ -12,6 +12,7 @@ import {
 } from '@/lib/validateBirthDate';
 import { FACEBOOK_VIDEO_LINK_ERROR, prepareVideosForSave } from '@/lib/videoLinks';
 import { syncHiddenVideosWithVideos } from '@/lib/hiddenVideos';
+import { deriveMinRate } from '@/lib/servicePackages';
 import {
   VIDEO_NOT_PLAYABLE_ERROR,
   checkNewVideosPlayable,
@@ -63,6 +64,8 @@ export async function POST(request: NextRequest) {
     const patch = { ...updates } as Record<string, unknown>;
     // Slugs are assigned on approval and changed only via /api/influencer/profile-link.
     delete patch.profile_slug;
+    // min_rate is derived from packages / rate card, never typed in.
+    delete patch.min_rate;
     if (typeof patch.contact_email === 'string') {
       patch.contact_email = patch.contact_email.trim().toLowerCase();
     }
@@ -127,6 +130,15 @@ export async function POST(request: NextRequest) {
         prepared.videos,
         existing.hidden_videos
       );
+    }
+
+    if ('service_packages' in patch || 'rate_card' in patch) {
+      const packages = 'service_packages' in patch ? patch.service_packages : existing.service_packages;
+      const card = 'rate_card' in patch ? patch.rate_card : existing.rate_card;
+      const derived = deriveMinRate(packages, card);
+      if (derived != null && String(existing.min_rate ?? '') !== derived) {
+        patch.min_rate = derived;
+      }
     }
 
     if (Object.keys(patch).length === 0) {

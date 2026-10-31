@@ -535,7 +535,7 @@ export default function DocsPage() {
                   <h4 className="font-bold text-yellow-900 m-0">VIP</h4>
                 </div>
                 <p className="text-sm text-slate-700 mb-2">
-                  <strong>{lang === 'el' ? 'Πότε αποκτάται:' : 'When earned:'}</strong> {lang === 'el' ? '1M+ followers ή min_rate >5000€ ή 50+ συνεργασίες με rating >4.8' : '1M+ followers or min_rate >5000€ or 50+ collaborations with rating >4.8'}
+                  <strong>{lang === 'el' ? 'Πότε αποκτάται:' : 'When earned:'}</strong> {lang === 'el' ? '1M+ followers ή min_rate >5.000 € ή 50+ συνεργασίες με rating >4.8' : '1M+ followers or min_rate >5,000 € or 50+ collaborations with rating >4.8'}
                 </p>
                 <p className="text-sm text-slate-600">
                   {lang === 'el' ? 'Σημασία: Premium influencer, top tier' : 'Meaning: Premium influencer, top tier'}

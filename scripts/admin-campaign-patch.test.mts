@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { parseAdminCampaignPatch } from "../lib/adminCampaignPatch.ts";
-import { formatEuro } from "../lib/formatEuro.ts";
+import { formatEuro, formatEuroAmount } from "../lib/formatEuro.ts";
 
 const ID = "11111111-1111-4111-8111-111111111111";
 
@@ -28,9 +28,9 @@ function body(extra: Record<string, unknown> = {}) {
 test("formatEuro keeps the euro sign on the right with a space", () => {
   assert.equal(formatEuro(50, "el"), "50 €");
   assert.equal(formatEuro(50, "en"), "50 €");
-  assert.equal(formatEuro(1500.5, "el"), "1.500,50 €");
-  assert.equal(formatEuro(1500.5, "en"), "1,500.50 €");
-  assert.equal(formatEuro(null, "el"), "—");
+  assert.equal(formatEuroAmount("1.500", "el"), "1.500 €");
+  assert.equal(formatEuroAmount("12,50", "en"), "12.5 €");
+  assert.equal(formatEuroAmount("50 €", "el"), "50 €");
 });
 
 test("parseAdminCampaignPatch accepts existing campaign fields", () => {

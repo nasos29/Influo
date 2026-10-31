@@ -7,7 +7,7 @@ import DmyDateField from "@/components/DmyDateField";
 import { CATEGORIES, categoryLabel } from "@/lib/categories";
 import { filterWorkLinks } from "@/lib/contactFilter";
 import { formatDate, formatTime } from "@/lib/formatDateTime";
-import { formatEuro } from "@/lib/formatEuro";
+import { formatEuro, formatEuroAmount } from "@/lib/formatEuro";
 import {
   getApplicationInfluencerMeta,
   getCampaignBrandMeta,
@@ -430,7 +430,7 @@ export default function AdminCampaignDetail({
               <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusClass(form.status)}`}>
                 {tx(form.status === "open" ? copy.open : form.status === "closed" ? copy.closed : copy.draft, lang)}
               </span>
-              <span>{form.budget.trim() ? formatEuro(form.budget, lang) : "—"}</span>
+              <span>{formatEuroAmount(form.budget, lang) || "—"}</span>
             </p>
           </div>
           <button
@@ -527,8 +527,8 @@ export default function AdminCampaignDetail({
                 />
                 <span className="shrink-0 text-sm text-slate-600">€</span>
               </span>
-              {form.budget.trim() ? (
-                <span className="mt-1 block text-sm text-slate-500">{formatEuro(form.budget, lang)}</span>
+              {formatEuroAmount(form.budget, lang) ? (
+                <span className="mt-1 block text-sm text-slate-500">{formatEuroAmount(form.budget, lang)}</span>
               ) : null}
             </label>
             <label className={labelClass}>
@@ -721,7 +721,7 @@ function ApplicationCard({ app, lang }: { app: AdminCampaignApplication; lang: L
         <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-600">
           {app.proposed_price != null ? (
             <span>
-              {tx(copy.proposed, lang)}: {formatEuro(app.proposed_price, lang)}
+              {tx(copy.proposed, lang)}: {formatEuro(Number(app.proposed_price), lang)}
             </span>
           ) : null}
           <span>{formatDate(app.created_at, lang)}</span>

@@ -13,6 +13,7 @@ import { notifyBrandOfApplication, submitCampaignApplication } from "@/lib/campa
 import { findContactInfo, filterWorkLinks } from "@/lib/contactFilter";
 import { toastError, toastSuccess } from "@/components/Feedback";
 import { getStoredLanguage } from "@/lib/language";
+import { formatEuro } from "@/lib/formatEuro";
 import { campaignAudience, type CampaignAudience } from "@/lib/campaignAudience";
 import { formatFollowerCount } from "@/lib/platformStats";
 import { campaignPublicBadgeLabel } from "@/lib/campaignPublicBadge";
@@ -518,7 +519,7 @@ export default function CampaignPublicView({
                     {Number(campaign.budget) > 0 ? (
                       <li>
                         <span className="text-slate-500">Budget: </span>
-                        <span className="font-semibold">€{Number(campaign.budget).toLocaleString(locale)}</span>
+                        <span className="font-semibold">{formatEuro(Number(campaign.budget), el ? "el" : "en")}</span>
                       </li>
                     ) : null}
                     {!compensationText && !(Number(campaign.budget) > 0) ? <li className="text-slate-500">—</li> : null}
@@ -554,7 +555,7 @@ export default function CampaignPublicView({
                 <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{el ? "Budget" : "Budget"}</p>
                   <p className="mt-1 text-2xl font-bold text-slate-900">
-                    €{Number(campaign.budget).toLocaleString(locale)}
+                    {formatEuro(Number(campaign.budget), el ? "el" : "en")}
                   </p>
                   {closes && (
                     <div className="mt-4">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { formatEuro } from '@/lib/formatEuro';
 import { formatDate } from '@/lib/formatDateTime';
 import { isTimeoutError, withTimeout } from '@/lib/withTimeout';
 
@@ -336,7 +337,7 @@ export default function Analytics({ influencerId, lang = 'el' }: AnalyticsProps)
           <div className="text-sm text-slate-600 mt-1">{txt.conversationsStarted}</div>
         </div>
         <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border-2 border-green-200 p-6">
-          <div className="text-2xl font-bold text-green-700">€{stats.totalEarnings.toFixed(0)}</div>
+          <div className="text-2xl font-bold text-green-700">{formatEuro(stats.totalEarnings, lang, 0)}</div>
           <div className="text-sm text-green-600 mt-1 font-medium">{txt.totalEarnings}</div>
         </div>
       </div>
