@@ -1,7 +1,9 @@
 /**
- * Columns the browser may read after
+ * Columns anon/authenticated may SELECT after
  * docs/influencer-private/02_revoke_browser_private_columns.sql.
- * Private fields are not in these lists.
+ * Table-level SELECT is revoked. A browser .select() that names any other
+ * column (including hidden_videos) fails the whole request with
+ * "permission denied for table influencers", including UPDATE ... RETURNING.
  */
 
 export const INFLUENCER_BROWSER_COLUMNS = [
@@ -23,7 +25,6 @@ export const INFLUENCER_BROWSER_COLUMNS = [
   "avatar_url",
   "verified",
   "videos",
-  "hidden_videos",
   "avg_rating",
   "total_reviews",
   "avg_response_time",
@@ -43,7 +44,11 @@ export const INFLUENCER_BROWSER_COLUMNS = [
   "profile_slug",
 ] as const;
 
-/** Returned only to the signed-in owner, from the server, never via select=*. */
+/**
+ * Owner-only columns. The browser must not SELECT these.
+ * /api/me/profile reads them with the service role and returns them to the owner.
+ * hidden_videos has no column SELECT grant, same as the private price columns.
+ */
 export const INFLUENCER_OWNER_COLUMNS = [
   "contact_email",
   "birth_date",
@@ -51,6 +56,7 @@ export const INFLUENCER_OWNER_COLUMNS = [
   "rate_card",
   "service_packages",
   "insights_urls",
+  "hidden_videos",
 ] as const;
 
 export const BRAND_BROWSER_COLUMNS = [
