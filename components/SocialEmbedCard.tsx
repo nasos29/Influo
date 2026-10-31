@@ -9,10 +9,12 @@ import {
   extractTikTokVideoId,
 } from "@/lib/tikTokPlayer";
 import { TIKTOK_SOUND_COPY, useTikTokPlayerHost } from "@/lib/useTikTokPlayerHost";
+import { usePortfolioMediaControls } from "@/lib/usePortfolioMediaControls";
 import TikTokSoundPromptButton from "@/components/TikTokSoundPromptButton";
 import InstagramStaticCarousel from "@/components/InstagramStaticCarousel";
 import { extractInstagramMedia } from "@/lib/instagramShortcode";
 import type { InstagramEmbedKind } from "@/lib/instagramMediaType";
+import type { PortfolioMediaKind } from "@/lib/usePortfolioMediaControls";
 
 type Provider = "instagram" | "tiktok" | "youtube";
 
@@ -32,6 +34,8 @@ const COPY = {
   playVideo: { el: "Προβολή βίντεο", en: "Play video" },
   viewPhotos: { el: "Προβολή άλμπουμ", en: "View album" },
   viewPhoto: { el: "Προβολή φωτογραφίας", en: "View photo" },
+  pause: { el: "Παύση", en: "Pause" },
+  resume: { el: "Συνέχεια", en: "Resume" },
   loading: { el: "Φόρτωση", en: "Loading" },
   error: { el: "Αποτυχία φόρτωσης", en: "Failed to load" },
   retry: { el: "Δοκιμή ξανά", en: "Try again" },
@@ -204,11 +208,27 @@ export default function SocialEmbedCard({
 
   const isTikTokPlayer =
     provider === "tiktok" && !!iframeSrc && /tiktok\.com\/player\/v1\//i.test(iframeSrc);
+  const isYouTubePlayer =
+    provider === "youtube" && !!iframeSrc && /youtube\.com\/embed\//i.test(iframeSrc);
+  const portfolioKind: PortfolioMediaKind | null = nativeVideoUrl
+    ? "native"
+    : isTikTokPlayer
+      ? "tiktok"
+      : isYouTubePlayer
+        ? "youtube"
+        : null;
+  const portfolioActive = !!portfolioKind && (!!iframeSrc || !!nativeVideoUrl) && !loading;
+  const {
+    iframeRef: mediaIframeRef,
+    videoRef: mediaVideoRef,
+    playing: mediaPlaying,
+    toggle: toggleMediaPlayback,
+  } = usePortfolioMediaControls(portfolioKind, portfolioActive);
   const {
     iframeRef: tikTokIframeRef,
     showSoundPrompt: showTikTokSoundPrompt,
     onTapForSound: onTikTokTapForSound,
-  } = useTikTokPlayerHost(isTikTokPlayer);
+  } = useTikTokPlayerHost(isTikTokPlayer, mediaIframeRef);
 
   const {
     src: thumbSrc,
@@ -547,6 +567,7 @@ export default function SocialEmbedCard({
                   playsInline
                   className="absolute inset-0 z-[5] h-full w-full bg-black object-contain"
                   ref={(el) => {
+                    mediaVideoRef.current = el;
                     if (el) el.setAttribute("referrerpolicy", "no-referrer");
                   }}
                   onError={() => {
@@ -558,7 +579,13 @@ export default function SocialEmbedCard({
               {iframeSrc ? (
                 <>
                   <iframe
-                    ref={isTikTokPlayer ? tikTokIframeRef : undefined}
+                    ref={
+                      portfolioKind === "tiktok" || portfolioKind === "youtube"
+                        ? mediaIframeRef
+                        : isTikTokPlayer
+                          ? tikTokIframeRef
+                          : undefined
+                    }
                     src={iframeSrc}
                     title={`${NAMES[provider]} media`}
                     className="absolute top-0 left-0 z-[5] h-full w-full border-0 opacity-100"
@@ -583,6 +610,23 @@ export default function SocialEmbedCard({
                     />
                   ) : null}
                 </>
+              ) : null}
+
+              {/* Transparent toggle overlay — iframe clicks are otherwise swallowed.
+                  Leaves bottom strip free for native controls / TikTok sound button (z-30). */}
+              {portfolioActive ? (
+                <button
+                  type="button"
+                  className={`absolute inset-x-0 top-0 z-[15] bg-transparent ${
+                    portfolioKind === "native" ? "bottom-14" : "bottom-16"
+                  }`}
+                  aria-label={mediaPlaying ? COPY.pause[uiLang] : COPY.resume[uiLang]}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleMediaPlayback();
+                  }}
+                />
               ) : null}
             </>
           ) : null}

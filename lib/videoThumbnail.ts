@@ -100,8 +100,12 @@ export function buildOfficialEmbedUrl(
       rel: "0",
       modestbranding: "1",
       playsinline: "1",
+      enablejsapi: "1",
     });
     if (opts?.autoplay) params.set("autoplay", "1");
+    if (typeof window !== "undefined" && window.location?.origin) {
+      params.set("origin", window.location.origin);
+    }
     return `https://www.youtube.com/embed/${id}?${params.toString()}`;
   }
   return null;

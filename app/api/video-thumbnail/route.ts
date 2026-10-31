@@ -206,9 +206,9 @@ async function tikTokThumbnailViaOEmbed(resolvedUrl: string): Promise<string | n
   }
 }
 
-async function tikTokPageHtml(resolvedUrl: string): Promise<string | null> {
+async function tikTokPageHtml(pageUrl: string): Promise<string | null> {
   try {
-    const pageResponse = await fetch(resolvedUrl, {
+    const pageResponse = await fetch(pageUrl, {
       headers: {
         "User-Agent": BROWSER_UA,
         Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
@@ -224,6 +224,28 @@ async function tikTokPageHtml(resolvedUrl: string): Promise<string | null> {
   }
 }
 
+/** embed/v2 + player/v1 — reliable when oEmbed has no thumbnail_url (photo albums). */
+async function tikTokEmbedPlayerHtml(videoId: string): Promise<string | null> {
+  const id = String(videoId || "").trim();
+  if (!/^\d+$/.test(id)) return null;
+  const urls = [
+    `https://www.tiktok.com/embed/v2/${id}`,
+    `https://www.tiktok.com/player/v1/${id}`,
+  ];
+  const chunks: string[] = [];
+  for (const pageUrl of urls) {
+    const html = await tikTokPageHtml(pageUrl);
+    if (html) chunks.push(html);
+  }
+  return chunks.length ? chunks.join("\n") : null;
+}
+
+function coverFromTikTokHtml(html: string | null | undefined): string | null {
+  if (!html) return null;
+  // extractTikTokCoverFromHtml already tries imagePost → covers[] → cover → og:image
+  return extractTikTokCoverFromHtml(html);
+}
+
 async function resolveTikTokThumbnail(url: string): Promise<{
   thumbnail: string | null;
   resolvedUrl: string;
@@ -233,12 +255,17 @@ async function resolveTikTokThumbnail(url: string): Promise<{
   let mediaType =
     tikTokMediaTypeFromUrl(resolved) ?? tikTokMediaTypeFromUrl(url);
 
+  const videoId =
+    resolved.match(/\/(?:video|photo)\/(\d+)/i)?.[1] ||
+    url.match(/\/(?:video|photo)\/(\d+)/i)?.[1] ||
+    null;
+
   const html = await tikTokPageHtml(resolved);
   if (html && (tikTokHtmlIndicatesPhotoPost(html) || /\/photo\/\d+/i.test(resolved))) {
     mediaType = "image";
   }
 
-  // Photo albums: prefer first imagePost frame, then oEmbed, then covers.
+  // Photo albums: prefer first imagePost frame from the watch page.
   if (mediaType === "image" && html) {
     const fromPost = extractTikTokImagePostCover(html);
     if (fromPost) return { thumbnail: fromPost, resolvedUrl: resolved, mediaType };
@@ -247,13 +274,19 @@ async function resolveTikTokThumbnail(url: string): Promise<{
   const oembed = await tikTokThumbnailViaOEmbed(resolved);
   if (oembed) return { thumbnail: oembed, resolvedUrl: resolved, mediaType };
 
+  // oEmbed thumbnail empty (common for photo/slideshow posts): scrape embed + player JSON.
+  const embedHtml = videoId ? await tikTokEmbedPlayerHtml(videoId) : null;
+  if (embedHtml && (tikTokHtmlIndicatesPhotoPost(embedHtml) || /"imagePost"\s*:\s*\{/.test(embedHtml))) {
+    mediaType = "image";
+  }
+  const fromEmbed = coverFromTikTokHtml(embedHtml);
+  if (fromEmbed) return { thumbnail: fromEmbed, resolvedUrl: resolved, mediaType };
+
   if (html) {
-    const pageCover =
-      extractTikTokCoverFromHtml(html) || extractOgImageFromHtml(html);
+    const pageCover = coverFromTikTokHtml(html);
     if (pageCover) return { thumbnail: pageCover, resolvedUrl: resolved, mediaType };
   }
 
-  // oEmbed with no thumbnail + empty-looking player cover → still mark photo when /photo/
   return { thumbnail: null, resolvedUrl: resolved, mediaType };
 }
 

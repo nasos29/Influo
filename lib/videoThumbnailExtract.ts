@@ -13,14 +13,15 @@ export function isGenericLogoThumbnail(url: string): boolean {
   );
 }
 
-/** Decode JSON string escapes like \\u002F → / */
+/** Decode JSON string escapes like \\u002F → / and \\u0026 → & */
 export function decodeJsonEscapedUrl(raw: string): string {
   return raw
     .replace(/\\u([0-9a-fA-F]{4})/g, (_, hex: string) =>
       String.fromCharCode(Number.parseInt(hex, 16))
     )
     .replace(/\\\//g, "/")
-    .replace(/\\"/g, '"');
+    .replace(/\\"/g, '"')
+    .replace(/&amp;/gi, "&");
 }
 
 function normalizeHttpUrl(raw: string): string | null {
@@ -31,16 +32,40 @@ function normalizeHttpUrl(raw: string): string | null {
   return full;
 }
 
+function firstUsableCoverUrl(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const url = normalizeHttpUrl(decodeJsonEscapedUrl(raw));
+  if (!url || isGenericLogoThumbnail(url)) return null;
+  // Prefer post frames over tiny avatar / music art crops.
+  if (/\/avt-|musically-maliva-obj|cropcenter:100:100/i.test(url)) return null;
+  return url;
+}
+
 /**
- * First usable "cover" URL from TikTok page HTML / embedded JSON.
- * Prefers cover, then share/origin/reflow. Decodes \\u002F etc. Rejects logos.
+ * First usable cover from TikTok page / embed JSON.
+ * Order: imagePost frame → covers[] / coversOrigin[] / coversDynamic[] →
+ * cover / originCover / dynamicCover → poster= → og:image.
  */
 export function extractTikTokCoverFromHtml(html: string): string | null {
   if (!html) return null;
+
+  const fromPost = extractTikTokImagePostCover(html);
+  if (fromPost) return fromPost;
+
+  const arrayKeys = ["covers", "coversOrigin", "coversDynamic"];
+  for (const key of arrayKeys) {
+    const re = new RegExp(`"${key}"\\s*:\\s*\\[\\s*"((?:[^"\\\\]|\\\\.)+)"`, "g");
+    let match: RegExpExecArray | null;
+    while ((match = re.exec(html)) !== null) {
+      const url = firstUsableCoverUrl(match[1]);
+      if (url) return url;
+    }
+  }
+
   const keys = [
     "cover",
-    "shareCover",
     "originCover",
+    "shareCover",
     "reflowCover",
     "dynamicCover",
   ];
@@ -48,12 +73,18 @@ export function extractTikTokCoverFromHtml(html: string): string | null {
     const re = new RegExp(`"${key}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)+)"`, "g");
     let match: RegExpExecArray | null;
     while ((match = re.exec(html)) !== null) {
-      const decoded = decodeJsonEscapedUrl(match[1]);
-      const url = normalizeHttpUrl(decoded);
-      if (url && !isGenericLogoThumbnail(url)) return url;
+      const url = firstUsableCoverUrl(match[1]);
+      if (url) return url;
     }
   }
-  return null;
+
+  const poster = html.match(/\bposter=["']((?:\\.|[^"'])+)["']/i);
+  if (poster?.[1]) {
+    const url = firstUsableCoverUrl(poster[1].replace(/&amp;/gi, "&"));
+    if (url) return url;
+  }
+
+  return extractOgImageFromHtml(html);
 }
 
 /** True when TikTok HTML/JSON indicates a photo / slideshow post. */
@@ -81,19 +112,21 @@ export function tikTokHtmlIndicatesPhotoPost(html: string): boolean {
 /** First image URL from TikTok imagePost.images[].imageURL.urlList[0] style blobs. */
 export function extractTikTokImagePostCover(html: string): string | null {
   if (!html) return null;
-  const idx = html.search(/imagePost|image_post_info/i);
+  // Require a real imagePost object — not imagePostInfo:null.
+  const idx = html.search(/"imagePost"\s*:\s*\{|\\"imagePost\\"\s*:\s*\{|image_post_info/i);
   if (idx < 0) return null;
-  const slice = html.slice(idx, idx + 40_000);
+  const slice = html.slice(idx, idx + 80_000);
+  if (/^"imagePost"\s*:\s*null/i.test(slice.slice(0, 40))) return null;
   const patterns = [
-    /"urlList"\s*:\s*\[\s*"(https:[^"]+)"/,
-    /\\"urlList\\"\s*:\s*\[\s*\\"(https:[^"\\]+)\\"/,
-    /"url"\s*:\s*"(https:[^"]+(?:tiktokcdn|ttwstatic)[^"]*)"/i,
+    /"urlList"\s*:\s*\[\s*"((?:[^"\\]|\\.)+)"/,
+    /\\"urlList\\"\s*:\s*\[\s*\\"((?:[^"\\]|\\.)+)\\"/,
+    /"url"\s*:\s*"((?:[^"\\]|\\.)+(?:tiktokcdn|ttwstatic)(?:[^"\\]|\\.)*)"/i,
   ];
   for (const re of patterns) {
     const m = slice.match(re);
     if (!m?.[1]) continue;
-    const url = normalizeHttpUrl(decodeJsonEscapedUrl(m[1]));
-    if (url && !isGenericLogoThumbnail(url)) return url;
+    const url = firstUsableCoverUrl(m[1]);
+    if (url) return url;
   }
   return null;
 }

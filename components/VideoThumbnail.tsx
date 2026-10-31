@@ -14,6 +14,10 @@ import {
   extractTikTokVideoId,
 } from "@/lib/tikTokPlayer";
 import { TIKTOK_SOUND_COPY, useTikTokPlayerHost } from "@/lib/useTikTokPlayerHost";
+import {
+  usePortfolioMediaControls,
+  type PortfolioMediaKind,
+} from "@/lib/usePortfolioMediaControls";
 import TikTokSoundPromptButton from "@/components/TikTokSoundPromptButton";
 import InstagramStaticCarousel from "@/components/InstagramStaticCarousel";
 import { extractInstagramMedia } from "@/lib/instagramShortcode";
@@ -38,6 +42,8 @@ const ARIA = {
   album: { el: "Άλμπουμ", en: "Album" },
   openEmbed: { el: "Αναπαραγωγή", en: "Play" },
   viewPhotos: { el: "Προβολή άλμπουμ", en: "View album" },
+  pause: { el: "Παύση", en: "Pause" },
+  resume: { el: "Συνέχεια", en: "Resume" },
 } as const;
 
 function proxyImageList(urls: string[] | null | undefined): string[] {
@@ -98,11 +104,27 @@ export default function VideoThumbnail({
   const isIgReel = igMedia?.kind === "reel" || igMedia?.kind === "tv";
   const isTikTokPlayer =
     !!embedSrc && /tiktok\.com\/player\/v1\//i.test(embedSrc);
+  const isYouTubePlayer =
+    !!embedSrc && /youtube\.com\/embed\//i.test(embedSrc);
+  const portfolioKind: PortfolioMediaKind | null = nativeVideoUrl
+    ? "native"
+    : isTikTokPlayer
+      ? "tiktok"
+      : isYouTubePlayer
+        ? "youtube"
+        : null;
+  const portfolioActive = !!portfolioKind && (!!embedSrc || !!nativeVideoUrl);
+  const {
+    iframeRef: mediaIframeRef,
+    videoRef: mediaVideoRef,
+    playing: mediaPlaying,
+    toggle: toggleMediaPlayback,
+  } = usePortfolioMediaControls(portfolioKind, portfolioActive);
   const {
     iframeRef: tikTokIframeRef,
     showSoundPrompt: showTikTokSoundPrompt,
     onTapForSound: onTikTokTapForSound,
-  } = useTikTokPlayerHost(isTikTokPlayer);
+  } = useTikTokPlayerHost(isTikTokPlayer, mediaIframeRef);
 
   useEffect(() => {
     let cancelled = false;
@@ -417,12 +439,23 @@ export default function VideoThumbnail({
           playsInline
           className="absolute inset-0 h-full w-full object-contain"
           ref={(el) => {
+            mediaVideoRef.current = el;
             if (el) el.setAttribute("referrerpolicy", "no-referrer");
           }}
           onError={() => {
             setNativeVideoUrl(null);
             const official = buildOfficialEmbedUrl(url, { autoplay: false });
             if (official) setEmbedSrc(official);
+          }}
+        />
+        <button
+          type="button"
+          className="absolute inset-x-0 top-0 bottom-14 z-[15] bg-transparent"
+          aria-label={mediaPlaying ? ARIA.pause[uiLang] : ARIA.resume[uiLang]}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleMediaPlayback();
           }}
         />
       </div>
@@ -436,9 +469,15 @@ export default function VideoThumbnail({
         style={fill ? { width: "100%", height: "100%" } : { width, height, minHeight: 320 }}
       >
         <iframe
-          ref={isTikTokPlayer ? tikTokIframeRef : undefined}
+          ref={
+            portfolioKind === "tiktok" || portfolioKind === "youtube"
+              ? mediaIframeRef
+              : isTikTokPlayer
+                ? tikTokIframeRef
+                : undefined
+          }
           src={embedSrc}
-          title={isTikTokPlayer ? "TikTok" : "Instagram"}
+          title={isTikTokPlayer ? "TikTok" : isYouTubePlayer ? "YouTube" : "Instagram"}
           className="absolute inset-0 h-full w-full border-0"
           allow={
             isTikTokPlayer
@@ -452,6 +491,18 @@ export default function VideoThumbnail({
           <TikTokSoundPromptButton
             label={TIKTOK_SOUND_COPY[uiLang]}
             onClick={onTikTokTapForSound}
+          />
+        ) : null}
+        {portfolioKind ? (
+          <button
+            type="button"
+            className="absolute inset-x-0 top-0 bottom-16 z-[15] bg-transparent"
+            aria-label={mediaPlaying ? ARIA.pause[uiLang] : ARIA.resume[uiLang]}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              toggleMediaPlayback();
+            }}
           />
         ) : null}
       </div>
