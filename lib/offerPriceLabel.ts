@@ -1,10 +1,9 @@
-import { formatEuroAmount } from "@/lib/formatEuro";
-import { formatFromPriceLabel } from "@/lib/publicInfluencer";
+import { formatEuro, formatEuroAmount } from "@/lib/formatEuro";
 
 /**
- * Exact service amount for every viewer: "120 €".
- * When the row has no price string, fall back to the guest «Από X €» label
- * built from `from_price`. This never reads min_rate.
+ * Exact service amount for every viewer: "40 €" or "90 € / φωτογραφία".
+ * Uses the price string when present, otherwise the public from_price.
+ * Never prefixes «Από» and never reads min_rate.
  */
 export function offerPriceLabel(input: {
   price?: string | null;
@@ -12,9 +11,9 @@ export function offerPriceLabel(input: {
   suffix?: string | null;
   lang: "el" | "en";
 }): string | null {
-  if (input.price) {
-    const amount = formatEuroAmount(input.price, input.lang);
-    if (amount) return input.suffix ? `${amount} ${input.suffix}` : amount;
-  }
-  return formatFromPriceLabel(input.fromPrice, input.lang);
+  const fromAmount =
+    input.fromPrice != null && input.fromPrice > 0 ? formatEuro(input.fromPrice, input.lang) : "";
+  const amount = input.price ? formatEuroAmount(input.price, input.lang) || fromAmount : fromAmount;
+  if (!amount) return null;
+  return input.suffix ? `${amount} ${input.suffix}` : amount;
 }
