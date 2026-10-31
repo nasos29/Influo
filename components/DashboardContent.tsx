@@ -50,9 +50,13 @@ import { displayNameForLang } from '@/lib/greeklish';
 import { normalizeYouTubeUsernameForSave } from '@/lib/youtubeHandle';
 import ServicePackagesEditor, { initialPackagesFromUser } from '@/components/ServicePackagesEditor';
 import {
+    extrasFromRateCard,
+    extrasHaveInvalidPrice,
+    mergeRateCard,
     packagesHaveInvalidPrice,
     packagesForSave,
     rateCardFromPackages,
+    type ServiceExtras,
     type ServicePackage,
 } from '@/lib/servicePackages';
 import {
@@ -131,7 +135,7 @@ interface InfluencerData {
     hidden_videos?: Array<{ url: string; reason?: string; hidden_at?: string }> | null;
     insights_urls: string[] | null;
     availability_status?: string | null;
-    rate_card?: { story?: string; post?: string; reel?: string; youtube?: string; facebook?: string } | null;
+    rate_card?: Record<string, string> | null;
     service_packages?: ServicePackage[] | null;
     avg_rating?: number | null;
     total_reviews?: number | null;
@@ -212,6 +216,9 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
     
     const [servicePackages, setServicePackages] = useState<ServicePackage[]>(() =>
         initialPackagesFromUser(user.service_packages, user.rate_card)
+    );
+    const [serviceExtras, setServiceExtras] = useState<ServiceExtras>(() =>
+        extrasFromRateCard(user.rate_card)
     );
     const [section, setSection] = useState<EditSection>(initialSection);
     const [confirmSave, setConfirmSave] = useState(false);
@@ -325,6 +332,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
         videos: videoRows.map((row) => row.url),
         avatarPreview,
         servicePackages,
+        serviceExtras,
     });
     const baselineRef = useRef<string | null>(null);
     if (baselineRef.current === null) baselineRef.current = formSignature;
@@ -489,8 +497,8 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                 user.hidden_videos
             );
 
-            if (packagesHaveInvalidPrice(servicePackages)) {
-                notify(L("Κάθε τιμή πακέτου πρέπει να είναι πάνω από 0, ή κενή.", "Each package price must be greater than 0, or left empty."), 'error');
+            if (packagesHaveInvalidPrice(servicePackages) || extrasHaveInvalidPrice(serviceExtras)) {
+                notify(L("Κάθε τιμή πρέπει να είναι πάνω από 0, ή κενή.", "Each price must be greater than 0, or left empty."), 'error');
                 setSection('packages');
                 setLoading(false);
                 return;
@@ -502,7 +510,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                 setLoading(false);
                 return;
             }
-            const rateCardPayload = rateCardFromPackages(packagesPayload);
+            const rateCardPayload = mergeRateCard(rateCardFromPackages(packagesPayload), serviceExtras);
 
             const newValues: any = {
                 display_name: name, 
@@ -890,7 +898,9 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                     <ServicePackagesEditor
                         lang={lang}
                         packages={servicePackages}
+                        extras={serviceExtras}
                         onChange={setServicePackages}
+                        onExtrasChange={setServiceExtras}
                     />
                     ) : null}
 

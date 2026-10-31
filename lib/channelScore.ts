@@ -1,5 +1,6 @@
 import { resolveCompletionRate } from "@/lib/completionRate";
 import { parseFollowerString } from "@/lib/parseFollowers";
+import { RATE_CARD_PRICE_KEYS } from "@/lib/servicePackages";
 
 export type ChannelAxisId =
   | "followersGrowth"
@@ -28,7 +29,8 @@ export type ChannelScoreInput = {
   completionRate?: number | null;
   growthPct?: number | null;
   minRate?: string | null;
-  rateCard?: { story?: string; post?: string; reel?: string; facebook?: string; youtube?: string } | null;
+  /** Service prices only. Add-on keys on the same object are ignored. */
+  rateCard?: Partial<Record<string, string | null>> | null;
   /** When the exact amount is withheld, still count "has a price" toward readiness. */
   hasPricedMinRate?: boolean;
   /** Hard ER flag on main account — engagement axis stays neutral, no ER bonuses. */
@@ -204,6 +206,18 @@ export function parseMoney(raw?: string | null): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+/** Positive service prices from a rate card. Extras are stored beside them and skipped. */
+function pricedServiceRates(rateCard: ChannelScoreInput["rateCard"]): number[] {
+  if (!rateCard) return [];
+  const out: number[] = [];
+  for (const key of RATE_CARD_PRICE_KEYS) {
+    const raw = rateCard[key];
+    const amount = parseMoney(raw == null ? null : String(raw));
+    if (amount != null) out.push(amount);
+  }
+  return out;
+}
+
 function scoreReachBonus(followersTotal: number, erFlagged?: boolean): number {
   // Max 1 — only when ER is not hard-flagged.
   if (erFlagged) return 0;
@@ -241,14 +255,8 @@ function scoreCollaborationReadiness(input: ChannelScoreInput): number {
     else reviewPart = 0.3;
   }
 
-  // Prices (max 1.5)
-  const cardRates = [
-    parseMoney(input.rateCard?.story),
-    parseMoney(input.rateCard?.post),
-    parseMoney(input.rateCard?.reel),
-    parseMoney(input.rateCard?.facebook),
-    parseMoney(input.rateCard?.youtube),
-  ].filter((n): n is number => n != null);
+  // Prices (max 1.5). Add-ons (usage rights, link in bio, events) are not base rates.
+  const cardRates = pricedServiceRates(input.rateCard);
   let pricePart = 0;
   if (parseMoney(input.minRate) != null || input.hasPricedMinRate) pricePart += 1;
   if (cardRates.length >= 2) pricePart += 0.5;
@@ -300,13 +308,7 @@ export function buildChannelScore(input: ChannelScoreInput) {
   const coopPotential = scoreCollaborationReadiness(input);
 
   const minRate = parseMoney(input.minRate);
-  const cardRates = [
-    parseMoney(input.rateCard?.story),
-    parseMoney(input.rateCard?.post),
-    parseMoney(input.rateCard?.reel),
-    parseMoney(input.rateCard?.facebook),
-    parseMoney(input.rateCard?.youtube),
-  ].filter((n): n is number => n != null);
+  const cardRates = pricedServiceRates(input.rateCard);
   const allRates = [...cardRates, ...(minRate != null ? [minRate] : [])];
   const integrationFrom = allRates.length ? Math.min(...allRates) : null;
   // Only show a range when a rate card provides an upper bound — never invent ×2.2 from min_rate alone.

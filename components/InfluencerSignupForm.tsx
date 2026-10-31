@@ -33,9 +33,13 @@ import { normalizeYouTubeUsernameForSave } from "@/lib/youtubeHandle";
 import ServicePackagesEditor from "./ServicePackagesEditor";
 import {
   defaultPackages,
+  emptyExtras,
+  extrasHaveInvalidPrice,
+  mergeRateCard,
   packagesHaveInvalidPrice,
   packagesForSave,
   rateCardFromPackages,
+  type ServiceExtras,
   type ServicePackage,
 } from "@/lib/servicePackages";
 
@@ -244,6 +248,7 @@ export default function InfluencerSignupForm() {
   const [engagementRate, setEngagementRate] = useState("");
   const [avgLikes, setAvgLikes] = useState("");
   const [servicePackages, setServicePackages] = useState<ServicePackage[]>(() => defaultPackages());
+  const [serviceExtras, setServiceExtras] = useState<ServiceExtras>(() => emptyExtras());
 
   // NEW AUDIENCE STATES
   const [malePercent, setMalePercent] = useState("");
@@ -765,11 +770,11 @@ export default function InfluencerSignupForm() {
           return { ...acc, username };
         });
 
-      if (packagesHaveInvalidPrice(servicePackages)) {
+      if (packagesHaveInvalidPrice(servicePackages) || extrasHaveInvalidPrice(serviceExtras)) {
         throw new Error(
           lang === "el"
-            ? "Κάθε τιμή πακέτου πρέπει να είναι πάνω από 0, ή κενή."
-            : "Each package price must be greater than 0, or left empty."
+            ? "Κάθε τιμή πρέπει να είναι πάνω από 0, ή κενή."
+            : "Each price must be greater than 0, or left empty."
         );
       }
       const packagesPayload = packagesForSave(servicePackages);
@@ -780,7 +785,7 @@ export default function InfluencerSignupForm() {
             : "Add at least one package with a price."
         );
       }
-      const rateCardPayload = rateCardFromPackages(packagesPayload);
+      const rateCardPayload = mergeRateCard(rateCardFromPackages(packagesPayload), serviceExtras);
 
       const baseRow: Record<string, unknown> = {
           id: authUser.id,
@@ -1264,7 +1269,9 @@ export default function InfluencerSignupForm() {
                 <ServicePackagesEditor
                   lang={lang}
                   packages={servicePackages}
+                  extras={serviceExtras}
                   onChange={setServicePackages}
+                  onExtrasChange={setServiceExtras}
                 />
 
                 {message && <p className="text-red-600 text-sm text-center mt-2 font-medium bg-red-50 p-2 rounded">{message}</p>}
