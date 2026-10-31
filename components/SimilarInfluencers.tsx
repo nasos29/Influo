@@ -1,30 +1,26 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import Avatar from "@/components/Avatar";
-import { supabase } from "@/lib/supabaseClient";
-import { categoryTranslations, parseStoredCategories } from "@/lib/categories";
+import InfluencerCard from "@/components/InfluencerCard";
+import { parseStoredCategories } from "@/lib/categories";
 import { publicProfilePath } from "@/lib/profileSlug";
 import { displayNameForLang } from "@/lib/greeklish";
-import {
-  categoryIlikeOrFilter,
-  followerTotalFromAccounts,
-  pickSimilarInfluencers,
-  type SimilarInfluencerRow,
-} from "@/lib/similarInfluencers";
+import { parseFollowerString } from "@/lib/parseFollowers";
+import type { SimilarInfluencerRow } from "@/lib/similarInfluencers";
 
 const COPY = {
-  title: { el: "Σχετικοί influencers", en: "Similar influencers" },
-  seeAll: { el: "Δες όλους στην κατηγορία", en: "See all in this category" },
-  followers: { el: "Followers", en: "Followers" },
+  titlePrefix: {
+    el: "Influencers παρόμοιοι με",
+    en: "Influencers similar to",
+  },
+  seeMore: { el: "Δες περισσότερους", en: "See more" },
+  prev: { el: "Προηγούμενοι", en: "Previous" },
+  next: { el: "Επόμενοι", en: "Next" },
 } as const;
 
-function formatFollowers(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
-  return String(Math.round(n));
-}
+const scrollbarHide =
+  "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
 function directoryHrefFor(lang: "el" | "en", primaryCategory: string | null): string {
   const base = lang === "en" ? "/en/directory" : "/directory";
@@ -32,27 +28,68 @@ function directoryHrefFor(lang: "el" | "en", primaryCategory: string | null): st
   return `${base}?category=${encodeURIComponent(primaryCategory)}`;
 }
 
+function followersFromAccounts(
+  accounts: SimilarInfluencerRow["accounts"]
+): { [key: string]: number | undefined } {
+  const out: { [key: string]: number | undefined } = {};
+  if (!Array.isArray(accounts)) return out;
+  for (const acc of accounts) {
+    const key = String(acc?.platform || "")
+      .trim()
+      .toLowerCase();
+    if (!key) continue;
+    out[key] = parseFollowerString(acc?.followers);
+  }
+  return out;
+}
+
+function socialsFromAccounts(
+  accounts: SimilarInfluencerRow["accounts"]
+): { [key: string]: string | undefined } {
+  const out: { [key: string]: string | undefined } = {};
+  if (!Array.isArray(accounts)) return out;
+  for (const acc of accounts) {
+    const key = String(acc?.platform || "")
+      .trim()
+      .toLowerCase();
+    const username = typeof acc?.username === "string" ? acc.username.trim() : "";
+    if (!key || !username) continue;
+    out[key] = username;
+  }
+  return out;
+}
+
 export default function SimilarInfluencers({
   influencerId,
+  displayName,
   categories,
+  platforms = [],
   lang,
 }: Readonly<{
   influencerId: string;
+  displayName: string;
   categories: string[];
+  platforms?: string[];
   lang: "el" | "en";
 }>) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
   const [near, setNear] = useState(false);
   const [items, setItems] = useState<SimilarInfluencerRow[] | null>(null);
 
   const cats = parseStoredCategories(categories);
   const catsKey = cats.join(",");
+  const platformsKey = platforms
+    .map((p) => String(p || "").trim().toLowerCase())
+    .filter(Boolean)
+    .join(",");
   const primaryCategory = cats[0] || null;
   const directoryHref = directoryHrefFor(lang, primaryCategory);
+  const shownName = displayNameForLang(displayName || "", lang) || displayName || "";
 
   useEffect(() => {
     const node = rootRef.current;
-    if (!node || near || !catsKey) return;
+    if (!node || near || (!catsKey && !platformsKey)) return;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((e) => e.isIntersecting)) {
@@ -64,43 +101,27 @@ export default function SimilarInfluencers({
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, [near, catsKey]);
+  }, [near, catsKey, platformsKey]);
 
   useEffect(() => {
-    if (!near || !catsKey || !influencerId) return;
-    const currentCats = catsKey.split(",").filter(Boolean);
-    const orFilter = categoryIlikeOrFilter(currentCats);
-    if (!orFilter) return;
+    if (!near || !influencerId || (!catsKey && !platformsKey)) return;
 
     let cancelled = false;
     void (async () => {
       try {
-        const { data, error } = await supabase
-          .from("influencers")
-          .select(
-            "id, display_name, profile_slug, avatar_url, category, verified, accounts"
-          )
-          .eq("approved", true)
-          .neq("id", influencerId)
-          .or(orFilter)
-          .limit(40);
+        const params = new URLSearchParams({ excludeId: influencerId });
+        if (catsKey) params.set("categories", catsKey);
+        if (platformsKey) params.set("platforms", platformsKey);
+        const response = await fetch(`/api/influencers/similar?${params.toString()}`);
+        const result = await response.json();
         if (cancelled) return;
-        if (error) {
-          console.warn("[SimilarInfluencers] query failed:", error.message || error);
+        if (!response.ok || result.error) {
+          console.warn("[SimilarInfluencers] query failed:", result.error || response.status);
           setItems([]);
           return;
         }
-        if (!data) {
-          setItems([]);
-          return;
-        }
-        const rows = (data as SimilarInfluencerRow[]).map((row) => ({
-          ...row,
-          id: String(row.id),
-          accounts: Array.isArray(row.accounts) ? row.accounts : [],
-        }));
-        // Shuffle only here (client useEffect) — avoids SSR/hydration mismatch.
-        setItems(pickSimilarInfluencers(influencerId, currentCats, rows, 6));
+        const rows = Array.isArray(result.data) ? (result.data as SimilarInfluencerRow[]) : [];
+        setItems(rows);
       } catch (err) {
         console.warn("[SimilarInfluencers] unexpected error:", err);
         if (!cancelled) setItems([]);
@@ -109,67 +130,119 @@ export default function SimilarInfluencers({
     return () => {
       cancelled = true;
     };
-  }, [near, influencerId, catsKey]);
+  }, [near, influencerId, catsKey, platformsKey]);
 
-  if (!catsKey) return null;
+  const scrollByCard = useCallback((dir: -1 | 1) => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const card = el.querySelector<HTMLElement>("[data-similar-card]");
+    const step = card ? card.offsetWidth + 16 : el.clientWidth * 0.5;
+    el.scrollBy({ left: dir * step, behavior: "smooth" });
+  }, []);
+
+  if (!catsKey && !platformsKey) return null;
 
   const show = items && items.length > 0;
   if (items && !show) return null;
 
   return (
-    <section ref={rootRef} className="max-w-6xl mx-auto px-6 mt-10 mb-4">
+    <section ref={rootRef} className="max-w-6xl mx-auto px-4 sm:px-6 mt-10 mb-6">
       {!items ? (
-        <div className="h-24 rounded-2xl bg-slate-50 animate-pulse" aria-hidden />
+        <div className="space-y-4" aria-hidden>
+          <div className="h-7 w-64 max-w-full rounded-full bg-slate-100 animate-pulse" />
+          <div className="flex gap-4 overflow-hidden">
+            {[0, 1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="w-[45%] shrink-0 md:w-[calc((100%-3*1.5rem)/4)]"
+              >
+                <div className="aspect-[4/5] rounded-2xl bg-slate-100 animate-pulse" />
+                <div className="mt-3 h-4 w-3/4 rounded bg-slate-100 animate-pulse" />
+                <div className="mt-2 h-3 w-1/2 rounded bg-slate-100 animate-pulse" />
+              </div>
+            ))}
+          </div>
+        </div>
       ) : (
-        <div className="rounded-2xl border border-slate-100 bg-white shadow-sm p-5 md:p-6">
-          <h2 className="text-lg md:text-xl font-bold text-slate-900 mb-4">
-            {COPY.title[lang]}
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+        <>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="min-w-0 text-lg font-bold text-slate-900 sm:text-xl md:text-2xl">
+              <span className="block truncate">
+                {COPY.titlePrefix[lang]} {shownName}
+              </span>
+            </h2>
+            <div className="hidden shrink-0 items-center gap-2 md:flex">
+              <button
+                type="button"
+                onClick={() => scrollByCard(-1)}
+                aria-label={COPY.prev[lang]}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollByCard(1)}
+                aria-label={COPY.next[lang]}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div
+            ref={scrollerRef}
+            className={`flex gap-4 overflow-x-auto snap-x snap-mandatory pb-1 md:gap-6 ${scrollbarHide}`}
+          >
             {items.map((row) => {
-              const name = displayNameForLang(row.display_name || "", lang) || row.display_name || "";
+              const name =
+                displayNameForLang(row.display_name || "", lang) || row.display_name || "";
               const href = publicProfilePath(row.profile_slug, row.id);
               const rowCats = parseStoredCategories(row.category);
-              const label =
-                (rowCats[0] && categoryTranslations[rowCats[0]]?.[lang]) ||
-                rowCats[0] ||
-                "";
-              const followers = followerTotalFromAccounts(row.accounts);
+              const followers = followersFromAccounts(row.accounts);
+              const socials = socialsFromAccounts(row.accounts);
+              const verified = row.analytics_verified === true || row.verified === true;
+
               return (
-                <Link
+                <div
                   key={row.id}
-                  href={href}
-                  className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/80 p-3 hover:border-blue-200 hover:bg-blue-50/40 transition"
+                  data-similar-card
+                  className="w-[45%] shrink-0 snap-start md:w-[calc((100%-3*1.5rem)/4)]"
                 >
-                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-slate-200">
-                    <Avatar src={row.avatar_url || ""} alt={name} size={48} className="h-full w-full" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-slate-900">{name}</p>
-                    {label ? (
-                      <p className="truncate text-xs text-slate-500">{label}</p>
-                    ) : null}
-                    {followers > 0 ? (
-                      <p className="text-xs text-slate-400">
-                        {formatFollowers(followers)} {COPY.followers[lang]}
-                      </p>
-                    ) : null}
-                  </div>
-                </Link>
+                  <Link href={href} className="block group">
+                    <InfluencerCard
+                      name={name}
+                      avatar={row.avatar_url || ""}
+                      verified={verified}
+                      socials={socials}
+                      followers={followers}
+                      categories={rowCats}
+                      lang={lang}
+                      location={row.location}
+                      price_tier={row.price_tier || "0"}
+                    />
+                  </Link>
+                </div>
               );
             })}
           </div>
+
           {primaryCategory ? (
-            <div className="mt-5 flex justify-center">
+            <div className="mt-6 flex justify-center">
               <Link
                 href={directoryHref}
-                className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:border-blue-300 hover:text-blue-700 transition"
+                className="inline-flex items-center rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-300 hover:text-slate-900"
               >
-                {COPY.seeAll[lang]}
+                {COPY.seeMore[lang]}
               </Link>
             </div>
           ) : null}
-        </div>
+        </>
       )}
     </section>
   );

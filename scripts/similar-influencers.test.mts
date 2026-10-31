@@ -153,8 +153,43 @@ test("pickSimilarInfluencers excludes self, requires shared category, respects l
   );
 });
 
-test("pickSimilarInfluencers returns empty without categories or rows", () => {
-  assert.deepEqual(pickSimilarInfluencers("self", [], sampleRows(), 6), []);
-  assert.deepEqual(pickSimilarInfluencers("self", ["Travel"], [], 6), []);
-  assert.deepEqual(pickSimilarInfluencers("", ["Travel"], sampleRows(), 6), []);
+test("pickSimilarInfluencers prefers shared category then same platform", () => {
+  const random = () => 0;
+  const rows: SimilarInfluencerRow[] = [
+    {
+      id: "cat",
+      display_name: "Cat",
+      profile_slug: "cat",
+      avatar_url: null,
+      category: "Travel",
+      accounts: [{ platform: "youtube", followers: 10 }],
+    },
+    {
+      id: "plat",
+      display_name: "Plat",
+      profile_slug: "plat",
+      avatar_url: null,
+      category: "Gaming & Esports",
+      accounts: [{ platform: "instagram", followers: 99 }],
+    },
+    {
+      id: "neither",
+      display_name: "Neither",
+      profile_slug: "neither",
+      avatar_url: null,
+      category: "Beauty & Makeup",
+      accounts: [{ platform: "tiktok", followers: 50 }],
+    },
+  ];
+  const picked = pickSimilarInfluencers("self", ["Travel"], rows, 8, random, ["instagram"]);
+  assert.deepEqual(
+    picked.map((r) => r.id),
+    ["cat", "plat"]
+  );
+});
+
+test("pickSimilarInfluencers returns empty without categories/platforms or rows", () => {
+  assert.deepEqual(pickSimilarInfluencers("self", [], sampleRows(), 8), []);
+  assert.deepEqual(pickSimilarInfluencers("self", ["Travel"], [], 8), []);
+  assert.deepEqual(pickSimilarInfluencers("", ["Travel"], sampleRows(), 8), []);
 });
