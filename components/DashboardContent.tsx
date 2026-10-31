@@ -636,11 +636,14 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
 
             let data: InfluencerData | null = null;
             let error: { message?: string; code?: string } | null = null;
+            // RETURNING only the column-level SELECT grant. hidden_videos and the
+            // price columns are not in it; selecting them is "permission denied for table influencers".
+            const publicReturn = INFLUENCER_BROWSER_COLUMNS.join(",");
             const saved = await supabase
                 .from('influencers')
                 .update(updateData)
                 .eq('id', user.id)
-                .select(INFLUENCER_BROWSER_COLUMNS.join(","))
+                .select(publicReturn)
                 .single();
             data = saved.data as unknown as InfluencerData | null;
             error = saved.error;
@@ -661,7 +664,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                     .from('influencers')
                     .update(withoutPricing)
                     .eq('id', user.id)
-                    .select(INFLUENCER_BROWSER_COLUMNS.join(","))
+                    .select(publicReturn)
                     .single();
                 data = retry.data as unknown as InfluencerData | null;
                 error = retry.error;
@@ -758,12 +761,17 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
             }
 
             onSave({
+                ...user,
                 ...(data as InfluencerData),
+                ...newValues,
+                approved: false,
+                analytics_verified: false,
                 contact_email: user.contact_email,
-                min_rate: syncedMinRate,
+                min_rate: syncedMinRate || user.min_rate,
                 birth_date: newValues.birth_date,
-                rate_card: newValues.rate_card,
-                service_packages: newValues.service_packages,
+                hidden_videos: newValues.hidden_videos,
+                rate_card: priceBody?.rate_card ?? rateCardPayload,
+                service_packages: priceBody?.service_packages ?? packagesPayload,
                 insights_urls: user.insights_urls,
             });
             notify(L("Το προφίλ σου ενημερώθηκε. Θα ελέγξουμε τις αλλαγές και θα σε ενημερώσουμε όταν εγκριθεί ξανά.", "Your profile was updated. We will review the changes and let you know when it is approved again."), 'success');
