@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { resolveCompletionRate } from "@/lib/completionRate";
+import { lowestListedPrice } from "@/lib/publicInfluencer";
 
 const NOTE_MAX = 280;
 
@@ -63,6 +64,8 @@ export async function GET(request: NextRequest) {
       avatar_url: string | null;
       category: string | null;
       min_rate: string | null;
+      rate_card?: unknown;
+      service_packages?: unknown;
       approved: boolean | null;
       profile_slug?: string | null;
       accounts?: Array<{ followers?: string; engagement_rate?: string }> | null;
@@ -76,7 +79,7 @@ export async function GET(request: NextRequest) {
     const full = await supabaseAdmin
       .from("influencers")
       .select(
-        "id, display_name, avatar_url, category, min_rate, approved, profile_slug, accounts, avg_response_time, completion_rate, total_reviews"
+        "id, display_name, avatar_url, category, min_rate, rate_card, service_packages, approved, profile_slug, accounts, avg_response_time, completion_rate, total_reviews"
       )
       .in("id", ids);
     if (full.error && /column/i.test(full.error.message)) {
@@ -114,7 +117,15 @@ export async function GET(request: NextRequest) {
       displayName: inf?.display_name || "Creator",
       avatarUrl: inf?.avatar_url || null,
       category: inf?.category || null,
-      minRate: inf?.min_rate || null,
+      minRate: (() => {
+        const floor = lowestListedPrice({
+          service_packages: inf?.service_packages,
+          rate_card: inf?.rate_card,
+          min_rate: inf?.min_rate,
+          accounts: inf?.accounts,
+        });
+        return floor != null ? String(floor) : inf?.min_rate || null;
+      })(),
       approved: !!inf?.approved,
       profileSlug: inf?.profile_slug || null,
       followers: followers > 0 ? followers : null,
