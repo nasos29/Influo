@@ -201,6 +201,10 @@ function formatEuroAmount(n: number): string {
   return `€${n.toLocaleString("el-GR")}`;
 }
 
+function formatEuroAmountForLang(n: number, lang: "el" | "en"): string {
+  return `€${n.toLocaleString(lang === "en" ? "en-US" : "el-GR")}`;
+}
+
 /**
  * Directory card price label from `price_tier` only (never min_rate).
  * "0" → null; "50" → "έως €50"; numeric tiers use adjacent DIRECTORY_BUDGET_CAPS.
@@ -219,6 +223,46 @@ export function formatPriceTierLabel(tier: string | null | undefined): string | 
   if (idx <= 0) return formatEuroAmount(ceiling);
   const prev = DIRECTORY_BUDGET_CAPS[idx - 1]!;
   return `${formatEuroAmount(prev)}–${formatEuroAmount(ceiling)}`;
+}
+
+/**
+ * Full "from / up to" price copy for cards and non-brand UI (never min_rate).
+ * First tier → Έως/Up to €50; mid tiers → Από/From {lower bound}; top → Από/From €5.000.
+ * Never produces "Από έως" / "From up to".
+ */
+export function formatFromPriceLabel(
+  tier: string | null | undefined,
+  lang: "el" | "en" = "el"
+): string | null {
+  const value = (tier || "0").trim();
+  if (!value || value === "0") return null;
+
+  if (value === "50") {
+    return lang === "en"
+      ? `Up to ${formatEuroAmountForLang(50, "en")}`
+      : `Έως ${formatEuroAmountForLang(50, "el")}`;
+  }
+
+  if (value === "5000" || value === "above_5000") {
+    return lang === "en"
+      ? `From ${formatEuroAmountForLang(5000, "en")}`
+      : `Από ${formatEuroAmountForLang(5000, "el")}`;
+  }
+
+  let lower: number | null = null;
+  if (value === "under_5000") {
+    lower = 2000;
+  } else {
+    const ceiling = parseInt(value, 10);
+    if (!Number.isFinite(ceiling)) return null;
+    const idx = DIRECTORY_BUDGET_CAPS.indexOf(ceiling as (typeof DIRECTORY_BUDGET_CAPS)[number]);
+    if (idx <= 0) return null;
+    lower = DIRECTORY_BUDGET_CAPS[idx - 1]!;
+  }
+
+  return lang === "en"
+    ? `From ${formatEuroAmountForLang(lower, "en")}`
+    : `Από ${formatEuroAmountForLang(lower, "el")}`;
 }
 
 const ATHENS = "Europe/Athens";

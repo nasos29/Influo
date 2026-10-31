@@ -48,7 +48,7 @@ import { loadOwnBrand, loadOwnProfiles } from "@/lib/ownProfile";
 import { creatorHasHardErOnMainAccount, displayErFlag, erFlagHint, erFlagLabel } from "@/lib/engagementFlags";
 import type { FollowerGrowthPoint } from "@/lib/followerGrowth";
 import { displayLanguageLabel } from "@/lib/languages";
-import { formatPriceTierLabel } from "@/lib/publicInfluencer";
+import { formatFromPriceLabel } from "@/lib/publicInfluencer";
 import {
   PACKAGE_PLATFORMS,
   USAGE_RIGHTS_LABEL,
@@ -599,7 +599,7 @@ function ProfilePackagesSection({
             pkg.platform && pkg.type
               ? packageTitle(pkg.platform, pkg.type, pkg.quantity || 1, lang)
               : pkg.title;
-          const tierLabel = formatPriceTierLabel(pkg.price_tier);
+          const fromLabel = formatFromPriceLabel(pkg.price_tier, lang);
           const rights =
             pkg.usage_rights && USAGE_RIGHTS_LABEL[pkg.usage_rights as UsageRights]
               ? USAGE_RIGHTS_LABEL[pkg.usage_rights as UsageRights][lang]
@@ -631,8 +631,8 @@ function ProfilePackagesSection({
                   <p className="text-2xl font-extrabold text-blue-700 tabular-nums">
                     {pkg.price}€
                   </p>
-                ) : tierLabel ? (
-                  <p className="text-xl font-bold text-slate-800 tabular-nums">{tierLabel}</p>
+                ) : fromLabel ? (
+                  <p className="text-xl font-bold text-slate-800 tabular-nums">{fromLabel}</p>
                 ) : null}
               </div>
               <button
@@ -2427,9 +2427,7 @@ export default function InfluencerProfile(props: {
                       ) : (
                         <div>
                           <p className="text-2xl font-semibold tracking-tight text-blue-700 tabular-nums">
-                            {formatPriceTierLabel(profile.price_tier)
-                              ? `${lang === "en" ? "From" : "Από"} ${formatPriceTierLabel(profile.price_tier)}`
-                              : "—"}
+                            {formatFromPriceLabel(profile.price_tier, lang) || "—"}
                           </p>
                           <p className="mt-1 text-xs leading-snug text-slate-600">
                             <Link

@@ -6,7 +6,7 @@ import Avatar from "./Avatar";
 import { categoryTranslations } from "./categoryTranslations";
 import { displayNameForLang } from "@/lib/greeklish";
 import { getCachedImageUrl, getStorageCardUrl } from "@/lib/imageProxy";
-import { formatPriceTierLabel } from "@/lib/publicInfluencer";
+import { formatFromPriceLabel } from "@/lib/publicInfluencer";
 import { displayLocation } from "@/lib/displayLocation";
 import type { TrustChip } from "@/lib/trustSignals";
 import { isAvailableStatus } from "@/lib/trustSignals";
@@ -138,10 +138,7 @@ export default function InfluencerCard({
   const displayName = displayNameForLang(name, lang || "el");
   const cardUrl = avatar ? getStorageCardUrl(avatar, 480, 600) : null;
   const photoSrc = cardUrl ? getCachedImageUrl(cardUrl) ?? cardUrl : null;
-  const tierLabel = formatPriceTierLabel(price_tier);
-  const priceLabel = tierLabel
-    ? `${lang === "en" ? "From" : "Από"} ${tierLabel}`
-    : null;
+  const priceLabel = formatFromPriceLabel(price_tier, lang === "en" ? "en" : "el");
   const ranked = rankedPlatforms(followers, socials);
 
   const categoryLine = categories
