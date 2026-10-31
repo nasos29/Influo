@@ -51,6 +51,7 @@ import { displayLanguageLabel } from "@/lib/languages";
 import { formatEuro, formatEuroAmount } from "@/lib/formatEuro";
 import { lowestListedPrice } from "@/lib/publicInfluencer";
 import ProfileOffersPanel from "@/components/ProfileOffersPanel";
+import ProfileHireCard from "@/components/ProfileHireCard";
 import CampaignInviteButton from "@/components/CampaignInviteButton";
 import ProfileShareButton from "@/components/ProfileShareButton";
 import { showCampaignInviteButton } from "@/lib/gateAvatars";
@@ -1431,6 +1432,35 @@ export default function InfluencerProfile(props: {
     router.push(lang === "en" ? "/en/directory" : "/directory");
   }, [lang, router]);
 
+  const openCreatorMessage = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !user.email) {
+        setShowRegistrationRequiredModal(true);
+        return;
+      }
+      const brandResult = await loadOwnBrand(supabase);
+      if (!brandResult.ok && brandResult.reason === "error") {
+        alert(lang === "el" ? "Δεν ελέγχθηκε ο λογαριασμός. Δοκιμάστε ξανά." : "Could not check the account. Try again.");
+        return;
+      }
+      if (!brandResult.ok) {
+        setShowRegistrationRequiredModal(true);
+        return;
+      }
+      router.push(`/messages?influencer=${encodeURIComponent(String(id))}`);
+    } catch (error) {
+      console.error("Error checking brand status:", error);
+      setShowRegistrationRequiredModal(true);
+    }
+  }, [id, lang, router]);
+
+  const startCollaboration = useCallback((choice?: { label: string; budget?: string }) => {
+    if (choice?.label) setProposalType(choice.label);
+    if (choice?.budget) setBudget(choice.budget);
+    setShowProposalModal(true);
+  }, []);
+
   if (loading) return <div className="min-h-screen flex items-center justify-center text-slate-500">Loading Profile...</div>;
   if (!profile) return <div className="min-h-screen flex items-center justify-center text-slate-500">Influencer not found.</div>;
 
@@ -1447,9 +1477,36 @@ export default function InfluencerProfile(props: {
     .filter((label): label is string => !!label);
   const offerChoices = [...new Set([...packageOffers, ...extraOffers])].slice(0, 12);
   const proposalServices = offerChoices.length ? offerChoices : ["Story", "Post", "Reel"];
+  const showHireBar = sessionChecked && !isOwnProfile;
+  const hirePackages = Array.isArray(profile.service_packages) ? profile.service_packages : [];
+  const hireExtras = Array.isArray(profile.service_extras) ? profile.service_extras : [];
+  const hireFloor = lowestListedPrice({
+    service_packages: profile.service_packages,
+    rate_card: profile.rate_card,
+    min_rate: profile.min_rate,
+  });
+  const hireSource = hireFloor ?? (typeof profile.from_price === "number" ? profile.from_price : null);
+  const hireAmount = hireSource != null && hireSource > 0 ? formatEuro(hireSource, lang) : null;
+  const hireCardProps = {
+    lang,
+    packages: hirePackages,
+    extras: hireExtras,
+    amountLabel: hireAmount,
+    creatorName: displayNameForLang(profile.name, lang),
+    gender: profile.gender,
+    isBrand,
+    influencerId: String(id),
+    collaborateLabel: txt.contact,
+    messageLabel: txt.message_btn,
+    onCollaborate: startCollaboration,
+    onMessage: () => {
+      void openCreatorMessage();
+    },
+    onNeedBrand: () => setBrandGateOpen(true),
+  };
 
   return (
-    <div className="bg-white min-h-screen pb-20 font-sans relative text-slate-900">
+    <div className={`bg-white min-h-screen font-sans relative text-slate-900 ${showHireBar ? "pb-32 lg:pb-20" : "pb-20"}`}>
       <SiteHeader lang={lang} onLangChange={setLang} />
       <BrandGateModal
         open={brandGateOpen}
@@ -1862,7 +1919,8 @@ export default function InfluencerProfile(props: {
         
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 relative -mt-24 z-10 min-w-0 overflow-x-hidden">
+      {/* overflow-x-clip keeps the cover overlap in bounds without a scroll container, so the hire card can stick */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 relative -mt-24 z-10 min-w-0 overflow-x-clip">
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden min-w-0">
           {/* Top Section: Avatar, Name, Info */}
           <div className="p-6 md:p-8 flex flex-col md:flex-row items-center md:items-start gap-6 border-b border-slate-100">
@@ -2884,43 +2942,6 @@ export default function InfluencerProfile(props: {
                             ? "Διάλεξε πακέτο ή πρότεινε το δικό σου"
                             : "Choose a package or propose your own"}
                         </p>
-                        <div className="mb-4 grid grid-cols-2 gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setShowProposalModal(true)}
-                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-3 text-sm font-semibold text-white hover:bg-blue-700"
-                          >
-                            <span aria-hidden>⚡</span> {txt.contact}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              try {
-                                const { data: { user } } = await supabase.auth.getUser();
-                                if (!user || !user.email) {
-                                  setShowRegistrationRequiredModal(true);
-                                  return;
-                                }
-                                const brandResult = await loadOwnBrand(supabase);
-                                if (!brandResult.ok && brandResult.reason === "error") {
-                                  alert(lang === "el" ? "Δεν ελέγχθηκε ο λογαριασμός. Δοκιμάστε ξανά." : "Could not check the account. Try again.");
-                                  return;
-                                }
-                                if (!brandResult.ok) {
-                                  setShowRegistrationRequiredModal(true);
-                                  return;
-                                }
-                                router.push(`/messages?influencer=${encodeURIComponent(String(id))}`);
-                              } catch (error) {
-                                console.error("Error checking brand status:", error);
-                                setShowRegistrationRequiredModal(true);
-                              }
-                            }}
-                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-green-600 px-3 text-sm font-semibold text-white hover:bg-green-700"
-                          >
-                            <span aria-hidden>💬</span> {txt.message_btn}
-                          </button>
-                        </div>
 
                         <ProfileOffersPanel
                           packages={Array.isArray(profile.service_packages) ? profile.service_packages : []}
@@ -2931,11 +2952,7 @@ export default function InfluencerProfile(props: {
                           isBrand={isBrand}
                           influencerId={String(id)}
                           onNeedBrand={() => setBrandGateOpen(true)}
-                          onContinue={(choice) => {
-                            setProposalType(choice.label);
-                            if (choice.budget) setBudget(choice.budget);
-                            setShowProposalModal(true);
-                          }}
+                          onContinue={startCollaboration}
                         />
 
                         <p className="mt-6 text-xs text-slate-400 text-center">{txt.price_note}</p>
@@ -2995,7 +3012,12 @@ export default function InfluencerProfile(props: {
                   </div>
                 )}
             </div>
-            <div className="space-y-6">
+            <div className="flex flex-col gap-6">
+                 {showHireBar ? (
+                   <div className="sticky top-24 z-30 hidden lg:block">
+                     <ProfileHireCard variant="desktop" {...hireCardProps} />
+                   </div>
+                 ) : null}
                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                     <h3 className="font-bold text-slate-900 mb-4 text-sm uppercase">{txt.connect}</h3>
                     <div className="space-y-3">
@@ -3132,6 +3154,7 @@ export default function InfluencerProfile(props: {
         platforms={Object.keys(profile.socials || {})}
         lang={lang}
       />
+      {showHireBar ? <ProfileHireCard variant="bar" {...hireCardProps} /> : null}
     </div>
   );
 }
