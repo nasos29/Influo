@@ -141,7 +141,7 @@ export type PublicPackageView = {
   price_tier: string;
   /** Exact amount for the guest «Από X €» label. */
   from_price: number | null;
-  /** Exact price — only present in commercial/brand payloads. */
+  /** Exact service price. Public on the creator profile. */
   price?: string;
 };
 
@@ -152,7 +152,7 @@ export type PublicExtraView = {
   price_tier: string;
   /** Exact amount for the guest «Από X €» label. */
   from_price: number | null;
-  /** Exact price — only present in commercial/brand payloads. */
+  /** Exact add-on price. Public on the creator profile. */
   price?: string;
 };
 
@@ -316,6 +316,22 @@ export function packageTitle(
   return `${qty} ${plat} ${typeWord}`;
 }
 
+/** List row title. Quantity 1 drops the leading number: "Instagram Reel", "UGC βίντεο". */
+export function packageRowTitle(
+  platform: PackagePlatform,
+  type: PackageType,
+  quantity: number,
+  lang: "el" | "en" = "en"
+): string {
+  const qty = clampQuantity(quantity);
+  if (qty === 1) {
+    const typeWord = TYPE_LABEL[type][lang].one;
+    if (platform === "ugc" || isUgcPackageType(type)) return typeWord;
+    return `${PLATFORM_LABEL[platform][lang]} ${typeWord}`;
+  }
+  return packageTitle(platform, type, qty, lang);
+}
+
 /** Parse DB / form packages; drops invalid rows. Caps at 6. */
 export function normalizeServicePackages(raw: unknown): ServicePackage[] {
   if (!Array.isArray(raw)) return [];
@@ -403,7 +419,7 @@ export function toPublicPackageView(
   lang: "el" | "en" = "en",
   tierFromPrice: (price: unknown) => string = () => "0"
 ): PublicPackageView {
-  return {
+  const view: PublicPackageView = {
     id: pkg.id,
     platform: pkg.platform,
     type: pkg.type,
@@ -416,19 +432,19 @@ export function toPublicPackageView(
     price_tier: tierFromPrice(pkg.price),
     from_price: listedPriceAmount(pkg.price),
   };
+  if (isConcretePrice(pkg.price)) {
+    view.price = typeof pkg.price === "string" ? pkg.price.trim() : String(pkg.price);
+  }
+  return view;
 }
 
+/** Same public package view. Kept so commercial callers stay explicit. */
 export function toCommercialPackageView(
   pkg: ServicePackage,
   lang: "el" | "en" = "en",
   tierFromPrice: (price: unknown) => string = () => "0"
 ): PublicPackageView {
-  const view = toPublicPackageView(pkg, lang, tierFromPrice);
-  if (isConcretePrice(pkg.price)) {
-    view.price =
-      typeof pkg.price === "string" ? pkg.price.trim() : String(pkg.price);
-  }
-  return view;
+  return toPublicPackageView(pkg, lang, tierFromPrice);
 }
 
 /** Cheapest priced package → min_rate string, or null. */
@@ -536,7 +552,7 @@ function extraSource(rateCard: unknown): Record<string, unknown> {
   return rateCard as Record<string, unknown>;
 }
 
-/** Public extras. Guests see `from_price`, not the raw rate card. Omits keys without a price. */
+/** Priced extras with the exact amount and `from_price`. Omits keys without a price. */
 export function publicExtrasFromRateCard(
   rateCard: unknown,
   tierFromPrice: (price: unknown) => string = () => "0"
@@ -545,7 +561,7 @@ export function publicExtrasFromRateCard(
   const out: PublicExtraView[] = [];
   for (const key of RATE_CARD_EXTRA_KEYS) {
     if (!isConcretePrice(src[key])) continue;
-    out.push(toPublicExtraView(key, src[key], tierFromPrice));
+    out.push(toCommercialExtraView(key, src[key], tierFromPrice));
   }
   return out;
 }

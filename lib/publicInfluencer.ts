@@ -371,7 +371,7 @@ export function rateCardFlags(raw: unknown): RateCardFlags {
   return flags;
 }
 
-/** Public packages: no exact prices. Falls back to rate_card for display only. */
+/** Public packages include the exact service price. Falls back to rate_card for display only. */
 export function publicServicePackages(
   raw: unknown,
   rateCard?: unknown,
@@ -505,7 +505,10 @@ export function toCommercialInfluencer(row: Record<string, unknown>): Commercial
 const PRIVATE_KEY_PATTERN =
   /^(contact_email|birth_date|auth_user_id|min_rate|rate_card|approval_notes|analytics_verification_notes|email|phone|password|token|access_token|refresh_token)$/i;
 
-/** Returns dotted paths of private keys. `service_packages[].price` counts as private. */
+/**
+ * Returns dotted paths of private keys.
+ * Service and extra amounts (`price`) are public. `min_rate` and `rate_card` stay private.
+ */
 export function findPrivateFieldPaths(value: unknown, path = ""): string[] {
   if (Array.isArray(value)) {
     return value.flatMap((entry, index) => findPrivateFieldPaths(entry, `${path}[${index}]`));
@@ -514,7 +517,7 @@ export function findPrivateFieldPaths(value: unknown, path = ""): string[] {
   const found: string[] = [];
   for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
     const here = path ? `${path}.${key}` : key;
-    if (PRIVATE_KEY_PATTERN.test(key) || key === "price") found.push(here);
+    if (PRIVATE_KEY_PATTERN.test(key)) found.push(here);
     found.push(...findPrivateFieldPaths(child, here));
   }
   return found;

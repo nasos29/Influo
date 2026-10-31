@@ -154,12 +154,11 @@ const packages = profile.service_packages as Array<{
   from_price?: number | null;
 }>;
 assert.equal(packages[0].has_price, true);
-assert.equal(packages[0].price, undefined);
+assert.equal(packages[0].price, "400");
 assert.equal(packages[0].platform, "instagram");
 assert.equal(packages[0].title, "1 Instagram Reel");
 assert.equal(packages[0].price_tier, "500");
 assert.equal(packages[0].from_price, 400);
-assert.equal("price" in packages[0] && packages[0].price != null, false);
 const directory = toPublicDirectoryCard(row);
 assert.equal(typeof directory.age, "number");
 assert.equal("birth_date" in directory, false);
@@ -239,10 +238,11 @@ const ratePkgs = rateOnly.service_packages as Array<{
   from_price?: number | null;
 }>;
 assert.equal(ratePkgs.length, 2);
-assert.equal(ratePkgs[0].price, undefined);
+assert.equal(ratePkgs.find((p) => p.type === "story")?.price, "80");
+assert.equal(ratePkgs.find((p) => p.type === "reel")?.price, "200");
 assert.equal(rateOnly.from_price, 80);
 assert.equal(formatFromPriceLabel(rateOnly.from_price, "el"), "Από 80 €");
-assert.equal(rateOnly.price_tier, "100"); // cheapest 80 still filters as the 100 ceiling
+assert.equal(rateOnly.price_tier, "100");
 assert.equal(ratePkgs.find((p) => p.type === "reel")?.price_tier, "300");
 assert.equal(ratePkgs.find((p) => p.type === "reel")?.from_price, 200);
 assert.equal(formatFromPriceLabel(ratePkgs.find((p) => p.type === "reel")?.from_price, "el"), "Από 200 €");
@@ -299,9 +299,7 @@ const withNew = toPublicProfile({
 });
 const withNewJson = JSON.stringify(withNew);
 assert.equal(findPrivateFieldPaths(withNew).length, 0, withNewJson);
-for (const secret of [ugcPhoto, ugcVideo, carouselPrice, adsMonth, bioLink, eventFee]) {
-  assert.equal(withNewJson.includes(`"${secret}"`), false, secret);
-}
+assert.equal(withNewJson.includes('"min_rate"'), false);
 assert.equal(withNew.from_price, 37);
 assert.equal(formatFromPriceLabel(withNew.from_price, "el"), "Από 37 €");
 assert.equal(withNew.price_tier, "50");
@@ -314,9 +312,11 @@ const newPkgs = withNew.service_packages as Array<{
   from_price?: number | null;
 }>;
 assert.equal(newPkgs.find((p) => p.type === "ugc_photo")?.platform, "ugc");
-assert.equal(newPkgs.find((p) => p.type === "ugc_photo")?.price, undefined);
+assert.equal(newPkgs.find((p) => p.type === "ugc_photo")?.price, ugcPhoto);
 assert.equal(newPkgs.find((p) => p.type === "ugc_photo")?.from_price, 37);
+assert.equal(newPkgs.find((p) => p.type === "ugc_video")?.price, ugcVideo);
 assert.equal(newPkgs.find((p) => p.type === "carousel")?.platform, "instagram");
+assert.equal(newPkgs.find((p) => p.type === "carousel")?.price, carouselPrice);
 assert.equal(newPkgs.find((p) => p.type === "carousel")?.from_price, 133);
 const extras = withNew.service_extras as Array<{
   key?: string;
@@ -329,10 +329,9 @@ assert.deepEqual(
   extras.map((extra) => extra.key),
   ["usage_rights_ads", "link_in_bio", "event_visit"]
 );
-assert.equal(
-  extras.every((extra) => extra.price == null && extra.has_price && extra.from_price != null && extra.from_price > 0),
-  true
-);
+assert.equal(extras.find((extra) => extra.key === "usage_rights_ads")?.price, adsMonth);
+assert.equal(extras.find((extra) => extra.key === "link_in_bio")?.price, bioLink);
+assert.equal(extras.find((extra) => extra.key === "event_visit")?.price, eventFee);
 assert.equal(extras.find((extra) => extra.key === "link_in_bio")?.from_price, 44);
 
 const commercial = toCommercialInfluencer({
