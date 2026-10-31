@@ -58,6 +58,10 @@ const DUMMY_LOGOS: SlideLogo[] = DUMMY_BRANDS.map((brand) => ({
 
 const BRAND_SLIDE_LIMIT = 12;
 
+/** Guest desktop nav: one box so labels share a center line. */
+const DESKTOP_NAV_ITEM_CLASS =
+  "inline-flex min-h-[44px] items-center px-0 py-0 leading-5 hover:text-slate-900 transition-colors";
+
 const t = {
   el: {
     nav_join: "Εγγραφή Influencer",
@@ -445,31 +449,31 @@ export default function Home({
             
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-6" aria-label="Main navigation">
-              <ul className="flex gap-6 text-sm font-medium text-slate-700">
+              <ul className="flex items-center gap-6 text-sm font-medium text-slate-700">
                 {!isLoggedIn && (
                   <>
-                    <li><button onClick={() => { setSignupType("influencer"); setShowModal(true); }} className="inline-flex min-h-[44px] items-center hover:text-slate-900 transition-colors">
+                    <li className="flex items-center"><button onClick={() => { setSignupType("influencer"); setShowModal(true); }} className={DESKTOP_NAV_ITEM_CLASS}>
                       {txt.nav_join}
                     </button></li>
-                    <li><a href="/brand/signup" className="inline-flex min-h-[44px] items-center hover:text-slate-900 transition-colors">
+                    <li className="flex items-center"><a href="/brand/signup" className={DESKTOP_NAV_ITEM_CLASS}>
                       {txt.nav_brand}
                     </a></li>
                   </>
                 )}
-                <li><a href="/directory" className="hover:text-slate-900 transition-colors">
+                <li className="flex items-center"><a href="/directory" className={DESKTOP_NAV_ITEM_CLASS}>
                   {txt.nav_directory}
                 </a></li>
-                <li>
-                  <a href={lang === "en" ? "/en/campaigns" : "/campaigns"} className="hover:text-slate-900 transition-colors">
+                <li className="flex items-center">
+                  <a href={lang === "en" ? "/en/campaigns" : "/campaigns"} className={DESKTOP_NAV_ITEM_CLASS}>
                     {txt.nav_campaigns}
                   </a>
                 </li>
                 {isLoggedIn ? (
-                  <li><a href={userType === 'brand' ? '/brand/dashboard' : '/dashboard'} className="hover:text-slate-900 transition-colors">
+                  <li className="flex items-center"><a href={userType === 'brand' ? '/brand/dashboard' : '/dashboard'} className={DESKTOP_NAV_ITEM_CLASS}>
                     {lang === "el" ? "Dashboard" : "Dashboard"}
                   </a></li>
                 ) : (
-                  <li><a href="/login" className="inline-flex min-h-[44px] items-center hover:text-slate-900 transition-colors">
+                  <li className="flex items-center"><a href="/login" className={DESKTOP_NAV_ITEM_CLASS}>
                     {lang === "el" ? "Σύνδεση" : "Sign In"}
                   </a></li>
                 )}
