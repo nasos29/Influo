@@ -404,7 +404,9 @@ export function toPublicProfile(row: Record<string, unknown>): Record<string, un
     false
   );
   base.videos = visibleVideos(row.videos, row.hidden_videos);
-  base.accounts = accountsWithoutHiddenTopPosts(base.accounts, row.hidden_videos);
+  // Drop hidden posts before the per-account cap, so a hidden URL does not
+  // take one of the three saved slots the profile can still show.
+  base.accounts = sanitizeAccounts(accountsWithoutHiddenTopPosts(row.accounts, row.hidden_videos));
   delete base.hidden_videos;
   const displayPackages = packagesForViewer(row.service_packages, row.rate_card, row.accounts);
   base.has_min_rate = displayPackages.length > 0 || hasListedMinRate(row.min_rate);
