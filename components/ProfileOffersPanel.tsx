@@ -45,13 +45,13 @@ const SECTION_COPY = {
 function OfferPrice({
   revealPrices,
   price,
-  priceTier,
+  fromPrice,
   suffix,
   lang,
 }: {
   revealPrices: boolean;
   price?: string;
-  priceTier?: string;
+  fromPrice?: number | null;
   suffix: string | null;
   lang: "el" | "en";
 }) {
@@ -64,7 +64,7 @@ function OfferPrice({
       </p>
     );
   }
-  const fromLabel = formatFromPriceLabel(priceTier, lang);
+  const fromLabel = formatFromPriceLabel(fromPrice, lang);
   if (!fromLabel) return null;
   return <p className="text-xl font-bold tabular-nums text-slate-800">{fromLabel}</p>;
 }
@@ -106,7 +106,7 @@ function PackageCard({
         <OfferPrice
           revealPrices={revealPrices}
           price={pkg.price}
-          priceTier={pkg.price_tier}
+          fromPrice={pkg.from_price}
           suffix={pkg.type ? packagePriceSuffix(pkg.type, lang) : null}
           lang={lang}
         />
@@ -237,7 +237,7 @@ export default function ProfileOffersPanel({
                   <OfferPrice
                     revealPrices={revealPrices}
                     price={extra.price}
-                    priceTier={extra.price_tier}
+                    fromPrice={extra.from_price}
                     suffix={extraPriceSuffix(extra.key, lang)}
                     lang={lang}
                   />

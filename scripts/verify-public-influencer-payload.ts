@@ -6,6 +6,7 @@ import {
   findPrivateFieldPaths,
   formatFromPriceLabel,
   formatPriceTierLabel,
+  lowestListedPrice,
   parseDirectoryPrice,
   priceTierFromMinRate,
   toCommercialInfluencer,
@@ -132,8 +133,10 @@ for (const payload of [toPublicDirectoryCard(row), toPublicNewlyApproved(row), t
   assert.equal(json.includes(secretRate), false);
   assert.equal(json.includes("internal note"), false);
   assert.equal(json.includes("sekret"), false);
-  // Cheapest package is 400 → tier 500
+  // Cheapest package is 400. Guests see that amount; the filter tier stays 500.
+  assert.equal(payload.from_price, 400);
   assert.equal(payload.price_tier, "500");
+  assert.equal(formatFromPriceLabel(payload.from_price, "el"), "Από 400 €");
   // past_brands is not a DB column; loaders attach it after toPublic*.
   assert.equal("past_brands" in payload, false);
 }
@@ -148,12 +151,14 @@ const packages = profile.service_packages as Array<{
   title?: string;
   platform?: string;
   price_tier?: string;
+  from_price?: number | null;
 }>;
 assert.equal(packages[0].has_price, true);
 assert.equal(packages[0].price, undefined);
 assert.equal(packages[0].platform, "instagram");
 assert.equal(packages[0].title, "1 Instagram Reel");
 assert.equal(packages[0].price_tier, "500");
+assert.equal(packages[0].from_price, 400);
 assert.equal("price" in packages[0] && packages[0].price != null, false);
 const directory = toPublicDirectoryCard(row);
 assert.equal(typeof directory.age, "number");
@@ -178,22 +183,23 @@ assert.equal(formatPriceTierLabel("5000"), "5.000 €+");
 assert.equal(formatPriceTierLabel("above_5000"), "5.000 €+");
 
 assert.equal(formatFromPriceLabel("0"), null);
-assert.equal(formatFromPriceLabel("50", "el"), "Έως 50 €");
-assert.equal(formatFromPriceLabel("50", "en"), "Up to 50 €");
-assert.equal(formatFromPriceLabel("100", "el"), "Από 50 €");
-assert.equal(formatFromPriceLabel("100", "en"), "From 50 €");
-assert.equal(formatFromPriceLabel("200", "el"), "Από 100 €");
-assert.equal(formatFromPriceLabel("300", "el"), "Από 200 €");
-assert.equal(formatFromPriceLabel("500", "el"), "Από 300 €");
-assert.equal(formatFromPriceLabel("1000", "el"), "Από 500 €");
-assert.equal(formatFromPriceLabel("2000", "el"), "Από 1.000 €");
-assert.equal(formatFromPriceLabel("under_5000", "el"), "Από 2.000 €");
-assert.equal(formatFromPriceLabel("5000", "el"), "Από 5.000 €");
-assert.equal(formatFromPriceLabel("5000", "en"), "From 5,000 €");
-assert.equal(formatFromPriceLabel("above_5000", "en"), "From 5,000 €");
-assert.equal(/Από έως|From up to|Από έως/i.test(formatFromPriceLabel("50", "el") || ""), false);
-assert.equal(/Από έως|From up to/i.test(formatFromPriceLabel("50", "en") || ""), false);
-assert.equal(/€\d/.test(formatFromPriceLabel("200", "el") || ""), false);
+assert.equal(formatFromPriceLabel(0), null);
+assert.equal(formatFromPriceLabel(null), null);
+assert.equal(formatFromPriceLabel(40, "el"), "Από 40 €");
+assert.equal(formatFromPriceLabel(40, "en"), "From 40 €");
+assert.equal(formatFromPriceLabel(49, "en"), "From 49 €");
+assert.equal(formatFromPriceLabel(50, "el"), "Από 50 €");
+assert.equal(formatFromPriceLabel(80, "el"), "Από 80 €");
+assert.equal(formatFromPriceLabel(100, "el"), "Από 100 €");
+assert.equal(formatFromPriceLabel(100, "en"), "From 100 €");
+assert.equal(formatFromPriceLabel(200, "el"), "Από 200 €");
+assert.equal(formatFromPriceLabel(1000, "el"), "Από 1.000 €");
+assert.equal(formatFromPriceLabel(1000, "en"), "From 1,000 €");
+assert.equal(formatFromPriceLabel(5000, "el"), "Από 5.000 €");
+assert.equal(formatFromPriceLabel(5000, "en"), "From 5,000 €");
+assert.equal(/Από έως|From up to|Έως|Up to/i.test(formatFromPriceLabel(40, "el") || ""), false);
+assert.equal(/Από έως|From up to|Έως|Up to/i.test(formatFromPriceLabel(40, "en") || ""), false);
+assert.equal(/€\d/.test(formatFromPriceLabel(200, "el") || ""), false);
 
 assert.equal(priceTierFromMinRate("40"), "50");
 assert.equal(priceTierFromMinRate("49"), "50");
@@ -204,9 +210,20 @@ assert.equal(priceTierFromMinRate("200"), "300");
 assert.equal(priceTierFromMinRate("2500"), "under_5000");
 assert.equal(priceTierFromMinRate("5000"), "5000");
 assert.equal(priceTierFromMinRate("5001"), "above_5000");
-assert.equal(formatFromPriceLabel(priceTierFromMinRate("200"), "el"), "Από 200 €");
-assert.equal(formatFromPriceLabel(priceTierFromMinRate("50"), "en"), "From 50 €");
-assert.equal(formatFromPriceLabel(priceTierFromMinRate("49"), "en"), "Up to 50 €");
+assert.equal(formatFromPriceLabel(200, "el"), "Από 200 €");
+assert.equal(formatFromPriceLabel(50, "en"), "From 50 €");
+assert.equal(formatFromPriceLabel(49, "en"), "From 49 €");
+assert.equal(formatFromPriceLabel(lowestListedPrice({ min_rate: "100", rate_card: {}, service_packages: [] })), "Από 100 €");
+assert.equal(
+  formatFromPriceLabel(
+    lowestListedPrice({
+      min_rate: "40",
+      rate_card: { story: "40", post: "80", reel: "200" },
+      service_packages: [],
+    })
+  ),
+  "Από 40 €"
+);
 
 // Rate-card fallback when no packages
 const rateOnly = toPublicProfile({
@@ -215,12 +232,20 @@ const rateOnly = toPublicProfile({
   min_rate: "80",
   rate_card: { story: "80", reel: "200" },
 });
-const ratePkgs = rateOnly.service_packages as Array<{ type?: string; price?: string; price_tier?: string }>;
+const ratePkgs = rateOnly.service_packages as Array<{
+  type?: string;
+  price?: string;
+  price_tier?: string;
+  from_price?: number | null;
+}>;
 assert.equal(ratePkgs.length, 2);
 assert.equal(ratePkgs[0].price, undefined);
-assert.equal(rateOnly.price_tier, "100"); // cheapest 80 → from 50
-assert.equal(ratePkgs.find((p) => p.type === "reel")?.price_tier, "300"); // reel 200 → from 200
-assert.equal(formatFromPriceLabel(ratePkgs.find((p) => p.type === "reel")?.price_tier, "el"), "Από 200 €");
+assert.equal(rateOnly.from_price, 80);
+assert.equal(formatFromPriceLabel(rateOnly.from_price, "el"), "Από 80 €");
+assert.equal(rateOnly.price_tier, "100"); // cheapest 80 still filters as the 100 ceiling
+assert.equal(ratePkgs.find((p) => p.type === "reel")?.price_tier, "300");
+assert.equal(ratePkgs.find((p) => p.type === "reel")?.from_price, 200);
+assert.equal(formatFromPriceLabel(ratePkgs.find((p) => p.type === "reel")?.from_price, "el"), "Από 200 €");
 
 const ugcPhoto = "37";
 const ugcVideo = "87";
@@ -277,18 +302,38 @@ assert.equal(findPrivateFieldPaths(withNew).length, 0, withNewJson);
 for (const secret of [ugcPhoto, ugcVideo, carouselPrice, adsMonth, bioLink, eventFee]) {
   assert.equal(withNewJson.includes(`"${secret}"`), false, secret);
 }
+assert.equal(withNew.from_price, 37);
+assert.equal(formatFromPriceLabel(withNew.from_price, "el"), "Από 37 €");
 assert.equal(withNew.price_tier, "50");
 assert.equal("min_rate" in withNew, false);
-const newPkgs = withNew.service_packages as Array<{ type?: string; price?: string; platform?: string; price_tier?: string }>;
+const newPkgs = withNew.service_packages as Array<{
+  type?: string;
+  price?: string;
+  platform?: string;
+  price_tier?: string;
+  from_price?: number | null;
+}>;
 assert.equal(newPkgs.find((p) => p.type === "ugc_photo")?.platform, "ugc");
 assert.equal(newPkgs.find((p) => p.type === "ugc_photo")?.price, undefined);
+assert.equal(newPkgs.find((p) => p.type === "ugc_photo")?.from_price, 37);
 assert.equal(newPkgs.find((p) => p.type === "carousel")?.platform, "instagram");
-const extras = withNew.service_extras as Array<{ key?: string; price?: string; price_tier?: string; has_price?: boolean }>;
+assert.equal(newPkgs.find((p) => p.type === "carousel")?.from_price, 133);
+const extras = withNew.service_extras as Array<{
+  key?: string;
+  price?: string;
+  price_tier?: string;
+  from_price?: number | null;
+  has_price?: boolean;
+}>;
 assert.deepEqual(
   extras.map((extra) => extra.key),
   ["usage_rights_ads", "link_in_bio", "event_visit"]
 );
-assert.equal(extras.every((extra) => extra.price == null && extra.has_price && extra.price_tier && extra.price_tier !== "0"), true);
+assert.equal(
+  extras.every((extra) => extra.price == null && extra.has_price && extra.from_price != null && extra.from_price > 0),
+  true
+);
+assert.equal(extras.find((extra) => extra.key === "link_in_bio")?.from_price, 44);
 
 const commercial = toCommercialInfluencer({
   id: row.id,
