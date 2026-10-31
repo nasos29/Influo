@@ -29,6 +29,8 @@ const COPY = {
     less: "Λιγότερα",
     negotiate: "Διαπραγμάτευση πακέτου",
     negotiateHint: "Πρότεινε δικό σου πακέτο και τιμή",
+    all: "Όλα",
+    platforms: "Πλατφόρμες",
     continue: "Συνέχεια",
     empty: "Δεν υπάρχουν δημοσιευμένα πακέτα ακόμα.",
     type: "Τύπος περιεχομένου",
@@ -57,6 +59,8 @@ const COPY = {
     less: "Less",
     negotiate: "Negotiate a package",
     negotiateHint: "Propose your own package and price",
+    all: "All",
+    platforms: "Platforms",
     continue: "Continue",
     empty: "No published packages yet.",
     type: "Content type",
@@ -394,7 +398,8 @@ export default function ProfileOffersPanel({
   influencerId,
   onContinue,
   onNeedBrand,
-  initialSelectedId = null,
+  selectedId = null,
+  onSelectedIdChange,
 }: {
   packages: PublicPackageView[];
   extras: PublicExtraView[];
@@ -405,11 +410,13 @@ export default function ProfileOffersPanel({
   influencerId: string;
   onContinue: (choice: { label: string; budget?: string }) => void;
   onNeedBrand: () => void;
-  initialSelectedId?: string | null;
+  selectedId?: string | null;
+  onSelectedIdChange?: (id: string) => void;
 }) {
   const copy = COPY[lang];
-  const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
   const [negotiateOpen, setNegotiateOpen] = useState(false);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [tab, setTab] = useState<"all" | PackagePlatform>("all");
 
   const rows = useMemo<OfferRow[]>(() => {
     const fromPackages = packages.map((pkg) => {
@@ -470,6 +477,21 @@ export default function ProfileOffersPanel({
         },
       ];
   const selected = rows.find((row) => row.id === selectedId) || null;
+  const platformOrder: PackagePlatform[] = ["instagram", "tiktok", "youtube", "facebook", "ugc"];
+  const platforms = platformOrder.filter((platform) => rows.some((row) => row.platform === platform));
+  const activeTab = tab === "all" || platforms.includes(tab) ? tab : "all";
+  const visible = activeTab === "all" ? rows : rows.filter((row) => row.platform === activeTab);
+  const tabLabel: Record<PackagePlatform, string> = {
+    instagram: "Instagram",
+    tiktok: "TikTok",
+    youtube: "YouTube",
+    facebook: "Facebook",
+    ugc: "UGC",
+  };
+
+  const choose = (id: string) => {
+    onSelectedIdChange?.(id);
+  };
 
   const openNegotiate = () => {
     if (!isBrand) {
@@ -479,56 +501,97 @@ export default function ProfileOffersPanel({
     setNegotiateOpen(true);
   };
 
-  const gridClass =
-    rows.length <= 1
-      ? "grid grid-cols-1 gap-3"
-      : rows.length === 2
-        ? "grid grid-cols-1 gap-3 min-[480px]:grid-cols-2"
-        : "grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 lg:grid-cols-3";
-
   return (
     <div>
       {!rows.length ? <p className="mb-4 text-sm text-slate-500">{copy.empty}</p> : null}
-      <div className={gridClass} role="radiogroup" aria-label={lang === "el" ? "Πακέτα" : "Packages"}>
-        {rows.map((row) => {
+      {platforms.length > 0 ? (
+        <div className="relative mb-4 border-b border-slate-200">
+          <div
+            role="tablist"
+            aria-label={copy.platforms}
+            className="flex gap-5 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {(["all", ...platforms] as const).map((id) => {
+              const active = activeTab === id;
+              const label = id === "all" ? copy.all : tabLabel[id];
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setTab(id)}
+                  className={`inline-flex min-h-11 shrink-0 items-center border-b-2 text-sm font-semibold whitespace-nowrap ${
+                    active
+                      ? "border-blue-600 text-blue-600"
+                      : "border-transparent text-slate-500 hover:text-slate-800"
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+      <div className="space-y-3" role="radiogroup" aria-label={lang === "el" ? "Πακέτα" : "Packages"}>
+        {visible.map((row) => {
           const selectedRow = row.id === selectedId;
+          const long = row.description.length > 72;
+          const open = !!expanded[row.id];
           return (
             <div
               key={row.id}
               role="radio"
               aria-checked={selectedRow}
               tabIndex={0}
-              onClick={() => setSelectedId(row.id)}
+              onClick={() => choose(row.id)}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
-                  setSelectedId(row.id);
+                  choose(row.id);
                 }
               }}
-              className={`flex h-full cursor-pointer flex-col rounded-2xl border bg-white p-4 text-left shadow-sm transition-colors ${
+              className={`cursor-pointer rounded-2xl border px-3 py-3 transition-colors sm:px-4 ${
                 selectedRow
-                  ? "border-blue-500 ring-2 ring-blue-500"
-                  : "border-slate-200 hover:border-slate-800"
+                  ? "border-blue-500 bg-blue-50"
+                  : "border-slate-200 bg-white hover:border-slate-800"
               }`}
             >
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
                 <PlatformMark platform={row.platform} />
-                <RadioMark selected={selectedRow} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-sm font-semibold text-slate-900 sm:text-base">{row.title}</p>
+                    <span className="flex shrink-0 items-center gap-2.5">
+                      {row.priceLabel ? (
+                        <span className="text-sm font-semibold tabular-nums text-slate-900">{row.priceLabel}</span>
+                      ) : null}
+                      <RadioMark selected={selectedRow} />
+                    </span>
+                  </div>
+                  {row.description ? (
+                    <p className={`mt-0.5 text-sm leading-snug text-slate-500 ${open ? "" : "line-clamp-1"}`}>
+                      {row.description}
+                    </p>
+                  ) : null}
+                  {long ? (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setExpanded((prev) => ({ ...prev, [row.id]: !prev[row.id] }));
+                      }}
+                      className="mt-1 text-sm font-semibold text-blue-600 hover:text-blue-800"
+                    >
+                      {open ? copy.less : copy.more}
+                    </button>
+                  ) : null}
+                </div>
               </div>
-              <p className="mt-3 text-base font-semibold text-slate-900">{row.title}</p>
-              {row.description ? (
-                <p className="mt-1 line-clamp-3 text-sm leading-snug text-slate-500">{row.description}</p>
-              ) : null}
-              {row.priceLabel ? (
-                <p className="mt-auto pt-4 text-lg font-bold tabular-nums text-slate-900">{row.priceLabel}</p>
-              ) : (
-                <span className="mt-auto" />
-              )}
             </div>
           );
         })}
-      </div>
-      <div className="mt-3">
         <button
           type="button"
           onClick={openNegotiate}
