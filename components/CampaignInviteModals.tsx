@@ -32,6 +32,8 @@ const COPY = {
     close: "Κλείσιμο",
     newCampaign: "+ Νέα καμπάνια",
     loadError: "Οι καμπάνιες δεν φορτώθηκαν. Δοκίμασε ξανά.",
+    adminTitle: "Δεν έχεις καμπάνια",
+    adminBody: "Ο admin λογαριασμός δεν έχει δικό του brand, οπότε δεν μπορεί να στείλει πρόσκληση από εδώ.",
   },
   en: {
     emptyTitle: "Create a campaign to invite creators",
@@ -48,6 +50,8 @@ const COPY = {
     close: "Close",
     newCampaign: "+ New campaign",
     loadError: "Campaigns could not be loaded. Try again.",
+    adminTitle: "No campaign",
+    adminBody: "This admin account does not have its own brand, so it cannot send an invite from here.",
   },
 } as const;
 
@@ -99,6 +103,36 @@ export function NoCampaignModal({
         >
           {copy.create}
         </Link>
+      </div>
+    </ResponsiveDialog>
+  );
+}
+
+export function AdminNoBrandModal({
+  open,
+  onClose,
+  lang,
+}: {
+  open: boolean;
+  onClose: () => void;
+  lang: "el" | "en";
+}) {
+  const copy = COPY[lang];
+  return (
+    <ResponsiveDialog open={open} onClose={onClose} labelledBy="admin-no-brand-title">
+      <DialogClose onClose={onClose} />
+      <div className="px-5 pb-6 pt-6 sm:px-6 sm:pb-7 sm:pt-7">
+        <h2 id="admin-no-brand-title" className="pr-8 text-xl font-bold leading-tight text-slate-900 sm:text-2xl">
+          {copy.adminTitle}
+        </h2>
+        <p className="mt-3 text-sm leading-relaxed text-slate-600">{copy.adminBody}</p>
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-sm font-semibold text-white hover:from-blue-700 hover:to-purple-700"
+        >
+          {copy.close}
+        </button>
       </div>
     </ResponsiveDialog>
   );
