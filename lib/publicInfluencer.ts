@@ -18,8 +18,8 @@ import {
   commercialExtrasFromRateCard,
   listedPriceAmount,
   minRateFromPackages,
+  packagesForViewer,
   publicExtrasFromRateCard,
-  resolvePackagesForDisplay,
   toCommercialPackageView,
   toPublicPackageView,
   type PublicExtraView,
@@ -255,9 +255,10 @@ export function lowestListedPrice(row: {
   service_packages?: unknown;
   rate_card?: unknown;
   min_rate?: unknown;
+  accounts?: unknown;
 }): number | null {
   const fromPackages = minRateFromPackages(
-    resolvePackagesForDisplay(row.service_packages, row.rate_card)
+    packagesForViewer(row.service_packages, row.rate_card, row.accounts)
   );
   const fromList = listedPriceAmount(fromPackages);
   if (fromList != null) return fromList;
@@ -364,9 +365,10 @@ export function rateCardFlags(raw: unknown): RateCardFlags {
 export function publicServicePackages(
   raw: unknown,
   rateCard?: unknown,
-  lang: "el" | "en" = "en"
+  lang: "el" | "en" = "en",
+  accounts?: unknown
 ): PublicPackageView[] {
-  return resolvePackagesForDisplay(raw, rateCard).map((pkg) =>
+  return packagesForViewer(raw, rateCard, accounts).map((pkg) =>
     toPublicPackageView(pkg, lang, priceTierFromMinRate)
   );
 }
@@ -403,12 +405,12 @@ export function toPublicProfile(row: Record<string, unknown>): Record<string, un
   );
   base.videos = visibleVideos(row.videos, row.hidden_videos);
   delete base.hidden_videos;
-  const displayPackages = resolvePackagesForDisplay(row.service_packages, row.rate_card);
+  const displayPackages = packagesForViewer(row.service_packages, row.rate_card, row.accounts);
   base.has_min_rate = displayPackages.length > 0 || hasListedMinRate(row.min_rate);
   base.has_priced_min_rate =
     displayPackages.some((p) => isConcretePrice(p.price)) || hasPricedMinRate(row.min_rate);
   base.rate_card_flags = rateCardFlags(row.rate_card);
-  base.service_packages = publicServicePackages(row.service_packages, row.rate_card);
+  base.service_packages = publicServicePackages(row.service_packages, row.rate_card, "en", row.accounts);
   base.service_extras = publicExtrasFromRateCard(row.rate_card, priceTierFromMinRate);
   return base;
 }
@@ -439,7 +441,7 @@ export const SEO_PROFILE_COLUMNS = [
   ...DIRECTORY_CARD_COLUMNS,
   ...PUBLIC_PROFILE_EXTRA_COLUMNS,
 ] as const;
-export const COMMERCIAL_QUERY_COLUMNS = ["id", "min_rate", "rate_card", "service_packages"] as const;
+export const COMMERCIAL_QUERY_COLUMNS = ["id", "min_rate", "rate_card", "service_packages", "accounts"] as const;
 
 export type CommercialInfluencer = {
   id: string;
@@ -473,9 +475,10 @@ function commercialRateCard(raw: unknown): Record<string, string> | null {
 
 function commercialPackages(
   raw: unknown,
-  rateCard: unknown
+  rateCard: unknown,
+  accounts: unknown
 ): CommercialInfluencer["service_packages"] {
-  return resolvePackagesForDisplay(raw, rateCard).map((pkg) =>
+  return packagesForViewer(raw, rateCard, accounts).map((pkg) =>
     toCommercialPackageView(pkg, "en", priceTierFromMinRate)
   );
 }
@@ -486,7 +489,7 @@ export function toCommercialInfluencer(row: Record<string, unknown>): Commercial
     id: String(row.id ?? ""),
     min_rate: listedRate(row.min_rate),
     rate_card: commercialRateCard(row.rate_card),
-    service_packages: commercialPackages(row.service_packages, row.rate_card),
+    service_packages: commercialPackages(row.service_packages, row.rate_card, row.accounts),
     service_extras: commercialExtrasFromRateCard(row.rate_card, priceTierFromMinRate),
   };
 }

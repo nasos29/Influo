@@ -13,8 +13,9 @@ import {
   EXTRA_HINT,
   EXTRA_LABEL,
   extraPriceSuffix,
+  packageBlurb,
   packagePriceSuffix,
-  packageRowTitle,
+  packageTitle,
   type PackagePlatform,
   type PackageType,
   type PublicExtraView,
@@ -224,7 +225,7 @@ export function NegotiateDialog({
     if (!amount) return null;
     const unit =
       active.type && active.platform
-        ? packageRowTitle(active.platform, active.type, 1, lang)
+        ? packageTitle(active.platform, active.type, 1, lang)
         : active.title;
     return averageRateNote(creatorName, gender, amount, unit, lang);
   }, [active, options, creatorName, gender, lang]);
@@ -408,14 +409,13 @@ export default function ProfileOffersPanel({
 }) {
   const copy = COPY[lang];
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [negotiateOpen, setNegotiateOpen] = useState(false);
 
   const rows = useMemo<OfferRow[]>(() => {
     const fromPackages = packages.map((pkg) => {
       const title =
         pkg.platform && pkg.type
-          ? packageRowTitle(pkg.platform, pkg.type, pkg.quantity || 1, lang)
+          ? packageTitle(pkg.platform, pkg.type, pkg.quantity || 1, lang)
           : pkg.title;
       const priced = rowPrice(
         pkg.price,
@@ -427,7 +427,9 @@ export default function ProfileOffersPanel({
       return {
         id: pkg.id,
         title,
-        description: pkg.description || "",
+        description:
+          pkg.description ||
+          (pkg.platform && pkg.type ? packageBlurb(pkg.platform, pkg.type, lang) : ""),
         priceLabel: priced.label,
         budget: priced.budget,
         quantity: pkg.quantity || 1,
@@ -477,14 +479,19 @@ export default function ProfileOffersPanel({
     setNegotiateOpen(true);
   };
 
+  const gridClass =
+    rows.length <= 1
+      ? "grid grid-cols-1 gap-3"
+      : rows.length === 2
+        ? "grid grid-cols-1 gap-3 min-[480px]:grid-cols-2"
+        : "grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 lg:grid-cols-3";
+
   return (
     <div>
       {!rows.length ? <p className="mb-4 text-sm text-slate-500">{copy.empty}</p> : null}
-      <div className="space-y-3" role="radiogroup" aria-label={lang === "el" ? "Πακέτα" : "Packages"}>
+      <div className={gridClass} role="radiogroup" aria-label={lang === "el" ? "Πακέτα" : "Packages"}>
         {rows.map((row) => {
           const selectedRow = row.id === selectedId;
-          const long = row.description.length > 72;
-          const open = !!expanded[row.id];
           return (
             <div
               key={row.id}
@@ -498,47 +505,30 @@ export default function ProfileOffersPanel({
                   setSelectedId(row.id);
                 }
               }}
-              className={`cursor-pointer rounded-2xl border px-3 py-3 transition-colors sm:px-4 ${
+              className={`flex h-full cursor-pointer flex-col rounded-2xl border bg-white p-4 text-left shadow-sm transition-colors ${
                 selectedRow
-                  ? "border-blue-500 bg-blue-50"
-                  : "border-slate-200 bg-white hover:border-slate-800"
+                  ? "border-blue-500 ring-2 ring-blue-500"
+                  : "border-slate-200 hover:border-slate-800"
               }`}
             >
-              <div className="flex items-start gap-3">
+              <div className="flex items-start justify-between gap-3">
                 <PlatformMark platform={row.platform} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="text-sm font-semibold text-slate-900 sm:text-base">{row.title}</p>
-                    <span className="flex shrink-0 items-center gap-2.5">
-                      {row.priceLabel ? (
-                        <span className="text-sm font-semibold tabular-nums text-slate-900">{row.priceLabel}</span>
-                      ) : null}
-                      <RadioMark selected={selectedRow} />
-                    </span>
-                  </div>
-                  {row.description ? (
-                    <p className={`mt-0.5 text-sm leading-snug text-slate-500 ${open ? "" : "line-clamp-1"}`}>
-                      {row.description}
-                    </p>
-                  ) : null}
-                  {long ? (
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setExpanded((prev) => ({ ...prev, [row.id]: !prev[row.id] }));
-                      }}
-                      className="mt-1 text-sm font-semibold text-blue-600 hover:text-blue-800"
-                    >
-                      {open ? copy.less : copy.more}
-                    </button>
-                  ) : null}
-                </div>
+                <RadioMark selected={selectedRow} />
               </div>
+              <p className="mt-3 text-base font-semibold text-slate-900">{row.title}</p>
+              {row.description ? (
+                <p className="mt-1 line-clamp-3 text-sm leading-snug text-slate-500">{row.description}</p>
+              ) : null}
+              {row.priceLabel ? (
+                <p className="mt-auto pt-4 text-lg font-bold tabular-nums text-slate-900">{row.priceLabel}</p>
+              ) : (
+                <span className="mt-auto" />
+              )}
             </div>
           );
         })}
-
+      </div>
+      <div className="mt-3">
         <button
           type="button"
           onClick={openNegotiate}

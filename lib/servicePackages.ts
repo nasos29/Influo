@@ -452,6 +452,122 @@ export function resolvePackagesForDisplay(
   return packagesFromRateCard(rateCard);
 }
 
+export type CreatorNetworks = {
+  instagram: boolean;
+  tiktok: boolean;
+  youtube: boolean;
+  facebook: boolean;
+};
+
+/** Platforms named on the creator's accounts. Display only — nothing is written back. */
+export function creatorNetworksFromAccounts(accounts: unknown): CreatorNetworks {
+  const out: CreatorNetworks = { instagram: false, tiktok: false, youtube: false, facebook: false };
+  if (!Array.isArray(accounts)) return out;
+  for (const item of accounts) {
+    const platform = String(
+      item && typeof item === "object" ? (item as { platform?: unknown }).platform ?? "" : ""
+    )
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "");
+    if (platform === "instagram" || platform === "ig") out.instagram = true;
+    else if (platform === "tiktok" || platform === "tt") out.tiktok = true;
+    else if (platform === "youtube" || platform === "yt") out.youtube = true;
+    else if (platform === "facebook" || platform === "fb") out.facebook = true;
+  }
+  return out;
+}
+
+function isUgcService(pkg: ServicePackage): boolean {
+  return pkg.platform === "ugc" || isUgcPackageType(pkg.type);
+}
+
+/**
+ * Show each priced service on a platform the creator actually has.
+ * Instagram keeps Post/Reel/Story. TikTok-only creators get one «TikTok Video»
+ * from the reel price, or the post price when reel is missing. YouTube and
+ * Facebook stay hidden without that account. No recognized account: unchanged.
+ */
+export function alignPackagesToAccounts(packages: ServicePackage[], accounts: unknown): ServicePackage[] {
+  const networks = creatorNetworksFromAccounts(accounts);
+  if (!networks.instagram && !networks.tiktok && !networks.youtube && !networks.facebook) {
+    return packages;
+  }
+
+  const out: ServicePackage[] = [];
+  const seen = new Set<string>();
+  const push = (pkg: ServicePackage) => {
+    const key = `${pkg.id}:${pkg.platform}:${pkg.type}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(pkg);
+  };
+
+  for (const pkg of packages) {
+    if (isUgcService(pkg)) push(pkg);
+  }
+
+  if (networks.instagram) {
+    for (const pkg of packages) {
+      if (!isUgcService(pkg) && pkg.platform === "instagram") push(pkg);
+    }
+  } else if (networks.tiktok) {
+    const reel = packages.find((pkg) => !isUgcService(pkg) && (pkg.type === "reel" || pkg.type === "short"));
+    const post = packages.find(
+      (pkg) => !isUgcService(pkg) && pkg.type === "post" && pkg.platform !== "facebook"
+    );
+    const source = reel || post;
+    if (source) {
+      push({ ...source, platform: "tiktok", type: "video" });
+    }
+  }
+
+  if (networks.tiktok) {
+    for (const pkg of packages) {
+      if (pkg.platform === "tiktok") push(pkg);
+    }
+  }
+  if (networks.youtube) {
+    for (const pkg of packages) {
+      if (pkg.platform === "youtube") push(pkg);
+    }
+  }
+  if (networks.facebook) {
+    for (const pkg of packages) {
+      if (pkg.platform === "facebook") push(pkg);
+    }
+  }
+
+  return out;
+}
+
+export function packagesForViewer(
+  servicePackages: unknown,
+  rateCard: unknown,
+  accounts: unknown
+): ServicePackage[] {
+  return alignPackagesToAccounts(resolvePackagesForDisplay(servicePackages, rateCard), accounts);
+}
+
+/** One-line card copy when the creator left the package description empty. */
+export function packageBlurb(
+  platform: PackagePlatform,
+  type: PackageType,
+  lang: "el" | "en" = "en"
+): string {
+  const el = lang === "el";
+  if (platform === "tiktok") return el ? "Βίντεο που ανεβαίνει στο TikTok." : "A video posted on TikTok.";
+  if (platform === "youtube") return el ? "Βίντεο που ανεβαίνει στο YouTube." : "A video posted on YouTube.";
+  if (type === "story") return el ? "Story στο Instagram, για 24 ώρες." : "An Instagram story, up for 24 hours.";
+  if (type === "reel" || type === "short") return el ? "Σύντομο βίντεο στο Instagram." : "A short video on Instagram.";
+  if (type === "carousel") return el ? "Ανάρτηση Instagram με πολλές εικόνες." : "An Instagram post with several images.";
+  if (type === "post" && platform === "facebook") return el ? "Ανάρτηση στη σελίδα Facebook." : "A post on the Facebook page.";
+  if (type === "post") return el ? "Ανάρτηση στη ροή του Instagram." : "A post on the Instagram feed.";
+  if (type === "ugc_video") return el ? "Βίντεο που το χρησιμοποιεί το brand." : "A video the brand can publish.";
+  if (type === "ugc_photo") return el ? "Φωτογραφία που τη χρησιμοποιεί το brand." : "A photo the brand can publish.";
+  return el ? "Υπηρεσία για συνεργασία." : "A service for a collaboration.";
+}
+
 /** `tierFromPrice` supplied by caller (usually priceTierFromMinRate) to avoid import cycles. */
 export function toPublicPackageView(
   pkg: ServicePackage,
