@@ -61,10 +61,10 @@ export function classifyVideoUrl(raw: string): { platform: VideoPlatform; kind: 
   if (/instagram\.com\/(?:p|reel|tv)\/[A-Za-z0-9_-]+/i.test(url)) {
     return { platform: "instagram", kind: "post" };
   }
-  if (/tiktok\.com\/@[^/?#\s]+\/video\/\d+/i.test(url)) {
+  if (/tiktok\.com\/@[^/?#\s]+\/(?:video|photo)\/\d+/i.test(url)) {
     return { platform: "tiktok", kind: "post" };
   }
-  if (/(?:vm|vt)\.tiktok\.com\/[A-Za-z0-9]+/i.test(url)) {
+  if (/(?:vm|vt)\.tiktok\.com\/[A-Za-z0-9]+/i.test(url) || /tiktok\.com\/t\/[A-Za-z0-9]+/i.test(url)) {
     return { platform: "tiktok", kind: "short" };
   }
   if (youtubeId(url)) return { platform: "youtube", kind: "post" };
@@ -91,9 +91,9 @@ function instagramCanonical(raw: string): string | null {
 }
 
 function tiktokVideoCanonical(raw: string): string | null {
-  const match = raw.match(/tiktok\.com\/@([^/?#\s]+)\/video\/(\d+)/i);
+  const match = raw.match(/tiktok\.com\/@([^/?#\s]+)\/(video|photo)\/(\d+)/i);
   if (!match) return null;
-  return `https://www.tiktok.com/@${match[1]}/video/${match[2]}`;
+  return `https://www.tiktok.com/@${match[1]}/${match[2].toLowerCase()}/${match[3]}`;
 }
 
 type HttpResult =
@@ -191,12 +191,11 @@ async function oembed(platform: VideoPlatform, target: string): Promise<LinkChec
 }
 
 /**
- * Follow a vm/vt link. A landing on the TikTok homepage means the short link is dead.
- * Login, captcha, and transport errors stay unknown.
+ * Follow a vm/vt link. Homepage landings are unknown (TikTok does this for crawlers)
+ * — never treat as missing. Login, captcha, and transport errors stay unknown.
  */
 async function resolveTikTokShort(raw: string): Promise<
   | { kind: "video"; url: string }
-  | { kind: "gone" }
   | { kind: "unknown"; detail: string }
 > {
   let current = raw.trim();
@@ -236,7 +235,9 @@ async function resolveTikTokShort(raw: string): Promise<
   if (idOnly) return { kind: "video", url: `https://www.tiktok.com/video/${idOnly[1]}` };
   try {
     const path = new URL(current).pathname;
-    if (path === "/" || path === "") return { kind: "gone" };
+    if (path === "/" || path === "") {
+      return { kind: "unknown", detail: "short link redirected to homepage" };
+    }
   } catch {
     return { kind: "unknown", detail: "bad redirect url" };
   }
@@ -263,9 +264,6 @@ export async function checkVideoLink(raw: string): Promise<LinkCheck | null> {
     const resolved = await resolveTikTokShort(raw);
     if (resolved.kind === "unknown") {
       return { outcome: "unknown", platform: "tiktok", httpStatus: null, detail: resolved.detail };
-    }
-    if (resolved.kind === "gone") {
-      return { outcome: "missing", platform: "tiktok", httpStatus: null, detail: "short link no longer points at a video" };
     }
     return oembed("tiktok", resolved.url);
   }

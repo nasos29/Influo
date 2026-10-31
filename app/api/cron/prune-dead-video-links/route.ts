@@ -1,16 +1,12 @@
 /**
- * Nightly pass over influencer video links.
- * Vercel schedule is 01:00 UTC (03:00 Athens in winter, 04:00 in summer).
- * Auth matches the other /api/cron routes: Authorization: Bearer CRON_SECRET.
- *
- * Each run checks a small batch and saves a cursor. A link is removed only
- * after two "missing" results at least 72 hours apart. Timeouts, rate limits,
- * 5xx, and login walls stay "unknown" and are never removed.
+ * Compatibility endpoint — same unified logic as /api/cron/check-portfolio-videos.
+ * Removed from vercel.json; kept so manual / legacy callers still work.
+ * Auth: Authorization: Bearer CRON_SECRET.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { runPruneDeadVideoLinks } from "@/lib/pruneDeadVideoLinks";
+import { runCheckPortfolioVideos } from "@/lib/checkPortfolioVideos";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -38,11 +34,14 @@ export async function GET(request: NextRequest) {
   if (denied) return denied;
 
   try {
-    const summary = await runPruneDeadVideoLinks(supabaseAdmin);
+    const summary = await runCheckPortfolioVideos(supabaseAdmin);
     return NextResponse.json({ ok: true, ...summary });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal error";
-    const status = message.includes("VIDEO_LINK_CHECKS.sql") ? 503 : 500;
+    const status =
+      message.includes("VIDEO_LINK_CHECKS.sql") || message.includes("PORTFOLIO_VIDEO_CHECKS.sql")
+        ? 503
+        : 500;
     return NextResponse.json({ ok: false, error: message }, { status });
   }
 }

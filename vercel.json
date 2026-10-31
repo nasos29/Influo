@@ -18,10 +18,6 @@
       "schedule": "0 8 * * *"
     },
     {
-      "path": "/api/cron/prune-dead-video-links",
-      "schedule": "0 1 * * *"
-    },
-    {
       "path": "/api/cron/check-portfolio-videos",
       "schedule": "30 2 * * *"
     },

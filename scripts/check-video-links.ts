@@ -87,6 +87,7 @@ function fakeDb(failLog = false) {
       bio: "keep me",
       videos: [DEAD, LIVE, CHANNEL, ""],
       video_thumbnails: { [DEAD]: { url: "dead-thumb" }, [LIVE]: "live-thumb", other: "keep" },
+      hidden_videos: null as unknown,
     },
     {
       id: ID_B,
@@ -94,9 +95,11 @@ function fakeDb(failLog = false) {
       bio: "also keep",
       videos: [UNKNOWN],
       video_thumbnails: {},
+      hidden_videos: null as unknown,
     },
   ];
   const checks = new Map<string, CheckRow>();
+  const strikes = new Map<string, Record<string, unknown>>();
   const removals: { url: string; influencer_id: string }[] = [];
   const updates: Record<string, unknown>[] = [];
   let cursor: { influencerId: string; url: string } | null = null;
@@ -116,7 +119,13 @@ function fakeDb(failLog = false) {
       let rows = influencers.filter((row) => row.videos != null);
       if (state.filters.length) rows = rows.filter((row) => match(row));
       if (state.range) rows = rows.slice(state.range[0], state.range[1] + 1);
-      const data = rows.map((row) => ({ id: row.id, display_name: row.display_name, videos: row.videos, video_thumbnails: row.video_thumbnails }));
+      const data = rows.map((row) => ({
+        id: row.id,
+        display_name: row.display_name,
+        videos: row.videos,
+        video_thumbnails: row.video_thumbnails,
+        hidden_videos: row.hidden_videos,
+      }));
       return { data: state.single ? data[0] ?? null : data, error: null };
     }
     if (table === "influencers" && state.op === "update") {
@@ -125,6 +134,7 @@ function fakeDb(failLog = false) {
       updates.push(state.body);
       if ("videos" in state.body) row.videos = state.body.videos as string[];
       if ("video_thumbnails" in state.body) row.video_thumbnails = state.body.video_thumbnails as typeof row.video_thumbnails;
+      if ("hidden_videos" in state.body) row.hidden_videos = state.body.hidden_videos;
       if ("bio" in state.body || "display_name" in state.body) {
         throw new Error("prune updated a profile field other than videos");
       }
@@ -145,13 +155,22 @@ function fakeDb(failLog = false) {
       }
       return { data: null, error: null };
     }
-    if (table === "video_link_check_state" && state.op === "select") {
+    if (
+      (table === "video_link_check_state" || table === "portfolio_video_check_state") &&
+      state.op === "select"
+    ) {
       return {
-        data: cursor ? { cursor_influencer_id: cursor.influencerId, cursor_url: cursor.url } : { cursor_influencer_id: null, cursor_url: null },
+        data: cursor
+          ? { id: 1, cursor_influencer_id: cursor.influencerId, cursor_url: cursor.url }
+          : { id: 1, cursor_influencer_id: null, cursor_url: null },
         error: null,
       };
     }
-    if (table === "video_link_check_state" && state.op === "upsert" && state.body) {
+    if (
+      (table === "video_link_check_state" || table === "portfolio_video_check_state") &&
+      state.op === "upsert" &&
+      state.body
+    ) {
       const id = state.body.cursor_influencer_id;
       const url = state.body.cursor_url;
       cursor = typeof id === "string" && typeof url === "string" ? { influencerId: id, url } : null;
@@ -160,6 +179,20 @@ function fakeDb(failLog = false) {
     if (table === "video_link_removals" && state.op === "insert" && state.body) {
       if (failLog) return { data: null, error: { message: "log insert failed" } };
       removals.push({ url: String(state.body.url), influencer_id: String(state.body.influencer_id) });
+      return { data: null, error: null };
+    }
+    if (table === "portfolio_video_strikes" && state.op === "select") {
+      const rows = [...strikes.values()].filter((row) => match(row));
+      return { data: state.single ? rows[0] ?? null : rows, error: null };
+    }
+    if (table === "portfolio_video_strikes" && state.op === "upsert" && state.body) {
+      strikes.set(key(String(state.body.influencer_id), String(state.body.url)), state.body);
+      return { data: null, error: null };
+    }
+    if (table === "portfolio_video_strikes" && state.op === "delete") {
+      for (const [id, row] of strikes) {
+        if (match(row)) strikes.delete(id);
+      }
       return { data: null, error: null };
     }
     return { data: null, error: { message: `unexpected ${state.op} ${table}` } };
@@ -226,7 +259,12 @@ async function checkBatch(runPrune: RunPrune) {
   assert(!(DEAD in db.influencers[0].video_thumbnails), "the matching thumbnail key is removed");
   assert(db.influencers[0].video_thumbnails[LIVE] === "live-thumb", "other thumbnails stay");
   assert(db.removals.length === 1 && db.removals[0].url === DEAD, "the removal is logged");
-  assert(db.updates.every((patch) => Object.keys(patch).every((key) => key === "videos" || key === "video_thumbnails")), "updates touch only videos and thumbnails");
+  assert(
+    db.updates.every((patch) =>
+      Object.keys(patch).every((key) => key === "videos" || key === "video_thumbnails" || key === "hidden_videos")
+    ),
+    "updates touch only videos, thumbnails, and hidden_videos"
+  );
   assert(!db.checks.has(`${ID_A}\n${DEAD}`), "the check row is cleared after removal");
 
   const rollback = fakeDb(true);
@@ -272,14 +310,15 @@ async function checkBatch(runPrune: RunPrune) {
 const { runPruneDeadVideoLinks } = await import("../lib/pruneDeadVideoLinks.ts");
 await checkBatch(runPruneDeadVideoLinks);
 
-const samples: { name: string; url: string; expect: "live" | "missing" | null }[] = [
+const samples: { name: string; url: string; expect: "live" | "missing" | "unknown" | null }[] = [
   { name: "dead instagram photo", url: "https://www.instagram.com/p/Da_Hd7FEfwX", expect: "missing" },
   { name: "live instagram reel", url: "https://www.instagram.com/reel/DZcSy95qcwd/", expect: "live" },
   { name: "live youtube", url: "https://youtu.be/jI47AQf2LkI", expect: "live" },
   { name: "missing youtube id", url: "https://www.youtube.com/watch?v=abcdefghijk", expect: "missing" },
   { name: "youtube oembed rejection", url: "https://www.youtube.com/watch?v=xxxxxxxxxxx", expect: "unknown" },
   { name: "live tiktok short", url: "https://vm.tiktok.com/ZN8BSfrLT/", expect: "live" },
-  { name: "dead tiktok short", url: "https://vm.tiktok.com/ZN8BSfrLTdead/", expect: "missing" },
+  // Dead vm links often land on the homepage for crawlers — that is unknown, never missing.
+  { name: "dead tiktok short", url: "https://vm.tiktok.com/ZN8BSfrLTdead/", expect: "unknown" },
 ];
 
 let failed = 0;
