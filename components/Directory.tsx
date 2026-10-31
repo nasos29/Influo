@@ -18,6 +18,7 @@ import {
 } from "@/lib/publicInfluencer";
 import { resolveCompletionRate } from "@/lib/completionRate";
 import { displayLocation, locationFilterMatches } from "@/lib/displayLocation";
+import LocationTypeahead from "@/components/LocationTypeahead";
 
 const CATEGORY_KEYS = new Set<string>(CATEGORIES);
 const PAGE_SIZE = 40;
@@ -912,13 +913,13 @@ export default function Directory({
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
                 <LocationIcon />
               </div>
-              <input
-                type="text"
-                placeholder={txt.locPlace}
+              <LocationTypeahead
+                lang={lang}
                 value={locationQuery}
-                onChange={(e) => setLocationQuery(e.target.value)}
+                onChange={setLocationQuery}
+                placeholder={txt.locPlace}
                 className={pillInput}
-                aria-label={txt.locPlace}
+                ariaLabel={txt.locPlace}
               />
             </div>
 

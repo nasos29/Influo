@@ -31,6 +31,7 @@ import {
   validateBirthDate,
 } from "@/lib/validateBirthDate";
 import { normalizeYouTubeUsernameForSave } from "@/lib/youtubeHandle";
+import LocationTypeahead from "@/components/LocationTypeahead";
 import CreatorPlatformPrices from "@/components/CreatorPlatformPrices";
 import {
   creatorPricesHaveInvalid,
@@ -987,8 +988,15 @@ export default function InfluencerSignupForm() {
                 />
 
                 <div>
-                    <label className={labelClass}>{txt.locationLabel}</label>
-                    <input type="text" className={inputClass} value={location} onChange={(e) => setLocation(e.target.value)} placeholder={txt.locationPlace} />
+                    <label className={labelClass} htmlFor="signup-location">{txt.locationLabel}</label>
+                    <LocationTypeahead
+                      id="signup-location"
+                      lang={lang}
+                      value={location}
+                      onChange={setLocation}
+                      placeholder={txt.locationPlace}
+                      className={inputClass}
+                    />
                 </div>
 
                 <div>
