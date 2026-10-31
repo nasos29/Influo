@@ -39,8 +39,15 @@ const samples = [
   "1.500",
   "1,500",
   "200",
-  "4500",
-  "4500.50",
+  "300",
+  "450",
+  "499",
+  "500",
+  "999",
+  "1000",
+  "1500",
+  "2000",
+  "2500",
   "4999",
   "5000",
   "5000€",
@@ -50,6 +57,8 @@ const samples = [
   1750,
   5000,
 ];
+
+assert.deepEqual([...DIRECTORY_BUDGET_CAPS], [50, 100, 200, 300, 500, 1000, 2000, 5000]);
 
 for (const sample of samples) {
   for (const budget of budgets) {
@@ -81,7 +90,18 @@ const row = {
   languages: "Ελληνικά",
   min_rate: secretRate,
   rate_card: { story: "80", post: "150", reel: secretRate },
-  service_packages: [{ name: "Πακέτο", description: "3 stories", price: "400", includes: ["story"] }],
+  service_packages: [
+    {
+      id: "pkg1",
+      platform: "instagram",
+      type: "reel",
+      quantity: 1,
+      price: "400",
+      delivery_days: 7,
+      usage_rights: "none",
+      description: "One reel",
+    },
+  ],
   birth_date: secretBirth,
   auth_user_id: secretAuth,
   contact_email: secretEmail,
@@ -105,7 +125,8 @@ for (const payload of [toPublicDirectoryCard(row), toPublicNewlyApproved(row), t
   assert.equal(json.includes(secretRate), false);
   assert.equal(json.includes("internal note"), false);
   assert.equal(json.includes("sekret"), false);
-  assert.equal(payload.price_tier, "2000");
+  // Cheapest package is 400 → tier 500
+  assert.equal(payload.price_tier, "500");
   // past_brands is not a DB column; loaders attach it after toPublic*.
   assert.equal("past_brands" in payload, false);
 }
@@ -114,9 +135,19 @@ const profile = toPublicProfile(row);
 assert.equal(profile.has_min_rate, true);
 assert.equal(profile.has_priced_min_rate, true);
 assert.deepEqual(profile.rate_card_flags, { story: true, post: true, reel: true });
-const packages = profile.service_packages as Array<{ has_price?: boolean; price?: string }>;
+const packages = profile.service_packages as Array<{
+  has_price?: boolean;
+  price?: string;
+  title?: string;
+  platform?: string;
+  price_tier?: string;
+}>;
 assert.equal(packages[0].has_price, true);
 assert.equal(packages[0].price, undefined);
+assert.equal(packages[0].platform, "instagram");
+assert.equal(packages[0].title, "1 Instagram Reel");
+assert.equal(packages[0].price_tier, "500");
+assert.equal("price" in packages[0] && packages[0].price != null, false);
 const directory = toPublicDirectoryCard(row);
 assert.equal(typeof directory.age, "number");
 assert.equal("birth_date" in directory, false);
@@ -128,10 +159,34 @@ assert.equal(ageFromBirthDate(""), null);
 assert.equal(ageFromBirthDate(null), null);
 
 assert.equal(formatPriceTierLabel("0"), null);
-assert.equal(formatPriceTierLabel("100"), "≤ €100");
+assert.equal(formatPriceTierLabel("50"), "έως €50");
+assert.equal(formatPriceTierLabel("100"), "€50–€100");
 assert.equal(formatPriceTierLabel("200"), "€100–€200");
-assert.equal(formatPriceTierLabel("under_5000"), "€4.500–€5.000");
+assert.equal(formatPriceTierLabel("300"), "€200–€300");
+assert.equal(formatPriceTierLabel("500"), "€300–€500");
+assert.equal(formatPriceTierLabel("1000"), "€500–€1.000");
+assert.equal(formatPriceTierLabel("2000"), "€1.000–€2.000");
+assert.equal(formatPriceTierLabel("under_5000"), "€2.000–€5.000");
 assert.equal(formatPriceTierLabel("5000"), "€5.000+");
 assert.equal(formatPriceTierLabel("above_5000"), "€5.000+");
+
+assert.equal(priceTierFromMinRate("40"), "50");
+assert.equal(priceTierFromMinRate("50"), "50");
+assert.equal(priceTierFromMinRate("51"), "100");
+assert.equal(priceTierFromMinRate("2500"), "under_5000");
+assert.equal(priceTierFromMinRate("5000"), "5000");
+assert.equal(priceTierFromMinRate("5001"), "above_5000");
+
+// Rate-card fallback when no packages
+const rateOnly = toPublicProfile({
+  ...row,
+  service_packages: [],
+  min_rate: "80",
+  rate_card: { story: "80", reel: "200" },
+});
+const ratePkgs = rateOnly.service_packages as Array<{ type?: string; price?: string; price_tier?: string }>;
+assert.equal(ratePkgs.length, 2);
+assert.equal(ratePkgs[0].price, undefined);
+assert.equal(rateOnly.price_tier, "100"); // cheapest 80 → 100
 
 console.log("public influencer payload checks passed");

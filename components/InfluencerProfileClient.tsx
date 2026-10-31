@@ -48,6 +48,15 @@ import { loadOwnBrand, loadOwnProfiles } from "@/lib/ownProfile";
 import { creatorHasHardErOnMainAccount, displayErFlag, erFlagHint, erFlagLabel } from "@/lib/engagementFlags";
 import type { FollowerGrowthPoint } from "@/lib/followerGrowth";
 import { displayLanguageLabel } from "@/lib/languages";
+import { formatPriceTierLabel } from "@/lib/publicInfluencer";
+import {
+  PACKAGE_PLATFORMS,
+  USAGE_RIGHTS_LABEL,
+  packageTitle,
+  type PackagePlatform,
+  type PublicPackageView,
+  type UsageRights,
+} from "@/lib/servicePackages";
 import { badgeMinRateFromTier } from "@/lib/publicInfluencer";
 import { publicProfilePath } from "@/lib/profileSlug";
 import type { ProfileViewModel } from "@/lib/profileViewModel";
@@ -96,7 +105,7 @@ interface ProInfluencer extends Influencer {
   availability_status?: string;
   skills?: string[];
   certifications?: string[];
-  service_packages?: Array<{ name: string; description?: string; price?: string; includes?: string[]; has_price?: boolean }>;
+  service_packages?: PublicPackageView[];
   calculatedCompletionRate?: number;
   created_at?: string;
   /** Gemini audit (updated only when followers/engagement/avg_likes are refreshed). */
@@ -535,6 +544,110 @@ function statsUiFor(lang: "el" | "en") {
     tip_rating: STATS_UI_COPY.tip_rating[lang],
     tip_aria: STATS_UI_COPY.tip_aria[lang],
   };
+}
+
+const PLATFORM_TAB_LABEL: Record<PackagePlatform, { el: string; en: string }> = {
+  instagram: { el: "Instagram", en: "Instagram" },
+  tiktok: { el: "TikTok", en: "TikTok" },
+  youtube: { el: "YouTube", en: "YouTube" },
+  facebook: { el: "Facebook", en: "Facebook" },
+};
+
+function ProfilePackagesSection({
+  packages,
+  platforms,
+  lang,
+  isBrand,
+  onRequestQuote,
+}: {
+  packages: PublicPackageView[];
+  platforms: PackagePlatform[];
+  lang: "el" | "en";
+  isBrand: boolean;
+  onRequestQuote: () => void;
+}) {
+  const [tab, setTab] = useState<PackagePlatform>(platforms[0] || "instagram");
+  useEffect(() => {
+    if (platforms.length && !platforms.includes(tab)) setTab(platforms[0]!);
+  }, [platforms, tab]);
+
+  const visible = packages.filter((p) => p.platform === tab);
+
+  return (
+    <div>
+      {platforms.length > 1 && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          {platforms.map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setTab(p)}
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                tab === p
+                  ? "bg-slate-900 text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              {PLATFORM_TAB_LABEL[p][lang]}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {visible.map((pkg) => {
+          const title =
+            pkg.platform && pkg.type
+              ? packageTitle(pkg.platform, pkg.type, pkg.quantity || 1, lang)
+              : pkg.title;
+          const tierLabel = formatPriceTierLabel(pkg.price_tier);
+          const rights =
+            pkg.usage_rights && USAGE_RIGHTS_LABEL[pkg.usage_rights as UsageRights]
+              ? USAGE_RIGHTS_LABEL[pkg.usage_rights as UsageRights][lang]
+              : null;
+          return (
+            <div
+              key={pkg.id}
+              className="flex flex-col rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5"
+            >
+              <h4 className="text-base font-bold text-slate-900 sm:text-lg">{title}</h4>
+              {pkg.description ? (
+                <p className="mt-1 text-sm text-slate-600">{pkg.description}</p>
+              ) : null}
+              <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
+                {pkg.delivery_days != null ? (
+                  <span className="rounded-full bg-white px-2.5 py-1 ring-1 ring-slate-200">
+                    {pkg.delivery_days}{" "}
+                    {lang === "el" ? "ημέρες" : "days"}
+                  </span>
+                ) : null}
+                {rights ? (
+                  <span className="rounded-full bg-white px-2.5 py-1 ring-1 ring-slate-200">
+                    {rights}
+                  </span>
+                ) : null}
+              </div>
+              <div className="mt-4 flex-1">
+                {isBrand && pkg.price ? (
+                  <p className="text-2xl font-extrabold text-blue-700 tabular-nums">
+                    {pkg.price}€
+                  </p>
+                ) : tierLabel ? (
+                  <p className="text-xl font-bold text-slate-800 tabular-nums">{tierLabel}</p>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                onClick={onRequestQuote}
+                className="mt-4 w-full rounded-lg bg-blue-600 py-2.5 text-sm font-bold text-white transition-colors hover:bg-blue-700"
+              >
+                {lang === "el" ? "Ζήτα προσφορά" : "Request quote"}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 export default function InfluencerProfile(props: {
@@ -2313,8 +2426,10 @@ export default function InfluencerProfile(props: {
                         </div>
                       ) : (
                         <div>
-                          <p className="select-none text-2xl font-semibold tracking-tight text-blue-700 blur-md tabular-nums">
-                            ••••
+                          <p className="text-2xl font-semibold tracking-tight text-blue-700 tabular-nums">
+                            {formatPriceTierLabel(profile.price_tier)
+                              ? `${lang === "en" ? "From" : "Από"} ${formatPriceTierLabel(profile.price_tier)}`
+                              : "—"}
                           </p>
                           <p className="mt-1 text-xs leading-snug text-slate-600">
                             <Link
@@ -2330,7 +2445,7 @@ export default function InfluencerProfile(props: {
                             >
                               {txt.min_rate_cta_signup}
                             </Link>{" "}
-                            {txt.min_rate_cta_suffix}
+                            {lang === "el" ? "ως brand για τιμές" : "as a brand for prices"}
                           </p>
                         </div>
                       )}
@@ -2794,146 +2909,48 @@ export default function InfluencerProfile(props: {
                     </div>
                 )}
                 {activeTab === "pricing" && (
-                     <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
-                        <h2 className="text-xl font-bold text-slate-900 mb-6">{txt.tab_price}</h2>
-                        
-                        {/* Minimum Rate - θολή τιμή αν δεν είναι συνδεδεμένη επιχείρηση */}
-                        {(profile.has_min_rate || profile.min_rate) && (
-                          <div className="mb-8 p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 shadow-md">
-                            <div className="flex items-center gap-3 mb-2">
-                              <span className="text-2xl">💰</span>
-                              <h3 className="text-lg font-bold text-slate-900">{txt.min_rate}</h3>
-                            </div>
-                            {isBrand && profile.min_rate ? (
-                              <>
-                                <p className="text-4xl font-extrabold text-blue-700 mb-2">{profile.min_rate}€</p>
-                                <p className="text-sm text-slate-600">{txt.min_rate_desc}</p>
-                              </>
-                            ) : (
-                              <>
-                                <p className="text-4xl font-extrabold text-blue-700 mb-2 select-none blur-md">••••</p>
-                                <p className="text-sm text-slate-600">
-                                  <Link href="/login" className="text-blue-600 underline hover:text-blue-800">{txt.min_rate_cta_login}</Link>
-                                  {lang === 'el' ? ' ή ' : ' or '}
-                                  <Link href="/brand/signup" className="text-blue-600 underline hover:text-blue-800">{txt.min_rate_cta_signup}</Link>
-                                  {' '}{txt.min_rate_cta_suffix}
-                                </p>
-                              </>
-                            )}
-                          </div>
-                        )}
-                        
-                        {/* Service Packages */}
-                        {profile.service_packages && profile.service_packages.length > 0 && (
-                          <div className="mb-8">
-                            <h3 className="text-lg font-semibold text-slate-900 mb-4">{lang === 'el' ? 'Προσφορές Πακέτων' : 'Service Packages'}</h3>
-                            <div className="grid md:grid-cols-2 gap-4">
-                              {profile.service_packages.map((pkg: any, i: number) => (
-                                <div key={i} className="border-2 border-blue-200 rounded-xl p-6 bg-gradient-to-br from-blue-50 to-white">
-                                  <h4 className="font-bold text-slate-900 text-lg mb-2">{pkg.name}</h4>
-                                  <p className="text-slate-600 text-sm mb-4">{pkg.description}</p>
-                                  {isBrand && pkg.price ? (
-                                    <p className="text-2xl font-extrabold text-blue-600 mb-4">{pkg.price}</p>
-                                  ) : (pkg.has_price || pkg.price) ? (
-                                    <p className="text-2xl font-extrabold text-blue-600 mb-4 select-none blur-md">••••</p>
-                                  ) : null}
-                                  {pkg.includes && Array.isArray(pkg.includes) && (
-                                    <ul className="space-y-2 mb-4">
-                                      {pkg.includes.map((item: string, j: number) => (
-                                        <li key={j} className="flex items-center gap-2 text-sm text-slate-700">
-                                          <span className="text-green-600">✓</span> {item}
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  )}
-                                  <button onClick={() => setShowProposalModal(true)} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg transition-colors">
-                                    {lang === 'el' ? 'Επιλογή Πακέτου' : 'Select Package'}
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* Pricing Table - Dynamic based on platforms */}
-                        <div className="space-y-4">
-                            <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-                                <div className="divide-y divide-slate-100">
-                                    {(() => {
-                                        const platforms = profile.socials ? Object.keys(profile.socials).map(p => p.toLowerCase()) : [];
-                                        type RateCardKey = 'story' | 'post' | 'reel' | 'youtube';
-                                        const serviceMap = new Map<string, { key: RateCardKey; label: string }>();
-                                        
-                                        // Instagram services
-                                        if (platforms.includes('instagram')) {
-                                            serviceMap.set('story', { key: 'story', label: txt.price_story });
-                                            serviceMap.set('post-instagram', { key: 'post', label: txt.price_post });
-                                            serviceMap.set('reel', { key: 'reel', label: txt.price_reel });
-                                        }
-                                        
-                                        // TikTok services (uses reel key)
-                                        if (platforms.includes('tiktok')) {
-                                            serviceMap.set('reel', { key: 'reel', label: lang === 'el' ? 'TikTok Video' : 'TikTok Video' });
-                                        }
-                                        
-                                        // YouTube services (uses reel key)
-                                        if (platforms.includes('youtube')) {
-                                            serviceMap.set('reel', { key: 'reel', label: lang === 'el' ? 'YouTube Video' : 'YouTube Video' });
-                                        }
-                                        
-                                        // Twitter services
-                                        if (platforms.includes('twitter')) {
-                                            if (!serviceMap.has('post-instagram') && !serviceMap.has('post')) {
-                                                serviceMap.set('post', { key: 'post', label: lang === 'el' ? 'Twitter Post' : 'Twitter Post' });
-                                            }
-                                        }
-                                        
-                                        // If no platforms, show default services
-                                        if (serviceMap.size === 0) {
-                                            serviceMap.set('story', { key: 'story', label: txt.price_story });
-                                            serviceMap.set('post', { key: 'post', label: txt.price_post });
-                                            serviceMap.set('reel', { key: 'reel', label: txt.price_reel });
-                                            serviceMap.set('youtube', { key: 'youtube', label: txt.price_youtube });
-                                        }
-                                        
-                                        return Array.from(serviceMap.values()).map((service, idx) => {
-                                            const price = isBrand ? profile.rate_card?.[service.key] : undefined;
-                                            const flagged = !!profile.rate_card_flags?.[service.key];
-                                            const isAsk = isBrand
-                                              ? (!price || price.toLowerCase() === 'ask' || price.toLowerCase() === 'ρώτησε' || price.trim() === '')
-                                              : !flagged;
-                                            
-                                            return (
-                                                <div key={idx} className="flex justify-between items-center px-4 py-2.5 hover:bg-slate-50 transition-colors">
-                                                    <span className="font-medium text-slate-700 text-sm">{service.label}</span>
-                                                    {isAsk ? (
-                                                        <button
-                                                            onClick={() => {
-                                                                setShowMessageModal(true);
-                                                                setMessageContent(lang === 'el' ? `Ερώτηση σχετικά με ${service.label.toLowerCase()}` : `Question about ${service.label.toLowerCase()}`);
-                                                            }}
-                                                            className="text-xs px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-md font-medium transition-colors"
-                                                        >
-                                                            {lang === 'el' ? 'Ρώτησε' : 'Ask'}
-                                                        </button>
-                                                    ) : isBrand ? (
-                                                        <span className="font-bold text-lg text-slate-900">{price}</span>
-                                                    ) : (
-                                                        <span className="font-bold text-lg text-slate-900 select-none blur-md">••••</span>
-                                                    )}
-                                                </div>
-                                            );
-                                        });
-                                    })()}
-                                </div>
-                            </div>
-                        </div>
+                     <div className="bg-white p-4 sm:p-8 rounded-2xl shadow-sm border border-slate-100">
+                        <h2 className="text-xl font-bold text-slate-900 mb-2">
+                          {lang === "el" ? "Πακέτα" : "Packages"}
+                        </h2>
+                        <p className="text-sm text-slate-500 mb-6">
+                          {lang === "el"
+                            ? "Έτοιμες υπηρεσίες με τίτλο, παράδοση και δικαιώματα χρήσης."
+                            : "Ready-made services with title, delivery, and usage rights."}
+                        </p>
+
+                        {(() => {
+                          const pkgs = Array.isArray(profile.service_packages) ? profile.service_packages : [];
+                          if (!pkgs.length) {
+                            return (
+                              <p className="text-sm text-slate-500 mb-6">
+                                {lang === "el"
+                                  ? "Δεν υπάρχουν δημοσιευμένα πακέτα ακόμα."
+                                  : "No published packages yet."}
+                              </p>
+                            );
+                          }
+                          const platformsPresent = PACKAGE_PLATFORMS.filter((p) =>
+                            pkgs.some((pkg) => pkg.platform === p)
+                          );
+                          return (
+                            <ProfilePackagesSection
+                              packages={pkgs}
+                              platforms={platformsPresent}
+                              lang={lang}
+                              isBrand={isBrand}
+                              onRequestQuote={() => setShowProposalModal(true)}
+                            />
+                          );
+                        })()}
+
                         {!isBrand && (
                           <p className="mt-4 text-sm text-slate-600 text-center">
+                            {lang === "el" ? "Συνδεθείτε ως brand για τιμές" : "Sign in as a brand for prices"}
+                            {" — "}
                             <Link href="/login" className="text-blue-600 underline hover:text-blue-800">{txt.min_rate_cta_login}</Link>
-                            {lang === 'el' ? ' ή ' : ' or '}
+                            {lang === "el" ? " ή " : " or "}
                             <Link href="/brand/signup" className="text-blue-600 underline hover:text-blue-800">{txt.min_rate_cta_signup}</Link>
-                            {' '}{txt.min_rate_cta_suffix}
                           </p>
                         )}
                         <p className="mt-6 text-xs text-slate-400 text-center">{txt.price_note}</p>
