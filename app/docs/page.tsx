@@ -214,8 +214,8 @@ const FAQ_ITEMS: FaqEntry[] = [
       en: "How is CPM calculated, and what are top posts?",
     },
     a: {
-      el: "Το CPM είναι η τιμή του βίντεο της πλατφόρμας διά τις μέσες προβολές της ίδιας πλατφόρμας, επί 1.000. Instagram: Reel. TikTok και YouTube: Video. Φαίνεται μόνο με τουλάχιστον 100 μέσες προβολές. Τα κορυφαία posts (έως 6) είναι στην καρτέλα Στατιστικά και ανοίγουν όπως το portfolio. Η ανανέωση κάθε 15 ημέρες τα κρατά όταν η απάντηση τα περιλαμβάνει.",
-      en: "CPM is that platform’s video price divided by its own average views, times 1,000. Instagram uses the Reel. TikTok and YouTube use the Video. It appears only with at least 100 average views. Top posts (up to 6) are on the Stats tab and open like the portfolio. The 15-day refresh keeps them when the response includes them.",
+      el: "Το CPM είναι η τιμή του βίντεο της πλατφόρμας διά τις μέσες προβολές της ίδιας πλατφόρμας, επί 1.000. Instagram: Reel. TikTok και YouTube: Video. Φαίνεται μόνο με τουλάχιστον 100 μέσες προβολές. Στην καρτέλα Στατιστικά φαίνονται 3 κορυφαία posts· αν υπάρχουν σε περισσότερους λογαριασμούς, μπαίνει πρώτα ένα από κάθε λογαριασμό. Ανοίγουν όπως το portfolio. Η ανανέωση κάθε 15 ημέρες τα κρατά όταν η απάντηση τα περιλαμβάνει.",
+      en: "CPM is that platform’s video price divided by its own average views, times 1,000. Instagram uses the Reel. TikTok and YouTube use the Video. It appears only with at least 100 average views. Stats shows 3 top posts; when more than one account has them, one from each account comes first. They open like the portfolio. The 15-day refresh keeps them when the response includes them.",
     },
   },
   {
@@ -737,8 +737,8 @@ export default function DocsPage() {
                 </h3>
                 <p className="text-sm text-slate-700 mb-0">
                   {lang === "el"
-                    ? "Στα Στατιστικά, αν υπάρχουν, φαίνονται έως 6 posts από Instagram, TikTok ή YouTube. Ανοίγουν με το ίδιο πρόγραμμα αναπαραγωγής όπως το portfolio, με ένα πάτημα. Η ανανέωση στατιστικών κάθε 15 ημέρες τα αποθηκεύει όταν η απάντηση τα περιλαμβάνει και δεν σβήνει όσα υπάρχουν ήδη αν λείπουν από την απάντηση. Posts που δεν είναι διαθέσιμα κρύβονται, όπως τα βίντεο του portfolio."
-                    : "On Stats, when they exist, up to 6 posts from Instagram, TikTok, or YouTube are shown. They open in the same player as the portfolio, with one tap. The stats refresh every 15 days saves them when the response includes them, and does not delete posts already saved if the response omits them. Posts that are not available are hidden, the same way as portfolio videos."}
+                    ? "Στα Στατιστικά, αν υπάρχουν, φαίνονται 3 κορυφαία posts από Instagram, TikTok ή YouTube. Αν υπάρχουν posts σε περισσότερους λογαριασμούς, μπαίνει πρώτα ένα από κάθε λογαριασμό. Ανοίγουν με το ίδιο πρόγραμμα αναπαραγωγής όπως το portfolio, με ένα πάτημα. Η ανανέωση στατιστικών κάθε 15 ημέρες αποθηκεύει έως 3 ανά λογαριασμό όταν η απάντηση τα περιλαμβάνει και δεν σβήνει όσα υπάρχουν ήδη αν λείπουν από την απάντηση. Posts που δεν είναι διαθέσιμα κρύβονται, όπως τα βίντεο του portfolio."
+                    : "On Stats, when they exist, 3 top posts from Instagram, TikTok, or YouTube are shown. When more than one account has posts, one from each account comes first. They open in the same player as the portfolio, with one tap. The stats refresh every 15 days saves up to 3 per account when the response includes them, and does not delete posts already saved if the response omits them. Posts that are not available are hidden, the same way as portfolio videos."}
                 </p>
               </div>
               <div className="border border-slate-200 rounded-xl p-5 bg-white">
