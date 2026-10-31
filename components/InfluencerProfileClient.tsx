@@ -52,6 +52,7 @@ import { formatEuro, formatEuroAmount } from "@/lib/formatEuro";
 import { lowestListedPrice } from "@/lib/publicInfluencer";
 import ProfileOffersPanel from "@/components/ProfileOffersPanel";
 import CampaignInviteButton from "@/components/CampaignInviteButton";
+import ProfileShareButton from "@/components/ProfileShareButton";
 import { showCampaignInviteButton } from "@/lib/gateAvatars";
 import BrandGateModal from "@/components/BrandGateModal";
 import {
@@ -1935,7 +1936,7 @@ export default function InfluencerProfile(props: {
                   </div>
                 )}
             </div>
-            <div className="relative flex w-full flex-col items-center gap-2 md:w-[260px] md:shrink-0 md:items-end">
+            <div className="relative flex w-full flex-col items-center gap-2 md:w-auto md:shrink-0 md:items-end">
               {/* Badges - centered on mobile, right-aligned on desktop */}
               {(() => {
                 // Calculate account age in days
@@ -1996,6 +1997,39 @@ export default function InfluencerProfile(props: {
                   </div>
                 ) : null;
               })()}
+              <div className="flex items-center justify-center gap-1 md:justify-end">
+                <ProfileShareButton
+                  lang={lang}
+                  title={displayNameForLang(profile.name, lang)}
+                  path={publicPath}
+                />
+                <BrandSaveInfluencerButton
+                  variant="quiet"
+                  lang={lang}
+                  saved={isBrand && shortlistSaved}
+                  busy={shortlistBusy}
+                  onToggle={async () => {
+                    if (!isBrand) {
+                      setShowRegistrationRequiredModal(true);
+                      return;
+                    }
+                    setShortlistBusy(true);
+                    try {
+                      if (shortlistSaved) {
+                        await removeBrandShortlist(String(id));
+                        setShortlistSaved(false);
+                      } else {
+                        await addBrandShortlist(String(id));
+                        setShortlistSaved(true);
+                      }
+                    } catch {
+                      alert(lang === "el" ? "Δεν αποθηκεύτηκε. Δοκιμάστε ξανά." : "Could not save. Try again.");
+                    } finally {
+                      setShortlistBusy(false);
+                    }
+                  }}
+                />
+              </div>
               {showCampaignInviteButton({
                 sessionChecked,
                 hasSession,
@@ -2013,70 +2047,6 @@ export default function InfluencerProfile(props: {
                   onNeedBrand={() => setBrandGateOpen(true)}
                 />
               ) : null}
-              {/* Action Buttons */}
-              <div className={`grid w-full gap-2 ${isBrand ? "grid-cols-2" : "grid-cols-1 sm:grid-cols-2"}`}>
-                {isBrand && (
-                  <BrandSaveInfluencerButton
-                    variant="profile"
-                    lang={lang}
-                    saved={shortlistSaved}
-                    busy={shortlistBusy}
-                    onToggle={async () => {
-                      setShortlistBusy(true);
-                      try {
-                        if (shortlistSaved) {
-                          await removeBrandShortlist(String(id));
-                          setShortlistSaved(false);
-                        } else {
-                          await addBrandShortlist(String(id));
-                          setShortlistSaved(true);
-                        }
-                      } catch {
-                        alert(lang === "el" ? "Δεν αποθηκεύτηκε. Δοκιμάστε ξανά." : "Could not save. Try again.");
-                      } finally {
-                        setShortlistBusy(false);
-                      }
-                    }}
-                  />
-                )}
-                <button onClick={() => setShowProposalModal(true)} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-3 rounded-lg text-sm flex items-center justify-center gap-1.5">
-                    <span>⚡</span> {txt.contact}
-                </button>
-                <button 
-                    onClick={async () => {
-                      try {
-                        // Check if user is logged in and is a brand
-                        const { data: { user } } = await supabase.auth.getUser();
-                        
-                        if (!user || !user.email) {
-                          // Not logged in or no email - show registration required modal
-                          setShowRegistrationRequiredModal(true);
-                          return;
-                        }
-                        
-                        // Check if user is a registered brand
-                        const brandResult = await loadOwnBrand(supabase);
-                        if (!brandResult.ok && brandResult.reason === "error") {
-                          alert(lang === "el" ? "Δεν ελέγχθηκε ο λογαριασμός. Δοκιμάστε ξανά." : "Could not check the account. Try again.");
-                          return;
-                        }
-                        if (!brandResult.ok) {
-                          setShowRegistrationRequiredModal(true);
-                          return;
-                        }
-
-                        router.push(`/messages?influencer=${encodeURIComponent(String(id))}`);
-                      } catch (error) {
-                        console.error('Error checking brand status:', error);
-                        // On error, show registration modal
-                        setShowRegistrationRequiredModal(true);
-                      }
-                    }}
-                    className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 px-3 rounded-lg text-sm flex items-center justify-center gap-1.5"
-                >
-                    <span>💬</span> {txt.message_btn}
-                </button>
-              </div>
             </div>
           </div>
           
@@ -2909,11 +2879,48 @@ export default function InfluencerProfile(props: {
                         <h2 className="text-xl font-bold text-slate-900 mb-1">
                           {lang === "el" ? "Πακέτα" : "Packages"}
                         </h2>
-                        <p className="text-sm text-slate-500 mb-6">
+                        <p className="text-sm text-slate-500 mb-4">
                           {lang === "el"
                             ? "Διάλεξε πακέτο ή πρότεινε το δικό σου"
                             : "Choose a package or propose your own"}
                         </p>
+                        <div className="mb-4 grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setShowProposalModal(true)}
+                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-3 text-sm font-semibold text-white hover:bg-blue-700"
+                          >
+                            <span aria-hidden>⚡</span> {txt.contact}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                const { data: { user } } = await supabase.auth.getUser();
+                                if (!user || !user.email) {
+                                  setShowRegistrationRequiredModal(true);
+                                  return;
+                                }
+                                const brandResult = await loadOwnBrand(supabase);
+                                if (!brandResult.ok && brandResult.reason === "error") {
+                                  alert(lang === "el" ? "Δεν ελέγχθηκε ο λογαριασμός. Δοκιμάστε ξανά." : "Could not check the account. Try again.");
+                                  return;
+                                }
+                                if (!brandResult.ok) {
+                                  setShowRegistrationRequiredModal(true);
+                                  return;
+                                }
+                                router.push(`/messages?influencer=${encodeURIComponent(String(id))}`);
+                              } catch (error) {
+                                console.error("Error checking brand status:", error);
+                                setShowRegistrationRequiredModal(true);
+                              }
+                            }}
+                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-green-600 px-3 text-sm font-semibold text-white hover:bg-green-700"
+                          >
+                            <span aria-hidden>💬</span> {txt.message_btn}
+                          </button>
+                        </div>
 
                         <ProfileOffersPanel
                           packages={Array.isArray(profile.service_packages) ? profile.service_packages : []}
