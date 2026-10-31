@@ -1993,8 +1993,10 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     verified: number;
     approved?: number;
     analyticsVerified?: number;
-    hiddenVideos?: number;
-    reach: string;
+    /** Set only when API computed it; omit/null hides the card. */
+    hiddenVideos?: number | null;
+    /** Formatted reach; omit/null hides the card. */
+    reach?: string | null;
     pipeline: string;
   }>({ 
     total: 0, 
@@ -2002,8 +2004,8 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     verified: 0,
     approved: 0,
     analyticsVerified: 0,
-    hiddenVideos: 0,
-    reach: "0",
+    hiddenVideos: null,
+    reach: null,
     pipeline: "0€"
   });
   const [hiddenByProfile, setHiddenByProfile] = useState<
@@ -2144,7 +2146,14 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   };
 
   const deleteAdminCampaign = async (row: AdminBrandCampaignRow) => {
-    if (!confirm(txt.campaign_delete_confirm)) return;
+    const ok = await askConfirm({
+      title: lang === "el" ? "Διαγραφή καμπάνιας" : "Delete campaign",
+      body: txt.campaign_delete_confirm,
+      confirmLabel: lang === "el" ? "Διαγραφή" : "Delete",
+      cancelLabel: lang === "el" ? "Άκυρο" : "Cancel",
+      danger: true,
+    });
+    if (!ok) return;
     setDeletingCampaignId(row.id);
     try {
       const response = await fetch("/api/admin/campaigns", {
@@ -2284,11 +2293,17 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const bulkDeleteAnnouncements = async () => {
     const ids = announcementSelectedIds;
     if (ids.length === 0) return;
-    const confirmMsg =
-      lang === 'el'
-        ? `Διαγραφή ${ids.length} ανακοινώσεων; Δεν μπορεί να αναιρεθεί.`
-        : `Delete ${ids.length} announcements? This cannot be undone.`;
-    if (!confirm(confirmMsg)) return;
+    const ok = await askConfirm({
+      title: lang === "el" ? "Διαγραφή ανακοινώσεων" : "Delete announcements",
+      body:
+        lang === "el"
+          ? `Διαγραφή ${ids.length} ανακοινώσεων; Δεν μπορεί να αναιρεθεί.`
+          : `Delete ${ids.length} announcements? This cannot be undone.`,
+      confirmLabel: lang === "el" ? "Διαγραφή" : "Delete",
+      cancelLabel: lang === "el" ? "Άκυρο" : "Cancel",
+      danger: true,
+    });
+    if (!ok) return;
     setAnnouncementBulkDeleting(true);
     try {
       const res = await fetch('/api/admin/announcements/bulk-delete', {
@@ -2434,9 +2449,16 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   };
 
   const deleteBlogPost = async (slug: string) => {
-    if (!confirm(lang === 'el' ? 'Είστε σίγουροι ότι θέλετε να διαγράψετε αυτό το άρθρο;' : 'Are you sure you want to delete this article?')) {
-      return;
-    }
+    const ok = await askConfirm({
+      title: lang === "el" ? "Διαγραφή άρθρου" : "Delete article",
+      body: lang === "el"
+        ? "Είστε σίγουροι ότι θέλετε να διαγράψετε αυτό το άρθρο;"
+        : "Are you sure you want to delete this article?",
+      confirmLabel: lang === "el" ? "Διαγραφή" : "Delete",
+      cancelLabel: lang === "el" ? "Άκυρο" : "Cancel",
+      danger: true,
+    });
+    if (!ok) return;
     try {
       const updated = blogPosts.filter(p => p.slug !== slug);
       setBlogPosts(updated);
@@ -2599,6 +2621,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       pending?: number;
       analyticsVerified?: number;
       hiddenVideos?: number;
+      reach?: number;
     } | undefined,
     pipeline: string,
     hiddenList?: Array<{ id: string; display_name: string; count: number; urls: string[] }>
@@ -2608,6 +2631,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     const approved = counts.approved ?? 0;
     const pending = counts.pending ?? Math.max(0, total - approved);
     const analyticsVerified = counts.analyticsVerified ?? 0;
+    const locale = lang === "el" ? "el-GR" : "en-US";
     setStats((prev) => ({
       ...prev,
       total,
@@ -2615,10 +2639,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       approved,
       analyticsVerified,
       pending,
-      hiddenVideos: counts.hiddenVideos ?? 0,
+      // Only set when API computed it; missing → hide card (do not show 0).
+      hiddenVideos: typeof counts.hiddenVideos === "number" ? counts.hiddenVideos : null,
+      reach:
+        typeof counts.reach === "number"
+          ? Math.round(counts.reach).toLocaleString(locale)
+          : null,
       pipeline: pipeline || prev.pipeline,
-      // Reach is not recomputed from full table (would require scanning all rows).
-      reach: prev.reach || "—",
     }));
     if (hiddenList) setHiddenByProfile(hiddenList);
   };
@@ -3581,13 +3608,17 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   };
 
   const handleDeleteConversation = async (conversationId: string) => {
-    if (!confirm(
-      lang === 'el' 
-        ? 'Είστε σίγουροι ότι θέλετε να διαγράψετε αυτή τη συνομιλία; Αυτή η ενέργεια θα διαγράψει και όλα τα μηνύματα και τα σχετικά στατιστικά.'
-        : 'Are you sure you want to delete this conversation? This will also delete all messages and related statistics.'
-    )) {
-      return;
-    }
+    const ok = await askConfirm({
+      title: lang === "el" ? "Διαγραφή συνομιλίας" : "Delete conversation",
+      body:
+        lang === "el"
+          ? "Είστε σίγουροι ότι θέλετε να διαγράψετε αυτή τη συνομιλία; Αυτή η ενέργεια θα διαγράψει και όλα τα μηνύματα και τα σχετικά στατιστικά."
+          : "Are you sure you want to delete this conversation? This will also delete all messages and related statistics.",
+      confirmLabel: lang === "el" ? "Διαγραφή" : "Delete",
+      cancelLabel: lang === "el" ? "Άκυρο" : "Cancel",
+      danger: true,
+    });
+    if (!ok) return;
 
     setDeletingConversation(conversationId);
     try {
@@ -3628,13 +3659,17 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   };
 
   const handleDeleteProposal = async (proposalId: number) => {
-    if (!confirm(
-      lang === 'el' 
-        ? 'Είστε σίγουροι ότι θέλετε να διαγράψετε αυτή την πρόταση; Αυτή η ενέργεια θα διαγράψει και τα σχετικά στατιστικά.'
-        : 'Are you sure you want to delete this proposal? This will also delete related statistics.'
-    )) {
-      return;
-    }
+    const ok = await askConfirm({
+      title: lang === "el" ? "Διαγραφή πρότασης" : "Delete proposal",
+      body:
+        lang === "el"
+          ? "Είστε σίγουροι ότι θέλετε να διαγράψετε αυτή την πρόταση; Αυτή η ενέργεια θα διαγράψει και τα σχετικά στατιστικά."
+          : "Are you sure you want to delete this proposal? This will also delete related statistics.",
+      confirmLabel: lang === "el" ? "Διαγραφή" : "Delete",
+      cancelLabel: lang === "el" ? "Άκυρο" : "Cancel",
+      danger: true,
+    });
+    if (!ok) return;
 
     setDeletingProposal(proposalId);
     try {
@@ -3880,24 +3915,28 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
             <p className="text-xs text-green-700 uppercase font-medium mb-1">{txt.verified}</p>
             <p className="text-2xl font-bold text-green-600">{stats.verified}</p>
           </div>
-          <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
-            <p className="text-xs text-blue-700 uppercase font-medium mb-1">{txt.reach}</p>
-            <p className="text-2xl font-bold text-blue-600">{stats.reach}</p>
-          </div>
+          {stats.reach != null && stats.reach !== "" ? (
+            <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+              <p className="text-xs text-blue-700 uppercase font-medium mb-1">{txt.reach}</p>
+              <p className="text-2xl font-bold text-blue-600">{stats.reach}</p>
+            </div>
+          ) : null}
           <div className="bg-purple-50 border border-purple-200 p-4 rounded-lg">
             <p className="text-xs text-purple-700 uppercase font-medium mb-1">{txt.pipeline}</p>
             <p className="text-2xl font-bold text-purple-600">{stats.pipeline}</p>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowHiddenVideosPanel((v) => !v)}
-            className="bg-orange-50 border border-orange-200 p-4 rounded-lg text-left hover:bg-orange-100/80 transition-colors"
-          >
-            <p className="text-xs text-orange-800 uppercase font-medium mb-1">
-              {lang === "en" ? "Hidden videos" : "Κρυφά βίντεο"}
-            </p>
-            <p className="text-2xl font-bold text-orange-700">{stats.hiddenVideos ?? 0}</p>
-          </button>
+          {typeof stats.hiddenVideos === "number" ? (
+            <button
+              type="button"
+              onClick={() => setShowHiddenVideosPanel((v) => !v)}
+              className="bg-orange-50 border border-orange-200 p-4 rounded-lg text-left hover:bg-orange-100/80 transition-colors"
+            >
+              <p className="text-xs text-orange-800 uppercase font-medium mb-1">
+                {lang === "en" ? "Hidden videos" : "Κρυφά βίντεο"}
+              </p>
+              <p className="text-2xl font-bold text-orange-700">{stats.hiddenVideos}</p>
+            </button>
+          ) : null}
         </div>
 
         {showHiddenVideosPanel ? (
@@ -4002,7 +4041,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     : "border-transparent text-slate-500 hover:text-slate-700"
                 }`}
               >
-                💬 Συνομιλίες ({conversations.length})
+                {lang === "el" ? "💬 Συνομιλίες" : "💬 Conversations"} ({conversations.length})
                 {unreadMessagesCount > 0 && (
                   <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 bg-red-500 text-white text-[9px] sm:text-[10px] font-bold rounded-full min-w-[14px] sm:min-w-[16px] h-[14px] sm:h-[16px] flex items-center justify-center px-0.5">
                     {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
@@ -4373,7 +4412,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                 )}
                                 <button
                                   onClick={() => deleteUser(u.id)}
-                                  className="px-2 py-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                                  className="ml-2 px-2.5 py-1 text-xs font-medium bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
                                 >
                                   {txt.btn_delete}
                                 </button>
@@ -4418,7 +4457,19 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
           {activeTab === "influencer_stats" && (
             <div className="p-4 sm:p-6 border-t border-slate-100">
               <AdminInfluencerStatsTab
-                influencers={(pickerUsers.length ? pickerUsers : users).map((u) => ({ id: u.id, display_name: u.display_name }))}
+                influencers={(() => {
+                  const list = (pickerUsers.length ? pickerUsers : users).map((u) => ({
+                    id: u.id,
+                    display_name: u.display_name,
+                  }));
+                  const seen = new Set<string>();
+                  return list.filter((u) => {
+                    const id = String(u.id);
+                    if (seen.has(id)) return false;
+                    seen.add(id);
+                    return true;
+                  });
+                })()}
                 lang={lang}
               />
             </div>
@@ -4442,31 +4493,48 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                       <td colSpan={5} className="px-4 py-8 text-center text-slate-500">{txt.no_data}</td>
                     </tr>
                   ) : (
-                    proposals.map(p => (
+                    proposals.map(p => {
+                      const statusKey = String(p.status || "").toLowerCase();
+                      const statusLabel =
+                        statusKey === "pending"
+                          ? (lang === "el" ? "Εκκρεμεί" : "Pending")
+                          : statusKey === "accepted"
+                            ? (lang === "el" ? "Αποδεκτή" : "Accepted")
+                            : statusKey === "completed"
+                              ? (lang === "el" ? "Ολοκληρώθηκε" : "Completed")
+                              : statusKey === "rejected"
+                                ? (lang === "el" ? "Απορρίφθηκε" : "Rejected")
+                                : statusKey === "cancelled" || statusKey === "canceled"
+                                  ? (lang === "el" ? "Ακυρώθηκε" : "Cancelled")
+                                  : (lang === "el" ? "Άγνωστο" : "Unknown");
+                      return (
                       <tr key={p.id} className="hover:bg-slate-50">
                         <td className="px-4 py-3 font-medium text-slate-900">{p.brand_name}</td>
                         <td className="px-4 py-3 text-slate-600">{p.influencers?.display_name}</td>
                         <td className="px-4 py-3 font-medium text-green-600">{p.budget}€</td>
                         <td className="px-4 py-3">
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">{p.status}</span>
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">{statusLabel}</span>
                         </td>
                         <td className="px-4 py-3">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteProposal(p.id);
-                            }}
-                            disabled={deletingProposal === p.id}
-                            className="px-2 py-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {deletingProposal === p.id 
-                              ? (lang === 'el' ? 'Διαγραφή...' : 'Deleting...')
-                              : (lang === 'el' ? 'Διαγραφή' : 'Delete')
-                            }
-                          </button>
+                          <div className="flex justify-end">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteProposal(p.id);
+                              }}
+                              disabled={deletingProposal === p.id}
+                              className="ml-auto px-2.5 py-1 text-xs font-medium bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {deletingProposal === p.id 
+                                ? (lang === 'el' ? 'Διαγραφή...' : 'Deleting...')
+                                : (lang === 'el' ? 'Διαγραφή' : 'Delete')
+                              }
+                            </button>
+                          </div>
                         </td>
                       </tr>
-                    ))
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -5136,7 +5204,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               </button>
                               <button
                                 onClick={() => deleteBlogPost(post.slug)}
-                                className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded transition-colors"
+                                className="ml-2 px-3 py-1.5 text-sm font-medium bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
                               >
                                 {txt.blog_delete}
                               </button>
@@ -5361,7 +5429,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     type="button"
                     onClick={() => void bulkDeleteAnnouncements()}
                     disabled={announcementSelectedIds.length === 0 || announcementBulkDeleting}
-                    className="px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="ml-auto px-3 py-1.5 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {announcementBulkDeleting
                       ? '...'
@@ -5494,7 +5562,17 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                         <button
                           type="button"
                           onClick={async () => {
-                            if (!confirm(lang === 'el' ? 'Διαγραφή ανακοίνωσης; Δεν μπορεί να αναιρεθεί.' : 'Delete this announcement? This cannot be undone.')) return;
+                            const ok = await askConfirm({
+                              title: lang === "el" ? "Διαγραφή ανακοίνωσης" : "Delete announcement",
+                              body:
+                                lang === "el"
+                                  ? "Διαγραφή ανακοίνωσης; Δεν μπορεί να αναιρεθεί."
+                                  : "Delete this announcement? This cannot be undone.",
+                              confirmLabel: lang === "el" ? "Διαγραφή" : "Delete",
+                              cancelLabel: lang === "el" ? "Άκυρο" : "Cancel",
+                              danger: true,
+                            });
+                            if (!ok) return;
                             try {
                               const res = await fetch(`/api/admin/announcements/${a.id}`, { method: 'DELETE', headers: await adminAuthHeaders() });
                               if (res.ok) {
@@ -5514,7 +5592,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               alert(lang === 'el' ? 'Σφάλμα διαγραφής' : 'Delete failed');
                             }
                           }}
-                          className="shrink-0 px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                          className="shrink-0 ml-auto px-3 py-1.5 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                           title={lang === 'el' ? 'Διαγραφή ανακοίνωσης' : 'Delete announcement'}
                         >
                           {lang === 'el' ? 'Διαγραφή' : 'Delete'}
@@ -5622,7 +5700,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                             handleDeleteConversation(conv.id);
                           }}
                           disabled={deletingConversation === conv.id}
-                          className="absolute top-2 right-2 px-2 py-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="absolute top-2 right-2 px-2 py-1 text-xs font-medium bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           title={lang === 'el' ? 'Διαγραφή συνομιλίας' : 'Delete conversation'}
                         >
                           {deletingConversation === conv.id ? '...' : '✕'}

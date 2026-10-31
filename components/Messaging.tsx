@@ -2013,12 +2013,16 @@ export default function Messaging({
                 )}
               </div>
 
+              {conversationClosed ? (
+                <div className="px-3 sm:px-4 py-3 border-t border-slate-200 bg-slate-50">
+                  <p className="text-xs text-slate-600 text-center">
+                    {lang === "el"
+                      ? "Η συνομιλία είναι κλειστή."
+                      : "This conversation is closed."}
+                  </p>
+                </div>
+              ) : (
               <form onSubmit={sendMessage} className="px-3 sm:px-4 py-3 border-t border-slate-200 bg-white">
-                {conversationClosed && (
-                  <div className="mb-2 p-2 bg-blue-50 border border-blue-100 rounded-lg">
-                    <p className="text-xs text-blue-700">{txt.reopenHint}</p>
-                  </div>
-                )}
                 {pendingFiles.length > 0 && (
                   <div className="mb-2 flex flex-wrap gap-2">
                     {pendingFiles.map((f, i) => (
@@ -2056,7 +2060,7 @@ export default function Messaging({
                       notifyTyping();
                     }}
                     onKeyDown={onComposerKeyDown}
-                    placeholder={conversationClosed ? txt.reopenPlaceholder : txt.placeholder}
+                    placeholder={txt.placeholder}
                     className="flex-1 px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900 bg-white text-sm"
                     rows={2}
                   />
@@ -2075,6 +2079,7 @@ export default function Messaging({
                   </p>
                 )}
               </form>
+              )}
             </>
           ) : (
             <div className="flex-1 flex flex-col min-h-0">

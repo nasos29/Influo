@@ -9,9 +9,11 @@ import { openCookieSettings } from "@/lib/cookieConsent";
 
 interface FooterProps {
   lang?: "el" | "en";
+  /** Hide the PWA promo strip (e.g. public /campaigns — avoid demo campaign mock). */
+  showAppPromo?: boolean;
 }
 
-export default function Footer({ lang = "el" }: FooterProps) {
+export default function Footer({ lang = "el", showAppPromo = true }: FooterProps) {
   // Anti-scraping email obfuscation - email is constructed client-side from encoded parts
   const [supportEmail, setSupportEmail] = useState<string>("");
   const [loggedIn, setLoggedIn] = useState(false);
@@ -107,7 +109,7 @@ export default function Footer({ lang = "el" }: FooterProps) {
 
   return (
     <>
-      <InfluoAppPromoSection lang={lang} />
+      {showAppPromo ? <InfluoAppPromoSection lang={lang} /> : null}
       <footer className="mt-10 overflow-x-clip overflow-y-visible border-t border-slate-700 md:mt-14">
       <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">

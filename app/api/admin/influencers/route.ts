@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { rejectUnlessAdmin, supabaseService } from "@/lib/apiAuth";
+import { parseFollowerString } from "@/lib/parseFollowers";
 
 /** Columns needed by the admin influencers table / row actions (not full profile). */
 const LIST_COLUMNS = [
@@ -158,9 +159,10 @@ export async function GET(request: NextRequest) {
       console.error("[admin/influencers] count error", totalErr || approvedErr || pendingErr || analyticsErr);
     }
 
-    let hiddenVideoCount = 0;
+    let hiddenVideoCount: number | undefined;
     const hiddenByProfile: { id: string; display_name: string; count: number; urls: string[] }[] = [];
     if (!hiddenProbe.error && Array.isArray(hiddenProbe.data)) {
+      hiddenVideoCount = 0;
       for (const row of hiddenProbe.data) {
         const list = Array.isArray(row.hidden_videos) ? row.hidden_videos : [];
         const urls = list
@@ -181,6 +183,38 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Sum followers across all platforms for all influencers (paginated probe).
+    let reach: number | undefined;
+    {
+      const pageSize = 1000;
+      let reachSum = 0;
+      let reachOk = true;
+      for (let from = 0; ; from += pageSize) {
+        const { data: reachRows, error: reachErr } = await admin
+          .from("influencers")
+          .select("accounts")
+          .range(from, from + pageSize - 1);
+        if (reachErr) {
+          console.error("[admin/influencers] reach probe error", reachErr);
+          reachOk = false;
+          break;
+        }
+        const rows = reachRows || [];
+        for (const row of rows) {
+          const accounts = Array.isArray(row.accounts) ? row.accounts : [];
+          for (const acc of accounts) {
+            const followers =
+              acc && typeof acc === "object"
+                ? (acc as { followers?: string | number | null }).followers
+                : null;
+            reachSum += parseFollowerString(followers);
+          }
+        }
+        if (rows.length < pageSize) break;
+      }
+      if (reachOk) reach = reachSum;
+    }
+
     const total = count ?? 0;
     return NextResponse.json(
       {
@@ -194,7 +228,8 @@ export async function GET(request: NextRequest) {
           approved: approvedCount ?? 0,
           pending: pendingCount ?? 0,
           analyticsVerified: analyticsCount ?? 0,
-          hiddenVideos: hiddenVideoCount,
+          ...(typeof hiddenVideoCount === "number" ? { hiddenVideos: hiddenVideoCount } : {}),
+          ...(typeof reach === "number" ? { reach } : {}),
         },
         hiddenByProfile,
         searchIncludesUsername: await hasAccountsTextColumn(admin),

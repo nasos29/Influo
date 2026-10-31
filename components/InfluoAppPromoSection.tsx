@@ -32,9 +32,9 @@ const copy: Record<
     install: "Εγκατάσταση εφαρμογής",
     platforms: "Android & iPhone · δωρεάν",
     scan: "Σκάναρε με την κάμερα του κινητού",
-    campaignTitle: "Summer Glow Campaign",
-    campaignBadge: "5 αιτήσεις",
-    notif: "Νέο μήνυμα από brand",
+    campaignTitle: "Νέα καμπάνια",
+    campaignBadge: "Αιτήσεις",
+    notif: "Νέο μήνυμα",
   },
   en: {
     headline: "Influo on your phone",
@@ -47,9 +47,9 @@ const copy: Record<
     install: "Install the app",
     platforms: "Android & iPhone · free",
     scan: "Scan with your phone camera",
-    campaignTitle: "Summer Glow Campaign",
-    campaignBadge: "5 applications",
-    notif: "New message from a brand",
+    campaignTitle: "New campaign",
+    campaignBadge: "Applications",
+    notif: "New message",
   },
 };
 

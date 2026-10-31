@@ -577,9 +577,9 @@ export function recommendInfluencers(
       }
 
       if (strengths.valuePrice >= 0.8) {
-        reasons.push(isEn ? 'Great value for money 💰' : 'Εξαιρετική αναλογία τιμής/ποιοτικότητας 💰');
+        reasons.push(isEn ? 'Great value for money 💰' : 'Εξαιρετική αναλογία τιμής/ποιότητας 💰');
       } else if (strengths.valuePrice >= 0.6) {
-        reasons.push(isEn ? 'Good value' : 'Καλή αναλογία τιμής/ποιοτικότητας');
+        reasons.push(isEn ? 'Good value' : 'Καλή αναλογία τιμής/ποιότητας');
       }
 
       if (influencer.total_reviews && influencer.total_reviews >= 20) {

@@ -173,7 +173,7 @@ export default function PublicCampaignsPage({
           </ul>
         )}
       </main>
-      <Footer lang={lang} />
+      <Footer lang={lang} showAppPromo={false} />
     </div>
   );
 }
