@@ -702,6 +702,12 @@ type BrandTab =
 
 const RETRY_LABEL = { el: 'Δοκίμασε ξανά', en: 'Try again' } as const;
 
+/** English copy only when the announcement row actually has one. No invented translation. */
+function announcementText(primary: string, english: string | null | undefined, lang: "el" | "en"): string {
+  if (lang === "en" && typeof english === "string" && english.trim()) return english.trim();
+  return primary;
+}
+
 export default function BrandDashboardContent() {
   const [lang, setLang] = useState<'el' | 'en'>('el'); // Default to Greek, will be updated in useEffect
   const { toasts, push: pushToast, dismiss: dismissToast } = useToasts();
@@ -784,7 +790,16 @@ export default function BrandDashboardContent() {
   const [shortlistBusyId, setShortlistBusyId] = useState<string | null>(null);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [announcementsList, setAnnouncementsList] = useState<
-    Array<{ id: string; title: string; body: string; created_at: string; read: boolean; read_at: string | null }>
+    Array<{
+      id: string;
+      title: string;
+      title_en?: string | null;
+      body: string;
+      body_en?: string | null;
+      created_at: string;
+      read: boolean;
+      read_at: string | null;
+    }>
   >([]);
   const [unreadAnnouncementsCount, setUnreadAnnouncementsCount] = useState(0);
   const [announcementsLoading, setAnnouncementsLoading] = useState(false);
@@ -1855,7 +1870,12 @@ export default function BrandDashboardContent() {
               <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity shrink-0">
                 <InfluoLogo className="h-6 sm:h-8 w-auto" title="Influo" />
               </Link>
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 truncate">{txt.title}</h1>
+              <div className="min-w-0">
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 truncate">{txt.title}</h1>
+                {brandData?.brand_name ? (
+                  <p className="truncate text-sm font-medium text-slate-500">{brandData.brand_name}</p>
+                ) : null}
+              </div>
             </div>
             <div className="hidden md:flex flex-wrap items-center gap-2 sm:gap-4">
               <Link
@@ -2108,7 +2128,7 @@ export default function BrandDashboardContent() {
                   <ul className="mt-4 space-y-3">
                     {announcementsList.slice(0, 3).map((item) => (
                       <li key={item.id} className="border-b border-slate-100 pb-3 last:border-0">
-                        <p className="text-sm font-medium text-slate-900">{item.title}</p>
+                        <p className="text-sm font-medium text-slate-900">{announcementText(item.title, item.title_en, lang)}</p>
                         <p className="text-xs text-slate-500 mt-1">{formatDate(item.created_at, lang)} {formatTime(item.created_at, lang)}</p>
                       </li>
                     ))}
@@ -2199,7 +2219,7 @@ export default function BrandDashboardContent() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-slate-900 flex items-center gap-2">
-                          {a.title}
+                          {announcementText(a.title, a.title_en, lang)}
                           {!a.read && (
                             <span
                               className="shrink-0 inline-flex items-center justify-center w-2.5 h-2.5 rounded-full bg-red-500"
@@ -2207,7 +2227,7 @@ export default function BrandDashboardContent() {
                             />
                           )}
                         </div>
-                        <p className="text-sm text-slate-600 mt-1 whitespace-pre-wrap">{a.body}</p>
+                        <p className="text-sm text-slate-600 mt-1 whitespace-pre-wrap">{announcementText(a.body, a.body_en, lang)}</p>
                         <p className="text-xs text-slate-500 mt-2">
                           {formatDate(a.created_at, lang)} {formatTime(a.created_at, lang)}
                           {a.read && a.read_at && (
@@ -2732,7 +2752,9 @@ export default function BrandDashboardContent() {
         {/* Proposals Section */}
         {activeTab === 'proposals' && (
         <div className="mb-6 space-y-8">
-          {proposals.length === 0 ? (
+          {!proposalsLoaded ? (
+            <div className="h-28 rounded-xl bg-slate-100 animate-pulse" aria-hidden />
+          ) : proposals.length === 0 ? (
             <div className="bg-white rounded-xl p-8 text-center border border-dashed border-slate-200">
               <p className="text-slate-600">
                 {lang === 'el' ? 'Δεν έχεις στείλει προσφορά ακόμα.' : 'You have not sent a proposal yet.'}
