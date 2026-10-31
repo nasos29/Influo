@@ -61,7 +61,26 @@ test("sanitizeTopPosts keeps only safe fields and valid types", () => {
   assert.equal(cleaned[1]?.likes, 50);
 });
 
-test("collectTopPosts sorts by views then likes+comments and caps at limit", () => {
+test("sanitizeTopPosts keeps at most three posts per account", () => {
+  const cleaned = sanitizeTopPosts(
+    [1, 2, 3, 4].map((n) => ({
+      url: `https://www.instagram.com/p/Post${n}/`,
+      type: "image",
+      likes: n,
+    }))
+  );
+  assert.equal(cleaned.length, 3);
+  assert.deepEqual(
+    cleaned.map((post) => post.url),
+    [
+      "https://www.instagram.com/p/Post1/",
+      "https://www.instagram.com/p/Post2/",
+      "https://www.instagram.com/p/Post3/",
+    ]
+  );
+});
+
+test("collectTopPosts round-robins the best post of each account", () => {
   const accounts = [
     {
       platform: "Instagram",
@@ -108,12 +127,29 @@ test("collectTopPosts sorts by views then likes+comments and caps at limit", () 
   assert.deepEqual(
     top.map((p) => p.url),
     [
-      "https://www.tiktok.com/@u/video/HighViews",
-      "https://www.tiktok.com/@u/photo/Mid",
       "https://www.instagram.com/reel/LowViews/",
+      "https://www.tiktok.com/@u/video/HighViews",
+      "https://www.instagram.com/p/NoViewsHighEng/",
     ]
   );
-  assert.equal(top[0]?.platform, "TikTok");
+  assert.equal(top[0]?.platform, "Instagram");
+  assert.equal(top[1]?.platform, "TikTok");
+
+  const hiddenBest = collectTopPosts(accounts, 3, [
+    {
+      url: "https://www.instagram.com/reel/LowViews/",
+      reason: "unplayable",
+      hidden_at: "2026-01-01T00:00:00.000Z",
+    },
+  ]);
+  assert.deepEqual(
+    hiddenBest.map((p) => p.url),
+    [
+      "https://www.instagram.com/p/NoViewsHighEng/",
+      "https://www.tiktok.com/@u/video/HighViews",
+      "https://www.tiktok.com/@u/photo/Mid",
+    ]
+  );
 
   // Posts with no views sort by likes+comments among themselves after viewed ones
   const noViewSort = collectTopPosts(

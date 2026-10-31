@@ -25,6 +25,7 @@ import {
   type LinkOutcome,
   type VideoPlatform,
 } from "@/lib/videoLinkCheck";
+import { collectTopPosts, TOP_POSTS_DISPLAY_LIMIT } from "@/lib/topPosts";
 
 export const PORTFOLIO_VIDEO_BATCH_SIZE = 20;
 export const PORTFOLIO_VIDEO_DELAY_MS = 350;
@@ -75,21 +76,10 @@ function asUrlList(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
 }
 
-/** Video URLs stored on account top_posts. Same hosts the portfolio checker already understands. */
-function topPostUrls(accounts: unknown): string[] {
+/** Top-post URLs the public profile actually shows. Hidden posts are not checked. */
+function displayedTopPostUrls(accounts: unknown, hiddenRaw: unknown): string[] {
   if (!Array.isArray(accounts)) return [];
-  const urls: string[] = [];
-  for (const account of accounts) {
-    if (!account || typeof account !== "object") continue;
-    const posts = (account as { top_posts?: unknown }).top_posts;
-    if (!Array.isArray(posts)) continue;
-    for (const post of posts) {
-      if (!post || typeof post !== "object") continue;
-      const url = (post as { url?: unknown }).url;
-      if (typeof url === "string" && url.trim()) urls.push(url.trim());
-    }
-  }
-  return urls;
+  return collectTopPosts(accounts, TOP_POSTS_DISPLAY_LIMIT, hiddenRaw).map((post) => post.url);
 }
 
 function withoutTopPost(accounts: unknown, url: string): { accounts: unknown; changed: boolean } {
@@ -393,14 +383,14 @@ async function loadCheckableLinks(admin: SupabaseClient): Promise<Item[]> {
   for (let from = 0; ; from += pageSize) {
     const { data, error } = await admin
       .from("influencers")
-      .select("id, display_name, videos, accounts")
+      .select("id, display_name, videos, accounts, hidden_videos")
       .order("id", { ascending: true })
       .range(from, from + pageSize - 1);
     if (error) throw new Error(error.message);
     const rows = data ?? [];
     for (const row of rows) {
       const seen = new Set<string>();
-      const urls = [...asUrlList(row.videos), ...topPostUrls(row.accounts)];
+      const urls = [...asUrlList(row.videos), ...displayedTopPostUrls(row.accounts, row.hidden_videos)];
       for (const url of urls) {
         const key = normalizeVideoUrlKey(url);
         if (!key || seen.has(key) || !classifyVideoUrl(url)) continue;

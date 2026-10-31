@@ -108,7 +108,7 @@ export default function TopPosts({
   accounts?: AccountLike[] | null;
   lang: "el" | "en";
 }>) {
-  const posts = collectTopPosts(accounts, 6);
+  const posts = collectTopPosts(accounts);
   if (!posts.length) return null;
 
   return (

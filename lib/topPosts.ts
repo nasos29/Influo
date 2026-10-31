@@ -1,3 +1,5 @@
+import { accountsWithoutHiddenTopPosts } from "@/lib/hiddenVideos";
+
 export type TopPostType = "video" | "image" | "carousel";
 
 export type TopPost = {
@@ -11,6 +13,11 @@ export type TopPost = {
 };
 
 const ALLOWED_TYPES = new Set<TopPostType>(["video", "image", "carousel"]);
+
+/** Saved on each account by admin refresh and the 15-day job. */
+export const TOP_POSTS_PER_ACCOUNT = 3;
+/** Shown on the profile, across every account. */
+export const TOP_POSTS_DISPLAY_LIMIT = 3;
 
 const ALLOWED_HOST_SUFFIXES = ["instagram.com", "tiktok.com", "youtube.com"] as const;
 
@@ -56,6 +63,7 @@ export function isAllowedTopPostUrl(url: string): boolean {
 
 /**
  * Keep only safe fields from Auditpr top_posts. Drops non-https / non-allowed hosts.
+ * Keeps the first 3 valid posts in the order Auditpr sent them.
  * Returns [] for non-arrays (caller decides whether to wipe stored posts).
  */
 export function sanitizeTopPosts(raw: unknown): TopPost[] {
@@ -76,7 +84,7 @@ export function sanitizeTopPosts(raw: unknown): TopPost[] {
       views: parseCount(src.views),
       posted_at: parsePostedAt(src.posted_at),
     });
-    if (out.length >= 6) break;
+    if (out.length >= TOP_POSTS_PER_ACCOUNT) break;
   }
   return out;
 }
@@ -102,24 +110,44 @@ export type AccountWithTopPosts = {
 };
 
 /**
- * Collect top_posts from all accounts, sanitize, sort by views (else likes+comments),
- * return up to `limit` (default 6).
+ * Posts the profile shows.
+ * Each account keeps its own ranking (views, else likes+comments).
+ * Slots alternate across accounts, best of each first, so every account
+ * with posts is represented before a second post from the same account.
+ * Hidden URLs are skipped before that choice. Total is `limit` (default 3).
  */
 export function collectTopPosts(
   accounts: AccountWithTopPosts[] | null | undefined,
-  limit = 6
+  limit = TOP_POSTS_DISPLAY_LIMIT,
+  hiddenRaw?: unknown
 ): TopPost[] {
   if (!Array.isArray(accounts) || !accounts.length) return [];
-  const collected: TopPost[] = [];
-  for (const acc of accounts) {
+  const visible = accountsWithoutHiddenTopPosts(accounts, hiddenRaw);
+  const source = Array.isArray(visible) ? (visible as AccountWithTopPosts[]) : [];
+  const ranked: TopPost[][] = [];
+  for (const acc of source) {
     const platform = typeof acc?.platform === "string" ? acc.platform : undefined;
-    const posts = sanitizeTopPosts(acc?.top_posts);
-    for (const post of posts) {
-      collected.push(platform ? { ...post, platform } : post);
-    }
+    const posts = sanitizeTopPosts(acc?.top_posts)
+      .map((post) => (platform ? { ...post, platform } : post))
+      .sort(compareTopPosts);
+    if (posts.length) ranked.push(posts);
   }
-  collected.sort(compareTopPosts);
-  return collected.slice(0, Math.max(0, limit));
+  const cap = Math.max(0, limit);
+  const out: TopPost[] = [];
+  const seen = new Set<string>();
+  for (let round = 0; out.length < cap; round += 1) {
+    let added = false;
+    for (const posts of ranked) {
+      const post = posts[round];
+      if (!post || seen.has(post.url)) continue;
+      seen.add(post.url);
+      out.push(post);
+      added = true;
+      if (out.length >= cap) break;
+    }
+    if (!added) break;
+  }
+  return out;
 }
 
 /** Compact count for UI: 12500 → "12.5K" (caller may localize the decimal). */
