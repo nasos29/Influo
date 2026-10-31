@@ -79,6 +79,17 @@ import {
 } from "@/lib/validateBirthDate";
 import { MAX_ANNOUNCEMENT_SPECIFIC_RECIPIENTS } from "@/lib/announcementTargets";
 import { normalizeYouTubeUsernameForSave } from "@/lib/youtubeHandle";
+import ServicePackagesEditor, { initialPackagesFromUser } from "@/components/ServicePackagesEditor";
+import {
+  extrasFromRateCard,
+  extrasHaveInvalidPrice,
+  mergeRateCard,
+  packagesForSave,
+  packagesHaveInvalidPrice,
+  rateCardFromPackages,
+  type ServiceExtras,
+  type ServicePackage,
+} from "@/lib/servicePackages";
 import AnnouncementRecipientMultiSelect from "@/components/AnnouncementRecipientMultiSelect";
 
 const ADMIN_PAGE_SIZE = 20;
@@ -195,6 +206,8 @@ interface DbInfluencer {
   audience_top_age: string | null;
   category?: string;
   birth_date?: string | null;
+  rate_card?: Record<string, string> | null;
+  service_packages?: ServicePackage[] | null;
   /** Server-computed: approved row shares IG/TikTok username with another approved profile. */
   possible_duplicate?: boolean;
 }
@@ -875,6 +888,11 @@ const EditProfileModal = ({
     const [thumbnailFiles, setThumbnailFiles] = useState<Record<string, File | null>>({}); // Store files to upload
     const [thumbnailPreviews, setThumbnailPreviews] = useState<Record<string, string>>({}); // Preview URLs
     const [fetchingThumbnails, setFetchingThumbnails] = useState<Record<string, boolean>>({}); // Track fetching state
+    const [servicePackages, setServicePackages] = useState<ServicePackage[]>(() =>
+        initialPackagesFromUser(user.service_packages, user.rate_card)
+    );
+    const [serviceExtras, setServiceExtras] = useState<ServiceExtras>(() => extrasFromRateCard(user.rate_card));
+    const pricingBaselineRef = useRef(JSON.stringify({ servicePackages, serviceExtras }));
     const [malePercent, setMalePercent] = useState(user.audience_male_percent?.toString() || "");
     const [femalePercent, setFemalePercent] = useState(user.audience_female_percent?.toString() || "");
     const [topAge, setTopAge] = useState(user.audience_top_age || "");
@@ -1345,6 +1363,23 @@ const EditProfileModal = ({
                 updateData.avatar_url = avatarUrl;
             }
 
+            const pricingSignature = JSON.stringify({ servicePackages, serviceExtras });
+            if (pricingSignature !== pricingBaselineRef.current) {
+                if (packagesHaveInvalidPrice(servicePackages) || extrasHaveInvalidPrice(serviceExtras)) {
+                    notify(L("Κάθε τιμή πρέπει να είναι πάνω από 0, ή κενή.", "Each price must be greater than 0, or left empty."));
+                    setLoading(false);
+                    return;
+                }
+                const packagesPayload = packagesForSave(servicePackages);
+                if (packagesPayload.length < 1) {
+                    notify(L("Προσθέστε τουλάχιστον ένα πακέτο με τιμή.", "Add at least one package with a price."));
+                    setLoading(false);
+                    return;
+                }
+                updateData.service_packages = packagesPayload;
+                updateData.rate_card = mergeRateCard(rateCardFromPackages(packagesPayload), serviceExtras);
+            }
+
             if (Object.keys(updateData).length === 0) {
                 setLoading(false);
                 onClose();
@@ -1642,6 +1677,14 @@ const EditProfileModal = ({
                             />
                             <p className="text-xs text-slate-500 mt-1">{L("Αυτή η βιογραφία θα εμφανίζεται όταν ο χρήστης επιλέξει Αγγλικά ως γλώσσα", "This bio is shown when the visitor selects English")}</p>
                         </div>
+
+                        <ServicePackagesEditor
+                            lang={lang}
+                            packages={servicePackages}
+                            extras={serviceExtras}
+                            onChange={setServicePackages}
+                            onExtrasChange={setServiceExtras}
+                        />
 
                         {/* Social Accounts */}
                         <div>

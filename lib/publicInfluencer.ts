@@ -10,10 +10,14 @@ import { formatEuro } from "@/lib/formatEuro";
 import { sanitizeTopPosts } from "@/lib/topPosts";
 import { visibleVideos } from "@/lib/hiddenVideos";
 import {
+  RATE_CARD_PRICE_KEYS,
+  commercialExtrasFromRateCard,
   minRateFromPackages,
+  publicExtrasFromRateCard,
   resolvePackagesForDisplay,
   toCommercialPackageView,
   toPublicPackageView,
+  type PublicExtraView,
   type PublicPackageView,
 } from "@/lib/servicePackages";
 
@@ -98,7 +102,7 @@ const AUDIT_KEYS = [
   "niche_en",
 ] as const;
 
-const RATE_CARD_KEYS = ["story", "post", "reel", "facebook", "youtube"] as const;
+const RATE_CARD_KEYS = RATE_CARD_PRICE_KEYS;
 
 export type RateCardFlags = Partial<Record<(typeof RATE_CARD_KEYS)[number], boolean>>;
 
@@ -413,6 +417,7 @@ export function toPublicProfile(row: Record<string, unknown>): Record<string, un
     displayPackages.some((p) => isConcretePrice(p.price)) || hasPricedMinRate(row.min_rate);
   base.rate_card_flags = rateCardFlags(row.rate_card);
   base.service_packages = publicServicePackages(row.service_packages, row.rate_card);
+  base.service_extras = publicExtrasFromRateCard(row.rate_card, priceTierFromMinRate);
   return base;
 }
 
@@ -443,6 +448,7 @@ export type CommercialInfluencer = {
   min_rate: string | null;
   rate_card: Record<string, string> | null;
   service_packages: PublicPackageView[];
+  service_extras: PublicExtraView[];
 };
 
 function asPriceString(value: unknown): string | null {
@@ -483,6 +489,7 @@ export function toCommercialInfluencer(row: Record<string, unknown>): Commercial
     min_rate: listedRate(row.min_rate),
     rate_card: commercialRateCard(row.rate_card),
     service_packages: commercialPackages(row.service_packages, row.rate_card),
+    service_extras: commercialExtrasFromRateCard(row.rate_card, priceTierFromMinRate),
   };
 }
 

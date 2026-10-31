@@ -8,6 +8,7 @@ import {
   formatPriceTierLabel,
   parseDirectoryPrice,
   priceTierFromMinRate,
+  toCommercialInfluencer,
   toPublicDirectoryCard,
   toPublicNewlyApproved,
   toPublicProfile,
@@ -220,5 +221,90 @@ assert.equal(ratePkgs[0].price, undefined);
 assert.equal(rateOnly.price_tier, "100"); // cheapest 80 → from 50
 assert.equal(ratePkgs.find((p) => p.type === "reel")?.price_tier, "300"); // reel 200 → from 200
 assert.equal(formatFromPriceLabel(ratePkgs.find((p) => p.type === "reel")?.price_tier, "el"), "Από 200 €");
+
+const ugcPhoto = "37";
+const ugcVideo = "87";
+const carouselPrice = "133";
+const adsMonth = "333";
+const bioLink = "44";
+const eventFee = "777";
+const withNew = toPublicProfile({
+  ...row,
+  min_rate: ugcPhoto,
+  rate_card: {
+    ugc_video: ugcVideo,
+    ugc_photo: ugcPhoto,
+    carousel: carouselPrice,
+    usage_rights_ads: adsMonth,
+    link_in_bio: bioLink,
+    event_visit: eventFee,
+  },
+  service_packages: [
+    {
+      id: "ugc-v",
+      platform: "ugc",
+      type: "ugc_video",
+      quantity: 1,
+      price: ugcVideo,
+      delivery_days: 7,
+      usage_rights: "none",
+      description: "",
+    },
+    {
+      id: "ugc-p",
+      platform: "ugc",
+      type: "ugc_photo",
+      quantity: 3,
+      price: ugcPhoto,
+      delivery_days: 5,
+      usage_rights: "none",
+      description: "",
+    },
+    {
+      id: "car",
+      platform: "instagram",
+      type: "carousel",
+      quantity: 1,
+      price: carouselPrice,
+      delivery_days: 4,
+      usage_rights: "none",
+      description: "",
+    },
+  ],
+});
+const withNewJson = JSON.stringify(withNew);
+assert.equal(findPrivateFieldPaths(withNew).length, 0, withNewJson);
+for (const secret of [ugcPhoto, ugcVideo, carouselPrice, adsMonth, bioLink, eventFee]) {
+  assert.equal(withNewJson.includes(`"${secret}"`), false, secret);
+}
+assert.equal(withNew.price_tier, "50");
+assert.equal("min_rate" in withNew, false);
+const newPkgs = withNew.service_packages as Array<{ type?: string; price?: string; platform?: string; price_tier?: string }>;
+assert.equal(newPkgs.find((p) => p.type === "ugc_photo")?.platform, "ugc");
+assert.equal(newPkgs.find((p) => p.type === "ugc_photo")?.price, undefined);
+assert.equal(newPkgs.find((p) => p.type === "carousel")?.platform, "instagram");
+const extras = withNew.service_extras as Array<{ key?: string; price?: string; price_tier?: string; has_price?: boolean }>;
+assert.deepEqual(
+  extras.map((extra) => extra.key),
+  ["usage_rights_ads", "link_in_bio", "event_visit"]
+);
+assert.equal(extras.every((extra) => extra.price == null && extra.has_price && extra.price_tier && extra.price_tier !== "0"), true);
+
+const commercial = toCommercialInfluencer({
+  id: row.id,
+  min_rate: ugcPhoto,
+  rate_card: {
+    ugc_video: ugcVideo,
+    usage_rights_ads: adsMonth,
+    link_in_bio: bioLink,
+    event_visit: eventFee,
+  },
+  service_packages: [],
+});
+assert.equal(commercial.min_rate, ugcPhoto);
+assert.equal(commercial.rate_card?.ugc_video, ugcVideo);
+assert.equal(commercial.rate_card?.usage_rights_ads, undefined);
+assert.equal(commercial.service_extras.find((extra) => extra.key === "usage_rights_ads")?.price, adsMonth);
+assert.equal(commercial.service_extras.find((extra) => extra.key === "link_in_bio")?.price, bioLink);
 
 console.log("public influencer payload checks passed");

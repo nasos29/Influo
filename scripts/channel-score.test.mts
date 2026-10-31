@@ -166,6 +166,26 @@ test("integration shows From (no ×2.2) when only min_rate exists", () => {
   });
   assert.equal(withCard.integrationFrom, 80);
   assert.equal(withCard.integrationTo, 250);
+
+  const withExtrasOnly = buildChannelScore({
+    followersTotal: 10_000,
+    contentCount: 0,
+    platformCount: 1,
+    minRate: "100",
+    rateCard: { story: "80", post: "250", usage_rights_ads: "15", link_in_bio: "10", event_visit: "400" },
+  });
+  assert.equal(withExtrasOnly.integrationFrom, 80);
+  assert.equal(withExtrasOnly.integrationTo, 250);
+
+  const withUgc = buildChannelScore({
+    followersTotal: 10_000,
+    contentCount: 0,
+    platformCount: 1,
+    minRate: "100",
+    rateCard: { story: "80", ugc_video: "60", carousel: "300" },
+  });
+  assert.equal(withUgc.integrationFrom, 60);
+  assert.equal(withUgc.integrationTo, 300);
 });
 
 test("axis labels for verification; no creationPublish axis", () => {

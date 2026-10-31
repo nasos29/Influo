@@ -50,13 +50,12 @@ import type { FollowerGrowthPoint } from "@/lib/followerGrowth";
 import { displayLanguageLabel } from "@/lib/languages";
 import { formatEuroAmount } from "@/lib/formatEuro";
 import { formatFromPriceLabel } from "@/lib/publicInfluencer";
+import ProfileOffersPanel from "@/components/ProfileOffersPanel";
 import {
-  PACKAGE_PLATFORMS,
-  USAGE_RIGHTS_LABEL,
+  EXTRA_LABEL,
   packageTitle,
-  type PackagePlatform,
+  type PublicExtraView,
   type PublicPackageView,
-  type UsageRights,
 } from "@/lib/servicePackages";
 import { badgeMinRateFromTier } from "@/lib/publicInfluencer";
 import { publicProfilePath } from "@/lib/profileSlug";
@@ -91,13 +90,14 @@ interface ProInfluencer extends Influencer {
   has_min_rate?: boolean;
   has_priced_min_rate?: boolean;
   price_tier?: string | null;
-  rate_card_flags?: { story?: boolean; post?: boolean; reel?: boolean; facebook?: boolean; youtube?: boolean };
+  rate_card_flags?: { story?: boolean; post?: boolean; reel?: boolean; facebook?: boolean; youtube?: boolean; ugc_video?: boolean; ugc_photo?: boolean; carousel?: boolean };
   min_rate?: string;
   engagement_rate?: string | { [key: string]: string }; // Can be per-platform object or legacy string
   avg_likes?: string | { [key: string]: string }; // Can be per-platform object or legacy string
   accounts?: ProfileAccount[];
   audience_data?: { male: number | null; female: number | null; top_age: string };
-  rate_card?: { story?: string; post?: string; reel?: string; facebook?: string; youtube?: string };
+  rate_card?: Record<string, string>;
+  service_extras?: PublicExtraView[];
   past_brands?: string[];
   avg_rating?: number;
   total_reviews?: number;
@@ -566,116 +566,6 @@ function statsUiFor(lang: "el" | "en") {
   };
 }
 
-const PLATFORM_TAB_LABEL: Record<PackagePlatform, { el: string; en: string }> = {
-  instagram: { el: "Instagram", en: "Instagram" },
-  tiktok: { el: "TikTok", en: "TikTok" },
-  youtube: { el: "YouTube", en: "YouTube" },
-  facebook: { el: "Facebook", en: "Facebook" },
-};
-
-function ProfilePackagesSection({
-  packages,
-  platforms,
-  lang,
-  revealPrices,
-  onRequestQuote,
-}: {
-  packages: PublicPackageView[];
-  platforms: PackagePlatform[];
-  lang: "el" | "en";
-  revealPrices: boolean;
-  onRequestQuote: () => void;
-}) {
-  const [tab, setTab] = useState<PackagePlatform>(platforms[0] || "instagram");
-  useEffect(() => {
-    if (platforms.length && !platforms.includes(tab)) setTab(platforms[0]!);
-  }, [platforms, tab]);
-
-  const visible = packages.filter((p) => p.platform === tab);
-
-  return (
-    <div>
-      {platforms.length > 1 && (
-        <div className="relative mb-4 min-w-0">
-          <div className="flex gap-2 overflow-x-auto snap-x snap-mandatory pb-1 sm:flex-wrap sm:overflow-visible sm:snap-none sm:pb-0 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {platforms.map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setTab(p)}
-                className={`inline-flex min-h-[44px] shrink-0 snap-start items-center rounded-full px-3 text-xs font-semibold transition-colors sm:min-h-0 sm:py-1.5 ${
-                  tab === p
-                    ? "bg-slate-900 text-white"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-              >
-                {PLATFORM_TAB_LABEL[p][lang]}
-              </button>
-            ))}
-          </div>
-          <div
-            className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-white to-transparent sm:hidden"
-            aria-hidden
-          />
-        </div>
-      )}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {visible.map((pkg) => {
-          const title =
-            pkg.platform && pkg.type
-              ? packageTitle(pkg.platform, pkg.type, pkg.quantity || 1, lang)
-              : pkg.title;
-          const fromLabel = formatFromPriceLabel(pkg.price_tier, lang);
-          const rights =
-            pkg.usage_rights && USAGE_RIGHTS_LABEL[pkg.usage_rights as UsageRights]
-              ? USAGE_RIGHTS_LABEL[pkg.usage_rights as UsageRights][lang]
-              : null;
-          return (
-            <div
-              key={pkg.id}
-              className="flex flex-col rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5"
-            >
-              <h4 className="text-base font-bold text-slate-900 sm:text-lg">{title}</h4>
-              {pkg.description ? (
-                <p className="mt-1 text-sm text-slate-600">{pkg.description}</p>
-              ) : null}
-              <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
-                {pkg.delivery_days != null ? (
-                  <span className="rounded-full bg-white px-2.5 py-1 ring-1 ring-slate-200">
-                    {pkg.delivery_days}{" "}
-                    {lang === "el" ? "ημέρες" : "days"}
-                  </span>
-                ) : null}
-                {rights ? (
-                  <span className="rounded-full bg-white px-2.5 py-1 ring-1 ring-slate-200">
-                    {rights}
-                  </span>
-                ) : null}
-              </div>
-              <div className="mt-4 flex-1">
-                {revealPrices && pkg.price ? (
-                  <p className="text-2xl font-extrabold text-blue-700 tabular-nums">
-                    {formatEuroAmount(pkg.price, lang)}
-                  </p>
-                ) : fromLabel ? (
-                  <p className="text-xl font-bold text-slate-800 tabular-nums">{fromLabel}</p>
-                ) : null}
-              </div>
-              <button
-                type="button"
-                onClick={onRequestQuote}
-                className="mt-4 w-full rounded-lg bg-blue-600 py-2.5 text-sm font-bold text-white transition-colors hover:bg-blue-700"
-              >
-                {lang === "el" ? "Ζήτα προσφορά" : "Request quote"}
-              </button>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 export default function InfluencerProfile(props: {
   params: Params;
   initialProfile?: ProfileViewModel | null;
@@ -751,6 +641,7 @@ export default function InfluencerProfile(props: {
     min_rate?: string;
     rate_card?: ProInfluencer["rate_card"];
     service_packages?: ProInfluencer["service_packages"];
+    service_extras?: ProInfluencer["service_extras"];
   } | null>(null);
   const [shortlistSaved, setShortlistSaved] = useState(false);
   const [shortlistBusy, setShortlistBusy] = useState(false);
@@ -1151,6 +1042,8 @@ export default function InfluencerProfile(props: {
         certifications: data.certifications || [],
         service_packages: commercialRef.current?.service_packages
           ?? (Array.isArray(data.service_packages) ? data.service_packages : []),
+        service_extras: commercialRef.current?.service_extras
+          ?? (Array.isArray(data.service_extras) ? data.service_extras : []),
         min_rate: commercialRef.current?.min_rate,
         rate_card: commercialRef.current?.rate_card,
         calculatedCompletionRate: calculatedCompletionRate,
@@ -1185,6 +1078,7 @@ export default function InfluencerProfile(props: {
         min_rate: row.min_rate || undefined,
         rate_card: row.rate_card || undefined,
         service_packages: Array.isArray(row.service_packages) ? row.service_packages : undefined,
+        service_extras: Array.isArray(row.service_extras) ? row.service_extras : undefined,
       };
       commercialRef.current = commercial;
       setProfile((prev) => prev ? { ...prev, ...commercial } : prev);
@@ -1520,6 +1414,20 @@ export default function InfluencerProfile(props: {
   if (loading) return <div className="min-h-screen flex items-center justify-center text-slate-500">Loading Profile...</div>;
   if (!profile) return <div className="min-h-screen flex items-center justify-center text-slate-500">Influencer not found.</div>;
 
+  const packageOffers = (Array.isArray(profile.service_packages) ? profile.service_packages : [])
+    .map((pkg) =>
+      pkg.platform && pkg.type
+        ? packageTitle(pkg.platform, pkg.type, pkg.quantity || 1, lang)
+        : pkg.title
+    )
+    .filter((label): label is string => !!label);
+  const extraOffers = (Array.isArray(profile.service_extras) ? profile.service_extras : [])
+    .filter((extra) => extra.has_price)
+    .map((extra) => EXTRA_LABEL[extra.key]?.[lang])
+    .filter((label): label is string => !!label);
+  const offerChoices = [...new Set([...packageOffers, ...extraOffers])].slice(0, 12);
+  const proposalServices = offerChoices.length ? offerChoices : ["Story", "Post", "Reel"];
+
   return (
     <div className="bg-white min-h-screen pb-20 font-sans relative text-slate-900">
       <SiteHeader lang={lang} onLangChange={setLang} />
@@ -1541,13 +1449,13 @@ export default function InfluencerProfile(props: {
                         <form onSubmit={handleSendProposal} className="space-y-4">
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.modal_srv}</label>
-                                <div className="grid grid-cols-3 gap-2">
-                                    {['Story', 'Post', 'Reel'].map((type) => (
+                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                                    {proposalServices.map((type) => (
                                         <button
                                             key={type}
                                             type="button"
                                             onClick={() => setProposalType(type)}
-                                            className={`py-2 px-1 text-xs font-bold rounded-lg border transition-all ${proposalType === type ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-slate-200 hover:border-blue-300'}`}
+                                            className={`inline-flex min-h-11 items-center justify-center px-2 py-2 text-xs font-bold leading-tight rounded-lg border transition-all ${proposalType === type ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-slate-200 hover:border-blue-300'}`}
                                         >
                                             {type}
                                         </button>
@@ -3014,30 +2922,16 @@ export default function InfluencerProfile(props: {
                             : "Ready-made services with title, delivery, and usage rights."}
                         </p>
 
-                        {(() => {
-                          const pkgs = Array.isArray(profile.service_packages) ? profile.service_packages : [];
-                          if (!pkgs.length) {
-                            return (
-                              <p className="text-sm text-slate-500 mb-6">
-                                {lang === "el"
-                                  ? "Δεν υπάρχουν δημοσιευμένα πακέτα ακόμα."
-                                  : "No published packages yet."}
-                              </p>
-                            );
-                          }
-                          const platformsPresent = PACKAGE_PLATFORMS.filter((p) =>
-                            pkgs.some((pkg) => pkg.platform === p)
-                          );
-                          return (
-                            <ProfilePackagesSection
-                              packages={pkgs}
-                              platforms={platformsPresent}
-                              lang={lang}
-                              revealPrices={revealPrices}
-                              onRequestQuote={() => setShowProposalModal(true)}
-                            />
-                          );
-                        })()}
+                        <ProfileOffersPanel
+                          packages={Array.isArray(profile.service_packages) ? profile.service_packages : []}
+                          extras={Array.isArray(profile.service_extras) ? profile.service_extras : []}
+                          lang={lang}
+                          revealPrices={revealPrices}
+                          onRequestQuote={(label) => {
+                            setProposalType(label);
+                            setShowProposalModal(true);
+                          }}
+                        />
 
                         {showBrandPriceCta && (
                           <p className="mt-4 text-sm text-slate-600 text-center">

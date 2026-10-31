@@ -2,7 +2,8 @@ import { normalizeGender, type GenderValue } from "@/lib/gender";
 import { parseStoredCategories } from "@/lib/categories";
 import { resolveCompletionRate } from "@/lib/completionRate";
 import { parseFollowerString } from "@/lib/parseFollowers";
-import { toPublicProfile } from "@/lib/publicInfluencer";
+import { toPublicProfile, type RateCardFlags } from "@/lib/publicInfluencer";
+import type { PublicExtraView } from "@/lib/servicePackages";
 
 export type ProfileViewModel = {
   id: string;
@@ -27,13 +28,8 @@ export type ProfileViewModel = {
   avg_likes?: string | Record<string, string>;
   accounts: Array<Record<string, unknown>>;
   audience_data: { male: number | null; female: number | null; top_age: string };
-  rate_card_flags: {
-    story?: boolean;
-    post?: boolean;
-    reel?: boolean;
-    facebook?: boolean;
-    youtube?: boolean;
-  };
+  rate_card_flags: RateCardFlags;
+  service_extras: PublicExtraView[];
   past_brands: string[];
   avg_rating: number;
   total_reviews: number;
@@ -148,6 +144,9 @@ export function viewModelFromPublicRow(row: Record<string, unknown>): ProfileVie
       };
     })(),
     rate_card_flags: flags,
+    service_extras: Array.isArray(data.service_extras)
+      ? (data.service_extras as PublicExtraView[])
+      : [],
     // Collaborations come from completed proposals (attached by loaders), not a DB column.
     past_brands: asStringArray(row.past_brands),
     avg_rating: typeof data.avg_rating === "number" ? data.avg_rating : 0,

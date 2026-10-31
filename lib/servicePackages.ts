@@ -34,11 +34,30 @@ export function packagesHaveInvalidPrice(packages: Array<{ price?: string | null
   return packages.some((p) => !isPositivePriceInput(String(p.price ?? "")));
 }
 
-const RATE_CARD_PRICE_KEYS = ["story", "post", "reel", "facebook", "youtube"] as const;
+/** Priced services. These feed rate_card and the automatic min_rate. Extras are not in this list. */
+export const RATE_CARD_PRICE_KEYS = [
+  "story",
+  "post",
+  "reel",
+  "facebook",
+  "youtube",
+  "ugc_video",
+  "ugc_photo",
+  "carousel",
+] as const;
+
+export type RateCardPriceKey = (typeof RATE_CARD_PRICE_KEYS)[number];
+
+/** Optional add-ons stored on rate_card. Never package types and never part of min_rate. */
+export const RATE_CARD_EXTRA_KEYS = ["usage_rights_ads", "link_in_bio", "event_visit"] as const;
+
+export type RateCardExtraKey = (typeof RATE_CARD_EXTRA_KEYS)[number];
+
+export type ServiceExtras = Partial<Record<RateCardExtraKey, string>>;
 
 /**
- * Smallest positive package or rate-card amount, or null when none exist.
- * Zeros, blanks, and non-numeric text are ignored.
+ * Smallest positive package or priced-service rate-card amount, or null when none exist.
+ * Zeros, blanks, non-numeric text, and extras (usage rights, link in bio, events) are ignored.
  */
 export function deriveMinRate(servicePackages: unknown, rateCard: unknown): string | null {
   let min = Infinity;
@@ -55,11 +74,38 @@ export function deriveMinRate(servicePackages: unknown, rateCard: unknown): stri
   return String(min);
 }
 
-export const PACKAGE_PLATFORMS = ["instagram", "tiktok", "youtube", "facebook"] as const;
+export const PACKAGE_PLATFORMS = ["instagram", "tiktok", "youtube", "facebook", "ugc"] as const;
 export type PackagePlatform = (typeof PACKAGE_PLATFORMS)[number];
 
-export const PACKAGE_TYPES = ["reel", "story", "post", "video", "short"] as const;
+export const PACKAGE_TYPES = [
+  "reel",
+  "story",
+  "post",
+  "video",
+  "short",
+  "carousel",
+  "ugc_video",
+  "ugc_photo",
+] as const;
 export type PackageType = (typeof PACKAGE_TYPES)[number];
+
+/** Social posts vs UGC. Extras are not package types. */
+export const SOCIAL_PACKAGE_TYPES = ["reel", "story", "post", "carousel", "video", "short"] as const;
+export const UGC_PACKAGE_TYPES = ["ugc_video", "ugc_photo"] as const;
+
+export function isUgcPackageType(type: PackageType): boolean {
+  return type === "ugc_video" || type === "ugc_photo";
+}
+
+/** UGC is not tied to a network. Carousel is an Instagram post. */
+export function platformForPackageType(
+  type: PackageType,
+  platform: PackagePlatform | null
+): PackagePlatform | null {
+  if (isUgcPackageType(type)) return "ugc";
+  if (type === "carousel") return "instagram";
+  return platform;
+}
 
 export const USAGE_RIGHTS = ["none", "30d", "90d", "perpetual"] as const;
 export type UsageRights = (typeof USAGE_RIGHTS)[number];
@@ -91,11 +137,21 @@ export type PublicPackageView = {
   price?: string;
 };
 
+export type PublicExtraView = {
+  key: RateCardExtraKey;
+  has_price: boolean;
+  /** Ceiling tier. Visitors see this scale, never the exact amount. */
+  price_tier: string;
+  /** Exact price — only present in commercial/brand payloads. */
+  price?: string;
+};
+
 const PLATFORM_LABEL: Record<PackagePlatform, { el: string; en: string }> = {
   instagram: { el: "Instagram", en: "Instagram" },
   tiktok: { el: "TikTok", en: "TikTok" },
   youtube: { el: "YouTube", en: "YouTube" },
   facebook: { el: "Facebook", en: "Facebook" },
+  ugc: { el: "UGC", en: "UGC" },
 };
 
 const TYPE_LABEL: Record<PackageType, { el: { one: string; many: string }; en: { one: string; many: string } }> = {
@@ -104,7 +160,70 @@ const TYPE_LABEL: Record<PackageType, { el: { one: string; many: string }; en: {
   post: { el: { one: "Post", many: "Posts" }, en: { one: "Post", many: "Posts" } },
   video: { el: { one: "Video", many: "Videos" }, en: { one: "Video", many: "Videos" } },
   short: { el: { one: "Short", many: "Shorts" }, en: { one: "Short", many: "Shorts" } },
+  carousel: { el: { one: "Carousel", many: "Carousels" }, en: { one: "Carousel", many: "Carousels" } },
+  ugc_video: { el: { one: "UGC βίντεο", many: "UGC βίντεο" }, en: { one: "UGC video", many: "UGC videos" } },
+  ugc_photo: {
+    el: { one: "UGC φωτογραφία", many: "UGC φωτογραφίες" },
+    en: { one: "UGC photo", many: "UGC photos" },
+  },
 };
+
+/** Short explanation for services that are new to the rate card. */
+export const PACKAGE_TYPE_HINT: Partial<Record<PackageType, { el: string; en: string }>> = {
+  carousel: {
+    el: "Ανάρτηση Instagram με πολλές εικόνες που σύρει ο χρήστης.",
+    en: "An Instagram post with several images the viewer swipes through.",
+  },
+  ugc_video: {
+    el: "Το brand το ανεβάζει όπου θέλει. Ο creator δεν το ποστάρει σε social.",
+    en: "The brand publishes it wherever they want. The creator does not post it.",
+  },
+  ugc_photo: {
+    el: "Τιμή ανά φωτογραφία. Βάλε ποσότητα για να το δώσεις ως πακέτο.",
+    en: "Price per photo. Set a quantity to offer them as a pack.",
+  },
+};
+
+export const EXTRA_LABEL: Record<RateCardExtraKey, { el: string; en: string }> = {
+  usage_rights_ads: {
+    el: "Δικαίωμα χρήσης σε διαφημίσεις",
+    en: "Ad usage rights",
+  },
+  link_in_bio: {
+    el: "Link in bio για 30 ημέρες",
+    en: "Link in bio for 30 days",
+  },
+  event_visit: {
+    el: "Παρουσία σε event / επίσκεψη σε κατάστημα",
+    en: "Event appearance / store visit",
+  },
+};
+
+export const EXTRA_HINT: Record<RateCardExtraKey, { el: string; en: string }> = {
+  usage_rights_ads: {
+    el: "Partnership Ads, Spark Ads ή whitelisting. Τιμή ανά μήνα.",
+    en: "Partnership Ads, Spark Ads, or whitelisting. Price per month.",
+  },
+  link_in_bio: {
+    el: "Ο σύνδεσμος του brand μένει στο bio για 30 ημέρες.",
+    en: "The brand link stays in the bio for 30 days.",
+  },
+  event_visit: {
+    el: "Ο creator παρευρίσκεται σε event ή επισκέπτεται κατάστημα.",
+    en: "The creator attends an event or visits a store.",
+  },
+};
+
+/** Suffix after the formatted amount, e.g. "50 € / μήνα". */
+export function packagePriceSuffix(type: PackageType, lang: "el" | "en"): string | null {
+  if (type === "ugc_photo") return lang === "el" ? "/ φωτογραφία" : "/ photo";
+  return null;
+}
+
+export function extraPriceSuffix(key: RateCardExtraKey, lang: "el" | "en"): string | null {
+  if (key === "usage_rights_ads") return lang === "el" ? "/ μήνα" : "/ month";
+  return null;
+}
 
 export const USAGE_RIGHTS_LABEL: Record<UsageRights, { el: string; en: string }> = {
   none: { el: "Χωρίς επιπλέον δικαιώματα", en: "No extended usage" },
@@ -180,9 +299,10 @@ export function packageTitle(
   lang: "el" | "en" = "en"
 ): string {
   const qty = clampQuantity(quantity);
-  const plat = PLATFORM_LABEL[platform][lang];
   const typeLabels = TYPE_LABEL[type][lang];
   const typeWord = qty === 1 ? typeLabels.one : typeLabels.many;
+  if (platform === "ugc" || isUgcPackageType(type)) return `${qty} ${typeWord}`;
+  const plat = PLATFORM_LABEL[platform][lang];
   return `${qty} ${plat} ${typeWord}`;
 }
 
@@ -193,9 +313,10 @@ export function normalizeServicePackages(raw: unknown): ServicePackage[] {
   for (const item of raw) {
     if (!item || typeof item !== "object") continue;
     const src = item as Record<string, unknown>;
-    const platform = asPlatform(src.platform);
     const type = asType(src.type);
-    if (!platform || !type) continue;
+    if (!type) continue;
+    const platform = platformForPackageType(type, asPlatform(src.platform));
+    if (!platform) continue;
     const priceRaw =
       typeof src.price === "number" && Number.isFinite(src.price)
         ? String(src.price)
@@ -233,6 +354,9 @@ export function packagesFromRateCard(rateCard: unknown): ServicePackage[] {
     { key: "reel", platform: "instagram", type: "reel" },
     { key: "youtube", platform: "youtube", type: "video" },
     { key: "facebook", platform: "facebook", type: "post" },
+    { key: "carousel", platform: "instagram", type: "carousel" },
+    { key: "ugc_video", platform: "ugc", type: "ugc_video" },
+    { key: "ugc_photo", platform: "ugc", type: "ugc_photo" },
   ];
   const out: ServicePackage[] = [];
   for (const m of mapping) {
@@ -249,7 +373,7 @@ export function packagesFromRateCard(rateCard: unknown): ServicePackage[] {
       usage_rights: null,
       description: "",
     });
-    if (out.length >= 6) break;
+    if (out.length >= 8) break;
   }
   return out;
 }
@@ -321,11 +445,109 @@ export function rateCardFromPackages(packages: ServicePackage[]): Record<string,
     else if (p.type === "post") key = p.platform === "facebook" ? "facebook" : "post";
     else if (p.type === "reel" || p.type === "short") key = "reel";
     else if (p.type === "video") key = p.platform === "youtube" ? "youtube" : "reel";
+    else if (p.type === "carousel") key = "carousel";
+    else if (p.type === "ugc_video") key = "ugc_video";
+    else if (p.type === "ugc_photo") key = "ugc_photo";
     if (!key) continue;
     if (buckets[key] == null || n < buckets[key]!) buckets[key] = n;
   }
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(buckets)) out[k] = String(v);
+  return out;
+}
+
+export function emptyExtras(): ServiceExtras {
+  return { usage_rights_ads: "", link_in_bio: "", event_visit: "" };
+}
+
+export function extrasFromRateCard(rateCard: unknown): ServiceExtras {
+  const out = emptyExtras();
+  if (!rateCard || typeof rateCard !== "object" || Array.isArray(rateCard)) return out;
+  const src = rateCard as Record<string, unknown>;
+  for (const key of RATE_CARD_EXTRA_KEYS) {
+    const value = src[key];
+    if (typeof value === "number" && Number.isFinite(value)) out[key] = String(value);
+    else if (typeof value === "string") out[key] = value.trim();
+  }
+  return out;
+}
+
+export function extrasHaveInvalidPrice(extras: ServiceExtras): boolean {
+  return RATE_CARD_EXTRA_KEYS.some((key) => !isPositivePriceInput(String(extras[key] ?? "")));
+}
+
+/** Priced extras only. Blank, zero, and non-numeric text are dropped. */
+export function extrasForSave(extras: ServiceExtras): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const key of RATE_CARD_EXTRA_KEYS) {
+    const n = parsePackagePrice(extras[key]);
+    if (n > 0) out[key] = String(n);
+  }
+  return out;
+}
+
+/** Package prices plus optional extras. Extras never replace a service key. */
+export function mergeRateCard(
+  fromPackages: Record<string, string>,
+  extras: ServiceExtras
+): Record<string, string> {
+  return { ...fromPackages, ...extrasForSave(extras) };
+}
+
+export function toPublicExtraView(
+  key: RateCardExtraKey,
+  price: unknown,
+  tierFromPrice: (price: unknown) => string = () => "0"
+): PublicExtraView {
+  const priced = isConcretePrice(price);
+  return {
+    key,
+    has_price: priced,
+    price_tier: priced ? tierFromPrice(price) : "0",
+  };
+}
+
+export function toCommercialExtraView(
+  key: RateCardExtraKey,
+  price: unknown,
+  tierFromPrice: (price: unknown) => string = () => "0"
+): PublicExtraView {
+  const view = toPublicExtraView(key, price, tierFromPrice);
+  if (isConcretePrice(price)) {
+    view.price = typeof price === "string" ? price.trim() : String(price);
+  }
+  return view;
+}
+
+function extraSource(rateCard: unknown): Record<string, unknown> {
+  if (!rateCard || typeof rateCard !== "object" || Array.isArray(rateCard)) return {};
+  return rateCard as Record<string, unknown>;
+}
+
+/** Public extras: scale only, no exact amount. Omits keys without a price. */
+export function publicExtrasFromRateCard(
+  rateCard: unknown,
+  tierFromPrice: (price: unknown) => string = () => "0"
+): PublicExtraView[] {
+  const src = extraSource(rateCard);
+  const out: PublicExtraView[] = [];
+  for (const key of RATE_CARD_EXTRA_KEYS) {
+    if (!isConcretePrice(src[key])) continue;
+    out.push(toPublicExtraView(key, src[key], tierFromPrice));
+  }
+  return out;
+}
+
+export function commercialExtrasFromRateCard(
+  rateCard: unknown,
+  tierFromPrice: (price: unknown) => string = () => "0"
+): PublicExtraView[] {
+  const src = extraSource(rateCard);
+  const out: PublicExtraView[] = [];
+  for (const key of RATE_CARD_EXTRA_KEYS) {
+    if (!isConcretePrice(src[key])) continue;
+    out.push(toCommercialExtraView(key, src[key], tierFromPrice));
+  }
   return out;
 }
 
