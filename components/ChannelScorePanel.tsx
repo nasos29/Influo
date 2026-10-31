@@ -31,15 +31,14 @@ const ORDER: ChannelAxisId[] = [
   "audienceCredibility",
   "engagementRate",
   "channelQuality",
-  "creationPublish",
 ];
 
 const TIP_ARIA = { el: "Τι σημαίνει", en: "What this means" } as const;
 
 const SCORE_HINTS = {
   title: {
-    el: "Influo score από ανάπτυξη, engagement, ποιότητα, δείγματα δουλειάς και πληρότητα & επαλήθευση.",
-    en: "Influo score from growth, engagement, quality, portfolio and verification & completeness.",
+    el: "Influo score από ανάπτυξη, engagement, ποιότητα καναλιού και πληρότητα & επαλήθευση.",
+    en: "Influo score from growth, engagement, channel quality, and verification & completeness.",
   },
   integration: {
     el: "Ενδεικτικό εύρος τιμής για συνεργασία από το rate card ή την ελάχιστη χρέωση.",
@@ -60,10 +59,6 @@ const SCORE_HINTS = {
   channelQuality: {
     el: "Συνολική ποιότητα καναλιού από likes, ER και συνέπεια δεικτών.",
     en: "Overall channel quality from likes, ER, and metric consistency.",
-  },
-  creationPublish: {
-    el: "Πόσα δείγματα δουλειάς έχει ανεβάσει ο δημιουργός στο προφίλ.",
-    en: "How many portfolio samples the creator has uploaded on the profile.",
   },
 } as const;
 
