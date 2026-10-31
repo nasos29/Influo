@@ -130,7 +130,7 @@ export default function InfoTooltip({
     >
       <button
         type="button"
-        className="inline-flex items-center justify-center rounded-full p-0.5 text-slate-400 transition hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+        className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full p-2 text-slate-400 transition hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 sm:min-h-0 sm:min-w-0 sm:p-0.5"
         aria-label={ariaLabel}
         aria-expanded={open}
         aria-describedby={open ? tipId : undefined}

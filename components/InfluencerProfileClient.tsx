@@ -194,34 +194,53 @@ function ProfileStatCard({
   /** Center single metrics so sparse cards don't look empty */
   valueCentered?: boolean;
 }) {
+  const shell = [
+    "group relative flex h-full min-h-[116px] min-w-0 flex-col overflow-hidden rounded-2xl border p-3 sm:p-4 transition-all duration-200",
+    accent
+      ? "border-blue-200/80 bg-gradient-to-br from-blue-50/90 via-white to-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:border-blue-300 hover:shadow-[0_8px_24px_rgba(37,99,235,0.08)]"
+      : "border-slate-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:border-slate-300 hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]",
+    className,
+  ].join(" ");
+
+  const tipNode = tip ? (
+    <span className="shrink-0">
+      <InfoTooltip text={tip} ariaLabel={tipAria || label} />
+    </span>
+  ) : null;
+
   return (
-    <div
-      className={[
-        "group relative flex h-full min-h-[116px] flex-col rounded-2xl border p-4 transition-all duration-200",
-        accent
-          ? "border-blue-200/80 bg-gradient-to-br from-blue-50/90 via-white to-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:border-blue-300 hover:shadow-[0_8px_24px_rgba(37,99,235,0.08)]"
-          : "border-slate-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:border-slate-300 hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]",
-        className,
-      ].join(" ")}
-    >
-      <div className="mb-3 flex items-start gap-2.5">
-        <span className="shrink-0">{icon}</span>
-        <span className="flex min-w-0 items-start gap-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-          <span className="leading-tight break-words">{label}</span>
-          {tip ? (
-            <span className="mt-px shrink-0">
-              <InfoTooltip text={tip} ariaLabel={tipAria || label} />
-            </span>
-          ) : null}
+    <div className={shell}>
+      {/* Mobile (<sm): icon → value → label */}
+      <div className="flex h-full min-w-0 flex-1 flex-col items-center gap-2 text-center sm:hidden">
+        <div className="relative flex items-center justify-center pt-0.5">
+          <span className="shrink-0">{icon}</span>
+          {tip ? <span className="absolute -right-5 -top-1">{tipNode}</span> : null}
+        </div>
+        <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col items-center justify-center text-base font-semibold [&_p]:text-base [&_span.text-xl]:text-base [&_span.text-2xl]:text-base">
+          {children}
+        </div>
+        <span className="w-full px-0.5 text-center text-[10px] font-semibold uppercase tracking-wide leading-tight text-slate-500 break-words hyphens-auto line-clamp-2">
+          {label}
         </span>
       </div>
-      <div
-        className={[
-          "mt-auto flex min-h-[2.25rem] flex-1 flex-col",
-          valueCentered ? "items-center justify-center text-center" : "justify-end",
-        ].join(" ")}
-      >
-        {children}
+
+      {/* Desktop (sm+): unchanged label-row layout */}
+      <div className="hidden h-full min-w-0 flex-1 flex-col sm:flex">
+        <div className="mb-3 flex items-start gap-2.5">
+          <span className="shrink-0">{icon}</span>
+          <span className="flex min-w-0 items-start gap-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+            <span className="leading-tight break-words">{label}</span>
+            {tipNode}
+          </span>
+        </div>
+        <div
+          className={[
+            "mt-auto flex min-h-[2.25rem] flex-1 flex-col",
+            valueCentered ? "items-center justify-center text-center" : "justify-end",
+          ].join(" ")}
+        >
+          {children}
+        </div>
       </div>
     </div>
   );
@@ -576,21 +595,27 @@ function ProfilePackagesSection({
   return (
     <div>
       {platforms.length > 1 && (
-        <div className="mb-4 flex flex-wrap gap-2">
-          {platforms.map((p) => (
-            <button
-              key={p}
-              type="button"
-              onClick={() => setTab(p)}
-              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-                tab === p
-                  ? "bg-slate-900 text-white"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
-            >
-              {PLATFORM_TAB_LABEL[p][lang]}
-            </button>
-          ))}
+        <div className="relative mb-4 min-w-0">
+          <div className="flex gap-2 overflow-x-auto snap-x snap-mandatory pb-1 sm:flex-wrap sm:overflow-visible sm:snap-none sm:pb-0 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {platforms.map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setTab(p)}
+                className={`inline-flex min-h-[44px] shrink-0 snap-start items-center rounded-full px-3 text-xs font-semibold transition-colors sm:min-h-0 sm:py-1.5 ${
+                  tab === p
+                    ? "bg-slate-900 text-white"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                {PLATFORM_TAB_LABEL[p][lang]}
+              </button>
+            ))}
+          </div>
+          <div
+            className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-white to-transparent sm:hidden"
+            aria-hidden
+          />
         </div>
       )}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -667,11 +692,22 @@ export default function InfluencerProfile(props: {
   const [activeTab, setActiveTab] = useState("overview");
   const [profile, setProfile] = useState<ProInfluencer | null>((props.initialProfile as ProInfluencer | null) ?? null);
   const [loading, setLoading] = useState(!props.initialProfile);
+  const profileTabsNavRef = useRef<HTMLElement | null>(null);
 
   // Load language from localStorage on client-side
   useEffect(() => {
     setLang(getStoredLanguage());
   }, []);
+
+  // Mobile tabs: keep the active tab visible in the horizontal scroller.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.matchMedia("(min-width: 640px)").matches) return;
+    const nav = profileTabsNavRef.current;
+    if (!nav) return;
+    const btn = nav.querySelector<HTMLElement>(`[data-profile-tab="${activeTab}"]`);
+    btn?.scrollIntoView({ behavior: "smooth", inline: "nearest", block: "nearest" });
+  }, [activeTab]);
   
   // Counter proposal state
   const [counterProposalId, setCounterProposalId] = useState<string | null>(null);
@@ -1567,7 +1603,7 @@ export default function InfluencerProfile(props: {
       {/* REVIEW MODAL */}
       {showReviewModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden relative">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-full sm:max-w-lg overflow-hidden relative">
             <button 
               onClick={() => { 
                 setShowReviewModal(false); 
@@ -1575,34 +1611,34 @@ export default function InfluencerProfile(props: {
                 setReviewText("");
                 setReviewProjectType("");
               }}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-xl z-10"
+              className="absolute top-3 right-3 inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-slate-400 hover:text-slate-600 font-bold text-xl z-10 sm:top-4 sm:right-4 sm:min-h-0 sm:min-w-0"
             >✕</button>
 
-            <div className="p-8">
-              <h2 className="text-2xl font-bold text-slate-900 mb-2">{txt.reviews_add}</h2>
-              <p className="text-slate-500 mb-6">{lang === 'el' ? 'Αξιολόγησε αυτόν τον influencer' : 'Rate this influencer'}</p>
+            <div className="p-5 sm:p-8 max-w-full">
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2 pr-10 break-words">{txt.reviews_add}</h2>
+              <p className="text-slate-500 mb-6 text-sm sm:text-base break-words">{lang === 'el' ? 'Αξιολόγησε αυτόν τον influencer' : 'Rate this influencer'}</p>
 
               {!isBrand ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-                  <p className="font-medium">{txt.reviews_login_brand}</p>
+                  <p className="font-medium break-words">{txt.reviews_login_brand}</p>
                   <Link
                     href={`/brand/login?redirect=${encodeURIComponent(publicPath)}`}
-                    className="mt-3 inline-flex text-blue-700 font-semibold hover:underline"
+                    className="mt-3 inline-flex min-h-[44px] items-center text-blue-700 font-semibold hover:underline sm:min-h-0"
                   >
                     {txt.reviews_login_link}
                   </Link>
                 </div>
               ) : (
-              <form onSubmit={handleSubmitReview} className="space-y-4">
+              <form onSubmit={handleSubmitReview} className="space-y-4 w-full max-w-full">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{txt.reviews_rating}</label>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-1 sm:gap-2">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <button
                         key={star}
                         type="button"
                         onClick={() => setReviewRating(star)}
-                        className={`text-4xl transition-transform hover:scale-110 ${
+                        className={`inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-3xl sm:text-4xl transition-transform hover:scale-110 sm:min-h-0 sm:min-w-0 ${
                           star <= reviewRating ? 'text-amber-400' : 'text-slate-300'
                         }`}
                       >
@@ -1891,8 +1927,8 @@ export default function InfluencerProfile(props: {
         
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 relative -mt-24 z-10">
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 relative -mt-24 z-10 min-w-0 overflow-x-hidden">
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden min-w-0">
           {/* Top Section: Avatar, Name, Info */}
           <div className="p-6 md:p-8 flex flex-col md:flex-row items-center md:items-start gap-6 border-b border-slate-100">
             <div className="relative w-40 h-40 -mt-6 md:mb-0 flex-shrink-0">
@@ -2174,7 +2210,7 @@ export default function InfluencerProfile(props: {
 
               return (
                 <>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                <div className="grid grid-cols-2 gap-3 items-stretch sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                   {availablePlatforms.some((p) => {
                     const er = engagementRates[p.key];
                     return er && er !== "-";
@@ -2564,20 +2600,48 @@ export default function InfluencerProfile(props: {
           </div>
         </div>
 
-        {/* TABS */}
-        <div className="mt-8 border-b border-slate-200">
-            <nav className="flex gap-8 overflow-x-auto">
-                <button onClick={() => setActiveTab("overview")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === "overview" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-700 hover:text-slate-900"}`}>{txt.tab_over}</button>
-                <button onClick={() => setActiveTab("audience")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === "audience" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-700 hover:text-slate-900"}`}>{txt.tab_aud}</button>
-                <button onClick={() => setActiveTab("pricing")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === "pricing" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-700 hover:text-slate-900"}`}>{txt.tab_price}</button>
-                <button onClick={() => setActiveTab("reviews")} className={`pb-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === "reviews" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-700 hover:text-slate-900"}`}>{txt.tab_reviews} {profile.total_reviews ? `(${profile.total_reviews})` : ''}</button>
+        {/* TABS — mobile: horizontal scroll + snap + right fade */}
+        <div className="relative mt-8 border-b border-slate-200 min-w-0">
+            <nav
+              ref={profileTabsNavRef}
+              className="flex gap-6 overflow-x-auto snap-x snap-mandatory sm:gap-8 sm:overflow-visible [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+                {(
+                  [
+                    { id: "overview", label: txt.tab_over },
+                    { id: "audience", label: txt.tab_aud },
+                    { id: "pricing", label: txt.tab_price },
+                    {
+                      id: "reviews",
+                      label: `${txt.tab_reviews}${profile.total_reviews ? ` (${profile.total_reviews})` : ""}`,
+                    },
+                  ] as const
+                ).map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    data-profile-tab={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`inline-flex min-h-[44px] shrink-0 snap-start items-center pb-1 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap sm:min-h-0 sm:pb-4 ${
+                      activeTab === tab.id
+                        ? "border-blue-600 text-blue-600"
+                        : "border-transparent text-slate-700 hover:text-slate-900"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
             </nav>
+            <div
+              className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-white to-transparent sm:hidden"
+              aria-hidden
+            />
         </div>
 
         {/* CONTENT */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8 min-w-0">
             {activeTab === "audience" && (
-              <div className="lg:col-span-3 space-y-8">
+              <div className="lg:col-span-3 space-y-8 min-w-0">
                 <ChannelScorePanel
                   lang={lang}
                   isBrand={isBrand}
@@ -2600,7 +2664,7 @@ export default function InfluencerProfile(props: {
                 <TopPosts accounts={profile.accounts} lang={lang} />
               </div>
             )}
-            <div className="lg:col-span-2 space-y-8">
+            <div className="lg:col-span-2 space-y-8 min-w-0">
                 {activeTab === "overview" && (
                     <>
                         <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
@@ -2991,15 +3055,15 @@ export default function InfluencerProfile(props: {
                 )}
                 
                 {activeTab === "reviews" && (
-                  <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
-                    <div className="flex justify-between items-center mb-6 gap-4">
-                      <div>
-                        <h2 className="text-xl font-bold text-slate-900">{txt.reviews_title}</h2>
-                        <p className="text-sm text-slate-500 mt-1">{txt.reviews_subtitle}</p>
+                  <div className="bg-white p-4 sm:p-8 rounded-2xl shadow-sm border border-slate-100 min-w-0 overflow-hidden">
+                    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                      <div className="min-w-0">
+                        <h2 className="text-xl font-bold text-slate-900 break-words">{txt.reviews_title}</h2>
+                        <p className="text-sm text-slate-500 mt-1 break-words">{txt.reviews_subtitle}</p>
                       </div>
                       <button 
                         onClick={() => setShowReviewModal(true)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-lg transition-colors text-sm shrink-0"
+                        className="inline-flex w-full min-h-[44px] items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-lg transition-colors text-sm sm:w-auto sm:shrink-0"
                       >
                         + {txt.reviews_add}
                       </button>
@@ -3010,27 +3074,31 @@ export default function InfluencerProfile(props: {
                         <p className="text-lg">{txt.reviews_empty}</p>
                       </div>
                     ) : (
-                      <div className="space-y-6">
+                      <div className="space-y-4 sm:space-y-6 min-w-0">
                         {reviews.map((review: any) => (
-                          <div key={review.id} className="border border-slate-200 rounded-xl p-6 hover:shadow-md transition-shadow">
-                            <div className="flex items-start justify-between mb-3">
-                              <div>
-                                <h4 className="font-bold text-slate-900">{review.brand_name || (lang === "el" ? "Επιχείρηση" : "Brand")}</h4>
-                                <p className="text-xs text-slate-500">{new Date(review.created_at).toLocaleDateString()}</p>
+                          <div key={review.id} className="min-w-0 border border-slate-200 rounded-xl p-4 sm:p-6 hover:shadow-md transition-shadow overflow-hidden">
+                            <div className="mb-3 flex min-w-0 items-start justify-between gap-3">
+                              <div className="min-w-0 flex-1">
+                                <h4 className="font-bold text-slate-900 truncate">
+                                  {review.brand_name || (lang === "el" ? "Επιχείρηση" : "Brand")}
+                                </h4>
+                                <p className="text-xs text-slate-500 truncate">
+                                  {new Date(review.created_at).toLocaleDateString(lang === "el" ? "el-GR" : "en-GB")}
+                                </p>
                               </div>
-                              <div className="flex items-center gap-1">
+                              <div className="flex shrink-0 items-center gap-0.5 whitespace-nowrap" aria-label={`${review.rating}/5`}>
                                 {[...Array(5)].map((_, i) => (
-                                  <span key={i} className={`text-xl ${i < review.rating ? 'text-amber-400' : 'text-slate-300'}`}>★</span>
+                                  <span key={i} className={`text-lg sm:text-xl ${i < review.rating ? 'text-amber-400' : 'text-slate-300'}`}>★</span>
                                 ))}
                               </div>
                             </div>
                             {review.project_type && (
-                              <span className="inline-block bg-blue-50 text-blue-700 text-xs font-bold px-2 py-1 rounded mb-3">
+                              <span className="inline-block max-w-full truncate bg-blue-50 text-blue-700 text-xs font-bold px-2 py-1 rounded mb-3">
                                 {review.project_type}
                               </span>
                             )}
                             {review.review_text && (
-                              <p className="text-slate-700 leading-relaxed">{review.review_text}</p>
+                              <p className="text-slate-700 leading-relaxed break-words">{review.review_text}</p>
                             )}
                           </div>
                         ))}
