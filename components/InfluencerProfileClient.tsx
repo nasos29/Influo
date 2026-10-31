@@ -557,13 +557,13 @@ function ProfilePackagesSection({
   packages,
   platforms,
   lang,
-  isBrand,
+  revealPrices,
   onRequestQuote,
 }: {
   packages: PublicPackageView[];
   platforms: PackagePlatform[];
   lang: "el" | "en";
-  isBrand: boolean;
+  revealPrices: boolean;
   onRequestQuote: () => void;
 }) {
   const [tab, setTab] = useState<PackagePlatform>(platforms[0] || "instagram");
@@ -627,7 +627,7 @@ function ProfilePackagesSection({
                 ) : null}
               </div>
               <div className="mt-4 flex-1">
-                {isBrand && pkg.price ? (
+                {revealPrices && pkg.price ? (
                   <p className="text-2xl font-extrabold text-blue-700 tabular-nums">
                     {pkg.price}€
                   </p>
@@ -703,7 +703,13 @@ export default function InfluencerProfile(props: {
   const [reviewProjectType, setReviewProjectType] = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [isBrand, setIsBrand] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [hasSession, setHasSession] = useState(false);
+  /** Exact € after client auth — never from ISR HTML. Brand, admin, or own creator. */
+  const revealPrices = isBrand || isAdmin || isOwnProfile;
+  /** Brand login CTA only for logged-out visitors. */
+  const showBrandPriceCta = !hasSession;
   const commercialRef = useRef<{
     min_rate?: string;
     rate_card?: ProInfluencer["rate_card"];
@@ -715,7 +721,8 @@ export default function InfluencerProfile(props: {
   const [growthSeries, setGrowthSeries] = useState<FollowerGrowthPoint[]>([]);
   const [statsUpdatedAt, setStatsUpdatedAt] = useState<string | null>(null);
 
-  // Brand-only requests wait until /api/me/profile confirms a brand row.
+  // Same admin email gate as /admin; brand via /api/me/profile; own profile by influencer id.
+  const ADMIN_EMAIL_FALLBACK = "nd.6@hotmail.com";
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -725,32 +732,53 @@ export default function InfluencerProfile(props: {
         setHasSession(!!session?.access_token);
         if (!session?.access_token) {
           setIsBrand(false);
+          setIsAdmin(false);
+          setIsOwnProfile(false);
           sessionStorage.removeItem("isBrand");
           return;
         }
+        const sessionEmail = (session.user.email || "").toLowerCase().trim();
+        const admin = sessionEmail === ADMIN_EMAIL_FALLBACK.toLowerCase();
+        setIsAdmin(admin);
+
         const profiles = await loadOwnProfiles(supabase);
         if (cancelled) return;
         const brand = profiles.ok ? profiles.brand : null;
         setIsBrand(!!brand);
-        if (!brand) {
+        if (brand) {
+          sessionStorage.setItem("isBrand", "true");
+          const name = typeof brand.brand_name === "string" ? brand.brand_name.trim() : "";
+          const contact = typeof brand.contact_email === "string" ? brand.contact_email.trim() : "";
+          const email = contact.includes("@") ? contact : (session.user.email || "").trim();
+          if (name) setBrandName(name);
+          if (email) setBrandEmail(email);
+        } else {
           sessionStorage.removeItem("isBrand");
-          return;
         }
-        sessionStorage.setItem("isBrand", "true");
-        const name = typeof brand.brand_name === "string" ? brand.brand_name.trim() : "";
-        const contact = typeof brand.contact_email === "string" ? brand.contact_email.trim() : "";
-        const email = contact.includes("@") ? contact : (session.user.email || "").trim();
-        if (name) setBrandName(name);
-        if (email) setBrandEmail(email);
+
+        const ownInf = profiles.ok ? profiles.influencer : null;
+        const ownId =
+          ownInf && (typeof ownInf.id === "string" || typeof ownInf.id === "number")
+            ? String(ownInf.id)
+            : null;
+        const profileId = id != null ? String(id) : "";
+        const owns =
+          !!profileId &&
+          (ownId === profileId || session.user.id === profileId);
+        setIsOwnProfile(owns);
       } catch (error) {
         console.error("Error checking user type:", error);
-        if (!cancelled) setIsBrand(false);
+        if (!cancelled) {
+          setIsBrand(false);
+          setIsAdmin(false);
+          setIsOwnProfile(false);
+        }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [id]);
 
   useEffect(() => {
     if (!isBrand || !id) return;
@@ -1102,9 +1130,9 @@ export default function InfluencerProfile(props: {
     fetchProfile().catch(() => setLoading(false));
   }, [id]);
 
-  // Exact prices only after the existing brand check. Logged-out visitors keep the lock.
+  // Exact prices only after client auth (brand / admin / own). Never from ISR HTML.
   useEffect(() => {
-    if (!isBrand || !id) return;
+    if (!revealPrices || !id) return;
     let cancelled = false;
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -1125,7 +1153,7 @@ export default function InfluencerProfile(props: {
       setProfile((prev) => prev ? { ...prev, ...commercial } : prev);
     })();
     return () => { cancelled = true; };
-  }, [isBrand, id]);
+  }, [revealPrices, id]);
 
   // Track profile view once per page load (not on every profile refresh).
   const trackedViewRef = useRef<string | null>(null);
@@ -2417,7 +2445,7 @@ export default function InfluencerProfile(props: {
                         </MetricIcon>
                       }
                     >
-                      {isBrand && profile.min_rate ? (
+                      {revealPrices && profile.min_rate ? (
                         <div>
                           <p className="text-2xl font-semibold tracking-tight text-blue-700 tabular-nums">
                             {profile.min_rate}€
@@ -2429,22 +2457,24 @@ export default function InfluencerProfile(props: {
                           <p className="text-2xl font-semibold tracking-tight text-blue-700 tabular-nums">
                             {formatFromPriceLabel(profile.price_tier, lang) || "—"}
                           </p>
-                          <p className="mt-1 text-xs leading-snug text-slate-600">
-                            <Link
-                              href="/login"
-                              className="font-medium text-blue-600 underline-offset-2 hover:underline"
-                            >
-                              {txt.min_rate_cta_login}
-                            </Link>
-                            {lang === "el" ? " ή " : " or "}
-                            <Link
-                              href="/brand/signup"
-                              className="font-medium text-blue-600 underline-offset-2 hover:underline"
-                            >
-                              {txt.min_rate_cta_signup}
-                            </Link>{" "}
-                            {lang === "el" ? "ως brand για τιμές" : "as a brand for prices"}
-                          </p>
+                          {showBrandPriceCta ? (
+                            <p className="mt-1 text-xs leading-snug text-slate-600">
+                              <Link
+                                href="/login"
+                                className="font-medium text-blue-600 underline-offset-2 hover:underline"
+                              >
+                                {txt.min_rate_cta_login}
+                              </Link>
+                              {lang === "el" ? " ή " : " or "}
+                              <Link
+                                href="/brand/signup"
+                                className="font-medium text-blue-600 underline-offset-2 hover:underline"
+                              >
+                                {txt.min_rate_cta_signup}
+                              </Link>{" "}
+                              {lang === "el" ? "ως brand για τιμές" : "as a brand for prices"}
+                            </p>
+                          ) : null}
                         </div>
                       )}
                     </ProfileStatCard>
@@ -2465,7 +2495,7 @@ export default function InfluencerProfile(props: {
                         </MetricIcon>
                       }
                     >
-                      {isBrand && profile.min_rate && cpmValue != null ? (
+                      {revealPrices && profile.min_rate && cpmValue != null ? (
                         <div>
                           <p className="text-2xl font-semibold tracking-tight text-violet-700 tabular-nums">
                             {formatCpmEuro(cpmValue)}
@@ -2477,22 +2507,24 @@ export default function InfluencerProfile(props: {
                           <p className="select-none text-2xl font-semibold tracking-tight text-violet-700 blur-md tabular-nums">
                             ••••
                           </p>
-                          <p className="mt-1 text-xs leading-snug text-slate-600">
-                            <Link
-                              href="/login"
-                              className="font-medium text-blue-600 underline-offset-2 hover:underline"
-                            >
-                              {txt.min_rate_cta_login}
-                            </Link>
-                            {lang === "el" ? " ή " : " or "}
-                            <Link
-                              href="/brand/signup"
-                              className="font-medium text-blue-600 underline-offset-2 hover:underline"
-                            >
-                              {txt.min_rate_cta_signup}
-                            </Link>{" "}
-                            {txt.min_rate_cta_suffix}
-                          </p>
+                          {showBrandPriceCta ? (
+                            <p className="mt-1 text-xs leading-snug text-slate-600">
+                              <Link
+                                href="/login"
+                                className="font-medium text-blue-600 underline-offset-2 hover:underline"
+                              >
+                                {txt.min_rate_cta_login}
+                              </Link>
+                              {lang === "el" ? " ή " : " or "}
+                              <Link
+                                href="/brand/signup"
+                                className="font-medium text-blue-600 underline-offset-2 hover:underline"
+                              >
+                                {txt.min_rate_cta_signup}
+                              </Link>{" "}
+                              {txt.min_rate_cta_suffix}
+                            </p>
+                          ) : null}
                         </div>
                       )}
                     </ProfileStatCard>
@@ -2550,11 +2582,11 @@ export default function InfluencerProfile(props: {
                   lang={lang}
                   isBrand={isBrand}
                   integrationLocked={
-                    !isBrand &&
+                    !revealPrices &&
                     (!!profile.has_priced_min_rate ||
                       Object.values(profile.rate_card_flags || {}).some(Boolean))
                   }
-                  {...scoreChannelFromProfile(profile, growth30d?.growthPct ?? null, isBrand)}
+                  {...scoreChannelFromProfile(profile, growth30d?.growthPct ?? null, revealPrices)}
                 />
                 <FollowerGrowthChart lang={lang} points={growthSeries} />
                 <StatsInsightsPanel
@@ -2936,13 +2968,13 @@ export default function InfluencerProfile(props: {
                               packages={pkgs}
                               platforms={platformsPresent}
                               lang={lang}
-                              isBrand={isBrand}
+                              revealPrices={revealPrices}
                               onRequestQuote={() => setShowProposalModal(true)}
                             />
                           );
                         })()}
 
-                        {!isBrand && (
+                        {showBrandPriceCta && (
                           <p className="mt-4 text-sm text-slate-600 text-center">
                             {lang === "el" ? "Συνδεθείτε ως brand για τιμές" : "Sign in as a brand for prices"}
                             {" — "}
