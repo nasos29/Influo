@@ -6,6 +6,7 @@ import InfluencerCard from "@/components/InfluencerCard";
 import InfluencerCardCarousel, {
   INFLUENCER_CAROUSEL_CARD_CLASS,
 } from "@/components/InfluencerCardCarousel";
+import { SECTION_TITLE_CLASS } from "@/lib/sectionTitle";
 import { parseStoredCategories } from "@/lib/categories";
 import { displayNameForLang } from "@/lib/greeklish";
 import { getVisitorId } from "@/lib/visitorId";
@@ -173,7 +174,7 @@ export default function NewlyApprovedInfluencersSection({
             }
             title={txt.title}
             subtitle={txt.subtitle}
-            titleClassName="text-3xl md:text-4xl font-bold text-slate-900"
+            titleClassName={SECTION_TITLE_CLASS}
             footer={!loading ? viewAll : null}
           >
             {visible.map((inf) => {
@@ -225,10 +226,12 @@ export default function NewlyApprovedInfluencersSection({
         ) : (
           <>
             <div className="text-center mb-12">
-              <span className="inline-block px-3 py-1 text-xs font-semibold uppercase tracking-wider text-indigo-600 bg-indigo-50 rounded-full mb-4">
-                {txt.badge}
-              </span>
-              <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">{txt.title}</h2>
+              <div className="mb-3">
+                <span className="inline-block px-3 py-1 text-xs font-semibold uppercase tracking-wider text-indigo-600 bg-indigo-50 rounded-full">
+                  {txt.badge}
+                </span>
+              </div>
+              <h2 className={`${SECTION_TITLE_CLASS} mb-3`}>{txt.title}</h2>
               <p className="text-slate-600 max-w-2xl mx-auto mb-8">{txt.subtitle}</p>
             </div>
             <div className="text-center py-12 px-6 bg-white/60 rounded-2xl border border-slate-200/80">

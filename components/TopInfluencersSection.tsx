@@ -6,6 +6,7 @@ import InfluencerCard from "@/components/InfluencerCard";
 import InfluencerCardCarousel, {
   INFLUENCER_CAROUSEL_CARD_CLASS,
 } from "@/components/InfluencerCardCarousel";
+import { SECTION_TITLE_CLASS } from "@/lib/sectionTitle";
 import { parseStoredCategories } from "@/lib/categories";
 import { displayNameForLang } from "@/lib/greeklish";
 import { getVisitorId } from "@/lib/visitorId";
@@ -115,7 +116,7 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
           }
           title={txt.title}
           subtitle={txt.subtitle}
-          titleClassName="text-3xl md:text-4xl font-bold text-slate-900"
+          titleClassName={SECTION_TITLE_CLASS}
           className=""
         >
           {topTen.map((inf, idx) => {
