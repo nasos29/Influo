@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import InfluencerCard from "@/components/InfluencerCard";
+import InfluencerCardCarousel, {
+  INFLUENCER_CAROUSEL_CARD_CLASS,
+} from "@/components/InfluencerCardCarousel";
 import { parseStoredCategories } from "@/lib/categories";
 import { displayNameForLang } from "@/lib/greeklish";
 import { getVisitorId } from "@/lib/visitorId";
@@ -30,7 +33,8 @@ export type NewlyApprovedInfluencer = {
   profile_slug?: string | null;
 };
 
-const DISPLAY_LIMIT = 4;
+/** Show 8 after excluding home directory preview ids. */
+const DISPLAY_LIMIT = 8;
 
 function buildSocials(accounts: NewlyApprovedInfluencer["accounts"]): {
   [key: string]: string | undefined;
@@ -133,28 +137,24 @@ export default function NewlyApprovedInfluencersSection({
   const txt = t[lang];
   const directoryHref = lang === "en" ? "/en/directory" : "/directory";
 
-  if (loading) {
-    return (
-      <section className="relative py-16 md:py-20 px-6 bg-gradient-to-br from-slate-50 via-white to-blue-50/20 border-t border-slate-100">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <div className="h-6 w-32 bg-slate-200 rounded-full animate-pulse mx-auto mb-4" />
-            <div className="h-9 w-72 bg-slate-200 rounded animate-pulse mx-auto mb-3" />
-            <div className="h-5 w-96 max-w-full bg-slate-100 rounded animate-pulse mx-auto" />
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-6 md:gap-x-6 md:gap-y-8">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="animate-pulse">
-                <div className="aspect-[4/5] rounded-2xl bg-slate-100" />
-                <div className="mt-3 h-4 w-3/4 rounded bg-slate-100" />
-                <div className="mt-2 h-3 w-1/2 rounded bg-slate-100" />
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-    );
-  }
+  const viewAll = (
+    <div className="flex justify-center">
+      <a
+        href={directoryHref}
+        className="inline-flex items-center gap-2 rounded-full px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold transition-all shadow-md hover:shadow-lg"
+      >
+        {txt.viewAll}
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M17 8l4 4m0 0l-4 4m4-4H3"
+          />
+        </svg>
+      </a>
+    </div>
+  );
 
   return (
     <section
@@ -162,45 +162,34 @@ export default function NewlyApprovedInfluencersSection({
       id="newly-approved"
     >
       <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-12">
-          <span className="inline-block px-3 py-1 text-xs font-semibold uppercase tracking-wider text-indigo-600 bg-indigo-50 rounded-full mb-4">
-            {txt.badge}
-          </span>
-          <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">{txt.title}</h2>
-          <p className="text-slate-600 max-w-2xl mx-auto mb-8">{txt.subtitle}</p>
-        </div>
-
-        {visible.length === 0 ? (
-          <div className="text-center py-12 px-6 bg-white/60 rounded-2xl border border-slate-200/80">
-            <p className="text-slate-600 max-w-xl mx-auto mb-8">{txt.empty}</p>
-            <a
-              href={directoryHref}
-              className="inline-flex items-center gap-2 rounded-full px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold transition-all shadow-md hover:shadow-lg"
-            >
-              {txt.viewAll}
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17 8l4 4m0 0l-4 4m4-4H3"
-                />
-              </svg>
-            </a>
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-6 md:gap-x-6 md:gap-y-8">
-              {visible.map((inf) => {
-                const name = displayNameForLang(
-                  (lang === "en" && inf.display_name_en
-                    ? inf.display_name_en
-                    : inf.display_name) ?? "",
-                  lang
-                );
-                return (
+        {loading || visible.length > 0 ? (
+          <InfluencerCardCarousel
+            lang={lang}
+            loading={loading}
+            eyebrow={
+              <span className="inline-block px-3 py-1 text-xs font-semibold uppercase tracking-wider text-indigo-600 bg-indigo-50 rounded-full">
+                {txt.badge}
+              </span>
+            }
+            title={txt.title}
+            subtitle={txt.subtitle}
+            titleClassName="text-3xl md:text-4xl font-bold text-slate-900"
+            footer={!loading ? viewAll : null}
+          >
+            {visible.map((inf) => {
+              const name = displayNameForLang(
+                (lang === "en" && inf.display_name_en
+                  ? inf.display_name_en
+                  : inf.display_name) ?? "",
+                lang
+              );
+              return (
+                <div
+                  key={String(inf.id)}
+                  data-carousel-card
+                  className={INFLUENCER_CAROUSEL_CARD_CLASS}
+                >
                   <Link
-                    key={String(inf.id)}
                     href={publicProfilePath(inf.profile_slug, inf.id)}
                     className="block group"
                     onClick={() => {
@@ -229,25 +218,22 @@ export default function NewlyApprovedInfluencersSection({
                       price_tier={inf.price_tier || "0"}
                     />
                   </Link>
-                );
-              })}
+                </div>
+              );
+            })}
+          </InfluencerCardCarousel>
+        ) : (
+          <>
+            <div className="text-center mb-12">
+              <span className="inline-block px-3 py-1 text-xs font-semibold uppercase tracking-wider text-indigo-600 bg-indigo-50 rounded-full mb-4">
+                {txt.badge}
+              </span>
+              <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">{txt.title}</h2>
+              <p className="text-slate-600 max-w-2xl mx-auto mb-8">{txt.subtitle}</p>
             </div>
-
-            <div className="text-center mt-10">
-              <a
-                href={directoryHref}
-                className="inline-flex items-center gap-2 rounded-full px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold transition-all shadow-md hover:shadow-lg"
-              >
-                {txt.viewAll}
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M17 8l4 4m0 0l-4 4m4-4H3"
-                  />
-                </svg>
-              </a>
+            <div className="text-center py-12 px-6 bg-white/60 rounded-2xl border border-slate-200/80">
+              <p className="text-slate-600 max-w-xl mx-auto mb-8">{txt.empty}</p>
+              {viewAll}
             </div>
           </>
         )}
