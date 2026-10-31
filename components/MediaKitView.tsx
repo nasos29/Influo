@@ -26,7 +26,48 @@ function parsePct(value: number | null | undefined): number | null {
   return Math.round(n);
 }
 
-export default function MediaKitView({ profile }: { profile: MediaKitProfile }) {
+export default function MediaKitView({ profile, lang = "el" }: { profile: MediaKitProfile; lang?: "el" | "en" }) {
+  const copy = lang === "en"
+    ? {
+        savePdf: "Save as PDF",
+        back: "Back to tools",
+        socials: "Social accounts",
+        platform: "Platform",
+        username: "Username",
+        followers: "Followers",
+        engagement: "Engagement",
+        emptySocials: "No social accounts yet. Your profile, photo, and Influo link still work.",
+        minRate: "Minimum rate",
+        rateFallback: "On request",
+        collab: "Collaboration",
+        collabValue: "Proposal via Influo.gr",
+        audience: "Audience",
+        women: "Women",
+        men: "Men",
+        topAge: "Main age",
+        myProfile: "My profile",
+        qrAlt: "Profile QR",
+      }
+    : {
+        savePdf: "Αποθήκευση ως PDF",
+        back: "Πίσω στα εργαλεία",
+        socials: "Κοινωνικά δίκτυα",
+        platform: "Πλατφόρμα",
+        username: "Όνομα χρήστη",
+        followers: "Ακόλουθοι",
+        engagement: "Αλληλεπίδραση",
+        emptySocials: "Δεν έχουν δηλωθεί ακόμη κοινωνικά δίκτυα. Το προφίλ, η φωτογραφία και το link του Influo ισχύουν κανονικά.",
+        minRate: "Ελάχιστη τιμή",
+        rateFallback: "Κατόπιν συνεννόησης",
+        collab: "Συνεργασία",
+        collabValue: "Πρόταση μέσω Influo.gr",
+        audience: "Κοινό",
+        women: "Γυναίκες",
+        men: "Άνδρες",
+        topAge: "Κύρια ηλικία",
+        myProfile: "Το προφίλ μου",
+        qrAlt: "QR του προφίλ",
+      };
   const rawAvatar = (profile.avatarUrl || "").trim();
   const avatarSrc = getCachedImageUrl(rawAvatar) || rawAvatar;
   const [avatarFailed, setAvatarFailed] = useState(!avatarSrc);
@@ -315,9 +356,9 @@ export default function MediaKitView({ profile }: { profile: MediaKitProfile }) 
 
       <div className="mk-toolbar">
         <button type="button" onClick={() => window.print()}>
-          Αποθήκευση ως PDF
+          {copy.savePdf}
         </button>
-        <a href="/dashboard?tab=tools">Πίσω στα Εργαλεία</a>
+        <a href="/dashboard?tab=tools">{copy.back}</a>
       </div>
 
       <article className="mk-sheet">
@@ -350,31 +391,31 @@ export default function MediaKitView({ profile }: { profile: MediaKitProfile }) 
           </section>
 
           <section className="mk-accounts">
-            <div className="mk-section-title">Social accounts</div>
+            <div className="mk-section-title">{copy.socials}</div>
             {accounts.length ? (
               accounts.map((a, i) => (
                 <div key={`${a.platform}-${a.username}-${i}`} className="mk-row">
                   <div>
-                    <span>Πλατφόρμα</span>
+                    <span>{copy.platform}</span>
                     <b>{a.platform}</b>
                   </div>
                   <div>
-                    <span>Username</span>
+                    <span>{copy.username}</span>
                     <b>{handle(a.username)}</b>
                   </div>
                   <div>
-                    <span>Followers</span>
+                    <span>{copy.followers}</span>
                     <b>{a.followers || "—"}</b>
                   </div>
                   <div>
-                    <span>Engagement</span>
+                    <span>{copy.engagement}</span>
                     <b>
                       {a.engagement_rate || "—"}
                       {(() => {
                         const flag = displayErFlag(a);
                         return flag ? (
                           <span style={{ marginLeft: 6, fontSize: 11, color: "#92400e", fontWeight: 600 }}>
-                            ({erFlagLabel(flag, "el")})
+                            ({erFlagLabel(flag, lang)})
                           </span>
                         ) : null;
                       })()}
@@ -384,25 +425,25 @@ export default function MediaKitView({ profile }: { profile: MediaKitProfile }) 
               ))
             ) : (
               <div className="mk-empty">
-                Δεν έχουν δηλωθεί ακόμα social accounts. Το προφίλ, η φωτογραφία και το Influo link ισχύουν κανονικά.
+                {copy.emptySocials}
               </div>
             )}
           </section>
 
           <section className="mk-cards">
             <div className="mk-card">
-              <span>Min rate</span>
-              <b>{rate ? `${rate}€` : "Κατόπιν συνεννόησης"}</b>
+              <span>{copy.minRate}</span>
+              <b>{rate ? `${rate}€` : copy.rateFallback}</b>
             </div>
             <div className="mk-card">
-              <span>Συνεργασία</span>
-              <b>Πρόταση μέσω Influo.gr</b>
+              <span>{copy.collab}</span>
+              <b>{copy.collabValue}</b>
             </div>
           </section>
 
           {hasAudience ? (
             <section className="mk-audience">
-              <div className="mk-section-title">Κοινό</div>
+              <div className="mk-section-title">{copy.audience}</div>
               {female !== null || male !== null ? (
                 <>
                   <div className="mk-bar-wrap">
@@ -410,14 +451,14 @@ export default function MediaKitView({ profile }: { profile: MediaKitProfile }) 
                     <div className="mk-bar-m" style={{ width: `${maleW}%` }} />
                   </div>
                   <div className="mk-aud-row">
-                    <span>Γυναίκες {femaleW}%</span>
-                    <span>Άνδρες {maleW}%</span>
+                    <span>{copy.women} {femaleW}%</span>
+                    <span>{copy.men} {maleW}%</span>
                   </div>
                 </>
               ) : null}
               {topAge ? (
                 <div className="mk-age">
-                  Κύρια ηλικία: <b>{topAge}</b>
+                  {copy.topAge}: <b>{topAge}</b>
                 </div>
               ) : null}
             </section>
@@ -425,10 +466,10 @@ export default function MediaKitView({ profile }: { profile: MediaKitProfile }) 
 
           <footer className="mk-foot">
             <div>
-              <p>Το προφίλ μου</p>
+              <p>{copy.myProfile}</p>
               <div className="mk-link">{profile.profileUrl}</div>
             </div>
-            <img className="mk-qr" src={qr} alt="QR του προφίλ" />
+            <img className="mk-qr" src={qr} alt={copy.qrAlt} />
           </footer>
         </div>
       </article>

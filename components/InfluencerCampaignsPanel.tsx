@@ -7,7 +7,10 @@ import { getStoredLanguage } from "@/lib/language";
 import { notifyBrandOfApplication, submitCampaignApplication } from "@/lib/campaignApply";
 import { findContactInfo, filterWorkLinks } from "@/lib/contactFilter";
 import CampaignCard from "@/components/CampaignCard";
-import { toastError, toastSuccess } from "@/components/Feedback";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import ToastViewport, { useToasts } from "@/components/ui/Toast";
+import { formatDate, formatTime } from "@/lib/formatDateTime";
+import { isTimeoutError, withTimeout } from "@/lib/withTimeout";
 
 const CONTACT_BLOCKED = {
   el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
@@ -112,11 +115,15 @@ export default function InfluencerCampaignsPanel({
 }) {
   const [uiLang, setUiLang] = useState<"el" | "en">("el");
   const pc = pendingCopy[uiLang];
+  const { toasts, push: pushToast, dismiss: dismissToast } = useToasts();
+  const notify = (message: string, tone: "success" | "error" | "info" = "info") => pushToast(message, tone);
 
   const [campaigns, setCampaigns] = useState<CampaignWithBrand[]>([]);
   const [mine, setMine] = useState<MyApplication[]>([]);
   const [loading, setLoading] = useState(!!approved);
+  const [loadError, setLoadError] = useState<null | "timeout" | "error">(null);
   const [schemaError, setSchemaError] = useState(false);
+  const [withdrawId, setWithdrawId] = useState<string | null>(null);
   const [applyCampaign, setApplyCampaign] = useState<CampaignWithBrand | null>(null);
   const [applyMessage, setApplyMessage] = useState("");
   const [proposedPrice, setProposedPrice] = useState("");
@@ -142,11 +149,15 @@ export default function InfluencerCampaignsPanel({
   const load = useCallback(async () => {
     setLoading(true);
     setSchemaError(false);
+    setLoadError(null);
 
-    const { data: openData, error: openErr } = await supabase
-      .from("brand_campaigns")
-      .select(
-        `
+    try {
+      const bundle = await withTimeout(
+        (async () => {
+          const openRes = await supabase
+            .from("brand_campaigns")
+            .select(
+              `
         id,
         title,
         description,
@@ -159,24 +170,14 @@ export default function InfluencerCampaignsPanel({
         opened_at,
         brands ( brand_name, logo_url )
       `
-      )
-      .eq("status", "open")
-      .order("created_at", { ascending: false });
+            )
+            .eq("status", "open")
+            .order("created_at", { ascending: false });
 
-    if (openErr) {
-      if (openErr.code === "42P01" || openErr.message?.includes("brand_campaigns")) {
-        setSchemaError(true);
-      }
-      console.error(openErr);
-      setCampaigns([]);
-    } else {
-      setCampaigns((openData as unknown as CampaignWithBrand[]) || []);
-    }
-
-    const { data: myData, error: myErr } = await supabase
-      .from("campaign_applications")
-      .select(
-        `
+          const mineRes = await supabase
+            .from("campaign_applications")
+            .select(
+              `
         id,
         campaign_id,
         status,
@@ -192,15 +193,39 @@ export default function InfluencerCampaignsPanel({
           brands ( brand_name )
         )
       `
-      )
-      .eq("influencer_id", influencerId)
-      .order("created_at", { ascending: false });
+            )
+            .eq("influencer_id", influencerId)
+            .order("created_at", { ascending: false });
 
-    if (!myErr && myData) {
-      setMine((myData as unknown) as MyApplication[]);
+          return { openRes, mineRes };
+        })(),
+        20000
+      );
+
+      const { openRes, mineRes } = bundle;
+      if (openRes.error) {
+        if (openRes.error.code === "42P01" || openRes.error.message?.includes("brand_campaigns")) {
+          setSchemaError(true);
+        }
+        console.error(openRes.error);
+        setCampaigns([]);
+        setLoadError("error");
+      } else {
+        setCampaigns((openRes.data as unknown as CampaignWithBrand[]) || []);
+      }
+
+      if (!mineRes.error && mineRes.data) {
+        setMine(mineRes.data as unknown as MyApplication[]);
+      } else if (mineRes.error) {
+        console.error(mineRes.error);
+        setLoadError("error");
+      }
+    } catch (error) {
+      console.error(error);
+      setLoadError(isTimeoutError(error) ? "timeout" : "error");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }, [influencerId]);
 
   useEffect(() => {
@@ -217,7 +242,7 @@ export default function InfluencerCampaignsPanel({
     e.preventDefault();
     if (!applyCampaign || !approved) return;
     if (!available) {
-      toastError(uiLang === "el" ? "Είστε προσωρινά μη διαθέσιμος. Αλλάξτε τη διαθεσιμότητα για να κάνετε αίτηση." : "You are temporarily unavailable. Change availability to apply.");
+      notify(uiLang === "el" ? "Είστε προσωρινά μη διαθέσιμος. Αλλάξτε τη διαθεσιμότητα για να κάνετε αίτηση." : "You are temporarily unavailable. Change availability to apply.", "error");
       return;
     }
     setMessageError(null);
@@ -225,14 +250,14 @@ export default function InfluencerCampaignsPanel({
     if (findContactInfo(applyMessage)) {
       const msg = CONTACT_BLOCKED[uiLang];
       setMessageError(msg);
-      toastError(msg);
+      notify(msg, "error");
       return;
     }
     const filtered = filterWorkLinks(workLinks);
     if (filtered.rejected.length > 0) {
       const msg = WORK_LINK_HINT[uiLang];
       setWorkLinksError(msg);
-      toastError(msg);
+      notify(msg, "error");
       return;
     }
     setSubmitting(true);
@@ -245,23 +270,23 @@ export default function InfluencerCampaignsPanel({
         workLinks: filtered.ok.join("\n"),
       });
       if (result.duplicate) {
-        toastError(uiLang === "el" ? "Έχετε ήδη κάνει αίτηση σε αυτή την καμπάνια." : "You have already applied to this campaign.");
+        notify(uiLang === "el" ? "Έχετε ήδη κάνει αίτηση σε αυτή την καμπάνια." : "You have already applied to this campaign.", "error");
         return;
       }
       if (result.error === "contact_info_not_allowed") {
         const msg = CONTACT_BLOCKED[uiLang];
         setMessageError(msg);
-        toastError(msg);
+        notify(msg, "error");
         return;
       }
       if (result.error === "work_link_not_allowed") {
         const msg = WORK_LINK_HINT[uiLang];
         setWorkLinksError(msg);
-        toastError(msg);
+        notify(msg, "error");
         return;
       }
       if (result.error || !result.id) {
-        toastError(result.error || "Error");
+        notify(result.error || (uiLang === "el" ? "Κάτι πήγε στραβά. Δοκίμασε ξανά." : "Something went wrong. Try again."), "error");
         return;
       }
       await notifyBrandOfApplication(result.id);
@@ -271,7 +296,7 @@ export default function InfluencerCampaignsPanel({
       setWorkLinks("");
       setMessageError(null);
       setWorkLinksError(null);
-      toastSuccess(uiLang === "el" ? "Η αίτηση στάλθηκε." : "Application sent.");
+      notify(uiLang === "el" ? "Η αίτηση στάλθηκε." : "Application sent.", "success");
       await load();
     } finally {
       setSubmitting(false);
@@ -279,21 +304,24 @@ export default function InfluencerCampaignsPanel({
   };
 
   const withdraw = async (appId: string) => {
-    if (!confirm(uiLang === "el" ? "Απόσυρση αίτησης;" : "Withdraw application?")) return;
+    setWithdrawId(null);
     const { error } = await supabase
       .from("campaign_applications")
       .update({ status: "withdrawn" })
       .eq("id", appId)
       .eq("influencer_id", influencerId);
-    if (error) alert(error.message);
-    else await load();
+    if (error) notify(error.message, "error");
+    else {
+      notify(uiLang === "el" ? "Η αίτηση αποσύρθηκε." : "Application withdrawn.", "success");
+      await load();
+    }
   };
 
   const submitDeliverable = async (appId: string) => {
     const draft = deliverDraft[appId] || { url: "", note: "" };
     const url = draft.url.trim();
     if (!url) {
-      alert(uiLang === "el" ? "Βάλε link παράδοσης (URL)." : "Add a deliverable URL.");
+      notify(uiLang === "el" ? "Βάλε link παράδοσης (URL)." : "Add a deliverable URL.", "error");
       return;
     }
     setDeliverSaving(appId);
@@ -309,12 +337,13 @@ export default function InfluencerCampaignsPanel({
         .eq("id", appId)
         .eq("influencer_id", influencerId);
       if (error) {
-        alert(
+        notify(
           /column|deliverable/i.test(error.message)
             ? uiLang === "el"
-              ? "Τρέξε το docs/CAMPAIGN_DELIVERABLES_SCHEMA.sql στο Supabase."
-              : "Run docs/CAMPAIGN_DELIVERABLES_SCHEMA.sql in Supabase."
-            : error.message
+              ? "Η παράδοση δεν αποθηκεύτηκε. Δοκίμασε ξανά."
+              : "The deliverable was not saved. Try again."
+            : error.message,
+          "error"
         );
         return;
       }
@@ -359,8 +388,29 @@ export default function InfluencerCampaignsPanel({
 
   const campaignsLink = uiLang === "en" ? "/en/campaigns" : "/campaigns";
 
+  const loadErrorText =
+    loadError === "timeout"
+      ? uiLang === "el"
+        ? "Η φόρτωση άργησε. Δοκίμασε ξανά."
+        : "This took too long. Try again."
+      : uiLang === "el"
+        ? "Οι καμπάνιες δεν φορτώθηκαν."
+        : "Campaigns could not be loaded.";
+
   return (
     <div className="space-y-8">
+      <ToastViewport toasts={toasts} onDismiss={dismissToast} dismissLabel={uiLang === "el" ? "Κλείσιμο" : "Dismiss"} />
+      <ConfirmDialog
+        open={!!withdrawId}
+        title={uiLang === "el" ? "Απόσυρση αίτησης;" : "Withdraw this application?"}
+        body={uiLang === "el" ? "Η αίτηση θα αφαιρεθεί από την καμπάνια." : "The application will be removed from the campaign."}
+        confirmLabel={uiLang === "el" ? "Απόσυρση" : "Withdraw"}
+        cancelLabel={uiLang === "el" ? "Ακύρωση" : "Cancel"}
+        onConfirm={() => {
+          if (withdrawId) void withdraw(withdrawId);
+        }}
+        onCancel={() => setWithdrawId(null)}
+      />
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <p className="text-slate-600 text-sm">
           {uiLang === "el" ? (
@@ -452,14 +502,14 @@ export default function InfluencerCampaignsPanel({
                     setMessageError(null);
                     setWorkLinksError(null);
                   }}
-                  className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm font-bold text-slate-900 hover:bg-slate-50"
+                  className="inline-flex min-h-11 items-center px-4 rounded-lg border border-slate-300 bg-white text-sm font-bold text-slate-900 hover:bg-slate-50"
                 >
                   {uiLang === "el" ? "Ακύρωση" : "Cancel"}
                 </button>
                 <button
                   type="submit"
                   disabled={submitting || !available}
-                  className="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium disabled:opacity-50"
+                  className="inline-flex min-h-11 items-center px-4 rounded-lg bg-slate-900 text-white text-sm font-medium disabled:opacity-50"
                 >
                   {uiLang === "el" ? "Υποβολή αίτησης" : "Submit application"}
                 </button>
@@ -474,7 +524,21 @@ export default function InfluencerCampaignsPanel({
           {uiLang === "el" ? "Ανοιχτές καμπάνιες" : "Open campaigns"}
         </h2>
         {loading ? (
-          <p className="text-slate-500 text-sm">{uiLang === "el" ? "Φόρτωση…" : "Loading…"}</p>
+          <div className="grid gap-4 md:grid-cols-2" aria-busy="true">
+            <div className="h-40 rounded-xl bg-slate-100 animate-pulse" />
+            <div className="h-40 rounded-xl bg-slate-100 animate-pulse" />
+          </div>
+        ) : loadError && campaigns.length === 0 ? (
+          <div className="rounded-xl border border-slate-200 bg-white p-6 text-center">
+            <p className="text-sm text-slate-600">{loadErrorText}</p>
+            <button
+              type="button"
+              onClick={() => void load()}
+              className="mt-4 inline-flex min-h-11 items-center justify-center px-5 rounded-xl bg-slate-900 text-white text-sm font-medium"
+            >
+              {uiLang === "el" ? "Δοκίμασε ξανά" : "Try again"}
+            </button>
+          </div>
         ) : campaigns.length === 0 ? (
           <p className="text-slate-500 text-sm border border-dashed border-slate-200 rounded-xl p-8 text-center">
             {uiLang === "el"
@@ -499,7 +563,7 @@ export default function InfluencerCampaignsPanel({
                         <button
                           type="button"
                           onClick={() => setApplyCampaign(c)}
-                          className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
+                          className="inline-flex min-h-11 items-center px-4 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
                         >
                           {uiLang === "el" ? "Αίτηση ενδιαφέροντος" : "Apply"}
                         </button>
@@ -551,7 +615,7 @@ export default function InfluencerCampaignsPanel({
                       </span>
                     </p>
                     <p className="text-xs text-slate-500 mt-1">
-                      {new Date(m.created_at).toLocaleString(uiLang === "el" ? "el-GR" : "en-GB")} ·{" "}
+                      {formatDate(m.created_at, uiLang)} {formatTime(m.created_at, uiLang)} ·{" "}
                       <span className="font-medium">
                         {(applicationStatusUi[uiLang] as Record<string, string>)[m.status] || m.status}
                       </span>
@@ -571,8 +635,8 @@ export default function InfluencerCampaignsPanel({
                   {m.status === "pending" && (
                     <button
                       type="button"
-                      onClick={() => withdraw(m.id)}
-                      className="text-sm text-red-600 hover:underline self-start sm:self-center"
+                      onClick={() => setWithdrawId(m.id)}
+                      className="inline-flex min-h-11 items-center text-sm font-medium text-red-600 hover:underline self-start sm:self-center"
                     >
                       {uiLang === "el" ? "Απόσυρση" : "Withdraw"}
                     </button>
@@ -611,7 +675,7 @@ export default function InfluencerCampaignsPanel({
                       type="button"
                       disabled={deliverSaving === m.id}
                       onClick={() => submitDeliverable(m.id)}
-                      className="text-sm px-3 py-1.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-50"
+                      className="inline-flex min-h-11 items-center text-sm px-4 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-50"
                     >
                       {deliverSaving === m.id
                         ? "…"

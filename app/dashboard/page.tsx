@@ -6,7 +6,9 @@ import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import DashboardContent from '@/components/DashboardContent';
 import { loadOwnProfiles } from '@/lib/ownProfile';
-import { logoutEverywhere, lookupAuthUser } from '@/lib/authSession'; 
+import { logoutEverywhere, lookupAuthUser } from '@/lib/authSession';
+import { getStoredLanguage } from '@/lib/language';
+import { isTimeoutError, withTimeout } from '@/lib/withTimeout'; 
 
 // [!!!] ΒΑΛΕ ΤΟ ADMIN EMAIL ΣΟΥ ΕΔΩ
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'nd.6@hotmail.com';
@@ -20,17 +22,22 @@ export default function DashboardPage() {
     const [loadError, setLoadError] = useState<string | null>(null);
     const [attempt, setAttempt] = useState(0);
     const [clearingOrphan, setClearingOrphan] = useState(false);
+    const [lang, setLang] = useState<'el' | 'en'>('el');
 
     useEffect(() => {
         let cancelled = false;
+        setLang(getStoredLanguage());
+        const uiLang = getStoredLanguage();
         async function checkAuthAndLoadProfile() {
             setLoading(true);
             setLoadError(null);
+            try {
+            await withTimeout((async () => {
             const auth = await lookupAuthUser(8000);
 
             if (!auth.user) {
                 if (auth.timedOut) {
-                    setLoadError("Η σύνδεση άργησε να απαντήσει. Δοκιμάστε ξανά.");
+                    setLoadError(uiLang === 'en' ? 'Sign-in took too long. Try again.' : 'Η σύνδεση άργησε να απαντήσει. Δοκίμασε ξανά.');
                     setLoading(false);
                     return;
                 }
@@ -67,6 +74,20 @@ export default function DashboardPage() {
 
             setProfileData(profiles.influencer);
             setLoading(false);
+            })(), 20000);
+            } catch (error) {
+                if (cancelled) return;
+                setLoadError(
+                    isTimeoutError(error)
+                        ? uiLang === 'en'
+                            ? 'This took too long. Try again.'
+                            : 'Η φόρτωση άργησε. Δοκίμασε ξανά.'
+                        : uiLang === 'en'
+                            ? 'The profile could not be loaded.'
+                            : 'Δεν φορτώθηκε το προφίλ.'
+                );
+                setLoading(false);
+            }
         }
         checkAuthAndLoadProfile();
         return () => {
@@ -94,19 +115,19 @@ export default function DashboardPage() {
     if (loadError) {
         return (
           <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center max-w-lg mx-auto">
-            <h1 className="text-2xl font-bold text-slate-900">Δεν φορτώθηκε το προφίλ</h1>
+            <h1 className="text-2xl font-bold text-slate-900">{lang === 'en' ? 'Profile could not be loaded' : 'Δεν φορτώθηκε το προφίλ'}</h1>
             <p className="text-slate-600 mt-3">{loadError}</p>
             <p className="text-slate-500 mt-2 text-sm">
-              Ο λογαριασμός δεν διαγράφεται από αυτή την οθόνη.
+              {lang === 'en' ? 'This screen does not delete the account.' : 'Ο λογαριασμός δεν διαγράφεται από αυτή την οθόνη.'}
             </p>
             <button
               type="button"
               onClick={() => setAttempt((n) => n + 1)}
-              className="mt-6 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700"
+              className="mt-6 inline-flex min-h-11 items-center px-5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700"
             >
-              Δοκιμάστε ξανά
+              {lang === 'en' ? 'Try again' : 'Δοκίμασε ξανά'}
             </button>
-            <button type="button" onClick={() => logoutEverywhere("/login")} className="mt-4 text-red-500 hover:underline text-sm">Αποσύνδεση</button>
+            <button type="button" onClick={() => logoutEverywhere("/login")} className="mt-4 inline-flex min-h-11 items-center text-red-500 hover:underline text-sm">{lang === 'en' ? 'Log out' : 'Αποσύνδεση'}</button>
           </div>
         );
     }
@@ -115,20 +136,21 @@ export default function DashboardPage() {
         if (!loading && !profileData) {
              return (
                <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center max-w-lg mx-auto">
-                 <h1 className="text-2xl font-bold text-slate-900">Profile Not Found</h1>
+                 <h1 className="text-2xl font-bold text-slate-900">{lang === 'en' ? 'Profile was not found' : 'Δεν βρέθηκε προφίλ'}</h1>
                  <p className="text-slate-600 mt-3">
-                   Ο λογαριασμός σου υπάρχει στη σύνδεση, αλλά το προφίλ influencer δεν ολοκληρώθηκε
-                   (π.χ. διακοπή κατά την εγγραφή). Μπορείς να καθαρίσεις τον λογαριασμό και να ξανακάνεις εγγραφή.
+                   {lang === 'en'
+                     ? 'Your sign-in exists, but the creator profile was not finished (for example the signup was interrupted). You can clear the account and sign up again.'
+                     : 'Ο λογαριασμός σου υπάρχει στη σύνδεση, αλλά το προφίλ δημιουργού δεν ολοκληρώθηκε (π.χ. διακοπή κατά την εγγραφή). Μπορείς να καθαρίσεις τον λογαριασμό και να ξανακάνεις εγγραφή.'}
                  </p>
                  <button
                    type="button"
                    onClick={clearOrphanAndSignup}
                    disabled={clearingOrphan}
-                   className="mt-6 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 disabled:opacity-50"
+                   className="mt-6 inline-flex min-h-11 items-center px-5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 disabled:opacity-50"
                  >
-                   {clearingOrphan ? '…' : 'Καθαρισμός & νέα εγγραφή'}
+                   {clearingOrphan ? '…' : lang === 'en' ? 'Clear and sign up again' : 'Καθαρισμός και νέα εγγραφή'}
                  </button>
-                 <button type="button" onClick={() => logoutEverywhere("/login")} className="mt-4 text-red-500 hover:underline text-sm">Sign Out</button>
+                 <button type="button" onClick={() => logoutEverywhere("/login")} className="mt-4 inline-flex min-h-11 items-center text-red-500 hover:underline text-sm">{lang === 'en' ? 'Log out' : 'Αποσύνδεση'}</button>
                </div>
              );
         }
@@ -138,14 +160,20 @@ export default function DashboardPage() {
                     <div className="h-10 w-56 bg-slate-200 rounded animate-pulse" />
                     <div className="h-40 bg-white border border-slate-200 rounded-xl animate-pulse" />
                     <div className="h-64 bg-white border border-slate-200 rounded-xl animate-pulse" />
-                    <p className="text-sm text-slate-600">Φόρτωση...</p>
                 </div>
             </div>
         );
     }
     
     return (
-        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-600">Loading…</div>}>
+        <Suspense fallback={
+            <div className="min-h-screen bg-slate-50">
+                <div className="max-w-5xl mx-auto px-4 py-8 space-y-4">
+                    <div className="h-10 w-56 bg-slate-200 rounded animate-pulse" />
+                    <div className="h-40 bg-white border border-slate-200 rounded-xl animate-pulse" />
+                </div>
+            </div>
+        }>
             <DashboardContent profile={profileData} />
         </Suspense>
     );
