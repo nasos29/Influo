@@ -496,7 +496,8 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
 
             const nextHidden = syncHiddenVideosWithVideos(
                 preparedVideos.videos,
-                user.hidden_videos
+                user.hidden_videos,
+                user.accounts
             );
 
             if (creatorPricesHaveInvalid(servicePrices, accounts)) {

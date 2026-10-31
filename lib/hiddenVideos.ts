@@ -51,16 +51,55 @@ export function visibleVideos(
   return list.filter((u) => !hidden.has(normalizeVideoUrlKey(u)));
 }
 
-/** Keep hidden entries that still exist in `videos`; drop orphaned ones. */
+function topPostUrlKeys(accounts: unknown): string[] {
+  if (!Array.isArray(accounts)) return [];
+  const keys: string[] = [];
+  for (const account of accounts) {
+    if (!account || typeof account !== "object") continue;
+    const posts = (account as { top_posts?: unknown }).top_posts;
+    if (!Array.isArray(posts)) continue;
+    for (const post of posts) {
+      if (!post || typeof post !== "object") continue;
+      const url = (post as { url?: unknown }).url;
+      if (typeof url !== "string" || !url.trim()) continue;
+      const key = normalizeVideoUrlKey(url);
+      if (key) keys.push(key);
+    }
+  }
+  return keys;
+}
+
+/** Public top posts: drop URLs hidden by the same unplayable check as portfolio. */
+export function accountsWithoutHiddenTopPosts(accounts: unknown, hiddenRaw: unknown): unknown {
+  if (!Array.isArray(accounts)) return accounts;
+  const hidden = hiddenVideoKeySet(parseHiddenVideos(hiddenRaw));
+  if (!hidden.size) return accounts;
+  return accounts.map((account) => {
+    if (!account || typeof account !== "object") return account;
+    const posts = (account as { top_posts?: unknown }).top_posts;
+    if (!Array.isArray(posts)) return account;
+    const top_posts = posts.filter((post) => {
+      if (!post || typeof post !== "object") return true;
+      const url = (post as { url?: unknown }).url;
+      if (typeof url !== "string") return true;
+      return !hidden.has(normalizeVideoUrlKey(url));
+    });
+    return { ...(account as Record<string, unknown>), top_posts };
+  });
+}
+
+/** Keep hidden entries that still exist in portfolio videos or top posts. */
 export function syncHiddenVideosWithVideos(
   videos: unknown,
-  hiddenRaw: unknown
+  hiddenRaw: unknown,
+  accounts?: unknown
 ): HiddenVideoEntry[] {
   const keys = new Set(
     (Array.isArray(videos) ? videos : [])
       .filter((u): u is string => typeof u === "string" && !!u.trim())
       .map(normalizeVideoUrlKey)
   );
+  for (const key of topPostUrlKeys(accounts)) keys.add(key);
   return parseHiddenVideos(hiddenRaw).filter((h) => keys.has(normalizeVideoUrlKey(h.url)));
 }
 

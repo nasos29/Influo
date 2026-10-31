@@ -75,6 +75,44 @@ function asUrlList(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
 }
 
+/** Video URLs stored on account top_posts. Same hosts the portfolio checker already understands. */
+function topPostUrls(accounts: unknown): string[] {
+  if (!Array.isArray(accounts)) return [];
+  const urls: string[] = [];
+  for (const account of accounts) {
+    if (!account || typeof account !== "object") continue;
+    const posts = (account as { top_posts?: unknown }).top_posts;
+    if (!Array.isArray(posts)) continue;
+    for (const post of posts) {
+      if (!post || typeof post !== "object") continue;
+      const url = (post as { url?: unknown }).url;
+      if (typeof url === "string" && url.trim()) urls.push(url.trim());
+    }
+  }
+  return urls;
+}
+
+function withoutTopPost(accounts: unknown, url: string): { accounts: unknown; changed: boolean } {
+  if (!Array.isArray(accounts)) return { accounts, changed: false };
+  const key = normalizeVideoUrlKey(url);
+  let changed = false;
+  const next = accounts.map((account) => {
+    if (!account || typeof account !== "object") return account;
+    const posts = (account as { top_posts?: unknown }).top_posts;
+    if (!Array.isArray(posts)) return account;
+    const top_posts = posts.filter((post) => {
+      if (!post || typeof post !== "object") return true;
+      const postUrl = (post as { url?: unknown }).url;
+      if (typeof postUrl !== "string" || normalizeVideoUrlKey(postUrl) !== key) return true;
+      changed = true;
+      return false;
+    });
+    if (top_posts.length === posts.length) return account;
+    return { ...(account as Record<string, unknown>), top_posts };
+  });
+  return { accounts: next, changed };
+}
+
 function missingTable(error: { message?: string; code?: string } | null): boolean {
   if (!error) return false;
   if (error.code === "42P01" || error.code === "PGRST205") return true;
@@ -355,15 +393,15 @@ async function loadCheckableLinks(admin: SupabaseClient): Promise<Item[]> {
   for (let from = 0; ; from += pageSize) {
     const { data, error } = await admin
       .from("influencers")
-      .select("id, display_name, videos")
-      .not("videos", "is", null)
+      .select("id, display_name, videos, accounts")
       .order("id", { ascending: true })
       .range(from, from + pageSize - 1);
     if (error) throw new Error(error.message);
     const rows = data ?? [];
     for (const row of rows) {
       const seen = new Set<string>();
-      for (const url of asUrlList(row.videos)) {
+      const urls = [...asUrlList(row.videos), ...topPostUrls(row.accounts)];
+      for (const url of urls) {
         const key = normalizeVideoUrlKey(url);
         if (!key || seen.has(key) || !classifyVideoUrl(url)) continue;
         seen.add(key);
@@ -509,16 +547,20 @@ async function removeLink(
 ): Promise<boolean> {
   const { data, error } = await admin
     .from("influencers")
-    .select("videos, video_thumbnails")
+    .select("videos, video_thumbnails, accounts")
     .eq("id", item.influencerId)
     .maybeSingle();
   if (error || !data) return false;
 
   const videos = Array.isArray(data.videos) ? data.videos : [];
-  if (!videos.includes(item.url)) return false;
+  const inPortfolio = videos.includes(item.url);
+  const stripped = withoutTopPost(data.accounts, item.url);
+  if (!inPortfolio && !stripped.changed) return false;
   const nextVideos = videos.filter((url) => url !== item.url);
 
-  const patch: Record<string, unknown> = { videos: nextVideos };
+  const patch: Record<string, unknown> = {};
+  if (inPortfolio) patch.videos = nextVideos;
+  if (stripped.changed) patch.accounts = stripped.accounts;
   const thumbs = data.video_thumbnails;
   if (thumbs && typeof thumbs === "object" && !Array.isArray(thumbs) && item.url in thumbs) {
     const nextThumbs = { ...(thumbs as Record<string, unknown>) };
@@ -555,8 +597,10 @@ async function removeLink(
     await admin
       .from("influencers")
       .update({
-        videos: data.videos,
-        video_thumbnails: data.video_thumbnails,
+        ...(inPortfolio
+          ? { videos: data.videos, video_thumbnails: data.video_thumbnails }
+          : {}),
+        ...(stripped.changed ? { accounts: data.accounts } : {}),
         ...(patch.hidden_videos !== undefined
           ? { hidden_videos: hiddenRow.data?.hidden_videos ?? null }
           : {}),
