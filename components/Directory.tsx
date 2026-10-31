@@ -980,7 +980,7 @@ export default function Directory({
             showAdvanced ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
           }`}
         >
-          <div className="overflow-hidden min-h-0">
+          <div className="overflow-hidden min-h-0" aria-hidden={!showAdvanced} inert={!showAdvanced || undefined}>
             <div className="rounded-2xl border border-slate-200 bg-white p-5">
               <div className="grid grid-cols-2 gap-x-3 gap-y-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4">
                 <div>
