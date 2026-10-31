@@ -164,14 +164,14 @@ export default function ProfileHireCard({
               type="button"
               onClick={onMessage}
               aria-label={messageLabel}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-900"
+              className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-900 disabled:cursor-not-allowed"
             >
               <MessageCircle className="h-5 w-5" aria-hidden />
             </button>
             <button
               type="button"
               onClick={collaborate}
-              className="inline-flex h-11 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-4 text-sm font-bold text-white"
+              className="inline-flex h-11 cursor-pointer items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-4 text-sm font-bold text-white disabled:cursor-not-allowed"
             >
               {collaborateLabel}
             </button>
@@ -215,21 +215,21 @@ export default function ProfileHireCard({
         <button
           type="button"
           onClick={collaborate}
-          className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-sm font-bold text-white hover:from-blue-700 hover:to-purple-700"
+          className="mt-3 inline-flex min-h-12 w-full cursor-pointer items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-sm font-bold text-white hover:from-blue-700 hover:to-purple-700 disabled:cursor-not-allowed"
         >
           {collaborateLabel}
         </button>
         <button
           type="button"
           onClick={onMessage}
-          className="mt-2 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-900 hover:bg-slate-50"
+          className="mt-2 inline-flex min-h-11 w-full cursor-pointer items-center justify-center rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:cursor-not-allowed"
         >
           {messageLabel}
         </button>
         <button
           type="button"
           onClick={openNegotiate}
-          className="mt-2.5 block w-full text-center text-[13px] text-slate-500 underline underline-offset-[3px]"
+          className="mt-2.5 block w-full cursor-pointer text-center text-[13px] text-slate-500 underline underline-offset-[3px] disabled:cursor-not-allowed"
         >
           {copy.negotiate}
         </button>

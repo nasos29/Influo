@@ -605,7 +605,7 @@ export default function ProfileOffersPanel({
         <button
           type="button"
           onClick={openNegotiate}
-          className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3 text-left transition-colors hover:border-slate-800 sm:px-4"
+          className="flex w-full cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3 text-left transition-colors hover:border-slate-800 disabled:cursor-not-allowed sm:px-4"
         >
           <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-xl text-slate-500">
             +
