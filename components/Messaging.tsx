@@ -11,6 +11,7 @@ import {
   clipChatPreview,
   chatInitial,
 } from '@/lib/chatTime';
+import { formatTime } from '@/lib/formatDateTime';
 import { formatActiveLabel, presenceOnline } from '@/lib/presenceStatus';
 import { counterpartyBrandPresence } from '@/lib/presenceIdentity';
 import { getInfluencerPresenceCached } from '@/lib/presenceCache';
@@ -75,6 +76,8 @@ interface MessagingProps {
   lang?: 'el' | 'en';
   onUnreadCountChange?: (count: number) => void;
   initialConversationId?: string | null;
+  emptyCta?: { label: string; onClick: () => void } | null;
+  onLeaveThread?: () => void;
 }
 
 const t = {
@@ -194,6 +197,8 @@ export default function Messaging({
   lang = 'el',
   onUnreadCountChange,
   initialConversationId = null,
+  emptyCta = null,
+  onLeaveThread,
 }: MessagingProps) {
   const txt = t[lang];
   
@@ -204,6 +209,8 @@ export default function Messaging({
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [pinnedToBottom, setPinnedToBottom] = useState(true);
   const [sending, setSending] = useState(false);
   const [isInfluencerOnline, setIsInfluencerOnline] = useState(false);
   const [isBrandOnline, setIsBrandOnline] = useState(false);
@@ -297,9 +304,20 @@ export default function Messaging({
   // re-trigger the loading gate. The timer is a safety net so the list can
   // never stay on "Loading…" if a request hangs.
   useEffect(() => {
-    const safety = window.setTimeout(() => setLoading(false), 20000);
-    void loadConversations().finally(() => window.clearTimeout(safety));
-    return () => window.clearTimeout(safety);
+    let finished = false;
+    const safety = window.setTimeout(() => {
+      if (finished) return;
+      setLoading(false);
+      setLoadError(lang === 'el' ? 'Η φόρτωση άργησε.' : 'Loading took too long.');
+    }, 20000);
+    void loadConversations().finally(() => {
+      finished = true;
+      window.clearTimeout(safety);
+    });
+    return () => {
+      finished = true;
+      window.clearTimeout(safety);
+    };
   }, [mode]);
 
   // Auto-select conversation when proposalId and brandEmail are provided
@@ -1035,7 +1053,10 @@ export default function Messaging({
   }, [selectedConversation, conversationClosed]);
 
   const loadConversations = async (silent = false) => {
-    if (!silent) setLoading(true);
+    if (!silent) {
+      setLoading(true);
+      setLoadError(null);
+    }
     try {
       let query = supabase
         .from('conversations')
@@ -1061,6 +1082,7 @@ export default function Messaging({
 
       const rows = (data || []) as Conversation[];
       const enriched = await enrichConversationRows(rows);
+      setLoadError(null);
       setConversations(enriched);
 
       if (silent) return;
@@ -1072,7 +1094,7 @@ export default function Messaging({
         if (mode === 'brand' && influencerId) {
           const match = enriched.find((c) => c.influencer_id === influencerId);
           if (match) setSelectedConversation(match.id);
-        } else if (typeof window !== 'undefined' && window.matchMedia('(min-width: 640px)').matches) {
+        } else if (typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches) {
           setSelectedConversation(enriched[0].id);
           if (mode === 'influencer' && enriched[0]?.brand_email) {
             setTimeout(() => checkBrandStatus(enriched[0].brand_email), 200);
@@ -1088,6 +1110,9 @@ export default function Messaging({
       }
     } catch (error) {
       console.error('Error loading conversations:', error);
+      if (!silent) {
+        setLoadError(lang === 'el' ? 'Τα μηνύματα δεν φορτώθηκαν.' : 'Messages could not be loaded.');
+      }
     } finally {
       if (!silent) setLoading(false);
     }
@@ -1410,6 +1435,7 @@ export default function Messaging({
     if (!el) return;
     const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
     stickToBottomRef.current = nearBottom;
+    setPinnedToBottom(nearBottom);
     if (nearBottom) setUnseenBelow(0);
   };
 
@@ -1677,14 +1703,36 @@ export default function Messaging({
 
       <div className="flex flex-1 overflow-hidden min-h-0">
         <div
-          className={`w-full sm:w-72 border-r border-slate-200 overflow-y-auto bg-slate-50 flex-shrink-0 ${
+          className={`w-full md:w-72 border-r border-slate-200 overflow-y-auto bg-slate-50 flex-shrink-0 ${
             showMobileList ? 'flex flex-col' : 'hidden'
-          } sm:flex sm:flex-col`}
+          } md:flex md:flex-col`}
         >
-          {loading && conversations.length === 0 ? (
+          {loadError && conversations.length === 0 ? (
+            <div className="p-6 text-center text-sm text-slate-600">
+              <p>{loadError}</p>
+              <button
+                type="button"
+                onClick={() => void loadConversations()}
+                className="mt-3 inline-flex min-h-11 items-center px-4 rounded-lg bg-slate-900 text-white text-sm font-medium"
+              >
+                {lang === 'el' ? 'Δοκίμασε ξανά' : 'Try again'}
+              </button>
+            </div>
+          ) : loading && conversations.length === 0 ? (
             <div className="p-4 text-center text-sm text-slate-500">{txt.loading}</div>
           ) : conversations.length === 0 ? (
-            <div className="p-6 text-center text-sm text-slate-500">{txt.noConversations}</div>
+            <div className="p-6 text-center text-sm text-slate-500">
+              <p>{txt.noConversations}</p>
+              {emptyCta ? (
+                <button
+                  type="button"
+                  onClick={emptyCta.onClick}
+                  className="mt-4 inline-flex min-h-11 items-center px-4 rounded-lg bg-slate-900 text-white text-sm font-medium"
+                >
+                  {emptyCta.label}
+                </button>
+              ) : null}
+            </div>
           ) : (
             conversations.map((conv) => {
               const isClosed = !!conv.closed_at;
@@ -1739,7 +1787,7 @@ export default function Messaging({
 
         <div
           className={`flex-1 flex flex-col min-w-0 min-h-0 ${
-            showThreadPane ? 'flex' : 'hidden sm:flex'
+            showThreadPane ? 'flex' : 'hidden md:flex'
           }`}
         >
           {selectedConversation ? (
@@ -1753,7 +1801,7 @@ export default function Messaging({
                       setShowActionsMenu(false);
                       setShowEndConfirm(false);
                     }}
-                    className="sm:hidden shrink-0 px-2 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded-lg"
+                    className="md:hidden shrink-0 inline-flex min-h-11 items-center px-3 text-sm text-slate-600 hover:bg-slate-100 rounded-lg"
                   >
                     ← {txt.back}
                   </button>
@@ -1982,10 +2030,7 @@ export default function Messaging({
                             }`}
                           >
                             <span className="text-[10px] tabular-nums">
-                              {new Date(msg.created_at).toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
+                              {formatTime(msg.created_at, lang)}
                             </span>
                             {isOwn && (
                               <span className="text-[10px]">
@@ -2003,17 +2048,21 @@ export default function Messaging({
                   );
                 })}
                 <div ref={messagesEndRef} />
-                {unseenBelow > 0 && (
+                {(!pinnedToBottom || unseenBelow > 0) && (
                   <button
                     type="button"
+                    aria-label={lang === 'el' ? 'Μετάβαση στα τελευταία' : 'Jump to latest'}
                     onClick={() => {
                       stickToBottomRef.current = true;
+                      setPinnedToBottom(true);
                       setUnseenBelow(0);
                       scrollToBottom(true);
                     }}
-                    className="sticky bottom-2 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-blue-600 text-white text-xs font-medium shadow"
+                    className="sticky bottom-2 left-1/2 -translate-x-1/2 inline-flex min-h-11 items-center px-4 rounded-full bg-blue-600 text-white text-xs font-medium shadow"
                   >
-                    {unseenBelow} {txt.newMessages}
+                    {unseenBelow > 0
+                      ? `${unseenBelow} ${txt.newMessages}`
+                      : (lang === 'el' ? 'Τελευταία' : 'Latest')}
                   </button>
                 )}
               </div>
@@ -2091,9 +2140,18 @@ export default function Messaging({
               {isComposingNew && influencerName && (
                 <div className="px-4 py-3 border-b border-slate-200 bg-white shrink-0">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <h3 className="text-sm font-semibold text-slate-900">
+                    <div className="flex items-center gap-1 min-w-0">
+                    <button
+                      type="button"
+                      onClick={() => onLeaveThread?.()}
+                      className="md:hidden inline-flex min-h-11 items-center px-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg"
+                    >
+                      ← {txt.back}
+                    </button>
+                    <h3 className="text-sm font-semibold text-slate-900 truncate">
                       {displayNameForLang(influencerName || 'Influencer', lang || 'el')}
                     </h3>
+                    </div>
                     <div className="flex items-center gap-1.5">
                       <div
                         className={`w-1.5 h-1.5 rounded-full shrink-0 ${

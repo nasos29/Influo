@@ -10,7 +10,11 @@ import FastImage from "@/components/FastImage";
 type Props = {
   lang: "el" | "en";
   items: BrandShortlistItem[];
+  loading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
   missingTable?: boolean;
+  onBrowse?: () => void;
   onNoteSave: (influencerId: string, note: string) => Promise<void>;
   onRemove: (influencerId: string) => Promise<void>;
   onMessage: (influencerId: string, displayName: string) => void;
@@ -19,7 +23,11 @@ type Props = {
 export default function BrandShortlistPanel({
   lang,
   items,
+  loading,
+  error,
+  onRetry,
   missingTable,
+  onBrowse,
   onNoteSave,
   onRemove,
   onMessage,
@@ -39,9 +47,26 @@ export default function BrandShortlistPanel({
     );
   }
 
-  if (!items.length) {
+  if (loading && !items.length) {
+    return <div className="h-32 rounded-xl bg-slate-100 animate-pulse" />;
+  }
+
+  if (error && !items.length) {
     return (
       <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
+        <p className="text-sm text-slate-600">{error}</p>
+        {onRetry ? (
+          <button type="button" onClick={onRetry} className="mt-4 inline-flex min-h-11 items-center px-5 rounded-xl bg-slate-900 text-white text-sm font-semibold">
+            {el ? "Δοκίμασε ξανά" : "Try again"}
+          </button>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (!items.length) {
+    return (
+      <div className="bg-white rounded-xl border border-dashed border-slate-200 p-8 text-center">
         <h2 className="text-lg font-semibold text-slate-900 mb-2">
           {el ? "Οι influencers μου" : "My influencers"}
         </h2>
@@ -50,6 +75,11 @@ export default function BrandShortlistPanel({
             ? "Δεν έχετε αποθηκεύσει κάποιον ακόμα. Από τις προτάσεις ή ένα προφίλ πατήστε Αποθήκευση και προσθέστε σημείωση εδώ."
             : "You have not saved anyone yet. From recommendations or a profile, tap Save and add a note here."}
         </p>
+        {onBrowse ? (
+          <button type="button" onClick={onBrowse} className="mt-4 inline-flex min-h-11 items-center px-5 rounded-xl bg-slate-900 text-white text-sm font-semibold">
+            {el ? "Δες προτάσεις" : "See recommendations"}
+          </button>
+        ) : null}
       </div>
     );
   }
