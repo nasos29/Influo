@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { buildAppInstallUrl, resolvePublicBaseUrl } from "@/lib/pwaAppUrl";
+import { SECTION_TITLE_CLASS } from "@/lib/sectionTitle";
 
 type Lang = "el" | "en";
 
@@ -162,11 +163,11 @@ export default function InfluoAppPromoSection({ lang }: { lang: Lang }) {
           <div className="order-1 w-full text-center md:order-2 md:max-w-md md:text-left lg:max-w-lg">
             <h2
               id="influo-app-heading"
-              className="text-2xl font-bold tracking-tight text-white sm:text-3xl"
+              className={`${SECTION_TITLE_CLASS} mb-3 !text-white`}
             >
               {t.headline}
             </h2>
-            <p className="mt-2 text-sm text-indigo-100/90 sm:text-base">{t.sub}</p>
+            <p className="text-sm text-indigo-100/90 sm:text-base">{t.sub}</p>
 
             <ul className="mt-5 inline-flex flex-col items-start gap-2 text-left text-sm text-indigo-50/95">
               {t.bullets.map((item) => (

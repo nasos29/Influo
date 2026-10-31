@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, type ReactNode } from "react";
+import { SECTION_TITLE_CLASS } from "@/lib/sectionTitle";
 
 const SCROLLBAR_HIDE =
   "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
@@ -28,7 +29,7 @@ export default function InfluencerCardCarousel({
   children,
   footer,
   className = "",
-  titleClassName = "min-w-0 flex-1 text-lg font-bold text-slate-900 break-words sm:text-xl md:text-2xl",
+  titleClassName = SECTION_TITLE_CLASS,
 }: {
   lang: Lang;
   title: ReactNode;
@@ -52,11 +53,13 @@ export default function InfluencerCardCarousel({
 
   return (
     <div className={className}>
-      <div className="mb-4 flex items-start justify-between gap-3">
+      <div className="mb-4 flex items-end justify-between gap-3">
         <div className="min-w-0 flex-1">
-          {eyebrow ? <div className="mb-2">{eyebrow}</div> : null}
-          <div className={titleClassName}>{title}</div>
-          {subtitle ? <div className="mt-2 text-slate-600 text-sm sm:text-base">{subtitle}</div> : null}
+          {eyebrow ? <div className="mb-3">{eyebrow}</div> : null}
+          <h2 className={`${titleClassName}${subtitle ? " mb-3" : ""}`}>{title}</h2>
+          {subtitle ? (
+            <div className="text-slate-600 text-sm sm:text-base">{subtitle}</div>
+          ) : null}
         </div>
         {!loading ? (
           <div className="hidden shrink-0 items-center gap-2 md:flex">

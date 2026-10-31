@@ -20,6 +20,7 @@ import { normalizeNameCase } from "@/lib/greeklish";
 import type { HomeTrustStats } from "@/lib/loadHomeTrustStats";
 import { toPublicHttpsHref } from "@/lib/brandProfile";
 import { shuffle } from "@/lib/similarInfluencers";
+import { SECTION_TITLE_CLASS } from "@/lib/sectionTitle";
 
 type Lang = "el" | "en";
 
@@ -749,13 +750,15 @@ export default function Home({
           </div>
           <div className="relative max-w-7xl mx-auto">
             <div className="text-center mb-12 max-w-2xl mx-auto">
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase bg-blue-50 text-blue-700 border border-blue-100">
-                {txt.open_campaigns_eyebrow}
-              </span>
-              <h2 className="mt-4 text-3xl md:text-4xl font-bold text-slate-900 tracking-tight">
+              <div className="mb-3">
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase bg-blue-50 text-blue-700 border border-blue-100">
+                  {txt.open_campaigns_eyebrow}
+                </span>
+              </div>
+              <h2 className={`${SECTION_TITLE_CLASS} mb-3`}>
                 {txt.open_campaigns_title}
               </h2>
-              <p className="mt-3 text-base md:text-lg text-slate-600">
+              <p className="text-base md:text-lg text-slate-600">
                 {txt.open_campaigns_subtitle}
               </p>
             </div>
@@ -798,7 +801,7 @@ export default function Home({
         />
         <div className="relative max-w-7xl mx-auto">
           <div className="text-center mb-12">
-            <h3 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">{txt.dir_title}</h3>
+            <h3 className={`${SECTION_TITLE_CLASS} mb-3`}>{txt.dir_title}</h3>
             <p className="text-slate-600 max-w-2xl mx-auto">{txt.dir_desc}</p>
           </div>
           <Suspense fallback={<div className="h-40 rounded-2xl bg-slate-50 animate-pulse" aria-hidden />}>
@@ -819,7 +822,7 @@ export default function Home({
         <section className="relative py-20 px-6 bg-slate-50 border-y border-slate-100" id="brands">
           <div className="max-w-6xl mx-auto relative">
             <div className="text-center mb-14">
-              <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4 tracking-tight">{txt.brand_section_title}</h2>
+              <h2 className={`${SECTION_TITLE_CLASS} mb-3`}>{txt.brand_section_title}</h2>
               <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-8 leading-relaxed">{txt.brand_section_desc}</p>
               <button
                 type="button"
@@ -912,7 +915,7 @@ export default function Home({
       <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-12">
-            <h3 className="text-2xl md:text-3xl font-semibold text-slate-900 mb-2">
+            <h3 className={`${SECTION_TITLE_CLASS} mb-3`}>
               {lang === "el" ? "Συνεργάζονται μαζί μας" : "Trusted by"}
             </h3>
             <p className="text-slate-500 text-sm md:text-base">

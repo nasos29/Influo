@@ -1,5 +1,7 @@
 "use client";
 
+import { SECTION_TITLE_CLASS } from "@/lib/sectionTitle";
+
 type Lang = "el" | "en";
 
 const copy = {
@@ -77,11 +79,11 @@ export default function HomeHowItWorks({ lang }: { lang: Lang }) {
         <div className="text-center mb-10 md:mb-14 max-w-2xl mx-auto">
           <h2
             id="how-it-works-heading"
-            className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight"
+            className={`${SECTION_TITLE_CLASS} mb-3`}
           >
             {txt.title}
           </h2>
-          <p className="mt-3 text-base md:text-lg text-slate-600">{txt.subtitle}</p>
+          <p className="text-base md:text-lg text-slate-600">{txt.subtitle}</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10">

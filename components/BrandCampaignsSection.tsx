@@ -15,6 +15,7 @@ import { mergeApplicantProfile } from "@/lib/applicantProfile";
 import { findContactInfo, filterWorkLinks } from "@/lib/contactFilter";
 import CampaignCard from "@/components/CampaignCard";
 import { displayNameForLang } from "@/lib/greeklish";
+import { SECTION_TITLE_CLASS } from "@/lib/sectionTitle";
 
 const CONTACT_BLOCKED: { el: string; en: string } = {
   el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
@@ -731,7 +732,7 @@ export default function BrandCampaignsSection({
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-xl font-semibold text-slate-900">{t.title}</h2>
+            <h2 className={SECTION_TITLE_CLASS}>{t.title}</h2>
             <span className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-700">
               <span className="text-slate-500">·</span>
               {t.applications_heading}
