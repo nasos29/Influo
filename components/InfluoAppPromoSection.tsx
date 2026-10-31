@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { buildAppInstallUrl, resolvePublicBaseUrl } from "@/lib/pwaAppUrl";
 import { SECTION_TITLE_CLASS } from "@/lib/sectionTitle";
+import InfluoLogo from "@/components/InfluoLogo";
 
 type Lang = "el" | "en";
 
@@ -68,8 +69,7 @@ function InfluoPhoneMockup({ lang, className }: { lang: Lang; className?: string
       <div className="relative flex h-full flex-col overflow-hidden rounded-[2rem] bg-gradient-to-b from-slate-50 to-white">
         {/* Mini header */}
         <div className="flex items-center gap-2 border-b border-slate-100 px-3 pb-2.5 pt-8">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.svg" alt="" className="h-5 w-auto" />
+          <InfluoLogo className="h-5 w-auto" title="" />
           <span className="text-[10px] font-semibold tracking-wide text-slate-500">Influo</span>
         </div>
 

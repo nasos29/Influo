@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import InfluoLogo from '@/components/InfluoLogo';
 import { getStoredLanguage } from '@/lib/language';
 import { prepareImageForStorage } from '@/lib/prepareImageForStorage';
 import { formatCategoryLabels, formatStoredCategories } from '@/lib/categories';
@@ -389,7 +390,7 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
         <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-pink-600/20" />
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 pr-10">
           <div className="flex items-center justify-start">
-            <Image src="/logo.svg" alt="Influo.gr Logo" width={140} height={56} className="h-8 sm:h-10 w-auto" />
+            <InfluoLogo className="h-8 sm:h-10 w-auto" title="Influo" />
           </div>
           <div className="text-left sm:flex-1 sm:text-center">
             <h3 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 sm:mb-2 leading-tight">{txt.headerTitle}</h3>

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { sessionFetch } from "@/lib/sessionFetch";
 import Image from "next/image";
+import InfluoLogo from "@/components/InfluoLogo";
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 import {
   FACEBOOK_VIDEO_LINK_ERROR,
@@ -945,13 +946,7 @@ export default function InfluencerSignupForm() {
         <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-pink-600/20"></div>
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 pr-10">
           <div className="flex items-center">
-            <Image 
-              src="/logo.svg" 
-              alt="Influo.gr Logo" 
-              width={140} 
-              height={56} 
-              className="h-8 sm:h-10 w-auto"
-            />
+            <InfluoLogo className="h-8 sm:h-10 w-auto" title="Influo" />
           </div>
           <div className="text-left sm:text-center sm:flex-1">
               <h3 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 sm:mb-2 leading-tight">{txt.headerTitle}</h3>

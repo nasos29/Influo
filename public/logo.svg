@@ -1,23 +1,15 @@
-<svg width="180" height="50" viewBox="0 0 180 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="104" height="36" viewBox="0 0 104 36" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="logoTextGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
-      <stop offset="50%" style="stop-color:#8b5cf6;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#ec4899;stop-opacity:1" />
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="50%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#ec4899"/>
     </linearGradient>
   </defs>
-  
-  <!-- Minimal icon: stylized connection dots -->
-  <circle cx="8" cy="25" r="4" fill="url(#logoTextGradient)"/>
-  <circle cx="20" cy="25" r="4" fill="url(#logoTextGradient)" opacity="0.7"/>
-  <circle cx="32" cy="25" r="4" fill="url(#logoTextGradient)" opacity="0.5"/>
-  
-  <!-- Connection lines -->
-  <line x1="12" y1="25" x2="16" y2="25" stroke="url(#logoTextGradient)" stroke-width="2" opacity="0.5"/>
-  <line x1="24" y1="25" x2="28" y2="25" stroke="url(#logoTextGradient)" stroke-width="2" opacity="0.5"/>
-  
-  <!-- Text: INFLUO -->
-  <text x="42" y="32" font-family="Arial, sans-serif" font-size="28" font-weight="800" letter-spacing="-0.5" fill="url(#logoTextGradient)">
-    INFLUO
-  </text>
+  <circle cx="4" cy="18" r="3" fill="url(#logoTextGradient)"/>
+  <rect x="7.15" y="17.15" width="3.7" height="1.7" rx="0.85" fill="url(#logoTextGradient)" opacity="0.55"/>
+  <circle cx="14" cy="18" r="3" fill="url(#logoTextGradient)" opacity="0.7"/>
+  <rect x="17.15" y="17.15" width="3.7" height="1.7" rx="0.85" fill="url(#logoTextGradient)" opacity="0.55"/>
+  <circle cx="24" cy="18" r="3" fill="url(#logoTextGradient)" opacity="0.5"/>
+  <text x="34" y="18.5" fill="url(#logoTextGradient)" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700" letter-spacing="-0.4" dominant-baseline="central">INFLUO</text>
 </svg>

@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useRef, Suspense } from 'react';
-import Image from 'next/image';
+import InfluoLogo from '@/components/InfluoLogo';
 import { supabase } from '@/lib/supabaseClient';
 import { loadOwnProfiles } from '@/lib/ownProfile'; 
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -302,14 +302,7 @@ function LoginPageContent() {
                 
                 {/* Logo/Brand */}
                 <div className="flex items-center justify-center mb-8">
-                    <Image 
-                      src="/logo.svg" 
-                      alt="Influo.gr Logo" 
-                      width={180} 
-                      height={72} 
-                      className="h-14 w-auto"
-                      priority
-                    />
+                    <InfluoLogo className="h-14 w-auto" title="Influo" />
                 </div>
                 
                 <h2 className="text-3xl font-bold mb-2 text-slate-900 text-center">{txt.title}</h2>

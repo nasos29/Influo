@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { sessionFetch } from '@/lib/sessionFetch';
 import { formatEuro, formatEuroAmount } from '@/lib/formatEuro';
 import Image from 'next/image';
+import InfluoLogo from '@/components/InfluoLogo';
 import { getVideoThumbnail, isVideoUrl, isDefinitelyVideo, isDefinitelyImage, detectProvider, isEmbeddableVideoUrl } from '@/lib/videoThumbnail';
 import {
     FACEBOOK_VIDEO_LINK_ERROR,
@@ -1951,7 +1952,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                     <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-4 sm:gap-6 min-w-0">
                             <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity shrink-0">
-                                <Image src="/logo.svg" alt="Influo" width={120} height={48} className="h-6 sm:h-8 w-auto" />
+                                <InfluoLogo className="h-6 sm:h-8 w-auto" title="Influo" />
                             </Link>
                             <div className="min-w-0">
                                 <h1 className="text-xl sm:text-2xl font-bold text-slate-900 truncate">{T('Πίνακας δημιουργού', 'Creator dashboard')}</h1>

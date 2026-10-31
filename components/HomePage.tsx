@@ -3,6 +3,7 @@
 import { Suspense, useState, useEffect, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
+import InfluoLogo from "@/components/InfluoLogo";
 import Directory, { type Influencer } from "@/components/Directory";
 import SignupChoiceModal from "@/components/SignupChoiceModal";
 import Footer from "@/components/Footer";
@@ -430,14 +431,7 @@ export default function Home({
         <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-200/50 shadow-sm">
         <div className="max-w-7xl mx-auto flex justify-between items-center px-4 sm:px-6 py-4">
             <a href={lang === "en" ? "/en" : "/"} className="flex items-center gap-2" aria-label="Influo Home">
-              <Image 
-                src="/logo.svg" 
-                alt="Influo.gr Logo" 
-                width={160} 
-                height={64} 
-                className="h-10 w-auto"
-                priority
-              />
+              <InfluoLogo className="h-10 w-auto" title="Influo" />
             </a>
             
             {/* Desktop Navigation */}

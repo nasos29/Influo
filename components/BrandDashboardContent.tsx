@@ -7,6 +7,7 @@ import { formatEuroAmount } from '@/lib/formatEuro';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import InfluoLogo from '@/components/InfluoLogo';
 import { recommendInfluencers, sharedCategoryKeys, type InfluencerProfile, type BrandProfile } from '@/lib/recommendations';
 import { lookupAuthUser, logoutEverywhere } from '@/lib/authSession';
 import CreatorPhoto from '@/components/CreatorPhoto';
@@ -1851,13 +1852,7 @@ export default function BrandDashboardContent() {
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-4 sm:gap-6 min-w-0">
               <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity shrink-0">
-                <Image 
-                  src="/logo.svg" 
-                  alt="Influo.gr Logo" 
-                  width={120} 
-                  height={48} 
-                  className="h-6 sm:h-8 w-auto"
-                />
+                <InfluoLogo className="h-6 sm:h-8 w-auto" title="Influo" />
               </Link>
               <h1 className="text-xl sm:text-2xl font-bold text-slate-900 truncate">{txt.title}</h1>
             </div>
