@@ -1416,6 +1416,12 @@ export default function Messaging({
       setConversationClosed(false);
       setConversationClosedByInactivity(false);
       setShowInactivityWarning(false);
+      if (convId) {
+        const reopenedId = convId;
+        setConversations((prev) =>
+          prev.map((c) => (c.id === reopenedId ? { ...c, closed_at: null } : c))
+        );
+      }
 
       if (saved && convAtSend) {
         setMessages((prev) => {
@@ -2092,16 +2098,10 @@ export default function Messaging({
                 )}
               </div>
 
-              {conversationClosed ? (
-                <div className="px-3 sm:px-4 py-3 border-t border-slate-200 bg-slate-50">
-                  <p className="text-xs text-slate-600 text-center">
-                    {lang === "el"
-                      ? "Η συνομιλία είναι κλειστή."
-                      : "This conversation is closed."}
-                  </p>
-                </div>
-              ) : (
               <form onSubmit={sendMessage} className="px-3 sm:px-4 py-3 border-t border-slate-200 bg-white">
+                {conversationClosed ? (
+                  <p className="mb-2 text-xs text-slate-600 text-center">{txt.reopenHint}</p>
+                ) : null}
                 {pendingFiles.length > 0 && (
                   <div className="mb-2 flex flex-wrap gap-2">
                     {pendingFiles.map((f, i) => (
@@ -2158,7 +2158,6 @@ export default function Messaging({
                   </p>
                 )}
               </form>
-              )}
             </>
           ) : (
             <div className="flex-1 flex flex-col min-h-0">
