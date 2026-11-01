@@ -59,6 +59,8 @@ const COPY = {
     accept: "Αποδοχή συμφωνίας",
     saving: "Αποθήκευση...",
     close: "Κλείσιμο",
+    statusWaiting: "Αναμονή του δημιουργού",
+    statusCompleted: "Ολοκληρώθηκε",
   },
   en: {
     title: (id: string) => `Collaboration Agreement #${id}`,
@@ -76,6 +78,8 @@ const COPY = {
     accept: "Accept agreement",
     saving: "Saving...",
     close: "Close",
+    statusWaiting: "Waiting for the creator",
+    statusCompleted: "Completed",
   },
 } as const;
 
@@ -100,6 +104,10 @@ type AgreementTermsProps = {
   onCancel: () => void;
   onAccept: () => void;
   saving?: boolean;
+  /** Brand already accepted: terms stay visible, without the accept controls. */
+  readOnly?: boolean;
+  /** Shown only in read-only mode. */
+  status?: "waiting" | "completed";
 };
 
 export default function AgreementTerms({
@@ -118,6 +126,8 @@ export default function AgreementTerms({
   onCancel,
   onAccept,
   saving = false,
+  readOnly = false,
+  status,
 }: AgreementTermsProps) {
   const copy = COPY[lang];
   const id = String(proposalId);
@@ -193,33 +203,57 @@ export default function AgreementTerms({
             </ol>
           </section>
 
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={accepted}
-              onChange={(event) => onAcceptedChange(event.target.checked)}
-              className="mt-1 h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span className="text-sm text-slate-700">{copy.checkbox(id)}</span>
-          </label>
+          {readOnly ? (
+            <p
+              className={`rounded-xl border px-4 py-3 text-sm font-medium ${
+                status === "completed"
+                  ? "border-green-200 bg-green-50 text-green-800"
+                  : "border-amber-200 bg-amber-50 text-amber-900"
+              }`}
+            >
+              {status === "completed" ? copy.statusCompleted : copy.statusWaiting}
+            </p>
+          ) : (
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={accepted}
+                onChange={(event) => onAcceptedChange(event.target.checked)}
+                className="mt-1 h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="text-sm text-slate-700">{copy.checkbox(id)}</span>
+            </label>
+          )}
         </div>
 
         <div className="flex gap-3 border-t border-slate-200 px-6 py-4">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="inline-flex min-h-11 flex-1 items-center justify-center rounded-lg px-4 font-medium text-slate-700 hover:bg-slate-100"
-          >
-            {copy.cancel}
-          </button>
-          <button
-            type="button"
-            onClick={onAccept}
-            disabled={!accepted || saving}
-            className="inline-flex min-h-11 flex-1 items-center justify-center rounded-lg bg-blue-600 px-4 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-400"
-          >
-            {saving ? copy.saving : copy.accept}
-          </button>
+          {readOnly ? (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-slate-900 px-4 font-medium text-white hover:bg-slate-800"
+            >
+              {copy.close}
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={onCancel}
+                className="inline-flex min-h-11 flex-1 items-center justify-center rounded-lg px-4 font-medium text-slate-700 hover:bg-slate-100"
+              >
+                {copy.cancel}
+              </button>
+              <button
+                type="button"
+                onClick={onAccept}
+                disabled={!accepted || saving}
+                className="inline-flex min-h-11 flex-1 items-center justify-center rounded-lg bg-blue-600 px-4 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-400"
+              >
+                {saving ? copy.saving : copy.accept}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

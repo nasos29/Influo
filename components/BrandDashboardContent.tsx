@@ -97,6 +97,24 @@ interface Influencer {
   avatar_url?: string;
 }
 
+function AgreementOpenButton({
+  lang,
+  onClick,
+}: {
+  lang: "el" | "en";
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-lg bg-amber-600 px-4 text-sm font-semibold text-white transition-all hover:bg-amber-700"
+    >
+      ⚠️ {lang === "el" ? "Συμφωνία" : "Agreement"}
+    </button>
+  );
+}
+
 function asAuditText(value: unknown): string | null {
   if (typeof value === "string") return value;
   if (Array.isArray(value)) {
@@ -1703,6 +1721,17 @@ export default function BrandDashboardContent() {
   const pendingAgreements = agreementQueue.needsBrand;
   const awaitingInfluencerAgreements = agreementQueue.awaitingInfluencer;
   const openAgreements = openAgreementCount(proposals);
+  const brandSignedAgreements = proposals.filter(
+    (proposal) =>
+      (proposal.status === "accepted" || proposal.status === "completed") &&
+      proposal.brand_agreement_accepted
+  );
+
+  const openProposalAgreement = (proposal: Proposal) => {
+    setSelectedProposal(proposal);
+    setAgreementAccepted(false);
+    setShowAgreementModal(true);
+  };
 
   // Get pending counter proposals (where influencer sent counter proposal and brand hasn't responded)
   const pendingCounterProposals = proposals.filter(
@@ -2866,7 +2895,7 @@ export default function BrandDashboardContent() {
                       key={proposal.id}
                       className="bg-white rounded-xl p-6 border border-slate-200 hover:shadow-md transition-shadow"
                     >
-                      <div className="flex justify-between items-start mb-4">
+                      <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
                         <div>
                           <h3 className="text-lg font-bold text-slate-900 mb-2">
                             {displayNameForLang(influencer?.display_name, lang) || 'Unknown Influencer'}
@@ -2893,15 +2922,7 @@ export default function BrandDashboardContent() {
                             </div>
                           )}
                         </div>
-                        <button
-                          onClick={() => {
-                            setSelectedProposal(proposal);
-                            setShowAgreementModal(true);
-                          }}
-                          className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors"
-                        >
-                          {txt.accept_agreement}
-                        </button>
+                        <AgreementOpenButton lang={lang} onClick={() => openProposalAgreement(proposal)} />
                       </div>
                     </div>
                   );
@@ -2921,9 +2942,12 @@ export default function BrandDashboardContent() {
                       key={proposal.id}
                       className="bg-white rounded-xl p-6 border border-slate-200 hover:shadow-md transition-shadow"
                     >
-                      <h3 className="text-lg font-bold text-slate-900 mb-2">
-                        {displayNameForLang(influencer?.display_name, lang) || 'Unknown Influencer'}
-                      </h3>
+                      <div className="flex flex-wrap items-start justify-between gap-4">
+                        <h3 className="text-lg font-bold text-slate-900 mb-2">
+                          {displayNameForLang(influencer?.display_name, lang) || 'Unknown Influencer'}
+                        </h3>
+                        <AgreementOpenButton lang={lang} onClick={() => openProposalAgreement(proposal)} />
+                      </div>
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
                           <span className="text-slate-500">{txt.service}:</span>{' '}
@@ -2947,8 +2971,61 @@ export default function BrandDashboardContent() {
             </div>
           )}
 
+          {brandSignedAgreements.length > 0 && (
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 mb-4">
+                {lang === "el" ? "Συμφωνίες που αποδεχτήκατε" : "Agreements you have accepted"}
+              </h2>
+              <div className="space-y-4">
+                {brandSignedAgreements.map((proposal) => {
+                  const influencer = influencers[proposal.influencer_id];
+                  const completed = proposal.status === "completed" || !!proposal.influencer_agreement_accepted;
+                  return (
+                    <div
+                      key={proposal.id}
+                      className="bg-white rounded-xl p-6 border border-slate-200 hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                          <h3 className="text-lg font-bold text-slate-900 mb-2">
+                            {displayNameForLang(influencer?.display_name, lang) || "Unknown Influencer"}
+                          </h3>
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <span className="text-slate-500">{txt.service}:</span>{" "}
+                              <span className="font-medium text-slate-900">{displayServiceType(proposal.service_type, lang)}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500">{txt.budget}:</span>{" "}
+                              <span className="font-medium text-slate-900">
+                                {formatEuroAmount(proposal.counter_proposal_budget || proposal.budget, lang)}
+                              </span>
+                            </div>
+                          </div>
+                          {formatProposalExtrasLine(proposal.selected_extras, lang) ? (
+                            <p className="mt-2 text-sm text-slate-700">{formatProposalExtrasLine(proposal.selected_extras, lang)}</p>
+                          ) : null}
+                          <p className={`mt-3 text-sm font-medium ${completed ? "text-green-700" : "text-amber-800"}`}>
+                            {completed
+                              ? lang === "el"
+                                ? "Ολοκληρώθηκε"
+                                : "Completed"
+                              : lang === "el"
+                                ? "Αναμονή του δημιουργού"
+                                : "Waiting for the creator"}
+                          </p>
+                        </div>
+                        <AgreementOpenButton lang={lang} onClick={() => openProposalAgreement(proposal)} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* No Pending Items */}
-          {openAgreements === 0 && pendingCounterProposals.length === 0 && (
+          {openAgreements === 0 && pendingCounterProposals.length === 0 && brandSignedAgreements.length === 0 && (
             <div className="bg-white rounded-xl p-8 text-center border border-slate-200">
               <p className="text-slate-600">{txt.no_pending}</p>
             </div>
@@ -2987,6 +3064,12 @@ export default function BrandDashboardContent() {
           accepted={agreementAccepted}
           onAcceptedChange={setAgreementAccepted}
           saving={savingAgreement}
+          readOnly={!!selectedProposal.brand_agreement_accepted}
+          status={
+            selectedProposal.status === "completed" || selectedProposal.influencer_agreement_accepted
+              ? "completed"
+              : "waiting"
+          }
           onCancel={() => {
             setShowAgreementModal(false);
             setSelectedProposal(null);
