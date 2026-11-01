@@ -1,5 +1,5 @@
 import { toGreeklish } from "@/lib/greeklish";
-import { EUROPE_LOCATION_SEED, LOCATION_SEED, type LocationDraft, type LocationKind } from "@/lib/locationSeed";
+import { EUROPE_LOCATION_SEED, EXTRA_LOCATION_SEED, LOCATION_SEED, type LocationDraft, type LocationKind } from "@/lib/locationSeed";
 
 export type LocationRecord = {
   name_el: string;
@@ -47,8 +47,13 @@ export function toLocationRecord(draft: LocationDraft): LocationRecord {
 
 export const LOCATION_SEED_RECORDS: LocationRecord[] = LOCATION_SEED.map(toLocationRecord);
 export const EUROPE_LOCATION_RECORDS: LocationRecord[] = EUROPE_LOCATION_SEED.map(toLocationRecord);
+export const EXTRA_LOCATION_RECORDS: LocationRecord[] = EXTRA_LOCATION_SEED.map(toLocationRecord);
 /** Greek/Cyprus catalog plus major European cities. The typeahead searches this list. */
-export const LOCATION_CATALOG: LocationRecord[] = [...LOCATION_SEED_RECORDS, ...EUROPE_LOCATION_RECORDS];
+export const LOCATION_CATALOG: LocationRecord[] = [
+  ...LOCATION_SEED_RECORDS,
+  ...EUROPE_LOCATION_RECORDS,
+  ...EXTRA_LOCATION_RECORDS,
+];
 
 export type LocationHit = LocationRecord & { label: string; region: string };
 

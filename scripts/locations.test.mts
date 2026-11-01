@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { LOCATION_CATALOG, LOCATION_SEED_RECORDS, searchLocations } from "../lib/locationCatalog.ts";
+import { EXTRA_LOCATION_RECORDS, LOCATION_CATALOG, LOCATION_SEED_RECORDS, searchLocations } from "../lib/locationCatalog.ts";
 
 const json = JSON.parse(readFileSync(new URL("../data/locations.json", import.meta.url), "utf8"));
 const sql = readFileSync(
@@ -13,7 +13,10 @@ const sql = readFileSync(
 test("static catalog matches the seed and the unapplied migration", () => {
   assert.equal(LOCATION_SEED_RECORDS.length, 176);
   assert.deepEqual(json, LOCATION_CATALOG);
-  assert.equal(json.filter((row: { country: string }) => row.country !== "EU").length, 176);
+  assert.equal(
+    json.filter((row: { country: string }) => row.country !== "EU").length,
+    176 + EXTRA_LOCATION_RECORDS.filter((row) => row.country !== "EU").length
+  );
   const inserts = sql.split("\n").filter((line) => line.trim().startsWith("('"));
   assert.equal(inserts.length, LOCATION_SEED_RECORDS.length);
   assert.match(sql, /FOR SELECT/);
