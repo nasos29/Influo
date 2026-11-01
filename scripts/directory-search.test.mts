@@ -102,6 +102,30 @@ test("influencer για barber shop maps to beauty, fashion and lifestyle", () =
   assert.equal(matchesDirectoryFilters(person({ categories: ["Tech & Gadgets"], skills: [] }), filters), false);
 });
 
+test("store phrases map to site categories, with or without accents and in greeklish", () => {
+  const expectCats = (phrase: string, categories: string[]) => {
+    const parsed = parseDirectoryPhrase(phrase);
+    assert.deepEqual(parsed.categories, categories, phrase);
+    assert.equal(parsed.remainder, "", phrase);
+  };
+  expectCats("influencer για καφέ", ["Food & Drink", "Lifestyle"]);
+  expectCats("gia kafe", ["Food & Drink", "Lifestyle"]);
+  expectCats("για εστιατόριο", ["Food & Drink"]);
+  expectCats("gia estiatorio", ["Food & Drink"]);
+  expectCats("για κομμωτήριο", ["Beauty & Makeup", "Lifestyle"]);
+  expectCats("gia kommotirio", ["Beauty & Makeup", "Lifestyle"]);
+  expectCats("για γυμναστήριο", ["Health & Fitness"]);
+  expectCats("gia gymnastirio", ["Health & Fitness"]);
+  expectCats("για κατάστημα ρούχων", ["Fashion & Style", "Lifestyle"]);
+  expectCats("gia katastima rouxon", ["Fashion & Style", "Lifestyle"]);
+  expectCats("για ξενοδοχείο", ["Travel", "Lifestyle"]);
+  expectCats("gia xenodoxeio", ["Travel", "Lifestyle"]);
+  expectCats("για e-shop καλλυντικών", ["Beauty & Makeup", "Lifestyle"]);
+  expectCats("για nail salon", ["Beauty & Makeup", "Lifestyle"]);
+  expectCats("για ζαχαροπλαστείο", ["Food & Drink", "Lifestyle"]);
+  expectCats("gia zacharoplastio", ["Food & Drink", "Lifestyle"]);
+});
+
 test("name, slug and username match across accents and greeklish", () => {
   const filters = { ...DEFAULT_DIRECTORY_FILTERS, q: "maria", availability: "all" as const };
   assert.equal(matchesDirectoryFilters(person({ name: "Μαρία" }), filters), true);

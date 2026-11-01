@@ -73,31 +73,114 @@ type Industry = { phrases: string[]; categories: CategoryKey[]; el: string; en: 
 
 const INDUSTRIES: Industry[] = [
   {
-    phrases: ["barber shop", "barber", "barbershop", "κουρειο", "κουρεας", "barberiko", "grooming", "mens hair"],
+    phrases: [
+      "barber shop",
+      "barbershop",
+      "barber",
+      "κουρείο",
+      "κουρειο",
+      "κουρέας",
+      "κουρεας",
+      "barberiko",
+      "koureio",
+      "grooming",
+      "mens hair",
+    ],
     categories: ["Beauty & Makeup", "Fashion & Style", "Lifestyle"],
-    el: "Κουρείο",
+    el: "Barber shop",
     en: "Barber shop",
   },
   {
-    phrases: ["cafe", "coffee shop", "καφετερια", "kafeneio", "cafeteria"],
+    phrases: [
+      "nail salon",
+      "nails salon",
+      "nail bar",
+      "νύχια",
+      "νυχια",
+      "μανικιούρ",
+      "μανικιουρ",
+      "manikiour",
+    ],
+    categories: ["Beauty & Makeup", "Lifestyle"],
+    el: "Nail salon",
+    en: "Nail salon",
+  },
+  {
+    phrases: [
+      "e-shop καλλυντικών",
+      "eshop καλλυντικών",
+      "e shop καλλυντικών",
+      "κατάστημα καλλυντικών",
+      "καλλυντικά",
+      "καλλυντικα",
+      "cosmetics shop",
+      "cosmetics e-shop",
+      "beauty shop",
+    ],
+    categories: ["Beauty & Makeup", "Lifestyle"],
+    el: "E-shop καλλυντικών",
+    en: "Cosmetics e-shop",
+  },
+  {
+    phrases: [
+      "κομμωτήριο",
+      "κομμωτηριο",
+      "κομμωτής",
+      "κομμωτης",
+      "hair salon",
+      "hairdresser",
+      "hair stylist",
+    ],
+    categories: ["Beauty & Makeup", "Lifestyle"],
+    el: "Κομμωτήριο",
+    en: "Hair salon",
+  },
+  {
+    phrases: [
+      "ζαχαροπλαστείο",
+      "ζαχαροπλαστειο",
+      "pastry shop",
+      "patisserie",
+      "cake shop",
+    ],
     categories: ["Food & Drink", "Lifestyle"],
-    el: "Καφετέρια",
+    el: "Ζαχαροπλαστείο",
+    en: "Pastry shop",
+  },
+  {
+    phrases: ["cafe", "coffee shop", "coffee", "καφέ", "καφε", "καφετέρια", "καφετερια", "kafeneio", "cafeteria"],
+    categories: ["Food & Drink", "Lifestyle"],
+    el: "Καφέ",
     en: "Cafe",
   },
   {
-    phrases: ["restaurant", "εστιατοριο", "estiatorio", "taverna", "ταβερνα"],
+    phrases: ["restaurant", "εστιατόριο", "εστιατοριο", "taverna", "ταβέρνα", "ταβερνα"],
     categories: ["Food & Drink"],
     el: "Εστιατόριο",
     en: "Restaurant",
   },
   {
-    phrases: ["gym", "γυμναστηριο", "gymnastirio", "fitness"],
+    phrases: ["γυμναστήριο", "γυμναστηριο", "gym", "fitness"],
     categories: ["Health & Fitness"],
     el: "Γυμναστήριο",
     en: "Gym",
   },
   {
-    phrases: ["hotel", "ξενοδοχειο", "xenodoxeio"],
+    phrases: [
+      "κατάστημα ρούχων",
+      "καταστημα ρουχων",
+      "ρούχα",
+      "ρουχα",
+      "clothing store",
+      "clothes shop",
+      "fashion store",
+    ],
+    categories: ["Fashion & Style", "Lifestyle"],
+    el: "Κατάστημα ρούχων",
+    en: "Clothing store",
+  },
+  {
+    phrases: ["ξενοδοχείο", "ξενοδοχειο", "hotel"],
     categories: ["Travel", "Lifestyle"],
     el: "Ξενοδοχείο",
     en: "Hotel",
@@ -158,7 +241,11 @@ function removeFolded(source: string, piece: string): string {
   if (!pieceWords.size) return source;
   return source
     .split(/\s+/)
-    .filter((word) => !pieceWords.has(searchFold(word)))
+    .filter((word) => {
+      const tokens = searchFold(word).split(" ").filter(Boolean);
+      if (!tokens.length) return false;
+      return !tokens.every((token) => pieceWords.has(token));
+    })
     .join(" ")
     .trim();
 }

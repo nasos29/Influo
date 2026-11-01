@@ -126,9 +126,99 @@ const LANGUAGES = [
   { code: "tr", el: "Τουρκικά", en: "Turkish" },
 ];
 
+const SEARCH_EXAMPLES = {
+  el: [
+    "UGC creator",
+    "reel έως 50 €",
+    "influencer για καφέ",
+    "για εστιατόριο",
+    "για κομμωτήριο",
+    "για γυμναστήριο",
+    "για κατάστημα ρούχων",
+    "για ξενοδοχείο",
+    "για e-shop καλλυντικών",
+    "για barber shop",
+    "για nail salon",
+    "για ζαχαροπλαστείο",
+    "fitness Θεσσαλονίκη",
+    "μαρία",
+  ],
+  en: [
+    "UGC creator",
+    "reel up to 50 €",
+    "influencer for a cafe",
+    "for a restaurant",
+    "for a hair salon",
+    "for a gym",
+    "for a clothing store",
+    "for a hotel",
+    "for a cosmetics e-shop",
+    "for a barber shop",
+    "for a nail salon",
+    "for a pastry shop",
+    "fitness Thessaloniki",
+    "maria",
+  ],
+} as const;
+
+function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const apply = () => setReduced(media.matches);
+    apply();
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
+  }, []);
+  return reduced;
+}
+
+function useTypewriterPlaceholder(examples: readonly string[], active: boolean): string {
+  const reduced = usePrefersReducedMotion();
+  const [text, setText] = useState(examples[0] ?? "");
+  useEffect(() => {
+    if (!active) return;
+    const first = examples[0] ?? "";
+    if (reduced) {
+      setText(first);
+      return;
+    }
+    let example = 0;
+    let count = 0;
+    let deleting = false;
+    let timer = 0;
+    const tick = () => {
+      const current = examples[example] ?? "";
+      if (!deleting) {
+        count += 1;
+        setText(current.slice(0, count));
+        if (count >= current.length) {
+          deleting = true;
+          timer = window.setTimeout(tick, 1400);
+          return;
+        }
+        timer = window.setTimeout(tick, 72);
+        return;
+      }
+      count -= 1;
+      setText(current.slice(0, Math.max(0, count)));
+      if (count <= 0) {
+        deleting = false;
+        example = (example + 1) % examples.length;
+        timer = window.setTimeout(tick, 320);
+        return;
+      }
+      timer = window.setTimeout(tick, 36);
+    };
+    timer = window.setTimeout(tick, 480);
+    return () => window.clearTimeout(timer);
+  }, [active, examples, reduced]);
+  return text;
+}
+
 const t = {
   el: {
-    searchPlace: "Αναζήτηση ονόματος...",
+    searchPlace: "Αναζήτηση",
     locPlace: "Τοποθεσία (π.χ. Αθήνα)",
     results: "Αποτελέσματα",
     clear: "Καθαρισμός",
@@ -182,7 +272,7 @@ const t = {
     pageOf: "από",
   },
   en: {
-    searchPlace: "Search name...",
+    searchPlace: "Search",
     locPlace: "Location (e.g. Athens)",
     results: "Results",
     clear: "Clear",
@@ -435,6 +525,11 @@ export default function Directory({
   const isHomePreview = typeof homeLimit === "number" && homeLimit > 0;
 
   const [searchQuery, setSearchQuery] = useState(() => (preset ? "" : (searchParams.get("q") || "").trim()));
+  const [searchFocused, setSearchFocused] = useState(false);
+  const searchPlaceholder = useTypewriterPlaceholder(
+    SEARCH_EXAMPLES[lang],
+    !searchFocused && !searchQuery.trim()
+  );
   const [locationQuery, setLocationQuery] = useState(preset?.location || "");
   const [platformFilter, setPlatformFilter] = useState(preset?.platform || "All");
   const [packageType, setPackageType] = useState("All");
@@ -1026,8 +1121,10 @@ export default function Directory({
             </div>
             <input
               type="text"
-              placeholder={txt.searchPlace}
+              placeholder={searchFocused || searchQuery.trim() ? "" : searchPlaceholder}
               value={searchQuery}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
               onChange={(e) => {
                 const parsed = parseDirectoryPhrase(e.target.value);
                 setSearchQuery(parsed.remainder);
