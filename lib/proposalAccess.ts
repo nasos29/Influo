@@ -29,12 +29,15 @@ export type ProposalRow = {
   brand_agreement_accepted?: boolean | null;
   brand_added_to_past_brands?: boolean | null;
   agreement_accepted_at?: string | null;
+  influencer_agreement_accepted_at?: string | null;
+  brand_agreement_accepted_at?: string | null;
+  publish_deadline?: string | null;
   selected_extras?: unknown;
   created_at?: string;
 };
 
 const LIST_COLUMNS =
-  "id, influencer_id, brand_name, brand_email, brand_id, service_type, budget, message, status, created_at, counter_proposal_budget, counter_proposal_message, counter_proposal_status, counter_proposal_created_at, influencer_agreement_accepted, brand_agreement_accepted, agreement_accepted_at, brand_added_to_past_brands, selected_extras";
+  "id, influencer_id, brand_name, brand_email, brand_id, service_type, budget, message, status, created_at, counter_proposal_budget, counter_proposal_message, counter_proposal_status, counter_proposal_created_at, influencer_agreement_accepted, brand_agreement_accepted, agreement_accepted_at, influencer_agreement_accepted_at, brand_agreement_accepted_at, brand_added_to_past_brands, selected_extras, publish_deadline";
 
 async function selectProposals(
   build: (columns: string) => PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>

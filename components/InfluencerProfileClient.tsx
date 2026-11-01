@@ -52,6 +52,7 @@ import { formatEuro, formatEuroAmount, parseEuroNumber } from "@/lib/formatEuro"
 import { lowestListedPrice } from "@/lib/publicInfluencer";
 import { displayServiceType } from "@/lib/campaignServiceLabel";
 import { responseText } from "@/lib/bilingualError";
+import { parsePublishDeadline } from "@/lib/publishDeadline";
 import ProfileOffersPanel from "@/components/ProfileOffersPanel";
 import ProfileHireCard from "@/components/ProfileHireCard";
 import CampaignInviteButton from "@/components/CampaignInviteButton";
@@ -388,6 +389,9 @@ const t = {
     modal_email: "Email Επιχείρησης",
     modal_as: "Η πρόταση στέλνεται ως",
     modal_bud: "Budget (€)",
+    modal_deadline: "Προθεσμία δημοσίευσης (προαιρετικό)",
+    modal_deadline_hint: "Αν μείνει κενή, η ημερομηνία συμφωνείται αργότερα.",
+    modal_deadline_invalid: "Η προθεσμία δημοσίευσης δεν είναι έγκυρη ημερομηνία.",
     modal_desc: "Περιγραφή Project",
     modal_btn: "Αποστολή Πρότασης",
     modal_success: "Η πρόταση στάλθηκε!",
@@ -478,6 +482,9 @@ const t = {
     modal_email: "Company Email",
     modal_as: "This offer is sent as",
     modal_bud: "Budget (€)",
+    modal_deadline: "Publication deadline (optional)",
+    modal_deadline_hint: "Leave it empty and the date is agreed later.",
+    modal_deadline_invalid: "The publication deadline is not a valid date.",
     modal_desc: "Project Details",
     modal_btn: "Send Proposal",
     modal_success: "Proposal Sent!",
@@ -629,6 +636,7 @@ export default function InfluencerProfile(props: {
   const [brandName, setBrandName] = useState("");
   const [brandEmail, setBrandEmail] = useState("");
   const [budget, setBudget] = useState("");
+  const [publishDeadline, setPublishDeadline] = useState("");
   const [message, setMessage] = useState("");
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
@@ -1260,6 +1268,11 @@ export default function InfluencerProfile(props: {
       );
       return;
     }
+    const deadline = parsePublishDeadline(publishDeadline);
+    if (!deadline.ok) {
+      alert(txt.modal_deadline_invalid);
+      return;
+    }
     setSending(true);
 
     try {
@@ -1274,6 +1287,7 @@ export default function InfluencerProfile(props: {
                 packageId: proposalPackageId,
                 extras: selectedExtraKeys,
                 budget,
+                publishDeadline: deadline.date,
                 message,
             }),
         });
@@ -1485,6 +1499,7 @@ export default function InfluencerProfile(props: {
     setProposalPackageId(choice?.packageId ?? null);
     const amount = choice?.budget ? parseEuroNumber(choice.budget) ?? integerEuro(choice.budget) : null;
     if (amount != null && amount > 0) setBudget(String(amount));
+    setPublishDeadline("");
     setShowProposalModal(true);
   }, []);
 
@@ -1641,6 +1656,18 @@ export default function InfluencerProfile(props: {
                                   value={budget}
                                   onChange={(e) => setBudget(e.target.value)}
                                 />
+                            </div>
+
+                            <div>
+                                <label htmlFor="proposal-deadline" className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.modal_deadline}</label>
+                                <input
+                                  id="proposal-deadline"
+                                  type="date"
+                                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+                                  value={publishDeadline}
+                                  onChange={(e) => setPublishDeadline(e.target.value)}
+                                />
+                                <p className="mt-1 text-xs text-slate-500">{txt.modal_deadline_hint}</p>
                             </div>
 
                             {proposalExtras.length > 0 ? (

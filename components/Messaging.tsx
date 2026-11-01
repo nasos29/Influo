@@ -72,6 +72,7 @@ interface ProposalInfo {
   influencer_agreement_accepted?: boolean;
   brand_agreement_accepted?: boolean;
   selected_extras?: unknown;
+  publish_deadline?: string | null;
 }
 
 interface MessagingProps {
@@ -2328,6 +2329,7 @@ export default function Messaging({
           counterProposalBudget={proposalInfo.counter_proposal_budget}
           counterProposalStatus={proposalInfo.counter_proposal_status}
           selectedExtras={proposalInfo.selected_extras}
+          publishDeadline={proposalInfo.publish_deadline}
           accepted={agreementAccepted}
           onAcceptedChange={setAgreementAccepted}
           saving={savingAgreement}
