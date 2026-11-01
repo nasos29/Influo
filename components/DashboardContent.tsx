@@ -81,6 +81,7 @@ import {
 } from '@/lib/validateBirthDate';
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 import { formatDate, formatTime } from '@/lib/formatDateTime';
+import DmyDateField from '@/components/DmyDateField';
 import { isTimeoutError, withTimeout } from '@/lib/withTimeout';
 import ToastViewport, { useToasts } from '@/components/ui/Toast';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -918,10 +919,11 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                             </div>
                             <div>
                                 <label className="block text-sm font-semibold text-slate-900 mb-1">{L("Ημερομηνία Γέννησης", "Date of Birth")}</label>
-                                <input
-                                    type="date"
+                                <DmyDateField
+                                    lang={lang}
+                                    ariaLabel={L("Ημερομηνία Γέννησης", "Date of Birth")}
                                     value={birthDate}
-                                    onChange={e => setBirthDate(e.target.value)}
+                                    onChange={setBirthDate}
                                     min={BIRTH_DATE_MIN}
                                     max={athensTodayYmd()}
                                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900"

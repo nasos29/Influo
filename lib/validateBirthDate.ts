@@ -56,7 +56,7 @@ function ymdToIso(y: number, m: number, d: number): string {
   return `${y}-${pad2(m)}-${pad2(d)}`;
 }
 
-/** Today's calendar date in Europe/Athens as YYYY-MM-DD (for <input type="date" max>). */
+/** Today's calendar date in Europe/Athens as YYYY-MM-DD (stored value; the field shows dd/mm/yyyy). */
 export function athensTodayYmd(now = new Date()): string {
   const { y, m, d } = zonedYmd(now);
   return ymdToIso(y, m, d);

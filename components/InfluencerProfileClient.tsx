@@ -50,6 +50,8 @@ import type { FollowerGrowthPoint } from "@/lib/followerGrowth";
 import { displayLanguageLabel } from "@/lib/languages";
 import { sanitizeSkills, skillLabel } from "@/lib/skills";
 import { formatEuro, formatEuroAmount, parseEuroNumber } from "@/lib/formatEuro";
+import { formatDisplayDate } from "@/lib/formatDate";
+import DmyDateField from "@/components/DmyDateField";
 import { lowestListedPrice } from "@/lib/publicInfluencer";
 import { displayServiceType } from "@/lib/campaignServiceLabel";
 import { responseText } from "@/lib/bilingualError";
@@ -176,15 +178,8 @@ const MetricIcon = ({
   </span>
 );
 
-function formatStatsUpdatedAt(iso: string, lang: "el" | "en"): string {
-  const date = new Date(iso);
-  if (!Number.isFinite(date.getTime())) return "";
-  return new Intl.DateTimeFormat(lang === "el" ? "el-GR" : "en-GB", {
-    timeZone: "Europe/Athens",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(date);
+function formatStatsUpdatedAt(iso: string, _lang: "el" | "en"): string {
+  return formatDisplayDate(iso);
 }
 
 function ProfileStatCard({
@@ -1661,12 +1656,12 @@ export default function InfluencerProfile(props: {
 
                             <div>
                                 <label htmlFor="proposal-deadline" className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.modal_deadline}</label>
-                                <input
+                                <DmyDateField
                                   id="proposal-deadline"
-                                  type="date"
-                                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+                                  lang={lang}
                                   value={publishDeadline}
-                                  onChange={(e) => setPublishDeadline(e.target.value)}
+                                  onChange={setPublishDeadline}
+                                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
                                 />
                                 <p className="mt-1 text-xs text-slate-500">{txt.modal_deadline_hint}</p>
                             </div>
@@ -3157,7 +3152,7 @@ export default function InfluencerProfile(props: {
                                   {review.brand_name || (lang === "el" ? "Επιχείρηση" : "Brand")}
                                 </h4>
                                 <p className="text-xs text-slate-500 truncate">
-                                  {new Date(review.created_at).toLocaleDateString(lang === "el" ? "el-GR" : "en-GB")}
+                                  {formatDisplayDate(review.created_at)}
                                 </p>
                               </div>
                               <div className="flex shrink-0 items-center gap-0.5 whitespace-nowrap" aria-label={`${review.rating}/5`}>

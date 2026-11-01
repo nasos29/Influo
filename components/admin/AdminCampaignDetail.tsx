@@ -40,7 +40,7 @@ const copy = {
   platforms: { el: "Πλατφόρμες", en: "Platforms" },
   start: { el: "Ημερομηνία έναρξης", en: "Start date" },
   deadline: { el: "Προθεσμία", en: "Deadline" },
-  dateHint: { el: "Ημέρα / μήνας / έτος.", en: "Day / month / year." },
+  dateHint: { el: "ηη/μμ/εεεε, π.χ. 15/11/2026.", en: "dd/mm/yyyy, e.g. 15/11/2026." },
   location: { el: "Περιοχή", en: "Area" },
   minFollowers: { el: "Ελάχιστοι ακόλουθοι", en: "Minimum followers" },
   deliverables: { el: "Παραδοτέα", en: "Deliverables" },

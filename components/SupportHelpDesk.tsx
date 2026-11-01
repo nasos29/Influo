@@ -8,6 +8,7 @@ async function adminAuthHeaders(): Promise<Record<string, string>> {
   return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
 }
 import Link from 'next/link';
+import { formatDisplayDateTime } from '@/lib/formatDate';
 
 interface Ticket {
   id: string;
@@ -343,16 +344,7 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleString('el-GR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  const formatDate = (dateString: string) => formatDisplayDateTime(dateString);
 
   const getStatusLabel = (status: string) => {
     const statusMap: Record<string, string> = {

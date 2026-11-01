@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatEuro } from "@/lib/formatEuro";
+import { formatDisplayDate, formatDisplayDateTime } from "@/lib/formatDate";
+import DmyDateField from "@/components/DmyDateField";
 
 interface AnalyticsStats {
   profileViews: number;
@@ -318,16 +320,13 @@ export default function AdminInfluencerStatsTab({
           data.conversations;
         return {
           dateKey: date,
-          label: new Date(date).toLocaleDateString(lang === "el" ? "el-GR" : "en-US", {
-            month: "short",
-            day: "numeric",
-          }),
+          label: formatDisplayDate(date),
           ...data,
           socialOutbound: data.socialOutbound ?? 0,
           dayTotal,
         };
       });
-  }, [stats, lang]);
+  }, [stats]);
 
   const views = stats?.profileViews ?? 0;
   const clicks = stats?.profileClicks ?? 0;
@@ -407,20 +406,22 @@ export default function AdminInfluencerStatsTab({
             <div className="flex gap-3 flex-wrap">
               <div>
                 <span className="text-xs text-slate-600">{txt.from}</span>
-                <input
-                  type="date"
+                <DmyDateField
+                  lang={lang}
+                  ariaLabel={txt.from}
                   value={customStart}
-                  onChange={(e) => setCustomStart(e.target.value)}
-                  className="block mt-0.5 px-2 py-1 border border-slate-300 rounded text-sm bg-white text-black [color-scheme:light]"
+                  onChange={setCustomStart}
+                  className="block mt-0.5 px-2 py-1 border border-slate-300 rounded text-sm bg-white text-black"
                 />
               </div>
               <div>
                 <span className="text-xs text-slate-600">{txt.to}</span>
-                <input
-                  type="date"
+                <DmyDateField
+                  lang={lang}
+                  ariaLabel={txt.to}
                   value={customEnd}
-                  onChange={(e) => setCustomEnd(e.target.value)}
-                  className="block mt-0.5 px-2 py-1 border border-slate-300 rounded text-sm bg-white text-black [color-scheme:light]"
+                  onChange={setCustomEnd}
+                  className="block mt-0.5 px-2 py-1 border border-slate-300 rounded text-sm bg-white text-black"
                 />
               </div>
             </div>
@@ -624,7 +625,7 @@ export default function AdminInfluencerStatsTab({
                         <tr key={ev.id ?? `${ev.created_at}-${i}`} className="border-t border-slate-100">
                           <td className="px-3 py-1.5 text-slate-800">{eventLabel(ev.event_type, lang)}</td>
                           <td className="px-3 py-1.5 text-slate-600 whitespace-nowrap">
-                            {new Date(ev.created_at).toLocaleString(lang === "el" ? "el-GR" : "en-US")}
+                            {formatDisplayDateTime(ev.created_at)}
                           </td>
                           <td className="px-3 py-1.5 text-slate-500">{note}</td>
                         </tr>

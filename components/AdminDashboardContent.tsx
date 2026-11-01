@@ -52,6 +52,8 @@ import Avatar from "./Avatar";
 import ToastViewport, { useToasts, type ToastTone } from "@/components/ui/Toast";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { formatDate, formatTime } from "@/lib/formatDateTime";
+import { formatDisplayDate, formatDisplayDateTime } from "@/lib/formatDate";
+import DmyDateField from "@/components/DmyDateField";
 import { isTimeoutError, withTimeout } from "@/lib/withTimeout";
 import { isProtectedTestAccount } from "@/lib/protectedAccount";
 import { AdminListSkeleton, AdminLoadError, AdminPager } from "@/components/admin/AdminListChrome";
@@ -1510,7 +1512,7 @@ const EditProfileModal = ({
                             {profileChanges.map((change, idx) => (
                                 <div key={change.id} className="bg-white border border-yellow-300 rounded-lg p-3">
                                     <div className="text-xs text-yellow-700 mb-2">
-                                        <strong>Ημερομηνία:</strong> {new Date(change.created_at).toLocaleString('el-GR')}
+                                        <strong>Ημερομηνία:</strong> {formatDisplayDateTime(change.created_at)}
                                     </div>
                                     <div className="space-y-2">
                                         {change.changed_fields && change.changed_fields.map((field: string) => (
@@ -1599,10 +1601,11 @@ const EditProfileModal = ({
                                 </div>
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-900 mb-1">{L("Ημερομηνία Γέννησης", "Date of Birth")}</label>
-                                    <input
-                                        type="date"
+                                    <DmyDateField
+                                        lang={lang}
+                                        ariaLabel={L("Ημερομηνία Γέννησης", "Date of Birth")}
                                         value={birthDate}
-                                        onChange={e => setBirthDate(e.target.value)}
+                                        onChange={setBirthDate}
                                         min={BIRTH_DATE_MIN}
                                         max={athensTodayYmd()}
                                         className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900"
@@ -4819,7 +4822,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                 {u.created_at && (
                                   <div
                                     className="text-[10px] text-slate-400 mt-0.5 tabular-nums"
-                                    title={new Date(u.created_at).toLocaleString(lang === "el" ? "el-GR" : "en-GB")}
+                                    title={formatDisplayDateTime(u.created_at)}
                                   >
                                     {lang === "el" ? "Εγγραφή" : "Joined"}{" "}
                                     {formatDate(u.created_at, lang)} {formatTime(u.created_at, lang)}
@@ -5562,7 +5565,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                           </td>
                           <td className="px-4 py-3 text-slate-600 text-sm font-mono">{post.slug}</td>
                           <td className="px-4 py-3 text-slate-600">{post.category[lang]}</td>
-                          <td className="px-4 py-3 text-slate-600 text-sm">{post.date}</td>
+                          <td className="px-4 py-3 text-slate-600 text-sm tabular-nums">{formatDisplayDate(post.date) || post.date}</td>
                           <td className="px-4 py-3">
                             <div className="flex gap-2">
                               <button
@@ -5792,21 +5795,19 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     <option value="all_brands">{txt.ann_to_all_brands}</option>
                     <option value="specific_brand">{txt.ann_to_one_brand}</option>
                   </select>
-                  <input
-                    type="date"
+                  <DmyDateField
+                    lang={lang}
                     value={announcementDateFrom}
-                    onChange={(e) => setAnnouncementDateFrom(e.target.value)}
+                    onChange={setAnnouncementDateFrom}
+                    ariaLabel={lang === 'el' ? 'Από ημερομηνία' : 'From date'}
                     className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white text-sm"
-                    aria-label={lang === 'el' ? 'Από ημερομηνία' : 'From date'}
-                    title={lang === 'el' ? 'Από' : 'From'}
                   />
-                  <input
-                    type="date"
+                  <DmyDateField
+                    lang={lang}
                     value={announcementDateTo}
-                    onChange={(e) => setAnnouncementDateTo(e.target.value)}
+                    onChange={setAnnouncementDateTo}
+                    ariaLabel={lang === 'el' ? 'Έως ημερομηνία' : 'To date'}
                     className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white text-sm"
-                    aria-label={lang === 'el' ? 'Έως ημερομηνία' : 'To date'}
-                    title={lang === 'el' ? 'Έως' : 'To'}
                   />
                 </div>
 
@@ -5878,7 +5879,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                           <div className="font-medium text-slate-900">{a.title}</div>
                           <div className="text-sm text-slate-800 mt-1 line-clamp-2">{a.body}</div>
                           <div className="text-xs text-slate-700 mt-2">
-                            {new Date(a.created_at).toLocaleString(lang === 'el' ? 'el-GR' : 'en-GB')}
+                            {formatDisplayDateTime(a.created_at)}
                             {a.target_type === 'specific' && a.target_influencer_id && (
                               <span className="ml-2">
                                 → {lang === 'el' ? 'Σε συγκεκριμένο' : 'To specific'}
@@ -5927,10 +5928,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                   <>
                                     ✓{' '}
                                     {lang === 'el' ? 'Διαβάστηκε στις' : 'Read on'}{' '}
-                                    {new Date(a.read_at).toLocaleString(
-                                      lang === 'el' ? 'el-GR' : 'en-GB',
-                                      { dateStyle: 'short', timeStyle: 'short' }
-                                    )}
+                                    {formatDisplayDateTime(a.read_at)}
                                   </>
                                 ) : (
                                   lang === 'el' ? 'Δεν διαβάστηκε ακόμα' : 'Not read yet'
@@ -5953,10 +5951,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                       <li key={r.id} className="flex items-baseline justify-between gap-3">
                                         <span className="font-medium text-slate-900 truncate">{r.name}</span>
                                         <span className="shrink-0 text-slate-500">
-                                          {new Date(r.read_at).toLocaleString(
-                                            lang === 'el' ? 'el-GR' : 'en-GB',
-                                            { dateStyle: 'short', timeStyle: 'short' }
-                                          )}
+                                          {formatDisplayDateTime(r.read_at)}
                                         </span>
                                       </li>
                                     ))}
@@ -6387,12 +6382,12 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">{lang === 'el' ? 'Ημερομηνία' : 'Date'}</label>
-                  <input
-                    type="date"
-                    value={selectedBlogPost.date}
-                    onChange={(e) => setSelectedBlogPost({...selectedBlogPost, date: e.target.value})}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-medium"
+                  <DmyDateField
                     required
+                    lang={lang}
+                    value={selectedBlogPost.date}
+                    onChange={(date) => setSelectedBlogPost({ ...selectedBlogPost, date })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-medium"
                   />
                 </div>
               </div>

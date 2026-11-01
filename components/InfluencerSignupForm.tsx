@@ -34,6 +34,7 @@ import {
 } from "@/lib/validateBirthDate";
 import { normalizeYouTubeUsernameForSave } from "@/lib/youtubeHandle";
 import LocationTypeahead from "@/components/LocationTypeahead";
+import DmyDateField from "@/components/DmyDateField";
 import CreatorPlatformPrices from "@/components/CreatorPlatformPrices";
 import {
   creatorPricesHaveInvalid,
@@ -86,7 +87,7 @@ const t = {
     locationLabel: "Τοποθεσία",
     locationPlace: "π.χ. Αθήνα, Ελλάδα",
     birthDateLabel: "Ημερομηνία Γέννησης *",
-    birthDatePlace: "π.χ. 1995-01-15",
+    birthDatePlace: "π.χ. 15/01/1995",
     birthDateRequired: "Παρακαλώ συμπληρώστε την ημερομηνία γέννησής σας.",
     birthDateInvalid: "Η ημερομηνία γέννησης δεν είναι έγκυρη.",
     birthDateOutOfRange: "Η ημερομηνία γέννησης πρέπει να είναι μεταξύ 1930 και σήμερα.",
@@ -159,7 +160,7 @@ const t = {
     locationLabel: "Location",
     locationPlace: "e.g. Athens, Greece",
     birthDateLabel: "Date of Birth *",
-    birthDatePlace: "e.g. 1995-01-15",
+    birthDatePlace: "e.g. 15/01/1995",
     birthDateRequired: "Please enter your date of birth.",
     birthDateInvalid: "The date of birth is not valid.",
     birthDateOutOfRange: "Date of birth must be between 1930 and today.",
@@ -998,13 +999,13 @@ export default function InfluencerSignupForm() {
 
                 <div>
                     <label className={labelClass}>{txt.birthDateLabel}</label>
-                    <input
-                      type="date"
+                    <DmyDateField
+                      required
+                      lang={lang}
+                      ariaLabel={txt.birthDateLabel}
                       className={inputClass}
                       value={birthDate}
-                      onChange={(e) => setBirthDate(e.target.value)}
-                      placeholder={txt.birthDatePlace}
-                      required
+                      onChange={setBirthDate}
                       min={BIRTH_DATE_MIN}
                       max={athensTodayYmd()}
                     />

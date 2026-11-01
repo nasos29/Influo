@@ -1,5 +1,7 @@
 /** Relative timestamps and day labels for chat UI. */
 
+import { formatDisplayDate } from "@/lib/formatDate";
+
 export function formatChatRelativeTime(
   iso: string | null | undefined,
   lang: 'el' | 'en' = 'el'
@@ -20,10 +22,7 @@ export function formatChatRelativeTime(
   if (diffDay === 1) return lang === 'el' ? 'χθες' : 'yesterday';
   if (diffDay < 7) return lang === 'el' ? `${diffDay}η` : `${diffDay}d`;
 
-  return date.toLocaleDateString(lang === 'el' ? 'el-GR' : 'en-GB', {
-    day: 'numeric',
-    month: 'short',
-  });
+  return formatDisplayDate(date);
 }
 
 export function formatChatDayLabel(
@@ -44,12 +43,7 @@ export function formatChatDayLabel(
   if (dayDiff === 0) return lang === 'el' ? 'Σήμερα' : 'Today';
   if (dayDiff === 1) return lang === 'el' ? 'Χθες' : 'Yesterday';
 
-  return date.toLocaleDateString(lang === 'el' ? 'el-GR' : 'en-GB', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    year: dayDiff > 300 ? 'numeric' : undefined,
-  });
+  return formatDisplayDate(date);
 }
 
 export function sameChatDay(a: string, b: string): boolean {

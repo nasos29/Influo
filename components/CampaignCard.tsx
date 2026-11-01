@@ -10,6 +10,7 @@ import { CampaignDescriptionText } from "@/lib/campaignDescription";
 import { displayLocation } from "@/lib/displayLocation";
 import CampaignCover from "@/components/CampaignCover";
 import { formatEuro } from "@/lib/formatEuro";
+import { formatDisplayDate } from "@/lib/formatDate";
 
 export type CampaignCardBrand = {
   brand_name?: string | null;
@@ -347,6 +348,6 @@ export function campaignClosesMeta(
   });
   return {
     ...meta,
-    dateLabel: closes.toLocaleDateString(lang === "el" ? "el-GR" : "en-GB"),
+    dateLabel: formatDisplayDate(campaign.deadline || closes),
   };
 }

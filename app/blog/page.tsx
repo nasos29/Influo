@@ -8,6 +8,7 @@ import Footer from "../../components/Footer";
 import SiteHeader from "@/components/SiteHeader";
 import { initializeBlogPosts, getBlogPosts, initialBlogPosts, type BlogPost } from "@/lib/blogPosts";
 import { getStoredLanguage } from "@/lib/language";
+import { formatDisplayDate } from "@/lib/formatDate";
 
 type Lang = "el" | "en";
 
@@ -259,11 +260,7 @@ export default function BlogPage() {
                 </div>
                 <div className="p-6">
                   <div className="flex items-center gap-4 text-sm text-slate-500 mb-3">
-                    <span>{new Date(post.date).toLocaleDateString(lang === "el" ? "el-GR" : "en-US", { 
-                      year: "numeric", 
-                      month: "long", 
-                      day: "numeric" 
-                    })}</span>
+                    <span>{formatDisplayDate(post.date)}</span>
                     <span>•</span>
                     <span>{post.readTime[lang]}</span>
                   </div>

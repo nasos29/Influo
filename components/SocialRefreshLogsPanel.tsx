@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { formatDisplayDateTime } from "@/lib/formatDate";
 
 async function adminAuthHeaders(): Promise<Record<string, string>> {
   const { data: { session } } = await supabase.auth.getSession();
@@ -127,7 +128,7 @@ export default function SocialRefreshLogsPanel({ lang }: { lang: "el" | "en" }) 
                   onClick={() => load(run.id)}
                 >
                   <td className="py-2 pr-4 whitespace-nowrap">
-                    {new Date(run.started_at).toLocaleString(lang === "el" ? "el-GR" : "en-GB")}
+                    {formatDisplayDateTime(run.started_at)}
                   </td>
                   <td className="py-2 pr-4">{statusLabel(run.status)}</td>
                   <td className="py-2 pr-4">{run.influencers_ok}</td>
@@ -154,7 +155,7 @@ export default function SocialRefreshLogsPanel({ lang }: { lang: "el" | "en" }) 
                 {logs.map((row) => (
                   <li key={row.id} className="px-3 py-2 text-sm">
                     <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
-                      <span>{new Date(row.created_at).toLocaleString(lang === "el" ? "el-GR" : "en-GB")}</span>
+                      <span>{formatDisplayDateTime(row.created_at)}</span>
                       <span className={row.level === "error" ? "text-red-700 font-medium" : row.level === "warn" ? "text-amber-700" : ""}>
                         {row.level} · {row.event}
                       </span>
