@@ -113,8 +113,8 @@ const t = {
   }
 };
 
-const inputClass = "w-full px-4 py-3 !bg-white !text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400 shadow-sm hover:border-slate-300";
-const labelClass = "block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2";
+const inputClass = "w-full px-3.5 py-3 !bg-white !text-slate-900 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 outline-none transition-colors placeholder:text-slate-400";
+const labelClass = "mb-1.5 block text-sm font-medium text-slate-800";
 
 export default function BrandSignupForm({ embedded = false }: { embedded?: boolean }) {
   const [lang, setLang] = useState<Lang>("el");
@@ -341,30 +341,21 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
   };
 
   const ProgressSteps = () => (
-    <div className="flex justify-between mb-8 relative px-4">
-      <div className="absolute top-1/2 left-0 w-full h-1.5 bg-slate-200 rounded-full -z-10"></div>
-      <div
-        className="absolute top-1/2 left-4 h-1.5 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full transition-all duration-500 -z-10"
-        style={{ width: step >= 2 ? 'calc(100% - 2rem)' : '0%' }}
-      ></div>
+    <ol className="mb-8 flex items-center gap-3" aria-label={txt.headerTitle}>
       {[1, 2].map((s) => (
-        <div
-          key={s}
-          className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-bold text-sm transition-all border-2 shadow-md ${
-            step >= s
-              ? 'bg-gradient-to-br from-blue-600 to-purple-600 border-blue-600 text-white scale-110'
-              : 'bg-white border-slate-300 text-slate-500'
-          }`}
-        >
-          {step > s ? '✓' : s}
-        </div>
+        <li key={s} className="flex flex-1 items-center gap-3">
+          <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${step >= s ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-500"}`}>
+            {step > s ? "✓" : s}
+          </span>
+          {s < 2 ? <span className={`h-px flex-1 ${step > s ? "bg-slate-900" : "bg-slate-200"}`} /> : null}
+        </li>
       ))}
-    </div>
+    </ol>
   );
 
   const shellClass = embedded
-    ? "bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] max-w-4xl w-full mx-auto border border-slate-200"
-    : "bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-w-4xl w-full mx-auto border border-slate-200";
+    ? "mx-auto flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white"
+    : "mx-auto flex w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white";
 
   if (success) {
     return (
@@ -386,20 +377,13 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
 
   return (
     <div className={shellClass}>
-      <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-purple-900 p-4 sm:p-6 text-white relative overflow-hidden flex-shrink-0">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-pink-600/20" />
-        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 pr-10">
-          <div className="flex items-center justify-start">
-            <InfluoLogo className="h-8 sm:h-10 w-auto" title="Influo" />
-          </div>
-          <div className="text-left sm:flex-1 sm:text-center">
-            <h3 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 sm:mb-2 leading-tight">{txt.headerTitle}</h3>
-            <p className="text-slate-300 text-xs sm:text-sm">{txt.headerDesc}</p>
-          </div>
-        </div>
+      <div className="shrink-0 border-b border-slate-200 px-5 py-5 sm:px-8">
+        <InfluoLogo className="h-8 w-auto" title="Influo" />
+        <h3 className="mt-3 text-xl font-semibold text-slate-900">{txt.headerTitle}</h3>
+        <p className="mt-1 text-sm leading-relaxed text-slate-600">{txt.headerDesc}</p>
       </div>
 
-      <div className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto bg-white">
+      <div className="flex-1 overflow-y-auto bg-white px-5 py-6 sm:px-8">
         {!embedded && (
           <button
             type="button"
@@ -414,7 +398,7 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
 
         {step === 1 && (
           <div className="space-y-6">
-            <h2 className="text-xl font-bold text-black border-b border-gray-200 pb-2">{txt.step1}</h2>
+            <h2 className="text-lg font-semibold text-slate-900">{txt.step1}</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -470,7 +454,7 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
               </div>
             </div>
 
-            {message && <p className="text-red-600 text-sm text-center mt-2 font-medium bg-red-50 p-2 rounded">{message}</p>}
+            {message && <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-center text-sm font-medium text-red-700">{message}</p>}
 
             <div className="mt-8 pt-6 border-t border-slate-200">
               <button
@@ -486,7 +470,7 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
 
         {step === 2 && (
           <form onSubmit={handleSubmit} className="space-y-6">
-            <h2 className="text-xl font-bold text-black border-b border-gray-200 pb-2">{txt.step2}</h2>
+            <h2 className="text-lg font-semibold text-slate-900">{txt.step2}</h2>
 
             <CategoryCheckboxList
               lang={lang}
@@ -590,7 +574,7 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
               )}
             </div>
 
-            {message && <p className="text-red-600 text-sm text-center mt-2 font-medium bg-red-50 p-2 rounded">{message}</p>}
+            {message && <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-center text-sm font-medium text-red-700">{message}</p>}
 
             <div className="mt-8 pt-6 border-t border-slate-200 flex flex-col-reverse sm:flex-row gap-3 sm:gap-4">
               <button

@@ -64,7 +64,7 @@ const DESKTOP_NAV_ITEM_CLASS =
 
 const t = {
   el: {
-    nav_join: "Εγγραφή Influencer",
+    nav_join: "Εγγραφή",
     nav_brand: "Εγγραφή Επιχείρησης",
     nav_directory: "Κατάλογος",
     nav_campaigns: "Καμπάνιες",
@@ -117,7 +117,7 @@ const t = {
     footer_contact: "Επικοινωνία"
   },
   en: {
-    nav_join: "Become an Influencer",
+    nav_join: "Sign up",
     nav_brand: "For Brands",
     nav_directory: "Directory",
     nav_campaigns: "Campaigns",
@@ -192,7 +192,7 @@ export default function Home({
   const pathname = usePathname();
   const router = useRouter();
   const [showModal, setShowModal] = useState(false);
-  const [signupType, setSignupType] = useState<"influencer" | "brand">("influencer");
+  const [signupType, setSignupType] = useState<"influencer" | "brand" | null>(null);
   const [lang, setLang] = useState<Lang>(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [verifiedBrands, setVerifiedBrands] = useState<VerifiedBrand[]>([]);
@@ -440,14 +440,9 @@ export default function Home({
             <nav className="hidden md:flex items-center gap-6" aria-label="Main navigation">
               <ul className="flex items-center gap-6 text-sm font-medium text-slate-700">
                 {!isLoggedIn && (
-                  <>
-                    <li className="flex items-center"><button onClick={() => { setSignupType("influencer"); setShowModal(true); }} className={DESKTOP_NAV_ITEM_CLASS}>
-                      {txt.nav_join}
-                    </button></li>
-                    <li className="flex items-center"><a href="/brand/signup" className={DESKTOP_NAV_ITEM_CLASS}>
-                      {txt.nav_brand}
-                    </a></li>
-                  </>
+                  <li className="flex items-center"><button onClick={() => { setSignupType(null); setShowModal(true); }} className={DESKTOP_NAV_ITEM_CLASS}>
+                    {txt.nav_join}
+                  </button></li>
                 )}
                 <li className="flex items-center"><a href="/directory" className={DESKTOP_NAV_ITEM_CLASS}>
                   {txt.nav_directory}
@@ -571,23 +566,18 @@ export default function Home({
         {mobileMenuOpen && (
           <nav className="md:hidden border-t border-slate-200 bg-white">
             <div className="px-4 py-3 space-y-2">
-              <button 
-                onClick={() => {
-                  setSignupType("influencer");
-                  setShowModal(true);
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full text-left px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors"
-              >
-                {txt.nav_join}
-              </button>
-              <a 
-                href="/brand/signup"
-                onClick={() => setMobileMenuOpen(false)}
-                className="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors"
-              >
-                {txt.nav_brand}
-              </a>
+              {!isLoggedIn && (
+                <button
+                  onClick={() => {
+                    setSignupType(null);
+                    setShowModal(true);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors"
+                >
+                  {txt.nav_join}
+                </button>
+              )}
               <a 
                 href="/directory"
                 onClick={() => setMobileMenuOpen(false)}
