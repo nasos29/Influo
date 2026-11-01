@@ -48,7 +48,7 @@ import { loadOwnBrand, loadOwnProfiles } from "@/lib/ownProfile";
 import { creatorHasHardErOnMainAccount, displayErFlag, erFlagHint, erFlagLabel } from "@/lib/engagementFlags";
 import type { FollowerGrowthPoint } from "@/lib/followerGrowth";
 import { displayLanguageLabel } from "@/lib/languages";
-import { formatEuro, formatEuroAmount } from "@/lib/formatEuro";
+import { formatEuro, formatEuroAmount, parseEuroNumber } from "@/lib/formatEuro";
 import { lowestListedPrice } from "@/lib/publicInfluencer";
 import { displayServiceType } from "@/lib/campaignServiceLabel";
 import { responseText } from "@/lib/bilingualError";
@@ -59,11 +59,13 @@ import ProfileShareButton from "@/components/ProfileShareButton";
 import { showCampaignInviteButton } from "@/lib/gateAvatars";
 import BrandGateModal from "@/components/BrandGateModal";
 import {
+  EXTRA_LABEL,
   packageTitle,
   rateCardFromPackages,
   type PublicExtraView,
   type PublicPackageView,
 } from "@/lib/servicePackages";
+import { integerEuro, packageTitles } from "@/lib/proposalFloor";
 import { badgeMinRateFromTier } from "@/lib/publicInfluencer";
 import { publicProfilePath } from "@/lib/profileSlug";
 import type { ProfileViewModel } from "@/lib/profileViewModel";
@@ -622,6 +624,8 @@ export default function InfluencerProfile(props: {
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [showRegistrationRequiredModal, setShowRegistrationRequiredModal] = useState(false);
   const [proposalType, setProposalType] = useState("Instagram Story");
+  const [proposalPackageId, setProposalPackageId] = useState<string | null>(null);
+  const [selectedExtraKeys, setSelectedExtraKeys] = useState<string[]>([]);
   const [brandName, setBrandName] = useState("");
   const [brandEmail, setBrandEmail] = useState("");
   const [budget, setBudget] = useState("");
@@ -1235,6 +1239,27 @@ export default function InfluencerProfile(props: {
   // --- HANDLER: SEND PROPOSAL (UPDATED) ---
   const handleSendProposal = async (e: React.FormEvent) => {
     e.preventDefault();
+    const offered = Array.isArray(profile?.service_packages) ? profile.service_packages : [];
+    const matchedOffer = proposalPackageId
+      ? offered.find((pkg) => pkg.id === proposalPackageId)
+      : offered.find((pkg) => packageTitles(pkg).includes(proposalType));
+    const packagePrice = matchedOffer ? integerEuro(matchedOffer.price) ?? 0 : 0;
+    const offeredExtras = Array.isArray(profile?.service_extras) ? profile.service_extras : [];
+    const extraTotal = selectedExtraKeys.reduce((sum, key) => {
+      const extra = offeredExtras.find((item) => item.key === key);
+      return sum + (extra ? integerEuro(extra.price ?? extra.from_price) ?? 0 : 0);
+    }, 0);
+    const floor = packagePrice + extraTotal;
+    const amount = parseEuroNumber(budget);
+    if (floor > 0 && (amount == null || amount < floor)) {
+      const minimum = formatEuro(floor, lang);
+      alert(
+        lang === "el"
+          ? `Το budget δεν μπορεί να είναι μικρότερο από ${minimum}.`
+          : `Budget cannot be lower than ${minimum}.`
+      );
+      return;
+    }
     setSending(true);
 
     try {
@@ -1246,6 +1271,8 @@ export default function InfluencerProfile(props: {
                 brandName,
                 brandEmail,
                 serviceType: proposalType,
+                packageId: proposalPackageId,
+                extras: selectedExtraKeys,
                 budget,
                 message,
             }),
@@ -1452,9 +1479,12 @@ export default function InfluencerProfile(props: {
     }
   }, [id, lang, router]);
 
-  const startCollaboration = useCallback((choice?: { label: string; budget?: string }) => {
+  const startCollaboration = useCallback((choice?: { label: string; budget?: string; packageId?: string }) => {
+    setSelectedExtraKeys([]);
     if (choice?.label) setProposalType(choice.label);
-    if (choice?.budget) setBudget(choice.budget);
+    setProposalPackageId(choice?.packageId ?? null);
+    const amount = choice?.budget ? parseEuroNumber(choice.budget) ?? integerEuro(choice.budget) : null;
+    if (amount != null && amount > 0) setBudget(String(amount));
     setShowProposalModal(true);
   }, []);
 
@@ -1483,6 +1513,47 @@ export default function InfluencerProfile(props: {
   });
   const hireSource = hireFloor ?? (typeof profile.from_price === "number" ? profile.from_price : null);
   const hireAmount = hireSource != null && hireSource > 0 ? formatEuro(hireSource, lang) : null;
+  const proposalPackage = proposalPackageId
+    ? hirePackages.find((pkg) => pkg.id === proposalPackageId)
+    : hirePackages.find((pkg) => packageTitles(pkg).includes(proposalType));
+  const proposalPackagePrice = proposalPackage ? integerEuro(proposalPackage.price) ?? 0 : 0;
+  const proposalExtras = (Array.isArray(profile.service_extras) ? profile.service_extras : [])
+    .map((extra) => {
+      const price = integerEuro(extra.price ?? extra.from_price);
+      return price ? { key: extra.key, price } : null;
+    })
+    .filter((extra): extra is { key: PublicExtraView["key"]; price: number } => extra != null);
+  const proposalBudgetFloor =
+    proposalPackagePrice +
+    proposalExtras.reduce((sum, extra) => sum + (selectedExtraKeys.includes(extra.key) ? extra.price : 0), 0);
+  const selectProposalService = (title: string) => {
+    const match = hirePackages.find((pkg) => packageTitles(pkg).includes(title));
+    const price = match ? integerEuro(match.price) ?? 0 : 0;
+    const extraSum = proposalExtras.reduce(
+      (sum, extra) => sum + (selectedExtraKeys.includes(extra.key) ? extra.price : 0),
+      0
+    );
+    setProposalType(title);
+    setProposalPackageId(match?.id ?? null);
+    setBudget(String(price + extraSum));
+  };
+  const toggleProposalExtra = (key: string, price: number) => {
+    const selected = selectedExtraKeys.includes(key);
+    const nextKeys = selected
+      ? selectedExtraKeys.filter((item) => item !== key)
+      : [...selectedExtraKeys, key];
+    const nextExtraTotal = proposalExtras.reduce(
+      (sum, extra) => sum + (nextKeys.includes(extra.key) ? extra.price : 0),
+      0
+    );
+    const nextFloor = proposalPackagePrice + nextExtraTotal;
+    setSelectedExtraKeys(nextKeys);
+    setBudget((prev) => {
+      const current = parseEuroNumber(prev) ?? 0;
+      const delta = selected ? -price : price;
+      return String(Math.max(nextFloor, current + delta));
+    });
+  };
   const defaultOfferId = hirePackages[0]?.id ?? null;
   const offerIds = new Set(hirePackages.map((pkg) => pkg.id));
   const activeOfferId = selectedOfferId && offerIds.has(selectedOfferId) ? selectedOfferId : defaultOfferId;
@@ -1519,7 +1590,7 @@ export default function InfluencerProfile(props: {
       {/* PROPOSAL MODAL */}
       {showProposalModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden relative">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto relative">
                 <button 
                     onClick={() => { setShowProposalModal(false); setSent(false); }}
                     className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-xl z-10"
@@ -1538,7 +1609,7 @@ export default function InfluencerProfile(props: {
                                         <button
                                             key={type}
                                             type="button"
-                                            onClick={() => setProposalType(type)}
+                                            onClick={() => selectProposalService(type)}
                                             className={`inline-flex min-h-11 items-center justify-center px-2 py-2 text-xs font-bold leading-tight rounded-lg border transition-all ${proposalType === type ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-slate-200 hover:border-blue-300'}`}
                                         >
                                             {type}
@@ -1566,8 +1637,60 @@ export default function InfluencerProfile(props: {
                             
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.modal_bud}</label>
-                                <input required type="number" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white" placeholder={isBrand && profile?.min_rate ? profile.min_rate : "200"} value={budget} onChange={e => setBudget(e.target.value)} />
+                                <input
+                                  required
+                                  type="number"
+                                  min={proposalBudgetFloor > 0 ? proposalBudgetFloor : 1}
+                                  step={1}
+                                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+                                  value={budget}
+                                  onChange={(e) => {
+                                    const next = e.target.value;
+                                    if (next === "") {
+                                      setBudget("");
+                                      return;
+                                    }
+                                    const amount = Number(next);
+                                    if (proposalBudgetFloor > 0 && Number.isFinite(amount) && amount < proposalBudgetFloor) {
+                                      setBudget(String(proposalBudgetFloor));
+                                      return;
+                                    }
+                                    setBudget(next);
+                                  }}
+                                />
+                                {proposalBudgetFloor > 0 ? (
+                                  <p className="mt-1 text-xs text-slate-500">
+                                    {lang === "el"
+                                      ? `Ελάχιστο ${formatEuro(proposalBudgetFloor, "el")}. Μπορεί μόνο να αυξηθεί.`
+                                      : `Minimum ${formatEuro(proposalBudgetFloor, "en")}. It can only be increased.`}
+                                  </p>
+                                ) : null}
                             </div>
+
+                            {proposalExtras.length > 0 ? (
+                              <fieldset>
+                                <legend className="block text-xs font-bold text-slate-500 uppercase mb-2">
+                                  {lang === "el" ? "Επιπλέον" : "Extras"}
+                                </legend>
+                                <div className="space-y-2">
+                                  {proposalExtras.map((extra) => {
+                                    const checked = selectedExtraKeys.includes(extra.key);
+                                    return (
+                                      <label key={extra.key} className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800">
+                                        <input
+                                          type="checkbox"
+                                          checked={checked}
+                                          onChange={() => toggleProposalExtra(extra.key, extra.price)}
+                                          className="h-4 w-4 rounded border-slate-300"
+                                        />
+                                        <span className="min-w-0 flex-1">{EXTRA_LABEL[extra.key][lang]}</span>
+                                        <span className="shrink-0 font-semibold tabular-nums">{formatEuro(extra.price, lang)}</span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              </fieldset>
+                            ) : null}
 
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.modal_desc}</label>

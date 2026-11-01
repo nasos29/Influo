@@ -117,7 +117,7 @@ export default function ProfileHireCard({
   influencerId: string;
   collaborateLabel: string;
   messageLabel: string;
-  onCollaborate: (choice?: { label: string; budget?: string }) => void;
+  onCollaborate: (choice?: { label: string; budget?: string; packageId?: string }) => void;
   onMessage: () => void;
   onNeedBrand: () => void;
 }) {
@@ -132,7 +132,9 @@ export default function ProfileHireCard({
     (selectedNumber != null && floorAmount != null && selectedNumber === floorAmount);
 
   const collaborate = () => {
-    onCollaborate(selected ? { label: selected.title, budget: selected.budget } : undefined);
+    onCollaborate(
+      selected ? { label: selected.title, budget: selected.budget, packageId: selected.id } : undefined
+    );
   };
 
   const openNegotiate = () => {
