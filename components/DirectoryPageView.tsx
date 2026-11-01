@@ -25,9 +25,13 @@ const t = {
 export default function DirectoryPageView({
   initialInfluencers = [],
   initialTotal = 0,
+  heading,
+  preset,
 }: {
   initialInfluencers?: Influencer[];
   initialTotal?: number;
+  heading?: { h1: string; subtitle: string };
+  preset?: { skills?: string[]; location?: string; platform?: string; category?: string };
 }) {
   const pathname = usePathname();
   const [lang, setLang] = useState<Lang>(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
@@ -44,8 +48,8 @@ export default function DirectoryPageView({
       <main className="flex-1">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
           <div className="mb-8">
-            <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-2">{t[lang].title}</h1>
-            <p className="text-lg text-slate-600">{t[lang].subtitle}</p>
+            <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-2">{heading?.h1 || t[lang].title}</h1>
+            <p className="text-lg text-slate-600">{heading?.subtitle || t[lang].subtitle}</p>
             <p className="mt-3 inline-flex items-center gap-1.5 text-sm text-slate-500">
               <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-white" aria-hidden>
                 <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -57,7 +61,7 @@ export default function DirectoryPageView({
           </div>
 
           <Suspense fallback={<div className="h-40 rounded-2xl bg-white/60 animate-pulse" aria-hidden />}>
-            <Directory lang={lang} initialInfluencers={initialInfluencers} initialTotal={initialTotal} />
+            <Directory lang={lang} initialInfluencers={initialInfluencers} initialTotal={initialTotal} preset={preset} />
           </Suspense>
         </div>
       </main>

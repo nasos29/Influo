@@ -40,6 +40,11 @@ const LIGHT_INDEX_COLUMNS = [
   "availability_status",
   "birth_date",
   "analytics_verified",
+  "profile_slug",
+  "accounts",
+  "service_packages",
+  "rate_card",
+  "min_rate",
 ] as const;
 
 const HEAVY_INDEX_COLUMNS = [...DIRECTORY_PAGE_COLUMNS, "bio", "birth_date"] as const;
@@ -49,6 +54,8 @@ export type DirectoryPageResult = {
   total: number;
   page: number;
   pageSize: number;
+  /** Set when an exact package-price cap matched nobody and the cap was widened by 20%. */
+  relaxedMax: number | null;
 };
 
 type CacheEntry<T> = { at: number; value: T };
@@ -222,6 +229,7 @@ async function loadSqlPage(filters: DirectoryFilters, page: number, pageSize: nu
     total: total ?? counted,
     page: (total ?? counted) === 0 ? 1 : safePage,
     pageSize,
+    relaxedMax: null,
   };
 }
 
@@ -230,13 +238,25 @@ async function loadFilteredPage(filters: DirectoryFilters, page: number, pageSiz
   const rows = await loadIndex(heavy ? HEAVY_INDEX_COLUMNS : LIGHT_INDEX_COLUMNS, heavy);
   const past = filters.badge !== "All" ? await allPastBrands() : new Map<string, string[]>();
   const now = Date.now();
-  const matched = rows
-    .map((row) => ({
-      row,
-      candidate: directoryCandidateFromRow(row, past.get(String(row.id ?? "")) || []),
-    }))
+  const indexed = rows.map((row) => ({
+    row,
+    candidate: directoryCandidateFromRow(row, past.get(String(row.id ?? "")) || []),
+  }));
+  let relaxedMax: number | null = null;
+  let matched = indexed
     .filter((item) => matchesDirectoryFilters(item.candidate, filters, now))
     .sort((a, b) => compareDirectoryOrder(a.candidate, b.candidate, now));
+  const cap = Number(filters.maxPackagePrice);
+  if (matched.length === 0 && Number.isFinite(cap) && cap > 0) {
+    const widened = String(Math.ceil(cap * 1.2));
+    const again = indexed
+      .filter((item) => matchesDirectoryFilters(item.candidate, { ...filters, maxPackagePrice: widened }, now))
+      .sort((a, b) => compareDirectoryOrder(a.candidate, b.candidate, now));
+    if (again.length > 0) {
+      matched = again;
+      relaxedMax = Number(widened);
+    }
+  }
 
   const total = matched.length;
   const safePage = clampDirectoryPage(page, total, pageSize);
@@ -245,7 +265,7 @@ async function loadFilteredPage(filters: DirectoryFilters, page: number, pageSiz
   if (!heavy) {
     const ids = slice.map((item) => String(item.row.id ?? "")).filter(Boolean);
     if (ids.length === 0) {
-      return { data: [], total, page: 1, pageSize };
+      return { data: [], total, page: 1, pageSize, relaxedMax };
     }
     const admin = await client();
     const { rows: hydrated } = await selectApprovedInfluencers(DIRECTORY_PAGE_COLUMNS, (columnList) =>
@@ -257,7 +277,7 @@ async function loadFilteredPage(filters: DirectoryFilters, page: number, pageSiz
       .map((id) => byId.get(id))
       .filter((row): row is Record<string, unknown> => !!row)
       .map((row) => toCard(row, pagePast.get(String(row.id ?? "")) || []));
-    return { data: ordered, total, page: safePage, pageSize };
+    return { data: ordered, total, page: safePage, pageSize, relaxedMax };
   }
 
   const pagePast = filters.badge === "All"
@@ -268,7 +288,14 @@ async function loadFilteredPage(filters: DirectoryFilters, page: number, pageSiz
     total,
     page: total === 0 ? 1 : safePage,
     pageSize,
+    relaxedMax,
   };
+}
+
+export async function countDirectoryMatches(filters: DirectoryFilters): Promise<number> {
+  const rows = await loadIndex(LIGHT_INDEX_COLUMNS, false);
+  const now = Date.now();
+  return rows.filter((row) => matchesDirectoryFilters(directoryCandidateFromRow(row, 0), filters, now)).length;
 }
 
 export async function loadDirectoryPage(
