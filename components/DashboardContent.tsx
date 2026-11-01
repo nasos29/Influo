@@ -81,6 +81,7 @@ import {
 } from '@/lib/validateBirthDate';
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 import { formatDate, formatTime } from '@/lib/formatDateTime';
+import AnnouncementReadModal, { type AnnouncementReadItem } from '@/components/AnnouncementReadModal';
 import DmyDateField from '@/components/DmyDateField';
 import { isTimeoutError, withTimeout } from '@/lib/withTimeout';
 import ToastViewport, { useToasts } from '@/components/ui/Toast';
@@ -1522,6 +1523,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     const [unseenProposalCount, setUnseenProposalCount] = useState(0);
     const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
     const [announcementsList, setAnnouncementsList] = useState<Array<{ id: string; title: string; body: string; created_at: string; read: boolean; read_at: string | null }>>([]);
+    const [openAnnouncement, setOpenAnnouncement] = useState<AnnouncementReadItem | null>(null);
     const [unreadAnnouncementsCount, setUnreadAnnouncementsCount] = useState(0);
     const [announcementsLoading, setAnnouncementsLoading] = useState(false);
     const [announcementsError, setAnnouncementsError] = useState<null | 'timeout' | 'error'>(null);
@@ -1972,6 +1974,31 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     );
 
     const announcementsErrorText = announcementsError === 'timeout' ? ui.announcementsTimeout : ui.announcementsError;
+
+    const openAnnouncementItem = async (item: (typeof announcementsList)[number]) => {
+        setOpenAnnouncement({
+            id: item.id,
+            title: item.title,
+            body: item.body,
+            createdAt: item.created_at,
+        });
+        if (item.read) return;
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) return;
+        try {
+            const res = await fetch(`/api/announcements/${item.id}/read`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${session.access_token}` },
+            });
+            if (!res.ok) return;
+            setAnnouncementsList((prev) =>
+                prev.map((row) => (row.id === item.id ? { ...row, read: true, read_at: new Date().toISOString() } : row))
+            );
+            setUnreadAnnouncementsCount((prev) => Math.max(0, prev - 1));
+        } catch (e) {
+            console.error('Error marking announcement as read:', e);
+        }
+    };
     const proposalsErrorText = proposalsError === 'timeout'
         ? T('Η φόρτωση άργησε. Δοκίμασε ξανά.', 'This took too long. Try again.')
         : T('Οι προσφορές δεν φορτώθηκαν.', 'Offers could not be loaded.');
@@ -2184,8 +2211,14 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                     <ul className="mt-4 space-y-3">
                                         {announcementsList.slice(0, 3).map((item) => (
                                             <li key={item.id} className="border-b border-slate-100 pb-3 last:border-0">
-                                                <p className="text-sm font-medium text-slate-900">{item.title}</p>
-                                                <p className="text-xs text-slate-500 mt-1">{formatDate(item.created_at, lang)} {formatTime(item.created_at, lang)}</p>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => void openAnnouncementItem(item)}
+                                                    className="w-full rounded-lg px-1 py-1 text-left hover:bg-slate-50"
+                                                >
+                                                    <p className="text-sm font-medium text-slate-900">{item.title}</p>
+                                                    <p className="text-xs text-slate-500 mt-1">{formatDate(item.created_at, lang)} {formatTime(item.created_at, lang)}</p>
+                                                </button>
                                             </li>
                                         ))}
                                     </ul>
@@ -2662,6 +2695,11 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                 )}
             </div>
             
+            <AnnouncementReadModal
+                item={openAnnouncement}
+                lang={lang}
+                onClose={() => setOpenAnnouncement(null)}
+            />
             {showEditModal && (
                 <EditModal 
                     user={profile}

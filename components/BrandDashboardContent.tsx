@@ -54,6 +54,7 @@ import {
   writeIdList,
 } from '@/lib/dashboardBadges';
 import { formatDate, formatTime } from '@/lib/formatDateTime';
+import AnnouncementReadModal, { type AnnouncementReadItem } from '@/components/AnnouncementReadModal';
 import { isTimeoutError, withTimeout } from '@/lib/withTimeout';
 import ToastViewport, { useToasts } from '@/components/ui/Toast';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -825,6 +826,7 @@ export default function BrandDashboardContent() {
     }>
   >([]);
   const [unreadAnnouncementsCount, setUnreadAnnouncementsCount] = useState(0);
+  const [openAnnouncement, setOpenAnnouncement] = useState<AnnouncementReadItem | null>(null);
   const [announcementsLoading, setAnnouncementsLoading] = useState(false);
   const [announcementsError, setAnnouncementsError] = useState<string | null>(null);
   const [activeCampaignCount, setActiveCampaignCount] = useState(0);
@@ -1005,6 +1007,26 @@ export default function BrandDashboardContent() {
       );
     } finally {
       setAnnouncementsLoading(false);
+    }
+  };
+
+  const openAnnouncementItem = async (item: (typeof announcementsList)[number]) => {
+    setOpenAnnouncement({
+      id: item.id,
+      title: announcementText(item.title, item.title_en, lang),
+      body: announcementText(item.body, item.body_en, lang),
+      createdAt: item.created_at,
+    });
+    if (item.read) return;
+    try {
+      const res = await sessionFetch(`/api/brand/announcements/${item.id}/read`, { method: "POST" });
+      if (!res.ok) return;
+      setAnnouncementsList((prev) =>
+        prev.map((row) => (row.id === item.id ? { ...row, read: true, read_at: new Date().toISOString() } : row))
+      );
+      setUnreadAnnouncementsCount((prev) => Math.max(0, prev - 1));
+    } catch (e) {
+      console.error("Error marking announcement as read:", e);
     }
   };
 
@@ -2177,8 +2199,14 @@ export default function BrandDashboardContent() {
                   <ul className="mt-4 space-y-3">
                     {announcementsList.slice(0, 3).map((item) => (
                       <li key={item.id} className="border-b border-slate-100 pb-3 last:border-0">
-                        <p className="text-sm font-medium text-slate-900">{announcementText(item.title, item.title_en, lang)}</p>
-                        <p className="text-xs text-slate-500 mt-1">{formatDate(item.created_at, lang)} {formatTime(item.created_at, lang)}</p>
+                        <button
+                          type="button"
+                          onClick={() => void openAnnouncementItem(item)}
+                          className="w-full rounded-lg px-1 py-1 text-left hover:bg-slate-50"
+                        >
+                          <p className="text-sm font-medium text-slate-900">{announcementText(item.title, item.title_en, lang)}</p>
+                          <p className="text-xs text-slate-500 mt-1">{formatDate(item.created_at, lang)} {formatTime(item.created_at, lang)}</p>
+                        </button>
                       </li>
                     ))}
                   </ul>
@@ -3048,6 +3076,12 @@ export default function BrandDashboardContent() {
           )}
         </div>
         )}
+
+        <AnnouncementReadModal
+          item={openAnnouncement}
+          lang={lang}
+          onClose={() => setOpenAnnouncement(null)}
+        />
 
         {/* Edit Profile Modal */}
         {showEditModal && brandData && (
