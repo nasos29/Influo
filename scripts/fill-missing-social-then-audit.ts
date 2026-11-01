@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { createClient } from '@supabase/supabase-js';
-import { runAuditGeminiStrict, type AuditAccount, type AuditResult } from '../lib/auditGemini';
+import { offerAuditFields, runAuditGeminiStrict, type AuditAccount, type AuditResult } from '../lib/auditGemini';
 
 const AUDITPR = (process.env.AUDITPR_BASE_URL || 'http://127.0.0.1:8000').replace(/\/$/, '');
 const PROGRESS_PATH = path.join('reports', 'fill-missing-social-progress.json');
@@ -118,6 +118,10 @@ async function refreshAudit(inf: {
   location?: string;
   audience_male_percent?: number | null;
   audience_female_percent?: number | null;
+  min_rate?: string | number | null;
+  service_packages?: unknown;
+  rate_card?: unknown;
+  skills?: unknown;
   accounts: Acc[];
 }) {
   const igTtAccounts: AuditAccount[] = (inf.accounts || [])
@@ -177,6 +181,10 @@ async function refreshAudit(inf: {
       location: inf.location ?? undefined,
       audience_male_percent: inf.audience_male_percent ?? undefined,
       audience_female_percent: inf.audience_female_percent ?? undefined,
+      min_rate: inf.min_rate ?? undefined,
+      service_packages: inf.service_packages,
+      rate_card: inf.rate_card,
+      skills: inf.skills,
     },
     { exampleAudits }
   );
@@ -192,6 +200,7 @@ async function refreshAudit(inf: {
     brandSafe: auditResult.brandSafe,
     niche: auditResult.niche,
     niche_en: auditResult.niche_en,
+    ...offerAuditFields(auditResult),
   };
   const { error } = await admin.from('influencers').update({ auditpr_audit }).eq('id', inf.id);
   if (error) throw error;
@@ -203,7 +212,7 @@ async function main() {
   const { data, error } = await admin
     .from('influencers')
     .select(
-      'id, display_name, contact_email, accounts, bio, category, gender, location, audience_male_percent, audience_female_percent'
+      'id, display_name, contact_email, accounts, bio, category, gender, location, audience_male_percent, audience_female_percent, min_rate, service_packages, rate_card, skills'
     )
     .in('id', ids);
   if (error) throw error;

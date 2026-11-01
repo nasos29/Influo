@@ -15,6 +15,15 @@ import {
   type ErFlag,
   type ErFlagReason,
 } from '@/lib/engagementFlags';
+import { sanitizeSkills, skillLabel } from '@/lib/skills';
+import {
+  EXTRA_LABEL,
+  extrasForSave,
+  extrasFromRateCard,
+  packageTitle,
+  packagesForViewer,
+  type RateCardExtraKey,
+} from '@/lib/servicePackages';
 
 /** One social account (Instagram, TikTok, or YouTube) with metrics. YouTube: subscribers = followers. */
 export type AuditAccount = {
@@ -48,6 +57,11 @@ export type AuditShared = {
    /** Optional audience gender split (percent values like 60, 40). */
   audience_male_percent?: number | null;
   audience_female_percent?: number | null;
+  /** Stored floor, as saved (number or text such as "150" or "100-200"). */
+  min_rate?: string | number | null;
+  service_packages?: unknown;
+  rate_card?: unknown;
+  skills?: unknown;
 };
 
 export type AuditResult = {
@@ -62,6 +76,15 @@ export type AuditResult = {
   brandSafe: boolean;
   niche?: string;
   niche_en?: string;
+  /** Optional. Missing on audits written before offer/skills notes existed. */
+  priceNote?: string;
+  priceNote_en?: string;
+  packageNote?: string;
+  packageNote_en?: string;
+  skillsNote?: string;
+  skillsNote_en?: string;
+  offerTips?: string[];
+  offerTips_en?: string[];
 };
 
 export const AUDIT_FALLBACK_MESSAGE = 'Προσωρινή αδυναμία ανάλυσης.';
@@ -184,6 +207,73 @@ export function ensureSuspiciousErInNegatives(
   };
 }
 
+function euroLabel(raw: string): string {
+  const text = raw.trim();
+  if (!text) return "";
+  return /€|eur/i.test(text) ? text : `${text}€`;
+}
+
+/** Compact offer + skills lines for the audit prompt. Empty when the creator listed none. */
+export function formatAuditOffers(accounts: AuditAccount[], shared: AuditShared): string {
+  const lines: string[] = [];
+  const minRaw = shared.min_rate == null ? "" : String(shared.min_rate).trim();
+  if (minRaw) lines.push(`min: ${euroLabel(minRaw.slice(0, 40))}`);
+
+  const packages = packagesForViewer(shared.service_packages, shared.rate_card, accounts).slice(0, 8);
+  if (packages.length) {
+    const bits = packages.map((pkg) => {
+      const title = packageTitle(pkg.platform, pkg.type, pkg.quantity, "en");
+      const price = euroLabel(String(pkg.price || ""));
+      return price ? `${title} ${price}` : title;
+    });
+    const extra = packagesForViewer(shared.service_packages, shared.rate_card, accounts).length - packages.length;
+    lines.push(`packages: ${bits.join("; ")}${extra > 0 ? `; +${extra}` : ""}`);
+  }
+
+  const extras = extrasForSave(extrasFromRateCard(shared.rate_card));
+  const extraBits = Object.entries(extras).map(([key, price]) => {
+    const label = EXTRA_LABEL[key as RateCardExtraKey]?.en || key;
+    return `${label} ${euroLabel(price)}`;
+  });
+  if (extraBits.length) lines.push(`extras: ${extraBits.join("; ")}`);
+
+  const skills = sanitizeSkills(shared.skills)
+    .map((key) => skillLabel(key, "en"))
+    .filter(Boolean);
+  if (skills.length) lines.push(`skills: ${skills.join(", ")}`);
+
+  return lines.join("\n").slice(0, 700);
+}
+
+export function offerAuditFields(audit: AuditResult): Partial<AuditResult> {
+  const out: Partial<AuditResult> = {};
+  if (audit.priceNote) out.priceNote = audit.priceNote;
+  if (audit.priceNote_en) out.priceNote_en = audit.priceNote_en;
+  if (audit.packageNote) out.packageNote = audit.packageNote;
+  if (audit.packageNote_en) out.packageNote_en = audit.packageNote_en;
+  if (audit.skillsNote) out.skillsNote = audit.skillsNote;
+  if (audit.skillsNote_en) out.skillsNote_en = audit.skillsNote_en;
+  if (audit.offerTips?.length) out.offerTips = audit.offerTips;
+  if (audit.offerTips_en?.length) out.offerTips_en = audit.offerTips_en;
+  return out;
+}
+
+function shortAuditText(value: unknown, max = 240): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const text = value.trim().slice(0, max);
+  return text || undefined;
+}
+
+function shortAuditList(value: unknown, maxItems = 2, maxLen = 140): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const items = value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim().slice(0, maxLen))
+    .filter(Boolean)
+    .slice(0, maxItems);
+  return items.length ? items : undefined;
+}
+
 function buildMultiPlatformPrompt(accounts: AuditAccount[], shared: AuditShared, exampleAudits?: AuditResult[]): string {
   const platformsBlock = accounts
     .map((a) => {
@@ -230,6 +320,10 @@ function buildMultiPlatformPrompt(accounts: AuditAccount[], shared: AuditShared,
   const femalePct = typeof shared.audience_female_percent === 'number' ? shared.audience_female_percent : null;
   const bioBlock = bio ? `\nBIOGRAPHY (creator):\n${bio}` : '';
   const categoryBlock = cat ? `\nCATEGORY: ${cat}` : '';
+  const offers = formatAuditOffers(accounts, shared);
+  const offersBlock = offers
+    ? `\nOFFERS (EUR, as stored):\n${offers}`
+    : '';
   const locationBlock = location ? `\nLOCATION (creator has set this): ${location}. If LOCATION is set, do NOT add any negative about geographic target or local businesses – the creator has declared their location.` : '';
   const audienceGenderBlock =
     malePct != null || femalePct != null
@@ -260,7 +354,7 @@ CREATOR DATA – SOCIAL ACCOUNTS (metrics per platform). Platforms can be Instag
 ${platformsBlock}
 ${erAttentionBlock}
 ${bioBlock}
-${categoryBlock}${locationBlock}${audienceGenderBlock}${nameBlock}${genderNote}
+${categoryBlock}${offersBlock}${locationBlock}${audienceGenderBlock}${nameBlock}${genderNote}
 
 CRITICAL – NAMES: In ALL output (scoreBreakdown, whyWorkWithThem, positives, negatives) you must NEVER write the creator's username, @handle, or social media handle. Always refer to the person ONLY by their display name ("${creatorName}") or as "${greekCreatorNom}" / "the creator". Match Greek grammatical gender to the creator (per CREATOR GENDER above). If you see a username in the data above, do not repeat it in your text.
 
@@ -268,6 +362,7 @@ TONE – "Με το γάντι": Be professional and honest but diplomatic. Crit
 
 TASK:
 Write a strategic profile that helps brands decide whether to work with this creator. Focus on strengths; only mention weaknesses when there is a clear, factual risk (not comparisons to other creators). Use detailed bullets (2–3 sentences or 1–2 lines each). Do NOT give recommendations to the creator. Describe what IS. Do not invent negatives that merely compare this creator unfavourably to others.
+If OFFERS are present, use the optional keys to say briefly whether the prices look reasonable for the followers, engagement and category, whether the packages and extras are clear, and how the skills match the content. Add at most two short improvement tips. Omit a key when that data is missing. Do not repeat the main bullets.
 
 OUTPUT – Return ONLY valid JSON with these exact keys (no markdown, no extra text):
 - scoreBreakdown: array of exactly 4 bullet points in GREEK (Ελληνικά). Each bullet MUST be 2–3 sentences or 2–3 lines – rich, detailed, nuanced text for brands. Reference the creator ONLY by display name or "${greekCreatorNom}" (with correct gender agreement) – never by @username.
@@ -281,6 +376,14 @@ OUTPUT – Return ONLY valid JSON with these exact keys (no markdown, no extra t
 - brandSafe: boolean (true if content and metrics suggest brand-safe; false if risks). Set brandSafe to false for engagement ONLY when the main account (most followers among Instagram, TikTok, and YouTube) has ER_FLAG reason inflated or quality_adjusted. Estimates, few posts, unmeasured quality notes, and a flag on a smaller account MUST NOT set brandSafe to false.
 - niche: ONE niche label in GREEK (e.g. "Μόδα", "Fitness").
 - niche_en: ONE niche label in ENGLISH (Fashion, Fitness, Beauty & Makeup, etc.). Do NOT use: Creator, Content Creator, Influencer, Lifestyle as default.
+- priceNote: optional ONE short sentence in GREEK on whether listed prices fit the followers, engagement and category. Omit if there are no prices.
+- priceNote_en: same sentence in ENGLISH, or omit.
+- packageNote: optional ONE short sentence in GREEK on whether packages and extras are clear. Omit if there are no packages.
+- packageNote_en: same sentence in ENGLISH, or omit.
+- skillsNote: optional ONE short sentence in GREEK on how the skills match the content and category. Omit if there are no skills.
+- skillsNote_en: same sentence in ENGLISH, or omit.
+- offerTips: optional array of 0–2 very short improvement tips in GREEK. Omit or [] if nothing useful.
+- offerTips_en: same tips in ENGLISH, or omit.
 
 RULES:
 - Audience is brands. Be detailed and nuanced in bullets; more words, not one-liners.
@@ -346,6 +449,14 @@ function parseResponse(text: string): AuditResult {
     brandSafe: Boolean(data.brandSafe !== false),
     niche: ((data.niche as string) || '').trim() || 'Creator',
     niche_en: ((data.niche_en as string) || '').trim() || undefined,
+    priceNote: shortAuditText(data.priceNote),
+    priceNote_en: shortAuditText(data.priceNote_en),
+    packageNote: shortAuditText(data.packageNote),
+    packageNote_en: shortAuditText(data.packageNote_en),
+    skillsNote: shortAuditText(data.skillsNote),
+    skillsNote_en: shortAuditText(data.skillsNote_en),
+    offerTips: shortAuditList(data.offerTips),
+    offerTips_en: shortAuditList(data.offerTips_en),
   });
 }
 
@@ -371,6 +482,10 @@ function normalizeGreekEngagementTerms(audit: AuditResult): AuditResult {
       : audit.whyWorkWithThem,
     positives: mapGreekStrings(audit.positives),
     negatives: mapGreekStrings(audit.negatives),
+    priceNote: audit.priceNote ? fixGreekEngagementWording(audit.priceNote) : undefined,
+    packageNote: audit.packageNote ? fixGreekEngagementWording(audit.packageNote) : undefined,
+    skillsNote: audit.skillsNote ? fixGreekEngagementWording(audit.skillsNote) : undefined,
+    offerTips: mapGreekStrings(audit.offerTips),
   };
 }
 
@@ -486,6 +601,7 @@ export function computeAuditFingerprint(accounts: AuditAccount[], shared: AuditS
       .slice(0, 400),
     category_name: shared.category_name ?? null,
     gender: shared.gender ?? null,
+    offers: formatAuditOffers(sorted, shared),
   };
   return createHash('sha256').update(JSON.stringify(payload)).digest('hex');
 }
