@@ -1,10 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { loadOwnProfiles } from "@/lib/ownProfile";
 import { lookupAuthUser } from "@/lib/authSession";
 import { accountAvatarFromProfiles } from "@/lib/accountAvatar";
+import {
+  clearHeaderAvatarCache,
+  getHeaderAvatarServerSnapshot,
+  getHeaderAvatarSnapshot,
+  subscribeHeaderAvatar,
+  writeHeaderAvatarCache,
+} from "@/lib/headerAvatarCache";
 
 const ADMIN_EMAIL_FALLBACK = "nd.6@hotmail.com";
 
@@ -114,81 +121,108 @@ export function alternateLocalePath(pathname: string, targetLang: "el" | "en"): 
 }
 
 export function usePublicAccountNav(lang: "el" | "en"): PublicAccountNav {
-  const [userKind, setUserKind] = useState<PublicUserKind>("none");
-  const [accountName, setAccountName] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState("");
-  const [avatarName, setAvatarName] = useState("");
-  const [identityReady, setIdentityReady] = useState(false);
+  const snapshot = useSyncExternalStore(
+    subscribeHeaderAvatar,
+    getHeaderAvatarSnapshot,
+    getHeaderAvatarServerSnapshot
+  );
 
   useEffect(() => {
-    let cancelled = false;
-    const finish = (kind: PublicUserKind, name: string, avatar = "", initialsName = name) => {
-      if (cancelled) return;
-      setUserKind(kind);
-      setAccountName(name.trim());
-      setAvatarUrl(avatar.trim());
-      setAvatarName(initialsName.trim());
-      setIdentityReady(true);
-    };
-    // Profile reads can hang on the auth lock or a failing influencers select.
-    // The skeleton must clear even when that happens.
-    const hardStop = setTimeout(() => {
-      if (!cancelled) setIdentityReady(true);
-    }, 8000);
-
-    (async () => {
-      const auth = await lookupAuthUser(3000);
-      if (cancelled) return;
-      const email = auth.user?.email?.trim() || "";
-      if (!auth.user) {
-        finish("none", "");
-        return;
-      }
-      if (email.toLowerCase() === ADMIN_EMAIL_FALLBACK.toLowerCase()) {
-        const profiles = await withTimeout(loadOwnProfiles(supabase), 3500);
-        if (cancelled) return;
-        const avatar = accountAvatarFromProfiles({
-          email,
-          influencer: profiles?.ok ? profiles.influencer : null,
-          brand: profiles?.ok ? profiles.brand : null,
-        });
-        finish("admin", email, avatar.avatarUrl, avatar.avatarName);
-        return;
-      }
-      const profiles = await withTimeout(loadOwnProfiles(supabase), 3500);
-      if (cancelled) return;
-      if (profiles?.ok && profiles.brand && !profiles.influencer) {
-        const avatar = accountAvatarFromProfiles({ email, brand: profiles.brand });
-        finish("brand", avatar.avatarName || email, avatar.avatarUrl, avatar.avatarName);
-        return;
-      }
-      if (profiles?.ok && profiles.influencer) {
-        const avatar = accountAvatarFromProfiles({
-          email,
-          influencer: profiles.influencer,
-          brand: profiles.brand,
-        });
-        finish("influencer", avatar.avatarName || email, avatar.avatarUrl, avatar.avatarName);
-        return;
-      }
-      finish(profiles?.ok ? "none" : "signed-in", email, "", email);
-    })().catch(() => {
-      finish("signed-in", "");
-    }).finally(() => {
-      clearTimeout(hardStop);
-    });
-    return () => {
-      cancelled = true;
-      clearTimeout(hardStop);
-    };
+    void refreshHeaderAvatar();
   }, []);
 
   return {
-    userKind,
-    identityReady,
-    dashboardPath: dashboardPathFor(userKind),
-    dashboardLabel: accountName || dashboardLabelFor(userKind, lang),
-    avatarUrl,
-    avatarName,
+    userKind: snapshot.userKind,
+    identityReady: snapshot.ready,
+    dashboardPath: dashboardPathFor(snapshot.userKind),
+    dashboardLabel: snapshot.accountName || dashboardLabelFor(snapshot.userKind, lang),
+    avatarUrl: snapshot.avatarUrl,
+    avatarName: snapshot.avatarName,
   };
+}
+
+let refreshInflight: Promise<void> | null = null;
+
+/** Re-check the session without hiding an avatar that is already on screen. */
+export function refreshHeaderAvatar(): Promise<void> {
+  if (refreshInflight) return refreshInflight;
+  refreshInflight = verifyHeaderAvatar().finally(() => {
+    refreshInflight = null;
+  });
+  return refreshInflight;
+}
+
+async function verifyHeaderAvatar(): Promise<void> {
+  const hadCache = getHeaderAvatarSnapshot().userKind !== "none";
+  let finished = false;
+  const hardStop = setTimeout(() => {
+    if (finished || hadCache) return;
+    clearHeaderAvatarCache();
+  }, 8000);
+
+  try {
+    const auth = await lookupAuthUser(3000);
+    const email = auth.user?.email?.trim() || "";
+    if (!auth.user) {
+      clearHeaderAvatarCache();
+      return;
+    }
+    if (email.toLowerCase() === ADMIN_EMAIL_FALLBACK.toLowerCase()) {
+      const profiles = await withTimeout(loadOwnProfiles(supabase), 3500);
+      if (!profiles?.ok) {
+        if (!hadCache) remember("admin", email, "", email);
+        return;
+      }
+      const avatar = accountAvatarFromProfiles({
+        email,
+        influencer: profiles.influencer,
+        brand: profiles.brand,
+      });
+      remember("admin", email, avatar.avatarUrl, avatar.avatarName);
+      return;
+    }
+    const profiles = await withTimeout(loadOwnProfiles(supabase), 3500);
+    if (!profiles?.ok) {
+      if (!hadCache) remember("signed-in", email, "", email);
+      return;
+    }
+    if (profiles?.ok && profiles.brand && !profiles.influencer) {
+      const avatar = accountAvatarFromProfiles({ email, brand: profiles.brand });
+      remember("brand", avatar.avatarName || email, avatar.avatarUrl, avatar.avatarName);
+      return;
+    }
+    if (profiles?.ok && profiles.influencer) {
+      const avatar = accountAvatarFromProfiles({
+        email,
+        influencer: profiles.influencer,
+        brand: profiles.brand,
+      });
+      remember("influencer", avatar.avatarName || email, avatar.avatarUrl, avatar.avatarName);
+      return;
+    }
+    if (profiles?.ok) {
+      clearHeaderAvatarCache();
+      return;
+    }
+    if (!hadCache) remember("signed-in", email, "", email);
+  } catch {
+    if (!hadCache) remember("signed-in", "", "", "");
+  } finally {
+    finished = true;
+    clearTimeout(hardStop);
+  }
+}
+
+function remember(
+  kind: Exclude<PublicUserKind, "none">,
+  accountName: string,
+  avatarUrl: string,
+  avatarName: string
+): void {
+  writeHeaderAvatarCache({
+    userKind: kind,
+    accountName: accountName.trim(),
+    avatarUrl: avatarUrl.trim(),
+    avatarName: avatarName.trim(),
+  });
 }

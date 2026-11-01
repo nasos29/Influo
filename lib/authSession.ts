@@ -2,6 +2,7 @@ import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
 import { beginPresenceLogout } from "@/lib/presenceControl";
 import { isSupabaseAuthKey, loggedOutStampActive } from "@/lib/authStorage";
+import { clearHeaderAvatarCache } from "@/lib/headerAvatarCache";
 
 const LOGOUT_FLAG = "influo-logged-out";
 
@@ -192,6 +193,7 @@ function storedAccessToken(): string {
  */
 export function logoutEverywhere(redirectTo = "/login"): void {
   beginPresenceLogout();
+  clearHeaderAvatarCache();
   const token = storedAccessToken();
   markLoggedOut();
   try {

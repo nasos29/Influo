@@ -6,6 +6,7 @@ import ChunkErrorReload from "@/components/ChunkErrorReload";
 import CookieConsent from "@/components/CookieConsent";
 import FeedbackHost from "@/components/Feedback";
 import HtmlLang from "@/components/HtmlLang";
+import { HEADER_AVATAR_BOOT_SCRIPT } from "@/lib/headerAvatarCache";
 import { ORGANIZATION_EMAIL, ORGANIZATION_SAME_AS, SITE_NAME, SITE_URL } from "@/lib/site";
 
 const roboto = Roboto({
@@ -130,8 +131,9 @@ export default async function RootLayout({
   };
 
   return (
-    <html lang="el">
+    <html lang="el" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: HEADER_AVATAR_BOOT_SCRIPT }} />
         <link rel="icon" href="/logo-icon.svg" type="image/svg+xml" sizes="any" />
         <link rel="icon" href="/logo-icon.svg" type="image/svg+xml" sizes="48x48" />
         <link rel="icon" href="/logo-icon.svg" type="image/svg+xml" sizes="32x32" />
