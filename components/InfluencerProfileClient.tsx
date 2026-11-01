@@ -1523,9 +1523,6 @@ export default function InfluencerProfile(props: {
       return price ? { key: extra.key, price } : null;
     })
     .filter((extra): extra is { key: PublicExtraView["key"]; price: number } => extra != null);
-  const proposalBudgetFloor =
-    proposalPackagePrice +
-    proposalExtras.reduce((sum, extra) => sum + (selectedExtraKeys.includes(extra.key) ? extra.price : 0), 0);
   const selectProposalService = (title: string) => {
     const match = hirePackages.find((pkg) => packageTitles(pkg).includes(title));
     const price = match ? integerEuro(match.price) ?? 0 : 0;
@@ -1639,31 +1636,11 @@ export default function InfluencerProfile(props: {
                                 <input
                                   required
                                   type="number"
-                                  min={proposalBudgetFloor > 0 ? proposalBudgetFloor : 1}
                                   step={1}
                                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
                                   value={budget}
-                                  onChange={(e) => {
-                                    const next = e.target.value;
-                                    if (next === "") {
-                                      setBudget("");
-                                      return;
-                                    }
-                                    const amount = Number(next);
-                                    if (proposalBudgetFloor > 0 && Number.isFinite(amount) && amount < proposalBudgetFloor) {
-                                      setBudget(String(proposalBudgetFloor));
-                                      return;
-                                    }
-                                    setBudget(next);
-                                  }}
+                                  onChange={(e) => setBudget(e.target.value)}
                                 />
-                                {proposalBudgetFloor > 0 ? (
-                                  <p className="mt-1 text-xs text-slate-500">
-                                    {lang === "el"
-                                      ? `Ελάχιστο ${formatEuro(proposalBudgetFloor, "el")}.`
-                                      : `Minimum ${formatEuro(proposalBudgetFloor, "en")}.`}
-                                  </p>
-                                ) : null}
                             </div>
 
                             {proposalExtras.length > 0 ? (
