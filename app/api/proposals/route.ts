@@ -5,7 +5,7 @@ import { ensureProposalThread } from "@/lib/proposalChat";
 import { mailNewProposal } from "@/lib/proposalMail";
 import { deferAfterResponse, pushParty } from "@/lib/proposalNotify";
 import { formatEuro, formatEuroAmount, parseEuroNumber } from "@/lib/formatEuro";
-import { collaborationFloor } from "@/lib/proposalFloor";
+import { collaborationFloor, proposalExtrasChatLine } from "@/lib/proposalFloor";
 import {
   cleanBudget,
   clipText,
@@ -16,7 +16,7 @@ import {
 } from "@/lib/proposalParty";
 
 const PROPOSAL_COLUMNS =
-  "id, influencer_id, brand_name, brand_email, brand_id, service_type, budget, message, status, created_at, counter_proposal_budget, counter_proposal_message, counter_proposal_status, counter_proposal_created_at, influencer_agreement_accepted, brand_agreement_accepted, agreement_accepted_at, brand_added_to_past_brands";
+  "id, influencer_id, brand_name, brand_email, brand_id, service_type, budget, message, status, created_at, counter_proposal_budget, counter_proposal_message, counter_proposal_status, counter_proposal_created_at, influencer_agreement_accepted, brand_agreement_accepted, agreement_accepted_at, brand_added_to_past_brands, selected_extras";
 
 function proposalJson(body: unknown, status = 200) {
   return NextResponse.json(body, {
@@ -218,6 +218,7 @@ export async function POST(request: Request) {
       );
     }
 
+    const selectedExtras = floor && floor.ok ? floor.extras : [];
     const saved = await insertProposal({
       influencer_id: influencerId,
       brand_name: brandName,
@@ -228,10 +229,11 @@ export async function POST(request: Request) {
       message: message || null,
       status: "pending",
       counter_proposal_status: "none",
+      selected_extras: selectedExtras,
     });
     if ("error" in saved) return NextResponse.json({ error: saved.error }, { status: 500 });
 
-    const content = `Νέα πρόταση: ${service} | Budget: ${formatEuroAmount(budget) || budget}${message ? `\n\n${message}` : ""}`;
+    const content = `Νέα πρόταση: ${service} | Budget: ${formatEuroAmount(budget) || budget}${proposalExtrasChatLine(selectedExtras)}${message ? `\n\n${message}` : ""}`;
     let conversationId: string | null = null;
     try {
       conversationId = await ensureProposalThread({

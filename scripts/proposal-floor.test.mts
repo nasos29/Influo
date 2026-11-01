@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { collaborationFloor } from "../lib/proposalFloor.ts";
+import { collaborationFloor, formatProposalExtrasLine } from "../lib/proposalFloor.ts";
 
 const packages = [
   { id: "pkg-reel", platform: "instagram", type: "reel", quantity: 1, price: "50" },
@@ -16,7 +16,26 @@ test("package plus extras is the minimum, and a higher budget is allowed", () =>
     packageId: "pkg-reel",
     extraKeys: ["usage_rights_ads"],
   });
-  assert.deepEqual(floor, { ok: true, floor: 65, packagePrice: 50, extraTotal: 15 });
+  assert.deepEqual(floor, {
+    ok: true,
+    floor: 65,
+    packagePrice: 50,
+    extraTotal: 15,
+    extras: [{ key: "usage_rights_ads", price: 15 }],
+  });
+});
+
+test("empty extras render nothing, priced ones use the creator label", () => {
+  assert.equal(formatProposalExtrasLine([], "el"), null);
+  assert.equal(formatProposalExtrasLine(null, "en"), null);
+  assert.equal(
+    formatProposalExtrasLine([{ key: "rush_delivery", price: 20 }], "el"),
+    "Extras: Γρήγορη παράδοση (20 €)"
+  );
+  assert.equal(
+    formatProposalExtrasLine([{ key: "rush_delivery", price: 20 }], "en"),
+    "Extras: Fast delivery (20 €)"
+  );
 });
 
 test("a campaign invite without a package or extras has no floor", () => {

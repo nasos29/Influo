@@ -18,6 +18,7 @@ import PushNotificationPrompt from '@/components/PushNotificationPrompt';
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 import { displayNameForLang } from '@/lib/greeklish';
 import { displayServiceType } from '@/lib/campaignServiceLabel';
+import { formatProposalExtrasLine } from '@/lib/proposalFloor';
 import { prepareImageForStorage } from '@/lib/prepareImageForStorage';
 import BrandCampaignsSection from '@/components/BrandCampaignsSection';
 import BrandActionInbox from '@/components/BrandActionInbox';
@@ -85,6 +86,7 @@ interface Proposal {
   influencer_agreement_accepted: boolean;
   brand_agreement_accepted: boolean;
   counter_proposal_status?: string;
+  selected_extras?: unknown;
 }
 
 interface Influencer {
@@ -2814,6 +2816,9 @@ export default function BrandDashboardContent() {
                               <span className="font-medium text-slate-600 line-through">{formatEuroAmount(proposal.budget, lang)}</span>
                             </div>
                           </div>
+                          {formatProposalExtrasLine(proposal.selected_extras, lang) ? (
+                            <p className="text-sm text-slate-700 mb-3">{formatProposalExtrasLine(proposal.selected_extras, lang)}</p>
+                          ) : null}
                           <div className="bg-white rounded-lg p-4 mb-3 border border-amber-300">
                             <div className="flex items-center justify-between">
                               <span className="text-slate-600 text-sm font-medium">{lang === 'el' ? 'Αντιπρόταση:' : 'Counter Proposal:'}</span>
@@ -2880,6 +2885,9 @@ export default function BrandDashboardContent() {
                               </span>
                             </div>
                           </div>
+                          {formatProposalExtrasLine(proposal.selected_extras, lang) ? (
+                            <p className="mt-2 text-sm text-slate-700">{formatProposalExtrasLine(proposal.selected_extras, lang)}</p>
+                          ) : null}
                           {proposal.description && (
                             <div className="mt-2 text-sm text-slate-600">
                               <span className="text-slate-500">{txt.description}:</span>{' '}
@@ -2930,6 +2938,9 @@ export default function BrandDashboardContent() {
                           </span>
                         </div>
                       </div>
+                      {formatProposalExtrasLine(proposal.selected_extras, lang) ? (
+                        <p className="mt-2 text-sm text-slate-700">{formatProposalExtrasLine(proposal.selected_extras, lang)}</p>
+                      ) : null}
                       <p className="mt-3 text-sm text-slate-600">{txt.awaiting_note}</p>
                     </div>
                   );
@@ -3003,6 +3014,9 @@ export default function BrandDashboardContent() {
                       {formatEuroAmount(selectedProposal.counter_proposal_budget || selectedProposal.budget, lang)}
                     </span>
                   </div>
+                  {formatProposalExtrasLine(selectedProposal.selected_extras, lang) ? (
+                    <p className="text-sm text-blue-800">{formatProposalExtrasLine(selectedProposal.selected_extras, lang)}</p>
+                  ) : null}
                   {selectedProposal.description && (
                     <div className="pt-3 border-t border-blue-200">
                       <span className="text-blue-700 font-medium">{txt.description}:</span>

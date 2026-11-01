@@ -177,7 +177,7 @@ export default function ProfileHireCard({
     <>
       <div className="rounded-2xl border border-slate-200 bg-white px-[18px] pb-3.5 pt-[18px] shadow-[0_10px_28px_rgba(15,23,42,0.08)]">
         {priceText ? (
-          <div className="mb-3.5">
+          <div className="mb-3.5 text-center">
             <p
               className={`font-extrabold text-slate-900 ${
                 priceText.length > 10 ? "text-2xl leading-tight" : "text-3xl leading-none"

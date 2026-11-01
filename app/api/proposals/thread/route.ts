@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { formatEuroAmount } from "@/lib/formatEuro";
+import { parseSavedProposalExtras, proposalExtrasChatLine } from "@/lib/proposalFloor";
 import { ensureProposalThread } from "@/lib/proposalChat";
 import { loadProposal, partyOf, requireActor } from "@/lib/proposalAccess";
 
@@ -17,9 +18,9 @@ export async function POST(request: Request) {
     if (!proposal.brand_email) return NextResponse.json({ error: "Proposal has no brand" }, { status: 400 });
 
     const budgetLabel = formatEuroAmount(proposal.budget) || String(proposal.budget || "").replace(/€/g, "").trim();
-    const content = `Νέα πρόταση: ${proposal.service_type || ""} | Budget: ${budgetLabel}${
-      proposal.message ? `\n\n${proposal.message}` : ""
-    }`;
+    const content = `Νέα πρόταση: ${proposal.service_type || ""} | Budget: ${budgetLabel}${proposalExtrasChatLine(
+      parseSavedProposalExtras(proposal.selected_extras)
+    )}${proposal.message ? `\n\n${proposal.message}` : ""}`;
     const conversationId = await ensureProposalThread({
       influencerId: String(proposal.influencer_id),
       brandEmail: proposal.brand_email,
