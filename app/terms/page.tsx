@@ -1,146 +1,319 @@
 // app/terms/page.tsx
 "use client";
 
-import { useState, useEffect } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import SiteHeader from '@/components/SiteHeader';
-import { getStoredLanguage } from '@/lib/language';
 import { LEGAL_LAST_UPDATED } from '@/lib/legalDates';
+import { useMarketingLang } from '@/lib/useMarketingLang';
+
+const SUPPORT_EMAIL = "support@influo.gr";
+
+type TermsSection = {
+  title: string;
+  paragraphs: string[];
+  bullets?: string[];
+};
+
+type TermsCopy = {
+  title: string;
+  lastUpdated: string;
+  intro: string;
+  sections: TermsSection[];
+  back: string;
+};
+
+function withMailto(text: string): ReactNode {
+  if (!text.includes(SUPPORT_EMAIL)) return text;
+  const parts = text.split(SUPPORT_EMAIL);
+  return parts.map((part, index) => (
+    <Fragment key={index}>
+      {part}
+      {index < parts.length - 1 ? (
+        <a
+          href={`mailto:${SUPPORT_EMAIL}`}
+          className="text-blue-600 hover:text-blue-700 underline"
+        >
+          {SUPPORT_EMAIL}
+        </a>
+      ) : null}
+    </Fragment>
+  ));
+}
+
+function TermsSectionBlock({ section }: { section: TermsSection }) {
+  const bullets = section.bullets ?? [];
+  // A bullet list sits after the opening paragraph. Any further paragraphs follow the list.
+  const lead = bullets.length > 0 ? section.paragraphs.slice(0, 1) : section.paragraphs;
+  const trailing = bullets.length > 0 ? section.paragraphs.slice(1) : [];
+
+  return (
+    <section className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
+      <h2 className="text-2xl font-bold text-slate-900 mb-4">{section.title}</h2>
+      {lead.map((paragraph, index) => (
+        <p
+          key={paragraph}
+          className={`text-slate-700 leading-relaxed${
+            bullets.length > 0 || index < lead.length - 1 ? " mb-3" : ""
+          }`}
+        >
+          {withMailto(paragraph)}
+        </p>
+      ))}
+      {bullets.length > 0 && (
+        <ul className="list-disc list-inside space-y-2 text-slate-700 ml-4">
+          {bullets.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      )}
+      {trailing.map((paragraph) => (
+        <p key={paragraph} className="text-slate-700 mt-4 leading-relaxed">
+          {withMailto(paragraph)}
+        </p>
+      ))}
+    </section>
+  );
+}
 
 export default function TermsPage() {
-  const pathname = usePathname();
-  const [lang, setLang] = useState<"el" | "en">(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
+  const [lang, setLang] = useMarketingLang();
 
-  useEffect(() => {
-    setLang(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
-  }, [pathname]);
-
-  const content = {
+  const content: Record<"el" | "en", TermsCopy> = {
     el: {
       title: "Όροι Χρήσης",
       lastUpdated: "Τελευταία ενημέρωση:",
-      intro: "Καλώς ήρθατε στην Influo.gr. Με τη χρήση αυτής της πλατφόρμας, αποδέχεστε τους παρακάτω όρους και προϋποθέσεις. Αν δεν συμφωνείτε, παρακαλώ μην χρησιμοποιείτε την πλατφόρμα.",
-      
-      section1_title: "1. ΑΠΟΔΟΧΗ ΟΡΩΝ",
-      section1_text: "Η πρόσβαση και χρήση της πλατφόρμας Influo.gr υποδηλώνει την πλήρη αποδοχή αυτών των όρων. Αν δεν συμφωνείτε, πρέπει να διακόψετε αμέσως τη χρήση.",
-      
-      section2_title: "2. ΠΕΡΙΓΡΑΦΗ ΥΠΗΡΕΣΙΑΣ",
-      section2_text: "Η Influo.gr είναι μια δωρεάν διαδικτυακή πλατφόρμα που συνδέει influencers με brands. Παρέχουμε μόνο την τεχνική υποδομή για επικοινωνία και εύρεση συνεργασιών. ΔΕΝ είμαστε μέρος σε καμία συμβατική σχέση μεταξύ των χρηστών.",
-      
-      section3_title: "3. ΕΓΓΡΑΦΗ ΚΑΙ ΛΟΓΑΡΙΑΣΜΟΣ",
-      section3_text: "Για να χρησιμοποιήσετε την πλατφόρμα, πρέπει:",
-      section3_list1: "Να είστε τουλάχιστον 18 ετών",
-      section3_list2: "Να παρέχετε ακριβή και ενημερωμένη πληροφόρηση",
-      section3_list3: "Να διατηρείτε ασφαλή τον κωδικό πρόσβασής σας",
-      section3_list4: "Να είστε υπεύθυνοι για όλες τις δραστηριότητες στον λογαριασμό σας",
-      section3_text2: "Διατηρούμε το δικαίωμα να αποκλείσουμε οποιονδήποτε χρήστη που παραβιάζει τους όρους.",
-      
-      section4_title: "4. ΣΥΜΠΕΡΙΦΟΡΑ ΧΡΗΣΤΩΝ",
-      section4_text: "Οι χρήστες υποχρεούνται να:",
-      section4_list1: "Συμμορφώνονται με όλους τους νόμους και κανονισμούς",
-      section4_list2: "Σέβονται τους άλλους χρήστες",
-      section4_list3: "Δεν αναρτούν παραπλανητικό, προσβλητικό ή παράνομο περιεχόμενο",
-      section4_list4: "Δεν χρησιμοποιούν την πλατφόρμα για απάτη, spam ή κακόβουλες πρακτικές",
-      section4_list5: "Δεν παραβιάζουν πνευματικά δικαιώματα τρίτων",
-      
-      section5_title: "5. ΠΛΗΡΗΣ ΑΠΟΠΟΙΗΣΗ ΕΥΘΥΝΩΝ",
-      section5_text: "Η πλατφόρμα Influo.gr παρέχεται 'ΩΣ ΕΧΕΙ' και 'ΩΣ ΔΙΑΘΕΣΙΜΟ' χωρίς καμία εγγύηση, ρητή ή σιωπηρή. ΑΠΟΠΟΙΟΥΜΑΣΤΕ ΑΠΟΛΥΤΑ ΚΑΙ ΟΛΟΣΧΕΡΩΣ ΚΑΘΕ ΕΥΘΥΝΗ ΓΙΑ:",
-      section5_list1: "Οποιαδήποτε ζημία, απώλεια ή βλάβη (άμεση, έμμεση, τυχαία, ειδική, συνεπειογενής) που προκύπτει από τη χρήση ή αδυναμία χρήσης της πλατφόρμας",
-      section5_list2: "Αποτελέσματα, αποδοχή, εκτέλεση ή μη εκτέλεση συνεργασιών μεταξύ influencers και brands",
-      section5_list3: "Πληρωμές, συμβάσεις, συμφωνίες ή οποιεσδήποτε οικονομικές συναλλαγές μεταξύ χρηστών",
-      section5_list4: "Ακρίβεια, ολοκληρότητα, αξιοπιστία ή χρησιμότητα οποιασδήποτε πληροφορίας, περιεχομένου ή δεδομένων που αναρτούν οι χρήστες",
-      section5_list5: "Παραβιάσεις ασφαλείας, hacking, απώλεια δεδομένων, διακοπές λειτουργίας ή τεχνικά προβλήματα",
-      section5_list6: "Πράξεις, παραλείψεις, δηλώσεις, συμβάσεις, υποσχέσεις ή συμπεριφορά οποιουδήποτε χρήστη (influencer ή brand)",
-      section5_list7: "Προβλήματα, διαφορές, διαμάχες ή νομικές υποθέσεις μεταξύ χρηστών",
-      section5_list8: "Παραβιάσεις πνευματικών δικαιωμάτων, προσωπικών δεδομένων ή άλλων δικαιωμάτων τρίτων",
-      section5_list9: "Οποιαδήποτε άλλη ζημία ή αξίωση που σχετίζεται με τη χρήση της πλατφόρμας",
-      section5_text2: "ΔΕΝ ΕΙΜΑΣΤΕ ΕΥΘΥΝΟΙ για οτιδήποτε συμβαίνει μεταξύ των χρηστών. Η πλατφόρμα είναι απλά ένα εργαλείο σύνδεσης. Όλες οι συμβάσεις, πληρωμές, υποχρεώσεις και ευθύνες είναι αποκλειστική ευθύνη των χρηστών.",
-      
-      section6_title: "6. ΔΩΡΕΑΝ ΠΛΑΤΦΟΡΜΑ - ΧΩΡΙΣ ΟΙΚΟΝΟΜΙΚΟ ΟΦΕΛΟΣ",
-      section6_text: "Η πλατφόρμα Influo.gr παρέχεται ΕΝΤΕΛΩΣ ΔΩΡΕΑΝ χωρίς καμία χρέωση για τους χρήστες. Η πλατφόρμα δεν λειτουργεί ως εμπορική επιχείρηση. ΔΕΝ ΕΠΙΔΙΩΚΟΥΜΕ ΚΑΝΕΝΑ ΟΙΚΟΝΟΜΙΚΟ ΟΦΕΛΟΣ από την πλατφόρμα αυτή τη στιγμή. Δεν φέρουμε καμία ευθύνη για φορολογικά, νομικά ή λογιστικά ζητήματα που μπορεί να προκύψουν από τη χρήση της πλατφόρμας από τους χρήστες.",
-      
-      section7_title: "7. ΠΝΕΥΜΑΤΙΚΑ ΔΙΚΑΙΩΜΑΤΑ",
-      section7_text: "Όλο το περιεχόμενο που αναρτάτε παραμένει δικό σας. Ωστόσο, με την ανάρτηση, μας δίνετε άδεια να το εμφανίζουμε στη πλατφόρμα. Είστε υπεύθυνοι να διασφαλίζετε ότι έχετε τα απαραίτητα δικαιώματα για το περιεχόμενο που αναρτάτε.",
-      
-      section8_title: "8. ΑΚΥΡΩΣΗ ΚΑΙ ΔΙΑΚΟΠΗ",
-      section8_text: "Μπορούμε να ακυρώσουμε ή να διακόψουμε οποιονδήποτε λογαριασμό που παραβιάζει τους όρους χρήσης, οποιαδήποτε στιγμή και χωρίς προειδοποίηση.",
-      
-      section9_title: "9. ΑΛΛΑΓΕΣ ΣΤΟΥΣ ΟΡΟΥΣ",
-      section9_text: "Διατηρούμε το δικαίωμα να τροποποιούμε αυτούς τους όρους οποιαδήποτε στιγμή. Η συνεχής χρήση της πλατφόρμας μετά από αλλαγές σημαίνει αποδοχή των νέων όρων.",
-      
-      section10_title: "10. ΙΣΧΥΟΥΣΑ ΝΟΜΟΘΕΣΙΑ",
-      section10_text: "Αυτοί οι όροι διέπονται από το Ελληνικό δίκαιο. Οποιαδήποτε διαφωνία θα επιλύεται στα Ελληνικά δικαστήρια. Οι χρήστες αποδέχονται την αποκλειστική δικαιοδοσία των Ελληνικών δικαστηρίων.",
-      
-      section11_title: "11. ΕΠΙΚΟΙΝΩΝΙΑ",
-      section11_text: "Για ερωτήσεις σχετικά με τους όρους χρήσης, επικοινωνήστε μαζί μας μέσω της σελίδας Επικοινωνία.",
-      
-      disclaimer: "ΠΡΟΣΟΧΗ: Χρησιμοποιώντας αυτήν την πλατφόρμα, αναγνωρίζετε ότι διαβάσατε, κατανοήσατε και αποδέχτηκετε όλους τους παραπάνω όρους, συμπεριλαμβανομένης της πλήρους αποποίησης ευθυνών.",
-      
+      intro: "Οι παρόντες Όροι Χρήσης διέπουν την πρόσβαση και τη χρήση της ηλεκτρονικής πλατφόρμας Influo.gr («Πλατφόρμα» ή «Influo»). Με την πρόσβαση ή τη χρήση της Πλατφόρμας ο χρήστης δηλώνει ότι έχει διαβάσει, κατανοήσει και αποδεχθεί ανεπιφύλακτα τους παρόντες Όρους. Σε αντίθετη περίπτωση οφείλει να απέχει από κάθε χρήση της.",
+      sections: [
+        {
+          title: "1. Ορισμοί",
+          paragraphs: [
+            "«Χρήστης» είναι κάθε φυσικό ή νομικό πρόσωπο που επισκέπτεται ή χρησιμοποιεί την Πλατφόρμα. «Δημιουργός» (influencer / creator) είναι ο Χρήστης που διατηρεί προφίλ για παροχή υπηρεσιών δημιουργίας και προβολής περιεχομένου. «Brand» είναι ο Χρήστης που αναζητά τέτοιες υπηρεσίες. «Μέρη» είναι ο Δημιουργός και το Brand μιας συγκεκριμένης συνεργασίας. «Συμφωνία Συνεργασίας» είναι η σύνοψη όρων που αποδέχονται τα Μέρη μέσω της Πλατφόρμας.",
+          ],
+        },
+        {
+          title: "2. Φύση της υπηρεσίας",
+          paragraphs: [
+            "Η Πλατφόρμα παρέχει αποκλειστικά υπηρεσία καταχώρισης και διασύνδεσης. Δίνει τα τεχνικά μέσα ώστε Δημιουργοί και Brands να εντοπίζουν ο ένας τον άλλον, να επικοινωνούν, να ανταλλάσσουν προτάσεις και να καταγράφουν τους όρους της συνεργασίας τους. Το Influo δεν είναι συμβαλλόμενο μέρος, αντιπρόσωπος, εντολοδόχος, εργοδότης ή εγγυητής κανενός Χρήστη. Δεν εκτελεί, δεν εποπτεύει και δεν εγγυάται καμία συνεργασία.",
+          ],
+        },
+        {
+          title: "3. Εγγραφή και λογαριασμός",
+          paragraphs: [
+            "Η εγγραφή επιτρέπεται μόνο σε πρόσωπα άνω των 18 ετών με πλήρη δικαιοπρακτική ικανότητα. Νομικό πρόσωπο εγγράφεται μέσω νομίμως εξουσιοδοτημένου εκπροσώπου. Ο Χρήστης οφείλει να παρέχει ακριβή, πλήρη και επίκαιρα στοιχεία. Οφείλει επίσης να τηρεί εμπιστευτικά τα στοιχεία πρόσβασής του και ευθύνεται για κάθε ενέργεια που γίνεται μέσω του λογαριασμού του. Τα προφίλ Δημιουργών δημοσιεύονται κατόπιν έγκρισης. Το Influo μπορεί να αρνηθεί, να αναστείλει ή να αφαιρέσει προφίλ κατά την κρίση του.",
+          ],
+        },
+        {
+          title: "4. Προφίλ, πακέτα και πρόσθετες χρεώσεις (extras)",
+          paragraphs: [
+            "Ο Δημιουργός ορίζει μόνος του τα πακέτα υπηρεσιών και τις τιμές του. Μπορεί επίσης να ορίσει προαιρετικές πρόσθετες χρεώσεις: δικαιώματα χρήσης περιεχομένου σε διαφημίσεις, αποκλειστικότητα, παράδοση ακατέργαστου υλικού (raw footage) και επείγουσα παράδοση. Το περιεχόμενο, η διάρκεια και η έκταση κάθε extra συμφωνούνται μεταξύ των Μερών. Όσα extras επιλεγούν και περιληφθούν στη σύνοψη της Συμφωνίας Συνεργασίας αποτελούν αναπόσπαστο μέρος της. Ο Δημιουργός ευθύνεται αποκλειστικά για την ακρίβεια των στοιχείων, των στατιστικών και των τιμών του προφίλ του. Το Influo δεν επαληθεύει και δεν εγγυάται αυτά τα στοιχεία.",
+          ],
+        },
+        {
+          title: "5. Προτάσεις και αντιπροτάσεις",
+          paragraphs: [
+            "Το Brand μπορεί να υποβάλει πρόταση συνεργασίας σε Δημιουργό, επιλέγοντας πακέτο και, προαιρετικά, extras. Το προτεινόμενο ποσό δεν μπορεί να είναι μικρότερο από την τιμή του πακέτου συν την τιμή των επιλεγμένων extras, όπως τις έχει ορίσει ο Δημιουργός. Ο Δημιουργός μπορεί να αποδεχθεί ή να απορρίψει την πρόταση ή να υποβάλει αντιπρόταση. Αν η αντιπρόταση γίνει αποδεκτή, το ποσό της αποτελεί το τελικό συμφωνηθέν ποσό. Η υποβολή πρότασης ή αντιπρότασης από μόνη της δεν δημιουργεί δέσμευση για συνεργασία.",
+          ],
+        },
+        {
+          title: "6. Καμπάνιες και αιτήσεις ενδιαφέροντος",
+          paragraphs: [
+            "Τα Brands μπορούν να δημοσιεύουν καμπάνιες με περιγραφή, προϋπολογισμό, προθεσμία και παραδοτέα, και να προσκαλούν Δημιουργούς. Οι εγκεκριμένοι Δημιουργοί μπορούν να υποβάλλουν αίτηση ενδιαφέροντος. Το Brand ευθύνεται για την ακρίβεια και τη νομιμότητα της καμπάνιας και επιλέγει ελεύθερα αν και με ποιον θα συνεργαστεί. Το Influo δεν εγγυάται συμμετοχές, επιλογή ή αποτελέσματα.",
+          ],
+        },
+        {
+          title: "7. Συμφωνία Συνεργασίας",
+          paragraphs: [
+            "Πριν από την εκτέλεση της συνεργασίας, τα Μέρη αποδέχονται ηλεκτρονικά, με επιλογή του σχετικού πεδίου μέσα στην Πλατφόρμα, τη Συμφωνία Συνεργασίας. Η Συμφωνία συνοψίζει τα Μέρη, τα παραδοτέα, τα extras, το τελικό ποσό και τους όρους. Θεωρείται ότι έχει συναφθεί όταν την αποδεχθούν και τα δύο Μέρη. Η Συμφωνία δεσμεύει αποκλειστικά τα Μέρη. Το Influo απλώς παρέχει το τεχνικό μέσο καταγραφής και δεν αναλαμβάνει υποχρέωση εκτέλεσης, παρακολούθησης ή επιβολής της. Τα Μέρη μπορούν να καταρτίσουν και επιπλέον γραπτή σύμβαση με δική τους ευθύνη.",
+          ],
+        },
+        {
+          title: "8. Τιμές, πληρωμές και φορολογικά",
+          paragraphs: [
+            "Η εγγραφή και η βασική χρήση της Πλατφόρμας είναι δωρεάν. Το Influo δεν λαμβάνει προμήθεια από τις συνεργασίες. Το Influo δεν επεξεργάζεται, δεν διακρατεί και δεν μεσολαβεί σε πληρωμές μεταξύ των Μερών. Ο τρόπος, ο χρόνος και η διασφάλιση της πληρωμής συμφωνούνται και εκτελούνται απευθείας μεταξύ τους. Κάθε Μέρος ευθύνεται αποκλειστικά για τις φορολογικές, ασφαλιστικές, λογιστικές και λοιπές νόμιμες υποχρεώσεις του, όπως η έκδοση παραστατικών και η απόδοση ΦΠΑ. Ευθύνεται επίσης για τη συμμόρφωση με τους κανόνες σήμανσης εμπορικής επικοινωνίας (π.χ. #ad / «διαφήμιση»). Το Influo διατηρεί το δικαίωμα να εισαγάγει στο μέλλον προαιρετικές επί πληρωμή υπηρεσίες, με προηγούμενη ενημέρωση των Χρηστών.",
+          ],
+        },
+        {
+          title: "9. Υποχρεώσεις και συμπεριφορά Χρηστών",
+          paragraphs: ["Οι Χρήστες υποχρεούνται:"],
+          bullets: [
+            "να συμμορφώνονται με την ισχύουσα νομοθεσία",
+            "να μην αναρτούν ψευδές, παραπλανητικό, προσβλητικό ή παράνομο περιεχόμενο",
+            "να μη χρησιμοποιούν την Πλατφόρμα για απάτη, spam ή αθέμιτες πρακτικές",
+            "να σέβονται τα δικαιώματα διανοητικής ιδιοκτησίας και τα προσωπικά δεδομένα τρίτων",
+            "να μην επιχειρούν μη εξουσιοδοτημένη πρόσβαση στην Πλατφόρμα ή διατάραξη της λειτουργίας της",
+          ],
+        },
+        {
+          title: "10. Διανοητική ιδιοκτησία και άδεια χρήσης υλικού",
+          paragraphs: [
+            "Το περιεχόμενο που αναρτούν οι Χρήστες παραμένει δικό τους. Ο Δημιουργός παραχωρεί στο Influo μη αποκλειστική, δωρεάν, παγκόσμια άδεια να χρησιμοποιεί τη φωτογραφία προφίλ, τις φωτογραφίες portfolio, τα δημόσια posts και τα στατιστικά που εμφανίζονται στο προφίλ του, με σκοπό την εμφάνισή τους στην Πλατφόρμα και την προβολή του προφίλ του στα μέσα κοινωνικής δικτύωσης και στο προωθητικό υλικό του Influo. Ο Δημιουργός δηλώνει ότι διαθέτει όλα τα αναγκαία δικαιώματα επί του υλικού που αναρτά, συμπεριλαμβανομένης της συναίνεσης τυχόν εικονιζόμενων προσώπων. Η άδεια λήγει με την αφαίρεση του υλικού ή τη διαγραφή του λογαριασμού, με την επιφύλαξη αναρτήσεων που έχουν ήδη δημοσιευθεί. Η μεταβίβαση ή η άδεια χρήσης του περιεχομένου που παράγεται στο πλαίσιο συνεργασίας, συμπεριλαμβανομένων των δικαιωμάτων διαφημιστικής χρήσης και της αποκλειστικότητας, ρυθμίζεται αποκλειστικά από τη συμφωνία των Μερών. Τα σήματα, ο σχεδιασμός και το λογισμικό της Πλατφόρμας ανήκουν στο Influo.",
+          ],
+        },
+        {
+          title: "11. Αποποίηση ευθυνών",
+          paragraphs: [
+            "Η Πλατφόρμα παρέχεται «ως έχει» και «ως διατίθεται», χωρίς ρητή ή σιωπηρή εγγύηση. Το Influo δεν ευθύνεται:",
+            "Τυχόν παρουσία σε χώρο, μετακινήσεις, έξοδα ή άλλες λεπτομέρειες εκτέλεσης συμφωνούνται απευθείας μεταξύ των μερών. Το Influo δεν φέρει καμία ευθύνη για τη συμπεριφορά, τις ενέργειες ή τις υποχρεώσεις των μερών, εντός ή εκτός πλατφόρμας.",
+          ],
+          bullets: [
+            "για τη σύναψη, εκτέλεση, ποιότητα, έγκαιρη παράδοση ή αποτελέσματα οποιασδήποτε συνεργασίας",
+            "για πληρωμές, οφειλές ή οικονομικές διαφορές μεταξύ των Μερών",
+            "για την ακρίβεια των στοιχείων, στατιστικών και τιμών που δηλώνουν οι Χρήστες",
+            "για διαφορές μεταξύ Χρηστών",
+            "για διακοπές λειτουργίας, σφάλματα ή απώλεια δεδομένων, στον βαθμό που επιτρέπει ο νόμος",
+          ],
+        },
+        {
+          title: "12. Περιορισμός ευθύνης και αποζημίωση",
+          paragraphs: [
+            "Στον μέγιστο βαθμό που επιτρέπει ο νόμος, το Influo δεν ευθύνεται για έμμεσες ή αποθετικές ζημίες, διαφυγόντα κέρδη ή απώλεια φήμης. Ο Χρήστης υποχρεούται να αποζημιώσει το Influo για κάθε αξίωση τρίτου που προκύπτει από παράβαση των παρόντων Όρων ή του νόμου εκ μέρους του.",
+          ],
+        },
+        {
+          title: "13. Αναστολή και διακοπή",
+          paragraphs: [
+            "Το Influo μπορεί να αναστείλει ή να καταργήσει λογαριασμό ή περιεχόμενο που παραβιάζει τους Όρους ή τον νόμο. Ο Χρήστης μπορεί να ζητήσει τη διαγραφή του λογαριασμού του οποτεδήποτε.",
+          ],
+        },
+        {
+          title: "14. Τροποποιήσεις",
+          paragraphs: [
+            "Το Influo μπορεί να τροποποιεί τους παρόντες Όρους. Η ισχύουσα έκδοση αναρτάται με την ημερομηνία τελευταίας ενημέρωσης. Η συνέχιση της χρήσης μετά την ανάρτηση συνιστά αποδοχή των τροποποιήσεων.",
+          ],
+        },
+        {
+          title: "15. Εφαρμοστέο δίκαιο",
+          paragraphs: [
+            "Οι Όροι διέπονται από το ελληνικό δίκαιο, με την επιφύλαξη αναγκαστικών διατάξεων υπέρ των καταναλωτών. Αν κάποια διάταξη κριθεί άκυρη, οι υπόλοιπες εξακολουθούν να ισχύουν.",
+          ],
+        },
+        {
+          title: "16. Επικοινωνία",
+          paragraphs: [
+            "Για ερωτήματα σχετικά με τους Όρους, οι Χρήστες μπορούν να επικοινωνούν μέσω της σελίδας Επικοινωνία ή στο support@influo.gr.",
+          ],
+        },
+      ],
       back: "← Επιστροφή στην Αρχική",
     },
     en: {
       title: "Terms of Service",
       lastUpdated: "Last updated:",
-      intro: "Welcome to Influo.gr. By using this platform, you accept the following terms and conditions. If you do not agree, please do not use the platform.",
-      
-      section1_title: "1. ACCEPTANCE OF TERMS",
-      section1_text: "Access to and use of the Influo.gr platform implies full acceptance of these terms. If you do not agree, you must immediately discontinue use.",
-      
-      section2_title: "2. SERVICE DESCRIPTION",
-      section2_text: "Influo.gr is a free online platform that connects influencers with brands. We provide only the technical infrastructure for communication and finding collaborations. WE ARE NOT part of any contractual relationship between users.",
-      
-      section3_title: "3. REGISTRATION AND ACCOUNT",
-      section3_text: "To use the platform, you must:",
-      section3_list1: "Be at least 18 years old",
-      section3_list2: "Provide accurate and up-to-date information",
-      section3_list3: "Maintain the security of your password",
-      section3_list4: "Be responsible for all activities on your account",
-      section3_text2: "We reserve the right to exclude any user who violates the terms.",
-      
-      section4_title: "4. USER BEHAVIOR",
-      section4_text: "Users must:",
-      section4_list1: "Comply with all laws and regulations",
-      section4_list2: "Respect other users",
-      section4_list3: "Not post misleading, offensive, or illegal content",
-      section4_list4: "Not use the platform for fraud, spam, or malicious practices",
-      section4_list5: "Not violate third-party intellectual property rights",
-      
-      section5_title: "5. COMPLETE LIABILITY DISCLAIMER",
-      section5_text: "The Influo.gr platform is provided 'AS IS' and 'AS AVAILABLE' without any warranty, express or implied. WE ABSOLUTELY AND COMPLETELY DISCLAIM ALL LIABILITY FOR:",
-      section5_list1: "Any damage, loss, or harm (direct, indirect, incidental, special, consequential) arising from use or inability to use the platform",
-      section5_list2: "Outcomes, acceptance, execution, or non-execution of collaborations between influencers and brands",
-      section5_list3: "Payments, contracts, agreements, or any financial transactions between users",
-      section5_list4: "Accuracy, completeness, reliability, or usefulness of any information, content, or data posted by users",
-      section5_list5: "Security breaches, hacking, data loss, service interruptions, or technical problems",
-      section5_list6: "Actions, omissions, statements, contracts, promises, or behavior of any user (influencer or brand)",
-      section5_list7: "Problems, disputes, conflicts, or legal matters between users",
-      section5_list8: "Violations of intellectual property, personal data, or other rights of third parties",
-      section5_list9: "Any other damage or claim related to platform use",
-      section5_text2: "WE ARE NOT RESPONSIBLE for anything that happens between users. The platform is simply a connection tool. All contracts, payments, obligations, and responsibilities are the sole responsibility of users.",
-      
-      section6_title: "6. FREE PLATFORM - NO FINANCIAL BENEFIT",
-      section6_text: "The Influo.gr platform is provided COMPLETELY FREE with no charge to users. The platform does not operate as a commercial business. WE DO NOT SEEK ANY FINANCIAL BENEFIT from the platform at this time. We bear no responsibility for tax, legal, or accounting issues that may arise from users' use of the platform.",
-      
-      section7_title: "7. INTELLECTUAL PROPERTY",
-      section7_text: "All content you post remains yours. However, by posting, you grant us permission to display it on the platform. You are responsible for ensuring you have the necessary rights to the content you post.",
-      
-      section8_title: "8. TERMINATION AND SUSPENSION",
-      section8_text: "We may terminate or suspend any account that violates the terms of use, at any time and without notice.",
-      
-      section9_title: "9. CHANGES TO TERMS",
-      section9_text: "We reserve the right to modify these terms at any time. Continued use of the platform after changes means acceptance of the new terms.",
-      
-      section10_title: "10. APPLICABLE LAW",
-      section10_text: "These terms are governed by Greek law. Any dispute will be resolved in Greek courts. Users accept the exclusive jurisdiction of Greek courts.",
-      
-      section11_title: "11. CONTACT",
-      section11_text: "For questions regarding the terms of use, contact us through the Contact page.",
-      
-      disclaimer: "WARNING: By using this platform, you acknowledge that you have read, understood, and accepted all the above terms, including the complete disclaimer of liability. You use the platform ENTIRELY AT YOUR OWN RISK.",
-      
+      intro: "These Terms of Service govern access to and use of the online platform Influo.gr (\"Platform\" or \"Influo\"). By accessing or using the Platform, the user declares that they have read, understood, and unconditionally accepted these Terms. Otherwise, the user must refrain from any use of it.",
+      sections: [
+        {
+          title: "1. Definitions",
+          paragraphs: [
+            "\"User\" means any natural or legal person who visits or uses the Platform. \"Creator\" (influencer / creator) means the User who maintains a profile in order to provide content-creation and promotion services. \"Brand\" means the User who seeks such services. \"Parties\" means the Creator and the Brand of a specific collaboration. \"Collaboration Agreement\" means the summary of terms accepted by the Parties through the Platform.",
+          ],
+        },
+        {
+          title: "2. Nature of the service",
+          paragraphs: [
+            "The Platform provides solely a listing and connection service. It supplies the technical means for Creators and Brands to find one another, communicate, exchange proposals, and record the terms of their collaboration. Influo is not a contracting party, representative, mandatary, employer, or guarantor of any User. It does not perform, supervise, or guarantee any collaboration.",
+          ],
+        },
+        {
+          title: "3. Registration and account",
+          paragraphs: [
+            "Registration is permitted only to persons over 18 years of age with full legal capacity. A legal person registers through a duly authorized representative. The User must provide accurate, complete, and up-to-date information. The User must also keep their access credentials confidential and is responsible for every action taken through their account. Creator profiles are published following approval. Influo may refuse, suspend, or remove a profile at its discretion.",
+          ],
+        },
+        {
+          title: "4. Profiles, packages and additional charges (extras)",
+          paragraphs: [
+            "The Creator alone sets their service packages and prices. The Creator may also set optional additional charges: rights to use content in advertising, exclusivity, delivery of raw footage, and urgent delivery. The content, duration, and scope of each extra are agreed between the Parties. Any extras that are selected and included in the summary of the Collaboration Agreement form an integral part of it. The Creator is solely responsible for the accuracy of the information, statistics, and prices on their profile. Influo does not verify and does not guarantee this information.",
+          ],
+        },
+        {
+          title: "5. Proposals and counter-proposals",
+          paragraphs: [
+            "A Brand may submit a collaboration proposal to a Creator, selecting a package and, optionally, extras. The proposed amount may not be lower than the package price plus the price of the selected extras, as set by the Creator. The Creator may accept or reject the proposal, or submit a counter-proposal. If the counter-proposal is accepted, its amount is the final agreed amount. The submission of a proposal or counter-proposal does not, by itself, create a commitment to collaborate.",
+          ],
+        },
+        {
+          title: "6. Campaigns and expressions of interest",
+          paragraphs: [
+            "Brands may publish campaigns with a description, budget, deadline, and deliverables, and may invite Creators. Approved Creators may submit an expression of interest. The Brand is responsible for the accuracy and legality of the campaign and freely chooses whether and with whom to collaborate. Influo does not guarantee participation, selection, or results.",
+          ],
+        },
+        {
+          title: "7. Collaboration Agreement",
+          paragraphs: [
+            "Before the collaboration is carried out, the Parties electronically accept the Collaboration Agreement by selecting the relevant field within the Platform. The Agreement summarizes the Parties, the deliverables, the extras, the final amount, and the terms. It is deemed to have been concluded when both Parties have accepted it. The Agreement binds the Parties alone. Influo merely provides the technical means of recording it and assumes no obligation to perform, monitor, or enforce it. The Parties may also conclude an additional written contract on their own responsibility.",
+          ],
+        },
+        {
+          title: "8. Prices, payments and tax matters",
+          paragraphs: [
+            "Registration and basic use of the Platform are free of charge. Influo does not take a commission on collaborations. Influo does not process, hold, or act as an intermediary for payments between the Parties. The manner, timing, and securing of payment are agreed and carried out directly between the Parties. Each Party is solely responsible for its tax, social-security, accounting, and other legal obligations, such as issuing tax documents and remitting VAT. Each Party is also responsible for compliance with the rules on labeling commercial communications (e.g. #ad / \"advertisement\"). Influo reserves the right to introduce optional paid services in the future, with prior notice to Users.",
+          ],
+        },
+        {
+          title: "9. User obligations and conduct",
+          paragraphs: ["Users are required to:"],
+          bullets: [
+            "comply with applicable law",
+            "not post false, misleading, offensive, or unlawful content",
+            "not use the Platform for fraud, spam, or unfair practices",
+            "respect the intellectual property rights and personal data of third parties",
+            "not attempt unauthorized access to the Platform or disruption of its operation",
+          ],
+        },
+        {
+          title: "10. Intellectual property and license to use material",
+          paragraphs: [
+            "Content posted by Users remains their own. The Creator grants Influo a non-exclusive, royalty-free, worldwide license to use the profile photograph, the portfolio photographs, the public posts, and the statistics displayed on their profile, for the purpose of displaying them on the Platform and promoting their profile on social media and in Influo's promotional material. The Creator declares that they hold all necessary rights in the material they post, including the consent of any persons depicted. The license ends upon removal of the material or deletion of the account, without prejudice to posts that have already been published. The transfer or license of content produced in the course of a collaboration, including advertising-use rights and exclusivity, is governed solely by the agreement of the Parties. The trademarks, design, and software of the Platform belong to Influo.",
+          ],
+        },
+        {
+          title: "11. Disclaimer of liability",
+          paragraphs: [
+            "The Platform is provided \"as is\" and \"as available\", without any express or implied warranty. Influo is not liable:",
+            "Any on-site presence, travel, expenses or other execution details are agreed directly between the parties. Influo bears no liability for the conduct, actions or obligations of the parties, on or off the platform.",
+          ],
+          bullets: [
+            "for the conclusion, performance, quality, timely delivery, or results of any collaboration",
+            "for payments, debts, or financial disputes between the Parties",
+            "for the accuracy of the information, statistics, and prices stated by Users",
+            "for disputes between Users",
+            "for interruptions of operation, errors, or loss of data, to the extent permitted by law",
+          ],
+        },
+        {
+          title: "12. Limitation of liability and indemnity",
+          paragraphs: [
+            "To the maximum extent permitted by law, Influo is not liable for indirect or consequential damages, lost profits, or loss of reputation. The User is required to indemnify Influo for any third-party claim arising from the User's breach of these Terms or of the law.",
+          ],
+        },
+        {
+          title: "13. Suspension and termination",
+          paragraphs: [
+            "Influo may suspend or remove an account or content that violates the Terms or the law. The User may request deletion of their account at any time.",
+          ],
+        },
+        {
+          title: "14. Amendments",
+          paragraphs: [
+            "Influo may amend these Terms. The current version is posted with the date of last update. Continued use after posting constitutes acceptance of the amendments.",
+          ],
+        },
+        {
+          title: "15. Governing law",
+          paragraphs: [
+            "The Terms are governed by Greek law, without prejudice to mandatory provisions in favor of consumers. If any provision is held invalid, the remaining provisions continue to apply.",
+          ],
+        },
+        {
+          title: "16. Contact",
+          paragraphs: [
+            "For questions regarding the Terms, Users may get in touch through the Contact page or at support@influo.gr.",
+          ],
+        },
+      ],
       back: "← Back to Home",
-    }
+    },
   };
 
   const txt = content[lang];
@@ -159,90 +332,9 @@ export default function TermsPage() {
             <p className="text-slate-700 leading-relaxed">{txt.intro}</p>
           </div>
 
-          <section className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
-            <h2 className="text-2xl font-bold text-slate-900 mb-4">{txt.section1_title}</h2>
-            <p className="text-slate-700 leading-relaxed">{txt.section1_text}</p>
-          </section>
-
-          <section className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
-            <h2 className="text-2xl font-bold text-slate-900 mb-4">{txt.section2_title}</h2>
-            <p className="text-slate-700 leading-relaxed">{txt.section2_text}</p>
-          </section>
-
-          <section className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
-            <h2 className="text-2xl font-bold text-slate-900 mb-4">{txt.section3_title}</h2>
-            <p className="text-slate-700 mb-3">{txt.section3_text}</p>
-            <ul className="list-disc list-inside space-y-2 text-slate-700 ml-4">
-              <li>{txt.section3_list1}</li>
-              <li>{txt.section3_list2}</li>
-              <li>{txt.section3_list3}</li>
-              <li>{txt.section3_list4}</li>
-            </ul>
-            <p className="text-slate-700 mt-4 leading-relaxed">{txt.section3_text2}</p>
-          </section>
-
-          <section className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
-            <h2 className="text-2xl font-bold text-slate-900 mb-4">{txt.section4_title}</h2>
-            <p className="text-slate-700 mb-3">{txt.section4_text}</p>
-            <ul className="list-disc list-inside space-y-2 text-slate-700 ml-4">
-              <li>{txt.section4_list1}</li>
-              <li>{txt.section4_list2}</li>
-              <li>{txt.section4_list3}</li>
-              <li>{txt.section4_list4}</li>
-              <li>{txt.section4_list5}</li>
-            </ul>
-          </section>
-
-          <section className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
-            <h2 className="text-2xl font-bold text-slate-900 mb-4">{txt.section5_title}</h2>
-            <p className="text-slate-700 font-semibold mb-3">{txt.section5_text}</p>
-            <ul className="list-disc list-inside space-y-2 text-slate-700 ml-4">
-              <li>{txt.section5_list1}</li>
-              <li>{txt.section5_list2}</li>
-              <li>{txt.section5_list3}</li>
-              <li>{txt.section5_list4}</li>
-              <li>{txt.section5_list5}</li>
-              <li>{txt.section5_list6}</li>
-              <li>{txt.section5_list7}</li>
-              <li>{txt.section5_list8}</li>
-              <li>{txt.section5_list9}</li>
-            </ul>
-            <p className="text-slate-700 mt-4 font-semibold leading-relaxed">{txt.section5_text2}</p>
-          </section>
-
-          <section className="bg-blue-50 p-6 rounded-lg border-2 border-blue-200 shadow-sm">
-            <h2 className="text-2xl font-bold text-blue-900 mb-4">{txt.section6_title}</h2>
-            <p className="text-blue-800 font-semibold leading-relaxed">{txt.section6_text}</p>
-          </section>
-
-          <section className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
-            <h2 className="text-2xl font-bold text-slate-900 mb-4">{txt.section7_title}</h2>
-            <p className="text-slate-700 leading-relaxed">{txt.section7_text}</p>
-          </section>
-
-          <section className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
-            <h2 className="text-2xl font-bold text-slate-900 mb-4">{txt.section8_title}</h2>
-            <p className="text-slate-700 leading-relaxed">{txt.section8_text}</p>
-          </section>
-
-          <section className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
-            <h2 className="text-2xl font-bold text-slate-900 mb-4">{txt.section9_title}</h2>
-            <p className="text-slate-700 leading-relaxed">{txt.section9_text}</p>
-          </section>
-
-          <section className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
-            <h2 className="text-2xl font-bold text-slate-900 mb-4">{txt.section10_title}</h2>
-            <p className="text-slate-700 leading-relaxed">{txt.section10_text}</p>
-          </section>
-
-          <section className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
-            <h2 className="text-2xl font-bold text-slate-900 mb-4">{txt.section11_title}</h2>
-            <p className="text-slate-700 leading-relaxed">{txt.section11_text}</p>
-          </section>
-
-          <div className="bg-yellow-50 p-6 rounded-lg border-2 border-yellow-300 shadow-sm">
-            <p className="text-yellow-900 font-bold text-lg leading-relaxed">{txt.disclaimer}</p>
-          </div>
+          {txt.sections.map((section) => (
+            <TermsSectionBlock key={section.title} section={section} />
+          ))}
         </div>
 
         <div className="mt-12 pt-8 border-t border-slate-200">
@@ -254,4 +346,3 @@ export default function TermsPage() {
     </div>
   );
 }
-
