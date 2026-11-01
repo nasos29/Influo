@@ -45,9 +45,8 @@ function pathMatches(pathname: string, candidates: string[]): boolean {
 }
 
 function linkClass(active: boolean): string {
-  return active
-    ? "text-slate-900 font-semibold"
-    : "text-slate-700 hover:text-slate-900 transition-colors";
+  const hover = "rounded-lg px-3 py-1.5 transition-colors hover:bg-slate-100 hover:text-slate-900";
+  return active ? `${hover} text-slate-900 font-semibold` : `${hover} text-slate-700`;
 }
 
 export default function SiteHeader({
@@ -188,8 +187,8 @@ export default function SiteHeader({
                 <Link
                   href={item.href}
                   onClick={() => setMobileOpen(false)}
-                  className={`block px-4 py-3 text-sm rounded-lg ${
-                    item.active ? "bg-slate-100 text-slate-900 font-semibold" : "text-slate-700 hover:bg-slate-50"
+                  className={`block rounded-lg px-3 py-2 text-sm transition-colors hover:bg-slate-100 hover:text-slate-900 ${
+                    item.active ? "bg-slate-100 text-slate-900 font-semibold" : "text-slate-700"
                   }`}
                   aria-current={item.active ? "page" : undefined}
                 >
