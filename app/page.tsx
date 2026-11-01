@@ -7,8 +7,8 @@ import { unstable_cache } from "next/cache";
 export const revalidate = 3600;
 
 const cachedHomeInfluencers = unstable_cache(
-  () => loadPublicDirectoryCards(24),
-  ["home-directory-cards"],
+  () => loadPublicDirectoryCards(8),
+  ["home-directory-cards-page"],
   { revalidate: 3600, tags: ["home-directory"] }
 );
 
@@ -25,14 +25,15 @@ const cachedHomeTrust = unstable_cache(
 );
 
 export default async function Page() {
-  const [initialInfluencers, openCampaigns, trustStats] = await Promise.all([
+  const [directoryPage, openCampaigns, trustStats] = await Promise.all([
     cachedHomeInfluencers(),
     cachedHomeCampaigns(),
     cachedHomeTrust(),
   ]);
   return (
     <HomePage
-      initialInfluencers={initialInfluencers}
+      initialInfluencers={directoryPage.influencers}
+      initialDirectoryTotal={directoryPage.total}
       openCampaigns={openCampaigns}
       trustStats={trustStats}
     />

@@ -1,15 +1,11 @@
 import type { Influencer } from "@/components/Directory";
 import { normalizeGender } from "@/lib/gender";
-import { loadInfluencerRows } from "@/lib/loadPublicInfluencers";
-import { getPastBrandsByInfluencerIds } from "@/lib/pastBrands";
 import { parseFollowerString } from "@/lib/parseFollowers";
 import { parseStoredCategories } from "@/lib/categories";
 import { resolveCompletionRate } from "@/lib/completionRate";
-import {
-  DIRECTORY_QUERY_COLUMNS,
-  findPrivateFieldPaths,
-  toPublicDirectoryCard,
-} from "@/lib/publicInfluencer";
+import { findPrivateFieldPaths } from "@/lib/publicInfluencer";
+import { loadDirectoryPage } from "@/lib/directoryPage";
+import { DEFAULT_DIRECTORY_FILTERS } from "@/lib/directoryQuery";
 
 function asLanguages(value: unknown): string[] {
   if (Array.isArray(value)) return value.filter((item): item is string => typeof item === "string");
@@ -70,27 +66,20 @@ export function mapDirectoryCard(row: Record<string, unknown>): Influencer {
   };
 }
 
-/** First directory page. Derived age/price tier only; raw private columns are not returned. */
-export async function loadPublicDirectoryCards(limit = 24): Promise<Influencer[]> {
+/** First directory page under the same default filters as the directory UI. */
+export async function loadPublicDirectoryCards(limit = 24): Promise<{ influencers: Influencer[]; total: number }> {
   try {
-    const rows = await loadInfluencerRows(DIRECTORY_QUERY_COLUMNS, { newestFirst: true, limit });
-    const pastById = await getPastBrandsByInfluencerIds(rows.map((row) => String(row.id ?? "")));
-    const cards = rows.map((row) => {
-      const pub = {
-        ...toPublicDirectoryCard(row),
-        past_brands: pastById.get(String(row.id ?? "")) || [],
-      };
-      return mapDirectoryCard(pub);
-    });
+    const page = await loadDirectoryPage(DEFAULT_DIRECTORY_FILTERS, 1, limit);
+    const cards = page.data.map((row) => mapDirectoryCard(row));
     for (const card of cards) {
       const leaks = findPrivateFieldPaths(card);
       if (leaks.length) {
         throw new Error(`Directory card contained private fields: ${leaks.join(", ")}`);
       }
     }
-    return cards;
+    return { influencers: cards, total: page.total };
   } catch (error) {
     console.error("loadPublicDirectoryCards", error);
-    return [];
+    return { influencers: [], total: 0 };
   }
 }

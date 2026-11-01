@@ -423,6 +423,32 @@ export const DIRECTORY_QUERY_COLUMNS = [
   "birth_date",
   ...PRICING_SOURCE_COLUMNS,
 ] as const;
+
+/**
+ * One directory page. Bios stay out of this select: search reads them only
+ * when a query is active, and the cards do not render them.
+ * Pricing columns are read server-side and replaced by from_price / price_tier.
+ */
+export const DIRECTORY_PAGE_COLUMNS = [
+  "id",
+  "display_name",
+  "avatar_url",
+  "analytics_verified",
+  "verified",
+  "accounts",
+  "category",
+  "languages",
+  "gender",
+  "location",
+  "avg_likes",
+  "engagement_rate",
+  "avg_rating",
+  "total_reviews",
+  "created_at",
+  "availability_status",
+  "profile_slug",
+  ...PRICING_SOURCE_COLUMNS,
+] as const;
 export const NEWLY_APPROVED_QUERY_COLUMNS = [
   ...DIRECTORY_CARD_COLUMNS,
   ...NEWLY_APPROVED_EXTRA_COLUMNS,
