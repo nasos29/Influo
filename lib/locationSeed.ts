@@ -319,3 +319,42 @@ export const EUROPE_LOCATION_SEED: LocationDraft[] = [
     ["Γενεύη", "Geneva", 45, "geneve|genève"],
   ], "EU"),
 ];
+
+/**
+ * Countries and places that creators already use in their profiles (Nov 2026 cleanup).
+ * Typeahead only. Not part of the Greek locations table.
+ */
+export const EXTRA_LOCATION_SEED: LocationDraft[] = [
+  ...rows("", "", "region", [["Ελλάδα", "Greece", 85, "ellada|greece"]], "GR"),
+  ...rows("", "", "region", [["Κύπρος", "Cyprus", 70, "kypros|cyprus"]], "CY"),
+  ...rows("Ήπειρος", "Epirus", "region", [["Θεσπρωτία", "Thesprotia", 30]], "GR"),
+  ...rows("Ήπειρος", "Epirus", "city", [["Σύβοτα", "Syvota", 30, "sivota"]], "GR"),
+  ...rows("Αττική", "Attica", "city", [
+    ["Άλιμος", "Alimos", 40],
+    ["Βάρη", "Vari", 35],
+    ["Νέα Μάκρη", "Nea Makri", 35],
+    ["Ωρωπός", "Oropos", 25],
+  ], "GR"),
+  ...rows("Κεντρική Μακεδονία", "Central Macedonia", "city", [["Κορδελιό", "Kordelio", 30]], "GR"),
+  ...rows("", "", "region", [
+    ["Γαλλία", "France", 60],
+    ["Γερμανία", "Germany", 60, "germania|deutschland"],
+    ["Αυστρία", "Austria", 40],
+    ["Σουηδία", "Sweden", 40],
+    ["Ηνωμένο Βασίλειο", "United Kingdom", 60, "uk|england|anglia|αγγλία"],
+    ["Ιταλία", "Italy", 60, "italia"],
+    ["Τουρκία", "Turkey", 40, "turkiye"],
+    ["Νορβηγία", "Norway", 35],
+  ], "EU"),
+  ...rows("Γαλλία", "France", "city", [["Νίκαια (Γαλλία)", "Nice", 50, "nice|nikaia gallia"]], "EU"),
+  ...rows("Γερμανία", "Germany", "city", [
+    ["Βόννη", "Bonn", 30],
+    ["Ντίσελντορφ", "Düsseldorf", 35, "dusseldorf|duesseldorf"],
+  ], "EU"),
+  ...rows("Ηνωμένο Βασίλειο", "United Kingdom", "city", [
+    ["Νιούκασλ", "Newcastle upon Tyne", 30, "newcastle"],
+    ["Σεντ Όλμπανς", "St Albans", 20, "st albans|saint albans"],
+  ], "EU"),
+  ...rows("Ηνωμένα Αραβικά Εμιράτα", "United Arab Emirates", "city", [["Ντουμπάι", "Dubai", 50, "dubai"]], "EU"),
+  ...rows("Βραζιλία", "Brazil", "city", [["Ρίο ντε Τζανέιρο", "Rio de Janeiro", 40, "rio"]], "EU"),
+];
