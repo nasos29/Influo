@@ -8,7 +8,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import InfluoLogo from '@/components/InfluoLogo';
-import { recommendInfluencers, sharedCategoryKeys, type InfluencerProfile, type BrandProfile } from '@/lib/recommendations';
+import { recommendInfluencers, sharedCategoryKeys, type InfluencerProfile, type BrandProfile, type BrandCampaignHint } from '@/lib/recommendations';
 import { sanitizeSkills } from '@/lib/skills';
 import { lookupAuthUser, logoutEverywhere } from '@/lib/authSession';
 import CreatorPhoto from '@/components/CreatorPhoto';
@@ -34,6 +34,7 @@ import { getApprovedInfluencersForRecommendations } from '@/lib/approvedInfluenc
 import { readSessionAvatar, writeSessionAvatar } from '@/lib/sessionAvatarCache';
 import { publicProfilePath } from '@/lib/profileSlug';
 import { CATEGORIES, categoriesMatchFilter, categoryLabel, formatStoredCategories, parseStoredCategories } from "@/lib/categories";
+import { formatFromPriceLabel, lowestListedPrice } from "@/lib/publicInfluencer";
 import CategoryCheckboxList from "@/components/CategoryCheckboxList";
 import { parseHttpsUrl } from "@/lib/brandProfile";
 import {
@@ -186,14 +187,14 @@ const t = {
     loading: "Φόρτωση...",
     error: "Σφάλμα",
     recommendations_title: "Προτεινόμενοι Influencers για εσάς",
-    recommendations_subtitle: "Βάσει του industry σας, της στρατηγικής αξιολόγησης (niche, engagement) και της αξίας για τα brands",
+    recommendations_subtitle: "Με βάση την κατηγορία, την περιοχή, το budget των καμπανιών και τα στοιχεία του προφίλ",
     recommendations_loading: "Φόρτωση προτάσεων...",
     recommendations_empty: "Δεν βρέθηκαν προτάσεις αυτή τη στιγμή",
     match_score: "Βαθμός ταιριάσματος",
     match_label: "Ταίριασμα",
     why_match: "Γιατί ταιριάζει",
-    view_profile: "Δείτε Προφίλ",
-    send_proposal: "Στείλτε Προσφορά",
+    view_profile: "Προφίλ",
+    send_proposal: "Πρόταση",
     engagement_rate: "Ποσοστό αλληλεπίδρασης",
     rating: "Αξιολόγηση",
     reviews: "Reviews",
@@ -240,14 +241,14 @@ const t = {
     awaiting_note: "The application was accepted. The influencer has not accepted the terms yet.",
     no_pending: "No agreements pending acceptance",
     recommendations_title: "Recommended Influencers for You",
-    recommendations_subtitle: "Based on your industry, strategic audit (niche, engagement) and value for brands",
+    recommendations_subtitle: "Based on category, area, campaign budget, and profile details",
     recommendations_loading: "Loading recommendations...",
     recommendations_empty: "No recommendations found at this time",
     match_score: "Match Score",
     match_label: "Match",
-    why_match: "Why This Match",
-    view_profile: "View Profile",
-    send_proposal: "Send Proposal",
+    why_match: "Why it matches",
+    view_profile: "Profile",
+    send_proposal: "Proposal",
     engagement_rate: "Engagement Rate",
     rating: "Rating",
     reviews: "Reviews",
@@ -1419,6 +1420,7 @@ export default function BrandDashboardContent() {
         .map((inf) => String(inf.id || ""))
         .filter(Boolean);
       const priceById: Record<string, string | null> = {};
+      const fromPriceById: Record<string, number | null> = {};
       const pastById: Record<string, string[]> = {};
       try {
         const { data: sessionData } = await supabase.auth.getSession();
@@ -1439,8 +1441,15 @@ export default function BrandDashboardContent() {
             for (const row of rows) {
               if (row?.id) {
                 const rate = row.min_rate;
-                priceById[String(row.id)] =
+                const id = String(row.id);
+                priceById[id] =
                   typeof rate === "string" || typeof rate === "number" ? String(rate) : null;
+                fromPriceById[id] = lowestListedPrice({
+                  service_packages: row.service_packages,
+                  rate_card: row.rate_card,
+                  min_rate: row.min_rate,
+                  accounts: row.accounts,
+                });
               }
             }
           }
@@ -1540,6 +1549,8 @@ export default function BrandDashboardContent() {
           followers_count,
           avg_likes,
           min_rate: priceById[inf.id] ?? null,
+          from_price: fromPriceById[String(inf.id)] ?? null,
+          languages: inf.languages,
           location: inf.location,
           gender: inf.gender,
           avg_rating: inf.avg_rating,
@@ -1583,13 +1594,43 @@ export default function BrandDashboardContent() {
       
       // Process recommendations
       // Get brand profile
+      let campaigns: BrandCampaignHint[] = [];
+      try {
+        const { data: campaignRows, error: campaignError } = await supabase
+          .from("brand_campaigns")
+          .select("title, budget, platforms, location, category, description, status")
+          .eq("brand_id", brand.id)
+          .in("status", ["open", "draft"]);
+        if (!campaignError && Array.isArray(campaignRows)) {
+          campaigns = campaignRows.map((row) => {
+            const budget = Number(row.budget);
+            return {
+              title: typeof row.title === "string" ? row.title : null,
+              budget: Number.isFinite(budget) && budget > 0 ? budget : null,
+              platforms: Array.isArray(row.platforms) ? row.platforms.filter((item): item is string => typeof item === "string") : [],
+              location: typeof row.location === "string" ? row.location : null,
+              category: typeof row.category === "string" ? row.category : null,
+              description: typeof row.description === "string" ? row.description : null,
+            };
+          });
+        }
+      } catch (campaignErr) {
+        console.error("[Brand Dashboard] campaign hints failed", campaignErr);
+      }
+
       const brandProfile: BrandProfile = {
         id: brand.id,
         brand_name: brand.brand_name,
         industry: brand.industry, // This is actually the category
         category: brand.industry, // For clarity
         contact_email: brand.contact_email,
-        brief: [brand.bio, brand.industry].filter(Boolean).join("\n"),
+        location: typeof brand.city === "string" ? brand.city : null,
+        campaigns,
+        brief: [
+          brand.bio,
+          brand.industry,
+          ...campaigns.flatMap((campaign) => [campaign.title, campaign.description, campaign.category]),
+        ].filter(Boolean).join("\n"),
       };
       
       // Apply filters
@@ -1609,8 +1650,9 @@ export default function BrandDashboardContent() {
       
       if (recommendationFilters.maxPrice) {
         filteredProfiles = filteredProfiles.filter(inf => {
+          const listed = inf.from_price != null && inf.from_price > 0 ? inf.from_price : null;
           const rateText = typeof inf.min_rate === "string" ? inf.min_rate : inf.min_rate == null ? "" : String(inf.min_rate);
-          const rate = parseFloat(rateText.replace(/[€$,\s]/g, '') || '0');
+          const rate = listed ?? parseFloat(rateText.replace(/[€$,\s]/g, '') || '0');
           return !isNaN(rate) && rate <= recommendationFilters.maxPrice!;
         });
       }
@@ -2606,10 +2648,10 @@ export default function BrandDashboardContent() {
               </button>
             </div>
           ) : recommendationsLoading || !recommendationsReady ? (
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6" aria-busy="true">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3" aria-busy="true">
               {Array.from({ length: 4 }, (_, i) => (
                 <div key={i} className="bg-white rounded-xl border border-slate-200 overflow-hidden animate-pulse">
-                  <div className="h-48 bg-slate-200" />
+                  <div className="aspect-[4/5] bg-slate-200" />
                   <div className="p-4 space-y-3">
                     <div className="h-3 bg-slate-200 rounded w-2/3" />
                     <div className="h-3 bg-slate-200 rounded w-1/2" />
@@ -2624,102 +2666,76 @@ export default function BrandDashboardContent() {
               <p className="text-slate-600">{txt.recommendations_empty}</p>
             </div>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {recommendations.map((match, index) => {
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+              {recommendations.map((match) => {
                 const inf = match.influencer;
                 const creatorCats = Array.isArray(inf.categories) && inf.categories.length ? inf.categories : inf.category;
                 const shared = new Set(sharedCategoryKeys(brandData?.industry, creatorCats));
                 const cats = (Array.isArray(inf.categories) ? inf.categories : inf.category ? [inf.category] : [])
                   .filter((cat: unknown): cat is string => typeof cat === "string" && cat.length > 0);
                 const orderedCats = [...cats.filter((cat: string) => shared.has(cat)), ...cats.filter((cat: string) => !shared.has(cat))].slice(0, 3);
-                const reasons = (Array.isArray(match.reasons) ? match.reasons : []).slice(0, 2);
+                const reasons = (Array.isArray(match.reasons) ? match.reasons : []).slice(0, 3);
+                const fromPrice = typeof inf.from_price === "number" && inf.from_price > 0 ? inf.from_price : null;
+                const priceLabel = fromPrice != null ? formatFromPriceLabel(fromPrice, lang) : null;
+                const shownName = displayNameForLang(inf.display_name, lang);
                 return (
                   <div
                     key={inf.id}
-                    className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all overflow-hidden"
+                    className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md"
                   >
-                    <div className="relative">
-                      <div className="absolute top-2 right-2 z-10">
-                        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold text-white ${
-                          match.score >= 80 ? 'bg-emerald-600' :
-                          match.score >= 65 ? 'bg-blue-600' :
-                          'bg-slate-500'
-                        }`}>
-                          {match.score}% {txt.match_label}
-                        </span>
-                      </div>
-                      
-                      {/* Avatar */}
-                      <div className="relative h-48 bg-slate-200">
-                        <CreatorPhoto
-                          src={inf.avatar_url}
-                          name={displayNameForLang(inf.display_name, lang)}
-                          className="absolute inset-0 h-full w-full"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                        <div className="absolute bottom-3 left-3 right-3">
-                          <h3 className="text-white font-bold text-lg mb-1.5">{displayNameForLang(inf.display_name, lang)}</h3>
-                          {orderedCats.map((cat: string, idx: number) => (
-                            <span key={idx} className="inline-block px-2 py-1 bg-white/20 backdrop-blur-sm rounded text-xs text-white font-medium mr-1 mb-1">
+                    <div className="relative aspect-[4/5] bg-slate-100">
+                      <CreatorPhoto
+                        src={inf.avatar_url}
+                        name={shownName}
+                        className="absolute inset-0 h-full w-full object-cover"
+                      />
+                      <span className={`absolute left-3 top-3 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold shadow-sm ${
+                        match.score >= 80 ? "bg-emerald-600 text-white" :
+                        match.score >= 65 ? "bg-blue-600 text-white" :
+                        "bg-white/95 text-slate-900"
+                      }`}>
+                        {match.score}% {txt.match_label}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-1 flex-col p-4">
+                      <h3 className="text-lg font-bold leading-tight text-slate-900">{shownName}</h3>
+                      {orderedCats.length ? (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {orderedCats.map((cat: string) => (
+                            <span
+                              key={cat}
+                              className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                                shared.has(cat) ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-600"
+                              }`}
+                            >
                               {categoryLabel(cat, lang)}
                             </span>
                           ))}
                         </div>
-                      </div>
-                    </div>
-                    
-                    {/* Content */}
-                    <div className="p-4">
-                      {/* Stats – Followers, Engagement, Avg Likes only (reviews stay in algorithm, not shown) */}
-                      <div className="grid grid-cols-2 gap-3 mb-4 text-xs">
-                        <div className="col-span-2">
-                          <div className="text-slate-500 uppercase tracking-wide mb-1">{txt.followers}</div>
-                          <PlatformFollowers accounts={inf.accounts} lang={lang} />
+                      ) : null}
+
+                      <PlatformFollowers accounts={inf.accounts} lang={lang} className="mt-3" />
+
+                      {priceLabel ? (
+                        <div className="mt-3 text-xl font-bold tabular-nums text-slate-900">{priceLabel}</div>
+                      ) : null}
+
+                      {reasons.length ? (
+                        <div className="mt-3">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{txt.why_match}</p>
+                          <ul className="mt-1.5 space-y-1">
+                            {reasons.map((reason: string) => (
+                              <li key={reason} className="flex items-start gap-2 text-sm leading-snug text-slate-700">
+                                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-600" aria-hidden />
+                                <span>{reason}</span>
+                              </li>
+                            ))}
+                          </ul>
                         </div>
-                        {(inf.engagement_rate && (typeof inf.engagement_rate === 'object' ? Object.keys(inf.engagement_rate).length > 0 : true)) && (
-                          <div>
-                            <div className="text-slate-500 uppercase tracking-wide">{txt.engagement_rate}</div>
-                            <div className="font-semibold text-slate-900">
-                              {typeof inf.engagement_rate === 'object' && inf.engagement_rate !== null && !Array.isArray(inf.engagement_rate)
-                                ? (Object.entries(inf.engagement_rate) as [string, string][]).map(([platform, rate]) => {
-                                    const r = rate && !String(rate).includes('%') ? `${rate}%` : rate;
-                                    const label = platform === 'instagram' ? 'IG' : platform === 'tiktok' ? 'TT' : String(platform).slice(0, 2).toUpperCase();
-                                    return `${label} ${r}`;
-                                  }).join(' · ')
-                                : (inf.engagement_rate && !String(inf.engagement_rate).includes('%') ? `${inf.engagement_rate}%` : inf.engagement_rate)}
-                            </div>
-                          </div>
-                        )}
-                        {inf.avg_likes && (typeof inf.avg_likes === 'object' ? Object.keys(inf.avg_likes).length > 0 : inf.avg_likes) && (
-                          <div>
-                            <div className="text-slate-500 uppercase tracking-wide">{lang === 'el' ? 'Μ.Ο. Likes' : 'Avg Likes'}</div>
-                            <div className="font-semibold text-slate-900">
-                              {typeof inf.avg_likes === 'object' && inf.avg_likes !== null && !Array.isArray(inf.avg_likes)
-                                ? (Object.entries(inf.avg_likes) as [string, string][]).map(([platform, val]) => {
-                                    const label = platform === 'instagram' ? 'IG' : platform === 'tiktok' ? 'TT' : String(platform).slice(0, 2).toUpperCase();
-                                    return `${label} ${val}`;
-                                  }).join(' · ')
-                                : inf.avg_likes}
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                      ) : null}
                       
-                      {/* Match Reasons */}
-                      <div className="mb-4">
-                        <p className="text-xs font-medium text-slate-500 mb-1.5">{txt.why_match}</p>
-                        <ul className="space-y-1">
-                          {reasons.map((reason: string, i: number) => (
-                            <li key={i} className="text-xs text-slate-700 flex items-start gap-2">
-                              <span className="text-emerald-500 shrink-0 mt-0.5" aria-hidden>•</span>
-                              <span className="line-clamp-2">{reason}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      
-                      {/* Actions */}
-                      <div className="flex gap-2">
+                      <div className="mt-auto flex gap-2 pt-4">
                         <Link
                           href={publicProfilePath(inf.profile_slug, inf.id)}
                           onClick={async () => {

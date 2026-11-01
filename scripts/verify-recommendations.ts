@@ -34,7 +34,10 @@ assert.equal(matches.length, 1);
 assert.equal(typeof matches[0].reasons[0], "string");
 for (const reason of matches[0].reasons) {
   assert.equal(typeof reason, "string");
+  assert.equal(reason.includes("Δυνατό κοινό"), false);
+  assert.equal(reason.includes("Δουλεύει καλά"), false);
 }
+assert.ok(matches[0].reasons.some((reason) => reason.includes("Μόδα")));
 
 const fromObject = recommendInfluencers(brand, { data: [badAudit] } as unknown as InfluencerProfile[], {
   minScore: 0,

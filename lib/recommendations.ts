@@ -1,6 +1,8 @@
 // Smart Recommendation System for Matching Influencers to Brands
 
 import { categoryLabel, categoryTranslations, isGeneralCategory, parseStoredCategories } from "./categories.ts";
+import { formatEuro } from "./formatEuro.ts";
+import { INFLUENCER_LANGUAGES } from "./languages.ts";
 import { listedPriceMin } from "./parsePrice.ts";
 import { sanitizeSkills, skillLabel } from "./skills.ts";
 
@@ -13,6 +15,17 @@ export interface BrandProfile {
   location?: string | null; // Optional: for location-based matching
   /** Free text such as a campaign title or brand bio. Skills are matched against it. */
   brief?: string | null;
+  /** Open or draft campaigns. Used only to check budget, platforms, and place. */
+  campaigns?: BrandCampaignHint[] | null;
+}
+
+export interface BrandCampaignHint {
+  title?: string | null;
+  budget?: number | null;
+  platforms?: string[] | null;
+  location?: string | null;
+  category?: string | null;
+  description?: string | null;
 }
 
 /** Strategic audit from Gemini (auditpr_audit) – used for better matching and reasons. */
@@ -55,6 +68,9 @@ export interface InfluencerProfile {
   } | null;
   profile_slug?: string | null;
   avatar_url?: string | null;
+  /** Cheapest package, or min_rate when the creator has no package price. */
+  from_price?: number | null;
+  languages?: string[] | string | null;
   /** Strategic audit – niche, brandSafe, whyWorkWithThem (for brands). */
   auditpr_audit?: AuditprAuditProfile | null;
   /** Brand dashboard: email for messaging (not shown publicly). */
@@ -446,38 +462,247 @@ function calculateLocationMatch(
   const influencerLoc = asText(influencerLocation).toLowerCase();
   if (!brandLoc || !influencerLoc) return 0.5;
   
-  // Exact match
-  if (brandLoc === influencerLoc) return 1.0;
-  
-  // Partial match (e.g., "Athens" matches "Αθήνα")
-  if (brandLoc.includes(influencerLoc) || influencerLoc.includes(brandLoc)) {
-    return 0.8;
-  }
+  if (placesMatch(brandLoc, influencerLoc)) return 1;
+  if (brandLoc.includes(influencerLoc) || influencerLoc.includes(brandLoc)) return 0.8;
   
   // Common location keywords
-  const greeceKeywords = ['ελλάδα', 'greece', 'gr', 'ellada'];
-  if (greeceKeywords.some(kw => brandLoc.includes(kw) || influencerLoc.includes(kw))) {
-    return 0.6; // Both in Greece
-  }
+  const greeceKeywords = ["ελλάδα", "greece", "ellada"];
+  const brandInGreece = greeceKeywords.some((kw) => brandLoc.includes(kw));
+  const creatorInGreece = greeceKeywords.some((kw) => influencerLoc.includes(kw));
+  if (brandInGreece && creatorInGreece) return 0.6;
   
   return 0.3; // Different locations
 }
 
-type ReasonBit = { text: string; generic: boolean };
+const PLACE_ALIASES: string[][] = [
+  ["αθηνα", "athens"],
+  ["θεσσαλονικη", "thessaloniki", "salonika"],
+  ["πατρα", "patras"],
+  ["ηρακλειο", "heraklion"],
+  ["λαρισα", "larissa"],
+  ["βολος", "volos"],
+  ["ιωαννινα", "ioannina"],
+  ["χαλκιδα", "chalkida", "chalcis"],
+  ["ροδος", "rhodes"],
+  ["χανια", "chania"],
+];
 
-/** Two lines that are not the same sentence on every card. */
-function pickDistinctiveReasons(pool: ReasonBit[], freq: Map<string, number>): string[] {
-  const ranked = [...pool].sort((a, b) => {
-    if (a.generic !== b.generic) return a.generic ? 1 : -1;
-    return (freq.get(a.text) || 0) - (freq.get(b.text) || 0);
-  });
-  const distinctive = ranked.filter((reason) => !reason.generic);
-  const picked = (distinctive.length >= 2 ? distinctive : ranked).slice(0, 2);
-  if (picked.length < 2) {
-    const filler = ranked.find((reason) => !picked.some((item) => item.text === reason.text));
-    if (filler) picked.push(filler);
+function foldPlace(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/ς/g, "σ")
+    .trim();
+}
+
+/** True only when both texts name the same place. One side saying "Greece" is not enough. */
+export function placesMatch(a: string, b: string): boolean {
+  const left = foldPlace(a);
+  const right = foldPlace(b);
+  if (!left || !right) return false;
+  if (left === right) return true;
+  const shorter = left.length <= right.length ? left : right;
+  const longer = left.length <= right.length ? right : left;
+  if (shorter.length >= 4 && longer.includes(shorter)) return true;
+  return PLACE_ALIASES.some(
+    (group) => group.some((token) => left.includes(token)) && group.some((token) => right.includes(token))
+  );
+}
+
+function joinAnd(items: string[], lang: "el" | "en"): string {
+  if (items.length <= 1) return items[0] || "";
+  const last = items[items.length - 1];
+  const head = items.slice(0, -1).join(", ");
+  return lang === "el" ? `${head} και ${last}` : `${head} and ${last}`;
+}
+
+function creatorLanguageCodes(value: unknown): string[] {
+  const parts = Array.isArray(value) ? value : asText(value).split(/[,;/|]/);
+  const codes: string[] = [];
+  for (const part of parts) {
+    const key = asText(part);
+    if (!key) continue;
+    const row = INFLUENCER_LANGUAGES.find(
+      (lang) =>
+        lang.code === key.toLowerCase() ||
+        lang.el.toLowerCase() === key.toLowerCase() ||
+        lang.en.toLowerCase() === key.toLowerCase()
+    );
+    if (row && !codes.includes(row.code)) codes.push(row.code);
   }
-  return picked.map((reason) => reason.text);
+  return codes;
+}
+
+function mentionedLanguageCodes(text: string): string[] {
+  const hay = foldPlace(text);
+  if (!hay) return [];
+  return INFLUENCER_LANGUAGES.filter((lang) => {
+    const names = [lang.el, lang.en].map((name) => foldPlace(name)).filter((name) => name.length >= 4);
+    const code = new RegExp(`(?:^|[^a-zα-ω])${lang.code}(?:$|[^a-zα-ω])`).test(hay);
+    return code || names.some((name) => hay.includes(name));
+  }).map((lang) => lang.code);
+}
+
+function platformLabel(platform: string): string {
+  const key = platform.toLowerCase();
+  if (key === "instagram") return "Instagram";
+  if (key === "tiktok") return "TikTok";
+  if (key === "youtube") return "YouTube";
+  if (key === "facebook") return "Facebook";
+  if (key === "twitter" || key === "x") return "X";
+  return platform;
+}
+
+function bestEngagement(rate: InfluencerProfile["engagement_rate"]): { rate: number; platform: string | null } | null {
+  if (!rate) return null;
+  if (typeof rate === "object" && !Array.isArray(rate)) {
+    let best: { rate: number; platform: string } | null = null;
+    for (const [platform, raw] of Object.entries(rate)) {
+      const value = parseEngagementRate(raw);
+      if (!(value >= 2)) continue;
+      if (!best || value > best.rate) best = { rate: value, platform };
+    }
+    return best;
+  }
+  const value = parseEngagementRate(rate);
+  return value >= 2 ? { rate: value, platform: null } : null;
+}
+
+function pastBrandNames(value: InfluencerProfile["past_brands"]): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => asText(item)).filter(Boolean);
+}
+
+/**
+ * Up to three reasons that are true for this brand. No audit prose and no filler.
+ */
+export function buildMatchReasons(
+  brand: BrandProfile,
+  influencer: InfluencerProfile,
+  matchedSkills: string[],
+  lang: "el" | "en"
+): string[] {
+  const isEn = lang === "en";
+  const reasons: string[] = [];
+  const add = (text: string | null | undefined) => {
+    const clean = clipReason(asText(text), 140);
+    if (!clean || reasons.includes(clean) || reasons.length >= 3) return;
+    reasons.push(clean);
+  };
+
+  const brandName = foldPlace(asText(brand.brand_name));
+  const past = pastBrandNames(influencer.past_brands);
+  const workedTogether = brandName.length >= 2 && past.some((name) => foldPlace(name) === brandName);
+  if (workedTogether) {
+    add(isEn ? "You have worked together before" : "Έχετε ήδη συνεργαστεί");
+  }
+
+  add(sharedCategoryReason(
+    brand.category || brand.industry,
+    influencer.categories?.length ? influencer.categories : influencer.category,
+    lang
+  ));
+
+  const creatorPlace = asText(influencer.location);
+  const brandPlaces = [brand.location, ...(brand.campaigns || []).map((campaign) => campaign.location)]
+    .map((place) => asText(place))
+    .filter(Boolean);
+  if (creatorPlace && brandPlaces.some((place) => placesMatch(place, creatorPlace))) {
+    add(isEn ? `Same area: ${creatorPlace}` : `Ίδια περιοχή: ${creatorPlace}`);
+  }
+
+  const fromPrice = influencer.from_price != null && influencer.from_price > 0
+    ? influencer.from_price
+    : listedPriceMin(influencer.min_rate);
+  const fitting = (brand.campaigns || [])
+    .map((campaign) => ({
+      title: asText(campaign.title),
+      budget: typeof campaign.budget === "number" ? campaign.budget : Number(campaign.budget),
+    }))
+    .filter((campaign) => Number.isFinite(campaign.budget) && campaign.budget > 0 && fromPrice != null && fromPrice <= campaign.budget)
+    .sort((a, b) => a.budget - b.budget);
+  if (fromPrice != null && fitting[0]) {
+    const amount = formatEuro(fromPrice, lang);
+    const budget = formatEuro(fitting[0].budget, lang);
+    const title = fitting[0].title;
+    add(
+      title
+        ? isEn
+          ? `From ${amount}, within the “${title}” budget (${budget})`
+          : `Από ${amount}, μέσα στο budget της «${title}» (${budget})`
+        : isEn
+          ? `From ${amount}, within a campaign budget (${budget})`
+          : `Από ${amount}, μέσα σε budget καμπάνιας (${budget})`
+    );
+  }
+
+  const wantedPlatforms = new Set(
+    (brand.campaigns || [])
+      .flatMap((campaign) => (Array.isArray(campaign.platforms) ? campaign.platforms : []))
+      .map((platform) => asText(platform).toLowerCase())
+      .filter(Boolean)
+  );
+  const creatorPlatforms = (Array.isArray(influencer.accounts) ? influencer.accounts : [])
+    .map((account) => asText(account?.platform).toLowerCase())
+    .filter((platform) => platform && wantedPlatforms.has(platform));
+  const uniquePlatforms = [...new Set(creatorPlatforms)].map(platformLabel);
+  if (uniquePlatforms.length) {
+    add(
+      isEn
+        ? `${joinAnd(uniquePlatforms, "en")}, like your campaigns`
+        : `${joinAnd(uniquePlatforms, "el")}, όπως οι καμπάνιες σας`
+    );
+  }
+
+  if (matchedSkills.length) {
+    const names = matchedSkills.slice(0, 3).map((key) => skillLabel(key, lang)).filter(Boolean);
+    if (names.length) {
+      add(isEn ? `Matching skills: ${names.join(", ")}` : `Δεξιότητες που ταιριάζουν: ${names.join(", ")}`);
+    }
+  }
+
+  const brief = [
+    brand.brief,
+    ...(brand.campaigns || []).flatMap((campaign) => [campaign.title, campaign.description, campaign.category]),
+  ].map((part) => asText(part)).filter(Boolean).join("\n");
+  const asked = mentionedLanguageCodes(brief);
+  const spoken = creatorLanguageCodes(influencer.languages).filter((code) => asked.includes(code));
+  if (spoken.length) {
+    const labels = spoken
+      .slice(0, 2)
+      .map((code) => INFLUENCER_LANGUAGES.find((row) => row.code === code)?.[lang] || "")
+      .filter(Boolean);
+    if (labels.length) {
+      add(
+        isEn
+          ? `Speaks ${joinAnd(labels, "en")}, which you ask for`
+          : `Μιλάει ${joinAnd(labels, "el")}, όπως ζητάτε`
+      );
+    }
+  }
+
+  const engagement = bestEngagement(influencer.engagement_rate);
+  if (engagement) {
+    const shown = lang === "el" ? engagement.rate.toFixed(1).replace(".", ",") : engagement.rate.toFixed(1);
+    const where = engagement.platform ? platformLabel(engagement.platform) : "";
+    add(
+      where
+        ? isEn
+          ? `Engagement ${shown}% on ${where}`
+          : `Engagement ${shown}% στο ${where}`
+        : isEn
+          ? `Engagement ${shown}%`
+          : `Engagement ${shown}%`
+    );
+  }
+
+  if (!workedTogether && past.length && reasons.length < 3) {
+    const names = past.slice(0, 2).join(", ");
+    add(isEn ? `Previous collaborations: ${names}` : `Προηγούμενες συνεργασίες: ${names}`);
+  }
+
+  return reasons.slice(0, 3);
 }
 
 /**
@@ -517,13 +742,12 @@ export function recommendInfluencers(
   const preferVerified = options?.preferVerified !== false;
   const preferHighRating = options?.preferHighRating !== false;
   const lang = options?.lang || 'el';
-  const isEn = lang === 'en';
 
   const list = Array.isArray(influencers) ? influencers : [];
   console.log('[Recommendations] Processing', list.length, 'influencers for brand:', brand.brand_name, 'category:', brand.category || brand.industry);
 
-  const scores: Array<MatchScore & { pool: ReasonBit[] }> = list
-    .flatMap((influencer): Array<MatchScore & { pool: ReasonBit[] }> => {
+  const scores: MatchScore[] = list
+    .flatMap((influencer): MatchScore[] => {
       try {
       const audit = influencer.auditpr_audit;
       const overlap = sharedCategoryKeys(
@@ -598,135 +822,13 @@ export function recommendInfluencers(
       score += bonusPoints;
       score = Math.min(score, 100);
 
-      const pool: ReasonBit[] = [];
-      const addReason = (text: string | null | undefined, generic: boolean) => {
-        const clean = clipReason(asText(text));
-        if (!clean) return;
-        if (pool.some((reason) => reason.text === clean)) return;
-        pool.push({ text: clean, generic });
-      };
-
-      const sharedLine = sharedCategoryReason(
-        brand.category || brand.industry,
-        influencer.categories?.length ? influencer.categories : influencer.category,
-        lang
-      );
-      if (sharedLine) addReason(sharedLine, true);
-
-      const location = asText(influencer.location);
-      if (location) addReason(isEn ? `Based in ${location}` : `Έδρα: ${location}`, false);
-
-      if (typeof influencer.audience_top_age === "string" && influencer.audience_top_age.trim()) {
-        addReason(
-          isEn
-            ? `Main audience age ${influencer.audience_top_age.trim()}`
-            : `Κύρια ηλικία κοινού ${influencer.audience_top_age.trim()}`,
-          false
-        );
-      }
-      if (typeof influencer.audience_female_percent === "number" && influencer.audience_female_percent >= 60) {
-        const pct = Math.round(influencer.audience_female_percent);
-        addReason(isEn ? `${pct}% women in the audience` : `${pct}% γυναίκες στο κοινό`, false);
-      } else if (typeof influencer.audience_male_percent === "number" && influencer.audience_male_percent >= 60) {
-        const pct = Math.round(influencer.audience_male_percent);
-        addReason(isEn ? `${pct}% men in the audience` : `${pct}% άντρες στο κοινό`, false);
-      }
-
-      const accounts = Array.isArray(influencer.accounts) ? influencer.accounts : [];
-      let topAccount: { platform: string; followers: string; n: number } | null = null;
-      for (const account of accounts) {
-        const followers = asText(account?.followers);
-        const n = parseFollowers(followers);
-        if (!followers || !(n > 0)) continue;
-        if (!topAccount || n > topAccount.n) {
-          topAccount = { platform: asText(account.platform) || "social", followers, n };
-        }
-      }
-      if (topAccount) {
-        addReason(
-          isEn
-            ? `${topAccount.followers} followers on ${topAccount.platform}`
-            : `${topAccount.followers} ακόλουθοι στο ${topAccount.platform}`,
-          false
-        );
-      }
-
-      if (strengths.engagementQuality >= 0.9) {
-        const rate = parseEngagementRate(influencer.engagement_rate);
-        addReason(isEn ? `Excellent engagement (${rate.toFixed(1)}%)` : `Εξαιρετικό engagement (${rate.toFixed(1)}%)`, false);
-      } else if (strengths.engagementQuality >= 0.7) {
-        const rate = parseEngagementRate(influencer.engagement_rate);
-        addReason(isEn ? `High engagement rate (${rate.toFixed(1)}%)` : `Υψηλό engagement (${rate.toFixed(1)}%)`, false);
-      }
-
-      if (influencer.total_reviews && influencer.total_reviews > 0 && influencer.avg_rating) {
-        if (strengths.ratingQuality >= 0.9 && influencer.avg_rating >= 4.5) {
-          addReason(
-            isEn
-              ? `Top rated (${influencer.avg_rating.toFixed(1)}/5, ${influencer.total_reviews} reviews)`
-              : `Εξαιρετική αξιολόγηση (${influencer.avg_rating.toFixed(1)}/5 από ${influencer.total_reviews})`,
-            false
-          );
-        } else if (strengths.ratingQuality >= 0.7 && influencer.avg_rating >= 4.0) {
-          addReason(
-            isEn
-              ? `Good rating (${influencer.avg_rating.toFixed(1)}/5)`
-              : `Καλή αξιολόγηση (${influencer.avg_rating.toFixed(1)}/5)`,
-            false
-          );
-        }
-      }
-
-      if (strengths.valuePrice >= 0.8) {
-        addReason(isEn ? "Great value for money" : "Εξαιρετική αναλογία τιμής/ποιότητας", true);
-      } else if (strengths.valuePrice >= 0.6) {
-        addReason(isEn ? "Good value" : "Καλή αναλογία τιμής/ποιότητας", true);
-      }
-
-      if (influencer.total_reviews && influencer.total_reviews >= 20) {
-        addReason(
-          isEn
-            ? `Experienced (${influencer.total_reviews}+ collaborations)`
-            : `Έμπειρος με ${influencer.total_reviews}+ συνεργασίες`,
-          false
-        );
-      } else if (influencer.total_reviews && influencer.total_reviews >= 10) {
-        addReason(isEn ? "Experienced creator" : "Έμπειρος creator", true);
-      }
-
-      if (matchedSkills.length) {
-        const names = matchedSkills.slice(0, 3).map((key) => skillLabel(key, lang)).filter(Boolean).join(", ");
-        if (names) {
-          addReason(isEn ? `Skills that match the brief: ${names}` : `Δεξιότητες που ταιριάζουν: ${names}`, false);
-        }
-      }
-
-      if (influencer.verified) addReason(isEn ? "Verified" : "Επαληθευμένος", true);
-      if (audit?.brandSafe === true) {
-        addReason(isEn ? "Brand safe for campaigns" : "Ασφαλής για καμπάνιες", true);
-      }
-
-      const positives = asTextList(isEn ? (audit?.positives_en || audit?.positives) : (audit?.positives || audit?.positives_en));
-      const shortPositive = positives.find((item) => item.length <= 120) || positives[0];
-      if (shortPositive) addReason(shortPositive, false);
-
-      const whyLine = asText(isEn ? (audit?.whyWorkWithThem_en || audit?.whyWorkWithThem) : (audit?.whyWorkWithThem || audit?.whyWorkWithThem_en));
-      const firstSentence = whyLine.split(/[.!]/)[0]?.trim() || "";
-      const auditWhyLine = whyLine
-        ? (firstSentence ? `${firstSentence}${whyLine.includes(".") ? "." : ""}` : whyLine.slice(0, 120))
-        : null;
-      if (auditWhyLine) addReason(auditWhyLine, false);
-
-      if (pool.length === 0) {
-        addReason(isEn ? "Good fit for your brand" : "Καλή επιλογή για το brand σας", true);
-      }
+      const reasons = buildMatchReasons(brand, influencer, matchedSkills, lang);
 
       return [{
         influencer,
         score: Math.round(score),
-        reasons: pool.map((reason) => reason.text),
-        pool,
-        auditWhyLine: auditWhyLine || null,
+        reasons,
+        auditWhyLine: null,
         strengths,
       }];
       } catch (err) {
@@ -738,15 +840,7 @@ export function recommendInfluencers(
     .sort((a, b) => b.score - a.score);
 
   spreadDisplayedScores(scores);
-  const visible = scores.slice(0, limit);
-  const freq = new Map<string, number>();
-  for (const match of visible) {
-    for (const reason of match.pool) freq.set(reason.text, (freq.get(reason.text) || 0) + 1);
-  }
-  const presented = visible.map((match) => {
-    const { pool, ...rest } = match;
-    return { ...rest, reasons: pickDistinctiveReasons(pool, freq) };
-  });
+  const presented = scores.slice(0, limit);
 
   console.log('[Recommendations] Final matches:', presented.length, 'out of', list.length, 'influencers');
   console.log('[Recommendations] Top matches:', presented.slice(0, 5).map(m => ({ name: m.influencer.display_name, score: m.score })));
