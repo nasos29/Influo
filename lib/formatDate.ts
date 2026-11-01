@@ -51,17 +51,44 @@ export function dmyToYmd(text: string): string {
   return ymdFromParts(year, month, day);
 }
 
-/** Group typed digits as dd/mm/yyyy while the user is still entering the date. */
-export function maskDmyInput(raw: string): string {
-  const iso = YMD.exec(raw.trim());
-  if (iso) return ymdToDmy(iso[0]);
-  const digits = raw.replace(/\D/g, "").slice(0, 8);
+function groupDmyDigits(digits: string, trailingSlash: boolean): string {
   const day = digits.slice(0, 2);
   const month = digits.slice(2, 4);
   const year = digits.slice(4, 8);
-  if (digits.length <= 2) return day;
-  if (digits.length <= 4) return `${day}/${month}`;
+  if (digits.length <= 2) {
+    if (!digits) return "";
+    return trailingSlash ? `${day}/` : day;
+  }
+  if (digits.length <= 4) {
+    const body = `${day}/${month}`;
+    return trailingSlash ? `${body}/` : body;
+  }
   return `${day}/${month}/${year}`;
+}
+
+/**
+ * Group typed digits as dd/mm/yyyy.
+ * A slash is added as soon as the day or the month has two digits, not when the next digit arrives.
+ * `previous` is the field value before this keystroke, so backspace can remove a slash
+ * without the mask putting it straight back, and a typed slash is not doubled.
+ */
+export function maskDmyInput(raw: string, previous = ""): string {
+  const trimmed = raw.trim();
+  const iso = YMD.exec(trimmed);
+  if (iso && !trimmed.includes("/")) return ymdToDmy(iso[0]);
+
+  const digits = raw.replace(/\D/g, "").slice(0, 8);
+  const prevDigits = previous.replace(/\D/g, "").slice(0, 8);
+  const deleting = raw.length < previous.length;
+  const removedOnlySeparator = deleting && digits === prevDigits;
+  const typedEarlySlash = !deleting && raw.endsWith("/") && (digits.length === 1 || digits.length === 3);
+  const trailingSlash =
+    !removedOnlySeparator &&
+    digits.length > 0 &&
+    digits.length < 5 &&
+    (digits.length === 2 || digits.length === 4 || typedEarlySlash);
+
+  return groupDmyDigits(digits, trailingSlash);
 }
 
 type AthensParts = { year: number; month: number; day: number; hour: number; minute: number };

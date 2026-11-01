@@ -84,6 +84,7 @@ export default function DmyDateField({
   const autoId = useId();
   const fieldId = id || autoId;
   const rootRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const focused = useRef(false);
   const [open, setOpen] = useState(false);
   const [text, setText] = useState(() => ymdToDmy(value));
@@ -122,8 +123,17 @@ export default function DmyDateField({
   };
 
   const onText = (raw: string) => {
-    const next = maskDmyInput(raw);
+    const next = maskDmyInput(raw, text);
+    const caret = inputRef.current?.selectionStart ?? raw.length;
+    const typedAtEnd = caret >= raw.length;
     setText(next);
+    if (typedAtEnd && next !== raw) {
+      requestAnimationFrame(() => {
+        const node = inputRef.current;
+        if (!node || document.activeElement !== node) return;
+        node.setSelectionRange(next.length, next.length);
+      });
+    }
     if (!next) {
       publish("");
       return;
@@ -175,6 +185,7 @@ export default function DmyDateField({
   return (
     <div ref={rootRef} className="relative">
       <input
+        ref={inputRef}
         id={fieldId}
         type="text"
         inputMode="numeric"
