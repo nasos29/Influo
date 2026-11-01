@@ -1,56 +1,19 @@
-/** Locale dates and 24-hour times for dashboards. el-GR / en-GB. */
+/** Dates as dd/mm/yyyy and 24-hour Europe/Athens times for dashboards. */
+
+import { formatDisplayDate, formatDisplayDateTime, formatDisplayTime } from "@/lib/formatDate";
 
 export type UiLang = "el" | "en";
 
-function localeFor(lang: UiLang): string {
-  return lang === "el" ? "el-GR" : "en-GB";
-}
-
-function toDate(value: string | number | Date | null | undefined): Date | null {
-  if (value == null || value === "") return null;
-  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
-  if (typeof value === "string") {
-    const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-    if (dateOnly) {
-      const date = new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]));
-      return Number.isNaN(date.getTime()) ? null : date;
-    }
-  }
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
-export function formatDate(value: string | number | Date | null | undefined, lang: UiLang): string {
-  const date = toDate(value);
-  if (!date) return "";
-  return date.toLocaleDateString(localeFor(lang), {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+export function formatDate(value: string | number | Date | null | undefined, _lang: UiLang): string {
+  return formatDisplayDate(value);
 }
 
 /** Calendar date and 24-hour time in Europe/Athens. Empty values stay as an em dash. */
 export function formatAthensDateTime(value: string | number | Date | null | undefined): string {
-  const date = toDate(value);
-  if (!date) return "—";
-  return new Intl.DateTimeFormat("el-GR", {
-    timeZone: "Europe/Athens",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).format(date);
+  const text = formatDisplayDateTime(value);
+  return text || "—";
 }
 
-export function formatTime(value: string | number | Date | null | undefined, lang: UiLang): string {
-  const date = toDate(value);
-  if (!date) return "";
-  return date.toLocaleTimeString(localeFor(lang), {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
+export function formatTime(value: string | number | Date | null | undefined, _lang: UiLang): string {
+  return formatDisplayTime(value);
 }

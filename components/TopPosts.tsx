@@ -7,6 +7,7 @@ import {
   formatCompactCount,
   type TopPost,
 } from "@/lib/topPosts";
+import { formatDisplayDate } from "@/lib/formatDate";
 
 const COPY = {
   title: { el: "Κορυφαία posts", en: "Top posts" },
@@ -26,19 +27,8 @@ function localizeCompact(value: number | null | undefined, lang: "el" | "en"): s
   return raw;
 }
 
-function formatPostedAt(iso: string | null | undefined, lang: "el" | "en"): string {
-  if (!iso) return "";
-  const ms = Date.parse(iso);
-  if (!Number.isFinite(ms)) return "";
-  try {
-    return new Intl.DateTimeFormat(lang === "en" ? "en-GB" : "el-GR", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    }).format(new Date(ms));
-  } catch {
-    return "";
-  }
+function formatPostedAt(iso: string | null | undefined, _lang: "el" | "en"): string {
+  return formatDisplayDate(iso);
 }
 
 function TopPostCard({

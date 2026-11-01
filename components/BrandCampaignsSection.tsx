@@ -164,7 +164,7 @@ const extra = langPack({
   comp_money: { el: "Χρήματα", en: "Money" },
   comp_product: { el: "Προϊόν", en: "Product" },
   comp_both: { el: "Χρήματα και προϊόν", en: "Money and product" },
-  date_order: { el: "Ημερομηνία με σειρά ημέρα / μήνας / έτος.", en: "Enter the date as day / month / year." },
+  date_order: { el: "Μορφή ηη/μμ/εεεε, π.χ. 15/11/2026.", en: "Format dd/mm/yyyy, e.g. 15/11/2026." },
   deadline_after_start: { el: "Η προθεσμία πρέπει να είναι μετά την ημερομηνία έναρξης.", en: "The deadline must be after the start date." },
   deadline_auto_close: {
     el: "Αν δεν ορίσετε προθεσμία, η καμπάνια κλείνει αυτόματα σε 30 μέρες.",

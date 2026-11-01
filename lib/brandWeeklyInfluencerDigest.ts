@@ -1,6 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { sendPushToBrand } from '@/lib/push';
+import { formatDisplayDate } from '@/lib/formatDate';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr';
 const FROM_EMAIL = 'noreply@influo.gr';
@@ -86,9 +87,8 @@ function formatCategory(category: InfluencerRow['category']): string {
 }
 
 function formatWeekRange(window: WeeklyDigestWindow): string {
-  const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
-  const start = window.startDate.toLocaleDateString('el-GR', opts);
-  const end = window.endDate.toLocaleDateString('el-GR', opts);
+  const start = formatDisplayDate(window.startDate);
+  const end = formatDisplayDate(window.endDate);
   return `${start} – ${end}`;
 }
 

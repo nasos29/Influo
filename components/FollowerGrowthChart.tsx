@@ -5,6 +5,7 @@ import {
   expandGrowthSeriesDaily,
   type FollowerGrowthPoint,
 } from "@/lib/followerGrowth";
+import { formatDisplayDate } from "@/lib/formatDate";
 
 type Props = {
   lang: "el" | "en";
@@ -27,11 +28,6 @@ function fmtNum(n: number, locale: string): string {
 function fmtPct(n: number): string {
   const sign = n > 0 ? "+" : "";
   return `${sign}${n.toFixed(1)}%`;
-}
-
-function mmdd(date: string): string {
-  const [, m, d] = date.split("-");
-  return `${m}-${d}`;
 }
 
 export default function FollowerGrowthChart({ lang, points }: Props) {
@@ -64,7 +60,7 @@ export default function FollowerGrowthChart({ lang, points }: Props) {
 
   const ticks = 4;
   const yTicks = Array.from({ length: ticks + 1 }, (_, i) => maxPct - ((maxPct - minPct) * i) / ticks);
-  const xLabelCount = Math.min(10, n);
+  const xLabelCount = Math.min(6, n);
   const xLabels = n
     ? Array.from({ length: xLabelCount }, (_, i) => {
         const idx = xLabelCount === 1 ? 0 : Math.round((i * (n - 1)) / (xLabelCount - 1));
@@ -181,9 +177,9 @@ export default function FollowerGrowthChart({ lang, points }: Props) {
                 y={H - 6}
                 textAnchor="middle"
                 className="fill-slate-400"
-                style={{ fontSize: 10 }}
+                style={{ fontSize: 9 }}
               >
-                {mmdd(l.date)}
+                {formatDisplayDate(l.date)}
               </text>
             ))}
 
@@ -233,9 +229,9 @@ export default function FollowerGrowthChart({ lang, points }: Props) {
                   Followers: {fmtNum(active.followers, locale)}
                 </text>
                 <rect
-                  x={xAt(activeI) - 42}
+                  x={xAt(activeI) - 46}
                   y={PAD_T + LINE_H - 2}
-                  width="84"
+                  width="92"
                   height="18"
                   rx="9"
                   fill="#2563eb"
@@ -247,7 +243,7 @@ export default function FollowerGrowthChart({ lang, points }: Props) {
                   className="fill-white"
                   style={{ fontSize: 9, fontWeight: 700 }}
                 >
-                  {active.date}
+                  {formatDisplayDate(active.date)}
                 </text>
               </>
             )}

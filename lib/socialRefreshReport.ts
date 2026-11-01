@@ -1,4 +1,5 @@
 import type { AccountFetchResult } from '@/lib/socialRefresh';
+import { formatDisplayDateTime } from '@/lib/formatDate';
 
 export type RefreshInfluencerResult = {
   id: string;
@@ -173,7 +174,7 @@ export async function downloadSocialRefreshReportExcel(options: {
   const summaryRows = [
     {
       [lang === 'el' ? 'Μετρική' : 'Metric']: lang === 'el' ? 'Ημερομηνία' : 'Date',
-      [lang === 'el' ? 'Τιμή' : 'Value']: completedAt.toLocaleString(lang === 'el' ? 'el-GR' : 'en-GB'),
+      [lang === 'el' ? 'Τιμή' : 'Value']: formatDisplayDateTime(completedAt),
     },
     {
       [lang === 'el' ? 'Μετρική' : 'Metric']: lang === 'el' ? 'Σύνολο influencers' : 'Total influencers',

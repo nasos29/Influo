@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { buildPasswordResetEmail } from '@/lib/passwordResetEmail';
 import { supabaseService } from '@/lib/apiAuth';
 import { formatEuroAmount } from '@/lib/formatEuro';
+import { formatDisplayDate, formatDisplayDateTime } from '@/lib/formatDate';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -650,18 +651,7 @@ export async function POST(req: Request) {
         const safeTitle = escapeHtml(campaignTitleRaw);
         const safeBrand = escapeHtml(brandNameVal);
         const safeCount = escapeHtml(String(Number.isFinite(appsCount) ? appsCount : 0));
-        let closesLabel = closesAtRaw;
-        try {
-          if (closesAtRaw) {
-            closesLabel = new Date(closesAtRaw).toLocaleDateString('el-GR', {
-              day: '2-digit',
-              month: '2-digit',
-              year: 'numeric',
-            });
-          }
-        } catch {
-          /* keep raw */
-        }
+        const closesLabel = closesAtRaw ? formatDisplayDate(closesAtRaw) || closesAtRaw : closesAtRaw;
         const safeCloses = escapeHtml(closesLabel || '—');
         subject = `Η καμπάνια κλείνει σύντομα: ${campaignTitleRaw.length > 45 ? `${campaignTitleRaw.slice(0, 42)}…` : campaignTitleRaw}`;
         const brandLink = `https://${host}/login?redirect=${encodeURIComponent('/brand/dashboard?tab=campaigns')}&email=${encodeURIComponent(toEmail)}`;
@@ -833,7 +823,7 @@ export async function POST(req: Request) {
                 </div>
                 <div style="color: #1e293b; font-size: 13px; white-space: pre-wrap; margin-bottom: 4px; line-height: 1.5;">${msg.content.replace(/\n/g, '<br/>')}</div>
                 <div style="font-size: 11px; color: #64748b; margin-top: 6px;">
-                    ${new Date(msg.createdAt).toLocaleString('el-GR')}
+                    ${formatDisplayDateTime(msg.createdAt)}
                 </div>
             </div>
         `).join('') : '<p style="font-size: 13px; color: #6b7280; text-align: center; padding: 20px;">Δεν υπάρχουν νέα μηνύματα.</p>';
@@ -886,7 +876,7 @@ export async function POST(req: Request) {
                 </div>
                 <div style="color: #1e293b; font-size: 13px; white-space: pre-wrap; margin-bottom: 4px; line-height: 1.5;">${msg.content.replace(/\n/g, '<br/>')}</div>
                 <div style="font-size: 11px; color: #64748b; margin-top: 6px;">
-                    ${new Date(msg.createdAt).toLocaleString('el-GR')}
+                    ${formatDisplayDateTime(msg.createdAt)}
                 </div>
             </div>
         `).join('') : '<p style="font-size: 13px; color: #6b7280; text-align: center; padding: 20px;">Δεν υπήρχαν μηνύματα στη συνομιλία.</p>';

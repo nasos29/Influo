@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { FaFacebookF, FaInstagram, FaTiktok, FaYoutube } from "react-icons/fa";
 import { ChevronRight } from "lucide-react";
 import ResponsiveDialog, { DialogClose } from "@/components/ResponsiveDialog";
+import DmyDateField from "@/components/DmyDateField";
 import { sessionFetch } from "@/lib/sessionFetch";
 import { formatEuroAmount, parseEuroNumber } from "@/lib/formatEuro";
 import { listedPriceMin } from "@/lib/parsePrice";
@@ -363,10 +364,11 @@ export function NegotiateDialog({
               ) : null}
               <label className="block">
                 <span className="text-sm font-medium text-slate-700">{copy.deadline}</span>
-                <input
-                  type="date"
+                <DmyDateField
+                  lang={lang}
                   value={deadline}
-                  onChange={(event) => setDeadline(event.target.value)}
+                  onChange={setDeadline}
+                  ariaLabel={copy.deadline}
                   className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-3 text-sm text-slate-900 outline-none focus:border-blue-500"
                 />
                 <span className="mt-1 block text-xs text-slate-500">{copy.deadlineHint}</span>

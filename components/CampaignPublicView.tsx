@@ -14,6 +14,7 @@ import { findContactInfo, filterWorkLinks } from "@/lib/contactFilter";
 import { toastError, toastSuccess } from "@/components/Feedback";
 import { getStoredLanguage } from "@/lib/language";
 import { formatEuro } from "@/lib/formatEuro";
+import { formatDisplayDate } from "@/lib/formatDate";
 import { campaignAudience, type CampaignAudience } from "@/lib/campaignAudience";
 import { formatFollowerCount } from "@/lib/platformStats";
 import { campaignPublicBadgeLabel } from "@/lib/campaignPublicBadge";
@@ -271,7 +272,6 @@ export default function CampaignPublicView({
         lang === "en" ? "en" : "el"
       )
     : null;
-  const locale = el ? "el-GR" : "en-GB";
   const appsCount = campaign?.applications_count ?? applicationsCount;
   const publicBadge = campaign
     ? campaignPublicBadgeLabel(appsCount, campaign.opened_at, lang === "en" ? "en" : "el")
@@ -534,7 +534,7 @@ export default function CampaignPublicView({
                     {campaign.starts_on ? (
                       <li>
                         <span className="text-slate-500">{el ? "Έναρξη" : "Starts"}: </span>
-                        {new Date(campaign.starts_on).toLocaleDateString(locale)}
+                        {formatDisplayDate(campaign.starts_on)}
                       </li>
                     ) : null}
                     {closes ? (

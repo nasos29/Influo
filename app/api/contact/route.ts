@@ -1,6 +1,7 @@
 // app/api/contact/route.ts
 import { Resend } from 'resend';
 import { NextResponse } from 'next/server';
+import { formatDisplayDateTime } from '@/lib/formatDate';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const VERIFIED_SENDER_EMAIL = 'noreply@influo.gr';
@@ -79,7 +80,7 @@ export async function POST(req: Request) {
               </div>
               <div class="footer">
                 <p>Αυτό το email στάλθηκε από τη φόρμα επικοινωνίας στο Influo.gr</p>
-                <p>Ημερομηνία: ${new Date().toLocaleString('el-GR', { timeZone: 'Europe/Athens' })}</p>
+                <p>Ημερομηνία: ${formatDisplayDateTime(new Date())}</p>
               </div>
             </div>
           </div>

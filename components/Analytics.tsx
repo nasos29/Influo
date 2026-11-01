@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { formatEuro } from '@/lib/formatEuro';
 import { formatDate } from '@/lib/formatDateTime';
+import DmyDateField from '@/components/DmyDateField';
 import { isTimeoutError, withTimeout } from '@/lib/withTimeout';
 
 interface AnalyticsStats {
@@ -294,19 +295,21 @@ export default function Analytics({ influencerId, lang = 'el' }: AnalyticsProps)
           <div className="flex gap-4 mt-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">{txt.from}</label>
-              <input
-                type="date"
+              <DmyDateField
+                lang={lang}
+                ariaLabel={txt.from}
                 value={customStartDate}
-                onChange={(e) => setCustomStartDate(e.target.value)}
+                onChange={setCustomStartDate}
                 className="px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">{txt.to}</label>
-              <input
-                type="date"
+              <DmyDateField
+                lang={lang}
+                ariaLabel={txt.to}
                 value={customEndDate}
-                onChange={(e) => setCustomEndDate(e.target.value)}
+                onChange={setCustomEndDate}
                 className="px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
               />
             </div>
