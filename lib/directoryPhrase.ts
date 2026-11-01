@@ -88,15 +88,22 @@ const LANGUAGES: { code: string; words: string[] }[] = [
 const INDUSTRIES = DIRECTORY_INDUSTRIES;
 
 const EXTRA_SKILL_WORDS: Partial<Record<SkillKey, string[]>> = {
+  ugc: ["UGC βίντεο", "ugc βιντεο"],
   product_photo: ["φωτογραφία προϊόντων", "φωτογραφιες προιοντων", "product photo", "product photos"],
+  reviews: ["κριτικές προϊόντων", "κριτικες προιοντων"],
+  tutorials: ["οδηγούς", "οδηγους"],
   video_editing: ["μονταζ", "video edit", "editing"],
-  subtitles: ["υποτιτλοι", "captions"],
+  color_grading: ["χρωματική διόρθωση", "χρωματικη διορθωση"],
+  subtitles: ["υποτιτλοι", "υπότιτλους", "υποτιτλους", "captions"],
   drone: ["ληψεις drone", "drone footage"],
-  voiceover: ["voice over", "φωνη"],
-  social_strategy: ["social media", "στρατηγικη social"],
+  studio_lighting: ["φωτισμό στούντιο", "φωτισμο στούντιο", "φωτισμός στούντιο"],
+  voiceover: ["voice over", "φωνη", "αφήγηση"],
+  social_strategy: ["social media", "στρατηγικη social", "στρατηγική για social"],
   event_hosting: ["διοργάνωση events", "παρουσίαση events", "event hosting"],
   on_camera: ["on camera", "παρουσίαση στην κάμερα"],
-  short_video: ["reels", "tiktok video", "short video"],
+  acting: ["ηθοποιία", "ηθοποιια"],
+  live_streaming: ["ζωντανή μετάδοση", "ζωντανη μεταδοση"],
+  short_video: ["reels", "tiktok video", "short video", "Reels και TikTok"],
 };
 
 const SKILL_ALIASES: { key: SkillKey; phrases: string[] }[] = SKILL_GROUPS.flatMap((group) =>
@@ -158,24 +165,33 @@ function removeFolded(source: string, piece: string): string {
     .trim();
 }
 
-/** One word must be a whole token. Several words must appear in order. */
-function phraseHits(foldedText: string, tokens: string[], phrase: string): boolean {
-  const folded = searchFold(phrase);
-  if (!folded) return false;
-  const parts = folded.split(" ").filter(Boolean);
+/**
+ * Whole tokens only, never a prefix of a word still being typed.
+ * Aliases shorter than `minLength` folded letters are ignored.
+ */
+function hasWholeAlias(tokens: string[], phrase: string, minLength = 3): boolean {
+  const parts = searchFold(phrase).split(" ").filter(Boolean);
+  if (!parts.length || parts.join("").length < minLength) return false;
   if (parts.length === 1) return tokens.includes(parts[0]);
-  return foldedText.includes(folded);
+  for (let index = 0; index <= tokens.length - parts.length; index++) {
+    if (parts.every((part, offset) => tokens[index + offset] === part)) return true;
+  }
+  return false;
+}
+
+/** One word must be a whole token. Several words must appear as whole tokens in order. */
+function phraseHits(tokens: string[], phrase: string): boolean {
+  return hasWholeAlias(tokens, phrase, 3);
 }
 
 function bestPhrase<T extends { phrases: string[] }>(
   items: T[],
-  foldedText: string,
   tokens: string[]
 ): { item: T; phrase: string } | null {
   let best: { item: T; phrase: string; score: number } | null = null;
   for (const item of items) {
     for (const phrase of item.phrases) {
-      if (!phraseHits(foldedText, tokens, phrase)) continue;
+      if (!phraseHits(tokens, phrase)) continue;
       const score = searchFold(phrase).length;
       if (!best || score > best.score) best = { item, phrase, score };
     }
@@ -228,7 +244,7 @@ export function parseDirectoryPhrase(raw: string): ParsedDirectoryPhrase {
     });
   }
 
-  const industryHit = bestPhrase(INDUSTRIES, folded(), tokens());
+  const industryHit = bestPhrase(INDUSTRIES, tokens());
   if (industryHit) {
     categories = industryHit.item.categories;
     working = removeFolded(working, industryHit.phrase);
@@ -242,10 +258,10 @@ export function parseDirectoryPhrase(raw: string): ParsedDirectoryPhrase {
     labels.push({ id: "location", el: city.nameEl, en: city.nameEl });
   }
 
-  const platformHit = PLATFORMS.find((item) => item.words.some((word) => folded().includes(searchFold(word))));
+  const platformHit = PLATFORMS.find((item) => item.words.some((word) => hasWholeAlias(tokens(), word, 3)));
   if (platformHit) {
     platform = platformHit.value;
-    const word = platformHit.words.find((item) => folded().includes(searchFold(item))) || platformHit.value;
+    const word = platformHit.words.find((item) => hasWholeAlias(tokens(), item, 3)) || platformHit.value;
     working = removeFolded(working, word);
     labels.push({ id: "platform", el: platformHit.value, en: platformHit.value });
   }
@@ -258,7 +274,7 @@ export function parseDirectoryPhrase(raw: string): ParsedDirectoryPhrase {
     labels.push({ id: "language", el: languageHit.code, en: languageHit.code });
   }
 
-  const skillHit = bestPhrase(SKILL_ALIASES, folded(), tokens());
+  const skillHit = bestPhrase(SKILL_ALIASES, tokens());
   if (skillHit) {
     skill = skillHit.item.key;
     working = removeFolded(working, skillHit.phrase);
