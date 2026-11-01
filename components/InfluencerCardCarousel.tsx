@@ -87,7 +87,7 @@ export default function InfluencerCardCarousel({
   footer?: ReactNode;
   className?: string;
   titleClassName?: string;
-  /** When true, advances one card on an interval (Top 10 only). */
+  /** When true, advances one card on an interval (Top 10 and similar creators). */
   autoPlay?: boolean;
   /** Ms between auto advances after the first. Default 4000. */
   autoPlayInterval?: number;
