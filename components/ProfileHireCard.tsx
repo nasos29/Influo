@@ -93,6 +93,7 @@ export default function ProfileHireCard({
   gender,
   isBrand,
   influencerId,
+  minRate,
   collaborateLabel,
   messageLabel,
   onCollaborate,
@@ -110,6 +111,8 @@ export default function ProfileHireCard({
   gender?: string | null;
   isBrand: boolean;
   influencerId: string;
+  /** Creator minimum charge, used when the negotiate form has no package price. */
+  minRate?: unknown;
   collaborateLabel: string;
   messageLabel: string;
   onCollaborate: (choice?: { label: string; budget?: string; packageId?: string }) => void;
@@ -231,6 +234,7 @@ export default function ProfileHireCard({
           gender={gender}
           options={negotiateOptions}
           influencerId={influencerId}
+          minRate={minRate}
         />
       ) : null}
     </>

@@ -1,6 +1,8 @@
 /**
- * Minimum budget for a collaboration proposal: selected package plus checked extras.
- * Counter-offers are not covered here.
+ * Minimum budget for a collaboration proposal.
+ * A selected package (plus checked extras) wins. With no package, the floor is
+ * the creator's min_rate. Campaign invites stay unlimited. Counter-offers are
+ * not covered here.
  */
 
 import { formatEuro } from "@/lib/formatEuro";
@@ -71,9 +73,56 @@ export type CollaborationFloor =
   | { ok: true; floor: number; packagePrice: number; extraTotal: number; extras: StoredProposalExtra[] }
   | { ok: false; reason: "unknown_package" | "unknown_extra" };
 
+/** «Καμπάνια: …» / «Campaign: …» invites are not priced from a package or min_rate. */
+export function isCampaignInviteService(service: string): boolean {
+  return /^(?:Καμπάνια|Campaign)\s*:/.test(service.trim());
+}
+
 /**
- * Floor for a new proposal. `null` when this request is not tied to a package
- * or a priced extra (campaign invites stay unlimited).
+ * Titles a proposal might name. Negotiate sends "2 × 1 Instagram Reel";
+ * the package title is the part after the quantity.
+ */
+function serviceLookupTitles(service: string): string[] {
+  const trimmed = service.trim();
+  if (!trimmed) return [];
+  const titles = [trimmed];
+  const negotiate = /^\d+\s*[×x]\s+(.+)$/i.exec(trimmed);
+  const named = negotiate?.[1]?.trim();
+  if (named) titles.push(named);
+  return titles;
+}
+
+/**
+ * UI floor once the package is already known.
+ * Package price plus extras, or min_rate when no package is selected.
+ */
+export function collaborationMinimum(input: {
+  hasPackage?: boolean;
+  packagePrice?: unknown;
+  extraTotal?: number;
+  minRate?: unknown;
+}): number {
+  const extraRaw = input.extraTotal;
+  const extras = typeof extraRaw === "number" && Number.isFinite(extraRaw) && extraRaw > 0
+    ? Math.round(extraRaw)
+    : 0;
+  const listed = input.hasPackage ? integerEuro(input.packagePrice) ?? 0 : 0;
+  if (listed > 0) return listed + extras;
+  const unbound = integerEuro(input.minRate) ?? 0;
+  if (unbound <= 0 && extras <= 0) return 0;
+  return unbound + extras;
+}
+
+export function budgetFloorMessage(floor: number, lang: "el" | "en"): string {
+  const amount = formatEuro(floor, lang);
+  return lang === "el"
+    ? `Το budget δεν μπορεί να είναι μικρότερο από ${amount}.`
+    : `Budget cannot be lower than ${amount}.`;
+}
+
+/**
+ * Floor for a new proposal. `null` when this request is not tied to a package,
+ * a priced extra, or a creator minimum (campaign invites stay unlimited).
  */
 export function collaborationFloor(input: {
   packages: unknown;
@@ -81,6 +130,7 @@ export function collaborationFloor(input: {
   serviceType: string;
   packageId?: string | null;
   extraKeys?: unknown;
+  minRate?: unknown;
 }): CollaborationFloor | null {
   const packages = asPackages(input.packages);
   const card = rateCardRecord(input.rateCard);
@@ -105,13 +155,22 @@ export function collaborationFloor(input: {
   if (wantedId) {
     matched = packages.find((pkg) => String(pkg.id ?? "") === wantedId) ?? null;
     if (!matched) return { ok: false, reason: "unknown_package" };
-  } else if (service) {
-    matched = packages.find((pkg) => packageTitles(pkg).includes(service)) ?? null;
+  } else if (service && !isCampaignInviteService(service)) {
+    const wanted = serviceLookupTitles(service);
+    matched = packages.find((pkg) => packageTitles(pkg).some((title) => wanted.includes(title))) ?? null;
   }
 
-  const packagePrice = matched ? integerEuro(matched.price) ?? 0 : 0;
-  if (!matched && keys.length === 0) return null;
-  return { ok: true, floor: packagePrice + extraTotal, packagePrice, extraTotal, extras };
+  const listed = matched ? integerEuro(matched.price) ?? 0 : 0;
+  const packagePrice = listed > 0 ? listed : 0;
+  const unbound = packagePrice > 0 || isCampaignInviteService(service) ? 0 : integerEuro(input.minRate) ?? 0;
+  if (packagePrice <= 0 && keys.length === 0 && unbound <= 0) return null;
+  return {
+    ok: true,
+    floor: (packagePrice > 0 ? packagePrice : unbound) + extraTotal,
+    packagePrice,
+    extraTotal,
+    extras,
+  };
 }
 
 export type SavedProposalExtra = { key: string; price: number };

@@ -69,7 +69,7 @@ import {
   type PublicExtraView,
   type PublicPackageView,
 } from "@/lib/servicePackages";
-import { integerEuro, packageTitles } from "@/lib/proposalFloor";
+import { budgetFloorMessage, collaborationMinimum, integerEuro, packageTitles } from "@/lib/proposalFloor";
 import { badgeMinRateFromTier } from "@/lib/publicInfluencer";
 import { publicProfilePath } from "@/lib/profileSlug";
 import type { ProfileViewModel } from "@/lib/profileViewModel";
@@ -1263,21 +1263,19 @@ export default function InfluencerProfile(props: {
     const matchedOffer = proposalPackageId
       ? offered.find((pkg) => pkg.id === proposalPackageId)
       : offered.find((pkg) => packageTitles(pkg).includes(proposalType));
-    const packagePrice = matchedOffer ? integerEuro(matchedOffer.price) ?? 0 : 0;
     const offeredExtras = Array.isArray(profile?.service_extras) ? profile.service_extras : [];
     const extraTotal = selectedExtraKeys.reduce((sum, key) => {
       const extra = offeredExtras.find((item) => item.key === key);
       return sum + (extra ? integerEuro(extra.price ?? extra.from_price) ?? 0 : 0);
     }, 0);
-    const floor = packagePrice + extraTotal;
+    const floor = collaborationMinimum({
+      hasPackage: !!matchedOffer,
+      packagePrice: matchedOffer?.price,
+      extraTotal,
+      minRate: profile?.min_rate ?? profile?.from_price,
+    });
     const amount = parseEuroNumber(budget);
     if (floor > 0 && (amount == null || amount < floor)) {
-      const minimum = formatEuro(floor, lang);
-      alert(
-        lang === "el"
-          ? `Το budget δεν μπορεί να είναι μικρότερο από ${minimum}.`
-          : `Budget cannot be lower than ${minimum}.`
-      );
       return;
     }
     const deadline = parsePublishDeadline(publishDeadline);
@@ -1550,6 +1548,20 @@ export default function InfluencerProfile(props: {
       return price ? { key: extra.key, price } : null;
     })
     .filter((extra): extra is { key: PublicExtraView["key"]; price: number } => extra != null);
+  const selectedExtraTotal = proposalExtras.reduce(
+    (sum, extra) => sum + (selectedExtraKeys.includes(extra.key) ? extra.price : 0),
+    0
+  );
+  const creatorMinimum = profile.min_rate ?? profile.from_price;
+  const proposalBudgetFloor = collaborationMinimum({
+    hasPackage: !!proposalPackage,
+    packagePrice: proposalPackagePrice,
+    extraTotal: selectedExtraTotal,
+    minRate: creatorMinimum,
+  });
+  const parsedBudget = parseEuroNumber(budget);
+  const budgetTooLow =
+    proposalBudgetFloor > 0 && budget.trim() !== "" && (parsedBudget == null || parsedBudget < proposalBudgetFloor);
   const selectProposalService = (title: string) => {
     const match = hirePackages.find((pkg) => packageTitles(pkg).includes(title));
     const price = match ? integerEuro(match.price) ?? 0 : 0;
@@ -1559,7 +1571,12 @@ export default function InfluencerProfile(props: {
     );
     setProposalType(title);
     setProposalPackageId(match?.id ?? null);
-    setBudget(String(price + extraSum));
+    setBudget(String(collaborationMinimum({
+      hasPackage: !!match,
+      packagePrice: price,
+      extraTotal: extraSum,
+      minRate: creatorMinimum,
+    })));
   };
   const toggleProposalExtra = (key: string, price: number) => {
     const selected = selectedExtraKeys.includes(key);
@@ -1570,7 +1587,12 @@ export default function InfluencerProfile(props: {
       (sum, extra) => sum + (nextKeys.includes(extra.key) ? extra.price : 0),
       0
     );
-    const nextFloor = proposalPackagePrice + nextExtraTotal;
+    const nextFloor = collaborationMinimum({
+      hasPackage: !!proposalPackage,
+      packagePrice: proposalPackagePrice,
+      extraTotal: nextExtraTotal,
+      minRate: creatorMinimum,
+    });
     setSelectedExtraKeys(nextKeys);
     setBudget((prev) => {
       const current = parseEuroNumber(prev) ?? 0;
@@ -1593,6 +1615,7 @@ export default function InfluencerProfile(props: {
     influencerId: String(id),
     collaborateLabel: txt.contact,
     messageLabel: txt.message_btn,
+    minRate: creatorMinimum,
     onCollaborate: startCollaboration,
     onMessage: () => {
       void openCreatorMessage();
@@ -1659,15 +1682,27 @@ export default function InfluencerProfile(props: {
                             )}
                             
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.modal_bud}</label>
+                                <label htmlFor="proposal-budget" className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.modal_bud}</label>
                                 <input
+                                  id="proposal-budget"
                                   required
                                   type="number"
+                                  min={proposalBudgetFloor > 0 ? proposalBudgetFloor : 1}
                                   step={1}
+                                  aria-invalid={budgetTooLow}
+                                  aria-describedby={budgetTooLow ? "proposal-budget-error" : undefined}
                                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
                                   value={budget}
                                   onChange={(e) => setBudget(e.target.value)}
+                                  onInvalid={(e) => {
+                                    if (budgetTooLow) e.preventDefault();
+                                  }}
                                 />
+                                {budgetTooLow ? (
+                                  <p id="proposal-budget-error" role="alert" className="mt-1 text-xs text-red-600">
+                                    {budgetFloorMessage(proposalBudgetFloor, lang)}
+                                  </p>
+                                ) : null}
                             </div>
 
                             <div>
@@ -1712,7 +1747,7 @@ export default function InfluencerProfile(props: {
                                 <textarea required rows={3} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white" placeholder="..." value={message} onChange={e => setMessage(e.target.value)}></textarea>
                             </div>
 
-                            <button type="submit" disabled={sending} className="w-full bg-slate-900 hover:bg-black text-white font-bold py-3 rounded-xl transition-all shadow-lg disabled:opacity-50">
+                            <button type="submit" disabled={sending || budgetTooLow} className="w-full bg-slate-900 hover:bg-black text-white font-bold py-3 rounded-xl transition-all shadow-lg disabled:opacity-50">
                                 {sending ? txt.modal_sending : txt.modal_btn}
                             </button>
                         </form>
@@ -3166,6 +3201,7 @@ export default function InfluencerProfile(props: {
                           isBrand={isBrand}
                           influencerId={String(id)}
                           onNeedBrand={() => setBrandGateOpen(true)}
+                          minRate={creatorMinimum}
                           onContinue={startCollaboration}
                           selectedId={activeOfferId}
                           onSelectedIdChange={setSelectedOfferId}
