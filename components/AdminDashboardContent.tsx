@@ -38,6 +38,8 @@ import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
 import { formatEuro, formatEuroAmount } from "@/lib/formatEuro";
 import { categoryLabel, formatCategoryLabels, formatStoredCategories, parseStoredCategories } from "@/lib/categories";
 import CategoryCheckboxList from "@/components/CategoryCheckboxList";
+import SkillsPicker from "@/components/SkillsPicker";
+import { sanitizeSkills, type SkillKey } from "@/lib/skills";
 import { checkAuditprHealth, fetchAuditprOverridesForAccounts, type AccountFetchResult } from "@/lib/socialRefresh";
 import { downloadSocialRefreshReportExcel } from "@/lib/socialRefreshReport";
 import { getCachedImageUrl } from "@/lib/imageProxy";
@@ -201,6 +203,7 @@ interface DbInfluencer {
   video_thumbnails?: Record<string, string> | null; // JSONB mapping video URL -> thumbnail URL
   min_rate: string | null;
   languages: string | null;
+  skills?: string[] | null;
   bio: string | null;
   bio_en: string | null; // English bio translation
   engagement_rate: string | null;
@@ -879,6 +882,7 @@ const EditProfileModal = ({
     };
     const initialLanguages = parseLanguages(user.languages);
     const [selectedLanguages, setSelectedLanguages] = useState<string[]>(initialLanguages);
+    const [selectedSkills, setSelectedSkills] = useState<SkillKey[]>(() => sanitizeSkills(user.skills));
     const [accounts, setAccounts] = useState<{ platform: string; username: string; followers: string; engagement_rate?: string; avg_likes?: string }[]>(
         user.accounts && Array.isArray(user.accounts) && user.accounts.length > 0
             ? user.accounts.map((acc: any) => ({ ...acc, engagement_rate: acc.engagement_rate || "", avg_likes: acc.avg_likes || "" }))
@@ -1357,6 +1361,7 @@ const EditProfileModal = ({
             if (touchedSensitive.languages && !strEq(nextLanguages, user.languages || '')) {
                 updateData.languages = nextLanguages;
             }
+            setIfChanged('skills', sanitizeSkills(selectedSkills), sanitizeSkills(user.skills), true);
             if (touchedSensitive.videos && !jsonEq(nextVideos, user.videos || [])) {
                 updateData.videos = nextVideos;
             }
@@ -1658,6 +1663,7 @@ const EditProfileModal = ({
                                         </div>
                                     </div>
                                 </div>
+                                <SkillsPicker lang={lang} selected={selectedSkills} onChange={setSelectedSkills} />
                             </div>
                         </div>
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { userFromBearer, supabaseService } from "@/lib/apiAuth";
 import { recommendInfluencers, type InfluencerProfile } from "@/lib/recommendations";
+import { sanitizeSkills } from "@/lib/skills";
 import { parseStoredCategories } from "@/lib/categories";
 import { statsFromAccounts, parseFollowerNumber } from "@/lib/platformStats";
 
@@ -13,7 +14,7 @@ export async function GET(request: NextRequest) {
   const admin = supabaseService();
   const { data: campaign } = await admin
     .from("brand_campaigns")
-    .select("id, brand_id, title, category, status, budget, location, min_followers, platforms")
+    .select("id, brand_id, title, description, category, status, budget, location, min_followers, platforms")
     .eq("id", campaignId)
     .maybeSingle();
   if (!campaign || campaign.brand_id !== user.id) {
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
   const { data: brand } = await admin.from("brands").select("industry, brand_name").eq("id", user.id).maybeSingle();
   const { data: rows } = await admin
     .from("influencers")
-    .select("id, display_name, category, accounts, avatar_url, profile_slug, location, engagement_rate, analytics_verified, verified, approved")
+    .select("id, display_name, category, accounts, avatar_url, profile_slug, location, engagement_rate, analytics_verified, verified, approved, skills")
     .eq("approved", true)
     .limit(200);
 
@@ -55,6 +56,7 @@ export async function GET(request: NextRequest) {
         profile_slug: row.profile_slug,
         engagement_rate: row.engagement_rate,
         verified: !!(row.analytics_verified || row.verified),
+        skills: sanitizeSkills(row.skills),
       };
     });
 
@@ -66,6 +68,7 @@ export async function GET(request: NextRequest) {
       category: campaign.category || brand?.industry || null,
       contact_email: user.email || "",
       location: campaign.location || null,
+      brief: [campaign.title, campaign.description, campaign.category].filter(Boolean).join("\n"),
     },
     profiles,
     { limit: 5, minScore: 20, lang: "el" }

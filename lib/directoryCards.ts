@@ -6,6 +6,7 @@ import { resolveCompletionRate } from "@/lib/completionRate";
 import { findPrivateFieldPaths } from "@/lib/publicInfluencer";
 import { loadDirectoryPage } from "@/lib/directoryPage";
 import { DEFAULT_DIRECTORY_FILTERS } from "@/lib/directoryQuery";
+import { sanitizeSkills } from "@/lib/skills";
 
 function asLanguages(value: unknown): string[] {
   if (Array.isArray(value)) return value.filter((item): item is string => typeof item === "string");
@@ -41,6 +42,7 @@ export function mapDirectoryCard(row: Record<string, unknown>): Influencer {
     followers,
     categories: category ? (parseStoredCategories(category).length ? parseStoredCategories(category) : ["New"]) : ["New"],
     languages: asLanguages(row.languages),
+    skills: sanitizeSkills(row.skills),
     platform: "Instagram",
     gender: normalizeGender(typeof row.gender === "string" ? row.gender : null),
     location: typeof row.location === "string" ? row.location : undefined,

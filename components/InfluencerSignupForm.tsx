@@ -23,6 +23,8 @@ import { normalizeGender } from "@/lib/gender";
 import { languagesCodesToStored } from "@/lib/languages";
 import { formatStoredCategories } from "@/lib/categories";
 import CategoryCheckboxList from "./CategoryCheckboxList";
+import SkillsPicker from "@/components/SkillsPicker";
+import { sanitizeSkills, type SkillKey } from "@/lib/skills";
 import PortfolioVideoLinkRow from "./PortfolioVideoLinkRow";
 import { clearLoggedOutMark } from "@/lib/authSession";
 import {
@@ -234,6 +236,7 @@ export default function InfluencerSignupForm() {
   const [displayName, setDisplayName] = useState("");
   const [gender, setGender] = useState("Female");
   const [categories, setCategories] = useState<string[]>([]);
+  const [skills, setSkills] = useState<SkillKey[]>([]);
   const [location, setLocation] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [bio, setBio] = useState("");
@@ -796,6 +799,7 @@ export default function InfluencerSignupForm() {
           location,
           birth_date: normalizedBirthDate,
           languages: languagesCodesToStored(selectedLanguages),
+          skills: sanitizeSkills(skills),
           contact_email: email,
           bio, 
           accounts: socialAccounts, 
@@ -978,6 +982,7 @@ export default function InfluencerSignupForm() {
                     label={txt.catLabel}
                     description={txt.catDesc}
                 />
+                <SkillsPicker lang={lang} selected={skills} onChange={setSkills} />
 
                 <div>
                     <label className={labelClass} htmlFor="signup-location">{txt.locationLabel}</label>

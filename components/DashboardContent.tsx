@@ -39,6 +39,8 @@ import { useOwnPresenceHeartbeat } from '@/lib/useOwnPresenceHeartbeat';
 import { logoutEverywhere } from '@/lib/authSession';
 import { formatStoredCategories, parseStoredCategories } from '@/lib/categories';
 import CategoryCheckboxList from '@/components/CategoryCheckboxList';
+import SkillsPicker from '@/components/SkillsPicker';
+import { sanitizeSkills, type SkillKey } from '@/lib/skills';
 import {
     badgeAfterOpen,
     influencerCampaignSeenKey,
@@ -137,6 +139,7 @@ interface InfluencerData {
     accounts: Account[] | null;
     category: string | null;
     languages: string | null;
+    skills?: string[] | null;
     avatar_url: string | null;
     gender: string | null;
     birth_date?: string | null;
@@ -209,6 +212,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
     };
     const initialLanguages = parseLanguages(user.languages);
     const [selectedLanguages, setSelectedLanguages] = useState<string[]>(initialLanguages);
+    const [selectedSkills, setSelectedSkills] = useState<SkillKey[]>(() => sanitizeSkills(user.skills));
     const initialGender = normalizeGender(user.gender);
     const [gender, setGender] = useState(initialGender);
     const [accounts, setAccounts] = useState<Account[]>(
@@ -333,6 +337,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
         birthDate,
         categories,
         selectedLanguages,
+        selectedSkills,
         gender,
         accounts: accounts.map((acc) => ({ platform: acc.platform, username: acc.username, followers: acc.followers })),
         malePercent,
@@ -535,6 +540,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                 birth_date: birthDate || null,
                 category: categoryString,
                 languages: languagesString,
+                skills: sanitizeSkills(selectedSkills),
                 gender: validGender,
                 accounts: accountsForSave,
                 videos: preparedVideos.videos,
@@ -584,6 +590,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                 birth_date: currentData.birth_date || null,
                 category: currentData.category || '',
                 languages: currentData.languages || '',
+                skills: sanitizeSkills(currentData.skills),
                 gender: oldGender,
                 accounts: currentData.accounts || [],
                 videos: currentData.videos || [],
@@ -597,7 +604,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
             const changedFields: string[] = [];
             const fieldsToCheck = [
                 'display_name', 'bio', 'location', 'birth_date',
-                'category', 'languages', 'gender', 'avatar_url',
+                'category', 'languages', 'skills', 'gender', 'avatar_url',
                 'audience_male_percent', 'audience_female_percent', 'audience_top_age'
             ];
 
@@ -606,7 +613,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                 const newVal = newValues[field];
                 
                 // Handle arrays/objects comparison
-                if (field === 'accounts' || field === 'videos') {
+                if (field === 'accounts' || field === 'videos' || field === 'skills') {
                     const oldArr = JSON.stringify(oldValues[field] || []);
                     const newArr = JSON.stringify(newValues[field] || []);
                     if (oldArr !== newArr) {
@@ -929,6 +936,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                                 emptyFallback="Lifestyle"
                                 compact
                             />
+                            <SkillsPicker lang={lang} selected={selectedSkills} onChange={setSelectedSkills} />
                             <div>
                                 <label className="block text-xs font-semibold text-slate-900 mb-1">{L("Φύλο", "Gender")}</label>
                                 <select name="gender" autoComplete="off" value={gender} onChange={e => setGender(normalizeGender(e.target.value))} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900">

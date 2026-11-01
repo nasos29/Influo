@@ -18,6 +18,7 @@ import {
   VIDEO_NOT_PLAYABLE_ERROR,
   checkNewVideosPlayable,
 } from '@/lib/checkVideoPlayable';
+import { sanitizeSkills } from '@/lib/skills';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -63,6 +64,7 @@ export async function POST(request: NextRequest) {
     }
 
     const patch = { ...updates } as Record<string, unknown>;
+    if ("skills" in patch) patch.skills = sanitizeSkills(patch.skills);
     // Slugs are assigned on approval and changed only via /api/influencer/profile-link.
     delete patch.profile_slug;
     // min_rate is derived from packages / rate card, never typed in.

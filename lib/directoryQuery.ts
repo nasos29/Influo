@@ -15,6 +15,7 @@ import {
   priceTierFromMinRate,
 } from "@/lib/publicInfluencer";
 import { isAvailableStatus } from "@/lib/trustSignals";
+import { sanitizeSkills } from "@/lib/skills";
 
 export const DIRECTORY_PAGE_SIZE = 40;
 
@@ -44,6 +45,7 @@ export type DirectoryFilters = {
   budget: string;
   engagement: string;
   language: string;
+  skills: string[];
   rating: string;
   ageMin: string;
   ageMax: string;
@@ -61,6 +63,7 @@ export const DEFAULT_DIRECTORY_FILTERS: DirectoryFilters = {
   budget: "All",
   engagement: "All",
   language: "All",
+  skills: [],
   rating: "All",
   ageMin: "",
   ageMax: "",
@@ -76,6 +79,7 @@ export type DirectoryCandidate = {
   gender: GenderValue;
   location?: string;
   languages: string[];
+  skills: string[];
   socials: Record<string, string>;
   followers: Record<string, number>;
   engagement_rate?: string | Record<string, string>;
@@ -185,6 +189,7 @@ export function directoryCandidateFromRow(
     gender: normalizeGender(typeof row.gender === "string" ? row.gender : null),
     location: typeof row.location === "string" ? row.location : undefined,
     languages: asLanguages(row.languages),
+    skills: sanitizeSkills(row.skills),
     socials,
     followers,
     engagement_rate: Object.keys(engagementRates).length
@@ -272,6 +277,8 @@ export function matchesDirectoryFilters(
   }
 
   const languageMatch = languageMatches(candidate.languages, filters.language);
+  const wantedSkills = sanitizeSkills(filters.skills);
+  const skillMatch = wantedSkills.every((key) => candidate.skills.includes(key));
 
   let ratingMatch = true;
   if (filters.rating !== "All") {
@@ -303,6 +310,7 @@ export function matchesDirectoryFilters(
     budgetMatch &&
     engageMatch &&
     languageMatch &&
+    skillMatch &&
     ratingMatch &&
     ageMatch &&
     badgeMatch &&
@@ -321,6 +329,7 @@ export function directoryFiltersAreSqlOnly(filters: DirectoryFilters): boolean {
     filters.budget === "All" &&
     filters.engagement === "All" &&
     filters.language === "All" &&
+    filters.skills.length === 0 &&
     filters.ageMin.trim() === "" &&
     filters.ageMax.trim() === "" &&
     filters.badge === "All"
@@ -352,6 +361,7 @@ export function parseDirectoryFilters(params: URLSearchParams): DirectoryFilters
     budget: params.get("budget") || "All",
     engagement: params.get("engagement") || "All",
     language: params.get("language") || "All",
+    skills: sanitizeSkills((params.get("skills") || "").split(",")),
     rating: params.get("rating") || "All",
     ageMin: params.get("ageMin") || "",
     ageMax: params.get("ageMax") || "",
