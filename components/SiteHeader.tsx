@@ -70,14 +70,24 @@ function AccountAvatar({
   lang: Lang;
 }) {
   const alt = name.trim() || (lang === "el" ? "Προφίλ" : "Profile");
+  const safeUrl = /^https:\/\//i.test(imageUrl) && !/["'()\\\s]/.test(imageUrl) ? imageUrl : "";
   return (
     <Link
       href={href}
       aria-label={label || alt}
       className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-2 border-slate-300 bg-slate-100 transition-opacity hover:opacity-80"
+      style={safeUrl ? { backgroundImage: `url("${safeUrl}")`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
     >
       {imageUrl ? (
-        <Image src={imageUrl} alt={alt} width={40} height={40} className="h-full w-full object-cover" unoptimized />
+        <Image
+          src={imageUrl}
+          alt={alt}
+          width={40}
+          height={40}
+          unoptimized
+          priority
+          className="h-full w-full object-cover"
+        />
       ) : (
         <span className="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-500 to-purple-500 text-sm font-semibold text-white">
           {avatarInitial(name)}
@@ -150,7 +160,13 @@ export default function SiteHeader({
   };
 
   const accountLink = !identityReady ? (
-    <span className="inline-block h-10 w-10 rounded-full bg-slate-200 animate-pulse" aria-hidden />
+    <>
+      <span className="header-avatar-pending inline-block h-10 w-10 rounded-full bg-slate-200 animate-pulse" aria-hidden />
+      <span
+        className="header-avatar-hot-slot hidden h-10 w-10 overflow-hidden rounded-full border-2 border-slate-300 bg-slate-100"
+        aria-hidden
+      />
+    </>
   ) : userKind === "none" ? (
     <Link
       href={dashboardPath}
