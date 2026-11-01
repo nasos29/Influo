@@ -10,8 +10,10 @@ import {
   partyOf,
   requireActor,
 } from "@/lib/proposalAccess";
-import { mailAgreement, mailCollaborationComplete } from "@/lib/proposalMail";
+import { mailAdminAgreementComplete, mailAgreement, mailCollaborationComplete } from "@/lib/proposalMail";
 import { deferAfterResponse, pushParty } from "@/lib/proposalNotify";
+import { publicProfilePath } from "@/lib/profileSlug";
+import { sendPushAdminAgreementComplete } from "@/lib/push";
 import { partyProposalView, type ProposalParty } from "@/lib/proposalParty";
 
 function preferredParty(value: unknown): ProposalParty | null {
@@ -119,6 +121,47 @@ export async function POST(request: Request) {
               },
       });
       if (completed) {
+        const brandAcceptedAt = party === "brand"
+          ? proposal.brand_agreement_accepted_at || acceptedAt
+          : proposal.brand_agreement_accepted_at;
+        const creatorAcceptedAt = party === "influencer"
+          ? proposal.influencer_agreement_accepted_at || acceptedAt
+          : proposal.influencer_agreement_accepted_at;
+        const notifyAdmin = (async () => {
+          try {
+            let profilePath = publicProfilePath(null, proposal.influencer_id);
+            const slugRow = await supabaseService()
+              .from("influencers")
+              .select("profile_slug")
+              .eq("id", proposal.influencer_id)
+              .maybeSingle();
+            const slug = !slugRow.error && typeof slugRow.data?.profile_slug === "string"
+              ? slugRow.data.profile_slug
+              : null;
+            if (slug) profilePath = publicProfilePath(slug, proposal.influencer_id);
+            const site = (process.env.NEXT_PUBLIC_SITE_URL || "https://influo.gr").replace(/\/$/, "");
+            await mailAdminAgreementComplete({
+              proposalId: proposal.id,
+              brandName,
+              brandEmail: email || "",
+              creatorName: influencer.name,
+              profileUrl: `${site}${profilePath}`,
+              service: proposal.service_type || "",
+              budget: amount,
+              extras: proposal.selected_extras,
+              publishDeadline: proposal.publish_deadline,
+              brandAcceptedAt,
+              creatorAcceptedAt,
+            });
+            await sendPushAdminAgreementComplete({
+              proposalId: proposal.id,
+              brandName,
+              creatorName: influencer.name,
+            });
+          } catch (error) {
+            console.error("[agreement admin]", error instanceof Error ? error.message : error);
+          }
+        })();
         await Promise.all([
           mailCollaborationComplete({
             influencerEmail: influencer.email,
@@ -132,6 +175,7 @@ export async function POST(request: Request) {
           }),
           notifyOther,
           refreshInfluencerTrustMetrics(supabaseService(), String(proposal.influencer_id)),
+          notifyAdmin,
         ]);
         return;
       }
