@@ -13,9 +13,9 @@ import { parseFollowerString } from "@/lib/parseFollowers";
 import type { SimilarInfluencerRow } from "@/lib/similarInfluencers";
 
 const COPY = {
-  titlePrefix: {
-    el: "Influencers παρόμοιοι με",
-    en: "Influencers similar to",
+  title: {
+    el: (name: string) => `Δημιουργοί παρόμοιοι με ${name}`,
+    en: (name: string) => `Creators similar to ${name}`,
   },
   seeMore: { el: "Δες περισσότερους", en: "See more" },
 } as const;
@@ -139,11 +139,10 @@ export default function SimilarInfluencers({
       <InfluencerCardCarousel
         lang={lang}
         loading={!items}
-        title={
-          <>
-            {COPY.titlePrefix[lang]} {shownName}
-          </>
-        }
+        autoPlay
+        autoPlayInterval={2500}
+        autoPlayInitialDelay={1200}
+        title={COPY.title[lang](shownName)}
         footer={
           primaryCategory && items ? (
             <div className="flex justify-center">
