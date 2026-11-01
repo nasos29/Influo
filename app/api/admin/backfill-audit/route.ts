@@ -10,6 +10,7 @@ import { createClient } from '@supabase/supabase-js';
 import { rejectUnlessAdmin } from '@/lib/apiAuth';
 import {
   computeAuditFingerprint,
+  offerAuditFields,
   runAuditGeminiStrict,
   type AuditAccount,
   type AuditShared,
@@ -58,6 +59,14 @@ type AuditprAudit = {
   brandSafe: boolean;
   niche?: string;
   niche_en?: string;
+  priceNote?: string;
+  priceNote_en?: string;
+  packageNote?: string;
+  packageNote_en?: string;
+  skillsNote?: string;
+  skillsNote_en?: string;
+  offerTips?: string[];
+  offerTips_en?: string[];
   input_fingerprint?: string;
 };
 
@@ -87,7 +96,7 @@ export async function POST(request: NextRequest) {
 
     let query = supabaseAdmin
       .from('influencers')
-      .select('id, display_name, gender, bio, category, location, accounts, audience_male_percent, audience_female_percent')
+      .select('id, display_name, gender, bio, category, location, accounts, audience_male_percent, audience_female_percent, min_rate, service_packages, rate_card, skills')
       .not('accounts', 'is', null)
       .order('id', { ascending: true });
 
@@ -163,6 +172,10 @@ export async function POST(request: NextRequest) {
         location: (inf.location as string) ?? undefined,
         audience_male_percent: (inf as any).audience_male_percent ?? undefined,
         audience_female_percent: (inf as any).audience_female_percent ?? undefined,
+        min_rate: (inf as { min_rate?: string | number | null }).min_rate ?? undefined,
+        service_packages: (inf as { service_packages?: unknown }).service_packages,
+        rate_card: (inf as { rate_card?: unknown }).rate_card,
+        skills: (inf as { skills?: unknown }).skills,
       };
 
       try {
@@ -179,6 +192,7 @@ export async function POST(request: NextRequest) {
           brandSafe: auditResult.brandSafe,
           niche: auditResult.niche,
           niche_en: auditResult.niche_en,
+          ...offerAuditFields(auditResult),
           input_fingerprint: computeAuditFingerprint(igTtAccounts, shared),
         };
 
