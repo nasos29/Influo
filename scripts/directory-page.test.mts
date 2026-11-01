@@ -65,11 +65,16 @@ test("search matches name or Greek bio and ignores a closed bio_en field", () =>
   assert.equal(matchesDirectoryFilters(candidate({ name: "Αθήνα Travel" }), filters), true);
 });
 
-test("skills filter requires every selected skill", () => {
-  const base = { ...DEFAULT_DIRECTORY_FILTERS, availability: "all" as const, skills: ["ugc", "video_editing"] };
-  assert.equal(matchesDirectoryFilters(candidate({ skills: ["ugc", "video_editing", "vlogs"] }), base), true);
-  assert.equal(matchesDirectoryFilters(candidate({ skills: ["ugc"] }), base), false);
-  assert.equal(directoryFiltersAreSqlOnly(base), false);
+test("skills and language filters match any selected value", () => {
+  const skills = { ...DEFAULT_DIRECTORY_FILTERS, availability: "all" as const, skills: ["ugc", "video_editing"] };
+  assert.equal(matchesDirectoryFilters(candidate({ skills: ["ugc"] }), skills), true);
+  assert.equal(matchesDirectoryFilters(candidate({ skills: ["vlogs"] }), skills), false);
+  assert.equal(directoryFiltersAreSqlOnly(skills), false);
+  const oneLanguage = { ...DEFAULT_DIRECTORY_FILTERS, availability: "all" as const, language: "el" };
+  const manyLanguages = { ...DEFAULT_DIRECTORY_FILTERS, availability: "all" as const, language: "en,de" };
+  assert.equal(matchesDirectoryFilters(candidate({ languages: ["Ελληνικά"] }), oneLanguage), true);
+  assert.equal(matchesDirectoryFilters(candidate({ languages: ["Ελληνικά"] }), manyLanguages), false);
+  assert.equal(matchesDirectoryFilters(candidate({ languages: ["German"] }), manyLanguages), true);
 });
 
 test("sql-only filters are availability, gender, and rating", () => {
