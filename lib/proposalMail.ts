@@ -1,6 +1,8 @@
 import { Resend } from "resend";
+import { displayServiceType } from "@/lib/campaignServiceLabel";
 import { logEmail } from "@/lib/deliveryLog";
 import { formatEuroAmount } from "@/lib/formatEuro";
+import { formatProposalExtrasLine } from "@/lib/proposalFloor";
 import { escapeHtml } from "@/lib/proposalParty";
 
 function euroHtml(amount: unknown): string {
@@ -206,27 +208,45 @@ export async function mailCounterDecision(input: {
   );
 }
 
+function agreementDetailsHtml(input: {
+  proposalId: string | number;
+  service: string;
+  budget: string;
+  extras?: unknown;
+}): string {
+  const extrasLine = formatProposalExtrasLine(input.extras, "el");
+  const extrasValue = extrasLine ? extrasLine.replace(/^Extras:\s*/, "") : "";
+  const extrasRow = extrasValue ? `<br/><strong>Extras:</strong> ${escapeHtml(extrasValue)}` : "";
+  const deliverables = displayServiceType(input.service, "el") || "—";
+  return `<p><strong>Αριθμός συμφωνίας:</strong> #${escapeHtml(String(input.proposalId))}<br/>
+<strong>Παραδοτέα:</strong> ${escapeHtml(deliverables)}${extrasRow}<br/>
+<strong>Συνολική αμοιβή:</strong> ${euroHtml(input.budget)}</p>`;
+}
+
 export async function mailAgreement(input: {
   to: string | null;
   recipientName: string;
   otherName: string;
   service: string;
   budget: string;
+  proposalId: string | number;
+  extras?: unknown;
   toBrand: boolean;
   brandHasAccount: boolean;
 }): Promise<void> {
   const link = input.toBrand
     ? brandLink(input.to || "", input.brandHasAccount)
     : `${siteUrl()}/dashboard`;
+  const id = escapeHtml(String(input.proposalId));
   await send(
     "agreement_accepted",
     input.to,
-    `Αποδοχή συμφωνίας από ${input.otherName}`,
+    `Αποδοχή της συμφωνίας συνεργασίας #${input.proposalId}`,
     shell(
-      "Η συμφωνία αποδεχτήκε από τη μία πλευρά",
+      "Η συμφωνία έγινε αποδεκτή από τη μία πλευρά",
       `<p>Γεια σας ${escapeHtml(input.recipientName)},</p>
-       <p>Ο/Η <strong>${escapeHtml(input.otherName)}</strong> αποδέχτηκε τη συμφωνία. Χρειάζεται και η δική σας αποδοχή.</p>
-       <p><strong>Υπηρεσία:</strong> ${escapeHtml(input.service)}<br/><strong>Budget:</strong> ${euroHtml(input.budget)}</p>
+       <p>Ο/Η <strong>${escapeHtml(input.otherName)}</strong> αποδέχτηκε τη συμφωνία συνεργασίας <strong>#${id}</strong>. Για να ολοκληρωθεί η συνεργασία, απαιτείται και η δική σας αποδοχή.</p>
+       ${agreementDetailsHtml(input)}
        <p><a href="${link}">${input.toBrand && !input.brandHasAccount ? "Δημιουργία λογαριασμού" : "Άνοιγμα προσφορών"}</a></p>`
     )
   );
@@ -236,15 +256,21 @@ export async function mailCollaborationComplete(input: {
   influencerEmail: string | null;
   influencerName: string;
   brandName: string;
+  proposalId: string | number;
+  service: string;
+  budget: string;
+  extras?: unknown;
 }): Promise<void> {
+  const id = escapeHtml(String(input.proposalId));
   await send(
     "collaboration_complete",
     input.influencerEmail,
-    `Η συνεργασία με ${input.brandName} ολοκληρώθηκε`,
+    `Η συμφωνία συνεργασίας #${input.proposalId} ολοκληρώθηκε`,
     shell(
       "Η συνεργασία ολοκληρώθηκε",
-      `<p>Γεια σου ${escapeHtml(input.influencerName)},</p>
-       <p>Και οι δύο πλευρές αποδέχτηκαν τη συμφωνία. Η <strong>${escapeHtml(input.brandName)}</strong> προστέθηκε στις συνεργασίες του προφίλ σου.</p>`
+      `<p>Γεια σας ${escapeHtml(input.influencerName)},</p>
+       <p>Και οι δύο πλευρές αποδέχτηκαν τη συμφωνία συνεργασίας <strong>#${id}</strong>. Η επιχείρηση <strong>${escapeHtml(input.brandName)}</strong> καταγράφεται στις συνεργασίες του προφίλ σας.</p>
+       ${agreementDetailsHtml(input)}`
     )
   );
 }

@@ -51,6 +51,7 @@ import { displayNameForLang } from '@/lib/greeklish';
 import { displayServiceType } from '@/lib/campaignServiceLabel';
 import { displayProposalMessage } from '@/lib/proposalThreadCopy';
 import { formatProposalExtrasLine } from '@/lib/proposalFloor';
+import AgreementTerms from '@/components/AgreementTerms';
 import { normalizeYouTubeUsernameForSave } from '@/lib/youtubeHandle';
 import CreatorPlatformPrices from '@/components/CreatorPlatformPrices';
 import LocationTypeahead from '@/components/LocationTypeahead';
@@ -1841,7 +1842,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
 
     const handleAcceptAgreement = async () => {
         if (!selectedProposal || !agreementAccepted) {
-            notify(T('Διάβασε και αποδέξου τους όρους χρήσης.', 'Read and accept the terms first.'), 'error');
+            notify(T('Διάβασε και αποδέξου τους όρους της συμφωνίας.', 'Read and accept the agreement terms.'), 'error');
             return;
         }
 
@@ -1876,7 +1877,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                 setShowAgreementModal(false);
                 setSelectedProposal(null);
                 setAgreementAccepted(false);
-                notify(T('Η συμφωνία αποδεχτήθηκε. Η επιχείρηση θα προστεθεί στις συνεργασίες σου όταν αποδεχτεί και εκείνη.', 'Agreement accepted. The brand will be added to your collaborations once they accept too.'), 'success');
+                notify(T('Η συμφωνία έγινε αποδεκτή. Η επιχείρηση θα προστεθεί στις συνεργασίες σου όταν αποδεχτεί και εκείνη.', 'Agreement accepted. The brand will be added to your collaborations once they accept too.'), 'success');
             } else {
                 throw new Error(result.error || T('Σφάλμα αποδοχής συμφωνίας', 'Could not accept the agreement'));
             }
@@ -2209,18 +2210,6 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                             
                                             return (
                                                 <div key={prop.id} className={`border rounded-lg p-4 ${needsAgreement ? 'border-amber-400 bg-gradient-to-r from-amber-50 to-yellow-50 shadow-md' : hasAgreement ? 'border-green-200 bg-green-50' : 'border-slate-200 bg-white'}`}>
-                                                    {needsAgreement && (
-                                                        <div className="mb-3 p-3 bg-amber-100 border border-amber-300 rounded-lg">
-                                                            <p className="text-sm font-semibold text-amber-900 flex items-center gap-2">
-                                                                💡 <span>{T("Γιατί να αποδεχτείτε τη συμφωνία;", "Why accept the agreement?")}</span>
-                                                            </p>
-                                                            <ul className="text-xs text-amber-800 mt-2 space-y-1 ml-5 list-disc">
-                                                                <li>{T("Θα μπορείτε να λάβετε αξιολογήσεις που βελτιώνουν την αξιοπιστία σας", "You can receive reviews that improve your credibility")}</li>
-                                                                <li>{T("Το brand θα εμφανίζεται στις συνεργασίες σας, αυξάνοντας την προβολή", "The brand will appear in your collaborations, boosting your visibility")}</li>
-                                                                <li>{T("Περισσότερες συνεργασίες = πιο επαγγελματικό προφίλ", "More collaborations = a more professional profile")}</li>
-                                                            </ul>
-                                                        </div>
-                                                    )}
                                                     <div className="flex items-start justify-between">
                                                         <div className="flex-1">
                                                             <div className="flex items-center gap-3 mb-2">
@@ -2701,155 +2690,26 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
 
             {/* Agreement Modal */}
             {showAgreementModal && selectedProposal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                        <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-                            <h2 className="text-xl font-bold text-slate-900">{T('Συμφωνία συνεργασίας', 'Collaboration agreement')}</h2>
-                            <button 
-                                type="button"
-                                onClick={() => {
-                                    setShowAgreementModal(false);
-                                    setSelectedProposal(null);
-                                    setAgreementAccepted(false);
-                                }}
-                                aria-label={T('Κλείσιμο', 'Close')}
-                                className="inline-flex min-h-11 min-w-11 items-center justify-center text-slate-400 hover:text-slate-600 text-2xl"
-                            >
-                                ×
-                            </button>
-                        </div>
-                        
-                        <div className="p-6 space-y-6">
-                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                                <p className="text-sm text-blue-900 font-medium mb-2">
-                                    {T('Συνεργασία με:', 'Collaboration with:')} <strong>{selectedProposal.brand_name}</strong>
-                                </p>
-                                <p className="text-sm text-blue-800">
-                                    {T('Υπηρεσία:', 'Service:')} {displayServiceType(selectedProposal.service_type, lang)} • {T('Προϋπολογισμός:', 'Budget:')} {formatEuroAmount(selectedProposal.budget, lang)}
-                                </p>
-                                {formatProposalExtrasLine(selectedProposal.selected_extras, lang) ? (
-                                    <p className="mt-1 text-sm text-blue-800">{formatProposalExtrasLine(selectedProposal.selected_extras, lang)}</p>
-                                ) : null}
-                            </div>
-
-                            {/* Benefits Section */}
-                            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-5 space-y-3">
-                                <h3 className="font-bold text-blue-900 text-lg flex items-center gap-2">
-                                    ✨ {T('Γιατί να αποδεχτείς τη συμφωνία;', 'Why accept the agreement?')}
-                                </h3>
-                                <div className="grid md:grid-cols-2 gap-3">
-                                    <div className="flex items-start gap-2">
-                                        <span className="text-2xl">⭐</span>
-                                        <div>
-                                            <p className="font-semibold text-blue-900">{T('Αξιολογήσεις', 'Reviews')}</p>
-                                            <p className="text-sm text-blue-700">{T('Μπορείς να λάβεις αξιολογήσεις από την επιχείρηση, που βελτιώνουν την αξιοπιστία σου.', 'You can receive reviews from the brand, which improve your credibility.')}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-start gap-2">
-                                        <span className="text-2xl">📈</span>
-                                        <div>
-                                            <p className="font-semibold text-blue-900">{T('Μεγαλύτερη προβολή', 'More visibility')}</p>
-                                            <p className="text-sm text-blue-700">{T('Η επιχείρηση εμφανίζεται στις συνεργασίες σου.', 'The brand appears in your collaborations.')}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-start gap-2">
-                                        <span className="text-2xl">🎯</span>
-                                        <div>
-                                            <p className="font-semibold text-blue-900">{T('Πιο επαγγελματικό προφίλ', 'A more professional profile')}</p>
-                                            <p className="text-sm text-blue-700">{T('Περισσότερες συνεργασίες κάνουν το προφίλ πιο αξιόπιστο.', 'More collaborations make the profile more trusted.')}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-start gap-2">
-                                        <span className="text-2xl">💼</span>
-                                        <div>
-                                            <p className="font-semibold text-blue-900">{T('Περισσότερες ευκαιρίες', 'More opportunities')}</p>
-                                            <p className="text-sm text-blue-700">{T('Το υλικό σου μεγαλώνει και προσελκύει περισσότερες επιχειρήσεις.', 'Your work samples grow and attract more brands.')}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="mt-3 pt-3 border-t border-blue-200">
-                                    <p className="text-sm font-medium text-blue-900">
-                                        💡 <strong>{T('Συμβουλή:', 'Tip:')}</strong> {T('Οι δημιουργοί με πολλές αποδεκτές συνεργασίες εμφανίζονται πρώτοι στις αναζητήσεις.', 'Creators with many accepted collaborations appear first in search.')}
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="space-y-4">
-                                <h3 className="font-bold text-slate-900">{T('Όροι και συμφωνία', 'Terms and agreement')}</h3>
-                                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 max-h-64 overflow-y-auto text-sm text-slate-700 space-y-3">
-                                    <p><strong>{T('1. Υποχρεώσεις δημιουργού:', '1. Creator obligations:')}</strong></p>
-                                    <ul className="list-disc list-inside ml-2 space-y-1">
-                                        <li>{T('Παροχή περιεχομένου σύμφωνα με τις προδιαγραφές', 'Deliver content that matches the brief')}</li>
-                                        <li>{T('Σεβασμός στις προθεσμίες', 'Respect the deadlines')}</li>
-                                        <li>{T('Επικοινωνία με την επιχείρηση για απορίες', 'Talk to the brand when something is unclear')}</li>
-                                        <li>{T('Χρήση προϊόντων ή υπηρεσιών όπως συμφωνήθηκε', 'Use products or services as agreed')}</li>
-                                    </ul>
-
-                                    <p><strong>{T('2. Πληρωμή:', '2. Payment:')}</strong></p>
-                                    <ul className="list-disc list-inside ml-2 space-y-1">
-                                        <li>{T('Η πληρωμή ακολουθεί όσα λέει η προσφορά', 'Payment follows the offer')}</li>
-                                        <li>{T('Η πληρωμή γίνεται μετά την ολοκλήρωση και την έγκριση του περιεχομένου', 'Payment happens after the content is finished and approved')}</li>
-                                    </ul>
-
-                                    <p><strong>{T('3. Δικαιώματα:', '3. Rights:')}</strong></p>
-                                    <ul className="list-disc list-inside ml-2 space-y-1">
-                                        <li>{T('Η επιχείρηση μπορεί να εγκρίνει ή να απορρίψει το περιεχόμενο', 'The brand can approve or reject the content')}</li>
-                                        <li>{T('Η επιχείρηση μπορεί να χρησιμοποιήσει το περιεχόμενο για προώθηση', 'The brand can use the content for promotion')}</li>
-                                    </ul>
-
-                                    <p><strong>{T('4. Εμπιστευτικότητα:', '4. Confidentiality:')}</strong></p>
-                                    <ul className="list-disc list-inside ml-2 space-y-1">
-                                        <li>{T('Κρατάς εμπιστευτικά τα προσωπικά στοιχεία της επιχείρησης', 'You keep the brand’s private details confidential')}</li>
-                                    </ul>
-
-                                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-4">
-                                        <p className="text-xs font-medium text-amber-900">
-                                            ⚠️ <strong>{T('Σημαντικό:', 'Important:')}</strong> {T('Με την αποδοχή αυτής της συμφωνίας:', 'By accepting this agreement:')}
-                                        </p>
-                                        <ul className="text-xs text-amber-800 mt-2 space-y-1 list-disc list-inside ml-2">
-                                            <li>{T('Συμφωνείς με τους παραπάνω όρους', 'You agree to the terms above')}</li>
-                                            <li>{T('Το όνομα της επιχείρησης προστίθεται δημόσια στις συνεργασίες σου', 'The brand name is added publicly to your collaborations')}</li>
-                                            <li>{T('Η επιχείρηση μπορεί να σε αξιολογήσει μετά την ολοκλήρωση', 'The brand can review you after the work is done')}</li>
-                                            <li>{T('Η συνεργασία εμφανίζεται στο προφίλ σου', 'The collaboration appears on your profile')}</li>
-                                        </ul>
-                                    </div>
-                                </div>
-
-                                <label className="flex items-start gap-3 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={agreementAccepted}
-                                        onChange={(e) => setAgreementAccepted(e.target.checked)}
-                                        className="mt-1 w-5 h-5 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
-                                    />
-                                    <span className="text-sm text-slate-700">
-                                        <strong>{T('Αποδέχομαι τους όρους', 'I accept the terms')}</strong> {T('και συμφωνώ να προστεθεί η επιχείρηση', 'and I agree that')} <strong>{selectedProposal.brand_name}</strong> {T('στις συνεργασίες μου', 'is added to my collaborations')}
-                                    </span>
-                                </label>
-                            </div>
-
-                            <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
-                                <button
-                                    onClick={() => {
-                                        setShowAgreementModal(false);
-                                        setSelectedProposal(null);
-                                        setAgreementAccepted(false);
-                                    }}
-                                    className="inline-flex min-h-11 items-center px-4 text-slate-700 hover:bg-slate-100 rounded-lg font-medium transition-colors"
-                                >
-                                    {T('Ακύρωση', 'Cancel')}
-                                </button>
-                                <button
-                                    onClick={handleAcceptAgreement}
-                                    disabled={!agreementAccepted || savingAgreement}
-                                    className="inline-flex min-h-11 items-center px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                >
-                                    {savingAgreement ? T('Αποθήκευση...', 'Saving...') : T('Αποδοχή συμφωνίας', 'Accept agreement')}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <AgreementTerms
+                    lang={lang}
+                    proposalId={selectedProposal.id}
+                    brandName={selectedProposal.brand_name}
+                    creatorName={displayNameForLang(profile.display_name, lang)}
+                    serviceType={selectedProposal.service_type}
+                    budget={selectedProposal.budget}
+                    counterProposalBudget={selectedProposal.counter_proposal_budget}
+                    counterProposalStatus={selectedProposal.counter_proposal_status}
+                    selectedExtras={selectedProposal.selected_extras}
+                    accepted={agreementAccepted}
+                    onAcceptedChange={setAgreementAccepted}
+                    saving={savingAgreement}
+                    onCancel={() => {
+                        setShowAgreementModal(false);
+                        setSelectedProposal(null);
+                        setAgreementAccepted(false);
+                    }}
+                    onAccept={handleAcceptAgreement}
+                />
             )}
 
             {/* Counter-Proposal Modal */}
