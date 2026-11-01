@@ -208,8 +208,19 @@ export function directoryCandidateFromRow(
   };
 }
 
-function languageMatches(languages: string[] | undefined, code: string): boolean {
-  if (code === "All") return true;
+function languageCodes(raw: string): string[] {
+  if (!raw || raw === "All") return [];
+  const known = new Set<string>(DIRECTORY_LANGUAGES.map((item) => item.code));
+  const out: string[] = [];
+  for (const part of raw.split(",")) {
+    const code = part.trim();
+    if (!known.has(code) || out.includes(code)) continue;
+    out.push(code);
+  }
+  return out;
+}
+
+function languageMatchesOne(languages: string[] | undefined, code: string): boolean {
   if (!languages || languages.length === 0) return false;
   const selected = DIRECTORY_LANGUAGES.find((item) => item.code === code);
   if (!selected) return false;
@@ -228,6 +239,13 @@ function languageMatches(languages: string[] | undefined, code: string): boolean
       selectedEn.includes(langStr)
     );
   });
+}
+
+/** Empty or "All" matches everyone. One code or comma-separated codes match any of them. */
+function languageMatches(languages: string[] | undefined, raw: string): boolean {
+  const codes = languageCodes(raw);
+  if (codes.length === 0) return true;
+  return codes.some((code) => languageMatchesOne(languages, code));
 }
 
 function badgeTypes(candidate: DirectoryCandidate, now = Date.now()): BadgeType[] {
@@ -278,7 +296,8 @@ export function matchesDirectoryFilters(
 
   const languageMatch = languageMatches(candidate.languages, filters.language);
   const wantedSkills = sanitizeSkills(filters.skills);
-  const skillMatch = wantedSkills.every((key) => candidate.skills.includes(key));
+  const skillMatch =
+    wantedSkills.length === 0 || wantedSkills.some((key) => candidate.skills.includes(key));
 
   let ratingMatch = true;
   if (filters.rating !== "All") {

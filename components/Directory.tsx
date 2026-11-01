@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import InfluencerCard from "./InfluencerCard";
@@ -28,8 +29,23 @@ function categoryFromSearchParam(raw: string | null): string {
   return CATEGORY_KEYS.has(raw) ? raw : "All";
 }
 
-function skillFromSearchParam(raw: string | null): string {
-  return sanitizeSkills((raw || "").split(","))[0] || "All";
+function skillsFromSearchParam(raw: string | null): string[] {
+  return sanitizeSkills((raw || "").split(","));
+}
+
+function languagesFromSearchParam(raw: string | null): string[] {
+  const known = new Set(LANGUAGES.map((item) => item.code));
+  const out: string[] = [];
+  for (const part of (raw || "").split(",")) {
+    const code = part.trim();
+    if (!known.has(code) || out.includes(code)) continue;
+    out.push(code);
+  }
+  return out;
+}
+
+function sameList(a: string[], b: string[]): boolean {
+  return a.join(",") === b.join(",");
 }
 
 function pageFromSearchParam(raw: string | null): number {
@@ -277,6 +293,118 @@ const fieldLabel = "mb-1.5 block text-xs font-semibold text-slate-500";
 const chipBtn =
   "inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-900/20";
 
+function closedMultiLabel(selected: string[], labelFor: (value: string) => string, placeholder: string): string {
+  if (!selected.length) return placeholder;
+  const first = labelFor(selected[0]) || selected[0];
+  if (selected.length === 1) return first;
+  return `${first} +${selected.length - 1}`;
+}
+
+function MultiFilterDropdown({
+  placeholder,
+  options,
+  selected,
+  onChange,
+  ariaLabel,
+}: {
+  placeholder: string;
+  options: { value: string; label: string }[];
+  selected: string[];
+  onChange: (next: string[]) => void;
+  ariaLabel: string;
+}) {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [box, setBox] = useState<{ top: number; left: number; width: number } | null>(null);
+  const labels = new Map(options.map((option) => [option.value, option.label]));
+
+  useEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const rect = buttonRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      setBox({ top: rect.bottom + 6, left: rect.left, width: rect.width });
+    };
+    place();
+    const onPointer = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (buttonRef.current?.contains(target) || panelRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("resize", place);
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const toggle = (value: string) => {
+    const next = selected.includes(value) ? selected.filter((item) => item !== value) : [...selected, value];
+    onChange(options.map((option) => option.value).filter((value) => next.includes(value)));
+  };
+
+  const summary = closedMultiLabel(selected, (value) => labels.get(value) || value, placeholder);
+  const panel =
+    open && box && typeof document !== "undefined"
+      ? createPortal(
+          <div
+            ref={panelRef}
+            role="group"
+            aria-label={ariaLabel}
+            style={{ top: box.top, left: box.left, width: box.width }}
+            className="fixed z-50 max-h-64 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-lg"
+          >
+            {options.map((option) => {
+              const checked = selected.includes(option.value);
+              return (
+                <label
+                  key={option.value}
+                  className="flex cursor-pointer items-center gap-2 rounded-xl px-2 py-2 text-sm text-slate-800 hover:bg-slate-50"
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggle(option.value)}
+                    className="h-4 w-4 rounded border-slate-300"
+                  />
+                  <span className="min-w-0">{option.label}</span>
+                </label>
+              );
+            })}
+          </div>,
+          document.body
+        )
+      : null;
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        aria-expanded={open}
+        aria-label={ariaLabel}
+        onClick={() => setOpen((current) => !current)}
+        className="flex h-11 w-full items-center rounded-full border border-slate-200 bg-white px-4 text-left text-sm font-medium text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/20"
+      >
+        <span className="min-w-0 flex-1 truncate">{summary}</span>
+        <span className="ml-2 shrink-0 text-xs text-slate-400" aria-hidden>
+          ▾
+        </span>
+      </button>
+      {panel}
+    </>
+  );
+}
+
 export default function Directory({
   lang = "el",
   initialInfluencers = [],
@@ -316,8 +444,8 @@ export default function Directory({
   const [followerRange, setFollowerRange] = useState("All");
   const [budgetMax, setBudgetMax] = useState("All");
   const [minEngagement, setMinEngagement] = useState("All");
-  const [languageFilter, setLanguageFilter] = useState("All");
-  const [skillFilter, setSkillFilter] = useState(() => skillFromSearchParam(searchParams.get("skills")));
+  const [languageFilter, setLanguageFilter] = useState(() => languagesFromSearchParam(searchParams.get("language")));
+  const [skillFilter, setSkillFilter] = useState(() => skillsFromSearchParam(searchParams.get("skills")));
   const [minRating, setMinRating] = useState("All");
   const [ageMin, setAgeMin] = useState("");
   const [ageMax, setAgeMax] = useState("");
@@ -353,8 +481,8 @@ export default function Directory({
       followerRange === "All" &&
       budgetMax === "All" &&
       minEngagement === "All" &&
-      languageFilter === "All" &&
-      skillFilter === "All" &&
+      languageFilter.length === 0 &&
+      skillFilter.length === 0 &&
       minRating === "All" &&
       !ageMin.trim() &&
       !ageMax.trim() &&
@@ -374,8 +502,8 @@ export default function Directory({
     if (followerRange !== "All") params.set("followers", followerRange);
     if (budgetMax !== "All") params.set("budget", budgetMax);
     if (minEngagement !== "All") params.set("engagement", minEngagement);
-    if (languageFilter !== "All") params.set("language", languageFilter);
-    if (skillFilter !== "All") params.set("skills", skillFilter);
+    if (languageFilter.length) params.set("language", languageFilter.join(","));
+    if (skillFilter.length) params.set("skills", skillFilter.join(","));
     if (minRating !== "All") params.set("rating", minRating);
     if (ageMin.trim()) params.set("ageMin", ageMin.trim());
     if (ageMax.trim()) params.set("ageMax", ageMax.trim());
@@ -555,8 +683,10 @@ export default function Directory({
     setPage((prev) => (prev === fromUrlPage ? prev : fromUrlPage));
     const fromUrlQuery = (searchParams.get("q") || "").trim();
     setSearchQuery((prev) => (prev === fromUrlQuery ? prev : fromUrlQuery));
-    const fromSkill = skillFromSearchParam(searchParams.get("skills"));
-    setSkillFilter((prev) => (prev === fromSkill ? prev : fromSkill));
+    const fromSkill = skillsFromSearchParam(searchParams.get("skills"));
+    setSkillFilter((prev) => (sameList(prev, fromSkill) ? prev : fromSkill));
+    const fromLanguage = languagesFromSearchParam(searchParams.get("language"));
+    setLanguageFilter((prev) => (sameList(prev, fromLanguage) ? prev : fromLanguage));
   }, [searchParams]);
 
   const clearFilters = () => {
@@ -568,8 +698,8 @@ export default function Directory({
     setFollowerRange("All");
     setBudgetMax("All");
     setMinEngagement("All");
-    setLanguageFilter("All");
-    setSkillFilter("All");
+    setLanguageFilter([]);
+    setSkillFilter([]);
     setMinRating("All");
     setAgeMin("");
     setAgeMax("");
@@ -579,6 +709,7 @@ export default function Directory({
     replaceUrlParams((params) => {
       params.delete("q");
       params.delete("category");
+      params.delete("language");
       params.delete("skills");
       params.delete("page");
     });
@@ -656,25 +787,36 @@ export default function Directory({
         clear: () => setMinEngagement("All"),
       });
     }
-    if (languageFilter !== "All") {
+    for (const code of languageFilter) {
       extra += 1;
-      const langItem = LANGUAGES.find((l) => l.code === languageFilter);
+      const langItem = LANGUAGES.find((item) => item.code === code);
       chips.push({
-        id: "language",
-        label: langItem ? langItem[lang] : languageFilter,
-        clear: () => setLanguageFilter("All"),
-      });
-    }
-    if (skillFilter !== "All") {
-      extra += 1;
-      chips.push({
-        id: "skill",
-        label: skillLabel(skillFilter, lang) || skillFilter,
+        id: `language-${code}`,
+        label: langItem ? langItem[lang] : code,
         clear: () => {
-          setSkillFilter("All");
+          const next = languageFilter.filter((item) => item !== code);
+          setLanguageFilter(next);
           setPage(1);
           replaceUrlParams((params) => {
-            params.delete("skills");
+            if (!next.length) params.delete("language");
+            else params.set("language", next.join(","));
+            params.delete("page");
+          });
+        },
+      });
+    }
+    for (const key of skillFilter) {
+      extra += 1;
+      chips.push({
+        id: `skill-${key}`,
+        label: skillLabel(key, lang) || key,
+        clear: () => {
+          const next = skillFilter.filter((item) => item !== key);
+          setSkillFilter(next);
+          setPage(1);
+          replaceUrlParams((params) => {
+            if (!next.length) params.delete("skills");
+            else params.set("skills", next.join(","));
             params.delete("page");
           });
         },
@@ -1005,43 +1147,40 @@ export default function Directory({
 
                 <div>
                   <label className={fieldLabel}>{txt.fieldSkills}</label>
-                  <select
-                    value={skillFilter}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setSkillFilter(value);
+                  <MultiFilterDropdown
+                    ariaLabel={txt.fieldSkills}
+                    placeholder={txt.skillsAll}
+                    selected={skillFilter}
+                    options={SKILLS.map((key) => ({ value: key, label: skillLabel(key, lang) || key }))}
+                    onChange={(next) => {
+                      setSkillFilter(next);
                       setPage(1);
                       replaceUrlParams((params) => {
-                        if (!value || value === "All") params.delete("skills");
-                        else params.set("skills", value);
+                        if (!next.length) params.delete("skills");
+                        else params.set("skills", next.join(","));
                         params.delete("page");
                       });
                     }}
-                    className={pillSelect}
-                  >
-                    <option value="All">{txt.skillsAll}</option>
-                    {SKILLS.map((key) => (
-                      <option key={key} value={key}>
-                        {skillLabel(key, lang)}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </div>
 
                 <div>
                   <label className={fieldLabel}>{txt.fieldLanguage}</label>
-                  <select
-                    value={languageFilter}
-                    onChange={(e) => setLanguageFilter(e.target.value)}
-                    className={pillSelect}
-                  >
-                    <option value="All">{txt.langAll}</option>
-                    {LANGUAGES.map((langItem) => (
-                      <option key={langItem.code} value={langItem.code}>
-                        {langItem[lang]}
-                      </option>
-                    ))}
-                  </select>
+                  <MultiFilterDropdown
+                    ariaLabel={txt.fieldLanguage}
+                    placeholder={txt.langAll}
+                    selected={languageFilter}
+                    options={LANGUAGES.map((item) => ({ value: item.code, label: item[lang] }))}
+                    onChange={(next) => {
+                      setLanguageFilter(next);
+                      setPage(1);
+                      replaceUrlParams((params) => {
+                        if (!next.length) params.delete("language");
+                        else params.set("language", next.join(","));
+                        params.delete("page");
+                      });
+                    }}
+                  />
                 </div>
 
                 <div>
