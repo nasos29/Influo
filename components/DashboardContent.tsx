@@ -1480,13 +1480,11 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     }, [searchParams]);
 
     useEffect(() => {
-        if (typeof window === 'undefined') return;
-        if (window.matchMedia('(min-width: 768px)').matches) return;
         const nav = tabsNavRef.current;
-        if (!nav) return;
+        if (!nav || nav.scrollWidth <= nav.clientWidth + 1) return;
         const btn = nav.querySelector<HTMLElement>(`[data-creator-tab="${activeTab}"]`);
         btn?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
-    }, [activeTab]);
+    }, [activeTab, lang]);
 
     const openCreatorTab = (tab: CreatorTab) => {
         setMenuOpen(false);
@@ -2089,12 +2087,12 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                     <p className="mt-1 leading-relaxed">{profile.approved ? T('Το προφίλ σου είναι ορατό στις επιχειρήσεις και μπορείς να κάνεις αιτήσεις σε καμπάνιες.', 'Your profile is visible to brands and you can apply to campaigns.') : ui.pendingHint}</p>
                 </div>
 
-                <div className="relative bg-white rounded-xl border border-slate-200 mb-6 overflow-hidden">
+                <div className="@container relative bg-white rounded-xl border border-slate-200 mb-6 overflow-hidden">
                     <nav
                         ref={tabsNavRef}
                         role="tablist"
                         aria-label={T('Ενότητες πίνακα', 'Dashboard sections')}
-                        className="flex gap-2 overflow-x-auto snap-x snap-mandatory px-3 py-2 md:gap-0 md:overflow-visible md:snap-none md:px-0 md:py-0 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                        className="flex flex-nowrap gap-2 overflow-x-auto snap-x snap-mandatory px-3 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden @min-[940px]:gap-0 @min-[940px]:overflow-visible @min-[940px]:snap-none @min-[940px]:px-1 @min-[940px]:py-0"
                     >
                         {(
                             [
@@ -2118,16 +2116,16 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                     data-creator-tab={tab.id}
                                     aria-selected={selected}
                                     onClick={() => openCreatorTab(tab.id)}
-                                    className={`inline-flex min-h-11 shrink-0 snap-start items-center gap-2 rounded-full px-4 text-sm font-medium whitespace-nowrap transition-colors md:min-h-0 md:rounded-none md:px-5 md:py-4 md:text-base md:border-b-2 ${
+                                    className={`inline-flex min-h-11 shrink-0 snap-start items-center gap-1.5 rounded-full px-3.5 text-sm font-medium whitespace-nowrap transition-colors @min-[940px]:min-h-0 @min-[940px]:min-w-max @min-[940px]:flex-1 @min-[940px]:justify-center @min-[940px]:gap-1 @min-[940px]:rounded-none @min-[940px]:px-2 @min-[940px]:py-3 @min-[940px]:text-[13px] @min-[940px]:border-b-2 ${
                                         selected
-                                            ? 'bg-blue-600 text-white md:bg-transparent md:text-blue-600 md:border-blue-600'
-                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200 md:bg-transparent md:text-slate-500 md:hover:text-slate-700 md:border-transparent'
+                                            ? 'bg-blue-600 text-white @min-[940px]:bg-transparent @min-[940px]:text-blue-600 @min-[940px]:border-blue-600'
+                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200 @min-[940px]:bg-transparent @min-[940px]:text-slate-500 @min-[940px]:hover:text-slate-700 @min-[940px]:border-transparent'
                                     }`}
                                 >
-                                    <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
+                                    <Icon className="h-4 w-4 shrink-0 @min-[940px]:h-3.5 @min-[940px]:w-3.5" aria-hidden="true" />
                                     {tab.label}
                                     {tab.count > 0 ? (
-                                        <span className={`text-xs font-bold rounded-full min-w-[18px] h-[18px] inline-flex items-center justify-center px-1 ${selected ? 'bg-white text-blue-700 md:bg-red-500 md:text-white' : 'bg-red-500 text-white'}`}>
+                                        <span className={`text-xs font-bold rounded-full min-w-[18px] h-[18px] inline-flex items-center justify-center px-1 ${selected ? 'bg-white text-blue-700 @min-[940px]:bg-red-500 @min-[940px]:text-white' : 'bg-red-500 text-white'}`}>
                                             {tabBadgeText(tab.count)}
                                         </span>
                                     ) : null}
@@ -2135,7 +2133,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                             );
                         })}
                     </nav>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-white to-transparent md:hidden" aria-hidden="true" />
+                    <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-white to-transparent @min-[940px]:hidden" aria-hidden="true" />
                 </div>
 
                 {activeTab === 'overview' ? (

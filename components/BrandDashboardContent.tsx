@@ -146,6 +146,7 @@ type EditBrandModalProps = {
   lang: 'el' | 'en';
   txt: any;
   onToast: (message: string, tone: 'success' | 'error') => void;
+  focusBio?: boolean;
 };
 
 const t = {
@@ -280,13 +281,19 @@ const t = {
 };
 
 // Edit Brand Modal Component
-function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, onToast }: EditBrandModalProps) {
+function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, onToast, focusBio = false }: EditBrandModalProps) {
   const [brandName, setBrandName] = useState(brand.brand_name || '');
   const [contactPerson, setContactPerson] = useState(brand.contact_person || '');
   const [website, setWebsite] = useState(brand.website || '');
   const [instagram, setInstagram] = useState(brand.instagram || '');
   const [city, setCity] = useState(brand.city || '');
   const [bio, setBio] = useState(brand.bio || '');
+  useEffect(() => {
+    if (!focusBio) return;
+    const field = document.getElementById("brand-bio");
+    field?.scrollIntoView({ block: "nearest" });
+    if (field instanceof HTMLTextAreaElement) field.focus();
+  }, [focusBio]);
   const [categories, setCategories] = useState<string[]>(parseStoredCategories(brand.industry || brand.category || ''));
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(brand.logo_url || null);
@@ -546,6 +553,7 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, onToast }
               {txt.edit_bio}
             </label>
             <textarea
+              id="brand-bio"
               value={bio}
               onChange={(e) => setBio(e.target.value.slice(0, BRAND_BIO_MAX))}
               rows={4}
@@ -762,6 +770,7 @@ export default function BrandDashboardContent() {
     brandData?.contact_email ? { kind: 'brand', brandEmail: brandData.contact_email } : null
   );
   const [showEditModal, setShowEditModal] = useState(false);
+  const [editFocusBio, setEditFocusBio] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [recommendationFilters, setRecommendationFilters] = useState({
     minScore: 40,
@@ -1845,6 +1854,15 @@ export default function BrandDashboardContent() {
             cta: lang === "el" ? "Καμπάνιες" : "Campaigns",
           }
         : null,
+      !(brandData?.bio || "").trim()
+        ? {
+            id: "bio",
+            text: lang === "el" ? "Συμπλήρωσε το bio της επιχείρησής σου ώστε οι creators να ξέρουν ποιοι είστε" : "Add your company bio so creators know who you are.",
+            tab: "overview" as const,
+            cta: lang === "el" ? "Bio" : "Bio",
+            focusBio: true,
+          }
+        : null,
       activeCampaignCount === 0
         ? {
             id: "campaign",
@@ -1885,10 +1903,10 @@ export default function BrandDashboardContent() {
             cta: lang === "el" ? "Αποθήκευση" : "Save",
           }
         : null,
-    ] as Array<{ id: string; text: string; tab: BrandTab; cta: string } | null>
+    ] as Array<{ id: string; text: string; tab: BrandTab; cta: string; focusBio?: boolean } | null>
   )
-    .filter((step): step is { id: string; text: string; tab: BrandTab; cta: string } => step !== null)
-    .slice(0, 4);
+    .filter((step): step is { id: string; text: string; tab: BrandTab; cta: string; focusBio?: boolean } => step !== null)
+    .slice(0, 5);
 
   if (loading || leaving) {
     return (
@@ -1964,7 +1982,7 @@ export default function BrandDashboardContent() {
               </Link>
               <button
                 type="button"
-                onClick={() => setShowEditModal(true)}
+                onClick={() => { setEditFocusBio(false); setShowEditModal(true); }}
                 className="text-xs sm:text-sm font-medium text-blue-600 hover:text-blue-700 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-blue-50 transition-colors border border-blue-200"
               >
                 {txt.edit_profile}
@@ -2009,7 +2027,7 @@ export default function BrandDashboardContent() {
                 <LifeBuoy className="w-4 h-4" aria-hidden="true" />
                 Help Desk
               </Link>
-              <button type="button" onClick={() => { setMenuOpen(false); setShowEditModal(true); }} className="min-h-11 text-left rounded-lg px-3 text-sm font-medium text-blue-700 hover:bg-blue-50">
+              <button type="button" onClick={() => { setMenuOpen(false); setEditFocusBio(false); setShowEditModal(true); }} className="min-h-11 text-left rounded-lg px-3 text-sm font-medium text-blue-700 hover:bg-blue-50">
                 {txt.edit_profile}
               </button>
               <button
@@ -2164,7 +2182,18 @@ export default function BrandDashboardContent() {
                     overviewSteps.map((step) => (
                       <li key={step.id} className="flex items-start justify-between gap-3">
                         <p className="text-sm text-slate-700 leading-relaxed">{step.text}</p>
-                        <button type="button" onClick={() => openBrandTab(step.tab)} className="shrink-0 min-h-11 px-3 text-sm font-medium text-blue-700 hover:bg-blue-50 rounded-lg">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (step.focusBio) {
+                              setEditFocusBio(true);
+                              setShowEditModal(true);
+                              return;
+                            }
+                            openBrandTab(step.tab);
+                          }}
+                          className="shrink-0 min-h-11 px-3 text-sm font-medium text-blue-700 hover:bg-blue-50 rounded-lg"
+                        >
                           {step.cta}
                         </button>
                       </li>
@@ -3087,7 +3116,8 @@ export default function BrandDashboardContent() {
         {showEditModal && brandData && (
           <EditBrandModal
             brand={brandData}
-            onClose={() => setShowEditModal(false)}
+            onClose={() => { setShowEditModal(false); setEditFocusBio(false); }}
+            focusBio={editFocusBio}
             onSave={handleUpdateProfile}
             updating={updating}
             lang={lang}
