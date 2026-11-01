@@ -4,121 +4,186 @@ import { useEffect, useRef, useState } from "react";
 import BrandSignupForm from "@/components/BrandSignupForm";
 import InfluencerSignupForm from "@/components/InfluencerSignupForm";
 
+type Role = "influencer" | "brand";
+
 const COPY = {
   el: {
-    signup_as: "Εγγραφή ως:",
-    influencer: "Είμαι Influencer",
-    brand: "Έχω Επιχείρηση",
+    title: "Εγγραφή",
+    lead: "Διάλεξε πώς θα χρησιμοποιήσεις το Influo.",
+    creatorTitle: "Δημιουργός",
+    creatorKicker: "Creator",
+    creatorPoints: [
+      "Δημόσιο προφίλ στον κατάλογο.",
+      "Προτάσεις συνεργασίας και αιτήσεις σε καμπάνιες.",
+      "Ορίζεις τις τιμές σου. Η πληρωμή γίνεται απευθείας με την επιχείρηση.",
+    ],
+    brandTitle: "Επιχείρηση",
+    brandKicker: "Brand",
+    brandPoints: [
+      "Δωρεάν λογαριασμός.",
+      "Αναζήτηση creators και αποστολή προτάσεων.",
+      "Δημοσίευση καμπανιών. Το Influo δεν παίρνει προμήθεια.",
+    ],
+    continue: "Συνέχεια",
+    back: "Πίσω",
     close: "Κλείσιμο",
+    haveAccount: "Έχεις ήδη λογαριασμό;",
+    signIn: "Σύνδεση",
   },
   en: {
-    signup_as: "Sign up as:",
-    influencer: "I am an Influencer",
-    brand: "I have a Company",
+    title: "Sign up",
+    lead: "Choose how you will use Influo.",
+    creatorTitle: "Creator",
+    creatorKicker: "Δημιουργός",
+    creatorPoints: [
+      "A public profile in the directory.",
+      "Collaboration proposals and applications to campaigns.",
+      "You set your prices. Payment is made directly with the brand.",
+    ],
+    brandTitle: "Brand",
+    brandKicker: "Επιχείρηση",
+    brandPoints: [
+      "A free account.",
+      "Search creators and send proposals.",
+      "Publish campaigns. Influo does not take a commission.",
+    ],
+    continue: "Continue",
+    back: "Back",
     close: "Close",
+    haveAccount: "Already have an account?",
+    signIn: "Sign in",
   },
 } as const;
 
+function RoleCard({
+  kicker,
+  title,
+  points,
+  continueLabel,
+  onChoose,
+}: {
+  kicker: string;
+  title: string;
+  points: readonly string[];
+  continueLabel: string;
+  onChoose: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onChoose}
+      className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition-colors hover:border-slate-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 sm:p-6"
+    >
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{kicker}</p>
+      <h3 className="mt-1 text-xl font-semibold text-slate-900">{title}</h3>
+      <ul className="mt-4 flex-1 space-y-2 text-sm leading-relaxed text-slate-600">
+        {points.map((point) => (
+          <li key={point} className="flex gap-2">
+            <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" aria-hidden />
+            <span>{point}</span>
+          </li>
+        ))}
+      </ul>
+      <span className="mt-6 inline-flex min-h-11 items-center text-sm font-semibold text-slate-900">
+        {continueLabel}
+        <span aria-hidden className="ml-1">→</span>
+      </span>
+    </button>
+  );
+}
+
 /**
- * The homepage header signup popup: brand or creator, then the existing form.
+ * Signup from the header and the login page: choose a role, then the existing form.
  */
 export default function SignupChoiceModal({
   open,
   onClose,
   lang,
-  initialType = "influencer",
+  initialType = null,
 }: {
   open: boolean;
   onClose: () => void;
   lang: "el" | "en";
-  initialType?: "influencer" | "brand";
+  initialType?: Role | null;
 }) {
   const txt = COPY[lang];
-  const [signupType, setSignupType] = useState<"influencer" | "brand">(initialType);
+  const [picked, setPicked] = useState<Role | null>(initialType);
   const wasOpen = useRef(false);
 
   useEffect(() => {
-    if (open && !wasOpen.current) setSignupType(initialType);
+    if (open && !wasOpen.current) setPicked(initialType ?? null);
     wasOpen.current = open;
   }, [open, initialType]);
 
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 p-4 backdrop-blur-md animate-in fade-in duration-200"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 p-3 sm:p-6">
       <div
-        className="relative mx-auto my-4 w-full max-w-5xl animate-in zoom-in duration-300 sm:my-8"
-        onClick={(event) => event.stopPropagation()}
+        className="relative mx-auto my-2 w-full max-w-4xl sm:my-6"
         role="dialog"
         aria-modal="true"
-        aria-label={txt.signup_as}
+        aria-labelledby="signup-choice-title"
       >
-        <div className="mb-5 sm:mb-6">
-          <p className="mb-2 text-sm font-bold tracking-wide text-white sm:text-base">{txt.signup_as}</p>
-          <div
-            role="group"
-            aria-label={txt.signup_as}
-            className="grid grid-cols-2 gap-2 rounded-2xl border-2 border-white bg-slate-950/55 p-2 shadow-xl"
-          >
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 shadow-xl">
+          <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4 sm:px-6">
+            <div>
+              {picked ? (
+                <button
+                  type="button"
+                  onClick={() => setPicked(null)}
+                  className="mb-2 inline-flex min-h-11 items-center text-sm font-medium text-slate-600 hover:text-slate-900"
+                >
+                  ← {txt.back}
+                </button>
+              ) : null}
+              <h2 id="signup-choice-title" className="text-2xl font-semibold tracking-tight text-slate-900">
+                {txt.title}
+              </h2>
+              {picked ? null : <p className="mt-1 text-sm text-slate-600">{txt.lead}</p>}
+            </div>
             <button
               type="button"
-              aria-pressed={signupType === "influencer"}
-              onClick={() => setSignupType("influencer")}
-              className={`flex min-h-[56px] items-center justify-center gap-2 rounded-xl px-2 py-3 text-center text-sm font-bold leading-tight transition-all sm:min-h-[60px] sm:px-4 sm:text-base ${
-                signupType === "influencer"
-                  ? "bg-white text-slate-900 shadow-md ring-2 ring-blue-500"
-                  : "border border-white/80 bg-transparent text-white hover:bg-white/10"
-              }`}
+              onClick={onClose}
+              aria-label={txt.close}
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-200 hover:text-slate-900"
             >
-              {signupType === "influencer" ? (
-                <svg viewBox="0 0 20 20" className="h-5 w-5 shrink-0 text-blue-600" fill="currentColor" aria-hidden>
-                  <path
-                    fillRule="evenodd"
-                    d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.2 7.2a1 1 0 0 1-1.4 0L3.3 9.1a1 1 0 1 1 1.4-1.4l4.1 4.1 6.5-6.5a1 1 0 0 1 1.4 0Z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              ) : null}
-              {txt.influencer}
-            </button>
-            <button
-              type="button"
-              aria-pressed={signupType === "brand"}
-              onClick={() => setSignupType("brand")}
-              className={`flex min-h-[56px] items-center justify-center gap-2 rounded-xl px-2 py-3 text-center text-sm font-bold leading-tight transition-all sm:min-h-[60px] sm:px-4 sm:text-base ${
-                signupType === "brand"
-                  ? "bg-white text-slate-900 shadow-md ring-2 ring-blue-500"
-                  : "border border-white/80 bg-transparent text-white hover:bg-white/10"
-              }`}
-            >
-              {signupType === "brand" ? (
-                <svg viewBox="0 0 20 20" className="h-5 w-5 shrink-0 text-blue-600" fill="currentColor" aria-hidden>
-                  <path
-                    fillRule="evenodd"
-                    d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.2 7.2a1 1 0 0 1-1.4 0L3.3 9.1a1 1 0 1 1 1.4-1.4l4.1 4.1 6.5-6.5a1 1 0 0 1 1.4 0Z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              ) : null}
-              {txt.brand}
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M18 6L6 18" />
+              </svg>
             </button>
           </div>
-        </div>
-        <div className="relative">
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={txt.close}
-            className="absolute right-3 top-3 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-600 shadow-sm transition-colors hover:bg-red-100 hover:text-red-700"
-          >
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M18 6L6 18" />
-            </svg>
-          </button>
-          {signupType === "influencer" ? <InfluencerSignupForm /> : <BrandSignupForm embedded />}
+
+          {picked ? (
+            <div className="p-3 sm:p-5">
+              {picked === "influencer" ? <InfluencerSignupForm /> : <BrandSignupForm embedded />}
+            </div>
+          ) : (
+            <div className="px-5 py-5 sm:px-6 sm:py-6">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <RoleCard
+                  kicker={txt.creatorKicker}
+                  title={txt.creatorTitle}
+                  points={txt.creatorPoints}
+                  continueLabel={txt.continue}
+                  onChoose={() => setPicked("influencer")}
+                />
+                <RoleCard
+                  kicker={txt.brandKicker}
+                  title={txt.brandTitle}
+                  points={txt.brandPoints}
+                  continueLabel={txt.continue}
+                  onChoose={() => setPicked("brand")}
+                />
+              </div>
+              <p className="mt-5 text-center text-sm text-slate-600">
+                {txt.haveAccount}{" "}
+                <a href="/login" className="font-semibold text-slate-900 underline-offset-2 hover:underline">
+                  {txt.signIn}
+                </a>
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
