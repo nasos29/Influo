@@ -173,7 +173,7 @@ const HIDDEN_VIDEO_NOTICE = {
 } as const;
 
 // --- COMPREHENSIVE EDIT MODAL WITH SOCIAL ACCOUNTS ---
-const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection = 'basics' }: { user: InfluencerData, onClose: () => void, onSave: (updatedUser: InfluencerData) => void, lang?: 'el' | 'en', notify: (message: string, tone?: 'success' | 'error' | 'info') => void, initialSection?: EditSection }) => {
+const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection = 'basics', focusSkills = false }: { user: InfluencerData, onClose: () => void, onSave: (updatedUser: InfluencerData) => void, lang?: 'el' | 'en', notify: (message: string, tone?: 'success' | 'error' | 'info') => void, initialSection?: EditSection, focusSkills?: boolean }) => {
     const L = (el: string, en: string) => (lang === 'en' ? en : el);
     const [name, setName] = useState(user.display_name);
     const [bio, setBio] = useState(user.bio || "");
@@ -234,6 +234,10 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
         creatorServicePricesFromStored(user.service_packages, user.rate_card, user.accounts)
     );
     const [section, setSection] = useState<EditSection>(initialSection);
+    useEffect(() => {
+        if (!focusSkills || section !== 'basics') return;
+        document.getElementById('creator-skills')?.scrollIntoView({ block: 'nearest' });
+    }, [focusSkills, section]);
     const [confirmSave, setConfirmSave] = useState(false);
     const [confirmDiscard, setConfirmDiscard] = useState(false);
 
@@ -936,7 +940,9 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                                 emptyFallback="Lifestyle"
                                 compact
                             />
-                            <SkillsPicker lang={lang} selected={selectedSkills} onChange={setSelectedSkills} />
+                            <div id="creator-skills" className="col-span-full w-full">
+                                <SkillsPicker lang={lang} selected={selectedSkills} onChange={setSelectedSkills} />
+                            </div>
                             <div>
                                 <label className="block text-xs font-semibold text-slate-900 mb-1">{L("Φύλο", "Gender")}</label>
                                 <select name="gender" autoComplete="off" value={gender} onChange={e => setGender(normalizeGender(e.target.value))} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900">
@@ -1267,6 +1273,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     const [profile, setProfile] = useState(initialProfile);
     const [showEditModal, setShowEditModal] = useState(false);
     const [editSection, setEditSection] = useState<EditSection>('basics');
+    const [editFocusSkills, setEditFocusSkills] = useState(false);
     const [availabilitySaving, setAvailabilitySaving] = useState(false);
     const [availabilityError, setAvailabilityError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<CreatorTab>('overview');
@@ -1487,8 +1494,9 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
         }
     };
 
-    const openEdit = (section: EditSection) => {
+    const openEdit = (section: EditSection, focusSkills = false) => {
         setEditSection(section);
+        setEditFocusSkills(focusSkills);
         setMenuOpen(false);
         setShowEditModal(true);
     };
@@ -1925,9 +1933,10 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     const ratingValue = typeof profile.avg_rating === 'number' && profile.avg_rating > 0 ? profile.avg_rating : null;
     const profileIncomplete = !(profile.bio || '').trim() || !profile.avatar_url || !(profile.accounts || []).some((account) => String(account.username || '').trim());
     const missingPackages = packagesForSave(profile.service_packages || []).length < 1;
+    const missingSkills = sanitizeSkills(profile.skills).length === 0;
     const missingPortfolio = !(profile.videos || []).some((url) => String(url || '').trim());
     const waitingAgreements = proposals.filter((item) => (item.status === 'accepted' || item.status === 'completed') && !item.influencer_agreement_accepted).length;
-    const overviewSteps = (
+    const overviewStepList = (
         [
             !profile.approved
                 ? { id: 'approval', text: T('Ο λογαριασμός περιμένει έγκριση. Μπορείς να συμπληρώσεις το προφίλ στο μεταξύ.', 'Your account is waiting for approval. You can complete your profile in the meantime.'), tab: 'profile' as const, cta: T('Προφίλ', 'Profile') }
@@ -1937,6 +1946,9 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                 : null,
             missingPackages
                 ? { id: 'packages', text: T('Πρόσθεσε πακέτα με τιμή για να σε βρίσκουν οι επιχειρήσεις.', 'Add priced packages so brands can find you.'), tab: 'profile' as const, cta: T('Πακέτα', 'Packages'), section: 'packages' as const }
+                : null,
+            missingSkills
+                ? { id: 'skills', text: T('Πρόσθεσε τις δεξιότητές σου ώστε να σε βρίσκουν τα brands στα φίλτρα', 'Add your skills so brands can find you in the filters.'), tab: 'profile' as const, cta: T('Δεξιότητες', 'Skills'), section: 'basics' as const }
                 : null,
             missingPortfolio
                 ? { id: 'portfolio', text: T('Πρόσθεσε δείγματα δουλειάς στο portfolio.', 'Add work samples to your portfolio.'), tab: 'profile' as const, cta: T('Portfolio', 'Portfolio'), section: 'portfolio' as const }
@@ -1948,7 +1960,14 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                 ? { id: 'messages', text: T(`Έχεις ${unreadMessagesCount} αδιάβαστα μηνύματα.`, `You have ${unreadMessagesCount} unread messages.`), tab: 'messages' as const, cta: T('Άνοιγμα', 'Open') }
                 : null,
         ] as Array<{ id: string; text: string; tab: CreatorTab; cta: string; section?: EditSection } | null>
-    ).filter((step): step is { id: string; text: string; tab: CreatorTab; cta: string; section?: EditSection } => step !== null).slice(0, 4);
+    ).filter((step): step is { id: string; text: string; tab: CreatorTab; cta: string; section?: EditSection } => step !== null);
+    const urgentStepIds = new Set(['agreements', 'messages']);
+    const urgentSteps = overviewStepList.filter((step) => urgentStepIds.has(step.id));
+    const otherSteps = overviewStepList.filter((step) => !urgentStepIds.has(step.id));
+    const overviewOrder = new Map(overviewStepList.map((step, index) => [step.id, index]));
+    const overviewSteps = [...otherSteps.slice(0, 5), ...urgentSteps].sort(
+        (a, b) => (overviewOrder.get(a.id) ?? 0) - (overviewOrder.get(b.id) ?? 0)
+    );
 
     const announcementsErrorText = announcementsError === 'timeout' ? ui.announcementsTimeout : ui.announcementsError;
     const proposalsErrorText = proposalsError === 'timeout'
@@ -2130,7 +2149,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                             <button
                                                 type="button"
                                                 onClick={() => {
-                                                    if (step.section) openEdit(step.section);
+                                                    if (step.section) openEdit(step.section, step.id === 'skills');
                                                     else openCreatorTab(step.tab);
                                                 }}
                                                 className="shrink-0 min-h-11 px-3 text-sm font-medium text-blue-700 hover:bg-blue-50 rounded-lg"
@@ -2649,6 +2668,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                     lang={lang}
                     notify={notify}
                     initialSection={editSection}
+                    focusSkills={editFocusSkills}
                 />
             )}
 
