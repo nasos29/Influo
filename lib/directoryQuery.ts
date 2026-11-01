@@ -16,6 +16,9 @@ import {
 } from "@/lib/publicInfluencer";
 import { isAvailableStatus } from "@/lib/trustSignals";
 import { sanitizeSkills } from "@/lib/skills";
+import { searchFold } from "@/lib/searchFold";
+import { packagesForViewer } from "@/lib/servicePackages";
+import { listedPriceMin } from "@/lib/parsePrice";
 
 export const DIRECTORY_PAGE_SIZE = 40;
 
@@ -46,6 +49,10 @@ export type DirectoryFilters = {
   engagement: string;
   language: string;
   skills: string[];
+  /** Package type such as reel, or "All". */
+  packageType: string;
+  /** Maximum package price in euros. Empty means no cap. */
+  maxPackagePrice: string;
   rating: string;
   ageMin: string;
   ageMax: string;
@@ -64,6 +71,8 @@ export const DEFAULT_DIRECTORY_FILTERS: DirectoryFilters = {
   engagement: "All",
   language: "All",
   skills: [],
+  packageType: "All",
+  maxPackagePrice: "",
   rating: "All",
   ageMin: "",
   ageMax: "",
@@ -87,6 +96,8 @@ export type DirectoryCandidate = {
   avg_rating: number;
   total_reviews: number;
   past_brands: string[] | number;
+  slug?: string;
+  offers?: { type: string; price: number }[];
   created_at?: string;
   age: number | null;
   availability_status?: string | null;
@@ -115,6 +126,16 @@ export function directoryEngagement(rate?: string | Record<string, string> | nul
     return parseFloat(rate.replace("%", "").replace(",", ".")) || 0;
   }
   return 0;
+}
+
+function packageOffers(row: Record<string, unknown>): { type: string; price: number }[] {
+  try {
+    return packagesForViewer(row.service_packages, row.rate_card, row.accounts)
+      .map((pkg) => ({ type: pkg.type, price: listedPriceMin(pkg.price) ?? 0 }))
+      .filter((pkg) => pkg.type && pkg.price > 0);
+  } catch {
+    return [];
+  }
 }
 
 function asLanguages(value: unknown): string[] {
@@ -202,6 +223,8 @@ export function directoryCandidateFromRow(
     total_reviews: typeof row.total_reviews === "number" ? row.total_reviews : Number(row.total_reviews) || 0,
     past_brands: pastBrands,
     created_at: created,
+    slug: typeof row.profile_slug === "string" ? row.profile_slug : "",
+    offers: packageOffers(row),
     age: ageFromBirthDate(row.birth_date),
     availability_status: typeof row.availability_status === "string" ? row.availability_status : null,
     verified: !!row.analytics_verified,
@@ -267,17 +290,44 @@ function badgeTypes(candidate: DirectoryCandidate, now = Date.now()): BadgeType[
   ).map((badge) => badge.type);
 }
 
+function categorySelectionMatches(stored: string[], filter: string): boolean {
+  if (!filter || filter === "All" || filter === "all") return true;
+  const parts = filter.split(",").map((part) => part.trim()).filter(Boolean);
+  if (!parts.length) return true;
+  return parts.some((part) => categoriesMatchFilter(stored, part));
+}
+
+function packagePriceMatches(
+  offers: { type: string; price: number }[] | undefined,
+  filters: DirectoryFilters
+): boolean {
+  const type = filters.packageType && filters.packageType !== "All" ? filters.packageType : "";
+  const cap = Number(filters.maxPackagePrice);
+  const hasCap = Number.isFinite(cap) && cap > 0;
+  if (!type && !hasCap) return true;
+  const rows = offers || [];
+  return rows.some((offer) => {
+    if (type && offer.type !== type) return false;
+    if (hasCap && offer.price > cap) return false;
+    return true;
+  });
+}
+
 export function matchesDirectoryFilters(
   candidate: DirectoryCandidate,
   filters: DirectoryFilters,
   now = Date.now()
 ): boolean {
-  const q = filters.q.trim().toLowerCase();
-  const searchMatch = !q || candidate.name.toLowerCase().includes(q) || candidate.bio.toLowerCase().includes(q);
+  const q = searchFold(filters.q);
+  const hay = searchFold(
+    [candidate.name, candidate.slug, candidate.bio, ...Object.values(candidate.socials || {})].filter(Boolean).join(" ")
+  );
+  const searchMatch = !q || hay.includes(q);
+  const categoryMatch = categorySelectionMatches(candidate.categories, filters.category);
+  const packageMatch = packagePriceMatches(candidate.offers, filters);
   const locationMatch = locationFilterMatches(candidate.location, filters.location);
   const platformMatch =
     filters.platform === "All" || candidate.socials[filters.platform.toLowerCase()] !== undefined;
-  const categoryMatch = categoriesMatchFilter(candidate.categories, filters.category);
   const genderMatch = filters.gender === "All" || candidate.gender === filters.gender;
 
   let followerMatch = true;
@@ -324,6 +374,7 @@ export function matchesDirectoryFilters(
     locationMatch &&
     platformMatch &&
     categoryMatch &&
+    packageMatch &&
     genderMatch &&
     followerMatch &&
     budgetMatch &&
@@ -341,6 +392,8 @@ export function matchesDirectoryFilters(
 export function directoryFiltersAreSqlOnly(filters: DirectoryFilters): boolean {
   return (
     !filters.q.trim() &&
+    filters.packageType === "All" &&
+    !filters.maxPackagePrice.trim() &&
     !filters.location.trim() &&
     filters.platform === "All" &&
     filters.category === "All" &&
@@ -381,6 +434,8 @@ export function parseDirectoryFilters(params: URLSearchParams): DirectoryFilters
     engagement: params.get("engagement") || "All",
     language: params.get("language") || "All",
     skills: sanitizeSkills((params.get("skills") || "").split(",")),
+    packageType: params.get("pkg") || "All",
+    maxPackagePrice: (params.get("maxPrice") || "").trim(),
     rating: params.get("rating") || "All",
     ageMin: params.get("ageMin") || "",
     ageMax: params.get("ageMax") || "",

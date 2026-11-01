@@ -12,6 +12,7 @@ import { trustChipsFromAccounts } from "@/lib/trustSignals";
 import { publicProfilePath } from "@/lib/profileSlug";
 import { CATEGORIES, categoryTranslations, parseStoredCategories } from "@/lib/categories";
 import { formatEuro } from "@/lib/formatEuro";
+import { parseDirectoryPhrase } from "@/lib/directoryPhrase";
 import {
   badgeMinRateFromTier,
   DIRECTORY_BUDGET_CAPS,
@@ -411,6 +412,7 @@ export default function Directory({
   initialTotal = 0,
   homeLimit,
   onDisplayedIdsChange,
+  preset,
 }: {
   lang?: "el" | "en";
   initialInfluencers?: Influencer[];
@@ -419,6 +421,8 @@ export default function Directory({
   homeLimit?: number;
   /** Fired when the visible preview card ids change (home preview). */
   onDisplayedIdsChange?: (ids: string[]) => void;
+  /** Landing page filters. The browser URL stays the landing path. */
+  preset?: { skills?: string[]; location?: string; platform?: string; category?: string };
 }) {
   const [influencers, setInfluencers] = useState<Influencer[]>(initialInfluencers);
   const [total, setTotal] = useState(initialTotal);
@@ -430,11 +434,14 @@ export default function Directory({
   const skipPageResetRef = useRef(true);
   const isHomePreview = typeof homeLimit === "number" && homeLimit > 0;
 
-  const [searchQuery, setSearchQuery] = useState(() => (searchParams.get("q") || "").trim());
-  const [locationQuery, setLocationQuery] = useState("");
-  const [platformFilter, setPlatformFilter] = useState("All");
+  const [searchQuery, setSearchQuery] = useState(() => (preset ? "" : (searchParams.get("q") || "").trim()));
+  const [locationQuery, setLocationQuery] = useState(preset?.location || "");
+  const [platformFilter, setPlatformFilter] = useState(preset?.platform || "All");
+  const [packageType, setPackageType] = useState("All");
+  const [maxPackagePrice, setMaxPackagePrice] = useState("");
+  const [relaxedMax, setRelaxedMax] = useState<number | null>(null);
   const [categoryFilter, setCategoryFilter] = useState(() =>
-    categoryFromSearchParam(searchParams.get("category"))
+    preset?.category || categoryFromSearchParam(searchParams.get("category"))
   );
   const [genderFilter, setGenderFilter] = useState("All");
   // Always start closed for SSR; open on lg+ after mount (except home preview).
@@ -445,7 +452,7 @@ export default function Directory({
   const [budgetMax, setBudgetMax] = useState("All");
   const [minEngagement, setMinEngagement] = useState("All");
   const [languageFilter, setLanguageFilter] = useState(() => languagesFromSearchParam(searchParams.get("language")));
-  const [skillFilter, setSkillFilter] = useState(() => skillsFromSearchParam(searchParams.get("skills")));
+  const [skillFilter, setSkillFilter] = useState(() => preset?.skills || skillsFromSearchParam(searchParams.get("skills")));
   const [minRating, setMinRating] = useState("All");
   const [ageMin, setAgeMin] = useState("");
   const [ageMax, setAgeMax] = useState("");
@@ -504,6 +511,8 @@ export default function Directory({
     if (minEngagement !== "All") params.set("engagement", minEngagement);
     if (languageFilter.length) params.set("language", languageFilter.join(","));
     if (skillFilter.length) params.set("skills", skillFilter.join(","));
+    if (packageType !== "All") params.set("pkg", packageType);
+    if (maxPackagePrice.trim()) params.set("maxPrice", maxPackagePrice.trim());
     if (minRating !== "All") params.set("rating", minRating);
     if (ageMin.trim()) params.set("ageMin", ageMin.trim());
     if (ageMax.trim()) params.set("ageMax", ageMax.trim());
@@ -521,6 +530,7 @@ export default function Directory({
         if (!response.ok || result.error) {
           setInfluencers([]);
           setTotal(0);
+          setRelaxedMax(null);
           return;
         }
         const data = result.data || [];
@@ -595,11 +605,13 @@ export default function Directory({
         if (!isMountedRef.current) return;
         setInfluencers(realInfluencers);
         setTotal(typeof result.total === "number" ? result.total : realInfluencers.length);
+        setRelaxedMax(typeof result.relaxedMax === "number" ? result.relaxedMax : null);
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") return;
         if (isMountedRef.current) {
           setInfluencers([]);
           setTotal(0);
+          setRelaxedMax(null);
         }
       } finally {
         if (isMountedRef.current && !controller.signal.aborted) setLoading(false);
@@ -624,6 +636,8 @@ export default function Directory({
     minEngagement,
     languageFilter,
     skillFilter,
+    packageType,
+    maxPackagePrice,
     minRating,
     ageMin,
     ageMax,
@@ -634,6 +648,7 @@ export default function Directory({
 
   const replaceUrlParams = useCallback(
     (mutate: (params: URLSearchParams) => void) => {
+      if (preset) return;
       const params = new URLSearchParams(searchParams.toString());
       mutate(params);
       const qs = params.toString();
@@ -644,7 +659,7 @@ export default function Directory({
         router.replace(next, { scroll: false });
       }
     },
-    [pathname, router, searchParams]
+    [pathname, preset, router, searchParams]
   );
 
   const setCategoryFilterAndUrl = useCallback(
@@ -677,6 +692,7 @@ export default function Directory({
 
   // Keep category + page in sync with shared URL / browser back.
   useEffect(() => {
+    if (preset) return;
     const fromUrlCat = categoryFromSearchParam(searchParams.get("category"));
     setCategoryFilter((prev) => (prev === fromUrlCat ? prev : fromUrlCat));
     const fromUrlPage = pageFromSearchParam(searchParams.get("page"));
@@ -687,7 +703,15 @@ export default function Directory({
     setSkillFilter((prev) => (sameList(prev, fromSkill) ? prev : fromSkill));
     const fromLanguage = languagesFromSearchParam(searchParams.get("language"));
     setLanguageFilter((prev) => (sameList(prev, fromLanguage) ? prev : fromLanguage));
-  }, [searchParams]);
+    const fromLocation = (searchParams.get("location") || "").trim();
+    setLocationQuery((prev) => (prev === fromLocation ? prev : fromLocation));
+    const fromPlatform = searchParams.get("platform") || "All";
+    setPlatformFilter((prev) => (prev === fromPlatform ? prev : fromPlatform));
+    const fromPkg = searchParams.get("pkg") || "All";
+    setPackageType((prev) => (prev === fromPkg ? prev : fromPkg));
+    const fromMax = (searchParams.get("maxPrice") || "").trim();
+    setMaxPackagePrice((prev) => (prev === fromMax ? prev : fromMax));
+  }, [preset, searchParams]);
 
   const clearFilters = () => {
     setSearchQuery("");
@@ -700,6 +724,8 @@ export default function Directory({
     setMinEngagement("All");
     setLanguageFilter([]);
     setSkillFilter([]);
+    setPackageType("All");
+    setMaxPackagePrice("");
     setMinRating("All");
     setAgeMin("");
     setAgeMax("");
@@ -711,6 +737,8 @@ export default function Directory({
       params.delete("category");
       params.delete("language");
       params.delete("skills");
+      params.delete("pkg");
+      params.delete("maxPrice");
       params.delete("page");
     });
   };
@@ -740,12 +768,33 @@ export default function Directory({
       });
     }
     if (categoryFilter !== "All") {
+      const parts = categoryFilter.split(",").map((part) => part.trim()).filter(Boolean);
       chips.push({
         id: "category",
-        label: categoryTranslations[categoryFilter]
-          ? categoryTranslations[categoryFilter][lang]
-          : categoryFilter,
+        label: parts.map((part) => (categoryTranslations[part] ? categoryTranslations[part][lang] : part)).join(", "),
         clear: () => setCategoryFilterAndUrl("All"),
+      });
+    }
+    if (packageType !== "All" || maxPackagePrice.trim()) {
+      const cap = Number(maxPackagePrice);
+      chips.push({
+        id: "package",
+        label:
+          packageType !== "All" && Number.isFinite(cap) && cap > 0
+            ? `${packageType} ${txt.budUpTo} ${formatEuro(cap, lang)}`
+            : packageType !== "All"
+              ? packageType
+              : `${txt.budUpTo} ${formatEuro(cap, lang)}`,
+        clear: () => {
+          setPackageType("All");
+          setMaxPackagePrice("");
+          setPage(1);
+          replaceUrlParams((params) => {
+            params.delete("pkg");
+            params.delete("maxPrice");
+            params.delete("page");
+          });
+        },
       });
     }
     const loc = locationQuery.trim();
@@ -886,6 +935,8 @@ export default function Directory({
     minEngagement,
     languageFilter,
     skillFilter,
+    packageType,
+    maxPackagePrice,
     minRating,
     badgeFilter,
     ageMin,
@@ -919,6 +970,8 @@ export default function Directory({
     minEngagement,
     languageFilter,
     skillFilter,
+    packageType,
+    maxPackagePrice,
     minRating,
     ageMin,
     ageMax,
@@ -975,7 +1028,39 @@ export default function Directory({
               type="text"
               placeholder={txt.searchPlace}
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                const parsed = parseDirectoryPhrase(e.target.value);
+                setSearchQuery(parsed.remainder);
+                if (parsed.skill) {
+                  setSkillFilter((prev) => (prev.includes(parsed.skill!) ? prev : [...prev, parsed.skill!]));
+                }
+                if (parsed.categories.length) setCategoryFilter(parsed.categories.join(","));
+                if (parsed.location) setLocationQuery(parsed.location);
+                if (parsed.platform) setPlatformFilter(parsed.platform);
+                if (parsed.language) {
+                  setLanguageFilter((prev) => (prev.includes(parsed.language!) ? prev : [...prev, parsed.language!]));
+                }
+                if (parsed.packageType) setPackageType(parsed.packageType);
+                if (parsed.maxPrice != null) setMaxPackagePrice(String(parsed.maxPrice));
+                replaceUrlParams((params) => {
+                  if (parsed.remainder.trim()) params.set("q", parsed.remainder.trim());
+                  else params.delete("q");
+                  if (parsed.skill) {
+                    const next = new Set([...(params.get("skills") || "").split(",").filter(Boolean), parsed.skill]);
+                    params.set("skills", [...next].join(","));
+                  }
+                  if (parsed.categories.length) params.set("category", parsed.categories.join(","));
+                  if (parsed.location) params.set("location", parsed.location);
+                  if (parsed.platform) params.set("platform", parsed.platform);
+                  if (parsed.language) {
+                    const next = new Set([...(params.get("language") || "").split(",").filter(Boolean), parsed.language]);
+                    params.set("language", [...next].join(","));
+                  }
+                  if (parsed.packageType) params.set("pkg", parsed.packageType);
+                  if (parsed.maxPrice != null) params.set("maxPrice", String(parsed.maxPrice));
+                  params.delete("page");
+                });
+              }}
               className={pillInput}
               aria-label={txt.searchPlace}
             />
@@ -998,12 +1083,17 @@ export default function Directory({
 
             <div className="min-w-0 sm:min-w-[120px] sm:flex-none sm:w-48">
               <select
-                value={categoryFilter}
+                value={(CATEGORIES as readonly string[]).includes(categoryFilter) ? categoryFilter : categoryFilter === "All" ? "All" : categoryFilter}
                 onChange={(e) => setCategoryFilterAndUrl(e.target.value)}
                 className={pillSelect}
                 aria-label={txt.catAll}
               >
                 <option value="All">{txt.catAll}</option>
+                {categoryFilter !== "All" && !(CATEGORIES as readonly string[]).includes(categoryFilter) ? (
+                  <option value={categoryFilter}>
+                    {categoryFilter.split(",").map((part) => categoryTranslations[part.trim()]?.[lang] || part.trim()).join(", ")}
+                  </option>
+                ) : null}
                 {CATEGORIES.map((cat) => (
                   <option key={cat} value={cat}>
                     {categoryTranslations[cat] ? categoryTranslations[cat][lang] : cat}
@@ -1281,6 +1371,14 @@ export default function Directory({
           </div>
         </div>
       </div>
+
+      {relaxedMax != null && maxPackagePrice.trim() ? (
+        <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          {lang === "el"
+            ? `Δεν βρέθηκε ακριβώς έως ${formatEuro(Number(maxPackagePrice), "el")}. Δείχνουμε σχετικά, έως ${formatEuro(relaxedMax, "el")}.`
+            : `Nothing matched up to ${formatEuro(Number(maxPackagePrice), "en")}. Showing close matches up to ${formatEuro(relaxedMax, "en")}.`}
+        </p>
+      ) : null}
 
       {loading ? (
         <div className={cardGridClass}>

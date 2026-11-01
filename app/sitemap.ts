@@ -2,6 +2,8 @@ import { MetadataRoute } from 'next'
 import { createClient } from '@supabase/supabase-js'
 import { initialBlogPosts } from '@/lib/blogPosts'
 import { SITE_URL } from '@/lib/site'
+import { DIRECTORY_LANDINGS } from '@/lib/directoryLandings'
+import { countDirectoryMatches } from '@/lib/directoryPage'
 
 // Revalidate sitemap every day (24 hours)
 export const revalidate = 86400
@@ -238,8 +240,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Continue without influencer pages if there's an error
   }
 
+  const landingPages: MetadataRoute.Sitemap = []
+  for (const landing of DIRECTORY_LANDINGS) {
+    try {
+      const count = await countDirectoryMatches(landing.filters)
+      if (count >= 3) {
+        landingPages.push({
+          url: `${baseUrl}/influencers/${landing.slug}`,
+          lastModified: currentDate,
+          changeFrequency: 'daily',
+          priority: 0.8,
+        })
+      }
+    } catch (error: any) {
+      console.error('Sitemap: landing count failed', landing.slug, error?.message || error)
+    }
+  }
+
   // Combine all pages
-  const allPages = [...staticPages, ...influencerPages]
+  const allPages = [...staticPages, ...influencerPages, ...landingPages]
   console.log(`Sitemap: Returning ${allPages.length} total pages (${staticPages.length} static + ${influencerPages.length} dynamic)`)
   
   return allPages
