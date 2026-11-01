@@ -18,8 +18,7 @@ import {
 import { resolveCompletionRate } from "@/lib/completionRate";
 import { displayLocation } from "@/lib/displayLocation";
 import LocationTypeahead from "@/components/LocationTypeahead";
-import SkillsPicker from "@/components/SkillsPicker";
-import { sanitizeSkills, skillLabel } from "@/lib/skills";
+import { SKILLS, sanitizeSkills, skillLabel } from "@/lib/skills";
 
 const CATEGORY_KEYS = new Set<string>(CATEGORIES);
 const PAGE_SIZE = 40;
@@ -27,6 +26,10 @@ const PAGE_SIZE = 40;
 function categoryFromSearchParam(raw: string | null): string {
   if (!raw) return "All";
   return CATEGORY_KEYS.has(raw) ? raw : "All";
+}
+
+function skillFromSearchParam(raw: string | null): string {
+  return sanitizeSkills((raw || "").split(","))[0] || "All";
 }
 
 function pageFromSearchParam(raw: string | null): number {
@@ -123,6 +126,7 @@ const t = {
     fieldEngagement: "Engagement",
     fieldLanguage: "Γλώσσα",
     fieldSkills: "Δεξιότητες",
+    skillsAll: "Όλες",
     fieldRating: "Αξιολόγηση",
     fieldBadges: "Badges",
     fieldAge: "Ηλικία",
@@ -176,6 +180,7 @@ const t = {
     fieldEngagement: "Engagement",
     fieldLanguage: "Language",
     fieldSkills: "Skills",
+    skillsAll: "All",
     fieldRating: "Rating",
     fieldBadges: "Badges",
     fieldAge: "Age",
@@ -312,7 +317,7 @@ export default function Directory({
   const [budgetMax, setBudgetMax] = useState("All");
   const [minEngagement, setMinEngagement] = useState("All");
   const [languageFilter, setLanguageFilter] = useState("All");
-  const [skillsFilter, setSkillsFilter] = useState(() => sanitizeSkills((searchParams.get("skills") || "").split(",")));
+  const [skillFilter, setSkillFilter] = useState(() => skillFromSearchParam(searchParams.get("skills")));
   const [minRating, setMinRating] = useState("All");
   const [ageMin, setAgeMin] = useState("");
   const [ageMax, setAgeMax] = useState("");
@@ -349,7 +354,7 @@ export default function Directory({
       budgetMax === "All" &&
       minEngagement === "All" &&
       languageFilter === "All" &&
-      skillsFilter.length === 0 &&
+      skillFilter === "All" &&
       minRating === "All" &&
       !ageMin.trim() &&
       !ageMax.trim() &&
@@ -370,7 +375,7 @@ export default function Directory({
     if (budgetMax !== "All") params.set("budget", budgetMax);
     if (minEngagement !== "All") params.set("engagement", minEngagement);
     if (languageFilter !== "All") params.set("language", languageFilter);
-    if (skillsFilter.length) params.set("skills", skillsFilter.join(","));
+    if (skillFilter !== "All") params.set("skills", skillFilter);
     if (minRating !== "All") params.set("rating", minRating);
     if (ageMin.trim()) params.set("ageMin", ageMin.trim());
     if (ageMax.trim()) params.set("ageMax", ageMax.trim());
@@ -490,7 +495,7 @@ export default function Directory({
     budgetMax,
     minEngagement,
     languageFilter,
-    skillsFilter,
+    skillFilter,
     minRating,
     ageMin,
     ageMax,
@@ -550,8 +555,8 @@ export default function Directory({
     setPage((prev) => (prev === fromUrlPage ? prev : fromUrlPage));
     const fromUrlQuery = (searchParams.get("q") || "").trim();
     setSearchQuery((prev) => (prev === fromUrlQuery ? prev : fromUrlQuery));
-    const fromSkills = sanitizeSkills((searchParams.get("skills") || "").split(","));
-    setSkillsFilter((prev) => (prev.join(",") === fromSkills.join(",") ? prev : fromSkills));
+    const fromSkill = skillFromSearchParam(searchParams.get("skills"));
+    setSkillFilter((prev) => (prev === fromSkill ? prev : fromSkill));
   }, [searchParams]);
 
   const clearFilters = () => {
@@ -564,7 +569,7 @@ export default function Directory({
     setBudgetMax("All");
     setMinEngagement("All");
     setLanguageFilter("All");
-    setSkillsFilter([]);
+    setSkillFilter("All");
     setMinRating("All");
     setAgeMin("");
     setAgeMax("");
@@ -660,18 +665,16 @@ export default function Directory({
         clear: () => setLanguageFilter("All"),
       });
     }
-    for (const key of skillsFilter) {
+    if (skillFilter !== "All") {
       extra += 1;
       chips.push({
-        id: `skill-${key}`,
-        label: skillLabel(key, lang) || key,
+        id: "skill",
+        label: skillLabel(skillFilter, lang) || skillFilter,
         clear: () => {
-          const next = skillsFilter.filter((item) => item !== key);
-          setSkillsFilter(next);
+          setSkillFilter("All");
           setPage(1);
           replaceUrlParams((params) => {
-            if (!next.length) params.delete("skills");
-            else params.set("skills", next.join(","));
+            params.delete("skills");
             params.delete("page");
           });
         },
@@ -740,7 +743,7 @@ export default function Directory({
     budgetMax,
     minEngagement,
     languageFilter,
-    skillsFilter,
+    skillFilter,
     minRating,
     badgeFilter,
     ageMin,
@@ -773,7 +776,7 @@ export default function Directory({
     budgetMax,
     minEngagement,
     languageFilter,
-    skillsFilter,
+    skillFilter,
     minRating,
     ageMin,
     ageMax,
@@ -1000,22 +1003,29 @@ export default function Directory({
                   </select>
                 </div>
 
-                <div className="col-span-2 md:col-span-3 lg:col-span-4">
-                  <SkillsPicker
-                    lang={lang}
-                    selected={skillsFilter}
-                    onChange={(next) => {
-                      setSkillsFilter(next);
+                <div>
+                  <label className={fieldLabel}>{txt.fieldSkills}</label>
+                  <select
+                    value={skillFilter}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setSkillFilter(value);
                       setPage(1);
                       replaceUrlParams((params) => {
-                        if (!next.length) params.delete("skills");
-                        else params.set("skills", next.join(","));
+                        if (!value || value === "All") params.delete("skills");
+                        else params.set("skills", value);
                         params.delete("page");
                       });
                     }}
-                    label={txt.fieldSkills}
-                    description={lang === "el" ? "Ο creator πρέπει να έχει όλες τις επιλεγμένες." : "The creator must have every selected skill."}
-                  />
+                    className={pillSelect}
+                  >
+                    <option value="All">{txt.skillsAll}</option>
+                    {SKILLS.map((key) => (
+                      <option key={key} value={key}>
+                        {skillLabel(key, lang)}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
