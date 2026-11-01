@@ -575,7 +575,8 @@ function pastBrandNames(value: InfluencerProfile["past_brands"]): string[] {
 }
 
 /**
- * Up to three reasons that are true for this brand. No audit prose and no filler.
+ * Exactly three reasons when at least three facts match this brand.
+ * Fewer only when there are not three true facts. No audit prose and no filler.
  */
 export function buildMatchReasons(
   brand: BrandProfile,
