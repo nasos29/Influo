@@ -104,6 +104,30 @@ test("influencer για barber shop maps to beauty, fashion and lifestyle", () =
   assert.equal(matchesDirectoryFilters(person({ categories: ["Tech & Gadgets"], skills: [] }), filters), false);
 });
 
+test("creator gia kafe and δημιουργός για καφέ filter to food", () => {
+  for (const phrase of ["creator gia kafe", "δημιουργός για καφέ"]) {
+    const parsed = parseDirectoryPhrase(phrase);
+    assert.ok(parsed.categories.includes("Food & Drink"), phrase);
+    assert.equal(parsed.remainder, "", phrase);
+    const filters = {
+      ...DEFAULT_DIRECTORY_FILTERS,
+      category: parsed.categories.join(","),
+      q: parsed.remainder,
+      availability: "all" as const,
+    };
+    assert.equal(
+      matchesDirectoryFilters(person({ categories: ["Food & Drink"], skills: [] }), filters),
+      true,
+      phrase
+    );
+    assert.equal(
+      matchesDirectoryFilters(person({ categories: ["Tech & Gadgets"], skills: [] }), filters),
+      false,
+      phrase
+    );
+  }
+});
+
 test("store phrases map in greek, english, greeklish and without accents", () => {
   for (const shop of directoryShopExamples()) {
     const greek = parseDirectoryPhrase(`δημιουργός για ${shop.el}`);

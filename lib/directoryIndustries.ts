@@ -76,7 +76,7 @@ export const DIRECTORY_INDUSTRIES: DirectoryIndustry[] = [
   {
     phrases: [
       "ζαχαροπλαστείο", "ζαχαροπλαστεία", "pastry", "pastry shop", "patisserie",
-      "cupcake", "donut", "doughnut", "ζαχαρωτά",
+      "cupcake", "donut", "doughnut", "cake shop", "ζαχαρωτά",
     ],
     categories: [...foodLife],
     el: "ζαχαροπλαστείο",
@@ -124,7 +124,7 @@ export const DIRECTORY_INDUSTRIES: DirectoryIndustry[] = [
   {
     phrases: [
       "barber shop", "barbershop", "barber", "barbers", "κουρείο", "κουρεία", "κουρέας",
-      "barberiko", "mens hair", "men hair",
+      "barberiko", "mens hair", "men hair", "grooming",
     ],
     categories: [...beautyFashion],
     el: "κουρείο",
@@ -132,7 +132,7 @@ export const DIRECTORY_INDUSTRIES: DirectoryIndustry[] = [
   },
   {
     phrases: [
-      "nail salon", "nail bar", "nails", "nail", "μανικιούρ", "πεντικιούρ",
+      "nail salon", "nails salon", "nail bar", "nails", "nail", "μανικιούρ", "πεντικιούρ",
       "manicure", "pedicure",
     ],
     categories: [...beautyLife],
@@ -158,6 +158,7 @@ export const DIRECTORY_INDUSTRIES: DirectoryIndustry[] = [
     phrases: [
       "e-shop καλλυντικών", "eshop καλλυντικών", "e shop καλλυντικών",
       "κατάστημα καλλυντικών", "καλλυντικά", "cosmetics", "cosmetic store",
+      "cosmetics shop", "cosmetics e-shop",
       "beauty shop", "perfume", "perfumery", "αρώματα", "αρωματοπωλείο",
     ],
     categories: [...beautyLife],
@@ -239,7 +240,7 @@ export const DIRECTORY_INDUSTRIES: DirectoryIndustry[] = [
   },
   {
     phrases: [
-      "κατάστημα ρούχων", "ρούχα", "ρουχα", "clothing store", "clothing", "clothes",
+      "κατάστημα ρούχων", "ρούχα", "ρουχα", "clothing store", "clothes shop", "clothing", "clothes",
       "fashion store", "boutique", "apparel", "ένδυση",
     ],
     categories: [...fashionLife],
