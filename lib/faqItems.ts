@@ -111,8 +111,8 @@ export const faqs: FAQItem[] = [
       en: "What is the Smart Recommendation Service (AI Recommendations)?"
     },
     answer: {
-      el: "Το AI μας αναλύει το brand σας (industry, προτιμήσεις) και προτείνει αυτόματα τους καλύτερους influencers. Κάθε πρόταση έχει match score (0-100%), προσωποποιημένες αιτιολογίες (γιατί ταιριάζει), και μπορείτε να χρησιμοποιήσετε advanced filters (budget, engagement, rating, κατηγορία). Η υπηρεσία είναι 100% ΔΩΡΕΑΝ για όλες τις εγγεγραμμένες επιχειρήσεις!",
-      en: "Our AI analyzes your brand (industry, preferences) and automatically suggests the best influencers. Each recommendation has a match score (0-100%), personalized reasons (why it matches), and you can use advanced filters (budget, engagement, rating, category). The service is 100% FREE for all registered businesses!"
+      el: "Το AI μας αναλύει το brand σας (κλάδο, προτιμήσεις) και προτείνει αυτόματα influencers. Κάθε πρόταση έχει βαθμό ταιριάσματος και συγκεκριμένους λόγους. Μπορείτε να περιορίσετε τη λίστα με κατηγορία, πλατφόρμα, περιοχή, μέγιστη τιμή, δεξιότητες και μέγεθος κοινού. Η υπηρεσία είναι δωρεάν για όλες τις εγγεγραμμένες επιχειρήσεις.",
+      en: "Our AI analyzes your brand (industry, preferences) and suggests influencers. Each recommendation has a match score and specific reasons. You can narrow the list by category, platform, area, max price, skills, and audience size. The service is free for every registered business."
     }
   },
   {
@@ -133,8 +133,8 @@ export const faqs: FAQItem[] = [
       en: "Can I filter the recommendations?"
     },
     answer: {
-      el: "Ναι! Μπορείτε να φιλτράρετε με: Ελάχιστο Match Score, Μέγιστη Τιμή (€), Κατηγορία, Ελάχιστο Engagement Rate (%), και Ελάχιστο Rating. Υπάρχει επίσης κουμπί ανανέωσης για να λάβετε νέες προτάσεις και stats που δείχνουν πόσες προτάσεις είδατε, πόσα προφίλ επισκεφτήκατε, και πόσες προσφορές στείλατε.",
-      en: "Yes! You can filter by: Minimum Match Score, Maximum Price (€), Category, Minimum Engagement Rate (%), and Minimum Rating. There's also a refresh button to get new recommendations and stats showing how many recommendations you viewed, profiles you visited, and proposals you sent."
+      el: "Ναι. Στο tab Προτάσεις μπορείτε να φιλτράρετε με κατηγορία, πλατφόρμα, περιοχή, μέγιστη τιμή πακέτου, δεξιότητες και μέγεθος κοινού. Το «Καθαρισμός φίλτρων» τα επαναφέρει. Υπάρχει και ανανέωση της λίστας.",
+      en: "Yes. On the Recommendations tab you can filter by category, platform, area, maximum package price, skills, and audience size. Clear filters resets them. You can also refresh the list."
     }
   },
   {

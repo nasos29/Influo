@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { sessionFetch } from '@/lib/sessionFetch';
 import { formatEuroAmount } from '@/lib/formatEuro';
@@ -9,6 +9,13 @@ import Link from 'next/link';
 import Image from 'next/image';
 import InfluoLogo from '@/components/InfluoLogo';
 import { recommendInfluencers, sharedCategoryKeys, type InfluencerProfile, type BrandProfile, type BrandCampaignHint } from '@/lib/recommendations';
+import {
+  EMPTY_RECOMMENDATION_FILTERS,
+  RECOMMENDATION_MIN_SCORE,
+  filterRecommendationProfiles,
+} from '@/lib/recommendationFilters';
+import SkillMultiSelect from '@/components/SkillMultiSelect';
+import LocationTypeahead from '@/components/LocationTypeahead';
 import { sanitizeSkills } from '@/lib/skills';
 import { lookupAuthUser, logoutEverywhere } from '@/lib/authSession';
 import CreatorPhoto from '@/components/CreatorPhoto';
@@ -33,7 +40,7 @@ import { loadOwnProfiles } from '@/lib/ownProfile';
 import { getApprovedInfluencersForRecommendations } from '@/lib/approvedInfluencersListCache';
 import { readSessionAvatar, writeSessionAvatar } from '@/lib/sessionAvatarCache';
 import { publicProfilePath } from '@/lib/profileSlug';
-import { CATEGORIES, categoriesMatchFilter, categoryLabel, formatStoredCategories, parseStoredCategories } from "@/lib/categories";
+import { CATEGORIES, categoryLabel, formatStoredCategories, parseStoredCategories } from "@/lib/categories";
 import { formatFromPriceLabel, lowestListedPrice } from "@/lib/publicInfluencer";
 import CategoryCheckboxList from "@/components/CategoryCheckboxList";
 import { parseHttpsUrl } from "@/lib/brandProfile";
@@ -201,13 +208,22 @@ const t = {
     followers: "Ακόλουθοι",
     filters: "Φίλτρα",
     refresh: "Ανανέωση",
-    min_score: "Ελάχιστο Score",
-    max_price: "Μέγιστη Τιμή (€)",
     category_filter: "Κατηγορία",
-    min_engagement: "Ελάχιστο Engagement (%)",
-    min_rating: "Ελάχιστο Rating",
-    apply_filters: "Εφαρμογή",
-    clear_filters: "Καθαρισμός",
+    platform_filter: "Πλατφόρμα",
+    location_filter: "Περιοχή",
+    location_placeholder: "π.χ. Αθήνα",
+    max_price: "Μέγιστη τιμή",
+    max_price_placeholder: "Χωρίς όριο",
+    skills_filter: "Δεξιότητες",
+    skills_all: "Όλες",
+    audience_filter: "Μέγεθος κοινού",
+    audience_all: "Όλα",
+    audience_nano: "Nano (1k-10k)",
+    audience_micro: "Micro (10k-100k)",
+    audience_macro: "Macro (100k+)",
+    platform_all: "Όλες",
+    category_all: "Όλες",
+    clear_filters: "Καθαρισμός φίλτρων",
     stats_title: "Στατιστικά Προτάσεων",
     total_viewed: "Σύνολο Προτάσεων",
     profiles_clicked: "Προφίλ που Επισκέφτηκες",
@@ -255,13 +271,22 @@ const t = {
     followers: "Followers",
     filters: "Filters",
     refresh: "Refresh",
-    min_score: "Min Score",
-    max_price: "Max Price (€)",
     category_filter: "Category",
-    min_engagement: "Min Engagement (%)",
-    min_rating: "Min Rating",
-    apply_filters: "Apply",
-    clear_filters: "Clear",
+    platform_filter: "Platform",
+    location_filter: "Area",
+    location_placeholder: "e.g. Athens",
+    max_price: "Max price",
+    max_price_placeholder: "No limit",
+    skills_filter: "Skills",
+    skills_all: "All",
+    audience_filter: "Audience size",
+    audience_all: "All",
+    audience_nano: "Nano (1k-10k)",
+    audience_micro: "Micro (10k-100k)",
+    audience_macro: "Macro (100k+)",
+    platform_all: "All",
+    category_all: "All",
+    clear_filters: "Clear filters",
     stats_title: "Recommendation Stats",
     total_viewed: "Total Recommendations",
     profiles_clicked: "Profiles Viewed",
@@ -740,6 +765,9 @@ function announcementText(primary: string, english: string | null | undefined, l
   return primary;
 }
 
+const recommendationFieldClass =
+  "h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition-colors hover:border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/20";
+
 export default function BrandDashboardContent() {
   const [lang, setLang] = useState<'el' | 'en'>('el'); // Default to Greek, will be updated in useEffect
   const { toasts, push: pushToast, dismiss: dismissToast } = useToasts();
@@ -761,7 +789,10 @@ export default function BrandDashboardContent() {
   const [agreementAccepted, setAgreementAccepted] = useState(false);
   const [savingAgreement, setSavingAgreement] = useState(false);
   const [processingCounterProposal, setProcessingCounterProposal] = useState<string | null>(null);
-  const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [recommendationSource, setRecommendationSource] = useState<{
+    brand: BrandProfile;
+    profiles: InfluencerProfile[];
+  } | null>(null);
   const [recommendationsLoading, setRecommendationsLoading] = useState(true);
   const [recommendationsReady, setRecommendationsReady] = useState(false);
   const [recommendationsError, setRecommendationsError] = useState<string | null>(null);
@@ -773,15 +804,18 @@ export default function BrandDashboardContent() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editFocusBio, setEditFocusBio] = useState(false);
   const [updating, setUpdating] = useState(false);
-  const [recommendationFilters, setRecommendationFilters] = useState({
-    minScore: 40,
-    maxPrice: null as number | null,
-    category: '',
-    minEngagement: 0,
-    minRating: 0,
-    platform: '', // Filter by platform (instagram, tiktok, youtube, etc.)
-  });
-  const [showFilters, setShowFilters] = useState(false);
+  const [recommendationFilters, setRecommendationFilters] = useState(EMPTY_RECOMMENDATION_FILTERS);
+  const recommendations = useMemo(() => {
+    if (!recommendationSource) return [];
+    const filtered = filterRecommendationProfiles(recommendationSource.profiles, recommendationFilters);
+    return recommendInfluencers(recommendationSource.brand, filtered, {
+      limit: 12,
+      minScore: RECOMMENDATION_MIN_SCORE,
+      preferVerified: true,
+      preferHighRating: true,
+      lang,
+    });
+  }, [recommendationSource, recommendationFilters, lang]);
   // Load stats from localStorage on mount
   type RecommendationStats = {
     totalViewed: number;
@@ -813,6 +847,13 @@ export default function BrandDashboardContent() {
       localStorage.setItem('brandDashboardStats', JSON.stringify(recommendationStats));
     }
   }, [recommendationStats]);
+
+  useEffect(() => {
+    if (!recommendationsReady || recommendationsLoading) return;
+    setRecommendationStats((prev) =>
+      prev.totalViewed === recommendations.length ? prev : { ...prev, totalViewed: recommendations.length }
+    );
+  }, [recommendations.length, recommendationsReady, recommendationsLoading]);
   const [activeTab, setActiveTab] = useState<BrandTab>('overview');
   const tabsNavRef = useRef<HTMLElement | null>(null);
   const loadSeq = useRef(0);
@@ -1526,24 +1567,10 @@ export default function BrandDashboardContent() {
 
       // Convert database influencers to InfluencerProfile format (metrics from accounts = same as profile page)
       const dbInfluencerProfiles: InfluencerProfile[] = (influencersData || []).map((inf: any) => {
-        const platformFilter = recommendationFilters.platform?.toLowerCase();
-        let engagement_rate: string | { [key: string]: string } | undefined;
-        let followers_count = '0';
-        let avg_likes: string | { [key: string]: string } | undefined;
-
-        if (platformFilter && Array.isArray(inf.accounts)) {
-          const acc = inf.accounts.find((a: any) => a.platform?.toLowerCase() === platformFilter);
-          if (acc) {
-            followers_count = acc.followers || '0';
-            engagement_rate = acc.engagement_rate ?? inf.engagement_rate;
-            avg_likes = acc.avg_likes ?? inf.avg_likes;
-          }
-        } else {
-          const fromAccounts = buildMetricsFromAccounts(inf.accounts);
-          engagement_rate = fromAccounts.engagement_rate ?? inf.engagement_rate;
-          followers_count = fromAccounts.followers_count;
-          avg_likes = fromAccounts.avg_likes ?? inf.avg_likes;
-        }
+        const fromAccounts = buildMetricsFromAccounts(inf.accounts);
+        const engagement_rate = fromAccounts.engagement_rate ?? inf.engagement_rate;
+        const followers_count = fromAccounts.followers_count;
+        const avg_likes = fromAccounts.avg_likes ?? inf.avg_likes;
 
         const parsedCategories = parseStoredCategories(inf.category);
         return {
@@ -1582,12 +1609,6 @@ export default function BrandDashboardContent() {
           profile_slug: inf.profile_slug ?? null,
           skills: sanitizeSkills(inf.skills),
         };
-      }).filter(inf => {
-        // Filter out influencers that don't have the selected platform
-        if (recommendationFilters.platform && inf.followers_count === '0') {
-          return false;
-        }
-        return true;
       });
       
       // Category mapping from dummy data to standard categories
@@ -1639,94 +1660,7 @@ export default function BrandDashboardContent() {
         ].filter(Boolean).join("\n"),
       };
       
-      // Apply filters
-      let filteredProfiles = influencerProfiles;
-      
-      if (recommendationFilters.category) {
-        filteredProfiles = filteredProfiles.filter(inf => {
-          if (recommendationFilters.category === "Γενικά" || recommendationFilters.category === "General") {
-            return true;
-          }
-          return categoriesMatchFilter(
-            inf.categories && inf.categories.length ? inf.categories : inf.category,
-            recommendationFilters.category
-          );
-        });
-      }
-      
-      if (recommendationFilters.maxPrice) {
-        filteredProfiles = filteredProfiles.filter(inf => {
-          const listed = inf.from_price != null && inf.from_price > 0 ? inf.from_price : null;
-          const rateText = typeof inf.min_rate === "string" ? inf.min_rate : inf.min_rate == null ? "" : String(inf.min_rate);
-          const rate = listed ?? parseFloat(rateText.replace(/[€$,\s]/g, '') || '0');
-          return !isNaN(rate) && rate <= recommendationFilters.maxPrice!;
-        });
-      }
-      
-      if (recommendationFilters.minEngagement > 0) {
-        filteredProfiles = filteredProfiles.filter(inf => {
-          // Use platform-specific engagement rate if platform filter is set
-          let engagementRateStr: string | null = null;
-          
-          // If engagement_rate is an object (per-platform), use the filtered platform's rate
-          if (inf.engagement_rate && typeof inf.engagement_rate === 'object' && !Array.isArray(inf.engagement_rate)) {
-            if (recommendationFilters.platform) {
-              const platformLower = recommendationFilters.platform.toLowerCase();
-              engagementRateStr = inf.engagement_rate[platformLower] || null;
-            } else {
-              // If no platform filter, calculate average or use first available
-              const rates = Object.values(inf.engagement_rate).filter(v => v && v !== '-');
-              engagementRateStr = rates.length > 0 ? rates[0] : null;
-            }
-          } else if (typeof inf.engagement_rate === 'string') {
-            engagementRateStr = inf.engagement_rate;
-          }
-          
-          const rate = engagementRateStr ? parseFloat(engagementRateStr.replace('%', '').replace(',', '.')) : 0;
-          return !isNaN(rate) && rate >= recommendationFilters.minEngagement;
-        });
-      }
-      
-      // Filter by platform if specified
-      if (recommendationFilters.platform) {
-        filteredProfiles = filteredProfiles.filter(inf => {
-          if (!inf.accounts || !Array.isArray(inf.accounts)) return false;
-          const platformLower = recommendationFilters.platform.toLowerCase();
-          return inf.accounts.some((acc: any) => 
-            acc.platform?.toLowerCase() === platformLower
-          );
-        });
-      }
-      
-      if (recommendationFilters.minRating > 0) {
-        filteredProfiles = filteredProfiles.filter(inf => 
-          (inf.avg_rating || 0) >= recommendationFilters.minRating
-        );
-      }
-      
-      // Calculate recommendations
-      console.log('[Brand Dashboard] Brand profile:', brandProfile);
-      console.log('[Brand Dashboard] Filtered profiles count:', filteredProfiles.length);
-      console.log('[Brand Dashboard] Sample filtered profile:', filteredProfiles[0]);
-      
-      const matches = recommendInfluencers(brandProfile, filteredProfiles, {
-        limit: 12,
-        minScore: recommendationFilters.minScore,
-        preferVerified: true,
-        preferHighRating: true,
-        lang: lang,
-      });
-      
-      console.log('[Brand Dashboard] Recommendations count:', matches.length);
-      console.log('[Brand Dashboard] Recommendations:', matches.map(m => ({ name: m.influencer.display_name, score: m.score, verified: m.influencer.verified })));
-      
-      setRecommendations(matches);
-      
-      // Update stats - count only displayed recommendations (not cumulative)
-      setRecommendationStats((prev: RecommendationStats) => ({
-        ...prev,
-        totalViewed: matches.length, // Current session count, not cumulative
-      }));
+      setRecommendationSource({ brand: brandProfile, profiles: influencerProfiles });
     } catch (err) {
       console.error('Error loading recommendations:', err);
       setRecommendationsError(
@@ -2507,131 +2441,119 @@ export default function BrandDashboardContent() {
               <h2 className="text-2xl font-semibold text-slate-900 tracking-tight">{txt.recommendations_title}</h2>
               <p className="text-slate-500 text-sm mt-1">{txt.recommendations_subtitle}</p>
             </div>
-            <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => brandData && loadRecommendations(brandData)}
+              disabled={recommendationsLoading}
+              className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:opacity-50"
+            >
+              <span className={recommendationsLoading ? 'animate-spin' : ''} aria-hidden>↻</span>
+              {txt.refresh}
+            </button>
+          </div>
+
+          <div className="mb-6 rounded-xl border border-slate-200 bg-white p-3 sm:p-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-500" htmlFor="rec-category">{txt.category_filter}</label>
+                <select
+                  id="rec-category"
+                  value={recommendationFilters.category}
+                  onChange={(e) => setRecommendationFilters({ ...recommendationFilters, category: e.target.value })}
+                  className={recommendationFieldClass}
+                >
+                  <option value="">{txt.category_all}</option>
+                  {CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>{categoryLabel(cat, lang)}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-500" htmlFor="rec-platform">{txt.platform_filter}</label>
+                <select
+                  id="rec-platform"
+                  value={recommendationFilters.platform}
+                  onChange={(e) => setRecommendationFilters({ ...recommendationFilters, platform: e.target.value })}
+                  className={recommendationFieldClass}
+                >
+                  <option value="">{txt.platform_all}</option>
+                  <option value="instagram">Instagram</option>
+                  <option value="tiktok">TikTok</option>
+                  <option value="youtube">YouTube</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-500" htmlFor="rec-location">{txt.location_filter}</label>
+                <LocationTypeahead
+                  id="rec-location"
+                  lang={lang}
+                  value={recommendationFilters.location}
+                  onChange={(location) => setRecommendationFilters({ ...recommendationFilters, location })}
+                  placeholder={txt.location_placeholder}
+                  ariaLabel={txt.location_filter}
+                  className={recommendationFieldClass}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-500" htmlFor="rec-price">{txt.max_price}</label>
+                <div className="relative">
+                  <input
+                    id="rec-price"
+                    inputMode="numeric"
+                    value={recommendationFilters.maxPrice ?? ""}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/[^\d]/g, "");
+                      setRecommendationFilters({
+                        ...recommendationFilters,
+                        maxPrice: digits ? Number(digits) : null,
+                      });
+                    }}
+                    placeholder={txt.max_price_placeholder}
+                    className={`${recommendationFieldClass} pr-10 placeholder:text-slate-400`}
+                  />
+                  {recommendationFilters.maxPrice != null ? (
+                    <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-slate-500">€</span>
+                  ) : null}
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-500">{txt.skills_filter}</label>
+                <SkillMultiSelect
+                  lang={lang}
+                  selected={recommendationFilters.skills}
+                  onChange={(skills) => setRecommendationFilters({ ...recommendationFilters, skills })}
+                  placeholder={txt.skills_all}
+                  ariaLabel={txt.skills_filter}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-500" htmlFor="rec-audience">{txt.audience_filter}</label>
+                <select
+                  id="rec-audience"
+                  value={recommendationFilters.audience}
+                  onChange={(e) => setRecommendationFilters({
+                    ...recommendationFilters,
+                    audience: e.target.value as typeof recommendationFilters.audience,
+                  })}
+                  className={recommendationFieldClass}
+                >
+                  <option value="">{txt.audience_all}</option>
+                  <option value="nano">{txt.audience_nano}</option>
+                  <option value="micro">{txt.audience_micro}</option>
+                  <option value="macro">{txt.audience_macro}</option>
+                </select>
+              </div>
+            </div>
+            <div className="mt-3 flex justify-stretch sm:justify-end">
               <button
-                onClick={() => setShowFilters(!showFilters)}
-                className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-2"
+                type="button"
+                onClick={() => setRecommendationFilters(EMPTY_RECOMMENDATION_FILTERS)}
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 sm:w-auto"
               >
-                <span aria-hidden>🔍</span>
-                {txt.filters}
-              </button>
-              <button
-                onClick={() => brandData && loadRecommendations(brandData)}
-                disabled={recommendationsLoading}
-                className="px-3 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50 flex items-center gap-2"
-              >
-                <span className={recommendationsLoading ? 'animate-spin' : ''} aria-hidden>↻</span>
-                {txt.refresh}
+                {txt.clear_filters}
               </button>
             </div>
           </div>
-
-          {/* Filters Panel */}
-          {showFilters && (
-            <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 mb-6">
-              <div className="grid md:grid-cols-2 lg:grid-cols-6 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">{txt.min_score}</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={recommendationFilters.minScore}
-                    onChange={(e) => setRecommendationFilters({...recommendationFilters, minScore: parseInt(e.target.value) || 40})}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">{txt.max_price}</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={recommendationFilters.maxPrice || ''}
-                    onChange={(e) => setRecommendationFilters({...recommendationFilters, maxPrice: e.target.value ? parseInt(e.target.value) : null})}
-                    placeholder="Όχι όριο"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white placeholder:text-slate-400"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">{txt.category_filter}</label>
-                  <select
-                    value={recommendationFilters.category}
-                    onChange={(e) => setRecommendationFilters({...recommendationFilters, category: e.target.value})}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white"
-                  >
-                    <option value="">{lang === 'el' ? 'Όλες οι κατηγορίες' : 'All Categories'}</option>
-                    {CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {categoryLabel(cat, lang)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">{txt.min_engagement}</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="10"
-                    step="0.1"
-                    value={recommendationFilters.minEngagement}
-                    onChange={(e) => setRecommendationFilters({...recommendationFilters, minEngagement: parseFloat(e.target.value) || 0})}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">{txt.min_rating}</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="5"
-                    step="0.1"
-                    value={recommendationFilters.minRating}
-                    onChange={(e) => setRecommendationFilters({...recommendationFilters, minRating: parseFloat(e.target.value) || 0})}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">{lang === 'el' ? 'Πλατφόρμα' : 'Platform'}</label>
-                  <select
-                    value={recommendationFilters.platform}
-                    onChange={(e) => setRecommendationFilters({...recommendationFilters, platform: e.target.value})}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white"
-                  >
-                    <option value="">{lang === 'el' ? 'Όλες' : 'All'}</option>
-                    <option value="instagram">Instagram</option>
-                    <option value="tiktok">TikTok</option>
-                    <option value="youtube">YouTube</option>
-                    <option value="twitter">Twitter/X</option>
-                  </select>
-                </div>
-              </div>
-              <div className="flex gap-3 mt-4">
-                <button
-                  onClick={() => brandData && loadRecommendations(brandData)}
-                  className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  {txt.apply_filters}
-                </button>
-                <button
-                  onClick={() => {
-                    setRecommendationFilters({
-                      minScore: 40,
-                      maxPrice: null,
-                      category: '',
-                      minEngagement: 0,
-                      minRating: 0,
-                      platform: '',
-                    });
-                    if (brandData) loadRecommendations(brandData);
-                  }}
-                  className="px-6 py-2 bg-slate-200 text-slate-700 font-medium rounded-lg hover:bg-slate-300 transition-colors"
-                >
-                  {txt.clear_filters}
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* Stats – compact */}
           {recommendationStats.totalViewed > 0 && (
