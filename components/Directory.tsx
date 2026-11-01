@@ -13,6 +13,7 @@ import { publicProfilePath } from "@/lib/profileSlug";
 import { CATEGORIES, categoryTranslations, parseStoredCategories } from "@/lib/categories";
 import { formatEuro } from "@/lib/formatEuro";
 import { parseDirectoryPhrase } from "@/lib/directoryPhrase";
+import { useDirectoryTypewriter } from "@/components/directoryTypewriter";
 import {
   badgeMinRateFromTier,
   DIRECTORY_BUDGET_CAPS,
@@ -26,8 +27,10 @@ const CATEGORY_KEYS = new Set<string>(CATEGORIES);
 const PAGE_SIZE = 40;
 
 function categoryFromSearchParam(raw: string | null): string {
-  if (!raw) return "All";
-  return CATEGORY_KEYS.has(raw) ? raw : "All";
+  if (!raw || raw === "All") return "All";
+  const parts = raw.split(",").map((part) => part.trim()).filter(Boolean);
+  if (parts.length > 0 && parts.every((part) => CATEGORY_KEYS.has(part))) return parts.join(",");
+  return "All";
 }
 
 function skillsFromSearchParam(raw: string | null): string[] {
@@ -128,7 +131,7 @@ const LANGUAGES = [
 
 const t = {
   el: {
-    searchPlace: "Αναζήτηση ονόματος...",
+    searchAria: "Αναζήτηση",
     locPlace: "Τοποθεσία (π.χ. Αθήνα)",
     results: "Αποτελέσματα",
     clear: "Καθαρισμός",
@@ -182,7 +185,7 @@ const t = {
     pageOf: "από",
   },
   en: {
-    searchPlace: "Search name...",
+    searchAria: "Search",
     locPlace: "Location (e.g. Athens)",
     results: "Results",
     clear: "Clear",
@@ -435,6 +438,12 @@ export default function Directory({
   const isHomePreview = typeof homeLimit === "number" && homeLimit > 0;
 
   const [searchQuery, setSearchQuery] = useState(() => (preset ? "" : (searchParams.get("q") || "").trim()));
+  const [searchFocused, setSearchFocused] = useState(false);
+  const searchFocusedRef = useRef(false);
+  const [committedSearch, setCommittedSearch] = useState<{ raw: string; remainder: string } | null>(null);
+  const apiQuery =
+    committedSearch && committedSearch.raw === searchQuery.trim() ? committedSearch.remainder : searchQuery.trim();
+  const searchPlaceholder = useDirectoryTypewriter(lang, !searchFocused && !searchQuery.trim());
   const [locationQuery, setLocationQuery] = useState(preset?.location || "");
   const [platformFilter, setPlatformFilter] = useState(preset?.platform || "All");
   const [packageType, setPackageType] = useState("All");
@@ -501,7 +510,7 @@ export default function Directory({
     const params = new URLSearchParams();
     params.set("page", isHomePreview ? "1" : String(page));
     params.set("pageSize", String(isHomePreview ? homeLimit : PAGE_SIZE));
-    if (searchQuery.trim()) params.set("q", searchQuery.trim());
+    if (apiQuery) params.set("q", apiQuery);
     if (locationQuery.trim()) params.set("location", locationQuery.trim());
     if (platformFilter !== "All") params.set("platform", platformFilter);
     if (categoryFilter !== "All") params.set("category", categoryFilter);
@@ -627,6 +636,7 @@ export default function Directory({
     homeLimit,
     page,
     searchQuery,
+    apiQuery,
     locationQuery,
     platformFilter,
     categoryFilter,
@@ -697,8 +707,10 @@ export default function Directory({
     setCategoryFilter((prev) => (prev === fromUrlCat ? prev : fromUrlCat));
     const fromUrlPage = pageFromSearchParam(searchParams.get("page"));
     setPage((prev) => (prev === fromUrlPage ? prev : fromUrlPage));
-    const fromUrlQuery = (searchParams.get("q") || "").trim();
-    setSearchQuery((prev) => (prev === fromUrlQuery ? prev : fromUrlQuery));
+    if (!searchFocusedRef.current) {
+      const fromUrlQuery = (searchParams.get("q") || "").trim();
+      setSearchQuery((prev) => (prev === fromUrlQuery ? prev : fromUrlQuery));
+    }
     const fromSkill = skillsFromSearchParam(searchParams.get("skills"));
     setSkillFilter((prev) => (sameList(prev, fromSkill) ? prev : fromSkill));
     const fromLanguage = languagesFromSearchParam(searchParams.get("language"));
@@ -712,6 +724,54 @@ export default function Directory({
     const fromMax = (searchParams.get("maxPrice") || "").trim();
     setMaxPackagePrice((prev) => (prev === fromMax ? prev : fromMax));
   }, [preset, searchParams]);
+
+  const applyPhraseRef = useRef<(raw: string) => void>(() => {});
+  applyPhraseRef.current = (raw: string) => {
+    const parsed = parseDirectoryPhrase(raw);
+    const trimmed = raw.trim();
+    setCommittedSearch({ raw: trimmed, remainder: parsed.remainder });
+    if (parsed.skill) {
+      setSkillFilter((prev) => (prev.includes(parsed.skill!) ? prev : [...prev, parsed.skill!]));
+    }
+    if (parsed.categories.length) setCategoryFilter(parsed.categories.join(","));
+    if (parsed.location) setLocationQuery(parsed.location);
+    if (parsed.platform) setPlatformFilter(parsed.platform);
+    if (parsed.language) {
+      setLanguageFilter((prev) => (prev.includes(parsed.language!) ? prev : [...prev, parsed.language!]));
+    }
+    if (parsed.packageType) setPackageType(parsed.packageType);
+    if (parsed.maxPrice != null) setMaxPackagePrice(String(parsed.maxPrice));
+    replaceUrlParams((params) => {
+      if (trimmed) params.set("q", trimmed);
+      else params.delete("q");
+      if (parsed.skill) {
+        const next = new Set([...(params.get("skills") || "").split(",").filter(Boolean), parsed.skill]);
+        params.set("skills", [...next].join(","));
+      }
+      if (parsed.categories.length) params.set("category", parsed.categories.join(","));
+      if (parsed.location) params.set("location", parsed.location);
+      if (parsed.platform) params.set("platform", parsed.platform);
+      if (parsed.language) {
+        const next = new Set([...(params.get("language") || "").split(",").filter(Boolean), parsed.language]);
+        params.set("language", [...next].join(","));
+      }
+      if (parsed.packageType) params.set("pkg", parsed.packageType);
+      if (parsed.maxPrice != null) params.set("maxPrice", String(parsed.maxPrice));
+    });
+  };
+
+  const phraseHydratedRef = useRef(false);
+  useEffect(() => {
+    const raw = searchQuery;
+    const hydrate = !phraseHydratedRef.current;
+    phraseHydratedRef.current = true;
+    if (hydrate) {
+      if (raw.trim()) applyPhraseRef.current(raw);
+      return;
+    }
+    const timer = window.setTimeout(() => applyPhraseRef.current(raw), 600);
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
 
   const clearFilters = () => {
     setSearchQuery("");
@@ -1021,48 +1081,34 @@ export default function Directory({
         {/* Top row: search → platform → category → location → filters → count */}
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           <div className="relative w-full sm:min-w-[200px] sm:flex-1">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
+            <button
+              type="button"
+              className="absolute inset-y-0 left-0 flex items-center pl-3.5"
+              aria-label={txt.searchAria}
+              onClick={() => applyPhraseRef.current(searchQuery)}
+            >
               <SearchIcon />
-            </div>
+            </button>
             <input
               type="text"
-              placeholder={txt.searchPlace}
+              placeholder={searchPlaceholder}
               value={searchQuery}
-              onChange={(e) => {
-                const parsed = parseDirectoryPhrase(e.target.value);
-                setSearchQuery(parsed.remainder);
-                if (parsed.skill) {
-                  setSkillFilter((prev) => (prev.includes(parsed.skill!) ? prev : [...prev, parsed.skill!]));
-                }
-                if (parsed.categories.length) setCategoryFilter(parsed.categories.join(","));
-                if (parsed.location) setLocationQuery(parsed.location);
-                if (parsed.platform) setPlatformFilter(parsed.platform);
-                if (parsed.language) {
-                  setLanguageFilter((prev) => (prev.includes(parsed.language!) ? prev : [...prev, parsed.language!]));
-                }
-                if (parsed.packageType) setPackageType(parsed.packageType);
-                if (parsed.maxPrice != null) setMaxPackagePrice(String(parsed.maxPrice));
-                replaceUrlParams((params) => {
-                  if (parsed.remainder.trim()) params.set("q", parsed.remainder.trim());
-                  else params.delete("q");
-                  if (parsed.skill) {
-                    const next = new Set([...(params.get("skills") || "").split(",").filter(Boolean), parsed.skill]);
-                    params.set("skills", [...next].join(","));
-                  }
-                  if (parsed.categories.length) params.set("category", parsed.categories.join(","));
-                  if (parsed.location) params.set("location", parsed.location);
-                  if (parsed.platform) params.set("platform", parsed.platform);
-                  if (parsed.language) {
-                    const next = new Set([...(params.get("language") || "").split(",").filter(Boolean), parsed.language]);
-                    params.set("language", [...next].join(","));
-                  }
-                  if (parsed.packageType) params.set("pkg", parsed.packageType);
-                  if (parsed.maxPrice != null) params.set("maxPrice", String(parsed.maxPrice));
-                  params.delete("page");
-                });
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter") return;
+                e.preventDefault();
+                applyPhraseRef.current(searchQuery);
+              }}
+              onFocus={() => {
+                searchFocusedRef.current = true;
+                setSearchFocused(true);
+              }}
+              onBlur={() => {
+                searchFocusedRef.current = false;
+                setSearchFocused(false);
               }}
               className={pillInput}
-              aria-label={txt.searchPlace}
+              aria-label={txt.searchAria}
             />
           </div>
 

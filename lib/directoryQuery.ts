@@ -15,7 +15,7 @@ import {
   priceTierFromMinRate,
 } from "@/lib/publicInfluencer";
 import { isAvailableStatus } from "@/lib/trustSignals";
-import { sanitizeSkills } from "@/lib/skills";
+import { sanitizeSkills, skillLabel } from "@/lib/skills";
 import { searchFold } from "@/lib/searchFold";
 import { packagesForViewer } from "@/lib/servicePackages";
 import { listedPriceMin } from "@/lib/parsePrice";
@@ -313,16 +313,45 @@ function packagePriceMatches(
   });
 }
 
+const skillFoldCache = new Map<string, string>();
+
+function foldedSkillText(key: string): string {
+  const cached = skillFoldCache.get(key);
+  if (cached) return cached;
+  const folded = searchFold(
+    [key, key.replace(/_/g, " "), skillLabel(key, "el"), skillLabel(key, "en")].filter(Boolean).join(" ")
+  );
+  skillFoldCache.set(key, folded);
+  return folded;
+}
+
+/**
+ * 2 = name, username, slug, or skill. 1 = bio only. 0 = no text match.
+ * Empty query is tier 2 so it does not reorder the list.
+ */
+export function directorySearchTier(
+  candidate: Pick<DirectoryCandidate, "name" | "bio" | "skills" | "socials" | "slug">,
+  q: string
+): number {
+  const query = searchFold(q);
+  if (!query) return 2;
+  const strong = [
+    searchFold(
+      [candidate.name, candidate.slug, ...Object.values(candidate.socials || {})].filter(Boolean).join(" ")
+    ),
+    ...(candidate.skills || []).map((key) => foldedSkillText(key)),
+  ].join(" ");
+  if (strong.includes(query)) return 2;
+  if (searchFold(candidate.bio || "").includes(query)) return 1;
+  return 0;
+}
+
 export function matchesDirectoryFilters(
   candidate: DirectoryCandidate,
   filters: DirectoryFilters,
   now = Date.now()
 ): boolean {
-  const q = searchFold(filters.q);
-  const hay = searchFold(
-    [candidate.name, candidate.slug, candidate.bio, ...Object.values(candidate.socials || {})].filter(Boolean).join(" ")
-  );
-  const searchMatch = !q || hay.includes(q);
+  const searchMatch = directorySearchTier(candidate, filters.q) > 0;
   const categoryMatch = categorySelectionMatches(candidate.categories, filters.category);
   const packageMatch = packagePriceMatches(candidate.offers, filters);
   const locationMatch = locationFilterMatches(candidate.location, filters.location);

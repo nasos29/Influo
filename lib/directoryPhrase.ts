@@ -4,8 +4,9 @@
  */
 
 import { EXTRA_LOCATION_SEED, EUROPE_LOCATION_SEED, LOCATION_SEED } from "@/lib/locationSeed";
+import { DIRECTORY_INDUSTRIES } from "@/lib/directoryIndustries";
 import { searchFold } from "@/lib/searchFold";
-import { SKILL_GROUPS, type SkillKey } from "@/lib/skills";
+import { SKILL_GROUPS, skillLabel, type SkillKey } from "@/lib/skills";
 import type { CategoryKey } from "@/lib/categories";
 
 export type ParsedDirectoryPhrase = {
@@ -42,6 +43,21 @@ const STOPWORDS = new Set(
     "and",
     "και",
     "με",
+    "me",
+    "with",
+    "δημιουργός",
+    "δημιουργοί",
+    "δημιουργό",
+    "δημιουργούς",
+    "δημιουργου",
+    "dimiourgos",
+    "dimiourgoi",
+    "dimiourgo",
+    "dimiourgous",
+    "shop",
+    "store",
+    "κατάστημα",
+    "katastima",
     "ena",
     "enas",
     "mia",
@@ -69,63 +85,30 @@ const LANGUAGES: { code: string; words: string[] }[] = [
   { code: "it", words: ["ιταλικα", "italian"] },
 ];
 
-type Industry = { phrases: string[]; categories: CategoryKey[]; el: string; en: string };
+const INDUSTRIES = DIRECTORY_INDUSTRIES;
 
-const INDUSTRIES: Industry[] = [
-  {
-    phrases: ["barber shop", "barber", "barbershop", "κουρειο", "κουρεας", "barberiko", "grooming", "mens hair"],
-    categories: ["Beauty & Makeup", "Fashion & Style", "Lifestyle"],
-    el: "Κουρείο",
-    en: "Barber shop",
-  },
-  {
-    phrases: ["cafe", "coffee shop", "καφετερια", "kafeneio", "cafeteria"],
-    categories: ["Food & Drink", "Lifestyle"],
-    el: "Καφετέρια",
-    en: "Cafe",
-  },
-  {
-    phrases: ["restaurant", "εστιατοριο", "estiatorio", "taverna", "ταβερνα"],
-    categories: ["Food & Drink"],
-    el: "Εστιατόριο",
-    en: "Restaurant",
-  },
-  {
-    phrases: ["gym", "γυμναστηριο", "gymnastirio", "fitness"],
-    categories: ["Health & Fitness"],
-    el: "Γυμναστήριο",
-    en: "Gym",
-  },
-  {
-    phrases: ["hotel", "ξενοδοχειο", "xenodoxeio"],
-    categories: ["Travel", "Lifestyle"],
-    el: "Ξενοδοχείο",
-    en: "Hotel",
-  },
-  {
-    phrases: ["real estate", "μεσιτικο", "mesitiko"],
-    categories: ["Business & Finance"],
-    el: "Μεσιτικό",
-    en: "Real estate",
-  },
-  {
-    phrases: ["dentist", "οδοντιατρος", "odontiatros"],
-    categories: ["Health & Fitness"],
-    el: "Οδοντίατρος",
-    en: "Dentist",
-  },
-  {
-    phrases: ["law firm", "δικηγορος", "dikigoros", "lawyer"],
-    categories: ["Business & Finance"],
-    el: "Δικηγορικό",
-    en: "Law firm",
-  },
-];
+const EXTRA_SKILL_WORDS: Partial<Record<SkillKey, string[]>> = {
+  product_photo: ["φωτογραφία προϊόντων", "φωτογραφιες προιοντων", "product photo", "product photos"],
+  video_editing: ["μονταζ", "video edit", "editing"],
+  subtitles: ["υποτιτλοι", "captions"],
+  drone: ["ληψεις drone", "drone footage"],
+  voiceover: ["voice over", "φωνη"],
+  social_strategy: ["social media", "στρατηγικη social"],
+  event_hosting: ["διοργάνωση events", "παρουσίαση events", "event hosting"],
+  on_camera: ["on camera", "παρουσίαση στην κάμερα"],
+  short_video: ["reels", "tiktok video", "short video"],
+};
 
-const SKILL_ALIASES: { key: SkillKey; words: string[] }[] = SKILL_GROUPS.flatMap((group) =>
+const SKILL_ALIASES: { key: SkillKey; phrases: string[] }[] = SKILL_GROUPS.flatMap((group) =>
   group.skills.map((skill) => ({
     key: skill.key,
-    words: [skill.key, skill.label.el, skill.label.en, skill.key.replace(/_/g, " ")],
+    phrases: [
+      skill.key,
+      skill.label.el,
+      skill.label.en,
+      skill.key.replace(/_/g, " "),
+      ...(EXTRA_SKILL_WORDS[skill.key] || []),
+    ],
   }))
 );
 
@@ -155,12 +138,49 @@ function findPrice(raw: string): { value: number; text: string } | null {
 
 function removeFolded(source: string, piece: string): string {
   const pieceWords = new Set(searchFold(piece).split(" ").filter(Boolean));
-  if (!pieceWords.size) return source;
+  const rawPieceWords = new Set(
+    piece
+      .toLowerCase()
+      .split(/\s+/)
+      .map((word) => word.trim())
+      .filter(Boolean)
+  );
+  if (!pieceWords.size && !rawPieceWords.size) return source;
   return source
     .split(/\s+/)
-    .filter((word) => !pieceWords.has(searchFold(word)))
+    .filter((word) => {
+      if (rawPieceWords.has(word.toLowerCase())) return false;
+      const folded = searchFold(word).split(" ").filter(Boolean);
+      if (!folded.length || !pieceWords.size) return true;
+      return !folded.every((token) => pieceWords.has(token));
+    })
     .join(" ")
     .trim();
+}
+
+/** One word must be a whole token. Several words must appear in order. */
+function phraseHits(foldedText: string, tokens: string[], phrase: string): boolean {
+  const folded = searchFold(phrase);
+  if (!folded) return false;
+  const parts = folded.split(" ").filter(Boolean);
+  if (parts.length === 1) return tokens.includes(parts[0]);
+  return foldedText.includes(folded);
+}
+
+function bestPhrase<T extends { phrases: string[] }>(
+  items: T[],
+  foldedText: string,
+  tokens: string[]
+): { item: T; phrase: string } | null {
+  let best: { item: T; phrase: string; score: number } | null = null;
+  for (const item of items) {
+    for (const phrase of item.phrases) {
+      if (!phraseHits(foldedText, tokens, phrase)) continue;
+      const score = searchFold(phrase).length;
+      if (!best || score > best.score) best = { item, phrase, score };
+    }
+  }
+  return best ? { item: best.item, phrase: best.phrase } : null;
 }
 
 export function parseDirectoryPhrase(raw: string): ParsedDirectoryPhrase {
@@ -208,16 +228,11 @@ export function parseDirectoryPhrase(raw: string): ParsedDirectoryPhrase {
     });
   }
 
-  const industry = INDUSTRIES.find((item) =>
-    item.phrases.some((phrase) => folded().includes(searchFold(phrase)))
-  );
-  if (industry) {
-    categories = industry.categories;
-    const phrase = [...industry.phrases].sort((a, b) => searchFold(b).length - searchFold(a).length).find((item) =>
-      folded().includes(searchFold(item))
-    );
-    if (phrase) working = removeFolded(working, phrase);
-    labels.push({ id: "industry", el: industry.el, en: industry.en });
+  const industryHit = bestPhrase(INDUSTRIES, folded(), tokens());
+  if (industryHit) {
+    categories = industryHit.item.categories;
+    working = removeFolded(working, industryHit.phrase);
+    labels.push({ id: "industry", el: industryHit.item.el, en: industryHit.item.en });
   }
 
   const city = CITY_INDEX.find((item) => tokens().includes(item.token));
@@ -243,12 +258,17 @@ export function parseDirectoryPhrase(raw: string): ParsedDirectoryPhrase {
     labels.push({ id: "language", el: languageHit.code, en: languageHit.code });
   }
 
-  const skillHit = SKILL_ALIASES.find((item) => item.words.some((word) => tokens().includes(searchFold(word))));
+  const skillHit = bestPhrase(SKILL_ALIASES, folded(), tokens());
   if (skillHit) {
-    skill = skillHit.key;
-    const word = skillHit.words.find((item) => tokens().includes(searchFold(item))) || skillHit.key;
-    working = removeFolded(working, word);
-    labels.push({ id: "skill", el: skillHit.key, en: skillHit.key });
+    skill = skillHit.item.key;
+    working = removeFolded(working, skillHit.phrase);
+    const label = skillLabel(skillHit.item.key, "el");
+    const labelEn = skillLabel(skillHit.item.key, "en");
+    labels.push({
+      id: "skill",
+      el: label || skillHit.item.key,
+      en: labelEn || skillHit.item.key,
+    });
   }
 
   const extracted = labels.length > 0;
