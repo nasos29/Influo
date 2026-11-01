@@ -180,10 +180,12 @@ interface VerifiedBrand {
 
 export default function Home({
   initialInfluencers = [],
+  initialDirectoryTotal = 0,
   openCampaigns = [],
   trustStats = { approvedInfluencers: null, openCampaigns: null },
 }: {
   initialInfluencers?: Influencer[];
+  initialDirectoryTotal?: number;
   openCampaigns?: CampaignCardData[];
   trustStats?: HomeTrustStats;
 }) {
@@ -799,6 +801,7 @@ export default function Home({
             <Directory
               lang={lang}
               initialInfluencers={initialInfluencers}
+              initialTotal={initialDirectoryTotal}
               homeLimit={8}
               onDisplayedIdsChange={handleHomeDirectoryIds}
             />

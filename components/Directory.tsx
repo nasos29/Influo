@@ -7,17 +7,16 @@ import InfluencerCard from "./InfluencerCard";
 import { getBadges, BADGE_FILTER_TYPES, getBadgeFilterLabel, type BadgeType } from "../lib/badges";
 import { getVisitorId } from "../lib/visitorId";
 import { normalizeGender, type GenderValue } from "../lib/gender";
-import { isAvailableStatus, trustChipsFromAccounts } from "@/lib/trustSignals";
+import { trustChipsFromAccounts } from "@/lib/trustSignals";
 import { publicProfilePath } from "@/lib/profileSlug";
-import { CATEGORIES, categoriesMatchFilter, categoryTranslations, parseStoredCategories } from "@/lib/categories";
+import { CATEGORIES, categoryTranslations, parseStoredCategories } from "@/lib/categories";
 import { formatEuro } from "@/lib/formatEuro";
 import {
   badgeMinRateFromTier,
-  budgetTierMatches,
   DIRECTORY_BUDGET_CAPS,
 } from "@/lib/publicInfluencer";
 import { resolveCompletionRate } from "@/lib/completionRate";
-import { displayLocation, locationFilterMatches } from "@/lib/displayLocation";
+import { displayLocation } from "@/lib/displayLocation";
 import LocationTypeahead from "@/components/LocationTypeahead";
 
 const CATEGORY_KEYS = new Set<string>(CATEGORIES);
@@ -233,25 +232,6 @@ const ChevronDown = () => (
   </svg>
 );
 
-const parseEngagement = (rate?: string | { [key: string]: string }) => {
-  if (!rate) return 0;
-  if (typeof rate === "object" && rate !== null && !Array.isArray(rate)) {
-    const rates = Object.values(rate).filter((v) => v && v !== "-");
-    if (rates.length === 0) return 0;
-    const parsedRates = rates.map((r) => parseFloat(r.replace("%", "").replace(",", ".")) || 0);
-    return parsedRates.reduce((acc, val) => acc + val, 0) / parsedRates.length;
-  }
-  if (typeof rate === "string") {
-    return parseFloat(rate.replace("%", "").replace(",", ".")) || 0;
-  }
-  return 0;
-};
-
-const getMaxFollowers = (followers: { [key: string]: number | undefined }) => {
-  const values = Object.values(followers).filter((v): v is number => v !== undefined);
-  return values.length ? Math.max(...values) : 0;
-};
-
 const parseFollowerString = (str: string) => {
   if (!str) return 0;
   const clean = str.toLowerCase().replace(/,/g, "").trim();
@@ -290,17 +270,20 @@ const chipBtn =
 export default function Directory({
   lang = "el",
   initialInfluencers = [],
+  initialTotal = 0,
   homeLimit,
   onDisplayedIdsChange,
 }: {
   lang?: "el" | "en";
   initialInfluencers?: Influencer[];
+  initialTotal?: number;
   /** Homepage preview: show only this many cards, no pagination. */
   homeLimit?: number;
   /** Fired when the visible preview card ids change (home preview). */
   onDisplayedIdsChange?: (ids: string[]) => void;
 }) {
   const [influencers, setInfluencers] = useState<Influencer[]>(initialInfluencers);
+  const [total, setTotal] = useState(initialTotal);
   const txt = t[lang];
   const isMountedRef = useRef(true);
   const router = useRouter();
@@ -341,52 +324,66 @@ export default function Directory({
     if (mq.matches) setShowAdvanced(true);
   }, [isHomePreview]);
 
-  const sortInfluencers = (influencersList: Influencer[]): Influencer[] => {
-    return [...influencersList].sort((a, b) => {
-      const aAge = a.created_at
-        ? Math.floor((new Date().getTime() - new Date(a.created_at).getTime()) / (1000 * 60 * 60 * 24))
-        : 999;
-      const bAge = b.created_at
-        ? Math.floor((new Date().getTime() - new Date(b.created_at).getTime()) / (1000 * 60 * 60 * 24))
-        : 999;
-
-      const aIsNew = aAge < 30;
-      const bIsNew = bAge < 30;
-
-      if (aIsNew && !bIsNew) return -1;
-      if (!aIsNew && bIsNew) return 1;
-
-      if (a.created_at && b.created_at) {
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      }
-      if (a.created_at) return -1;
-      if (b.created_at) return 1;
-      return 0;
-    });
-  };
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     isMountedRef.current = true;
+    const filtersAreDefault =
+      !searchQuery.trim() &&
+      !locationQuery.trim() &&
+      platformFilter === "All" &&
+      categoryFilter === "All" &&
+      genderFilter === "All" &&
+      followerRange === "All" &&
+      budgetMax === "All" &&
+      minEngagement === "All" &&
+      languageFilter === "All" &&
+      minRating === "All" &&
+      !ageMin.trim() &&
+      !ageMax.trim() &&
+      badgeFilter === "All" &&
+      availabilityFilter === "available" &&
+      (isHomePreview || page === 1);
+    if (!(filtersAreDefault && initialInfluencers.length > 0)) setLoading(true);
 
-    const fetchReal = async () => {
+    const params = new URLSearchParams();
+    params.set("page", isHomePreview ? "1" : String(page));
+    params.set("pageSize", String(isHomePreview ? homeLimit : PAGE_SIZE));
+    if (searchQuery.trim()) params.set("q", searchQuery.trim());
+    if (locationQuery.trim()) params.set("location", locationQuery.trim());
+    if (platformFilter !== "All") params.set("platform", platformFilter);
+    if (categoryFilter !== "All") params.set("category", categoryFilter);
+    if (genderFilter !== "All") params.set("gender", genderFilter);
+    if (followerRange !== "All") params.set("followers", followerRange);
+    if (budgetMax !== "All") params.set("budget", budgetMax);
+    if (minEngagement !== "All") params.set("engagement", minEngagement);
+    if (languageFilter !== "All") params.set("language", languageFilter);
+    if (minRating !== "All") params.set("rating", minRating);
+    if (ageMin.trim()) params.set("ageMin", ageMin.trim());
+    if (ageMax.trim()) params.set("ageMax", ageMax.trim());
+    if (badgeFilter !== "All") params.set("badge", badgeFilter);
+    params.set("availability", availabilityFilter);
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
       try {
-        const response = await fetch("/api/influencers/public");
+        const response = await fetch(`/api/influencers/public?${params.toString()}`, {
+          signal: controller.signal,
+        });
         const result = await response.json();
-
         if (!isMountedRef.current) return;
-
         if (!response.ok || result.error) {
-          if (isMountedRef.current) {
-            setInfluencers([]);
-            setLoading(false);
-          }
+          setInfluencers([]);
+          setTotal(0);
           return;
         }
-
         const data = result.data || [];
-
-        if (data.length > 0) {
-          const realInfluencers: Influencer[] = data.map((inf: any) => {
+        const realInfluencers: Influencer[] = data.map((inf: any) => {
             const socialsObj: { [key: string]: string } = {};
             const followersObj: { [key: string]: number } = {};
             const engagementRatesObj: { [key: string]: string } = {};
@@ -453,129 +450,44 @@ export default function Directory({
             };
           });
 
-          if (isMountedRef.current) {
-            setInfluencers(sortInfluencers(realInfluencers));
-          }
-        } else if (isMountedRef.current) {
-          setInfluencers([]);
-        }
-      } catch (_err) {
+        if (!isMountedRef.current) return;
+        setInfluencers(realInfluencers);
+        setTotal(typeof result.total === "number" ? result.total : realInfluencers.length);
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") return;
         if (isMountedRef.current) {
           setInfluencers([]);
+          setTotal(0);
         }
       } finally {
-        if (isMountedRef.current) {
-          setLoading(false);
-        }
+        if (isMountedRef.current && !controller.signal.aborted) setLoading(false);
       }
-    };
-
-    fetchReal();
+    }, 200);
 
     return () => {
-      isMountedRef.current = false;
+      controller.abort();
+      window.clearTimeout(timer);
     };
-  }, []);
-
-  const filtered = influencers.filter((inf) => {
-    const searchMatch =
-      inf.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      inf.bio.toLowerCase().includes(searchQuery.toLowerCase());
-    const locationMatch =
-      locationQuery === "" || locationFilterMatches(inf.location, locationQuery);
-
-    const platformMatch =
-      platformFilter === "All" ||
-      (inf.socials && inf.socials[platformFilter.toLowerCase()] !== undefined);
-    const categoryMatch = categoriesMatchFilter(inf.categories, categoryFilter);
-    const genderMatch = genderFilter === "All" || inf.gender === genderFilter;
-
-    let followerMatch = true;
-    const maxFollowers = getMaxFollowers(inf.followers);
-    if (followerRange === "Nano") followerMatch = maxFollowers > 1000 && maxFollowers < 10000;
-    if (followerRange === "Micro") followerMatch = maxFollowers >= 10000 && maxFollowers < 100000;
-    if (followerRange === "Macro") followerMatch = maxFollowers >= 100000;
-
-    const budgetMatch = budgetTierMatches(inf.price_tier, budgetMax);
-
-    let engageMatch = true;
-    if (minEngagement !== "All") {
-      const min = parseFloat(minEngagement);
-      const rate = parseEngagement(inf.engagement_rate);
-      if (rate < min) engageMatch = false;
-    }
-
-    let languageMatch = true;
-    if (languageFilter !== "All") {
-      if (!inf.languages || !Array.isArray(inf.languages) || inf.languages.length === 0) {
-        languageMatch = false;
-      } else {
-        const selectedLang = LANGUAGES.find((l) => l.code === languageFilter);
-        if (!selectedLang) {
-          languageMatch = false;
-        } else {
-          const matches = inf.languages.some((langItem) => {
-            const langStr = langItem.toString().toLowerCase().trim();
-            const selectedEl = selectedLang.el.toLowerCase();
-            const selectedEn = selectedLang.en.toLowerCase();
-            const selectedCode = selectedLang.code.toLowerCase();
-            return (
-              langStr === selectedCode ||
-              langStr === selectedEl ||
-              langStr === selectedEn ||
-              langStr.includes(selectedEl) ||
-              langStr.includes(selectedEn) ||
-              selectedEl.includes(langStr) ||
-              selectedEn.includes(langStr)
-            );
-          });
-          if (!matches) languageMatch = false;
-        }
-      }
-    }
-
-    let ratingMatch = true;
-    if (minRating !== "All") {
-      const min = parseFloat(minRating);
-      const rating = (inf as any).avg_rating || 0;
-      if (rating < min) ratingMatch = false;
-    }
-
-    let ageMatch = true;
-    const age = typeof inf.age === "number" ? inf.age : null;
-    if (ageMin !== "" || ageMax !== "") {
-      const min = ageMin !== "" ? parseInt(ageMin, 10) : 0;
-      const max = ageMax !== "" ? parseInt(ageMax, 10) : 999;
-      if (age === null) ageMatch = false;
-      else if (age < min || age > max) ageMatch = false;
-    }
-
-    const badgeMatch =
-      badgeFilter === "All" || badgesForInfluencer(inf, lang).some((b) => b.type === badgeFilter);
-
-    let availabilityMatch = true;
-    if (availabilityFilter === "available") {
-      availabilityMatch = isAvailableStatus(inf.availability_status);
-    } else if (availabilityFilter === "unavailable") {
-      availabilityMatch = !isAvailableStatus(inf.availability_status);
-    }
-
-    return (
-      searchMatch &&
-      locationMatch &&
-      platformMatch &&
-      categoryMatch &&
-      genderMatch &&
-      followerMatch &&
-      budgetMatch &&
-      engageMatch &&
-      languageMatch &&
-      ratingMatch &&
-      ageMatch &&
-      badgeMatch &&
-      availabilityMatch
-    );
-  });
+  }, [
+    isHomePreview,
+    homeLimit,
+    page,
+    searchQuery,
+    locationQuery,
+    platformFilter,
+    categoryFilter,
+    genderFilter,
+    followerRange,
+    budgetMax,
+    minEngagement,
+    languageFilter,
+    minRating,
+    ageMin,
+    ageMax,
+    badgeFilter,
+    availabilityFilter,
+    initialInfluencers.length,
+  ]);
 
   const replaceUrlParams = useCallback(
     (mutate: (params: URLSearchParams) => void) => {
@@ -835,11 +747,9 @@ export default function Directory({
     availabilityFilter,
   ]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
-  const displayedInfluencers = isHomePreview
-    ? filtered.slice(0, homeLimit)
-    : filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const displayedInfluencers = influencers;
 
   const pageButtons = useMemo(() => {
     if (isHomePreview || totalPages <= 7) {
@@ -964,7 +874,7 @@ export default function Directory({
             </button>
 
             <span className="col-span-2 ml-auto shrink-0 text-right text-xs font-medium text-slate-400 sm:col-span-1 sm:ml-0 sm:pl-1 sm:text-left">
-              {filtered.length} {txt.results}
+              {total} {txt.results}
             </span>
           </div>
         </div>
@@ -1184,7 +1094,7 @@ export default function Directory({
             </div>
           ))}
         </div>
-      ) : filtered.length > 0 ? (
+      ) : influencers.length > 0 ? (
         <>
           <div className={cardGridClass}>
             {displayedInfluencers.map((inf) => {

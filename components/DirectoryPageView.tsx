@@ -24,8 +24,10 @@ const t = {
 
 export default function DirectoryPageView({
   initialInfluencers = [],
+  initialTotal = 0,
 }: {
   initialInfluencers?: Influencer[];
+  initialTotal?: number;
 }) {
   const pathname = usePathname();
   const [lang, setLang] = useState<Lang>(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
@@ -55,7 +57,7 @@ export default function DirectoryPageView({
           </div>
 
           <Suspense fallback={<div className="h-40 rounded-2xl bg-white/60 animate-pulse" aria-hidden />}>
-            <Directory lang={lang} initialInfluencers={initialInfluencers} />
+            <Directory lang={lang} initialInfluencers={initialInfluencers} initialTotal={initialTotal} />
           </Suspense>
         </div>
       </main>

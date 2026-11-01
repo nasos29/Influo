@@ -8,6 +8,37 @@ type Filter = {
   newestFirst?: boolean;
 };
 
+type BuiltQuery = {
+  data: unknown[] | null;
+  error: { message: string } | null;
+  count?: number | null;
+};
+
+/**
+ * Runs a select against approved influencers, dropping a column and retrying
+ * when the live schema does not have it yet.
+ */
+export async function selectApprovedInfluencers(
+  columns: readonly string[],
+  run: (columnList: string) => PromiseLike<BuiltQuery>
+): Promise<{ rows: Record<string, unknown>[]; total: number | null }> {
+  let remaining = [...new Set(columns)];
+  for (let attempt = 0; attempt < 12; attempt++) {
+    if (remaining.length === 0) throw new Error("No influencer columns left to select");
+    const { data, error, count } = await run(remaining.join(","));
+    if (!error) {
+      return {
+        rows: (data || []) as Record<string, unknown>[],
+        total: typeof count === "number" ? count : null,
+      };
+    }
+    const column = missingColumn(error.message || "");
+    if (!column || !remaining.includes(column)) throw new Error(error.message);
+    remaining = remaining.filter((name) => name !== column);
+  }
+  throw new Error("Could not load influencers");
+}
+
 function missingColumn(message: string): string | null {
   const quoted = message.match(/'([A-Za-z0-9_]+)' column/i);
   if (quoted?.[1]) return quoted[1];
@@ -28,27 +59,13 @@ export async function loadInfluencerRows(
   client?: SupabaseClient
 ): Promise<Record<string, unknown>[]> {
   const admin = client ?? supabaseService();
-  let remaining = [...new Set(columns)];
-
-  for (let attempt = 0; attempt < 12; attempt++) {
-    if (remaining.length === 0) {
-      throw new Error("No influencer columns left to select");
-    }
-    let query = admin.from("influencers").select(remaining.join(",")).eq("approved", true);
+  const { rows } = await selectApprovedInfluencers(columns, (columnList) => {
+    let query = admin.from("influencers").select(columnList).eq("approved", true);
     if (filter.id) query = query.eq("id", filter.id);
     if (filter.slug) query = query.eq("profile_slug", filter.slug);
     if (filter.newestFirst) query = query.order("created_at", { ascending: false });
     if (filter.limit) query = query.limit(filter.limit);
-
-    const { data, error } = await query;
-    if (!error) return (data || []) as unknown as Record<string, unknown>[];
-
-    const column = missingColumn(error.message || "");
-    if (!column || !remaining.includes(column)) {
-      throw new Error(error.message);
-    }
-    remaining = remaining.filter((name) => name !== column);
-  }
-
-  throw new Error("Could not load influencers");
+    return query;
+  });
+  return rows;
 }

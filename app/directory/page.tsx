@@ -5,12 +5,12 @@ import { unstable_cache } from "next/cache";
 export const revalidate = 3600;
 
 const cachedDirectory = unstable_cache(
-  () => loadPublicDirectoryCards(24),
-  ["directory-cards"],
+  () => loadPublicDirectoryCards(40),
+  ["directory-cards-page"],
   { revalidate: 3600, tags: ["directory"] }
 );
 
 export default async function DirectoryPage() {
-  const initialInfluencers = await cachedDirectory();
-  return <DirectoryPageView initialInfluencers={initialInfluencers} />;
+  const { influencers, total } = await cachedDirectory();
+  return <DirectoryPageView initialInfluencers={influencers} initialTotal={total} />;
 }
