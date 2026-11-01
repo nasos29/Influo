@@ -47,7 +47,7 @@ test("athens and αθήνα are the same place", () => {
 
 test("reasons are specific facts and skip audit copy", () => {
   const reasons = buildMatchReasons(brand, creator, ["ugc"], "el");
-  assert.ok(reasons.length >= 2 && reasons.length <= 3);
+  assert.equal(reasons.length, 3);
   assert.ok(reasons.some((line) => line.includes("Μόδα & Στυλ")));
   assert.ok(reasons.some((line) => line.includes("Athens") || line.includes("Αθήνα") || line.includes("Ίδια περιοχή")));
   assert.equal(reasons.some((line) => line.includes("Δυνατό κοινό")), false);

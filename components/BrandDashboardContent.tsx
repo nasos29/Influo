@@ -805,7 +805,17 @@ export default function BrandDashboardContent() {
   const [editFocusBio, setEditFocusBio] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [recommendationFilters, setRecommendationFilters] = useState(EMPTY_RECOMMENDATION_FILTERS);
-  const recommendations = useMemo(() => {
+  const recommendationBasePool = useMemo(() => {
+    if (!recommendationSource) return [];
+    return recommendInfluencers(recommendationSource.brand, recommendationSource.profiles, {
+      limit: 30,
+      minScore: RECOMMENDATION_MIN_SCORE,
+      preferVerified: true,
+      preferHighRating: true,
+      lang,
+    });
+  }, [recommendationSource, lang]);
+  const recommendationFallback = useMemo(() => {
     if (!recommendationSource) return [];
     const filtered = filterRecommendationProfiles(recommendationSource.profiles, recommendationFilters);
     return recommendInfluencers(recommendationSource.brand, filtered, {
@@ -816,6 +826,74 @@ export default function BrandDashboardContent() {
       lang,
     });
   }, [recommendationSource, recommendationFilters, lang]);
+  const recommendationPoolKey = recommendationBasePool.map((match) => String(match.influencer.id)).join(",");
+  const [geminiRanking, setGeminiRanking] = useState<{
+    key: string;
+    rows: Array<{ id?: string; reasons_el?: unknown; reasons_en?: unknown }> | null;
+  } | null>(null);
+  const recommendations = useMemo(() => {
+    const allowed = new Set(
+      filterRecommendationProfiles(
+        recommendationSource?.profiles || [],
+        recommendationFilters
+      ).map((profile) => String(profile.id))
+    );
+    const byId = new Map(recommendationBasePool.map((match) => [String(match.influencer.id), match]));
+    if (geminiRanking && geminiRanking.key === recommendationPoolKey && geminiRanking.rows?.length) {
+      const ranked = [];
+      for (const row of geminiRanking.rows) {
+        const id = String(row?.id || "");
+        if (!allowed.has(id)) continue;
+        const match = byId.get(id);
+        const lines = lang === "en" ? row?.reasons_en : row?.reasons_el;
+        if (!match || !Array.isArray(lines) || lines.length !== 3) continue;
+        if (lines.some((line) => typeof line !== "string" || !line.trim())) continue;
+        ranked.push({ ...match, reasons: lines.map((line: string) => line.trim()) });
+      }
+      if (ranked.length) return ranked.slice(0, 8);
+    }
+    return recommendationFallback;
+  }, [
+    recommendationSource,
+    recommendationFilters,
+    recommendationBasePool,
+    recommendationFallback,
+    geminiRanking,
+    recommendationPoolKey,
+    lang,
+  ]);
+
+  useEffect(() => {
+    if (!recommendationPoolKey) {
+      setGeminiRanking(null);
+      return;
+    }
+    const key = recommendationPoolKey;
+    const ids = recommendationBasePool.map((match) => String(match.influencer.id));
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await sessionFetch("/api/brand/recommendations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids }),
+        });
+        const body = await response.json().catch(() => ({}));
+        if (cancelled) return;
+        if (response.ok && body?.source === "gemini" && Array.isArray(body.ranking)) {
+          setGeminiRanking({ key, rows: body.ranking });
+        } else {
+          setGeminiRanking({ key, rows: null });
+        }
+      } catch {
+        if (!cancelled) setGeminiRanking({ key, rows: null });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [recommendationPoolKey, recommendationBasePool]);
+
   // Load stats from localStorage on mount
   type RecommendationStats = {
     totalViewed: number;
