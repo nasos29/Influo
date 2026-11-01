@@ -3,8 +3,10 @@
  * Counter-offers are not covered here.
  */
 
+import { formatEuro } from "@/lib/formatEuro";
 import { listedPriceMin } from "@/lib/parsePrice";
 import {
+  EXTRA_LABEL,
   PACKAGE_PLATFORMS,
   PACKAGE_TYPES,
   RATE_CARD_EXTRA_KEYS,
@@ -63,8 +65,10 @@ function rateCardRecord(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+export type StoredProposalExtra = { key: RateCardExtraKey; price: number };
+
 export type CollaborationFloor =
-  | { ok: true; floor: number; packagePrice: number; extraTotal: number }
+  | { ok: true; floor: number; packagePrice: number; extraTotal: number; extras: StoredProposalExtra[] }
   | { ok: false; reason: "unknown_package" | "unknown_extra" };
 
 /**
@@ -86,10 +90,12 @@ export function collaborationFloor(input: {
   const rawKeys = Array.isArray(input.extraKeys) ? input.extraKeys.filter((key) => typeof key === "string") : [];
   if (rawKeys.length !== keys.length) return { ok: false, reason: "unknown_extra" };
 
+  const extras: StoredProposalExtra[] = [];
   let extraTotal = 0;
   for (const key of keys) {
     const price = integerEuro(card[key]);
     if (price == null) return { ok: false, reason: "unknown_extra" };
+    extras.push({ key, price });
     extraTotal += price;
   }
 
@@ -105,5 +111,41 @@ export function collaborationFloor(input: {
 
   const packagePrice = matched ? integerEuro(matched.price) ?? 0 : 0;
   if (!matched && keys.length === 0) return null;
-  return { ok: true, floor: packagePrice + extraTotal, packagePrice, extraTotal };
+  return { ok: true, floor: packagePrice + extraTotal, packagePrice, extraTotal, extras };
+}
+
+export type SavedProposalExtra = { key: string; price: number };
+
+/** Rows already stored on a proposal. Empty or invalid values show nothing. */
+export function parseSavedProposalExtras(value: unknown): SavedProposalExtra[] {
+  if (!Array.isArray(value) || value.length === 0) return [];
+  const out: SavedProposalExtra[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const key = (item as { key?: unknown }).key;
+    const price = (item as { price?: unknown }).price;
+    const amount = typeof price === "number" ? price : Number(price);
+    if (typeof key !== "string" || !key.trim()) continue;
+    if (!Number.isInteger(amount) || amount < 1) continue;
+    out.push({ key: key.trim(), price: amount });
+  }
+  return out;
+}
+
+/** «Extras: Γρήγορη παράδοση (20 €)». Null when the proposal has no extras. */
+export function formatProposalExtrasLine(value: unknown, lang: "el" | "en"): string | null {
+  const rows = parseSavedProposalExtras(value);
+  if (!rows.length) return null;
+  const parts = rows.map((row) => {
+    const label = isExtraKey(row.key) ? EXTRA_LABEL[row.key][lang] : row.key;
+    return `${label} (${formatEuro(row.price, lang)})`;
+  });
+  return `Extras: ${parts.join(", ")}`;
+}
+
+/** Stored chat line uses catalog keys so the viewer’s language can swap the names. */
+export function proposalExtrasChatLine(extras: SavedProposalExtra[]): string {
+  const priced = extras.filter((row): row is StoredProposalExtra => isExtraKey(row.key));
+  if (!priced.length) return "";
+  return `\nExtras: ${priced.map((row) => `${row.key} (${formatEuro(row.price, "el")})`).join(", ")}`;
 }

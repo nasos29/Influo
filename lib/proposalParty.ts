@@ -127,6 +127,7 @@ const PARTY_FIELDS = [
   "brand_agreement_accepted",
   "agreement_accepted_at",
   "brand_added_to_past_brands",
+  "selected_extras",
 ] as const;
 
 export function partyProposalView(row: Record<string, unknown>): Record<string, unknown> {

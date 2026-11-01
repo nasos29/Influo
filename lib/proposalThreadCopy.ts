@@ -1,3 +1,5 @@
+import { EXTRA_LABEL, RATE_CARD_EXTRA_KEYS, type RateCardExtraKey } from "@/lib/servicePackages";
+
 const PREFIX = { el: "Νέα πρόταση:", en: "New proposal:" } as const;
 const CAMPAIGN = { el: "Καμπάνια", en: "Campaign" } as const;
 
@@ -46,6 +48,16 @@ export function displayProposalThread(content: string, lang: "el" | "en"): strin
       ? `Your application for “${title}” was accepted. We can continue here.`
       : `Η αίτησή σας για «${title}» έγινε αποδεκτή. Μπορούμε να συνεχίσουμε εδώ.`
   );
+  text = text.replace(/^Extras: (.+)$/gm, (_line, body: string) => {
+    const parts = body.split(",").map((part) => {
+      const match = part.trim().match(/^([a-z0-9_]+) \((.+)\)$/);
+      if (!match) return part.trim();
+      const key = match[1] as RateCardExtraKey;
+      const label = (RATE_CARD_EXTRA_KEYS as readonly string[]).includes(key) ? EXTRA_LABEL[key][lang] : key;
+      return `${label} (${match[2]})`;
+    });
+    return `Extras: ${parts.filter(Boolean).join(", ")}`;
+  });
   return text;
 }
 

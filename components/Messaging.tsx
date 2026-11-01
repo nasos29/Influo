@@ -22,6 +22,7 @@ import { unreadAfterRefresh, type ReadMark } from '@/lib/messageRead';
 import { formatEuroAmount } from '@/lib/formatEuro';
 import { displayServiceType } from '@/lib/campaignServiceLabel';
 import { displayProposalThread } from '@/lib/proposalThreadCopy';
+import { formatProposalExtrasLine } from '@/lib/proposalFloor';
 
 interface MessageAttachment {
   url: string;
@@ -69,6 +70,7 @@ interface ProposalInfo {
   counter_proposal_status?: string | null;
   influencer_agreement_accepted?: boolean;
   brand_agreement_accepted?: boolean;
+  selected_extras?: unknown;
 }
 
 interface MessagingProps {
@@ -2028,6 +2030,11 @@ export default function Messaging({
                         </span>
                       )}
                     </p>
+                    {formatProposalExtrasLine(proposalInfo.selected_extras, lang === 'en' ? 'en' : 'el') ? (
+                      <p className="mt-1 text-xs text-slate-600">
+                        {formatProposalExtrasLine(proposalInfo.selected_extras, lang === 'en' ? 'en' : 'el')}
+                      </p>
+                    ) : null}
                   </div>
                 )}
               </div>
@@ -2335,6 +2342,11 @@ export default function Messaging({
                 <p className="text-sm text-blue-800">
                   {lang === 'el' ? 'Υπηρεσία:' : 'Service:'} {displayServiceType(proposalInfo.service_type, lang)} • {lang === 'el' ? 'Budget:' : 'Budget:'} {formatEuroAmount(proposalInfo.counter_proposal_budget || proposalInfo.budget, lang === 'en' ? 'en' : 'el')}
                 </p>
+                {formatProposalExtrasLine(proposalInfo.selected_extras, lang === 'en' ? 'en' : 'el') ? (
+                  <p className="mt-1 text-sm text-blue-800">
+                    {formatProposalExtrasLine(proposalInfo.selected_extras, lang === 'en' ? 'en' : 'el')}
+                  </p>
+                ) : null}
               </div>
 
               {/* Benefits Section */}

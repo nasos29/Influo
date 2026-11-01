@@ -50,6 +50,7 @@ import {
 import { displayNameForLang } from '@/lib/greeklish';
 import { displayServiceType } from '@/lib/campaignServiceLabel';
 import { displayProposalMessage } from '@/lib/proposalThreadCopy';
+import { formatProposalExtrasLine } from '@/lib/proposalFloor';
 import { normalizeYouTubeUsernameForSave } from '@/lib/youtubeHandle';
 import CreatorPlatformPrices from '@/components/CreatorPlatformPrices';
 import LocationTypeahead from '@/components/LocationTypeahead';
@@ -1243,6 +1244,7 @@ interface Proposal {
   counter_proposal_budget?: string | null;
   counter_proposal_status?: string | null;
   counter_proposal_message?: string | null;
+  selected_extras?: unknown;
 }
 
 function tabBadgeText(count: number): string {
@@ -2239,6 +2241,9 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                             <p className="text-sm text-slate-600 mb-2">
                                                                 <strong>{T("Υπηρεσία:", "Service:")}</strong> {displayServiceType(prop.service_type, lang)} • <strong>{T("Προϋπολογισμός:", "Budget:")}</strong> {formatEuroAmount(prop.budget, lang)}
                                                             </p>
+                                                            {formatProposalExtrasLine(prop.selected_extras, lang) ? (
+                                                                <p className="text-sm text-slate-600 mb-2">{formatProposalExtrasLine(prop.selected_extras, lang)}</p>
+                                                            ) : null}
                                                             {prop.message && (
                                                                 <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg mt-2">{displayProposalMessage(prop.message, lang)}</p>
                                                             )}
@@ -2722,6 +2727,9 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 <p className="text-sm text-blue-800">
                                     {T('Υπηρεσία:', 'Service:')} {displayServiceType(selectedProposal.service_type, lang)} • {T('Προϋπολογισμός:', 'Budget:')} {formatEuroAmount(selectedProposal.budget, lang)}
                                 </p>
+                                {formatProposalExtrasLine(selectedProposal.selected_extras, lang) ? (
+                                    <p className="mt-1 text-sm text-blue-800">{formatProposalExtrasLine(selectedProposal.selected_extras, lang)}</p>
+                                ) : null}
                             </div>
 
                             {/* Benefits Section */}
@@ -2873,6 +2881,9 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 <p className="text-sm text-blue-800">
                                     <strong>{displayServiceType(selectedProposal.service_type, lang)}</strong> • <strong>{formatEuroAmount(selectedProposal.budget, lang)}</strong>
                                 </p>
+                                {formatProposalExtrasLine(selectedProposal.selected_extras, lang) ? (
+                                    <p className="mt-1 text-sm text-blue-800">{formatProposalExtrasLine(selectedProposal.selected_extras, lang)}</p>
+                                ) : null}
                             </div>
 
                             <div>
