@@ -146,7 +146,7 @@ export default function ProfileHireCard({
         <div className="mx-auto flex max-w-6xl items-center gap-3">
           {priceText ? (
             <div className="min-w-0">
-              <p className="text-lg font-extrabold leading-none text-slate-900">{priceText}</p>
+              <p className="text-xl font-extrabold leading-none tabular-nums text-slate-900 sm:text-2xl">{priceText}</p>
             </div>
           ) : (
             <div className="min-w-0" />

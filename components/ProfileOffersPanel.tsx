@@ -602,7 +602,7 @@ export default function ProfileOffersPanel({
                     <p className="text-sm font-semibold text-slate-900 sm:text-base">{row.title}</p>
                     <span className="flex shrink-0 items-center gap-2.5">
                       {row.priceLabel ? (
-                        <span className="text-sm font-semibold tabular-nums text-slate-900">{row.priceLabel}</span>
+                        <span className="whitespace-nowrap text-xl font-bold leading-none tabular-nums text-slate-900 sm:text-2xl lg:text-3xl">{row.priceLabel}</span>
                       ) : null}
                       <RadioMark selected={selectedRow} />
                     </span>
@@ -667,7 +667,7 @@ export default function ProfileOffersPanel({
                     {row.description ? <p className="mt-0.5 text-sm leading-snug text-slate-500">{row.description}</p> : null}
                   </div>
                   {row.priceLabel ? (
-                    <span className="shrink-0 text-sm font-semibold tabular-nums text-slate-900">{row.priceLabel}</span>
+                    <span className="shrink-0 whitespace-nowrap text-lg font-bold leading-none tabular-nums text-slate-900 sm:text-xl lg:text-2xl">{row.priceLabel}</span>
                   ) : null}
                 </div>
               </li>
