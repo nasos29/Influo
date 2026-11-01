@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { dmyToYmd, maskDmyInput, ymdToDmy } from "@/lib/formatDate";
+import { dmyToYmd, isImpossibleDmy, maskDmyInput, ymdToDmy } from "@/lib/formatDate";
 
 const MONTHS = {
   el: [
@@ -150,6 +150,7 @@ export default function DmyDateField({
       setText(ymdToDmy(ymd));
       return;
     }
+    if (isImpossibleDmy(text)) return;
     setText(ymdToDmy(value));
     if (value !== synced) setSynced(value);
   };
@@ -174,6 +175,13 @@ export default function DmyDateField({
     setOpen((current) => !current);
   };
 
+  const impossible = isImpossibleDmy(text);
+  const invalidMessage = lang === "el" ? "Αυτή η ημερομηνία δεν υπάρχει." : "This date does not exist.";
+
+  useEffect(() => {
+    inputRef.current?.setCustomValidity(impossible ? " " : "");
+  }, [impossible]);
+
   const inputClass =
     className ||
     "w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white";
@@ -183,7 +191,8 @@ export default function DmyDateField({
   const selected = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef}>
+      <div className="relative">
       <input
         ref={inputRef}
         id={fieldId}
@@ -194,12 +203,17 @@ export default function DmyDateField({
         required={required}
         placeholder={placeholder}
         aria-label={label}
+        aria-invalid={impossible}
+        aria-describedby={impossible ? `${fieldId}-error` : undefined}
         value={text}
         onFocus={() => {
           focused.current = true;
         }}
         onChange={(event) => onText(event.target.value)}
         onBlur={onBlur}
+        onInvalid={(event) => {
+          if (impossible) event.preventDefault();
+        }}
         className={`${inputClass} pr-10 tabular-nums`}
       />
       <button
@@ -278,6 +292,12 @@ export default function DmyDateField({
             })}
           </div>
         </div>
+      ) : null}
+      </div>
+      {impossible ? (
+        <p id={`${fieldId}-error`} role="alert" className="mt-1 text-xs text-red-600">
+          {invalidMessage}
+        </p>
       ) : null}
     </div>
   );

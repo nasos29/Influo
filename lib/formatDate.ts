@@ -51,6 +51,56 @@ export function dmyToYmd(text: string): string {
   return ymdFromParts(year, month, day);
 }
 
+/**
+ * Day 1–31 and month 1–12 while the digits are still being typed.
+ * A first digit that cannot start a valid pair (day 4–9, month 2–9) becomes 0X.
+ * A second digit outside the range is dropped.
+ */
+function clampDmyDigits(digits: string): string {
+  let i = 0;
+  if (i >= digits.length) return "";
+
+  let day = "";
+  const d0 = digits[i];
+  i += 1;
+  if (Number(d0) >= 4) {
+    day = `0${d0}`;
+  } else {
+    day = d0;
+    if (i < digits.length) {
+      const d1 = digits[i];
+      const n = Number(day + d1);
+      i += 1;
+      if (n >= 1 && n <= 31) day += d1;
+    }
+  }
+
+  let month = "";
+  if (i < digits.length) {
+    const m0 = digits[i];
+    i += 1;
+    if (Number(m0) >= 2) {
+      month = `0${m0}`;
+    } else {
+      month = m0;
+      if (i < digits.length) {
+        const m1 = digits[i];
+        const n = Number(month + m1);
+        i += 1;
+        if (n >= 1 && n <= 12) month += m1;
+      }
+    }
+  }
+
+  return day + month + digits.slice(i, i + 4);
+}
+
+/** True when the field shows a finished dd/mm/yyyy that is not a real calendar day. */
+export function isImpossibleDmy(text: string): boolean {
+  const trimmed = text.trim();
+  return /^\d{2}\/\d{2}\/\d{4}$/.test(trimmed) && !dmyToYmd(trimmed);
+}
+
 function groupDmyDigits(digits: string, trailingSlash: boolean): string {
   const day = digits.slice(0, 2);
   const month = digits.slice(2, 4);
@@ -82,13 +132,14 @@ export function maskDmyInput(raw: string, previous = ""): string {
   const deleting = raw.length < previous.length;
   const removedOnlySeparator = deleting && digits === prevDigits;
   const typedEarlySlash = !deleting && raw.endsWith("/") && (digits.length === 1 || digits.length === 3);
+  const clamped = clampDmyDigits(digits);
   const trailingSlash =
     !removedOnlySeparator &&
-    digits.length > 0 &&
-    digits.length < 5 &&
-    (digits.length === 2 || digits.length === 4 || typedEarlySlash);
+    clamped.length > 0 &&
+    clamped.length < 5 &&
+    (clamped.length === 2 || clamped.length === 4 || typedEarlySlash);
 
-  return groupDmyDigits(digits, trailingSlash);
+  return groupDmyDigits(clamped, trailingSlash);
 }
 
 type AthensParts = { year: number; month: number; day: number; hour: number; minute: number };
