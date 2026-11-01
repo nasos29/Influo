@@ -60,7 +60,7 @@ const BRAND_SLIDE_LIMIT = 12;
 
 /** Guest desktop nav: one box so labels share a center line. */
 const DESKTOP_NAV_ITEM_CLASS =
-  "inline-flex min-h-[44px] items-center px-0 py-0 leading-5 hover:text-slate-900 transition-colors";
+  "inline-flex min-h-[44px] items-center rounded-lg px-3 py-1.5 leading-5 hover:bg-slate-100 hover:text-slate-900 transition-colors";
 
 const t = {
   el: {
@@ -573,7 +573,7 @@ export default function Home({
                     setShowModal(true);
                     setMobileMenuOpen(false);
                   }}
-                  className="w-full text-left px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors"
+                  className="w-full text-left rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
                 >
                   {txt.nav_join}
                 </button>
@@ -581,14 +581,14 @@ export default function Home({
               <a 
                 href="/directory"
                 onClick={() => setMobileMenuOpen(false)}
-                className="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors"
+                className="block rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
               >
                 {txt.nav_directory}
               </a>
               <a
                 href={lang === "en" ? "/en/campaigns" : "/campaigns"}
                 onClick={() => setMobileMenuOpen(false)}
-                className="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors"
+                className="block rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
               >
                 {txt.nav_campaigns}
               </a>
@@ -596,7 +596,7 @@ export default function Home({
                 <a 
                   href="/dashboard"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors"
+                  className="block rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
                 >
                   Dashboard
                 </a>
@@ -604,7 +604,7 @@ export default function Home({
                 <a 
                   href="/login"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors"
+                  className="block rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
                 >
                   {lang === "el" ? "Σύνδεση" : "Sign In"}
                 </a>
