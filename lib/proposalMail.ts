@@ -1,7 +1,7 @@
 import { Resend } from "resend";
 import { displayServiceType } from "@/lib/campaignServiceLabel";
 import { logEmail } from "@/lib/deliveryLog";
-import { formatDate } from "@/lib/formatDateTime";
+import { formatAthensDateTime, formatDate } from "@/lib/formatDateTime";
 import { formatEuroAmount } from "@/lib/formatEuro";
 import { formatProposalExtrasLine } from "@/lib/proposalFloor";
 import { escapeHtml } from "@/lib/proposalParty";
@@ -277,6 +277,46 @@ export async function mailCollaborationComplete(input: {
       `<p>Γεια σας ${escapeHtml(input.influencerName)},</p>
        <p>Και οι δύο πλευρές αποδέχτηκαν τη συμφωνία συνεργασίας <strong>#${id}</strong>. Η επιχείρηση <strong>${escapeHtml(input.brandName)}</strong> καταγράφεται στις συνεργασίες του προφίλ σας.</p>
        ${agreementDetailsHtml(input)}`
+    )
+  );
+}
+
+/** Admin inbox only, after both sides have accepted. */
+export async function mailAdminAgreementComplete(input: {
+  proposalId: string | number;
+  brandName: string;
+  brandEmail: string;
+  creatorName: string;
+  profileUrl: string;
+  service: string;
+  budget: string;
+  extras?: unknown;
+  publishDeadline?: string | null;
+  brandAcceptedAt?: string | null;
+  creatorAcceptedAt?: string | null;
+}): Promise<void> {
+  const extrasLine = formatProposalExtrasLine(input.extras, "el");
+  const extras = extrasLine ? extrasLine.replace(/^Extras:\s*/, "") : "";
+  const deadline = formatDate(input.publishDeadline, "el") || "κατόπιν συνεννόησης";
+  const id = escapeHtml(String(input.proposalId));
+  await send(
+    "agreement_complete_admin",
+    adminEmail(),
+    `Συμφωνία συνεργασίας #${input.proposalId} ολοκληρώθηκε`,
+    shell(
+      `Η συμφωνία συνεργασίας #${id} ολοκληρώθηκε`,
+      `<p><strong>Αριθμός συμφωνίας:</strong> #${id}<br/>
+        <strong>Επιχείρηση:</strong> ${escapeHtml(input.brandName)}<br/>
+        <strong>Email επιχείρησης:</strong> ${escapeHtml(input.brandEmail)}<br/>
+        <strong>Δημιουργός:</strong> ${escapeHtml(input.creatorName)}<br/>
+        <strong>Προφίλ:</strong> <a href="${escapeHtml(input.profileUrl)}">${escapeHtml(input.profileUrl)}</a><br/>
+        <strong>Παραδοτέα:</strong> ${escapeHtml(displayServiceType(input.service, "el") || "—")}<br/>
+        <strong>Extras:</strong> ${escapeHtml(extras || "—")}<br/>
+        <strong>Συνολική αμοιβή:</strong> ${euroHtml(input.budget)}<br/>
+        <strong>Προθεσμία δημοσίευσης:</strong> ${escapeHtml(deadline)}<br/>
+        <strong>Αποδοχή επιχείρησης:</strong> ${escapeHtml(formatAthensDateTime(input.brandAcceptedAt))}<br/>
+        <strong>Αποδοχή δημιουργού:</strong> ${escapeHtml(formatAthensDateTime(input.creatorAcceptedAt))}</p>
+       <p><a href="${siteUrl()}/admin">Άνοιγμα διαχείρισης</a></p>`
     )
   );
 }

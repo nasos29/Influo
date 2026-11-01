@@ -30,6 +30,21 @@ export function formatDate(value: string | number | Date | null | undefined, lan
   });
 }
 
+/** Calendar date and 24-hour time in Europe/Athens. Empty values stay as an em dash. */
+export function formatAthensDateTime(value: string | number | Date | null | undefined): string {
+  const date = toDate(value);
+  if (!date) return "—";
+  return new Intl.DateTimeFormat("el-GR", {
+    timeZone: "Europe/Athens",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(date);
+}
+
 export function formatTime(value: string | number | Date | null | undefined, lang: UiLang): string {
   const date = toDate(value);
   if (!date) return "";

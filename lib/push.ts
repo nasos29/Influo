@@ -99,6 +99,23 @@ export async function sendPushInfluencerAccountDeleted(
   });
 }
 
+/** Both sides accepted a collaboration agreement. */
+export async function sendPushAdminAgreementComplete(opts: {
+  proposalId: string | number;
+  brandName: string;
+  creatorName: string;
+}): Promise<{ sent: number; failed: number }> {
+  const admin = getAdminPushRecipient() || (process.env.ADMIN_EMAIL || "nd.6@hotmail.com").trim().toLowerCase();
+  if (!admin) return { sent: 0, failed: 0 };
+  const id = String(opts.proposalId);
+  return sendPushToBrand(admin, {
+    title: "Συμφωνία ολοκληρώθηκε",
+    body: `#${id} · ${clipPushText(opts.brandName || "Επιχείρηση", 28)} · ${clipPushText(opts.creatorName || "Δημιουργός", 28)}`,
+    url: "/admin",
+    tag: `admin-agreement-${id}`,
+  });
+}
+
 export async function sendPushAdminInfluencerAccountDeleted(opts: {
   displayName: string;
   email: string;
