@@ -4,7 +4,8 @@ import { requireActor, influencerContact, brandHasAccount, listForRole, loadProp
 import { ensureProposalThread } from "@/lib/proposalChat";
 import { mailNewProposal } from "@/lib/proposalMail";
 import { deferAfterResponse, pushParty } from "@/lib/proposalNotify";
-import { formatEuroAmount } from "@/lib/formatEuro";
+import { formatEuro, formatEuroAmount, parseEuroNumber } from "@/lib/formatEuro";
+import { collaborationFloor } from "@/lib/proposalFloor";
 import {
   cleanBudget,
   clipText,
@@ -94,8 +95,49 @@ export async function POST(request: Request) {
       );
     }
 
-    const profile = await supabaseService().from("influencers").select("id, display_name").eq("id", influencerId).maybeSingle();
+    const profile = await supabaseService()
+      .from("influencers")
+      .select("id, display_name, service_packages, rate_card")
+      .eq("id", influencerId)
+      .maybeSingle();
     if (!profile.data) return NextResponse.json({ error: "Influencer not found" }, { status: 404 });
+
+    const floor = collaborationFloor({
+      packages: profile.data.service_packages,
+      rateCard: profile.data.rate_card,
+      serviceType: service,
+      packageId: typeof body.packageId === "string" ? body.packageId : null,
+      extraKeys: body.extras,
+    });
+    if (floor && !floor.ok) {
+      const unknownPackage = floor.reason === "unknown_package";
+      return NextResponse.json(
+        {
+          error: unknownPackage ? "Unknown package" : "Unknown extra",
+          message: unknownPackage
+            ? { el: "Το πακέτο δεν βρέθηκε.", en: "That package was not found." }
+            : { el: "Κάποιο extra δεν είναι διαθέσιμο.", en: "One of the extras is not available." },
+        },
+        { status: 400 }
+      );
+    }
+    if (floor && floor.ok && floor.floor > 0) {
+      const amount = parseEuroNumber(budget);
+      if (amount == null || amount < floor.floor) {
+        const elAmount = formatEuro(floor.floor, "el");
+        const enAmount = formatEuro(floor.floor, "en");
+        return NextResponse.json(
+          {
+            error: `Budget cannot be lower than ${enAmount}.`,
+            message: {
+              el: `Το budget δεν μπορεί να είναι μικρότερο από ${elAmount}.`,
+              en: `Budget cannot be lower than ${enAmount}.`,
+            },
+          },
+          { status: 400 }
+        );
+      }
+    }
 
     const session = await requireActor(request);
     let brandName = "";

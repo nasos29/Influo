@@ -414,7 +414,7 @@ export default function ProfileOffersPanel({
   gender?: string | null;
   isBrand: boolean;
   influencerId: string;
-  onContinue: (choice: { label: string; budget?: string }) => void;
+  onContinue: (choice: { label: string; budget?: string; packageId?: string }) => void;
   onNeedBrand: () => void;
   selectedId?: string | null;
   onSelectedIdChange?: (id: string) => void;
@@ -622,7 +622,7 @@ export default function ProfileOffersPanel({
       {selected ? (
         <button
           type="button"
-          onClick={() => onContinue({ label: selected.title, budget: selected.budget })}
+          onClick={() => onContinue({ label: selected.title, budget: selected.budget, packageId: selected.id })}
           className="mt-4 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-4 text-sm font-semibold text-white hover:from-blue-700 hover:to-purple-700"
         >
           {selected.priceLabel ? `${copy.continue} – ${selected.priceLabel}` : copy.continue}
