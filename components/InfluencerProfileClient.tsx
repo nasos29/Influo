@@ -1723,22 +1723,19 @@ export default function InfluencerProfile(props: {
                   {lang === 'el' ? 'Με την εγγραφή θα έχετε:' : 'By registering you will have:'}
                 </p>
                 <ul className="space-y-2 text-sm text-slate-700">
-                  <li className="flex items-start gap-2">
-                    <span className="text-green-600 font-bold mt-0.5">✓</span>
-                    <span>{lang === 'el' ? 'Άμεση επικοινωνία με influencers' : 'Direct messaging with influencers'}</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-green-600 font-bold mt-0.5">✓</span>
-                    <span>{lang === 'el' ? 'Dashboard για διαχείριση προτάσεων' : 'Dashboard to manage proposals'}</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-green-600 font-bold mt-0.5">✓</span>
-                    <span>{lang === 'el' ? 'Έξυπνη υπηρεσία προτάσεων AI (ΔΩΡΕΑΝ)' : 'AI-powered influencer suggestions (FREE)'}</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-green-600 font-bold mt-0.5">✓</span>
-                    <span>{lang === 'el' ? 'Αναλυτικά στατιστικά και reports' : 'Detailed analytics and reports'}</span>
-                  </li>
+                  {[
+                    { el: "Μηνύματα με creators", en: "Message creators" },
+                    { el: "Προτάσεις συνεργασίας και αντιπροτάσεις", en: "Proposals and counter-offers" },
+                    { el: "Καμπάνιες και προσκλήσεις σε creators", en: "Campaigns and invites to creators" },
+                    { el: "Αιτήσεις και έγκριση παραδοτέων", en: "Applications and deliverable approval" },
+                    { el: "Αποθήκευση αγαπημένων creators", en: "Save favorite creators" },
+                    { el: "Προτάσεις creators για την κατηγορία σου", en: "Creator suggestions for your category" },
+                  ].map((item) => (
+                    <li key={item.en} className="flex items-start gap-2">
+                      <span className="text-green-600 font-bold mt-0.5">✓</span>
+                      <span>{item[lang]}</span>
+                    </li>
+                  ))}
                 </ul>
               </div>
 
