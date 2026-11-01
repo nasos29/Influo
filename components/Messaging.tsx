@@ -18,6 +18,7 @@ import { formatActiveLabel, presenceOnline } from '@/lib/presenceStatus';
 import { counterpartyBrandPresence } from '@/lib/presenceIdentity';
 import { getInfluencerPresenceCached } from '@/lib/presenceCache';
 import { sessionFetch } from '@/lib/sessionFetch';
+import { unreadAfterRefresh, type ReadMark } from '@/lib/messageRead';
 import { formatEuroAmount } from '@/lib/formatEuro';
 import { displayServiceType } from '@/lib/campaignServiceLabel';
 import { displayProposalThread } from '@/lib/proposalThreadCopy';
@@ -238,6 +239,9 @@ export default function Messaging({
   const lastSentMessageRef = useRef<string>('');
   const applyInboxMessageRef = useRef<(msg: Message) => void>(() => {});
   const markReadRef = useRef<(convId: string) => void>(() => {});
+  const readMarksRef = useRef(new Map<string, ReadMark>());
+  const selectedConversationRef = useRef<string | null>(selectedConversation);
+  selectedConversationRef.current = selectedConversation;
   const influencerWatchGen = useRef(0);
   const brandWatchGen = useRef(0);
   const [viewerUserId, setViewerUserId] = useState<string | null>(null);
@@ -697,6 +701,9 @@ export default function Messaging({
       
       // Load activity timestamps FIRST to check if conversation is closed, then load messages
       // IMPORTANT: Even if conversation is closed, the textarea will remain visible
+      if (document.visibilityState === 'visible') {
+        markReadRef.current(selectedConversation);
+      }
       (async () => {
         await loadActivityTimestamps(selectedConversation);
         await loadMessages(selectedConversation);
@@ -1067,6 +1074,7 @@ export default function Messaging({
       setLoading(true);
       setLoadError(null);
     }
+    const fetchStartedAt = Date.now();
     try {
       const enriched = await withTimeout((async () => {
       let query = supabase
@@ -1095,7 +1103,19 @@ export default function Messaging({
       return enrichConversationRows(rows);
       })(), 20000);
       setLoadError(null);
-      setConversations(enriched);
+      setConversations(
+        enriched.map((c) => ({
+          ...c,
+          unread_count:
+            c.id === selectedConversationRef.current
+              ? unreadAfterRefresh(
+                  c.unread_count || 0,
+                  readMarksRef.current.get(c.id),
+                  fetchStartedAt,
+                )
+              : c.unread_count || 0,
+        })),
+      );
 
       if (silent) return;
 
@@ -1315,6 +1335,10 @@ export default function Messaging({
 
   const markVisibleAsRead = async (convId: string) => {
     if (!convId || document.visibilityState !== 'visible') return;
+    const startedAt = Date.now();
+    readMarksRef.current.set(convId, { startedAt, confirmedAt: null });
+    setConversations((prev) => prev.map((c) => (c.id === convId ? { ...c, unread_count: 0 } : c)));
+    const stillThisAttempt = () => readMarksRef.current.get(convId)?.startedAt === startedAt;
     try {
       const response = await sessionFetch('/api/messages/read', {
         method: 'POST',
@@ -1322,17 +1346,35 @@ export default function Messaging({
         body: JSON.stringify({ conversationId: convId, as: mode }),
       });
       const result = await response.json().catch(() => ({}));
-      if (!response.ok || !result.success) return;
+      if (!stillThisAttempt()) return;
+      if (!response.ok || !result.success) {
+        readMarksRef.current.delete(convId);
+        void loadConversations(true);
+        return;
+      }
       const ids: string[] = Array.isArray(result.ids) ? result.ids : [];
-      if (ids.length === 0) return;
-      const idSet = new Set(ids);
-      setMessages((prev) => prev.map((m) => (idSet.has(m.id) ? { ...m, read: true } : m)));
-      setConversations((prev) => prev.map((c) => (c.id === convId ? { ...c, unread_count: 0 } : c)));
+      readMarksRef.current.set(convId, { startedAt, confirmedAt: Date.now() });
+      if (ids.length > 0) {
+        const idSet = new Set(ids);
+        setMessages((prev) => prev.map((m) => (idSet.has(m.id) ? { ...m, read: true } : m)));
+      } else {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.conversation_id === convId && m.sender_type !== mode ? { ...m, read: true } : m
+          )
+        );
+      }
+      if (selectedConversationRef.current === convId) {
+        setConversations((prev) => prev.map((c) => (c.id === convId ? { ...c, unread_count: 0 } : c)));
+      }
       window.dispatchEvent(new CustomEvent('messagesRead', {
         detail: { conversationId: convId, count: ids.length },
       }));
     } catch (error) {
       console.error('Error marking messages read:', error);
+      if (!stillThisAttempt()) return;
+      readMarksRef.current.delete(convId);
+      void loadConversations(true);
     }
   };
   markReadRef.current = (convId: string) => {
