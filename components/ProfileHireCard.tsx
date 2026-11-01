@@ -93,6 +93,7 @@ export default function ProfileHireCard({
   gender,
   isBrand,
   influencerId,
+  minRate,
   collaborateLabel,
   messageLabel,
   onCollaborate,
@@ -110,6 +111,8 @@ export default function ProfileHireCard({
   gender?: string | null;
   isBrand: boolean;
   influencerId: string;
+  /** Creator minimum charge, used when the negotiate form has no package price. */
+  minRate?: unknown;
   collaborateLabel: string;
   messageLabel: string;
   onCollaborate: (choice?: { label: string; budget?: string; packageId?: string }) => void;
@@ -146,7 +149,7 @@ export default function ProfileHireCard({
         <div className="mx-auto flex max-w-6xl items-center gap-3">
           {priceText ? (
             <div className="min-w-0">
-              <div className="truncate text-3xl font-bold leading-none tabular-nums text-slate-900">{priceText}</div>
+              <div className="truncate text-2xl font-bold leading-none tabular-nums text-slate-900">{priceText}</div>
             </div>
           ) : (
             <div className="min-w-0" />
@@ -178,7 +181,7 @@ export default function ProfileHireCard({
       <div className="rounded-2xl border border-slate-200 bg-white px-[18px] pb-3.5 pt-[18px] shadow-[0_10px_28px_rgba(15,23,42,0.08)]">
         {priceText ? (
           <div className="mb-3.5 text-center">
-            <div className="text-4xl font-bold leading-none tabular-nums text-slate-900">
+            <div className="text-3xl font-bold leading-none tabular-nums text-slate-900">
               {priceText}
             </div>
           </div>
@@ -231,6 +234,7 @@ export default function ProfileHireCard({
           gender={gender}
           options={negotiateOptions}
           influencerId={influencerId}
+          minRate={minRate}
         />
       ) : null}
     </>

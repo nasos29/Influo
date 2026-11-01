@@ -4,8 +4,8 @@ import { requireActor, influencerContact, brandHasAccount, listForRole, loadProp
 import { ensureProposalThread } from "@/lib/proposalChat";
 import { mailNewProposal } from "@/lib/proposalMail";
 import { deferAfterResponse, pushParty } from "@/lib/proposalNotify";
-import { formatEuro, formatEuroAmount, parseEuroNumber } from "@/lib/formatEuro";
-import { collaborationFloor, proposalExtrasChatLine } from "@/lib/proposalFloor";
+import { formatEuroAmount, parseEuroNumber } from "@/lib/formatEuro";
+import { budgetFloorMessage, collaborationFloor, proposalExtrasChatLine } from "@/lib/proposalFloor";
 import { parsePublishDeadline } from "@/lib/publishDeadline";
 import {
   cleanBudget,
@@ -112,7 +112,7 @@ export async function POST(request: Request) {
 
     const profile = await supabaseService()
       .from("influencers")
-      .select("id, display_name, service_packages, rate_card")
+      .select("id, display_name, service_packages, rate_card, min_rate")
       .eq("id", influencerId)
       .maybeSingle();
     if (!profile.data) return NextResponse.json({ error: "Influencer not found" }, { status: 404 });
@@ -123,6 +123,7 @@ export async function POST(request: Request) {
       serviceType: service,
       packageId: typeof body.packageId === "string" ? body.packageId : null,
       extraKeys: body.extras,
+      minRate: profile.data.min_rate,
     });
     if (floor && !floor.ok) {
       const unknownPackage = floor.reason === "unknown_package";
@@ -139,14 +140,12 @@ export async function POST(request: Request) {
     if (floor && floor.ok && floor.floor > 0) {
       const amount = parseEuroNumber(budget);
       if (amount == null || amount < floor.floor) {
-        const elAmount = formatEuro(floor.floor, "el");
-        const enAmount = formatEuro(floor.floor, "en");
         return NextResponse.json(
           {
-            error: `Budget cannot be lower than ${enAmount}.`,
+            error: budgetFloorMessage(floor.floor, "en"),
             message: {
-              el: `Το budget δεν μπορεί να είναι μικρότερο από ${elAmount}.`,
-              en: `Budget cannot be lower than ${enAmount}.`,
+              el: budgetFloorMessage(floor.floor, "el"),
+              en: budgetFloorMessage(floor.floor, "en"),
             },
           },
           { status: 400 }

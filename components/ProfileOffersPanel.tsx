@@ -7,6 +7,7 @@ import ResponsiveDialog, { DialogClose } from "@/components/ResponsiveDialog";
 import DmyDateField from "@/components/DmyDateField";
 import { sessionFetch } from "@/lib/sessionFetch";
 import { formatEuroAmount, parseEuroNumber } from "@/lib/formatEuro";
+import { budgetFloorMessage, collaborationMinimum } from "@/lib/proposalFloor";
 import { listedPriceMin } from "@/lib/parsePrice";
 import { averageRateNote, negotiateLead } from "@/lib/creatorAddress";
 import { responseText } from "@/lib/bilingualError";
@@ -210,6 +211,7 @@ export function NegotiateDialog({
   gender,
   options,
   influencerId,
+  minRate,
 }: {
   open: boolean;
   onClose: () => void;
@@ -218,6 +220,8 @@ export function NegotiateDialog({
   gender?: string | null;
   options: OfferRow[];
   influencerId: string;
+  /** Creator minimum charge. Used when the chosen row has no package price. */
+  minRate?: unknown;
 }) {
   const copy = COPY[lang];
   const [optionId, setOptionId] = useState(options[0]?.id || "");
@@ -229,6 +233,14 @@ export function NegotiateDialog({
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
   const active = options.find((row) => row.id === optionId) || options[0];
+  const packageSelected = !!active && active.id !== "custom" && !active.extraKey;
+  const priceFloor = collaborationMinimum({
+    hasPackage: packageSelected,
+    packagePrice: active?.budget,
+    minRate,
+  });
+  const offered = parseEuroNumber(price);
+  const priceTooLow = priceFloor > 0 && price.trim() !== "" && (offered == null || offered < priceFloor);
 
   const rateNote = useMemo(() => {
     if (!active) return null;
@@ -284,6 +296,7 @@ export function NegotiateDialog({
                   setError(copy.priceInvalid);
                   return;
                 }
+                if (priceFloor > 0 && amount < priceFloor) return;
                 const parsedDeadline = parsePublishDeadline(deadline);
                 if (!parsedDeadline.ok) {
                   setError(copy.deadlineInvalid);
@@ -298,6 +311,7 @@ export function NegotiateDialog({
                     body: JSON.stringify({
                       influencerId,
                       serviceType: `${qty} × ${active.title}`.slice(0, 120),
+                      packageId: packageSelected ? active.id : null,
                       budget: String(amount),
                       publishDeadline: parsedDeadline.date,
                       message: note.trim(),
@@ -344,9 +358,17 @@ export function NegotiateDialog({
                 <span className="text-sm font-medium text-slate-700">{copy.price}</span>
                 <span className="relative mt-1.5 block">
                   <input
+                    type="number"
                     inputMode="decimal"
+                    min={priceFloor > 0 ? priceFloor : 1}
+                    step={1}
                     value={price}
-                    onChange={(event) => setPrice(event.target.value.replace(/[^\d.,]/g, "").slice(0, 12))}
+                    aria-invalid={priceTooLow}
+                    aria-describedby={priceTooLow ? "negotiate-price-error" : undefined}
+                    onChange={(event) => setPrice(event.target.value)}
+                    onInvalid={(event) => {
+                      if (priceTooLow) event.preventDefault();
+                    }}
                     className="w-full rounded-xl border border-slate-200 py-3 pl-3 pr-10 text-sm text-slate-900 outline-none focus:border-blue-500"
                   />
                   <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
@@ -384,10 +406,15 @@ export function NegotiateDialog({
                   className="mt-1.5 w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-500"
                 />
               </label>
-              {error ? <p className="text-sm text-red-600">{error}</p> : null}
+              {priceTooLow ? (
+                <p id="negotiate-price-error" role="alert" className="text-sm text-red-600">
+                  {budgetFloorMessage(priceFloor, lang)}
+                </p>
+              ) : null}
+              {error && !priceTooLow ? <p className="text-sm text-red-600">{error}</p> : null}
               <button
                 type="submit"
-                disabled={sending || !active}
+                disabled={sending || !active || priceTooLow}
                 className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-sm font-semibold text-white hover:from-blue-700 hover:to-purple-700 disabled:opacity-60"
               >
                 {sending ? copy.sending : copy.send}
@@ -430,6 +457,7 @@ export default function ProfileOffersPanel({
   influencerId,
   onContinue,
   onNeedBrand,
+  minRate,
   selectedId = null,
   onSelectedIdChange,
 }: {
@@ -442,6 +470,8 @@ export default function ProfileOffersPanel({
   influencerId: string;
   onContinue: (choice: { label: string; budget?: string; packageId?: string }) => void;
   onNeedBrand: () => void;
+  /** Creator minimum charge. Used when negotiating without a package price. */
+  minRate?: unknown;
   selectedId?: string | null;
   onSelectedIdChange?: (id: string) => void;
 }) {
@@ -685,6 +715,7 @@ export default function ProfileOffersPanel({
           gender={gender}
           options={negotiateOptions}
           influencerId={influencerId}
+          minRate={minRate}
         />
       ) : null}
     </div>
