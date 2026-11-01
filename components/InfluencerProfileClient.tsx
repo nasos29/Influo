@@ -1660,8 +1660,8 @@ export default function InfluencerProfile(props: {
                                 {proposalBudgetFloor > 0 ? (
                                   <p className="mt-1 text-xs text-slate-500">
                                     {lang === "el"
-                                      ? `Ελάχιστο ${formatEuro(proposalBudgetFloor, "el")}. Μπορεί μόνο να αυξηθεί.`
-                                      : `Minimum ${formatEuro(proposalBudgetFloor, "en")}. It can only be increased.`}
+                                      ? `Ελάχιστο ${formatEuro(proposalBudgetFloor, "el")}.`
+                                      : `Minimum ${formatEuro(proposalBudgetFloor, "en")}.`}
                                   </p>
                                 ) : null}
                             </div>
