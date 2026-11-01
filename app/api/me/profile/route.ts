@@ -184,7 +184,16 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Δεν υπάρχει ενεργή σύνδεση." }, { status: 401 });
     }
 
-    const [influencer, brand] = await Promise.all([findOwnInfluencer(user), findOwnBrand(user)]);
+    // A failing influencers select must not hide the brand row. Brands have no influencer.
+    const [influencerResult, brandResult] = await Promise.allSettled([
+      findOwnInfluencer(user),
+      findOwnBrand(user),
+    ]);
+    if (influencerResult.status === "rejected" && brandResult.status === "rejected") {
+      throw influencerResult.reason;
+    }
+    const influencer = influencerResult.status === "fulfilled" ? influencerResult.value : null;
+    const brand = brandResult.status === "fulfilled" ? brandResult.value : null;
     return NextResponse.json(
       { influencer: influencer ?? null, brand: brand ?? null },
       { headers: { "Cache-Control": "private, no-store" } }

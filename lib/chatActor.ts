@@ -32,48 +32,51 @@ async function maybeSingle(query: PromiseLike<{ data: Row; error: { message: str
   }
 }
 
-/** Who the signed-in user is allowed to send as. Emails come from private tables first. */
-export async function loadChatActor(user: User): Promise<ChatActor> {
+async function loadInfluencerSide(user: User, email: string): Promise<{ influencerId: string | null; influencerName: string | null }> {
   const admin = supabaseService();
-  const email = normEmail(user.email);
-
-  let influencerId: string | null = null;
-  let influencerName: string | null = null;
-
   const byId = await maybeSingle(
     admin.from("influencers").select("id, display_name").eq("id", user.id).maybeSingle()
   );
   if (byId?.id) {
-    influencerId = String(byId.id);
-    influencerName = typeof byId.display_name === "string" ? byId.display_name : null;
-  } else {
-    const byAuth = await maybeSingle(
-      admin.from("influencer_private").select("influencer_id").eq("auth_user_id", user.id).maybeSingle()
-    );
-    let pid = byAuth?.influencer_id ? String(byAuth.influencer_id) : "";
-    if (!pid && email) {
-      const byMail = await maybeSingle(
-        admin.from("influencer_private").select("influencer_id").ilike("contact_email", email).maybeSingle()
-      );
-      pid = byMail?.influencer_id ? String(byMail.influencer_id) : "";
-    }
-    if (!pid && email) {
-      const legacy = await maybeSingle(
-        admin.from("influencers").select("id, display_name").ilike("contact_email", email).maybeSingle()
-      );
-      if (legacy?.id) {
-        influencerId = String(legacy.id);
-        influencerName = typeof legacy.display_name === "string" ? legacy.display_name : null;
-      }
-    } else if (pid) {
-      influencerId = pid;
-      const name = await maybeSingle(
-        admin.from("influencers").select("display_name").eq("id", pid).maybeSingle()
-      );
-      influencerName = typeof name?.display_name === "string" ? name.display_name : null;
-    }
+    return {
+      influencerId: String(byId.id),
+      influencerName: typeof byId.display_name === "string" ? byId.display_name : null,
+    };
   }
+  const byAuth = await maybeSingle(
+    admin.from("influencer_private").select("influencer_id").eq("auth_user_id", user.id).maybeSingle()
+  );
+  let pid = byAuth?.influencer_id ? String(byAuth.influencer_id) : "";
+  if (!pid && email) {
+    const byMail = await maybeSingle(
+      admin.from("influencer_private").select("influencer_id").ilike("contact_email", email).maybeSingle()
+    );
+    pid = byMail?.influencer_id ? String(byMail.influencer_id) : "";
+  }
+  if (!pid && email) {
+    const legacy = await maybeSingle(
+      admin.from("influencers").select("id, display_name").ilike("contact_email", email).maybeSingle()
+    );
+    if (legacy?.id) {
+      return {
+        influencerId: String(legacy.id),
+        influencerName: typeof legacy.display_name === "string" ? legacy.display_name : null,
+      };
+    }
+    return { influencerId: null, influencerName: null };
+  }
+  if (!pid) return { influencerId: null, influencerName: null };
+  const name = await maybeSingle(
+    admin.from("influencers").select("display_name").eq("id", pid).maybeSingle()
+  );
+  return {
+    influencerId: pid,
+    influencerName: typeof name?.display_name === "string" ? name.display_name : null,
+  };
+}
 
+async function loadBrandSide(user: User, email: string): Promise<{ brandId: string | null; brandName: string | null; brandEmail: string | null }> {
+  const admin = supabaseService();
   let brandId: string | null = null;
   let brandName: string | null = null;
   let brandEmail: string | null = null;
@@ -122,14 +125,25 @@ export async function loadChatActor(user: User): Promise<ChatActor> {
     }
   }
 
+  return { brandId, brandName, brandEmail };
+}
+
+/** Who the signed-in user is allowed to send as. Emails come from private tables first. */
+export async function loadChatActor(user: User): Promise<ChatActor> {
+  const email = normEmail(user.email);
+  const [influencer, brand] = await Promise.all([
+    loadInfluencerSide(user, email),
+    loadBrandSide(user, email),
+  ]);
+
   return {
     userId: user.id,
     email,
-    influencerId,
-    influencerName,
-    brandId,
-    brandName,
-    brandEmail,
+    influencerId: influencer.influencerId,
+    influencerName: influencer.influencerName,
+    brandId: brand.brandId,
+    brandName: brand.brandName,
+    brandEmail: brand.brandEmail,
   };
 }
 

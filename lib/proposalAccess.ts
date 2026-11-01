@@ -137,29 +137,25 @@ export async function listForRole(actor: ChatActor, role: ProposalParty): Promis
   const brandId = actor.brandId;
   if (!email && !brandId) return [];
 
-  const seen = new Map<string, Record<string, unknown>>();
-  const take = (rows: Record<string, unknown>[] | null) => {
-    for (const row of rows || []) {
-      seen.set(String(row.id), partyProposalView(row));
-    }
-  };
-
-  if (email) {
-    const rows = await selectProposals((columns) =>
-      admin.from("proposals").select(columns).ilike("brand_email", email).order("created_at", { ascending: false }).limit(200)
-    );
-    take(rows);
-  }
+  // brand_id is indexed. The email scan is only for accounts that have no brand id.
   if (brandId) {
-    const byId = await admin
-      .from("proposals")
-      .select(LIST_COLUMNS)
-      .eq("brand_id", brandId)
-      .order("created_at", { ascending: false })
-      .limit(200);
-    if (byId.error && !/brand_id/i.test(byId.error.message)) throw new Error(byId.error.message);
-    if (!byId.error) take((byId.data || []) as Record<string, unknown>[]);
+    const rows = await selectProposals((columns) =>
+      admin
+        .from("proposals")
+        .select(columns)
+        .eq("brand_id", brandId)
+        .order("created_at", { ascending: false })
+        .limit(200)
+    );
+    return rows
+      .map((row) => partyProposalView(row))
+      .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
   }
 
-  return [...seen.values()].sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+  const rows = await selectProposals((columns) =>
+    admin.from("proposals").select(columns).ilike("brand_email", email || "").order("created_at", { ascending: false }).limit(200)
+  );
+  return rows
+    .map((row) => partyProposalView(row))
+    .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
 }
