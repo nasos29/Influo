@@ -1490,7 +1490,6 @@ export default function InfluencerProfile(props: {
     lang,
     packages: hirePackages,
     amountLabel: hireAmount,
-    floorAmount: hireSource != null && hireSource > 0 ? hireSource : null,
     selectedId: activeOfferId,
     onSelectedIdChange: setSelectedOfferId,
     creatorName: displayNameForLang(profile.name, lang),
