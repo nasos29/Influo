@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { unreadFromOtherParty } from "../lib/messageRead.ts";
+import { unreadAfterRefresh, unreadFromOtherParty } from "../lib/messageRead.ts";
 import { counterpartyBrandPresence, counterpartyInfluencerPresence } from "../lib/presenceIdentity.ts";
 import {
   beginPresenceLogout,
@@ -19,6 +19,18 @@ test("unread ids are only the other party's not-yet-read messages", () => {
   ];
   assert.deepEqual(unreadFromOtherParty(messages, "brand"), ["theirs-unread", "theirs-null"]);
   assert.deepEqual(unreadFromOtherParty(messages, "influencer"), ["own-unread"]);
+});
+
+test("an open thread keeps a zero badge until the read write is confirmed", () => {
+  const inFlight = { startedAt: 10, confirmedAt: null };
+  assert.equal(unreadAfterRefresh(2, inFlight, 5), 0);
+  assert.equal(unreadAfterRefresh(2, inFlight, 20), 0);
+
+  const confirmed = { startedAt: 10, confirmedAt: 30 };
+  assert.equal(unreadAfterRefresh(2, confirmed, 20), 0);
+  assert.equal(unreadAfterRefresh(2, confirmed, 30), 0);
+  assert.equal(unreadAfterRefresh(1, confirmed, 40), 1);
+  assert.equal(unreadAfterRefresh(2, undefined, 40), 2);
 });
 
 test("presence row is kept only when it is the requested counterparty", () => {

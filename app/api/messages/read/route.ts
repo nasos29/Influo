@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
 import { isChatParticipant, loadChatActor } from "@/lib/chatActor";
-import { otherPartySender, type ReadViewer } from "@/lib/messageRead";
+import { otherPartySender, unreadFromOtherParty, type ReadViewer } from "@/lib/messageRead";
 
 /**
  * The recipient marks the other party's unread messages as read.
@@ -44,19 +44,29 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { data, error } = await admin
+    const other = otherPartySender(asRole);
+    const pending = await admin
       .from("messages")
-      .update({ read: true })
+      .select("id, sender_type, read")
       .eq("conversation_id", conversationId)
-      .eq("sender_type", otherPartySender(asRole))
-      .or("read.eq.false,read.is.null")
-      .select("id");
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      .eq("sender_type", other)
+      .or("read.eq.false,read.is.null");
+    if (pending.error) return NextResponse.json({ error: pending.error.message }, { status: 500 });
 
-    return NextResponse.json({
-      success: true,
-      ids: (data || []).map((row) => String((row as { id: string }).id)),
-    });
+    const ids = unreadFromOtherParty(
+      (pending.data || []) as { id: string; sender_type: string; read: boolean | null }[],
+      asRole,
+    );
+    if (ids.length === 0) {
+      return NextResponse.json({ success: true, ids: [] });
+    }
+
+    // Update by id. An UPDATE filtered on read=false returns no rows once read is true,
+    // and the client used to treat that empty list as "leave the badge".
+    const updated = await admin.from("messages").update({ read: true }).in("id", ids);
+    if (updated.error) return NextResponse.json({ error: updated.error.message }, { status: 500 });
+
+    return NextResponse.json({ success: true, ids });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Read update failed";
     return NextResponse.json({ error: message }, { status: 500 });
