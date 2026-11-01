@@ -12,6 +12,7 @@ import { recommendInfluencers, sharedCategoryKeys, type InfluencerProfile, type 
 import {
   EMPTY_RECOMMENDATION_FILTERS,
   RECOMMENDATION_MIN_SCORE,
+  activeRecommendationFilterCount,
   filterRecommendationProfiles,
 } from '@/lib/recommendationFilters';
 import SkillMultiSelect from '@/components/SkillMultiSelect';
@@ -805,6 +806,8 @@ export default function BrandDashboardContent() {
   const [editFocusBio, setEditFocusBio] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [recommendationFilters, setRecommendationFilters] = useState(EMPTY_RECOMMENDATION_FILTERS);
+  const [recommendationFiltersOpen, setRecommendationFiltersOpen] = useState(false);
+  const activeRecommendationFilters = activeRecommendationFilterCount(recommendationFilters);
   const recommendationBasePool = useMemo(() => {
     if (!recommendationSource) return [];
     return recommendInfluencers(recommendationSource.brand, recommendationSource.profiles, {
@@ -2519,17 +2522,33 @@ export default function BrandDashboardContent() {
               <h2 className="text-2xl font-semibold text-slate-900 tracking-tight">{txt.recommendations_title}</h2>
               <p className="text-slate-500 text-sm mt-1">{txt.recommendations_subtitle}</p>
             </div>
-            <button
-              type="button"
-              onClick={() => brandData && loadRecommendations(brandData)}
-              disabled={recommendationsLoading}
-              className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:opacity-50"
-            >
-              <span className={recommendationsLoading ? 'animate-spin' : ''} aria-hidden>↻</span>
-              {txt.refresh}
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                aria-expanded={recommendationFiltersOpen}
+                onClick={() => setRecommendationFiltersOpen((open) => !open)}
+                className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+              >
+                {txt.filters}
+                {activeRecommendationFilters > 0 ? (
+                  <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-slate-900 px-1.5 text-xs font-semibold text-white">
+                    {activeRecommendationFilters}
+                  </span>
+                ) : null}
+              </button>
+              <button
+                type="button"
+                onClick={() => brandData && loadRecommendations(brandData)}
+                disabled={recommendationsLoading}
+                className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:opacity-50"
+              >
+                <span className={recommendationsLoading ? 'animate-spin' : ''} aria-hidden>↻</span>
+                {txt.refresh}
+              </button>
+            </div>
           </div>
 
+          {recommendationFiltersOpen ? (
           <div className="mb-6 rounded-xl border border-slate-200 bg-white p-3 sm:p-4">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
               <div>
@@ -2632,6 +2651,7 @@ export default function BrandDashboardContent() {
               </button>
             </div>
           </div>
+          ) : null}
 
           {/* Stats – compact */}
           {recommendationStats.totalViewed > 0 && (
