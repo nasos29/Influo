@@ -1699,7 +1699,7 @@ export default function InfluencerProfile(props: {
                                           className="h-4 w-4 rounded border-slate-300"
                                         />
                                         <span className="min-w-0 flex-1">{EXTRA_LABEL[extra.key][lang]}</span>
-                                        <span className="shrink-0 whitespace-nowrap text-lg font-bold tabular-nums sm:text-xl">{formatEuro(extra.price, lang)}</span>
+                                        <span className="shrink-0 font-semibold tabular-nums">{formatEuro(extra.price, lang)}</span>
                                       </label>
                                     );
                                   })}

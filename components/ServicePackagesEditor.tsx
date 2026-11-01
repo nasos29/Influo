@@ -390,7 +390,7 @@ function PackageCard({
             {packageTitle(pkg.platform, pkg.type, pkg.quantity, lang)}
           </p>
           {preview ? (
-            <p className="mt-1 text-xl font-bold leading-none tabular-nums text-blue-700 sm:text-2xl">
+            <p className="mt-0.5 text-sm font-extrabold tabular-nums text-blue-700">
               {suffix ? `${preview} ${suffix}` : preview}
             </p>
           ) : null}
