@@ -19,7 +19,9 @@ import {
   directoryCandidateFromRow,
   directoryFiltersAreSqlOnly,
   directoryFiltersNeedAccounts,
+  directorySearchTier,
   matchesDirectoryFilters,
+  type DirectoryCandidate,
   type DirectoryFilters,
 } from "@/lib/directoryQuery";
 
@@ -243,15 +245,22 @@ async function loadFilteredPage(filters: DirectoryFilters, page: number, pageSiz
     candidate: directoryCandidateFromRow(row, past.get(String(row.id ?? "")) || []),
   }));
   let relaxedMax: number | null = null;
-  let matched = indexed
-    .filter((item) => matchesDirectoryFilters(item.candidate, filters, now))
-    .sort((a, b) => compareDirectoryOrder(a.candidate, b.candidate, now));
+  const sortMatches = <T extends { candidate: DirectoryCandidate }>(items: T[], q: string) => {
+    const ranked = items.map((item) => ({ item, tier: directorySearchTier(item.candidate, q) }));
+    ranked.sort((a, b) => b.tier - a.tier || compareDirectoryOrder(a.item.candidate, b.item.candidate, now));
+    return ranked.map((entry) => entry.item);
+  };
+  let matched = sortMatches(
+    indexed.filter((item) => matchesDirectoryFilters(item.candidate, filters, now)),
+    filters.q
+  );
   const cap = Number(filters.maxPackagePrice);
   if (matched.length === 0 && Number.isFinite(cap) && cap > 0) {
     const widened = String(Math.ceil(cap * 1.2));
-    const again = indexed
-      .filter((item) => matchesDirectoryFilters(item.candidate, { ...filters, maxPackagePrice: widened }, now))
-      .sort((a, b) => compareDirectoryOrder(a.candidate, b.candidate, now));
+    const again = sortMatches(
+      indexed.filter((item) => matchesDirectoryFilters(item.candidate, { ...filters, maxPackagePrice: widened }, now)),
+      filters.q
+    );
     if (again.length > 0) {
       matched = again;
       relaxedMax = Number(widened);
