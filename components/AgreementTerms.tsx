@@ -1,6 +1,7 @@
 "use client";
 
 import { displayServiceType } from "@/lib/campaignServiceLabel";
+import { formatDate } from "@/lib/formatDateTime";
 import { formatEuroAmount } from "@/lib/formatEuro";
 import { formatProposalExtrasLine } from "@/lib/proposalFloor";
 
@@ -93,6 +94,7 @@ type AgreementTermsProps = {
   counterProposalBudget?: unknown;
   counterProposalStatus?: string | null;
   selectedExtras?: unknown;
+  publishDeadline?: string | null;
   accepted: boolean;
   onAcceptedChange: (accepted: boolean) => void;
   onCancel: () => void;
@@ -110,6 +112,7 @@ export default function AgreementTerms({
   counterProposalBudget,
   counterProposalStatus,
   selectedExtras,
+  publishDeadline,
   accepted,
   onAcceptedChange,
   onCancel,
@@ -136,7 +139,7 @@ export default function AgreementTerms({
   if (extras) rows.push({ label: copy.extras, value: extras });
   rows.push(
     { label: copy.fee, value: shown(fee) },
-    { label: copy.deadline, value: copy.deadlineValue }
+    { label: copy.deadline, value: formatDate(publishDeadline, lang) || copy.deadlineValue }
   );
 
   return (

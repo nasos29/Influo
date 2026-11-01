@@ -6,6 +6,7 @@ import { mailNewProposal } from "@/lib/proposalMail";
 import { deferAfterResponse, pushParty } from "@/lib/proposalNotify";
 import { formatEuro, formatEuroAmount, parseEuroNumber } from "@/lib/formatEuro";
 import { collaborationFloor, proposalExtrasChatLine } from "@/lib/proposalFloor";
+import { parsePublishDeadline } from "@/lib/publishDeadline";
 import {
   cleanBudget,
   clipText,
@@ -16,7 +17,7 @@ import {
 } from "@/lib/proposalParty";
 
 const PROPOSAL_COLUMNS =
-  "id, influencer_id, brand_name, brand_email, brand_id, service_type, budget, message, status, created_at, counter_proposal_budget, counter_proposal_message, counter_proposal_status, counter_proposal_created_at, influencer_agreement_accepted, brand_agreement_accepted, agreement_accepted_at, brand_added_to_past_brands, selected_extras";
+  "id, influencer_id, brand_name, brand_email, brand_id, service_type, budget, message, status, created_at, counter_proposal_budget, counter_proposal_message, counter_proposal_status, counter_proposal_created_at, influencer_agreement_accepted, brand_agreement_accepted, agreement_accepted_at, influencer_agreement_accepted_at, brand_agreement_accepted_at, brand_added_to_past_brands, selected_extras, publish_deadline";
 
 function proposalJson(body: unknown, status = 200) {
   return NextResponse.json(body, {
@@ -82,6 +83,20 @@ export async function POST(request: Request) {
     const service = clipText(body.serviceType, 120);
     const budget = cleanBudget(body.budget);
     const message = clipText(body.message, 4000);
+    const deadline = parsePublishDeadline(body.publishDeadline);
+    if (!deadline.ok) {
+      return NextResponse.json(
+        {
+          error: "Η προθεσμία δημοσίευσης δεν είναι έγκυρη ημερομηνία.",
+          message: {
+            el: "Η προθεσμία δημοσίευσης δεν είναι έγκυρη ημερομηνία.",
+            en: "The publication deadline is not a valid date.",
+          },
+        },
+        { status: 400 }
+      );
+    }
+
     if (!influencerId || !service || !budget) {
       return NextResponse.json(
         {
@@ -230,6 +245,7 @@ export async function POST(request: Request) {
       status: "pending",
       counter_proposal_status: "none",
       selected_extras: selectedExtras,
+      publish_deadline: deadline.date,
     });
     if ("error" in saved) return NextResponse.json({ error: saved.error }, { status: 500 });
 

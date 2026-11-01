@@ -88,6 +88,7 @@ interface Proposal {
   brand_agreement_accepted: boolean;
   counter_proposal_status?: string;
   selected_extras?: unknown;
+  publish_deadline?: string | null;
 }
 
 interface Influencer {
@@ -2982,6 +2983,7 @@ export default function BrandDashboardContent() {
           counterProposalBudget={selectedProposal.counter_proposal_budget}
           counterProposalStatus={selectedProposal.counter_proposal_status}
           selectedExtras={selectedProposal.selected_extras}
+          publishDeadline={selectedProposal.publish_deadline}
           accepted={agreementAccepted}
           onAcceptedChange={setAgreementAccepted}
           saving={savingAgreement}

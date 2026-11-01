@@ -9,6 +9,7 @@ import { formatEuroAmount, parseEuroNumber } from "@/lib/formatEuro";
 import { listedPriceMin } from "@/lib/parsePrice";
 import { averageRateNote, negotiateLead } from "@/lib/creatorAddress";
 import { responseText } from "@/lib/bilingualError";
+import { parsePublishDeadline } from "@/lib/publishDeadline";
 import { offerPriceLabel } from "@/lib/offerPriceLabel";
 import {
   EXTRA_HINT,
@@ -38,6 +39,9 @@ const COPY = {
     type: "Τύπος περιεχομένου",
     qty: "Ποσότητα",
     price: "Προσφερόμενη τιμή (€)",
+    deadline: "Προθεσμία δημοσίευσης (προαιρετικό)",
+    deadlineHint: "Αν μείνει κενή, η ημερομηνία συμφωνείται αργότερα.",
+    deadlineInvalid: "Η προθεσμία δημοσίευσης δεν είναι έγκυρη ημερομηνία.",
     note: "Σημείωση (προαιρετικό)",
     notePlaceholder: "Περιγράψτε την ιδέα σας...",
     send: "Αποστολή προσφοράς",
@@ -69,6 +73,9 @@ const COPY = {
     type: "Content type",
     qty: "Quantity",
     price: "Offered price (€)",
+    deadline: "Publication deadline (optional)",
+    deadlineHint: "Leave it empty and the date is agreed later.",
+    deadlineInvalid: "The publication deadline is not a valid date.",
     note: "Note (optional)",
     notePlaceholder: "Describe your idea...",
     send: "Send offer",
@@ -215,6 +222,7 @@ export function NegotiateDialog({
   const [optionId, setOptionId] = useState(options[0]?.id || "");
   const [quantity, setQuantity] = useState("1");
   const [price, setPrice] = useState("");
+  const [deadline, setDeadline] = useState("");
   const [note, setNote] = useState("");
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
@@ -275,6 +283,11 @@ export function NegotiateDialog({
                   setError(copy.priceInvalid);
                   return;
                 }
+                const parsedDeadline = parsePublishDeadline(deadline);
+                if (!parsedDeadline.ok) {
+                  setError(copy.deadlineInvalid);
+                  return;
+                }
                 setSending(true);
                 setError("");
                 try {
@@ -285,6 +298,7 @@ export function NegotiateDialog({
                       influencerId,
                       serviceType: `${qty} × ${active.title}`.slice(0, 120),
                       budget: String(amount),
+                      publishDeadline: parsedDeadline.date,
                       message: note.trim(),
                     }),
                   });
@@ -347,6 +361,16 @@ export function NegotiateDialog({
                   <span>{rateNote}</span>
                 </p>
               ) : null}
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700">{copy.deadline}</span>
+                <input
+                  type="date"
+                  value={deadline}
+                  onChange={(event) => setDeadline(event.target.value)}
+                  className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-3 text-sm text-slate-900 outline-none focus:border-blue-500"
+                />
+                <span className="mt-1 block text-xs text-slate-500">{copy.deadlineHint}</span>
+              </label>
               <label className="block">
                 <span className="text-sm font-medium text-slate-700">{copy.note}</span>
                 <textarea

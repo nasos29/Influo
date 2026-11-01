@@ -1246,6 +1246,7 @@ interface Proposal {
   counter_proposal_status?: string | null;
   counter_proposal_message?: string | null;
   selected_extras?: unknown;
+  publish_deadline?: string | null;
 }
 
 function tabBadgeText(count: number): string {
@@ -2700,6 +2701,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                     counterProposalBudget={selectedProposal.counter_proposal_budget}
                     counterProposalStatus={selectedProposal.counter_proposal_status}
                     selectedExtras={selectedProposal.selected_extras}
+                    publishDeadline={selectedProposal.publish_deadline}
                     accepted={agreementAccepted}
                     onAcceptedChange={setAgreementAccepted}
                     saving={savingAgreement}

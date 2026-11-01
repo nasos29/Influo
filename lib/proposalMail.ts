@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import { displayServiceType } from "@/lib/campaignServiceLabel";
 import { logEmail } from "@/lib/deliveryLog";
+import { formatDate } from "@/lib/formatDateTime";
 import { formatEuroAmount } from "@/lib/formatEuro";
 import { formatProposalExtrasLine } from "@/lib/proposalFloor";
 import { escapeHtml } from "@/lib/proposalParty";
@@ -213,14 +214,17 @@ function agreementDetailsHtml(input: {
   service: string;
   budget: string;
   extras?: unknown;
+  publishDeadline?: string | null;
 }): string {
   const extrasLine = formatProposalExtrasLine(input.extras, "el");
   const extrasValue = extrasLine ? extrasLine.replace(/^Extras:\s*/, "") : "";
   const extrasRow = extrasValue ? `<br/><strong>Extras:</strong> ${escapeHtml(extrasValue)}` : "";
+  const deadline = formatDate(input.publishDeadline, "el");
+  const deadlineRow = deadline ? `<br/><strong>Προθεσμία δημοσίευσης:</strong> ${escapeHtml(deadline)}` : "";
   const deliverables = displayServiceType(input.service, "el") || "—";
   return `<p><strong>Αριθμός συμφωνίας:</strong> #${escapeHtml(String(input.proposalId))}<br/>
 <strong>Παραδοτέα:</strong> ${escapeHtml(deliverables)}${extrasRow}<br/>
-<strong>Συνολική αμοιβή:</strong> ${euroHtml(input.budget)}</p>`;
+<strong>Συνολική αμοιβή:</strong> ${euroHtml(input.budget)}${deadlineRow}</p>`;
 }
 
 export async function mailAgreement(input: {
@@ -231,6 +235,7 @@ export async function mailAgreement(input: {
   budget: string;
   proposalId: string | number;
   extras?: unknown;
+  publishDeadline?: string | null;
   toBrand: boolean;
   brandHasAccount: boolean;
 }): Promise<void> {
@@ -260,6 +265,7 @@ export async function mailCollaborationComplete(input: {
   service: string;
   budget: string;
   extras?: unknown;
+  publishDeadline?: string | null;
 }): Promise<void> {
   const id = escapeHtml(String(input.proposalId));
   await send(

@@ -126,8 +126,11 @@ const PARTY_FIELDS = [
   "influencer_agreement_accepted",
   "brand_agreement_accepted",
   "agreement_accepted_at",
+  "influencer_agreement_accepted_at",
+  "brand_agreement_accepted_at",
   "brand_added_to_past_brands",
   "selected_extras",
+  "publish_deadline",
 ] as const;
 
 export function partyProposalView(row: Record<string, unknown>): Record<string, unknown> {

@@ -60,9 +60,20 @@ export async function POST(request: Request) {
 
     const proposal = guarded.proposal;
     const party = guarded.party;
+    const acceptedAt = new Date().toISOString();
     const updateData: Record<string, unknown> = {};
-    if (party === "influencer") updateData.influencer_agreement_accepted = true;
-    if (party === "brand") updateData.brand_agreement_accepted = true;
+    if (party === "influencer") {
+      updateData.influencer_agreement_accepted = true;
+      if (!proposal.influencer_agreement_accepted_at) {
+        updateData.influencer_agreement_accepted_at = acceptedAt;
+      }
+    }
+    if (party === "brand") {
+      updateData.brand_agreement_accepted = true;
+      if (!proposal.brand_agreement_accepted_at) {
+        updateData.brand_agreement_accepted_at = acceptedAt;
+      }
+    }
 
     const influencerAccepted = party === "influencer" ? true : !!proposal.influencer_agreement_accepted;
     const brandAccepted = party === "brand" ? true : !!proposal.brand_agreement_accepted;
@@ -117,6 +128,7 @@ export async function POST(request: Request) {
             service: proposal.service_type || "",
             budget: amount,
             extras: proposal.selected_extras,
+            publishDeadline: proposal.publish_deadline,
           }),
           notifyOther,
           refreshInfluencerTrustMetrics(supabaseService(), String(proposal.influencer_id)),
@@ -133,6 +145,7 @@ export async function POST(request: Request) {
             budget: amount,
             proposalId: proposal.id,
             extras: proposal.selected_extras,
+            publishDeadline: proposal.publish_deadline,
             toBrand: true,
             brandHasAccount: email ? await brandHasAccount(email) : false,
           }),
@@ -149,6 +162,7 @@ export async function POST(request: Request) {
           budget: amount,
           proposalId: proposal.id,
           extras: proposal.selected_extras,
+          publishDeadline: proposal.publish_deadline,
           toBrand: false,
           brandHasAccount: false,
         }),
