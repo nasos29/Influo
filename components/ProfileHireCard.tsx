@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { MessageCircle } from "lucide-react";
 import { NegotiateDialog } from "@/components/ProfileOffersPanel";
-import { formatEuroAmount, parseEuroNumber } from "@/lib/formatEuro";
+import { formatEuroAmount } from "@/lib/formatEuro";
 import { offerPriceLabel } from "@/lib/offerPriceLabel";
 import { listedPriceMin } from "@/lib/parsePrice";
 import {
@@ -16,14 +16,12 @@ import {
 
 const COPY = {
   el: {
-    from: "Από",
     package: "Πακέτο",
     negotiate: "Διαπραγμάτευση πακέτου",
     fee: "Το Influo δεν παίρνει προμήθεια",
     custom: "Προσαρμοσμένο πακέτο",
   },
   en: {
-    from: "From",
     package: "Package",
     negotiate: "Negotiate a package",
     fee: "Influo takes no commission",
@@ -89,7 +87,6 @@ export default function ProfileHireCard({
   lang,
   packages,
   amountLabel,
-  floorAmount,
   selectedId,
   onSelectedIdChange,
   creatorName,
@@ -107,8 +104,6 @@ export default function ProfileHireCard({
   packages: PublicPackageView[];
   /** Floor price, e.g. "40 €", used when no package price is available. */
   amountLabel: string | null;
-  /** Numeric floor. «Από» stays only while the selected price is this amount. */
-  floorAmount: number | null;
   selectedId: string | null;
   onSelectedIdChange: (id: string) => void;
   creatorName: string;
@@ -126,10 +121,6 @@ export default function ProfileHireCard({
   const [negotiateOpen, setNegotiateOpen] = useState(false);
   const selected = choices.find((choice) => choice.id === selectedId) ?? choices[0] ?? null;
   const priceText = selected?.priceLabel || amountLabel;
-  const selectedNumber = selected?.budget ? parseEuroNumber(selected.budget) : null;
-  const showFrom =
-    !selected?.priceLabel ||
-    (selectedNumber != null && floorAmount != null && selectedNumber === floorAmount);
 
   const collaborate = () => {
     onCollaborate(selected ? { label: selected.title, budget: selected.budget } : undefined);
@@ -153,7 +144,6 @@ export default function ProfileHireCard({
         <div className="mx-auto flex max-w-6xl items-center gap-3">
           {priceText ? (
             <div className="min-w-0">
-              {showFrom ? <p className="text-xs text-slate-500">{copy.from}</p> : null}
               <p className="text-lg font-extrabold leading-none text-slate-900">{priceText}</p>
             </div>
           ) : (
@@ -186,9 +176,8 @@ export default function ProfileHireCard({
       <div className="rounded-2xl border border-slate-200 bg-white px-[18px] pb-3.5 pt-[18px] shadow-[0_10px_28px_rgba(15,23,42,0.08)]">
         {priceText ? (
           <div className="mb-3.5">
-            {showFrom ? <p className="text-[13px] text-slate-500">{copy.from}</p> : null}
             <p
-              className={`mt-0.5 font-extrabold text-slate-900 ${
+              className={`font-extrabold text-slate-900 ${
                 priceText.length > 10 ? "text-2xl leading-tight" : "text-3xl leading-none"
               }`}
             >
