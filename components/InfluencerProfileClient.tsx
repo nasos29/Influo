@@ -327,6 +327,19 @@ const BACK_TO_DIRECTORY = {
   en: "Back to directory",
 } as const;
 
+const SEE_FULL_DIRECTORY = {
+  el: "Δείτε ολόκληρο τον κατάλογο",
+  en: "See the full directory",
+} as const;
+
+const BACK_TO_RECS = {
+  el: "Πίσω στις προτάσεις",
+  en: "Back to recommendations",
+} as const;
+
+const profileBackBtnClass =
+  "inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sm text-white backdrop-blur hover:bg-white/20 transition";
+
 const t = {
   el: {
     contact: "Συνεργασία",
@@ -1501,6 +1514,10 @@ export default function InfluencerProfile(props: {
     router.push(lang === "en" ? "/en/directory" : "/directory");
   }, [lang, router]);
 
+  const goToPlainDirectory = useCallback(() => {
+    router.push(lang === "en" ? "/en/directory" : "/directory");
+  }, [lang, router]);
+
   const openCreatorMessage = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -1621,6 +1638,12 @@ export default function InfluencerProfile(props: {
       return String(Math.max(nextFloor, current + delta));
     });
   };
+  const fromRecommendations =
+    sessionChecked &&
+    searchParams?.get("from") === "brand-recs" &&
+    isBrand &&
+    !isAdmin &&
+    !viewerIsInfluencer;
   const defaultOfferId = hirePackages[0]?.id ?? null;
   const offerIds = new Set(hirePackages.map((pkg) => pkg.id));
   const activeOfferId = selectedOfferId && offerIds.has(selectedOfferId) ? selectedOfferId : defaultOfferId;
@@ -1647,17 +1670,6 @@ export default function InfluencerProfile(props: {
   return (
     <div className={`bg-white min-h-screen font-sans relative text-slate-900 ${showHireBar ? "pb-32 lg:pb-20" : "pb-20"}`}>
       <SiteHeader lang={lang} onLangChange={setLang} />
-      {sessionChecked && searchParams?.get("from") === "brand-recs" && isBrand && !isAdmin && !viewerIsInfluencer ? (
-        <div className="mx-auto w-full max-w-6xl px-4 pt-3 sm:px-6">
-          <button
-            type="button"
-            onClick={goBackToRecommendations}
-            className="inline-flex items-center text-sm font-medium text-slate-600 hover:text-slate-900"
-          >
-            {lang === "el" ? "← Πίσω στις προτάσεις" : "← Back to recommendations"}
-          </button>
-        </div>
-      ) : null}
       <BrandGateModal
         open={brandGateOpen}
         onClose={() => setBrandGateOpen(false)}
@@ -2072,15 +2084,23 @@ export default function InfluencerProfile(props: {
           aria-hidden
         />
 
-        {/* Back to directory — bottom-left on desktop; top-left on mobile to clear overlapping avatar */}
-        <button
-          type="button"
-          onClick={goBackToDirectory}
-          className="absolute z-20 left-4 sm:left-6 top-4 md:top-auto md:bottom-4 inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sm text-white backdrop-blur hover:bg-white/20 transition"
-        >
-          <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
-          <span>{BACK_TO_DIRECTORY[lang]}</span>
-        </button>
+        {/* Back controls — bottom-left on desktop; top-left on mobile to clear overlapping avatar */}
+        <div className="absolute z-20 left-4 sm:left-6 top-4 md:top-auto md:bottom-4 flex flex-col items-start gap-2">
+          {fromRecommendations ? (
+            <button type="button" onClick={goBackToRecommendations} className={profileBackBtnClass}>
+              <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
+              <span>{BACK_TO_RECS[lang]}</span>
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={fromRecommendations ? goToPlainDirectory : goBackToDirectory}
+            className={profileBackBtnClass}
+          >
+            <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
+            <span>{fromRecommendations ? SEE_FULL_DIRECTORY[lang] : BACK_TO_DIRECTORY[lang]}</span>
+          </button>
+        </div>
 
         {/* Network circles visualization overlay */}
         <div className="pointer-events-none absolute inset-0 z-10 opacity-30">
