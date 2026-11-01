@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   EMPTY_RECOMMENDATION_FILTERS,
   RECOMMENDATION_MIN_SCORE,
+  activeRecommendationFilterCount,
   filterRecommendationProfiles,
   recommendationFollowerCount,
   type RecommendationFilterState,
@@ -26,6 +27,14 @@ function creator(overrides: Partial<InfluencerProfile> = {}): InfluencerProfile 
 function filters(overrides: Partial<RecommendationFilterState> = {}): RecommendationFilterState {
   return { ...EMPTY_RECOMMENDATION_FILTERS, ...overrides };
 }
+
+test("active filter count is zero until a control is set", () => {
+  assert.equal(activeRecommendationFilterCount(EMPTY_RECOMMENDATION_FILTERS), 0);
+  assert.equal(
+    activeRecommendationFilterCount(filters({ category: "Food & Drink", skills: ["ugc", "vlogs"], maxPrice: 80 })),
+    3
+  );
+});
 
 test("minimum score stays at 40 and is not a filter field", () => {
   assert.equal(RECOMMENDATION_MIN_SCORE, 40);

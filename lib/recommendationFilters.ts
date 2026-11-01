@@ -26,6 +26,18 @@ export const EMPTY_RECOMMENDATION_FILTERS: RecommendationFilterState = {
   audience: "",
 };
 
+/** How many of the six recommendation controls are set. Skills count as one. */
+export function activeRecommendationFilterCount(filters: RecommendationFilterState): number {
+  let count = 0;
+  if (filters.category) count += 1;
+  if (filters.platform) count += 1;
+  if (filters.location.trim()) count += 1;
+  if (filters.maxPrice != null) count += 1;
+  if (filters.skills.length) count += 1;
+  if (filters.audience) count += 1;
+  return count;
+}
+
 function parseFollowers(value: unknown): number {
   if (value == null || value === "") return 0;
   const clean = String(value).toLowerCase().replace(/,/g, "").trim();
