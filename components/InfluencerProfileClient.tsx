@@ -2637,6 +2637,7 @@ export default function InfluencerProfile(props: {
                       label={txt.min_rate}
                       tip={txt.tip_min_rate}
                       tipAria={txt.tip_aria}
+                      valueCentered
                       accent
                       icon={
                         <MetricIcon className="bg-blue-100 text-blue-700 ring-blue-200/70">
@@ -2645,11 +2646,11 @@ export default function InfluencerProfile(props: {
                         </MetricIcon>
                       }
                     >
-                      <div>
-                        <p className="text-2xl font-semibold tracking-tight text-blue-700 tabular-nums">
+                      <div className="w-full text-center">
+                        <p className="text-center text-2xl font-semibold tracking-tight text-blue-700 tabular-nums">
                           {minChargeLabel || "—"}
                         </p>
-                        <p className="mt-0.5 text-xs text-blue-600/80">{txt.min_rate_desc}</p>
+                        <p className="mt-0.5 text-center text-xs text-blue-600/80">{txt.min_rate_desc}</p>
                       </div>
                     </ProfileStatCard>
                   )}
