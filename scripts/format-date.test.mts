@@ -4,6 +4,7 @@ import {
   dmyToYmd,
   formatDisplayDate,
   formatDisplayDateTime,
+  isImpossibleDmy,
   maskDmyInput,
   ymdToDmy,
 } from "../lib/formatDate.ts";
@@ -53,6 +54,40 @@ test("a slash the user types is not doubled", () => {
   assert.equal(maskDmyInput("15/1/", "15/1"), "15/1/");
   assert.equal(maskDmyInput("15/11/", "15/11"), "15/11/");
   assert.equal(maskDmyInput("15/11//", "15/11/"), "15/11/");
+});
+
+test("day and month digits stay inside a real calendar", () => {
+  assert.equal(maskDmyInput("4", ""), "04/");
+  assert.equal(maskDmyInput("9", ""), "09/");
+  assert.equal(maskDmyInput("3", ""), "3");
+  assert.equal(maskDmyInput("31", "3"), "31/");
+  assert.equal(maskDmyInput("32", "3"), "3");
+  assert.equal(maskDmyInput("00", "0"), "0");
+  assert.equal(maskDmyInput("15/2", "15/"), "15/02/");
+  assert.equal(maskDmyInput("15/9", "15/"), "15/09/");
+  assert.equal(maskDmyInput("15/1", "15/"), "15/1");
+  assert.equal(maskDmyInput("15/12", "15/1"), "15/12/");
+  assert.equal(maskDmyInput("15/13", "15/1"), "15/1");
+  assert.equal(maskDmyInput("15/00", "15/0"), "15/0");
+  assert.equal(maskDmyInput("31/02/2026", "31/02/202"), "31/02/2026");
+});
+
+test("a finished date must exist, including leap years", () => {
+  assert.equal(dmyToYmd("31/01/2026"), "2026-01-31");
+  assert.equal(dmyToYmd("31/04/2026"), "");
+  assert.equal(dmyToYmd("31/02/2026"), "");
+  assert.equal(dmyToYmd("30/02/2024"), "");
+  assert.equal(dmyToYmd("29/02/2023"), "");
+  assert.equal(dmyToYmd("29/02/1900"), "");
+  assert.equal(dmyToYmd("29/02/2024"), "2024-02-29");
+  assert.equal(dmyToYmd("29/02/2000"), "2000-02-29");
+  assert.equal(isImpossibleDmy("31/02/2026"), true);
+  assert.equal(isImpossibleDmy("31/04/2026"), true);
+  assert.equal(isImpossibleDmy("29/02/2023"), true);
+  assert.equal(isImpossibleDmy("29/02/2024"), false);
+  assert.equal(isImpossibleDmy("15/11/2026"), false);
+  assert.equal(isImpossibleDmy("31/02/202"), false);
+  assert.equal(isImpossibleDmy(""), false);
 });
 
 test("instants use Europe/Athens and dd/mm/yyyy", () => {
