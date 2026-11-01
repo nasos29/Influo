@@ -10,6 +10,7 @@ import { formatFromPriceLabel } from "@/lib/publicInfluencer";
 import { displayLocation } from "@/lib/displayLocation";
 import type { TrustChip } from "@/lib/trustSignals";
 import { isAvailableStatus } from "@/lib/trustSignals";
+import { sanitizeSkills, skillLabel } from "@/lib/skills";
 
 interface InfluencerCardProps {
   name: string;
@@ -21,6 +22,7 @@ interface InfluencerCardProps {
   followers: { [key: string]: number | undefined };
   categories?: string[];
   languages?: string[];
+  skills?: string[];
   badges?: Badge[];
   lang?: "el" | "en";
   trustChips?: TrustChip[];
@@ -134,6 +136,7 @@ export default function InfluencerCard({
   availabilityStatus,
   location,
   from_price,
+  skills = [],
 }: InfluencerCardProps) {
   const available = isAvailableStatus(availabilityStatus);
   const displayName = displayNameForLang(name, lang || "el");
@@ -147,6 +150,11 @@ export default function InfluencerCard({
     .map((cat) => categoryTranslations[cat]?.[lang] || cat)
     .filter(Boolean)
     .join(" · ");
+  const skillLabels = sanitizeSkills(skills)
+    .map((key) => skillLabel(key, lang === "en" ? "en" : "el"))
+    .filter(Boolean);
+  const shownSkills = skillLabels.slice(0, 3);
+  const extraSkills = skillLabels.length - shownSkills.length;
 
   // One top-right overlay: unavailable → first badge → first trust chip (original colors).
   let overlay: ReactElement | null = null;
@@ -259,6 +267,12 @@ export default function InfluencerCard({
 
         {categoryLine ? (
           <p className="truncate text-xs text-slate-500 sm:text-sm">{categoryLine}</p>
+        ) : null}
+        {shownSkills.length ? (
+          <p className="truncate text-xs text-slate-500">
+            {shownSkills.join(" · ")}
+            {extraSkills > 0 ? ` +${extraSkills}` : ""}
+          </p>
         ) : null}
 
         {(location || priceLabel) && (

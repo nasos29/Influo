@@ -2,6 +2,7 @@
 
 import { categoryLabel, categoryTranslations, isGeneralCategory, parseStoredCategories } from "./categories.ts";
 import { listedPriceMin } from "./parsePrice.ts";
+import { sanitizeSkills, skillLabel } from "./skills.ts";
 
 export interface BrandProfile {
   id: string;
@@ -10,6 +11,8 @@ export interface BrandProfile {
   category?: string | null; // Preferred field name
   contact_email: string;
   location?: string | null; // Optional: for location-based matching
+  /** Free text such as a campaign title or brand bio. Skills are matched against it. */
+  brief?: string | null;
 }
 
 /** Strategic audit from Gemini (auditpr_audit) – used for better matching and reasons. */
@@ -56,6 +59,7 @@ export interface InfluencerProfile {
   auditpr_audit?: AuditprAuditProfile | null;
   /** Brand dashboard: email for messaging (not shown publicly). */
   contact_email?: string | null;
+  skills?: string[] | null;
 }
 
 export interface MatchScore {
@@ -582,6 +586,15 @@ export function recommendInfluencers(
       if (strengths.categoryMatch >= 0.9 && strengths.brandSafe === 1) bonusPoints += 2; // Niche + brand-safe
       if (influencer.total_reviews && influencer.total_reviews >= 10 && influencer.avg_rating && influencer.avg_rating >= 4.5) bonusPoints += 2;
       if (strengths.valuePrice >= 0.8 && strengths.engagementQuality >= 0.8) bonusPoints += 2;
+      const brief = asText(brand.brief).toLowerCase();
+      const matchedSkills = sanitizeSkills(influencer.skills).filter((key) => {
+        if (!brief) return false;
+        const el = skillLabel(key, "el").toLowerCase();
+        const en = skillLabel(key, "en").toLowerCase();
+        const plain = key.replace(/_/g, " ");
+        return brief.includes(el) || brief.includes(en) || brief.includes(plain) || brief.includes(key);
+      });
+      if (matchedSkills.length) bonusPoints += Math.min(4, matchedSkills.length * 2);
       score += bonusPoints;
       score = Math.min(score, 100);
 
@@ -679,6 +692,13 @@ export function recommendInfluencers(
         );
       } else if (influencer.total_reviews && influencer.total_reviews >= 10) {
         addReason(isEn ? "Experienced creator" : "Έμπειρος creator", true);
+      }
+
+      if (matchedSkills.length) {
+        const names = matchedSkills.slice(0, 3).map((key) => skillLabel(key, lang)).filter(Boolean).join(", ");
+        if (names) {
+          addReason(isEn ? `Skills that match the brief: ${names}` : `Δεξιότητες που ταιριάζουν: ${names}`, false);
+        }
       }
 
       if (influencer.verified) addReason(isEn ? "Verified" : "Επαληθευμένος", true);

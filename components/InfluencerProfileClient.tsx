@@ -48,6 +48,7 @@ import { loadOwnBrand, loadOwnProfiles } from "@/lib/ownProfile";
 import { creatorHasHardErOnMainAccount, displayErFlag, erFlagHint, erFlagLabel } from "@/lib/engagementFlags";
 import type { FollowerGrowthPoint } from "@/lib/followerGrowth";
 import { displayLanguageLabel } from "@/lib/languages";
+import { sanitizeSkills, skillLabel } from "@/lib/skills";
 import { formatEuro, formatEuroAmount, parseEuroNumber } from "@/lib/formatEuro";
 import { lowestListedPrice } from "@/lib/publicInfluencer";
 import { displayServiceType } from "@/lib/campaignServiceLabel";
@@ -2104,9 +2105,6 @@ export default function InfluencerProfile(props: {
                         {displayLanguageLabel(typeof l === 'string' ? l : String(l), lang)}
                       </span>
                     ))}
-                    {profile.skills && profile.skills.length > 0 && profile.skills.map((skill, i) => (
-                      <span key={`skill-${i}`} className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded font-medium">{skill}</span>
-                    ))}
                 </div>
                 {profile.certifications && profile.certifications.length > 0 && (
                   <div className="flex flex-wrap justify-center md:justify-start gap-2 mt-2">
@@ -2746,6 +2744,24 @@ export default function InfluencerProfile(props: {
                             <p className="text-slate-600 leading-relaxed whitespace-pre-wrap">
                                 {lang === 'en' && profile.bio_en ? profile.bio_en : (profile.bio || txt.no_bio)}
                             </p>
+                            {(() => {
+                              const labels = sanitizeSkills(profile.skills).map((key) => skillLabel(key, lang)).filter(Boolean);
+                              if (!labels.length) return null;
+                              return (
+                                <div className="mt-6">
+                                  <h3 className="text-sm font-semibold text-slate-900">
+                                    {lang === "el" ? "Δεξιότητες" : "Skills"}
+                                  </h3>
+                                  <div className="mt-3 flex flex-wrap gap-2">
+                                    {labels.map((label) => (
+                                      <span key={label} className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-700">
+                                        {label}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })()}
                         </div>
                         {profile.auditpr_audit && Array.isArray(profile.auditpr_audit.scoreBreakdown) && profile.auditpr_audit.scoreBreakdown.length > 0 && (
                             <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">

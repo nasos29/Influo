@@ -9,6 +9,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import InfluoLogo from '@/components/InfluoLogo';
 import { recommendInfluencers, sharedCategoryKeys, type InfluencerProfile, type BrandProfile } from '@/lib/recommendations';
+import { sanitizeSkills } from '@/lib/skills';
 import { lookupAuthUser, logoutEverywhere } from '@/lib/authSession';
 import CreatorPhoto from '@/components/CreatorPhoto';
 import PlatformFollowers from '@/components/PlatformFollowers';
@@ -1527,6 +1528,7 @@ export default function BrandDashboardContent() {
             whyWorkWithThem_en: asAuditText((inf as { whyWorkWithThem_en?: unknown }).whyWorkWithThem_en ?? (inf.auditpr_audit as { whyWorkWithThem_en?: unknown } | null)?.whyWorkWithThem_en),
           },
           profile_slug: inf.profile_slug ?? null,
+          skills: sanitizeSkills(inf.skills),
         };
       }).filter(inf => {
         // Filter out influencers that don't have the selected platform
@@ -1552,6 +1554,7 @@ export default function BrandDashboardContent() {
         industry: brand.industry, // This is actually the category
         category: brand.industry, // For clarity
         contact_email: brand.contact_email,
+        brief: [brand.bio, brand.industry].filter(Boolean).join("\n"),
       };
       
       // Apply filters

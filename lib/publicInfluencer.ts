@@ -37,6 +37,7 @@ export const DIRECTORY_CARD_COLUMNS = [
   "accounts",
   "category",
   "languages",
+  "skills",
   "gender",
   "location",
   "avg_likes",

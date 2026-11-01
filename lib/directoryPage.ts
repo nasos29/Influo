@@ -32,6 +32,7 @@ const LIGHT_INDEX_COLUMNS = [
   "bio",
   "category",
   "languages",
+  "skills",
   "gender",
   "location",
   "avg_rating",

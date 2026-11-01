@@ -18,6 +18,8 @@ import {
 import { resolveCompletionRate } from "@/lib/completionRate";
 import { displayLocation } from "@/lib/displayLocation";
 import LocationTypeahead from "@/components/LocationTypeahead";
+import SkillsPicker from "@/components/SkillsPicker";
+import { sanitizeSkills, skillLabel } from "@/lib/skills";
 
 const CATEGORY_KEYS = new Set<string>(CATEGORIES);
 const PAGE_SIZE = 40;
@@ -48,6 +50,7 @@ export interface Influencer {
   videos?: string[];
   location?: string;
   languages?: string[];
+  skills?: string[];
   avg_likes?: string | { [key: string]: string };
   engagement_rate?: string | { [key: string]: string };
   /** Ceiling tier for the budget filter. Guest copy uses `from_price`. */
@@ -119,6 +122,7 @@ const t = {
     fieldBudget: "Budget",
     fieldEngagement: "Engagement",
     fieldLanguage: "Γλώσσα",
+    fieldSkills: "Δεξιότητες",
     fieldRating: "Αξιολόγηση",
     fieldBadges: "Badges",
     fieldAge: "Ηλικία",
@@ -171,6 +175,7 @@ const t = {
     fieldBudget: "Budget",
     fieldEngagement: "Engagement",
     fieldLanguage: "Language",
+    fieldSkills: "Skills",
     fieldRating: "Rating",
     fieldBadges: "Badges",
     fieldAge: "Age",
@@ -307,6 +312,7 @@ export default function Directory({
   const [budgetMax, setBudgetMax] = useState("All");
   const [minEngagement, setMinEngagement] = useState("All");
   const [languageFilter, setLanguageFilter] = useState("All");
+  const [skillsFilter, setSkillsFilter] = useState(() => sanitizeSkills((searchParams.get("skills") || "").split(",")));
   const [minRating, setMinRating] = useState("All");
   const [ageMin, setAgeMin] = useState("");
   const [ageMax, setAgeMax] = useState("");
@@ -343,6 +349,7 @@ export default function Directory({
       budgetMax === "All" &&
       minEngagement === "All" &&
       languageFilter === "All" &&
+      skillsFilter.length === 0 &&
       minRating === "All" &&
       !ageMin.trim() &&
       !ageMax.trim() &&
@@ -363,6 +370,7 @@ export default function Directory({
     if (budgetMax !== "All") params.set("budget", budgetMax);
     if (minEngagement !== "All") params.set("engagement", minEngagement);
     if (languageFilter !== "All") params.set("language", languageFilter);
+    if (skillsFilter.length) params.set("skills", skillsFilter.join(","));
     if (minRating !== "All") params.set("rating", minRating);
     if (ageMin.trim()) params.set("ageMin", ageMin.trim());
     if (ageMax.trim()) params.set("ageMax", ageMax.trim());
@@ -426,6 +434,7 @@ export default function Directory({
                   : ["New"]
                 : ["New"],
               languages: languagesArray,
+              skills: sanitizeSkills(inf.skills),
               platform: "Instagram",
               gender: normalizeGender(inf.gender),
               location: inf.location,
@@ -481,6 +490,7 @@ export default function Directory({
     budgetMax,
     minEngagement,
     languageFilter,
+    skillsFilter,
     minRating,
     ageMin,
     ageMax,
@@ -540,6 +550,8 @@ export default function Directory({
     setPage((prev) => (prev === fromUrlPage ? prev : fromUrlPage));
     const fromUrlQuery = (searchParams.get("q") || "").trim();
     setSearchQuery((prev) => (prev === fromUrlQuery ? prev : fromUrlQuery));
+    const fromSkills = sanitizeSkills((searchParams.get("skills") || "").split(","));
+    setSkillsFilter((prev) => (prev.join(",") === fromSkills.join(",") ? prev : fromSkills));
   }, [searchParams]);
 
   const clearFilters = () => {
@@ -552,6 +564,7 @@ export default function Directory({
     setBudgetMax("All");
     setMinEngagement("All");
     setLanguageFilter("All");
+    setSkillsFilter([]);
     setMinRating("All");
     setAgeMin("");
     setAgeMax("");
@@ -561,6 +574,7 @@ export default function Directory({
     replaceUrlParams((params) => {
       params.delete("q");
       params.delete("category");
+      params.delete("skills");
       params.delete("page");
     });
   };
@@ -646,6 +660,23 @@ export default function Directory({
         clear: () => setLanguageFilter("All"),
       });
     }
+    for (const key of skillsFilter) {
+      extra += 1;
+      chips.push({
+        id: `skill-${key}`,
+        label: skillLabel(key, lang) || key,
+        clear: () => {
+          const next = skillsFilter.filter((item) => item !== key);
+          setSkillsFilter(next);
+          setPage(1);
+          replaceUrlParams((params) => {
+            if (!next.length) params.delete("skills");
+            else params.set("skills", next.join(","));
+            params.delete("page");
+          });
+        },
+      });
+    }
     if (genderFilter !== "All") {
       extra += 1;
       const genderLabel =
@@ -709,6 +740,7 @@ export default function Directory({
     budgetMax,
     minEngagement,
     languageFilter,
+    skillsFilter,
     minRating,
     badgeFilter,
     ageMin,
@@ -716,6 +748,7 @@ export default function Directory({
     lang,
     txt,
     setCategoryFilterAndUrl,
+    replaceUrlParams,
   ]);
 
   // Reset to page 1 when filters change (skip first mount so ?page= is kept).
@@ -740,6 +773,7 @@ export default function Directory({
     budgetMax,
     minEngagement,
     languageFilter,
+    skillsFilter,
     minRating,
     ageMin,
     ageMax,
@@ -964,6 +998,24 @@ export default function Directory({
                       {txt.engMin} 5% ({txt.engHigh})
                     </option>
                   </select>
+                </div>
+
+                <div className="col-span-2 md:col-span-3 lg:col-span-4">
+                  <SkillsPicker
+                    lang={lang}
+                    selected={skillsFilter}
+                    onChange={(next) => {
+                      setSkillsFilter(next);
+                      setPage(1);
+                      replaceUrlParams((params) => {
+                        if (!next.length) params.delete("skills");
+                        else params.set("skills", next.join(","));
+                        params.delete("page");
+                      });
+                    }}
+                    label={txt.fieldSkills}
+                    description={lang === "el" ? "Ο creator πρέπει να έχει όλες τις επιλεγμένες." : "The creator must have every selected skill."}
+                  />
                 </div>
 
                 <div>
