@@ -551,7 +551,7 @@ export default function CampaignPublicView({
                 <div data-apply-anchor className="mt-8 md:hidden border-t border-slate-100 pt-6 scroll-mt-4">{applyBlock}</div>
               </article>
 
-              <aside className="space-y-4 md:sticky md:top-6">
+              <aside className="space-y-4 md:sticky md:top-24">
                 <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{el ? "Budget" : "Budget"}</p>
                   <p className="mt-1 text-2xl font-bold text-slate-900">
