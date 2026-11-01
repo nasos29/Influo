@@ -878,6 +878,12 @@ export default function BrandDashboardContent() {
   }, [searchParams]);
 
   useEffect(() => {
+    if (activeTab !== "recommendations") return;
+    if (typeof window === "undefined" || window.location.hash !== "#recommended") return;
+    document.getElementById("recommended")?.scrollIntoView({ block: "start" });
+  }, [activeTab]);
+
+  useEffect(() => {
     const nav = tabsNavRef.current;
     if (!nav || nav.scrollWidth <= nav.clientWidth + 1) return;
     const btn = nav.querySelector<HTMLElement>(`[data-brand-tab="${activeTab}"]`);
@@ -2495,7 +2501,7 @@ export default function BrandDashboardContent() {
 
         {/* Recommendations Section */}
         {activeTab === 'recommendations' && (
-        <div className="mb-12">
+        <div id="recommended" className="mb-12 scroll-mt-24">
           <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <h2 className="text-2xl font-semibold text-slate-900 tracking-tight">{txt.recommendations_title}</h2>
@@ -2737,7 +2743,7 @@ export default function BrandDashboardContent() {
                       
                       <div className="mt-auto flex gap-2 pt-4">
                         <Link
-                          href={publicProfilePath(inf.profile_slug, inf.id)}
+                          href={`${publicProfilePath(inf.profile_slug, inf.id)}?from=brand-recs`}
                           onClick={async () => {
                             // Set session flag to indicate user is brand
                             if (typeof window !== 'undefined') {
@@ -2788,7 +2794,7 @@ export default function BrandDashboardContent() {
                         </Link>
                         {brandData?.verified ? (
                         <Link
-                          href={`${publicProfilePath(inf.profile_slug, inf.id)}#proposal`}
+                          href={`${publicProfilePath(inf.profile_slug, inf.id)}?from=brand-recs#proposal`}
                           onClick={() => {
                             if (typeof window !== 'undefined') {
                               sessionStorage.setItem('isBrand', 'true');

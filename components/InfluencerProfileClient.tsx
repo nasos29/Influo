@@ -664,6 +664,7 @@ export default function InfluencerProfile(props: {
   const [reviewProjectType, setReviewProjectType] = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [isBrand, setIsBrand] = useState(false);
+  const [viewerIsInfluencer, setViewerIsInfluencer] = useState(false);
   const [brandId, setBrandId] = useState<string | null>(null);
   const [brandGateOpen, setBrandGateOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -695,6 +696,7 @@ export default function InfluencerProfile(props: {
         setHasSession(!!session?.access_token);
         if (!session?.access_token) {
           setIsBrand(false);
+          setViewerIsInfluencer(false);
           setBrandId(null);
           setIsAdmin(false);
           setIsOwnProfile(false);
@@ -708,7 +710,9 @@ export default function InfluencerProfile(props: {
         const profiles = await loadOwnProfiles(supabase);
         if (cancelled) return;
         const brand = profiles.ok ? profiles.brand : null;
+        const ownInf = profiles.ok ? profiles.influencer : null;
         setIsBrand(!!brand);
+        setViewerIsInfluencer(!!ownInf);
         setBrandId(brand && brand.id != null ? String(brand.id) : null);
         if (brand) {
           sessionStorage.setItem("isBrand", "true");
@@ -722,7 +726,6 @@ export default function InfluencerProfile(props: {
           setBrandId(null);
         }
 
-        const ownInf = profiles.ok ? profiles.influencer : null;
         const ownId =
           ownInf && (typeof ownInf.id === "string" || typeof ownInf.id === "number")
             ? String(ownInf.id)
@@ -736,6 +739,7 @@ export default function InfluencerProfile(props: {
         console.error("Error checking user type:", error);
         if (!cancelled) {
           setIsBrand(false);
+          setViewerIsInfluencer(false);
           setBrandId(null);
           setIsAdmin(false);
           setIsOwnProfile(false);
@@ -1461,6 +1465,23 @@ export default function InfluencerProfile(props: {
     }
   };
 
+  const goBackToRecommendations = useCallback(() => {
+    const fallback = "/brand/dashboard?tab=recommendations#recommended";
+    try {
+      const ref = typeof document !== "undefined" ? document.referrer : "";
+      if (ref && window.history.length > 1) {
+        const origin = new URL(ref).origin;
+        if (origin === window.location.origin) {
+          router.back();
+          return;
+        }
+      }
+    } catch {
+      /* ignore bad referrer */
+    }
+    router.push(fallback);
+  }, [router]);
+
   const goBackToDirectory = useCallback(() => {
     try {
       const ref = typeof document !== "undefined" ? document.referrer : "";
@@ -1626,6 +1647,17 @@ export default function InfluencerProfile(props: {
   return (
     <div className={`bg-white min-h-screen font-sans relative text-slate-900 ${showHireBar ? "pb-32 lg:pb-20" : "pb-20"}`}>
       <SiteHeader lang={lang} onLangChange={setLang} />
+      {sessionChecked && searchParams?.get("from") === "brand-recs" && isBrand && !isAdmin && !viewerIsInfluencer ? (
+        <div className="mx-auto w-full max-w-6xl px-4 pt-3 sm:px-6">
+          <button
+            type="button"
+            onClick={goBackToRecommendations}
+            className="inline-flex items-center text-sm font-medium text-slate-600 hover:text-slate-900"
+          >
+            {lang === "el" ? "← Πίσω στις προτάσεις" : "← Back to recommendations"}
+          </button>
+        </div>
+      ) : null}
       <BrandGateModal
         open={brandGateOpen}
         onClose={() => setBrandGateOpen(false)}
