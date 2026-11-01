@@ -866,13 +866,11 @@ export default function BrandDashboardContent() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (window.matchMedia('(min-width: 768px)').matches) return;
     const nav = tabsNavRef.current;
-    if (!nav) return;
+    if (!nav || nav.scrollWidth <= nav.clientWidth + 1) return;
     const btn = nav.querySelector<HTMLElement>(`[data-brand-tab="${activeTab}"]`);
     btn?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
-  }, [activeTab]);
+  }, [activeTab, lang]);
 
   useEffect(() => {
     const titlesEl: Record<string, string> = {
@@ -2050,14 +2048,14 @@ export default function BrandDashboardContent() {
           }}
         />
 
-        {/* Tabs — mobile: horizontal pills, snap, right fade. Desktop keeps the underline bar. */}
-        <div className="relative bg-white rounded-xl border border-slate-200 mb-6 overflow-hidden">
-          <div className="relative border-b border-slate-200 md:border-b">
+        {/* One row. The wide content column fits every tab. Narrow screens scroll, with a fade on the right. */}
+        <div className="@container relative bg-white rounded-xl border border-slate-200 mb-6 overflow-hidden">
+          <div className="relative border-b border-slate-200">
             <nav
               ref={tabsNavRef}
               role="tablist"
               aria-label={lang === 'el' ? 'Ενότητες πίνακα' : 'Dashboard sections'}
-              className="flex gap-2 overflow-x-auto snap-x snap-mandatory px-3 py-2 md:gap-0 md:overflow-visible md:snap-none md:px-0 md:py-0 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              className="flex flex-nowrap gap-2 overflow-x-auto snap-x snap-mandatory px-3 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden @min-[1180px]:gap-0 @min-[1180px]:overflow-visible @min-[1180px]:snap-none @min-[1180px]:px-1 @min-[1180px]:py-0"
             >
               {(
                 [
@@ -2083,16 +2081,16 @@ export default function BrandDashboardContent() {
                     data-brand-tab={tab.id}
                     aria-selected={selected}
                     onClick={() => openBrandTab(tab.id)}
-                    className={`inline-flex min-h-11 shrink-0 snap-start items-center gap-2 rounded-full px-4 text-sm font-medium whitespace-nowrap transition-colors md:min-h-0 md:rounded-none md:px-6 md:py-4 md:text-base md:border-b-2 ${
+                    className={`inline-flex min-h-11 shrink-0 snap-start items-center gap-1.5 rounded-full px-3.5 text-sm font-medium whitespace-nowrap transition-colors @min-[1180px]:min-h-0 @min-[1180px]:min-w-max @min-[1180px]:flex-1 @min-[1180px]:justify-center @min-[1180px]:gap-1 @min-[1180px]:rounded-none @min-[1180px]:px-2 @min-[1180px]:py-3 @min-[1180px]:text-[13px] @min-[1180px]:border-b-2 ${
                       selected
-                        ? 'bg-blue-600 text-white md:bg-transparent md:text-blue-600 md:border-blue-600'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 md:bg-transparent md:text-slate-500 md:hover:text-slate-700 md:border-transparent'
+                        ? 'bg-blue-600 text-white @min-[1180px]:bg-transparent @min-[1180px]:text-blue-600 @min-[1180px]:border-blue-600'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 @min-[1180px]:bg-transparent @min-[1180px]:text-slate-500 @min-[1180px]:hover:text-slate-700 @min-[1180px]:border-transparent'
                     }`}
                   >
-                    <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
+                    <Icon className="h-4 w-4 shrink-0 @min-[1180px]:h-3.5 @min-[1180px]:w-3.5" aria-hidden="true" />
                     {tab.label}
                     {tab.count > 0 ? (
-                      <span className={`text-xs font-bold rounded-full min-w-[18px] h-[18px] inline-flex items-center justify-center px-1 ${selected ? 'bg-white text-blue-700 md:bg-red-500 md:text-white' : 'bg-red-500 text-white'}`}>
+                      <span className={`text-xs font-bold rounded-full min-w-[18px] h-[18px] inline-flex items-center justify-center px-1 ${selected ? 'bg-white text-blue-700 @min-[1180px]:bg-red-500 @min-[1180px]:text-white' : 'bg-red-500 text-white'}`}>
                         {badge}
                       </span>
                     ) : null}
@@ -2101,7 +2099,7 @@ export default function BrandDashboardContent() {
               })}
             </nav>
             <div
-              className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-white to-transparent md:hidden"
+              className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-white to-transparent @min-[1180px]:hidden"
               aria-hidden="true"
             />
           </div>
