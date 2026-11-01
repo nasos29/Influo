@@ -19,6 +19,7 @@ import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 import { displayNameForLang } from '@/lib/greeklish';
 import { displayServiceType } from '@/lib/campaignServiceLabel';
 import { formatProposalExtrasLine } from '@/lib/proposalFloor';
+import AgreementTerms from '@/components/AgreementTerms';
 import { prepareImageForStorage } from '@/lib/prepareImageForStorage';
 import BrandCampaignsSection from '@/components/BrandCampaignsSection';
 import BrandActionInbox from '@/components/BrandActionInbox';
@@ -156,8 +157,6 @@ const t = {
     budget: "Budget",
     description: "Περιγραφή",
     accept_agreement: "Αποδοχή Συμφωνίας",
-    agreement_terms: "Όροι Χρήσης",
-    agreement_text: "Με την αποδοχή αυτής της συμφωνίας, συμφωνώ με τους όρους χρήσης της πλατφόρμας Influo και επιβεβαιώνω ότι είμαι πρόθυμος να προχωρήσω στη συνεργασία με τους όρους που έχουν συμφωνηθεί.",
     accepted: "Αποδεκτή",
     pending: "Εκκρεμής",
     loading: "Φόρτωση...",
@@ -250,8 +249,6 @@ const t = {
     budget: "Budget",
     description: "Description",
     accept_agreement: "Accept Agreement",
-    agreement_terms: "Terms of Service",
-    agreement_text: "By accepting this agreement, I agree to the Influo platform terms of service and confirm that I am willing to proceed with the collaboration under the agreed terms.",
     accepted: "Accepted",
     pending: "Pending",
     loading: "Loading...",
@@ -1306,9 +1303,9 @@ export default function BrandDashboardContent() {
 
   const handleAcceptAgreement = async () => {
     if (!selectedProposal || !agreementAccepted) {
-      notify(lang === 'el' 
-        ? 'Παρακαλώ αποδεχτείτε τους όρους χρήσης' 
-        : 'Please accept the terms of service', 'error');
+      notify(lang === 'el'
+        ? 'Διάβασε και αποδέξου τους όρους της συμφωνίας.'
+        : 'Read and accept the agreement terms.', 'error');
       return;
     }
 
@@ -1342,9 +1339,9 @@ export default function BrandDashboardContent() {
         setShowAgreementModal(false);
         setSelectedProposal(null);
         setAgreementAccepted(false);
-        notify(lang === 'el' 
-          ? 'Η συμφωνία αποδεχτήθηκε!' 
-          : 'Agreement accepted!', 'success');
+        notify(lang === 'el'
+          ? 'Η συμφωνία έγινε αποδεκτή.'
+          : 'Agreement accepted.', 'success');
       } else {
         throw new Error(result.error || 'Error accepting agreement');
       }
@@ -2975,309 +2972,28 @@ export default function BrandDashboardContent() {
 
       {/* Agreement Modal */}
       {showAgreementModal && selectedProposal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full my-8">
-            <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
-              <h3 className="text-2xl font-bold text-slate-900">{txt.agreement_terms}</h3>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAgreementModal(false);
-                  setSelectedProposal(null);
-                  setAgreementAccepted(false);
-                }}
-                aria-label={lang === 'el' ? 'Κλείσιμο' : 'Close'}
-                className="inline-flex min-h-11 min-w-11 items-center justify-center text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-5 h-5" aria-hidden="true" />
-              </button>
-            </div>
-            
-            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
-              {/* Proposal Summary */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5">
-                <h4 className="font-bold text-blue-900 mb-4 text-lg">
-                  {lang === 'el' ? 'Σύνοψη Συμφωνίας' : 'Agreement Summary'}
-                </h4>
-                <div className="space-y-3 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-blue-700 font-medium">{txt.influencer}:</span>
-                    <span className="text-blue-900 font-bold">{displayNameForLang(influencers[selectedProposal.influencer_id]?.display_name, lang) || 'N/A'}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-blue-700 font-medium">{txt.service}:</span>
-                    <span className="text-blue-900 font-bold">{displayServiceType(selectedProposal.service_type, lang)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-blue-700 font-medium">{txt.budget}:</span>
-                    <span className="text-blue-900 font-bold text-lg">
-                      {formatEuroAmount(selectedProposal.counter_proposal_budget || selectedProposal.budget, lang)}
-                    </span>
-                  </div>
-                  {formatProposalExtrasLine(selectedProposal.selected_extras, lang) ? (
-                    <p className="text-sm text-blue-800">{formatProposalExtrasLine(selectedProposal.selected_extras, lang)}</p>
-                  ) : null}
-                  {selectedProposal.description && (
-                    <div className="pt-3 border-t border-blue-200">
-                      <span className="text-blue-700 font-medium">{txt.description}:</span>
-                      <p className="text-blue-800 mt-1">{selectedProposal.description}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Benefits Section */}
-              {lang === 'el' ? (
-                <div className="bg-green-50 border border-green-200 rounded-xl p-5">
-                  <h4 className="font-bold text-green-900 mb-4 flex items-center gap-2">
-                    <span>✨</span> Τι Κερδίζετε με την Αποδοχή
-                  </h4>
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3">
-                      <span className="text-2xl">✅</span>
-                      <div>
-                        <p className="font-semibold text-green-900">Επιβεβαίωση Συνεργασίας</p>
-                        <p className="text-sm text-green-700">Η συνεργασία ολοκληρώνεται και ξεκινά η εκπόνηση</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <span className="text-2xl">🤝</span>
-                      <div>
-                        <p className="font-semibold text-green-900">Επαγγελματική Σχέση</p>
-                        <p className="text-sm text-green-700">Δημιουργείται επίσημη σχέση συνεργασίας</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <span className="text-2xl">📈</span>
-                      <div>
-                        <p className="font-semibold text-green-900">Αξιολόγηση</p>
-                        <p className="text-sm text-green-700">Θα μπορείτε να αξιολογήσετε τον/την influencer μετά την ολοκλήρωση</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <span className="text-2xl">🎯</span>
-                      <div>
-                        <p className="font-semibold text-green-900">Περιεχόμενο Υψηλής Ποιότητας</p>
-                        <p className="text-sm text-green-700">Εγγύηση για την ποιότητα και την προθεσμία παράδοσης</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-green-50 border border-green-200 rounded-xl p-5">
-                  <h4 className="font-bold text-green-900 mb-4 flex items-center gap-2">
-                    <span>✨</span> What You Gain by Accepting
-                  </h4>
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3">
-                      <span className="text-2xl">✅</span>
-                      <div>
-                        <p className="font-semibold text-green-900">Collaboration Confirmation</p>
-                        <p className="text-sm text-green-700">The collaboration is finalized and work begins</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <span className="text-2xl">🤝</span>
-                      <div>
-                        <p className="font-semibold text-green-900">Professional Relationship</p>
-                        <p className="text-sm text-green-700">Official collaboration relationship is established</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <span className="text-2xl">📈</span>
-                      <div>
-                        <p className="font-semibold text-green-900">Review Ability</p>
-                        <p className="text-sm text-green-700">You can review the influencer after completion</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <span className="text-2xl">🎯</span>
-                      <div>
-                        <p className="font-semibold text-green-900">High-Quality Content</p>
-                        <p className="text-sm text-green-700">Guarantee for quality and delivery deadlines</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Terms & Conditions */}
-              <div className="space-y-4">
-                <h4 className="font-bold text-slate-900 text-lg">
-                  {lang === 'el' ? 'Όροι Χρήσης & Συμφωνία' : 'Terms & Conditions'}
-                </h4>
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 max-h-96 overflow-y-auto text-sm text-slate-700 space-y-4">
-                  {lang === 'el' ? (
-                    <>
-                      <div>
-                        <p className="font-bold text-slate-900 mb-2">1. Υποχρεώσεις Επιχείρησης:</p>
-                        <ul className="list-disc list-inside ml-2 space-y-1 text-slate-700">
-                          <li>Πληρωμή σύμφωνα με τις προδιαγραφές της συμφωνίας</li>
-                          <li>Παροχή όλων των απαραίτητων υλικών και πληροφοριών στον/στην influencer</li>
-                          <li>Επικοινωνία σε εύλογο χρόνο για οποιαδήποτε απορία ή αλλαγή</li>
-                          <li>Σεβασμός των προθεσμιών και deadlines που έχουν συμφωνηθεί</li>
-                        </ul>
-                      </div>
-
-                      <div>
-                        <p className="font-bold text-slate-900 mb-2">2. Πληρωμή:</p>
-                        <ul className="list-disc list-inside ml-2 space-y-1 text-slate-700">
-                          <li>Η πληρωμή θα γίνει σύμφωνα με τις προδιαγραφές της προσφοράς</li>
-                          <li>Η πληρωμή θα πραγματοποιηθεί μετά την ολοκλήρωση και έγκριση του περιεχομένου</li>
-                          <li>Οι όροι πληρωμής αναφέρονται στη συμφωνία</li>
-                        </ul>
-                      </div>
-
-                      <div>
-                        <p className="font-bold text-slate-900 mb-2">3. Δικαιώματα:</p>
-                        <ul className="list-disc list-inside ml-2 space-y-1 text-slate-700">
-                          <li>Έχετε δικαίωμα έγκρισης/απόρριψης περιεχομένου πριν τη δημοσίευση</li>
-                          <li>Μπορείτε να χρησιμοποιήσετε το περιεχόμενο για marketing σκοπούς</li>
-                          <li>Ο/Η influencer διατηρεί τα δικαιώματα του περιεχομένου εκτός αν συμφωνηθεί διαφορετικά</li>
-                        </ul>
-                      </div>
-
-                      <div>
-                        <p className="font-bold text-slate-900 mb-2">4. Επικοινωνία & Συνεργασία:</p>
-                        <ul className="list-disc list-inside ml-2 space-y-1 text-slate-700">
-                          <li>Η επικοινωνία θα γίνεται μέσω της πλατφόρμας Influo</li>
-                          <li>Οι δύο πλευρές δεσμεύονται για επαγγελματική και σεβαστική επικοινωνία</li>
-                          <li>Οποιαδήποτε αλλαγή στη συμφωνία θα πρέπει να συζητηθεί και να συμφωνηθεί</li>
-                        </ul>
-                      </div>
-
-                      <div>
-                        <p className="font-bold text-slate-900 mb-2">5. Εμπιστευτικότητα:</p>
-                        <ul className="list-disc list-inside ml-2 space-y-1 text-slate-700">
-                          <li>Και οι δύο πλευρές δεσμεύονται να διατηρήσουν εμπιστευτικότητα</li>
-                          <li>Προσωπικά στοιχεία και πληροφορίες παραμένουν εμπιστευτικά</li>
-                        </ul>
-                      </div>
-
-                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-4">
-                        <p className="font-medium text-amber-900 mb-2">
-                          ⚠️ <strong>Σημαντικό:</strong> Με την αποδοχή αυτής της συμφωνίας:
-                        </p>
-                        <ul className="text-amber-800 space-y-1 list-disc list-inside ml-2 text-xs">
-                          <li>Συμφωνείτε με όλους τους παραπάνω όρους χρήσης</li>
-                          <li>Η συνεργασία θεωρείται επίσημα ξεκίνημενη</li>
-                          <li>Θα μπορείτε να αξιολογήσετε τον/την influencer μετά την ολοκλήρωση</li>
-                          <li>Το brand θα προστεθεί στο portfolio του/της influencer</li>
-                          <li>Η πλατφόρμα Influo λειτουργεί ως μεσάζων για την ομαλή εξέλιξη της συνεργασίας</li>
-                        </ul>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div>
-                        <p className="font-bold text-slate-900 mb-2">1. Company Obligations:</p>
-                        <ul className="list-disc list-inside ml-2 space-y-1 text-slate-700">
-                          <li>Payment according to agreement specifications</li>
-                          <li>Provision of all necessary materials and information to the influencer</li>
-                          <li>Communication in reasonable time for any questions or changes</li>
-                          <li>Respect for agreed deadlines</li>
-                        </ul>
-                      </div>
-
-                      <div>
-                        <p className="font-bold text-slate-900 mb-2">2. Payment:</p>
-                        <ul className="list-disc list-inside ml-2 space-y-1 text-slate-700">
-                          <li>Payment will be made according to proposal specifications</li>
-                          <li>Payment will occur after completion and approval of content</li>
-                          <li>Payment terms are stated in the agreement</li>
-                        </ul>
-                      </div>
-
-                      <div>
-                        <p className="font-bold text-slate-900 mb-2">3. Rights:</p>
-                        <ul className="list-disc list-inside ml-2 space-y-1 text-slate-700">
-                          <li>You have the right to approve/reject content before publication</li>
-                          <li>You can use the content for marketing purposes</li>
-                          <li>The influencer retains content rights unless otherwise agreed</li>
-                        </ul>
-                      </div>
-
-                      <div>
-                        <p className="font-bold text-slate-900 mb-2">4. Communication & Collaboration:</p>
-                        <ul className="list-disc list-inside ml-2 space-y-1 text-slate-700">
-                          <li>Communication will be through the Influo platform</li>
-                          <li>Both parties commit to professional and respectful communication</li>
-                          <li>Any changes to the agreement must be discussed and agreed upon</li>
-                        </ul>
-                      </div>
-
-                      <div>
-                        <p className="font-bold text-slate-900 mb-2">5. Confidentiality:</p>
-                        <ul className="list-disc list-inside ml-2 space-y-1 text-slate-700">
-                          <li>Both parties commit to maintaining confidentiality</li>
-                          <li>Personal data and information remain confidential</li>
-                        </ul>
-                      </div>
-
-                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-4">
-                        <p className="font-medium text-amber-900 mb-2">
-                          ⚠️ <strong>Important:</strong> By accepting this agreement:
-                        </p>
-                        <ul className="text-amber-800 space-y-1 list-disc list-inside ml-2 text-xs">
-                          <li>You agree to all the above terms of service</li>
-                          <li>The collaboration is considered officially started</li>
-                          <li>You can review the influencer after completion</li>
-                          <li>The brand will be added to the influencer's portfolio</li>
-                          <li>The Influo platform acts as an intermediary for smooth collaboration</li>
-                        </ul>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Acceptance Checkbox */}
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={agreementAccepted}
-                    onChange={(e) => setAgreementAccepted(e.target.checked)}
-                    className="mt-1 w-5 h-5 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-slate-700">
-                    {lang === 'el' ? (
-                      <>
-                        <strong>Αποδέχομαι τους όρους χρήσης</strong> και συμφωνώ να προχωρήσω στη συνεργασία με τον/την <strong>{displayNameForLang(influencers[selectedProposal.influencer_id]?.display_name, lang) || 'influencer'}</strong> σύμφωνα με τους όρους που έχουν συμφωνηθεί.
-                      </>
-                    ) : (
-                      <>
-                        <strong>I accept the terms of service</strong> and agree to proceed with the collaboration with <strong>{displayNameForLang(influencers[selectedProposal.influencer_id]?.display_name, lang) || 'influencer'}</strong> according to the agreed terms.
-                      </>
-                    )}
-                  </span>
-                </label>
-              </div>
-            </div>
-
-            {/* Footer Actions */}
-            <div className="sticky bottom-0 bg-white border-t border-slate-200 px-6 py-4 flex gap-3 rounded-b-2xl">
-              <button
-                onClick={() => {
-                  setShowAgreementModal(false);
-                  setSelectedProposal(null);
-                  setAgreementAccepted(false);
-                }}
-                className="flex-1 px-4 py-3 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors font-medium"
-              >
-                {lang === 'el' ? 'Ακύρωση' : 'Cancel'}
-              </button>
-              <button
-                onClick={handleAcceptAgreement}
-                disabled={!agreementAccepted || savingAgreement}
-                className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium"
-              >
-                {savingAgreement ? txt.loading : txt.accept_agreement}
-              </button>
-            </div>
-          </div>
-        </div>
+        <AgreementTerms
+          lang={lang}
+          proposalId={selectedProposal.id}
+          brandName={selectedProposal.brand_name}
+          creatorName={displayNameForLang(influencers[selectedProposal.influencer_id]?.display_name, lang)}
+          serviceType={selectedProposal.service_type}
+          budget={selectedProposal.budget}
+          counterProposalBudget={selectedProposal.counter_proposal_budget}
+          counterProposalStatus={selectedProposal.counter_proposal_status}
+          selectedExtras={selectedProposal.selected_extras}
+          accepted={agreementAccepted}
+          onAcceptedChange={setAgreementAccepted}
+          saving={savingAgreement}
+          onCancel={() => {
+            setShowAgreementModal(false);
+            setSelectedProposal(null);
+            setAgreementAccepted(false);
+          }}
+          onAccept={handleAcceptAgreement}
+        />
       )}
+
       <ToastViewport
         toasts={toasts}
         onDismiss={dismissToast}
