@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { loadOwnProfiles } from "@/lib/ownProfile";
 import { lookupAuthUser } from "@/lib/authSession";
+import { accountAvatarFromProfiles } from "@/lib/accountAvatar";
 
 const ADMIN_EMAIL_FALLBACK = "nd.6@hotmail.com";
 
@@ -14,6 +15,10 @@ export type PublicAccountNav = {
   identityReady: boolean;
   dashboardPath: string;
   dashboardLabel: string;
+  /** Profile photo or brand logo. Empty when the account has none. */
+  avatarUrl: string;
+  /** Name, brand, or email used only for the initials fallback. */
+  avatarName: string;
 };
 
 function textField(row: Record<string, unknown> | null | undefined, key: string): string {
@@ -111,14 +116,18 @@ export function alternateLocalePath(pathname: string, targetLang: "el" | "en"): 
 export function usePublicAccountNav(lang: "el" | "en"): PublicAccountNav {
   const [userKind, setUserKind] = useState<PublicUserKind>("none");
   const [accountName, setAccountName] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [avatarName, setAvatarName] = useState("");
   const [identityReady, setIdentityReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    const finish = (kind: PublicUserKind, name: string) => {
+    const finish = (kind: PublicUserKind, name: string, avatar = "", initialsName = name) => {
       if (cancelled) return;
       setUserKind(kind);
       setAccountName(name.trim());
+      setAvatarUrl(avatar.trim());
+      setAvatarName(initialsName.trim());
       setIdentityReady(true);
     };
     // Profile reads can hang on the auth lock or a failing influencers select.
@@ -136,20 +145,33 @@ export function usePublicAccountNav(lang: "el" | "en"): PublicAccountNav {
         return;
       }
       if (email.toLowerCase() === ADMIN_EMAIL_FALLBACK.toLowerCase()) {
-        finish("admin", email);
+        const profiles = await withTimeout(loadOwnProfiles(supabase), 3500);
+        if (cancelled) return;
+        const avatar = accountAvatarFromProfiles({
+          email,
+          influencer: profiles?.ok ? profiles.influencer : null,
+          brand: profiles?.ok ? profiles.brand : null,
+        });
+        finish("admin", email, avatar.avatarUrl, avatar.avatarName);
         return;
       }
       const profiles = await withTimeout(loadOwnProfiles(supabase), 3500);
       if (cancelled) return;
       if (profiles?.ok && profiles.brand && !profiles.influencer) {
-        finish("brand", textField(profiles.brand, "brand_name") || email);
+        const avatar = accountAvatarFromProfiles({ email, brand: profiles.brand });
+        finish("brand", avatar.avatarName || email, avatar.avatarUrl, avatar.avatarName);
         return;
       }
       if (profiles?.ok && profiles.influencer) {
-        finish("influencer", textField(profiles.influencer, "display_name") || email);
+        const avatar = accountAvatarFromProfiles({
+          email,
+          influencer: profiles.influencer,
+          brand: profiles.brand,
+        });
+        finish("influencer", avatar.avatarName || email, avatar.avatarUrl, avatar.avatarName);
         return;
       }
-      finish(profiles?.ok ? "none" : "signed-in", email);
+      finish(profiles?.ok ? "none" : "signed-in", email, "", email);
     })().catch(() => {
       finish("signed-in", "");
     }).finally(() => {
@@ -166,5 +188,7 @@ export function usePublicAccountNav(lang: "el" | "en"): PublicAccountNav {
     identityReady,
     dashboardPath: dashboardPathFor(userKind),
     dashboardLabel: accountName || dashboardLabelFor(userKind, lang),
+    avatarUrl,
+    avatarName,
   };
 }
