@@ -12,7 +12,10 @@ import type { CategoryKey } from "@/lib/categories";
 export type DirectoryIndustry = {
   phrases: string[];
   categories: CategoryKey[];
+  /** Nominative label. */
   el: string;
+  /** Accusative used after «για» in search examples. Defaults to el. */
+  elFor?: string;
   en: string;
 };
 
@@ -71,6 +74,7 @@ export const DIRECTORY_INDUSTRIES: DirectoryIndustry[] = [
     phrases: ["φούρνος", "φούρνοι", "αρτοποιείο", "αρτοποιεία", "bakery", "bakeries", "bakehouse", "baker"],
     categories: [...food],
     el: "φούρνος",
+    elFor: "φούρνο",
     en: "bakery",
   },
   {
@@ -209,6 +213,7 @@ export const DIRECTORY_INDUSTRIES: DirectoryIndustry[] = [
     ],
     categories: [...health],
     el: "οδοντίατρος",
+    elFor: "οδοντίατρο",
     en: "dentist",
   },
   {
@@ -230,12 +235,14 @@ export const DIRECTORY_INDUSTRIES: DirectoryIndustry[] = [
     phrases: ["διατροφολόγος", "διατροφολόγοι", "nutritionist", "dietitian"],
     categories: [...health],
     el: "διατροφολόγος",
+    elFor: "διατροφολόγο",
     en: "nutritionist",
   },
   {
     phrases: ["ψυχολόγος", "ψυχολόγοι", "psychologist", "therapy practice"],
     categories: [...health],
     el: "ψυχολόγος",
+    elFor: "ψυχολόγο",
     en: "psychologist",
   },
   {
@@ -313,12 +320,14 @@ export const DIRECTORY_INDUSTRIES: DirectoryIndustry[] = [
     phrases: ["pet shop", "petshop", "pet store", "κατάστημα κατοικιδίων", "κατοικίδια", "pet supplies"],
     categories: [...pets],
     el: "pet shop",
+    elFor: "κομμωτήριο σκύλων",
     en: "pet shop",
   },
   {
     phrases: ["κτηνίατρος", "κτηνίατροι", "κτηνιατρείο", "vet", "veterinary", "veterinary clinic"],
     categories: [...pets],
     el: "κτηνίατρος",
+    elFor: "κτηνίατρο",
     en: "vet",
   },
   {
@@ -337,6 +346,7 @@ export const DIRECTORY_INDUSTRIES: DirectoryIndustry[] = [
     phrases: ["παιδικός σταθμός", "βρεφονηπιακός", "kindergarten", "nursery school"],
     categories: [...familyEdu],
     el: "παιδικός σταθμός",
+    elFor: "παιδικό σταθμό",
     en: "kindergarten",
   },
   {
@@ -449,6 +459,7 @@ export const DIRECTORY_INDUSTRIES: DirectoryIndustry[] = [
     ],
     categories: [...fun],
     el: "γάμος",
+    elFor: "γάμο",
     en: "wedding",
   },
   {
@@ -485,6 +496,7 @@ export const DIRECTORY_INDUSTRIES: DirectoryIndustry[] = [
     phrases: ["law firm", "δικηγόρος", "δικηγορικό", "lawyer", "lawyers"],
     categories: [...business],
     el: "δικηγόρος",
+    elFor: "δικηγόρο",
     en: "law firm",
   },
   {
@@ -497,6 +509,7 @@ export const DIRECTORY_INDUSTRIES: DirectoryIndustry[] = [
     phrases: ["λογιστής", "λογιστικό", "λογιστήριο", "accountant", "accounting"],
     categories: [...business],
     el: "λογιστής",
+    elFor: "λογιστή",
     en: "accountant",
   },
   {
@@ -513,14 +526,24 @@ export const DIRECTORY_INDUSTRIES: DirectoryIndustry[] = [
   },
 ];
 
+for (const industry of DIRECTORY_INDUSTRIES) {
+  const spoken = industry.elFor;
+  if (!spoken) continue;
+  const folded = spoken.toLocaleLowerCase("el");
+  if (!industry.phrases.some((phrase) => phrase.toLocaleLowerCase("el") === folded)) {
+    industry.phrases.push(spoken);
+  }
+}
+
 export function directoryShopExamples(): { el: string; en: string }[] {
   const seen = new Set<string>();
   const out: { el: string; en: string }[] = [];
   for (const industry of DIRECTORY_INDUSTRIES) {
-    const key = `${industry.el}|${industry.en}`;
+    const el = industry.elFor || industry.el;
+    const key = `${el}|${industry.en}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push({ el: industry.el, en: industry.en });
+    out.push({ el, en: industry.en });
   }
   return out;
 }

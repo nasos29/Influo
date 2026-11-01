@@ -2,10 +2,32 @@
 
 import { useEffect, useState } from "react";
 import { directoryShopExamples } from "@/lib/directoryIndustries";
-import { SKILL_GROUPS } from "@/lib/skills";
+import { SKILL_GROUPS, type SkillKey } from "@/lib/skills";
 
 const EL_SHOP_PREFIXES = ["influencer για", "δημιουργός για", "creator για"] as const;
-const EL_SKILL_PREFIXES = ["creator με", "δημιουργός με", "influencer με"] as const;
+const EL_NAMES = ["influencer", "δημιουργός", "creator"] as const;
+
+/** Grammatical Greek after για/με. Not the nominative skill label. */
+const EL_SKILL_PHRASE: Record<SkillKey, { prep: "για" | "με"; text: string }> = {
+  ugc: { prep: "για", text: "UGC βίντεο" },
+  short_video: { prep: "για", text: "Reels και TikTok" },
+  product_photo: { prep: "με", text: "φωτογραφία προϊόντος" },
+  reviews: { prep: "με", text: "κριτικές προϊόντων" },
+  tutorials: { prep: "με", text: "οδηγούς" },
+  vlogs: { prep: "με", text: "vlogs" },
+  video_editing: { prep: "με", text: "μοντάζ" },
+  color_grading: { prep: "με", text: "χρωματική διόρθωση" },
+  voiceover: { prep: "με", text: "voiceover" },
+  subtitles: { prep: "με", text: "υπότιτλους" },
+  drone: { prep: "με", text: "λήψεις drone" },
+  studio_lighting: { prep: "με", text: "φωτισμό στούντιο" },
+  on_camera: { prep: "με", text: "παρουσίαση στην κάμερα" },
+  acting: { prep: "με", text: "ηθοποιία" },
+  live_streaming: { prep: "με", text: "ζωντανή μετάδοση" },
+  copywriting: { prep: "με", text: "copywriting" },
+  social_strategy: { prep: "με", text: "στρατηγική για social" },
+  event_hosting: { prep: "με", text: "διοργάνωση events" },
+};
 
 const EXTRAS = {
   el: ["UGC creator", "reel έως 50 €", "fitness Θεσσαλονίκη", "μαρία"],
@@ -19,12 +41,7 @@ export const DIRECTORY_TYPEWRITER_STATIC = {
 
 export function directoryExamplePool(lang: "el" | "en"): string[] {
   const shops = directoryShopExamples();
-  const skills: { label: { el: string; en: string } }[] = [];
-  for (const group of SKILL_GROUPS) {
-    for (const skill of group.skills) {
-      skills.push({ label: { el: skill.label.el, en: skill.label.en } });
-    }
-  }
+  const skills = SKILL_GROUPS.flatMap((group) => [...group.skills]);
   if (lang === "en") {
     return [
       ...new Set([
@@ -37,12 +54,10 @@ export function directoryExamplePool(lang: "el" | "en"): string[] {
   return [
     ...new Set([
       ...EL_SHOP_PREFIXES.flatMap((prefix) => shops.map((shop) => `${prefix} ${shop.el}`)),
-      ...EL_SKILL_PREFIXES.flatMap((prefix) =>
-        skills.flatMap((skill) => [
-          `${prefix} ${skill.label.el}`,
-          `${prefix} ${skill.label.en.toLowerCase()}`,
-        ])
-      ),
+      ...skills.flatMap((skill) => {
+        const phrase = EL_SKILL_PHRASE[skill.key];
+        return EL_NAMES.map((name) => `${name} ${phrase.prep} ${phrase.text}`);
+      }),
       ...EXTRAS.el,
     ]),
   ];

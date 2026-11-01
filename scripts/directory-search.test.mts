@@ -201,7 +201,13 @@ test("typewriter examples mix shops, skills and extras without repeating", () =>
   const greek = directoryExamplePool("el");
   const english = directoryExamplePool("en");
   assert.ok(greek.includes("δημιουργός για καφέ"));
-  assert.ok(greek.includes("creator με video editing"));
+  assert.ok(greek.includes("δημιουργός για κτηνίατρο"));
+  assert.ok(greek.includes("creator για οδοντίατρο"));
+  assert.ok(greek.includes("δημιουργός για κομμωτήριο σκύλων"));
+  assert.ok(greek.includes("δημιουργός για καλλωπιστήριο"));
+  assert.ok(greek.includes("δημιουργός με υπότιτλους"));
+  assert.ok(greek.includes("creator για UGC βίντεο"));
+  assert.equal(greek.some((line) => /για κτηνίατρος|για οδοντίατρος|με υπότιτλοι|δημιουργος /.test(line)), false);
   assert.ok(greek.includes("μαρία"));
   assert.ok(english.includes("creator for hotel"));
   assert.ok(english.includes("creator with copywriting"));
@@ -213,6 +219,31 @@ test("typewriter examples mix shops, skills and extras without repeating", () =>
     assert.notEqual(next, previous);
     previous = next;
   }
+});
+
+test("inflected shop and skill phrases still set the right filter", () => {
+  const vet = parseDirectoryPhrase("δημιουργός για κτηνίατρο");
+  assert.deepEqual(vet.categories, ["Pets & Animals"]);
+  assert.equal(vet.remainder, "");
+  const dentist = parseDirectoryPhrase("creator για οδοντίατρο");
+  assert.ok(dentist.categories.includes("Health & Fitness"));
+  assert.equal(dentist.remainder, "");
+  const dogs = parseDirectoryPhrase("influencer για κομμωτήριο σκύλων");
+  assert.deepEqual(dogs.categories, ["Pets & Animals"]);
+  assert.equal(dogs.remainder, "");
+  assert.equal(parseDirectoryPhrase("δημιουργός με υπότιτλους").skill, "subtitles");
+  assert.equal(parseDirectoryPhrase("creator για UGC βίντεο").skill, "ugc");
+  assert.equal(parseDirectoryPhrase("creator για UGC βίντεο").remainder, "");
+});
+
+test("platform filters need a whole word, not a short prefix", () => {
+  for (const phrase of ["y", "yo", "you", "yout", "γιου", "γιουτ", "beautytips", "myyoutube"]) {
+    assert.equal(parseDirectoryPhrase(phrase).platform, null, phrase);
+  }
+  assert.equal(parseDirectoryPhrase("youtube").platform, "YouTube");
+  assert.equal(parseDirectoryPhrase("γιουτιουμπ").platform, "YouTube");
+  assert.equal(parseDirectoryPhrase("instagram").platform, "Instagram");
+  assert.equal(parseDirectoryPhrase("tiktok").platform, "TikTok");
 });
 
 test("name, slug and username match across accents and greeklish", () => {
