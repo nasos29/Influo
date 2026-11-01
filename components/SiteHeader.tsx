@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import InfluoLogo from "@/components/InfluoLogo";
 import { usePathname, useRouter } from "next/navigation";
 import { setStoredLanguage } from "@/lib/language";
@@ -49,6 +50,43 @@ function linkClass(active: boolean): string {
   return active ? `${hover} text-slate-900 font-semibold` : `${hover} text-slate-700`;
 }
 
+function avatarInitial(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) return "U";
+  return trimmed.charAt(0).toUpperCase();
+}
+
+function AccountAvatar({
+  href,
+  imageUrl,
+  name,
+  label,
+  lang,
+}: {
+  href: string;
+  imageUrl: string;
+  name: string;
+  label: string;
+  lang: Lang;
+}) {
+  const alt = name.trim() || (lang === "el" ? "Προφίλ" : "Profile");
+  return (
+    <Link
+      href={href}
+      aria-label={label || alt}
+      className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-2 border-slate-300 bg-slate-100 transition-opacity hover:opacity-80"
+    >
+      {imageUrl ? (
+        <Image src={imageUrl} alt={alt} width={40} height={40} className="h-full w-full object-cover" unoptimized />
+      ) : (
+        <span className="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-500 to-purple-500 text-sm font-semibold text-white">
+          {avatarInitial(name)}
+        </span>
+      )}
+    </Link>
+  );
+}
+
 export default function SiteHeader({
   lang,
   onLangChange,
@@ -60,7 +98,7 @@ export default function SiteHeader({
   const pathname = usePathname() || "/";
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { identityReady, dashboardPath, dashboardLabel } = usePublicAccountNav(lang);
+  const { identityReady, userKind, dashboardPath, dashboardLabel, avatarUrl, avatarName } = usePublicAccountNav(lang);
   const t = NAV[lang];
 
   const items = [
@@ -111,7 +149,9 @@ export default function SiteHeader({
     setMobileOpen(false);
   };
 
-  const accountLink = identityReady ? (
+  const accountLink = !identityReady ? (
+    <span className="inline-block h-10 w-10 rounded-full bg-slate-200 animate-pulse" aria-hidden />
+  ) : userKind === "none" ? (
     <Link
       href={dashboardPath}
       className="inline-flex min-h-[44px] items-center text-sm font-medium text-blue-600 hover:underline whitespace-nowrap"
@@ -119,7 +159,13 @@ export default function SiteHeader({
       {dashboardLabel}
     </Link>
   ) : (
-    <span className="inline-block h-4 w-24 rounded bg-slate-200 animate-pulse" aria-hidden />
+    <AccountAvatar
+      href={dashboardPath}
+      imageUrl={avatarUrl}
+      name={avatarName}
+      label={dashboardLabel}
+      lang={lang}
+    />
   );
 
   const langButton = (
