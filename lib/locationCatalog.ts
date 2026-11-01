@@ -1,5 +1,5 @@
 import { toGreeklish } from "@/lib/greeklish";
-import { LOCATION_SEED, type LocationDraft, type LocationKind } from "@/lib/locationSeed";
+import { EUROPE_LOCATION_SEED, LOCATION_SEED, type LocationDraft, type LocationKind } from "@/lib/locationSeed";
 
 export type LocationRecord = {
   name_el: string;
@@ -7,7 +7,7 @@ export type LocationRecord = {
   region_el: string;
   region_en: string;
   type: LocationKind;
-  country: "GR" | "CY";
+  country: "GR" | "CY" | "EU";
   popularity: number;
   search_el: string;
   search_en: string;
@@ -46,6 +46,9 @@ export function toLocationRecord(draft: LocationDraft): LocationRecord {
 }
 
 export const LOCATION_SEED_RECORDS: LocationRecord[] = LOCATION_SEED.map(toLocationRecord);
+export const EUROPE_LOCATION_RECORDS: LocationRecord[] = EUROPE_LOCATION_SEED.map(toLocationRecord);
+/** Greek/Cyprus catalog plus major European cities. The typeahead searches this list. */
+export const LOCATION_CATALOG: LocationRecord[] = [...LOCATION_SEED_RECORDS, ...EUROPE_LOCATION_RECORDS];
 
 export type LocationHit = LocationRecord & { label: string; region: string };
 
@@ -68,7 +71,7 @@ export function searchLocations(
   query: string,
   lang: "el" | "en",
   limit = 8,
-  rows: LocationRecord[] = LOCATION_SEED_RECORDS
+  rows: LocationRecord[] = LOCATION_CATALOG
 ): LocationHit[] {
   const folded = foldLocation(query);
   const latin = foldLocation(toGreeklish(query));

@@ -14,7 +14,7 @@ export type LocationDraft = {
   regionEl: string;
   regionEn: string;
   type: LocationKind;
-  country: "GR" | "CY";
+  country: "GR" | "CY" | "EU";
   popularity: number;
   aliases: string[];
 };
@@ -26,7 +26,7 @@ function rows(
   regionEn: string,
   type: LocationKind,
   items: Item[],
-  country: "GR" | "CY" = "GR"
+  country: "GR" | "CY" | "EU" = "GR"
 ): LocationDraft[] {
   return items.map(([nameEl, nameEn, popularity, aliases]) => ({
     nameEl,
@@ -273,4 +273,49 @@ export const LOCATION_SEED: LocationDraft[] = [
     ["Παραλίμνι", "Paralimni", 30],
     ["Αγία Νάπα", "Ayia Napa", 40, "agia napa"],
   ], "CY"),
+];
+
+/** Major European cities for the profile typeahead. Not part of the Greek locations table. */
+export const EUROPE_LOCATION_SEED: LocationDraft[] = [
+  ...rows("Ηνωμένο Βασίλειο", "United Kingdom", "city", [
+    ["Λονδίνο", "London", 95, "lond|london"],
+    ["Μάντσεστερ", "Manchester", 50],
+    ["Μπέρμιγχαμ", "Birmingham", 40],
+    ["Εδιμβούργο", "Edinburgh", 45],
+  ], "EU"),
+  ...rows("Γαλλία", "France", "city", [
+    ["Παρίσι", "Paris", 90, "parisi"],
+    ["Λυών", "Lyon", 40],
+    ["Μασσαλία", "Marseille", 40],
+  ], "EU"),
+  ...rows("Γερμανία", "Germany", "city", [
+    ["Βερολίνο", "Berlin", 85],
+    ["Μόναχο", "Munich", 55, "muenchen|münchen"],
+    ["Αμβούργο", "Hamburg", 45],
+    ["Φρανκφούρτη", "Frankfurt", 45],
+  ], "EU"),
+  ...rows("Ιταλία", "Italy", "city", [
+    ["Ρώμη", "Rome", 80, "roma"],
+    ["Μιλάνο", "Milan", 60, "milano"],
+  ], "EU"),
+  ...rows("Ισπανία", "Spain", "city", [
+    ["Μαδρίτη", "Madrid", 75],
+    ["Βαρκελώνη", "Barcelona", 70],
+  ], "EU"),
+  ...rows("Ολλανδία", "Netherlands", "city", [["Άμστερνταμ", "Amsterdam", 70]], "EU"),
+  ...rows("Βέλγιο", "Belgium", "city", [["Βρυξέλλες", "Brussels", 60]], "EU"),
+  ...rows("Αυστρία", "Austria", "city", [["Βιέννη", "Vienna", 60, "wien"]], "EU"),
+  ...rows("Πορτογαλία", "Portugal", "city", [["Λισαβόνα", "Lisbon", 55, "lisboa"]], "EU"),
+  ...rows("Ιρλανδία", "Ireland", "city", [["Δουβλίνο", "Dublin", 55]], "EU"),
+  ...rows("Σουηδία", "Sweden", "city", [["Στοκχόλμη", "Stockholm", 50]], "EU"),
+  ...rows("Δανία", "Denmark", "city", [["Κοπεγχάγη", "Copenhagen", 50]], "EU"),
+  ...rows("Νορβηγία", "Norway", "city", [["Όσλο", "Oslo", 45]], "EU"),
+  ...rows("Φινλανδία", "Finland", "city", [["Ελσίνκι", "Helsinki", 45]], "EU"),
+  ...rows("Πολωνία", "Poland", "city", [["Βαρσοβία", "Warsaw", 50, "warszawa"]], "EU"),
+  ...rows("Τσεχία", "Czechia", "city", [["Πράγα", "Prague", 55, "praha"]], "EU"),
+  ...rows("Ουγγαρία", "Hungary", "city", [["Βουδαπέστη", "Budapest", 50]], "EU"),
+  ...rows("Ελβετία", "Switzerland", "city", [
+    ["Ζυρίχη", "Zurich", 55, "zürich"],
+    ["Γενεύη", "Geneva", 45, "geneve|genève"],
+  ], "EU"),
 ];

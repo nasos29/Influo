@@ -40,12 +40,14 @@ const t = {
     lastQuarter: "Τελευταίο τρίμηνο",
     lastYear: "Τελευταίος χρόνος",
     custom: "Προσαρμοσμένο",
-    profileViews: "Προβολές Προφίλ",
+    profileViews: "Προβολές προφίλ",
+    profileViewsHint: "Στην επιλεγμένη περίοδο",
     profileClicks: "Κλικ Προφίλ Influo",
     socialOutbound: "Έξοδος (κοινωνικά)",
     proposalsSent: "Προσφορές",
     messagesSent: "Μηνύματα",
-    conversationsStarted: "Συνομιλίες",
+    conversationsStarted: "Συνομιλίες που ξεκίνησαν",
+    conversationsHint: "Στην επιλεγμένη περίοδο, όχι όλες οι συνομιλίες",
     totalEarnings: "Κέρδος",
     total: "Σύνολο",
     loading: "Φόρτωση...",
@@ -64,12 +66,14 @@ const t = {
     lastQuarter: "Last quarter",
     lastYear: "Last year",
     custom: "Custom",
-    profileViews: "Profile Views",
+    profileViews: "Profile views",
+    profileViewsHint: "In the selected period",
     profileClicks: "Influo profile clicks",
     socialOutbound: "Outbound (social)",
     proposalsSent: "Proposals",
     messagesSent: "Messages",
-    conversationsStarted: "Conversations",
+    conversationsStarted: "Conversations started",
+    conversationsHint: "In the selected period, not every conversation",
     totalEarnings: "Earnings",
     total: "Total",
     loading: "Loading...",
@@ -315,6 +319,7 @@ export default function Analytics({ influencerId, lang = 'el' }: AnalyticsProps)
         <div className="bg-white rounded-xl border border-slate-200 p-6">
           <div className="text-2xl font-bold text-slate-900">{stats.profileViews}</div>
           <div className="text-sm text-slate-600 mt-1">{txt.profileViews}</div>
+          <div className="text-xs text-slate-400 mt-1">{txt.profileViewsHint}</div>
         </div>
         <div className="bg-white rounded-xl border border-slate-200 p-6">
           <div className="text-2xl font-bold text-slate-900">{stats.profileClicks}</div>
@@ -335,6 +340,7 @@ export default function Analytics({ influencerId, lang = 'el' }: AnalyticsProps)
         <div className="bg-white rounded-xl border border-slate-200 p-6">
           <div className="text-2xl font-bold text-slate-900">{stats.conversationsStarted}</div>
           <div className="text-sm text-slate-600 mt-1">{txt.conversationsStarted}</div>
+          <div className="text-xs text-slate-400 mt-1">{txt.conversationsHint}</div>
         </div>
         <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border-2 border-green-200 p-6">
           <div className="text-2xl font-bold text-green-700">{formatEuro(stats.totalEarnings, lang, 0)}</div>

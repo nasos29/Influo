@@ -34,7 +34,8 @@ export default function LocationTypeahead({
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const hits = searchLocations(value, lang, 8, CATALOG);
-  const visible = open && hits.length > 0;
+  const showEmpty = open && value.trim().length >= 2 && hits.length === 0;
+  const visible = open && (hits.length > 0 || showEmpty);
 
   useEffect(() => {
     const onPointer = (event: MouseEvent) => {
@@ -61,7 +62,10 @@ export default function LocationTypeahead({
         aria-autocomplete="list"
         aria-activedescendant={visible && active >= 0 ? `${listId}-${active}` : undefined}
         aria-label={ariaLabel}
+        name="location"
         autoComplete="off"
+        autoCorrect="off"
+        spellCheck={false}
         placeholder={placeholder}
         value={value}
         className={className}
@@ -105,6 +109,11 @@ export default function LocationTypeahead({
           aria-label={copy.list}
           className="absolute z-30 mt-1 max-h-60 w-full overflow-auto rounded-xl border border-slate-200 bg-white py-1 text-left shadow-lg"
         >
+          {showEmpty ? (
+            <li className="px-3 py-2 text-sm text-slate-500">
+              {lang === "en" ? "No matching location. You can still type your own." : "Δεν βρέθηκε τοποθεσία. Μπορείς να γράψεις τη δική σου."}
+            </li>
+          ) : null}
           {hits.map((hit, index) => (
             <li
               key={`${hit.country}-${hit.name_el}`}

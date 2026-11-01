@@ -929,7 +929,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                             />
                             <div>
                                 <label className="block text-xs font-semibold text-slate-900 mb-1">{L("Φύλο", "Gender")}</label>
-                                <select value={gender} onChange={e => setGender(normalizeGender(e.target.value))} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900">
+                                <select name="gender" autoComplete="off" value={gender} onChange={e => setGender(normalizeGender(e.target.value))} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900">
                                     <option value="Female">{L("Γυναίκα", "Woman")}</option>
                                     <option value="Male">{L("Άνδρας", "Man")}</option>
                                     <option value="AI">{L("AI (τεχνητή νοημοσύνη)", "AI (artificial intelligence)")}</option>
@@ -1473,7 +1473,6 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
         if (typeof window !== 'undefined') {
             window.history.replaceState({ ...(window.history.state || {}), as: url, url }, '', url);
         }
-        router.replace(url, { scroll: false });
     };
 
     const openEdit = (section: EditSection) => {
@@ -2087,6 +2086,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                     {profileViewsState === 'loading' ? <span className="inline-block h-7 w-12 rounded bg-slate-100 animate-pulse" /> : profileViewsState === 'ready' ? profileViews : '—'}
                                 </p>
                                 <p className="mt-1 text-sm text-slate-600">{T('Προβολές προφίλ', 'Profile views')}</p>
+                                <p className="text-xs text-slate-400">{T('Σύνολο', 'All time')}</p>
                                 {profileViewsState === 'error' ? (
                                     <button type="button" onClick={() => setProfileViewsAttempt((n) => n + 1)} className="mt-2 min-h-11 text-sm font-medium text-blue-700">
                                         {ui.retry}

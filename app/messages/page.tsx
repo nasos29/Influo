@@ -1,15 +1,16 @@
 "use client";
 
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState, useEffect } from 'react';
 import Messaging from '@/components/Messaging';
 import { supabase } from '@/lib/supabaseClient';
 import { getStoredLanguage } from '@/lib/language';
 import { displayNameForLang } from '@/lib/greeklish';
-import { loadOwnBrand } from '@/lib/ownProfile';
+import { loadOwnProfiles } from '@/lib/ownProfile';
 import { useOwnPresenceHeartbeat } from '@/lib/useOwnPresenceHeartbeat';
 
 function MessagesContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const influencerId = searchParams?.get('influencer') || null;
   const conversationId = searchParams?.get('conversation');
@@ -46,18 +47,26 @@ function MessagesContent() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      let redirecting = false;
       try {
-        const brand = await loadOwnBrand(supabase);
-        if (!brand.ok) {
-          if (!cancelled) setLoading(false);
+        const profiles = await loadOwnProfiles(supabase);
+        if (cancelled) return;
+        if (profiles.ok && profiles.influencer && !profiles.brand) {
+          const params = new URLSearchParams();
+          params.set('tab', 'messages');
+          if (conversationId) params.set('conversation', conversationId);
+          redirecting = true;
+          router.replace(`/dashboard?${params.toString()}`);
           return;
         }
-        const email = typeof brand.profile.contact_email === 'string' ? brand.profile.contact_email : '';
-        const name = typeof brand.profile.brand_name === 'string' ? brand.profile.brand_name : '';
-        if (!cancelled) {
-          setBrandEmail(email);
-          setBrandName(name);
+        if (!profiles.ok || !profiles.brand) {
+          setLoading(false);
+          return;
         }
+        const email = typeof profiles.brand.contact_email === 'string' ? profiles.brand.contact_email : '';
+        const name = typeof profiles.brand.brand_name === 'string' ? profiles.brand.brand_name : '';
+        setBrandEmail(email);
+        setBrandName(name);
         if (influencerId) {
           const { data, error } = await supabase
             .from('influencers')
@@ -69,13 +78,13 @@ function MessagesContent() {
           }
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled && !redirecting) setLoading(false);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [influencerId]);
+  }, [conversationId, influencerId, router]);
 
   useOwnPresenceHeartbeat(brandEmail ? { kind: 'brand', brandEmail } : null);
 
