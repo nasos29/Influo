@@ -2745,18 +2745,25 @@ export default function InfluencerProfile(props: {
                                 {lang === 'en' && profile.bio_en ? profile.bio_en : (profile.bio || txt.no_bio)}
                             </p>
                             {(() => {
-                              const labels = sanitizeSkills(profile.skills).map((key) => skillLabel(key, lang)).filter(Boolean);
-                              if (!labels.length) return null;
+                              const skills = sanitizeSkills(profile.skills)
+                                .map((key) => ({ key, label: skillLabel(key, lang) }))
+                                .filter((skill) => skill.label);
+                              if (!skills.length) return null;
+                              const directoryBase = lang === "en" ? "/en/directory" : "/directory";
                               return (
                                 <div className="mt-6">
                                   <h3 className="text-sm font-semibold text-slate-900">
                                     {lang === "el" ? "Δεξιότητες" : "Skills"}
                                   </h3>
                                   <div className="mt-3 flex flex-wrap gap-2">
-                                    {labels.map((label) => (
-                                      <span key={label} className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-700">
-                                        {label}
-                                      </span>
+                                    {skills.map((skill) => (
+                                      <Link
+                                        key={skill.key}
+                                        href={`${directoryBase}?skills=${encodeURIComponent(skill.key)}`}
+                                        className="text-xs uppercase font-semibold bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full border border-blue-200 hover:bg-blue-100 hover:border-blue-300 transition"
+                                      >
+                                        {skill.label}
+                                      </Link>
                                     ))}
                                   </div>
                                 </div>

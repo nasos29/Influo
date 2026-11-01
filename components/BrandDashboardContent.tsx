@@ -27,6 +27,7 @@ import BrandActionInbox from '@/components/BrandActionInbox';
 import BrandSaveInfluencerButton from '@/components/BrandSaveInfluencerButton';
 import BrandShortlistPanel from '@/components/BrandShortlistPanel';
 import BrandToolsPanel from '@/components/BrandToolsPanel';
+import BrandStatisticsPanel from '@/components/BrandStatisticsPanel';
 import InfluencerPresenceDot from '@/components/InfluencerPresenceDot';
 import { loadOwnProfiles } from '@/lib/ownProfile';
 import { getApprovedInfluencersForRecommendations } from '@/lib/approvedInfluencersListCache';
@@ -67,6 +68,7 @@ import {
   Megaphone,
   Menu,
   MessageSquare,
+  BarChart3,
   Sparkles,
   Wrench,
   X,
@@ -717,7 +719,8 @@ type BrandTab =
   | 'messages'
   | 'shortlist'
   | 'tools'
-  | 'announcements';
+  | 'announcements'
+  | 'statistics';
 
 const RETRY_LABEL = { el: 'Δοκίμασε ξανά', en: 'Try again' } as const;
 
@@ -853,7 +856,8 @@ export default function BrandDashboardContent() {
       tab === 'recommendations' ||
       tab === 'shortlist' ||
       tab === 'tools' ||
-      tab === 'announcements'
+      tab === 'announcements' ||
+      tab === 'statistics'
     ) {
       setActiveTab(tab);
     } else if (!tab) {
@@ -880,6 +884,7 @@ export default function BrandDashboardContent() {
       shortlist: "Shortlist | Influo",
       tools: "Εργαλεία | Influo",
       announcements: "Ανακοινώσεις | Influo",
+      statistics: "Στατιστικά | Influo",
     };
     const titlesEn: Record<string, string> = {
       overview: "Overview | Influo",
@@ -890,6 +895,7 @@ export default function BrandDashboardContent() {
       shortlist: "Shortlist | Influo",
       tools: "Tools | Influo",
       announcements: "Announcements | Influo",
+      statistics: "Statistics | Influo",
     };
     const map = lang === "en" ? titlesEn : titlesEl;
     document.title = map[activeTab] || (lang === "en" ? "Brand Dashboard | Influo" : "Πίνακας επιχείρησης | Influo");
@@ -2060,6 +2066,7 @@ export default function BrandDashboardContent() {
                   { id: 'shortlist' as const, label: lang === 'el' ? 'Οι influencers μου' : 'My influencers', icon: Bookmark, count: shortlist.length },
                   { id: 'campaigns' as const, label: lang === 'el' ? 'Καμπάνιες' : 'Campaigns', icon: Megaphone, count: unseenApplicationCount },
                   { id: 'proposals' as const, label: lang === 'el' ? 'Προσφορές' : 'Proposals', icon: FileText, count: unseenProposalCount },
+                  { id: 'statistics' as const, label: lang === 'el' ? 'Στατιστικά' : 'Statistics', icon: BarChart3, count: 0 },
                   { id: 'tools' as const, label: lang === 'el' ? 'Εργαλεία' : 'Tools', icon: Wrench, count: 0 },
                   { id: 'announcements' as const, label: lang === 'el' ? 'Ανακοινώσεις' : 'Announcements', icon: Bell, count: unreadAnnouncementsCount },
                   { id: 'messages' as const, label: lang === 'el' ? 'Μηνύματα' : 'Messages', icon: MessageSquare, count: unreadMessageCount },
@@ -2209,6 +2216,12 @@ export default function BrandDashboardContent() {
                 openBrandTab('messages');
               }}
             />
+          </div>
+        )}
+
+        {activeTab === 'statistics' && (
+          <div className="mb-12">
+            <BrandStatisticsPanel lang={lang} onBrowse={() => openBrandTab('recommendations')} />
           </div>
         )}
 
