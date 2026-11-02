@@ -48,7 +48,7 @@ export default function ResponsiveDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy}
-        className={`relative max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:rounded-2xl ${
+        className={`relative max-h-[calc(100dvh-0.5rem)] sm:max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:rounded-2xl ${
           wide ? "sm:max-w-4xl" : "sm:max-w-md"
         }`}
       >
