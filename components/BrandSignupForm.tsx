@@ -341,7 +341,7 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
   };
 
   const ProgressSteps = () => (
-    <ol className="mb-8 flex items-center gap-3" aria-label={txt.headerTitle}>
+    <ol className="mb-5 flex items-center gap-3 sm:mb-8" aria-label={txt.headerTitle}>
       {[1, 2].map((s) => (
         <li key={s} className="flex flex-1 items-center gap-3">
           <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${step >= s ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-500"}`}>
@@ -377,10 +377,10 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
 
   return (
     <div className={shellClass}>
-      <div className="shrink-0 border-b border-slate-200 px-5 py-5 sm:px-8">
-        <InfluoLogo className="h-8 w-auto" title="Influo" />
-        <h3 className="mt-3 text-xl font-semibold text-slate-900">{txt.headerTitle}</h3>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">{txt.headerDesc}</p>
+      <div className="shrink-0 border-b border-slate-200 px-5 py-3 sm:px-8 sm:py-5">
+        <InfluoLogo className="hidden h-8 w-auto sm:block" title="Influo" />
+        <h3 className="text-lg font-semibold text-slate-900 sm:mt-3 sm:text-xl">{txt.headerTitle}</h3>
+        <p className="mt-1 text-[13px] leading-snug text-slate-600 sm:text-sm sm:leading-relaxed">{txt.headerDesc}</p>
       </div>
 
       <div className="flex-1 overflow-y-auto bg-white px-5 py-6 sm:px-8">
@@ -398,7 +398,7 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
 
         {step === 1 && (
           <div className="space-y-6">
-            <h2 className="text-lg font-semibold text-slate-900">{txt.step1}</h2>
+            <h2 className="text-base font-semibold text-slate-900 sm:text-lg">{txt.step1}</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -470,7 +470,7 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
 
         {step === 2 && (
           <form onSubmit={handleSubmit} className="space-y-6">
-            <h2 className="text-lg font-semibold text-slate-900">{txt.step2}</h2>
+            <h2 className="text-base font-semibold text-slate-900 sm:text-lg">{txt.step2}</h2>
 
             <CategoryCheckboxList
               lang={lang}
