@@ -117,7 +117,7 @@ export async function doRefreshSocialStats(
 
   let query = supabaseAdmin
     .from('influencers')
-    .select('id, display_name, gender, accounts, bio, category, location, audience_male_percent, audience_female_percent, min_rate, service_packages, rate_card, skills, auditpr_audit');
+    .select('id, display_name, gender, accounts, bio, category, location, audience_male_percent, audience_female_percent, min_rate, service_packages, rate_card, skills, certifications, languages, auditpr_audit');
 
   if (influencerId) {
     query = query.eq('id', influencerId);
@@ -157,14 +157,8 @@ export async function doRefreshSocialStats(
     brandSafe: boolean;
     niche?: string;
     niche_en?: string;
-    priceNote?: string;
-    priceNote_en?: string;
-    packageNote?: string;
-    packageNote_en?: string;
-    skillsNote?: string;
-    skillsNote_en?: string;
-    offerTips?: string[];
-    offerTips_en?: string[];
+    strengthsNote?: string;
+    strengthsNote_en?: string;
     input_fingerprint?: string;
   };
 
@@ -353,6 +347,8 @@ export async function doRefreshSocialStats(
             service_packages: (inf as { service_packages?: unknown }).service_packages,
             rate_card: (inf as { rate_card?: unknown }).rate_card,
             skills: (inf as { skills?: unknown }).skills,
+            certifications: (inf as { certifications?: unknown }).certifications,
+            languages: (inf as { languages?: string | null }).languages ?? null,
           };
           const fp = computeAuditFingerprint(igTtAccounts, shared);
           const existingAudit = (inf as { auditpr_audit?: AuditprAudit | null }).auditpr_audit;

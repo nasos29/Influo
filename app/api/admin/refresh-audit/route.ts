@@ -59,14 +59,8 @@ type AuditprAudit = {
   brandSafe: boolean;
   niche?: string;
   niche_en?: string;
-  priceNote?: string;
-  priceNote_en?: string;
-  packageNote?: string;
-  packageNote_en?: string;
-  skillsNote?: string;
-  skillsNote_en?: string;
-  offerTips?: string[];
-  offerTips_en?: string[];
+  strengthsNote?: string;
+  strengthsNote_en?: string;
   input_fingerprint?: string;
 };
 
@@ -101,7 +95,7 @@ export async function POST(request: NextRequest) {
 
     const { data: influencer, error: fetchError } = await supabaseAdmin
       .from('influencers')
-      .select('id, display_name, gender, bio, category, location, accounts, audience_male_percent, audience_female_percent, min_rate, service_packages, rate_card, skills')
+      .select('id, display_name, gender, bio, category, location, accounts, audience_male_percent, audience_female_percent, min_rate, service_packages, rate_card, skills, certifications, languages')
       .eq('id', influencerId)
       .single();
 
@@ -159,6 +153,8 @@ export async function POST(request: NextRequest) {
       service_packages: (influencer as { service_packages?: unknown }).service_packages,
       rate_card: (influencer as { rate_card?: unknown }).rate_card,
       skills: (influencer as { skills?: unknown }).skills,
+            certifications: (influencer as { certifications?: unknown }).certifications,
+            languages: (influencer as { languages?: string | null }).languages ?? null,
     };
 
     // Fetch 1 example audit from another influencer (same category if possible) so the AI matches depth/style over time

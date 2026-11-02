@@ -106,14 +106,8 @@ const AUDIT_KEYS = [
   "brandSafe",
   "niche",
   "niche_en",
-  "priceNote",
-  "priceNote_en",
-  "packageNote",
-  "packageNote_en",
-  "skillsNote",
-  "skillsNote_en",
-  "offerTips",
-  "offerTips_en",
+  "strengthsNote",
+  "strengthsNote_en",
 ] as const;
 
 const RATE_CARD_KEYS = RATE_CARD_PRICE_KEYS;

@@ -59,14 +59,8 @@ type AuditprAudit = {
   brandSafe: boolean;
   niche?: string;
   niche_en?: string;
-  priceNote?: string;
-  priceNote_en?: string;
-  packageNote?: string;
-  packageNote_en?: string;
-  skillsNote?: string;
-  skillsNote_en?: string;
-  offerTips?: string[];
-  offerTips_en?: string[];
+  strengthsNote?: string;
+  strengthsNote_en?: string;
   input_fingerprint?: string;
 };
 
@@ -96,7 +90,7 @@ export async function POST(request: NextRequest) {
 
     let query = supabaseAdmin
       .from('influencers')
-      .select('id, display_name, gender, bio, category, location, accounts, audience_male_percent, audience_female_percent, min_rate, service_packages, rate_card, skills')
+      .select('id, display_name, gender, bio, category, location, accounts, audience_male_percent, audience_female_percent, min_rate, service_packages, rate_card, skills, certifications, languages')
       .not('accounts', 'is', null)
       .order('id', { ascending: true });
 
@@ -176,6 +170,8 @@ export async function POST(request: NextRequest) {
         service_packages: (inf as { service_packages?: unknown }).service_packages,
         rate_card: (inf as { rate_card?: unknown }).rate_card,
         skills: (inf as { skills?: unknown }).skills,
+            certifications: (inf as { certifications?: unknown }).certifications,
+            languages: (inf as { languages?: string | null }).languages ?? null,
       };
 
       try {

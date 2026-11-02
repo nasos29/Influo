@@ -62,6 +62,8 @@ export type AuditShared = {
   service_packages?: unknown;
   rate_card?: unknown;
   skills?: unknown;
+  certifications?: unknown;
+  languages?: string | null;
 };
 
 export type AuditResult = {
@@ -76,15 +78,9 @@ export type AuditResult = {
   brandSafe: boolean;
   niche?: string;
   niche_en?: string;
-  /** Optional. Missing on audits written before offer/skills notes existed. */
-  priceNote?: string;
-  priceNote_en?: string;
-  packageNote?: string;
-  packageNote_en?: string;
-  skillsNote?: string;
-  skillsNote_en?: string;
-  offerTips?: string[];
-  offerTips_en?: string[];
+  /** Optional one-sentence summary of top skills + other qualifications. No prices. */
+  strengthsNote?: string;
+  strengthsNote_en?: string;
 };
 
 export const AUDIT_FALLBACK_MESSAGE = 'Προσωρινή αδυναμία ανάλυσης.';
@@ -207,34 +203,21 @@ export function ensureSuspiciousErInNegatives(
   };
 }
 
-function euroLabel(raw: string): string {
-  const text = raw.trim();
-  if (!text) return "";
-  return /€|eur/i.test(text) ? text : `${text}€`;
-}
-
 /** Compact offer + skills lines for the audit prompt. Empty when the creator listed none. */
 export function formatAuditOffers(accounts: AuditAccount[], shared: AuditShared): string {
   const lines: string[] = [];
-  const minRaw = shared.min_rate == null ? "" : String(shared.min_rate).trim();
-  if (minRaw) lines.push(`min: ${euroLabel(minRaw.slice(0, 40))}`);
-
   const packages = packagesForViewer(shared.service_packages, shared.rate_card, accounts).slice(0, 8);
   if (packages.length) {
     const bits = packages.map((pkg) => {
-      const title = packageTitle(pkg.platform, pkg.type, pkg.quantity, "en");
-      const price = euroLabel(String(pkg.price || ""));
-      return price ? `${title} ${price}` : title;
+      // Titles only: prices are never sent to the model.
+      return packageTitle(pkg.platform, pkg.type, pkg.quantity, "en");
     });
     const extra = packagesForViewer(shared.service_packages, shared.rate_card, accounts).length - packages.length;
     lines.push(`packages: ${bits.join("; ")}${extra > 0 ? `; +${extra}` : ""}`);
   }
 
   const extras = extrasForSave(extrasFromRateCard(shared.rate_card));
-  const extraBits = Object.entries(extras).map(([key, price]) => {
-    const label = EXTRA_LABEL[key as RateCardExtraKey]?.en || key;
-    return `${label} ${euroLabel(price)}`;
-  });
+  const extraBits = Object.keys(extras).map((key) => EXTRA_LABEL[key as RateCardExtraKey]?.en || key);
   if (extraBits.length) lines.push(`extras: ${extraBits.join("; ")}`);
 
   const skills = sanitizeSkills(shared.skills)
@@ -242,19 +225,21 @@ export function formatAuditOffers(accounts: AuditAccount[], shared: AuditShared)
     .filter(Boolean);
   if (skills.length) lines.push(`skills: ${skills.join(", ")}`);
 
+  const certs = (Array.isArray(shared.certifications) ? shared.certifications : [])
+    .map((c) => String(c || "").trim())
+    .filter(Boolean)
+    .slice(0, 6);
+  if (certs.length) lines.push(`certifications/education: ${certs.join("; ").slice(0, 200)}`);
+  const langs = String(shared.languages || "").trim();
+  if (langs) lines.push(`languages: ${langs.slice(0, 80)}`);
+
   return lines.join("\n").slice(0, 700);
 }
 
 export function offerAuditFields(audit: AuditResult): Partial<AuditResult> {
   const out: Partial<AuditResult> = {};
-  if (audit.priceNote) out.priceNote = audit.priceNote;
-  if (audit.priceNote_en) out.priceNote_en = audit.priceNote_en;
-  if (audit.packageNote) out.packageNote = audit.packageNote;
-  if (audit.packageNote_en) out.packageNote_en = audit.packageNote_en;
-  if (audit.skillsNote) out.skillsNote = audit.skillsNote;
-  if (audit.skillsNote_en) out.skillsNote_en = audit.skillsNote_en;
-  if (audit.offerTips?.length) out.offerTips = audit.offerTips;
-  if (audit.offerTips_en?.length) out.offerTips_en = audit.offerTips_en;
+  if (audit.strengthsNote) out.strengthsNote = audit.strengthsNote;
+  if (audit.strengthsNote_en) out.strengthsNote_en = audit.strengthsNote_en;
   return out;
 }
 
@@ -322,7 +307,7 @@ function buildMultiPlatformPrompt(accounts: AuditAccount[], shared: AuditShared,
   const categoryBlock = cat ? `\nCATEGORY: ${cat}` : '';
   const offers = formatAuditOffers(accounts, shared);
   const offersBlock = offers
-    ? `\nOFFERS (EUR, as stored):\n${offers}`
+    ? `\nPROFILE EXTRAS (packages offered, skills, education, languages; no prices):\n${offers}`
     : '';
   const locationBlock = location ? `\nLOCATION (creator has set this): ${location}. If LOCATION is set, do NOT add any negative about geographic target or local businesses – the creator has declared their location.` : '';
   const audienceGenderBlock =
@@ -362,7 +347,7 @@ TONE – "Με το γάντι": Be professional and honest but diplomatic. Crit
 
 TASK:
 Write a strategic profile that helps brands decide whether to work with this creator. Focus on strengths; only mention weaknesses when there is a clear, factual risk (not comparisons to other creators). Use detailed bullets (2–3 sentences or 1–2 lines each). Do NOT give recommendations to the creator. Describe what IS. Do not invent negatives that merely compare this creator unfavourably to others.
-If OFFERS are present, use the optional keys to say briefly whether the prices look reasonable for the followers, engagement and category, whether the packages and extras are clear, and how the skills match the content. Add at most two short improvement tips. Omit a key when that data is missing. Do not repeat the main bullets.
+STRENGTHS NOTE: write strengthsNote as ONE short, positive sentence that combines the creator's top skills with other qualifications that are explicitly present in the data (biography, education/certifications, experience, category, languages). Example style: "Πτυχιούχος μάρκετινγκ με εμπειρία σε UGC και voiceover." Use ONLY facts stated in the data – never invent degrees, experience or skills. NEVER mention prices, rates, money, value for money, or packages, and never give advice to the creator. If nothing notable is present, omit strengthsNote.
 
 OUTPUT – Return ONLY valid JSON with these exact keys (no markdown, no extra text):
 - scoreBreakdown: array of exactly 4 bullet points in GREEK (Ελληνικά). Each bullet MUST be 2–3 sentences or 2–3 lines – rich, detailed, nuanced text for brands. Reference the creator ONLY by display name or "${greekCreatorNom}" (with correct gender agreement) – never by @username.
@@ -376,14 +361,8 @@ OUTPUT – Return ONLY valid JSON with these exact keys (no markdown, no extra t
 - brandSafe: boolean (true if content and metrics suggest brand-safe; false if risks). Set brandSafe to false for engagement ONLY when the main account (most followers among Instagram, TikTok, and YouTube) has ER_FLAG reason inflated or quality_adjusted. Estimates, few posts, unmeasured quality notes, and a flag on a smaller account MUST NOT set brandSafe to false.
 - niche: ONE niche label in GREEK (e.g. "Μόδα", "Fitness").
 - niche_en: ONE niche label in ENGLISH (Fashion, Fitness, Beauty & Makeup, etc.). Do NOT use: Creator, Content Creator, Influencer, Lifestyle as default.
-- priceNote: optional ONE short sentence in GREEK on whether listed prices fit the followers, engagement and category. Omit if there are no prices.
-- priceNote_en: same sentence in ENGLISH, or omit.
-- packageNote: optional ONE short sentence in GREEK on whether packages and extras are clear. Omit if there are no packages.
-- packageNote_en: same sentence in ENGLISH, or omit.
-- skillsNote: optional ONE short sentence in GREEK on how the skills match the content and category. Omit if there are no skills.
-- skillsNote_en: same sentence in ENGLISH, or omit.
-- offerTips: optional array of 0–2 very short improvement tips in GREEK. Omit or [] if nothing useful.
-- offerTips_en: same tips in ENGLISH, or omit.
+- strengthsNote: optional ONE short positive sentence in GREEK (max ~25 words) per STRENGTHS NOTE above. Omit if nothing notable.
+- strengthsNote_en: same sentence in ENGLISH, or omit.
 
 RULES:
 - Audience is brands. Be detailed and nuanced in bullets; more words, not one-liners.
@@ -449,14 +428,8 @@ function parseResponse(text: string): AuditResult {
     brandSafe: Boolean(data.brandSafe !== false),
     niche: ((data.niche as string) || '').trim() || 'Creator',
     niche_en: ((data.niche_en as string) || '').trim() || undefined,
-    priceNote: shortAuditText(data.priceNote),
-    priceNote_en: shortAuditText(data.priceNote_en),
-    packageNote: shortAuditText(data.packageNote),
-    packageNote_en: shortAuditText(data.packageNote_en),
-    skillsNote: shortAuditText(data.skillsNote),
-    skillsNote_en: shortAuditText(data.skillsNote_en),
-    offerTips: shortAuditList(data.offerTips),
-    offerTips_en: shortAuditList(data.offerTips_en),
+    strengthsNote: shortAuditText(data.strengthsNote),
+    strengthsNote_en: shortAuditText(data.strengthsNote_en),
   });
 }
 
@@ -482,10 +455,7 @@ function normalizeGreekEngagementTerms(audit: AuditResult): AuditResult {
       : audit.whyWorkWithThem,
     positives: mapGreekStrings(audit.positives),
     negatives: mapGreekStrings(audit.negatives),
-    priceNote: audit.priceNote ? fixGreekEngagementWording(audit.priceNote) : undefined,
-    packageNote: audit.packageNote ? fixGreekEngagementWording(audit.packageNote) : undefined,
-    skillsNote: audit.skillsNote ? fixGreekEngagementWording(audit.skillsNote) : undefined,
-    offerTips: mapGreekStrings(audit.offerTips),
+    strengthsNote: audit.strengthsNote ? fixGreekEngagementWording(audit.strengthsNote) : undefined,
   };
 }
 
