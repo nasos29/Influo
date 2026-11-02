@@ -443,7 +443,11 @@ export default function Directory({
   const [committedSearch, setCommittedSearch] = useState<{ raw: string; remainder: string } | null>(null);
   const apiQuery =
     committedSearch && committedSearch.raw === searchQuery.trim() ? committedSearch.remainder : searchQuery.trim();
-  const searchPlaceholder = useDirectoryTypewriter(lang, !searchFocused && !searchQuery.trim());
+  const searchPlaceholder = useDirectoryTypewriter(
+    lang,
+    !searchFocused && !searchQuery.trim(),
+    influencers.map((inf) => inf.name)
+  );
   const [locationQuery, setLocationQuery] = useState(preset?.location || "");
   const [platformFilter, setPlatformFilter] = useState(preset?.platform || "All");
   const [packageType, setPackageType] = useState("All");
