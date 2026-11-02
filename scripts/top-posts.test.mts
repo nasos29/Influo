@@ -61,22 +61,18 @@ test("sanitizeTopPosts keeps only safe fields and valid types", () => {
   assert.equal(cleaned[1]?.likes, 50);
 });
 
-test("sanitizeTopPosts keeps at most three posts per account", () => {
+test("sanitizeTopPosts keeps at most six posts per account (3 shown + 3 backups)", () => {
   const cleaned = sanitizeTopPosts(
-    [1, 2, 3, 4].map((n) => ({
+    [1, 2, 3, 4, 5, 6, 7].map((n) => ({
       url: `https://www.instagram.com/p/Post${n}/`,
       type: "image",
       likes: n,
     }))
   );
-  assert.equal(cleaned.length, 3);
+  assert.equal(cleaned.length, 6);
   assert.deepEqual(
     cleaned.map((post) => post.url),
-    [
-      "https://www.instagram.com/p/Post1/",
-      "https://www.instagram.com/p/Post2/",
-      "https://www.instagram.com/p/Post3/",
-    ]
+    [1, 2, 3, 4, 5, 6].map((n) => `https://www.instagram.com/p/Post${n}/`)
   );
 });
 
