@@ -71,7 +71,7 @@ const PACKAGE_ALIASES: { type: "reel" | "story" | "post"; words: string[] }[] = 
 ];
 
 const PLATFORMS: { value: "Instagram" | "TikTok" | "YouTube"; words: string[] }[] = [
-  { value: "Instagram", words: ["instagram", "insta", "ινσταγκραμ", "ινστα"] },
+  { value: "Instagram", words: ["instagram", "insta", "ινσταγκραμ", "ινστα", "reels"] },
   { value: "TikTok", words: ["tiktok", "tik tok", "τικτοκ", "τικ τοκ"] },
   { value: "YouTube", words: ["youtube", "yt", "γιουτιουμπ", "γιουτιουμ"] },
 ];
@@ -103,7 +103,6 @@ const EXTRA_SKILL_WORDS: Partial<Record<SkillKey, string[]>> = {
   on_camera: ["on camera", "παρουσίαση στην κάμερα"],
   acting: ["ηθοποιία", "ηθοποιια"],
   live_streaming: ["ζωντανή μετάδοση", "ζωντανη μεταδοση"],
-  short_video: ["reels", "tiktok video", "short video", "Reels και TikTok"],
 };
 
 const SKILL_ALIASES: { key: SkillKey; phrases: string[] }[] = SKILL_GROUPS.flatMap((group) =>

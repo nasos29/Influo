@@ -81,6 +81,20 @@ test("category, platform, skills, price and audience narrow the list", () => {
     ["3"]
   );
   assert.deepEqual(
+    filterRecommendationProfiles(
+      [creator({ id: "format", skills: ["short_video"] })],
+      filters({ skills: ["ugc"] })
+    ).map((row) => row.id),
+    []
+  );
+  assert.deepEqual(
+    filterRecommendationProfiles(
+      [creator({ id: "format", skills: ["short_video"] }), creator({ id: "kept", skills: ["ugc"] })],
+      filters({ skills: ["short_video"] })
+    ).map((row) => row.id),
+    ["format", "kept"]
+  );
+  assert.deepEqual(
     filterRecommendationProfiles(rows, filters({ maxPrice: 100 })).map((row) => row.id),
     ["1"]
   );
