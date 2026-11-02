@@ -14,7 +14,7 @@ type Lang = "el" | "en";
 const NAV = {
   el: {
     home: "Αρχική",
-    influencers: "Influencers",
+    influencers: "Δημιουργοί",
     campaigns: "Καμπάνιες",
     forBrands: "Για brands",
     forInfluencers: "Για influencers",
