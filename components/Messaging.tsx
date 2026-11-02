@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Send } from 'lucide-react';
+import { Mic, Send } from 'lucide-react';
 import { FaPaperclip } from 'react-icons/fa';
 import { supabase } from '@/lib/supabaseClient';
 import { displayNameForLang } from '@/lib/greeklish';
@@ -170,6 +170,8 @@ const t = {
     attach: "Επισύναψη",
     attachHint: "Εικόνα ή PDF (έως 10MB)",
     removeFile: "Αφαίρεση",
+    dictate: "Φωνητική πληκτρολόγηση",
+    micDenied: "Δεν δόθηκε άδεια μικροφώνου.",
   },
   en: {
     placeholder: "Type your message...",
@@ -222,8 +224,41 @@ const t = {
     attach: "Attach",
     attachHint: "Image or PDF (up to 10MB)",
     removeFile: "Remove",
+    dictate: "Voice typing",
+    micDenied: "Microphone access was denied.",
   }
 };
+
+type SpeechResultList = ArrayLike<{ isFinal: boolean; 0?: { transcript: string } }>;
+
+type BrowserSpeechRecognition = {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  onresult: ((event: { resultIndex: number; results: SpeechResultList }) => void) | null;
+  onerror: ((event: { error: string }) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+};
+
+function speechRecognitionCtor(): (new () => BrowserSpeechRecognition) | null {
+  if (typeof window === "undefined") return null;
+  const host = window as Window & {
+    SpeechRecognition?: new () => BrowserSpeechRecognition;
+    webkitSpeechRecognition?: new () => BrowserSpeechRecognition;
+  };
+  return host.SpeechRecognition || host.webkitSpeechRecognition || null;
+}
+
+/** Spoken words are added after text the user already typed. */
+function appendDictation(base: string, spoken: string): string {
+  const extra = spoken.replace(/\s+/g, " ").trim();
+  if (!extra) return base;
+  if (!base) return extra;
+  return /\s$/.test(base) ? `${base}${extra}` : `${base} ${extra}`;
+}
 
 export default function Messaging({
   influencerId,
@@ -262,6 +297,14 @@ export default function Messaging({
   const [otherTyping, setOtherTyping] = useState(false);
   const [unseenBelow, setUnseenBelow] = useState(0);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [micDenied, setMicDenied] = useState(false);
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const wantDictationRef = useRef(false);
+  const dictationPrefixRef = useRef("");
+  const newMessageRef = useRef("");
+  newMessageRef.current = newMessage;
   const [presenceTick, setPresenceTick] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageListRef = useRef<HTMLDivElement>(null);
@@ -1413,8 +1456,92 @@ export default function Messaging({
     void markVisibleAsRead(convId);
   };
 
+  const stopDictation = useCallback(() => {
+    wantDictationRef.current = false;
+    setListening(false);
+    const recognition = recognitionRef.current;
+    recognitionRef.current = null;
+    try {
+      recognition?.abort();
+    } catch {
+      /* already stopped */
+    }
+  }, []);
+
+  const toggleDictation = useCallback(() => {
+    if (wantDictationRef.current) {
+      stopDictation();
+      return;
+    }
+    const Ctor = speechRecognitionCtor();
+    if (!Ctor) return;
+    setMicDenied(false);
+    dictationPrefixRef.current = newMessageRef.current;
+    const recognition = new Ctor();
+    recognition.lang = lang === "en" ? "en-US" : "el-GR";
+    recognition.interimResults = true;
+    recognition.continuous = true;
+    let blocked = false;
+    let committed = newMessageRef.current;
+    recognition.onresult = (event) => {
+      if (!wantDictationRef.current) return;
+      let finals = "";
+      let interim = "";
+      for (let i = 0; i < event.results.length; i++) {
+        const transcript = event.results[i][0]?.transcript ?? "";
+        if (event.results[i].isFinal) finals += transcript;
+        else interim += transcript;
+      }
+      committed = appendDictation(dictationPrefixRef.current, finals);
+      setNewMessage(appendDictation(dictationPrefixRef.current, `${finals}${interim}`));
+    };
+    recognition.onerror = (event) => {
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        blocked = true;
+        wantDictationRef.current = false;
+        setListening(false);
+        setMicDenied(true);
+      }
+    };
+    recognition.onend = () => {
+      dictationPrefixRef.current = committed;
+      if (wantDictationRef.current && !blocked) {
+        try {
+          recognition.start();
+          return;
+        } catch {
+          wantDictationRef.current = false;
+        }
+      }
+      setListening(false);
+    };
+    recognitionRef.current = recognition;
+    wantDictationRef.current = true;
+    try {
+      recognition.start();
+      setListening(true);
+    } catch {
+      wantDictationRef.current = false;
+      recognitionRef.current = null;
+      setListening(false);
+    }
+  }, [lang, stopDictation]);
+
+  useEffect(() => {
+    setSpeechSupported(speechRecognitionCtor() != null);
+    return () => {
+      wantDictationRef.current = false;
+      try {
+        recognitionRef.current?.abort();
+      } catch {
+        /* already stopped */
+      }
+    };
+  }, []);
+
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
+    stopDictation();
     const text = newMessage.trim();
     const filesToUpload = [...pendingFiles];
     if ((!text && filesToUpload.length === 0) || sending) return;
@@ -2214,6 +2341,7 @@ export default function Messaging({
                   <textarea
                     value={newMessage}
                     onChange={(e) => {
+                      if (wantDictationRef.current) stopDictation();
                       setNewMessage(e.target.value);
                       notifyTyping();
                     }}
@@ -2222,12 +2350,29 @@ export default function Messaging({
                     className="flex-1 px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900 bg-white text-sm"
                     rows={2}
                   />
+                  {speechSupported ? (
+                    <button
+                      type="button"
+                      onClick={toggleDictation}
+                      aria-label={txt.dictate}
+                      title={txt.dictate}
+                      aria-pressed={listening}
+                      className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors ${
+                        listening
+                          ? "animate-pulse bg-red-50 text-red-600 ring-2 ring-red-200"
+                          : "text-slate-500 hover:bg-slate-100"
+                      }`}
+                    >
+                      <Mic className="h-5 w-5" strokeWidth={1.75} aria-hidden />
+                    </button>
+                  ) : null}
                   <SendMessageButton
                     sending={sending}
                     disabled={sending || (!newMessage.trim() && pendingFiles.length === 0)}
                     label={txt.send}
                   />
                 </div>
+                {micDenied ? <p className="mt-2 text-xs text-red-600">{txt.micDenied}</p> : null}
                 {sendError && (
                   <p className="mt-2 text-xs text-red-600">
                     {sendError}{' '}
@@ -2314,6 +2459,7 @@ export default function Messaging({
                     <textarea
                       value={newMessage}
                       onChange={(e) => {
+                        if (wantDictationRef.current) stopDictation();
                         setNewMessage(e.target.value);
                         notifyTyping();
                       }}
@@ -2322,12 +2468,29 @@ export default function Messaging({
                       className="flex-1 px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900 text-sm"
                       rows={2}
                     />
+                    {speechSupported ? (
+                      <button
+                        type="button"
+                        onClick={toggleDictation}
+                        aria-label={txt.dictate}
+                        title={txt.dictate}
+                        aria-pressed={listening}
+                        className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors ${
+                          listening
+                            ? "animate-pulse bg-red-50 text-red-600 ring-2 ring-red-200"
+                            : "text-slate-500 hover:bg-slate-100"
+                        }`}
+                      >
+                        <Mic className="h-5 w-5" strokeWidth={1.75} aria-hidden />
+                      </button>
+                    ) : null}
                     <SendMessageButton
                       sending={sending}
                       disabled={sending || (!newMessage.trim() && pendingFiles.length === 0)}
                       label={txt.send}
                     />
                   </div>
+                  {micDenied ? <p className="mt-2 text-xs text-red-600">{txt.micDenied}</p> : null}
                   {sendError && (
                     <p className="mt-2 text-xs text-red-600">
                       {sendError}{' '}
