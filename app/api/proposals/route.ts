@@ -276,6 +276,10 @@ export async function POST(request: Request) {
           service,
           budget,
           message,
+          proposalId,
+          extras: selectedExtras,
+          publishDeadline: deadline.date,
+          brandHasAccount: signedIn,
         }),
         pushParty({
           type: "proposal_new",
