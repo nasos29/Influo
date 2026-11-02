@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { Send } from 'lucide-react';
 import { FaPaperclip } from 'react-icons/fa';
 import { supabase } from '@/lib/supabaseClient';
 import { displayNameForLang } from '@/lib/greeklish';
@@ -24,6 +25,33 @@ import { displayServiceType } from '@/lib/campaignServiceLabel';
 import { displayProposalThread } from '@/lib/proposalThreadCopy';
 import { formatProposalExtrasLine } from '@/lib/proposalFloor';
 import AgreementTerms from '@/components/AgreementTerms';
+
+function SendMessageButton({
+  sending,
+  disabled,
+  label,
+}: {
+  sending: boolean;
+  disabled: boolean;
+  label: string;
+}) {
+  return (
+    <button
+      type="submit"
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      aria-busy={sending}
+      className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-blue-600 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
+    >
+      {sending ? (
+        <span className="h-4 w-4 animate-spin rounded-full border-2 border-blue-200 border-t-blue-600" aria-hidden />
+      ) : (
+        <Send className="h-5 w-5" strokeWidth={1.75} aria-hidden />
+      )}
+    </button>
+  );
+}
 
 interface MessageAttachment {
   url: string;
@@ -2194,13 +2222,11 @@ export default function Messaging({
                     className="flex-1 px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900 bg-white text-sm"
                     rows={2}
                   />
-                  <button
-                    type="submit"
+                  <SendMessageButton
+                    sending={sending}
                     disabled={sending || (!newMessage.trim() && pendingFiles.length === 0)}
-                    className="px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm shrink-0"
-                  >
-                    {sending ? txt.sending : txt.send}
-                  </button>
+                    label={txt.send}
+                  />
                 </div>
                 {sendError && (
                   <p className="mt-2 text-xs text-red-600">
@@ -2296,13 +2322,11 @@ export default function Messaging({
                       className="flex-1 px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900 text-sm"
                       rows={2}
                     />
-                    <button
-                      type="submit"
+                    <SendMessageButton
+                      sending={sending}
                       disabled={sending || (!newMessage.trim() && pendingFiles.length === 0)}
-                      className="px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm shrink-0"
-                    >
-                      {sending ? txt.sending : txt.send}
-                    </button>
+                      label={txt.send}
+                    />
                   </div>
                   {sendError && (
                     <p className="mt-2 text-xs text-red-600">
