@@ -137,7 +137,7 @@ export default function SignupChoiceModal({
                   ← {txt.back}
                 </button>
               ) : null}
-              <h2 id="signup-choice-title" className={`text-lg font-semibold sm:text-2xl max-sm:!text-lg max-sm:!leading-tight ${picked ? "max-sm:sr-only" : ""} tracking-tight text-slate-900`}>
+              <h2 id="signup-choice-title" className={`text-lg font-semibold sm:text-2xl max-sm:!text-lg max-sm:!leading-tight ${picked ? "sr-only" : ""} tracking-tight text-slate-900`}>
                 {txt.title}
               </h2>
               {picked ? null : <p className="mt-1 text-xs text-slate-600 sm:text-sm max-sm:!text-xs">{txt.lead}</p>}
