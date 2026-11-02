@@ -14,8 +14,8 @@ export type TopPost = {
 
 const ALLOWED_TYPES = new Set<TopPostType>(["video", "image", "carousel"]);
 
-/** Saved on each account by admin refresh and the 15-day job. */
-export const TOP_POSTS_PER_ACCOUNT = 3;
+/** Saved on each account by admin refresh and the 15-day job (3 shown + 3 backups for removed posts). */
+export const TOP_POSTS_PER_ACCOUNT = 6;
 /** Shown on the profile, across every account. */
 export const TOP_POSTS_DISPLAY_LIMIT = 3;
 
