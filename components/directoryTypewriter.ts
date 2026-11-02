@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { directoryShopExamples } from "@/lib/directoryIndustries";
 import { SKILL_GROUPS, type SkillKey } from "@/lib/skills";
+import { CATEGORIES, GENERAL_CATEGORY, categoryTranslations } from "@/lib/categories";
+import { isProtectedTestAccount } from "@/lib/protectedAccount";
 
 const EL_SHOP_PREFIXES = ["influencer για", "δημιουργός για", "creator για"] as const;
 const EL_NAMES = ["influencer", "δημιουργός", "creator"] as const;
@@ -62,6 +64,51 @@ export function directoryExamplePool(lang: "el" | "en"): string[] {
   ];
 }
 
+/** Site categories in the current language (no «Γενικά»). */
+export function directoryCategoryPool(lang: "el" | "en"): string[] {
+  return CATEGORIES.filter((c) => c !== GENERAL_CATEGORY).map((c) => categoryTranslations[c]?.[lang] || c);
+}
+
+/** Skill labels in the current language. */
+export function directorySkillPool(lang: "el" | "en"): string[] {
+  return [...new Set(SKILL_GROUPS.flatMap((group) => group.skills.map((skill) => skill.label[lang])))];
+}
+
+/** Display names of listed creators. Never the test account. */
+export function directoryNamePool(names: readonly (string | null | undefined)[]): string[] {
+  return [
+    ...new Set(
+      names
+        .map((n) => String(n || "").trim())
+        .filter((n) => n.length >= 3 && n.length <= 40 && !isProtectedTestAccount({ display_name: n }))
+    ),
+  ];
+}
+
+/**
+ * Mixed example: picks a group at random (phrases, categories, skills, names),
+ * then a random entry, so short categories/names are not drowned by the long phrase list.
+ */
+export function nextMixedDirectoryExample(
+  lang: "el" | "en",
+  previous: string,
+  names: readonly string[],
+  random: () => number = Math.random
+): string {
+  const groups = [
+    directoryExamplePool(lang),
+    directoryCategoryPool(lang),
+    directorySkillPool(lang),
+    names,
+  ].filter((g) => g.length > 0);
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const group = groups[Math.min(groups.length - 1, Math.floor(random() * groups.length))];
+    const next = group?.[Math.min(group.length - 1, Math.floor(random() * group.length))];
+    if (next && next !== previous) return next;
+  }
+  return nextDirectoryExample(lang, previous, random);
+}
+
 /** Next rotating example. Never the same string as the previous one. */
 export function nextDirectoryExample(
   lang: "el" | "en",
@@ -87,7 +134,14 @@ function prefersReducedMotion(): boolean {
  * Types a random search example, then deletes it. Stops while `active` is false.
  * Reduced motion keeps one static example.
  */
-export function useDirectoryTypewriter(lang: "el" | "en", active: boolean): string {
+export function useDirectoryTypewriter(
+  lang: "el" | "en",
+  active: boolean,
+  creatorNames: readonly (string | null | undefined)[] = []
+): string {
+  const namesRef = useRef<string[]>([]);
+  // Keep every name seen so filtering the list does not shrink the pool. Visual only.
+  namesRef.current = directoryNamePool([...namesRef.current, ...creatorNames]).slice(0, 300);
   const staticExample = DIRECTORY_TYPEWRITER_STATIC[lang];
   const [text, setText] = useState<string>(staticExample);
 
@@ -127,7 +181,7 @@ export function useDirectoryTypewriter(lang: "el" | "en", active: boolean): stri
         await erase(current);
         if (cancelled) return;
         await sleep(320);
-        current = nextDirectoryExample(lang, current);
+        current = nextMixedDirectoryExample(lang, current, namesRef.current);
         await type(current);
       }
     })();
