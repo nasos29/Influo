@@ -76,12 +76,14 @@ async function listAllInfluencersWithSocials() {
     display_name: string;
     approved: boolean;
     accounts: { platform: string; username: string }[];
+    /** 0–2: has service packages and/or skills (used only to order the capped trial run). */
+    extras_score: number;
   }[] = [];
 
   for (let from = 0; ; from += pageSize) {
     const { data, error } = await supabaseAdmin
       .from('influencers')
-      .select('id, display_name, approved, accounts')
+      .select('id, display_name, approved, accounts, skills, service_packages')
       .range(from, from + pageSize - 1);
     if (error) throw new Error(error.message);
     const rows = data ?? [];
@@ -93,6 +95,9 @@ async function listAllInfluencersWithSocials() {
         display_name: row.display_name || String(row.id),
         approved: !!row.approved,
         accounts,
+        extras_score:
+          (Array.isArray(row.service_packages) && row.service_packages.length > 0 ? 1 : 0) +
+          (Array.isArray(row.skills) && row.skills.length > 0 ? 1 : 0),
       });
     }
     if (rows.length < pageSize) break;
@@ -148,7 +153,7 @@ export async function GET(request: NextRequest) {
   if (denied) return denied;
 
   try {
-    const influencers = await listAllInfluencersWithSocials();
+    const influencers = (await listAllInfluencersWithSocials()).map(({ extras_score: _extras, ...rest }) => rest);
     return NextResponse.json({
       influencers,
       count: influencers.length,
@@ -183,7 +188,10 @@ export async function POST(request: NextRequest) {
       }
       const all = await listAllInfluencersWithSocials();
       const influencers = cap
-        ? [...all.filter((i) => i.approved), ...all.filter((i) => !i.approved)].slice(0, cap)
+        ? [
+            ...all.filter((i) => i.approved).sort((a, b) => b.extras_score - a.extras_score),
+            ...all.filter((i) => !i.approved),
+          ].slice(0, cap)
         : all;
       if (influencers.length === 0) {
         return NextResponse.json({ run: null, influencers: [], purged: 0, idle: true });
@@ -197,7 +205,9 @@ export async function POST(request: NextRequest) {
           ? `${LIMITED_MARKER}: ${influencers.length} of ${all.length} influencers (SOCIAL_REFRESH_MAX_TOTAL=${cap}). Purged ${purged} old run(s) (>45 days).`
           : `Oracle batch started for ${influencers.length} influencers. Purged ${purged} old run(s) (>45 days).`,
       });
-      return NextResponse.json({ run, influencers, purged });
+      // Keep the AuditPro payload shape unchanged.
+      const payload = influencers.map(({ extras_score: _extras, ...rest }) => rest);
+      return NextResponse.json({ run, influencers: payload, purged });
     }
 
     if (action === 'log') {
