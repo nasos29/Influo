@@ -109,7 +109,7 @@ export type AuditMetrics = {
 };
 
 /** Normalize DB/profile gender strings for Greek agreement in audit copy. */
-function auditGenderBucket(raw: string | null | undefined): 'male' | 'female' | 'neutral' {
+export function auditGenderBucket(raw: string | null | undefined): 'male' | 'female' | 'neutral' {
   const g = (raw || '').trim().toLowerCase();
   if (!g) return 'neutral';
   if (g === 'ai' || g === 'other') return 'neutral';

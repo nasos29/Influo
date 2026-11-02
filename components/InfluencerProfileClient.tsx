@@ -643,6 +643,11 @@ export default function InfluencerProfile(props: {
   const txt = { ...t[lang], ...statsUiFor(lang) };
 
   const [activeTab, setActiveTab] = useState("overview");
+  // Deep link from emails: ?tab=reviews (or overview/audience/pricing) opens that tab.
+  useEffect(() => {
+    const tab = searchParams?.get("tab");
+    if (tab && ["overview", "audience", "pricing", "reviews"].includes(tab)) setActiveTab(tab);
+  }, [searchParams]);
   const [profile, setProfile] = useState<ProInfluencer | null>((props.initialProfile as ProInfluencer | null) ?? null);
   const [loading, setLoading] = useState(!props.initialProfile);
   const profileTabsNavRef = useRef<HTMLElement | null>(null);

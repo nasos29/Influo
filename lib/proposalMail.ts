@@ -320,3 +320,80 @@ export async function mailAdminAgreementComplete(input: {
     )
   );
 }
+
+function buttonHtml(href: string, label: string): string {
+  return `<p style="margin: 20px 0;"><a href="${escapeHtml(href)}" style="display: inline-block; background: #2563eb; color: #ffffff; text-decoration: none; font-weight: 600; padding: 10px 18px; border-radius: 8px;">${escapeHtml(label)}</a></p>`;
+}
+
+function dealSummaryHtml(service: string, extras: unknown, budget: unknown): string {
+  const extrasLine = formatProposalExtrasLine(extras, "el");
+  const extrasText = extrasLine ? extrasLine.replace(/^Extras:\s*/, "") : "";
+  const pkg = [displayServiceType(service, "el"), extrasText].filter(Boolean).join(" + ") || "—";
+  const amount = formatEuroAmount(budget, "el", 0) || euroHtml(budget);
+  return `<p><strong>Σύνοψη:</strong> ${escapeHtml(pkg)} · <strong>Ποσό:</strong> ${escapeHtml(amount)}</p>`;
+}
+
+/** Creator email once a deal is completed (both sides accepted). */
+export async function mailCreatorDealComplete(input: {
+  to: string | null;
+  creatorName: string;
+  brandName: string;
+  completedAt: string;
+  service: string;
+  budget: string;
+  extras?: unknown;
+  reviewUrl: string;
+  profileUrl: string;
+}): Promise<void> {
+  const brand = escapeHtml(input.brandName);
+  const date = escapeHtml(formatDate(input.completedAt, "el"));
+  await send(
+    "deal_complete_creator",
+    input.to,
+    `Η συνεργασία σου με ${input.brandName} ολοκληρώθηκε 🎉`,
+    shell(
+      "Η συνεργασία ολοκληρώθηκε 🎉",
+      `<p>Γεια σου ${escapeHtml(input.creatorName)},</p>
+       <p>Η συνεργασία σου με την <strong>${brand}</strong> ολοκληρώθηκε στις ${date}. Ευχαριστούμε που τη διάλεξες μέσω του Influo!</p>
+       ${dealSummaryHtml(input.service, input.extras, input.budget)}
+       <p><strong>Αξιολόγησε την ${brand}</strong> — μια σύντομη αξιολόγηση βοηθά άλλους δημιουργούς να επιλέγουν σωστές συνεργασίες.</p>
+       ${buttonHtml(input.reviewUrl, "Γράψε αξιολόγηση")}
+       <p><strong>Μια μικρή χάρη:</strong> Αν σου άρεσε η εμπειρία, ανάφερε το Influo σε ένα story ή video, ή βάλε τον σύνδεσμο του προφίλ σου στο bio σου: <a href="${escapeHtml(input.profileUrl)}">${escapeHtml(input.profileUrl)}</a>. Αν μας κάνεις tag (@influo.gr), θα το κοινοποιήσουμε κι εμείς!</p>
+       <p>Καλή συνέχεια,</p>`
+    )
+  );
+}
+
+/** Brand email once a deal is completed (both sides accepted). */
+export async function mailBrandDealComplete(input: {
+  to: string | null;
+  brandName: string;
+  creatorName: string;
+  creatorFemale: boolean | null;
+  completedAt: string;
+  service: string;
+  budget: string;
+  extras?: unknown;
+  reviewUrl: string;
+}): Promise<void> {
+  const creator = escapeHtml(input.creatorName);
+  const date = escapeHtml(formatDate(input.completedAt, "el"));
+  const article = input.creatorFemale == null ? "τον/την" : input.creatorFemale ? "την" : "τον";
+  await send(
+    "deal_complete_brand",
+    input.to,
+    `Η συνεργασία με ${input.creatorName} ολοκληρώθηκε`,
+    shell(
+      "Η συνεργασία ολοκληρώθηκε",
+      `<p>Γεια σας ${escapeHtml(input.brandName)},</p>
+       <p>Η συνεργασία σας με <strong>${creator}</strong> ολοκληρώθηκε στις ${date}.</p>
+       ${dealSummaryHtml(input.service, input.extras, input.budget)}
+       <p><strong>Πώς πήγε;</strong> Η αξιολόγησή σας βοηθά άλλες επιχειρήσεις να βρουν τον κατάλληλο δημιουργό.</p>
+       ${buttonHtml(input.reviewUrl, `Αξιολογήστε ${article} ${input.creatorName}`)}
+       <p><strong>Μοιραστείτε το:</strong> Αν το περιεχόμενο σας άρεσε, μπορείτε να αναφέρετε το Influo στην ανάρτηση ή στο video (π.χ. «Συνεργασία μέσω @influo.gr») ή να βάλετε τον σύνδεσμο influo.gr. Θα χαρούμε να το προβάλουμε κι εμείς.</p>
+       <p>Για την επόμενη καμπάνια σας:</p>
+       ${buttonHtml(`${siteUrl()}/directory`, "Βρες δημιουργούς")}
+       <p>Με εκτίμηση,</p>`
+    )
+  );
+}
