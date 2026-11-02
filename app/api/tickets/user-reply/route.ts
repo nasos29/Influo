@@ -4,6 +4,7 @@ import { Resend } from 'resend';
 import { sendPushAdminSupportTicketUserReply } from '@/lib/push';
 import { USER_REPLY_SPLIT } from '@/lib/supportThread';
 import { insertTicketMessage, loadTicketMessages } from '@/lib/supportThreadStore';
+import { requireTicketOwner } from '@/lib/ticketAccess';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -37,6 +38,9 @@ export async function POST(req: Request) {
         { status: 404 }
       );
     }
+
+    const denied = await requireTicketOwner(req, ticket);
+    if (denied) return denied;
 
     if (ticket.status === 'closed') {
       return NextResponse.json(

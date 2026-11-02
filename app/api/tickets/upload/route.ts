@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import sharp from 'sharp';
+import { isAdminUser, userFromBearer } from '@/lib/apiAuth';
+import { sessionMayUploadAs, sessionOwnsTicket, ticketAuthResponse } from '@/lib/ticketAccess';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -81,6 +83,21 @@ export async function POST(req: NextRequest) {
         { success: false, error: 'File type not allowed' },
         { status: 400 }
       );
+    }
+
+    const user = await userFromBearer(req);
+    if (!user) return ticketAuthResponse(req, 401);
+    if (!(await isAdminUser(user))) {
+      if (ticketId) {
+        const { data: ticket } = await supabaseAdmin
+          .from('support_tickets')
+          .select('user_id, user_type, user_email')
+          .eq('id', ticketId)
+          .maybeSingle();
+        if (!ticket || !(await sessionOwnsTicket(user, ticket))) return ticketAuthResponse(req, 403);
+      } else if (!userId || !(await sessionMayUploadAs(user, userId))) {
+        return ticketAuthResponse(req, 403);
+      }
     }
 
     // Generate unique filename

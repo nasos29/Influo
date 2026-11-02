@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { formatDisplayDateTime } from '@/lib/formatDate';
 import SupportTicketThread from '@/components/SupportTicketThread';
 import type { SupportMessage } from '@/lib/supportThread';
+import { sessionFetch } from '@/lib/sessionFetch';
 
 interface Ticket {
   id: string;
@@ -157,7 +158,7 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
   const loadThread = async (ticketId: string) => {
     setLoadingThread(true);
     try {
-      const response = await fetch(`/api/tickets/messages?ticket_id=${encodeURIComponent(ticketId)}`);
+      const response = await sessionFetch(`/api/tickets/messages?ticket_id=${encodeURIComponent(ticketId)}`);
       const data = await response.json();
       if (data.success) setThread(data.messages || []);
     } catch (error) {
@@ -207,7 +208,7 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
         formData.append('file', file);
         formData.append('user_id', user.id);
 
-        const response = await fetch('/api/tickets/upload', {
+        const response = await sessionFetch('/api/tickets/upload', {
           method: 'POST',
           body: formData,
         });
@@ -247,7 +248,7 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
         attachments = await uploadFiles();
       }
 
-      const response = await fetch('/api/tickets/create', {
+      const response = await sessionFetch('/api/tickets/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -323,7 +324,7 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
         formData.append('user_id', user.id);
         formData.append('ticket_id', ticketId);
 
-        const response = await fetch('/api/tickets/upload', {
+        const response = await sessionFetch('/api/tickets/upload', {
           method: 'POST',
           body: formData,
         });
@@ -349,7 +350,7 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
     if (!selectedTicket) return;
     setClosingTicket(true);
     try {
-      const response = await fetch("/api/tickets/status", {
+      const response = await sessionFetch("/api/tickets/status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ticket_id: selectedTicket.id, action: "close" }),
@@ -387,7 +388,7 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
         attachments = await uploadReplyFiles(selectedTicket.id);
       }
 
-      const response = await fetch('/api/tickets/user-reply', {
+      const response = await sessionFetch('/api/tickets/user-reply', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

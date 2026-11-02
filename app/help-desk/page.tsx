@@ -35,7 +35,7 @@ export default function HelpDeskPage() {
         setUser({
           id: influencer.id,
           name: typeof influencer.display_name === "string" ? influencer.display_name : "",
-          email: typeof influencer.contact_email === "string" ? influencer.contact_email : authUser.email,
+          email: authUser.email || (typeof influencer.contact_email === "string" ? influencer.contact_email : ""),
         });
         setUserType('influencer');
         setLoading(false);
@@ -47,7 +47,7 @@ export default function HelpDeskPage() {
         setUser({
           id: brand.id || authUser.email,
           name: typeof brand.brand_name === "string" && brand.brand_name ? brand.brand_name : authUser.email,
-          email: typeof brand.contact_email === "string" && brand.contact_email ? brand.contact_email : authUser.email,
+          email: authUser.email || (typeof brand.contact_email === "string" ? brand.contact_email : ""),
         });
         setUserType('brand');
         setLoading(false);

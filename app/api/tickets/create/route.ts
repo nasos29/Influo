@@ -4,6 +4,7 @@ import { Resend } from 'resend';
 import { sendPushAdminNewSupportTicket } from '@/lib/push';
 import { helpDeskTicketUrl } from '@/lib/supportThread';
 import { insertTicketMessage } from '@/lib/supportThreadStore';
+import { requireTicketOwner } from '@/lib/ticketAccess';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -31,6 +32,13 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+
+    const denied = await requireTicketOwner(req, {
+      user_id,
+      user_type,
+      user_email,
+    });
+    if (denied) return denied;
 
     // Create ticket
     const { data: ticket, error: ticketError } = await supabaseAdmin
