@@ -10,7 +10,8 @@ import {
   partyOf,
   requireActor,
 } from "@/lib/proposalAccess";
-import { mailAdminAgreementComplete, mailAgreement, mailCollaborationComplete } from "@/lib/proposalMail";
+import { mailAdminAgreementComplete, mailAgreement, mailBrandDealComplete, mailCreatorDealComplete } from "@/lib/proposalMail";
+import { auditGenderBucket } from "@/lib/auditGemini";
 import { deferAfterResponse, pushParty } from "@/lib/proposalNotify";
 import { publicProfilePath } from "@/lib/profileSlug";
 import { sendPushAdminAgreementComplete } from "@/lib/push";
@@ -163,16 +164,48 @@ export async function POST(request: Request) {
           }
         })();
         await Promise.all([
-          mailCollaborationComplete({
-            influencerEmail: influencer.email,
-            influencerName: influencer.name,
-            brandName,
-            proposalId: proposal.id,
-            service: proposal.service_type || "",
-            budget: amount,
-            extras: proposal.selected_extras,
-            publishDeadline: proposal.publish_deadline,
-          }),
+          (async () => {
+            // Deal-complete emails to both sides. Runs once: `completed` is only
+            // true on the transition (brand_added_to_past_brands guard).
+            try {
+              const site = (process.env.NEXT_PUBLIC_SITE_URL || "https://influo.gr").replace(/\/$/, "");
+              const row = await supabaseService()
+                .from("influencers")
+                .select("profile_slug, gender")
+                .eq("id", proposal.influencer_id)
+                .maybeSingle();
+              const slug = !row.error && typeof row.data?.profile_slug === "string" ? row.data.profile_slug : null;
+              const profileUrl = `${site}${publicProfilePath(slug, proposal.influencer_id)}`;
+              const gender = auditGenderBucket(typeof row.data?.gender === "string" ? row.data.gender : null);
+              const completedAt = String(updateData.agreement_accepted_at || acceptedAt);
+              const common = {
+                service: proposal.service_type || "",
+                budget: amount,
+                extras: proposal.selected_extras,
+                completedAt,
+              };
+              await Promise.all([
+                mailCreatorDealComplete({
+                  ...common,
+                  to: influencer.email,
+                  creatorName: influencer.name,
+                  brandName,
+                  reviewUrl: `${site}/dashboard`,
+                  profileUrl,
+                }).catch((e) => console.error("[deal complete creator mail]", e instanceof Error ? e.message : e)),
+                mailBrandDealComplete({
+                  ...common,
+                  to: email,
+                  brandName,
+                  creatorName: influencer.name,
+                  creatorFemale: gender === "neutral" ? null : gender === "female",
+                  reviewUrl: `${profileUrl}?tab=reviews`,
+                }).catch((e) => console.error("[deal complete brand mail]", e instanceof Error ? e.message : e)),
+              ]);
+            } catch (error) {
+              console.error("[deal complete mails]", error instanceof Error ? error.message : error);
+            }
+          })(),
           notifyOther,
           refreshInfluencerTrustMetrics(supabaseService(), String(proposal.influencer_id)),
           notifyAdmin,
