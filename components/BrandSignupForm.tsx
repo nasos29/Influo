@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import InfluoLogo from '@/components/InfluoLogo';
 import { getStoredLanguage } from '@/lib/language';
 import { prepareImageForStorage } from '@/lib/prepareImageForStorage';
 import { formatCategoryLabels, formatStoredCategories } from '@/lib/categories';
@@ -378,8 +377,7 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
   return (
     <div className={shellClass}>
       <div className="shrink-0 border-b border-slate-200 px-5 py-3 sm:px-8 sm:py-5">
-        <InfluoLogo className="hidden h-8 w-auto sm:block" title="Influo" />
-        <h3 className="text-lg font-semibold text-slate-900 sm:mt-3 sm:text-xl">{txt.headerTitle}</h3>
+        <h3 className="text-lg font-semibold text-slate-900 sm:text-xl">{txt.headerTitle}</h3>
         <p className="mt-1 text-[13px] leading-snug text-slate-600 sm:text-sm sm:leading-relaxed">{txt.headerDesc}</p>
       </div>
 
