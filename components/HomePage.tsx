@@ -535,12 +535,12 @@ export default function Home({
             </div>
             <ul className="grid auto-rows-fr gap-4 md:grid-cols-2 lg:grid-cols-3">
               {openCampaigns.map((campaign) => (
-                <li key={campaign.id} className="h-full [&>*]:h-full">
+                <li key={campaign.id} className="h-full rounded-2xl transition-shadow duration-200 hover:shadow-lg [&>*]:h-full">
                   <CampaignCard campaign={campaign} lang={lang} />
                 </li>
               ))}
               {openCampaigns.length < 3 ? (
-                <li className="h-full">
+                <li className="h-full rounded-2xl transition-shadow duration-200 hover:shadow-lg">
                   <div className="flex h-full flex-col justify-center rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                     <span className="mb-3 inline-flex w-fit items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 border border-emerald-100">
                       {lang === "en" ? "For brands" : "Για επιχειρήσεις"}
