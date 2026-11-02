@@ -101,6 +101,31 @@ async function listAllInfluencersWithSocials() {
   return influencers;
 }
 
+/**
+ * Optional trial cap: SOCIAL_REFRESH_MAX_TOTAL=N limits the bulk refresh to N
+ * influencers in total (approved first). Once one LIMITED run has started in
+ * the last 7 days, further starts return paused until the env var is removed.
+ */
+const LIMITED_MARKER = 'LIMITED trial run';
+
+function refreshMaxTotal(): number | null {
+  const n = Number(String(process.env.SOCIAL_REFRESH_MAX_TOTAL || '').trim());
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+async function limitedRunAlreadyStarted(): Promise<boolean> {
+  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabaseAdmin
+    .from('social_refresh_logs')
+    .select('id')
+    .eq('event', 'run_started')
+    .like('message', `${LIMITED_MARKER}%`)
+    .gte('created_at', since)
+    .limit(1);
+  if (error) throw new Error(error.message);
+  return (data ?? []).length > 0;
+}
+
 async function incrementRunCounters(
   runId: string,
   field: 'influencers_ok' | 'influencers_unapproved'
@@ -150,7 +175,16 @@ export async function POST(request: NextRequest) {
         console.log('[social-refresh-batch] ' + GEMINI_PAUSED_MSG);
         return NextResponse.json({ run: null, influencers: [], purged: 0, paused: true, message: GEMINI_PAUSED_MSG });
       }
-      const influencers = await listAllInfluencersWithSocials();
+      const cap = refreshMaxTotal();
+      if (cap && (await limitedRunAlreadyStarted())) {
+        const message = `Bulk refresh capped (SOCIAL_REFRESH_MAX_TOTAL=${cap}) and the trial run already happened; waiting for the cap to be lifted.`;
+        console.log('[social-refresh-batch] ' + message);
+        return NextResponse.json({ run: null, influencers: [], purged: 0, paused: true, message });
+      }
+      const all = await listAllInfluencersWithSocials();
+      const influencers = cap
+        ? [...all.filter((i) => i.approved), ...all.filter((i) => !i.approved)].slice(0, cap)
+        : all;
       if (influencers.length === 0) {
         return NextResponse.json({ run: null, influencers: [], purged: 0, idle: true });
       }
@@ -159,7 +193,9 @@ export async function POST(request: NextRequest) {
       await appendSocialRefreshLog(supabaseAdmin, {
         run_id: run.id,
         event: 'run_started',
-        message: `Oracle batch started for ${influencers.length} influencers. Purged ${purged} old run(s) (>45 days).`,
+        message: cap
+          ? `${LIMITED_MARKER}: ${influencers.length} of ${all.length} influencers (SOCIAL_REFRESH_MAX_TOTAL=${cap}). Purged ${purged} old run(s) (>45 days).`
+          : `Oracle batch started for ${influencers.length} influencers. Purged ${purged} old run(s) (>45 days).`,
       });
       return NextResponse.json({ run, influencers, purged });
     }
