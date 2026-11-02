@@ -132,7 +132,7 @@ const LANGUAGES = [
 const t = {
   el: {
     searchAria: "Αναζήτηση",
-    locPlace: "Τοποθεσία (π.χ. Αθήνα)",
+    locPlace: "Τοποθεσία",
     results: "Αποτελέσματα",
     clear: "Καθαρισμός",
     clearAll: "Καθαρισμός όλων",
@@ -186,7 +186,7 @@ const t = {
   },
   en: {
     searchAria: "Search",
-    locPlace: "Location (e.g. Athens)",
+    locPlace: "Location",
     results: "Results",
     clear: "Clear",
     clearAll: "Clear all",
@@ -1153,7 +1153,7 @@ export default function Directory({
             </div>
 
             <div className="relative min-w-0 sm:min-w-[140px] sm:flex-none sm:w-44">
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
+              <div className="pointer-events-none absolute inset-y-0 z-10 left-0 flex items-center pl-3.5">
                 <LocationIcon />
               </div>
               <LocationTypeahead
