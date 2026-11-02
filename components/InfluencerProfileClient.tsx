@@ -1679,28 +1679,28 @@ export default function InfluencerProfile(props: {
 
       {/* PROPOSAL MODAL */}
       {showProposalModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-2 backdrop-blur-sm animate-in fade-in duration-200 sm:p-4">
+            <div className="relative w-full max-w-lg max-h-full overflow-y-auto rounded-2xl bg-white shadow-2xl sm:max-h-[92vh]">
                 <button 
                     onClick={() => { setShowProposalModal(false); setSent(false); }}
-                    className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-xl z-10"
+                    className="absolute top-2.5 right-2.5 z-10 text-xl font-bold text-slate-400 hover:text-slate-600 sm:top-4 sm:right-4"
                 >✕</button>
 
                 {!sent ? (
-                    <div className="p-8">
-                        <h3 className="text-2xl font-bold text-slate-900 mb-2">{txt.modal_title} {displayNameForLang(profile.name, lang)}</h3>
-                        <p className="text-slate-500 text-sm mb-6">{txt.modal_sub}</p>
+                    <div className="p-4 sm:p-8">
+                        <h3 className="mb-1 pr-6 text-2xl font-bold leading-tight text-slate-900 max-sm:!text-base max-sm:!font-bold sm:mb-2 sm:pr-0">{txt.modal_title} {displayNameForLang(profile.name, lang)}</h3>
+                        <p className="mb-3 text-sm text-slate-500 max-sm:!text-[13px] max-sm:leading-snug sm:mb-6">{txt.modal_sub}</p>
                         
-                        <form onSubmit={handleSendProposal} className="space-y-4">
+                        <form onSubmit={handleSendProposal} className="space-y-2.5 sm:space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.modal_srv}</label>
-                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                                <label className="mb-0.5 block text-xs font-bold uppercase text-slate-500 sm:mb-1">{txt.modal_srv}</label>
+                                <div className="flex flex-wrap gap-1.5 sm:grid sm:grid-cols-3 sm:gap-2">
                                     {proposalServices.map((type) => (
                                         <button
                                             key={type}
                                             type="button"
                                             onClick={() => selectProposalService(type)}
-                                            className={`inline-flex min-h-11 items-center justify-center px-2 py-2 text-xs font-bold leading-tight rounded-lg border transition-all ${proposalType === type ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-slate-200 hover:border-blue-300'}`}
+                                            className={`inline-flex min-h-8 flex-1 basis-[30%] items-center justify-center rounded-lg border px-1.5 py-1 text-[11px] font-bold leading-tight transition-all sm:min-h-11 sm:flex-none sm:basis-auto sm:px-2 sm:py-2 sm:text-xs ${proposalType === type ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-slate-200 hover:border-blue-300'}`}
                                         >
                                             {type}
                                         </button>
@@ -1709,24 +1709,24 @@ export default function InfluencerProfile(props: {
                             </div>
 
                             {isBrand ? (
-                                <p className="text-sm text-slate-600">
+                                <p className="text-sm text-slate-600 max-sm:!text-[13px]">
                                     {txt.modal_as}{brandName || brandEmail ? <> <strong>{brandName || brandEmail}</strong></> : null}
                                 </p>
                             ) : (
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-2 sm:gap-4">
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.modal_brand}</label>
-                                    <input required type="text" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white" placeholder="Brand" value={brandName} onChange={e => setBrandName(e.target.value)} />
+                                    <label className="mb-0.5 block text-xs font-bold uppercase text-slate-500 sm:mb-1">{txt.modal_brand}</label>
+                                    <input required type="text" className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm sm:py-2" placeholder="Brand" value={brandName} onChange={e => setBrandName(e.target.value)} />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.modal_email}</label>
-                                    <input required type="email" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white" placeholder="Email" value={brandEmail} onChange={e => setBrandEmail(e.target.value)} />
+                                    <label className="mb-0.5 block text-xs font-bold uppercase text-slate-500 sm:mb-1">{txt.modal_email}</label>
+                                    <input required type="email" className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm sm:py-2" placeholder="Email" value={brandEmail} onChange={e => setBrandEmail(e.target.value)} />
                                 </div>
                             </div>
                             )}
                             
                             <div>
-                                <label htmlFor="proposal-budget" className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.modal_bud}</label>
+                                <label htmlFor="proposal-budget" className="mb-0.5 block text-xs font-bold uppercase text-slate-500 sm:mb-1">{txt.modal_bud}</label>
                                 <input
                                   id="proposal-budget"
                                   required
@@ -1735,7 +1735,7 @@ export default function InfluencerProfile(props: {
                                   step={1}
                                   aria-invalid={budgetTooLow}
                                   aria-describedby={budgetTooLow ? "proposal-budget-error" : undefined}
-                                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+                                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm sm:py-2"
                                   value={budget}
                                   onChange={(e) => setBudget(e.target.value)}
                                   onInvalid={(e) => {
@@ -1750,27 +1750,27 @@ export default function InfluencerProfile(props: {
                             </div>
 
                             <div>
-                                <label htmlFor="proposal-deadline" className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.modal_deadline}</label>
+                                <label htmlFor="proposal-deadline" className="mb-0.5 block text-xs font-bold uppercase text-slate-500 sm:mb-1">{txt.modal_deadline}</label>
                                 <DmyDateField
                                   id="proposal-deadline"
                                   lang={lang}
                                   value={publishDeadline}
                                   onChange={setPublishDeadline}
-                                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+                                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm sm:py-2"
                                 />
-                                <p className="mt-1 text-xs text-slate-500">{txt.modal_deadline_hint}</p>
+                                <p className="mt-0.5 text-xs leading-tight text-slate-500 max-sm:!text-[10px] sm:mt-1">{txt.modal_deadline_hint}</p>
                             </div>
 
                             {proposalExtras.length > 0 ? (
                               <fieldset>
-                                <legend className="block text-xs font-bold text-slate-500 uppercase mb-2">
+                                <legend className="mb-1 block text-xs font-bold uppercase text-slate-500 sm:mb-2">
                                   {lang === "el" ? "Επιπλέον" : "Extras"}
                                 </legend>
-                                <div className="space-y-2">
+                                <div className="space-y-1.5 sm:space-y-2">
                                   {proposalExtras.map((extra) => {
                                     const checked = selectedExtraKeys.includes(extra.key);
                                     return (
-                                      <label key={extra.key} className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800">
+                                      <label key={extra.key} className="flex items-center gap-2 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm text-slate-800 sm:gap-3 sm:px-3 sm:py-2">
                                         <input
                                           type="checkbox"
                                           checked={checked}
@@ -1787,13 +1787,15 @@ export default function InfluencerProfile(props: {
                             ) : null}
 
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.modal_desc}</label>
-                                <textarea required rows={3} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white" placeholder="..." value={message} onChange={e => setMessage(e.target.value)}></textarea>
+                                <label className="mb-0.5 block text-xs font-bold uppercase text-slate-500 sm:mb-1">{txt.modal_desc}</label>
+                                <textarea required rows={3} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm max-sm:h-16 sm:py-2" placeholder="..." value={message} onChange={e => setMessage(e.target.value)}></textarea>
                             </div>
 
-                            <button type="submit" disabled={sending || budgetTooLow} className="w-full bg-slate-900 hover:bg-black text-white font-bold py-3 rounded-xl transition-all shadow-lg disabled:opacity-50">
-                                {sending ? txt.modal_sending : txt.modal_btn}
-                            </button>
+                            <div className="sticky bottom-0 z-10 -mx-4 border-t border-slate-100 bg-white px-4 pt-2 pb-1 sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0">
+                              <button type="submit" disabled={sending || budgetTooLow} className="w-full rounded-xl bg-slate-900 py-2.5 font-bold text-white shadow-lg transition-all hover:bg-black disabled:opacity-50 sm:py-3">
+                                  {sending ? txt.modal_sending : txt.modal_btn}
+                              </button>
+                            </div>
                         </form>
                     </div>
                 ) : (
