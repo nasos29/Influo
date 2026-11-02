@@ -2115,7 +2115,7 @@ export default function BrandDashboardContent() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
         <div
-          className={`mb-6 rounded-xl border px-4 py-3 text-sm ${
+          className={`mb-4 rounded-xl border px-3 py-2.5 text-xs sm:mb-6 sm:px-4 sm:py-3 sm:text-sm ${
             brandData?.verified ? "border-emerald-200 bg-emerald-50 text-emerald-950" : "border-amber-200 bg-amber-50 text-amber-950"
           }`}
         >
@@ -2128,7 +2128,7 @@ export default function BrandDashboardContent() {
                 ? "Επαλήθευση σε αναμονή"
                 : "Verification pending"}
           </p>
-          <p className="mt-1 leading-relaxed">
+          <p className="mt-1 leading-snug sm:leading-relaxed">
             {brandData?.verified
               ? lang === "el"
                 ? "Μπορείτε να δημοσιεύετε καμπάνιες δημόσια. Οι ανοιχτές εμφανίζονται σε εγκεκριμένους influencers."

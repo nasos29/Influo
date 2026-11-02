@@ -933,7 +933,7 @@ export default function InfluencerSignupForm() {
   const labelClass = "mb-1.5 block text-sm font-medium text-slate-800";
 
   const ProgressSteps = () => (
-    <ol className="mb-8 flex items-center gap-3" aria-label={txt.headerTitle}>
+    <ol className="mb-5 flex items-center gap-3 sm:mb-8" aria-label={txt.headerTitle}>
         {[1, 2, 3].map((s) => (
             <li key={s} className="flex flex-1 items-center gap-3">
                 <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${step >= s ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-500"}`}>
@@ -947,10 +947,10 @@ export default function InfluencerSignupForm() {
 
   return (
     <div className="mx-auto flex max-h-[85vh] max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white">
-      <div className="shrink-0 border-b border-slate-200 px-5 py-5 sm:px-8">
-          <InfluoLogo className="h-8 w-auto" title="Influo" />
-          <h3 className="mt-3 text-xl font-semibold text-slate-900">{txt.headerTitle}</h3>
-          <p className="mt-1 text-sm leading-relaxed text-slate-600">{txt.headerDesc}</p>
+      <div className="shrink-0 border-b border-slate-200 px-5 py-3 sm:px-8 sm:py-5">
+          <InfluoLogo className="hidden h-8 w-auto sm:block" title="Influo" />
+          <h3 className="text-lg font-semibold text-slate-900 sm:mt-3 sm:text-xl">{txt.headerTitle}</h3>
+          <p className="mt-1 text-[13px] leading-snug text-slate-600 sm:text-sm sm:leading-relaxed">{txt.headerDesc}</p>
       </div>
 
       <div className="flex-1 overflow-y-auto bg-white px-5 py-6 sm:px-8">
@@ -959,7 +959,7 @@ export default function InfluencerSignupForm() {
         {/* --- STEP 1 --- (Basic Info & Password) */}
         {step === 1 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-                <h2 className="text-lg font-semibold text-slate-900">{txt.step1}</h2>
+                <h2 className="text-base font-semibold text-slate-900 sm:text-lg">{txt.step1}</h2>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -1074,7 +1074,7 @@ export default function InfluencerSignupForm() {
         {/* --- STEP 2 --- (Socials) */}
         {step === 2 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-                <h2 className="text-lg font-semibold text-slate-900">{txt.step2}</h2>
+                <h2 className="text-base font-semibold text-slate-900 sm:text-lg">{txt.step2}</h2>
                 
                 <div className="space-y-4">
                     <div>
@@ -1185,7 +1185,7 @@ export default function InfluencerSignupForm() {
         {/* --- STEP 3 --- (Portfolio & Insights) */}
         {step === 3 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-                <h2 className="text-lg font-semibold text-slate-900">{txt.step3}</h2>
+                <h2 className="text-base font-semibold text-slate-900 sm:text-lg">{txt.step3}</h2>
                 
                 {/* Photo */}
                 <div className={`flex items-center gap-6 p-4 bg-gray-50 rounded-xl border border-dashed ${showAvatarError && !avatarFile ? "border-red-500 bg-red-50" : "border-gray-300"}`}>
