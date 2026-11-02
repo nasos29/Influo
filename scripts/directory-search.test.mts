@@ -212,6 +212,8 @@ test("typewriter examples mix shops, skills and extras without repeating", () =>
   assert.ok(english.includes("creator for hotel"));
   assert.ok(english.includes("creator with copywriting"));
   assert.ok(english.includes("reel up to 50 €"));
+  assert.equal(greek.some((line) => line.includes("Reels και TikTok")), false);
+  assert.equal(english.some((line) => /reels\/tiktok/i.test(line)), false);
   assert.equal(english.some((line) => line.startsWith("δημιουργός")), false);
   let previous = "";
   for (let i = 0; i < 12; i++) {
@@ -244,6 +246,19 @@ test("platform filters need a whole word, not a short prefix", () => {
   assert.equal(parseDirectoryPhrase("γιουτιουμπ").platform, "YouTube");
   assert.equal(parseDirectoryPhrase("instagram").platform, "Instagram");
   assert.equal(parseDirectoryPhrase("tiktok").platform, "TikTok");
+});
+
+test("reels and tiktok match a platform, not a skill", () => {
+  const reels = parseDirectoryPhrase("reels");
+  assert.equal(reels.platform, "Instagram");
+  assert.equal(reels.skill, null);
+  for (const phrase of ["tiktok", "tiktok video"]) {
+    const parsed = parseDirectoryPhrase(phrase);
+    assert.equal(parsed.platform, "TikTok", phrase);
+    assert.equal(parsed.skill, null, phrase);
+  }
+  assert.equal(parseDirectoryPhrase("short video").skill, null);
+  assert.equal(parseDirectoryPhrase("short video").platform, null);
 });
 
 test("name, slug and username match across accents and greeklish", () => {

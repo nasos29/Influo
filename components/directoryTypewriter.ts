@@ -10,7 +10,6 @@ const EL_NAMES = ["influencer", "δημιουργός", "creator"] as const;
 /** Grammatical Greek after για/με. Not the nominative skill label. */
 const EL_SKILL_PHRASE: Record<SkillKey, { prep: "για" | "με"; text: string }> = {
   ugc: { prep: "για", text: "UGC βίντεο" },
-  short_video: { prep: "για", text: "Reels και TikTok" },
   product_photo: { prep: "με", text: "φωτογραφία προϊόντος" },
   reviews: { prep: "με", text: "κριτικές προϊόντων" },
   tutorials: { prep: "με", text: "οδηγούς" },

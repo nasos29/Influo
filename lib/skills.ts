@@ -6,7 +6,6 @@ export const SKILL_GROUPS = [
     label: { el: "Περιεχόμενο", en: "Content" },
     skills: [
       { key: "ugc", label: { el: "UGC", en: "UGC" } },
-      { key: "short_video", label: { el: "Reels/TikTok video", en: "Reels/TikTok video" } },
       { key: "product_photo", label: { el: "Φωτογραφία προϊόντος", en: "Product photography" } },
       { key: "reviews", label: { el: "Reviews προϊόντων", en: "Product reviews" } },
       { key: "tutorials", label: { el: "Tutorials/How-to", en: "Tutorials/How-to" } },
