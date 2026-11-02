@@ -655,7 +655,7 @@ export default function Home({
                 
                 <div className="flex flex-col sm:flex-row flex-wrap justify-center lg:justify-start gap-4">
                   <button 
-                    onClick={() => { setSignupType("influencer"); setShowModal(true); }} 
+                    onClick={() => { setSignupType(null); setShowModal(true); }} 
                     className="px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl transition-all transform hover:scale-105 shadow-lg hover:shadow-xl text-lg"
                   >
                     {txt.hero_btn_primary}
