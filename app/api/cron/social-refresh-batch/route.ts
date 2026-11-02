@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { copyAuditprErExtras } from '@/lib/engagementFlags';
 import { GEMINI_PAUSED_MSG, isGeminiPaused } from '@/lib/geminiPause';
+import { maybeSendStatsEmail } from '@/lib/statsUpdateEmail';
 import { doRefreshSocialStats, type InstagramOverrides, type TikTokOverrides, type YouTubeOverrides } from '@/lib/refreshSocialStats';
 import { revalidatePublicProfileById } from '@/lib/revalidatePublicProfile';
 import { sanitizeTopPosts } from '@/lib/topPosts';
@@ -369,6 +370,7 @@ export async function POST(request: NextRequest) {
         instagramOverrides,
         tiktokOverrides,
         youtubeOverrides,
+        onApplied: (info) => maybeSendStatsEmail(supabaseAdmin, runId, info),
       });
       const persistErrors = (result.results?.[0]?.errors || []).filter((e) => !/^Audit:/i.test(e));
       if (persistErrors.length) {
