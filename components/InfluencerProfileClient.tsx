@@ -255,9 +255,9 @@ function ProfileStatCard({
     <div className={shell}>
       {/* Mobile (<sm): icon → value → label */}
       <div className="flex h-full min-w-0 flex-1 flex-col items-center gap-2 text-center sm:hidden">
-        <div className="relative flex items-center justify-center pt-0.5">
+        {tip ? <span className="absolute -right-2 -top-2 z-10">{tipNode}</span> : null}
+        <div className="flex items-center justify-center pt-0.5">
           <span className="shrink-0">{icon}</span>
-          {tip ? <span className="absolute -right-5 -top-1">{tipNode}</span> : null}
         </div>
         <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col items-center justify-center text-base font-semibold [&_p]:text-base [&_span.text-xl]:text-base [&_span.text-2xl]:text-base">
           {children}
