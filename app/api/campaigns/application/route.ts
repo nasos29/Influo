@@ -3,7 +3,7 @@ import { supabaseService, userFromBearer } from "@/lib/apiAuth";
 import { ensureProposalThread } from "@/lib/proposalChat";
 import { creatorContact, notifyApplicationStatus } from "@/lib/campaignNotify";
 import { acceptedToBrand, acceptedToCreator, applicationToBrand, applicationToCreator } from "@/lib/campaignMail";
-import { send } from "@/lib/proposalMail";
+import { mailAdminEvent, send } from "@/lib/proposalMail";
 import { deferAfterResponse } from "@/lib/proposalNotify";
 import { sendPushBrandNewCampaignApplication, sendPushToBrand, sendPushToInfluencer } from "@/lib/push";
 
@@ -62,6 +62,14 @@ function notifyNewApplication(applicationId: string, influencerId: string): void
         });
         jobs.push(send("campaign_application_creator", person.email, toCreator.subject, toCreator.html));
       }
+      jobs.push(
+        mailAdminEvent("campaign_application_admin", `Νέα αίτηση καμπάνιας: ${influencerName} / ${brandName}`, "Νέα αίτηση σε καμπάνια", [
+          ["Καμπάνια", campaignTitle],
+          ["Επιχείρηση", brandName],
+          ["Δημιουργός", influencerName],
+          ["Προτεινόμενη τιμή", row.proposed_price != null ? `${Math.round(Number(row.proposed_price))} €` : null],
+        ])
+      );
       await Promise.all(jobs);
     } catch (err) {
       console.error("[campaign application] notify", err);
@@ -93,6 +101,18 @@ function notifyAcceptedApplication(input: {
           url: "/dashboard?tab=proposals",
           tag: `campaign-accepted-${input.proposalId ?? input.campaignTitle}`,
         }).catch((err) => console.error("[campaign accept] creator push", err)),
+        mailAdminEvent(
+          "campaign_accepted_admin",
+          `Αίτηση αποδεκτή, νέα συνεργασία: ${influencerName} / ${input.brandName}`,
+          "Η επιχείρηση αποδέχτηκε αίτηση καμπάνιας (δημιουργήθηκε πρόταση)",
+          [
+            ["Πρόταση", input.proposalId != null ? `#${input.proposalId}` : "δεν δημιουργήθηκε"],
+            ["Καμπάνια", input.campaignTitle],
+            ["Επιχείρηση", input.brandName],
+            ["Δημιουργός", influencerName],
+            ["Ποσό", `${Math.round(input.budget)} €`],
+          ]
+        ),
         input.brandEmail
           ? sendPushToBrand(input.brandEmail, {
               title: "Η συνεργασία δημιουργήθηκε",
