@@ -118,15 +118,15 @@ export default function SignupChoiceModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 p-3 sm:p-6">
+    <div className={`fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 p-3 sm:p-6 ${picked ? "max-sm:overflow-hidden max-sm:p-0" : ""}`}>
       <div
-        className="relative mx-auto my-2 w-full max-w-4xl sm:my-6"
+        className={`relative mx-auto my-2 w-full max-w-4xl sm:my-6 ${picked ? "max-sm:my-0 max-sm:h-dvh" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="signup-choice-title"
       >
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 shadow-xl">
-          <div className={`flex items-start justify-between gap-4 border-b border-slate-200 px-5 sm:px-6 sm:py-4 ${picked ? "py-1.5 max-sm:items-center" : "py-4"}`}>
+        <div className={`rounded-2xl border border-slate-200 bg-slate-50 shadow-xl ${picked ? "max-sm:flex max-sm:h-full max-sm:flex-col max-sm:rounded-none max-sm:border-0" : ""}`}>
+          <div className={`flex items-start justify-between gap-4 border-b border-slate-200 px-5 sm:px-6 sm:py-4 ${picked ? "py-1.5 max-sm:shrink-0 max-sm:items-center" : "py-4"}`}>
             <div>
               {picked ? (
                 <button
@@ -155,7 +155,7 @@ export default function SignupChoiceModal({
           </div>
 
           {picked ? (
-            <div className="p-3 sm:p-5">
+            <div className="p-3 sm:p-5 max-sm:min-h-0 max-sm:flex-1 max-sm:p-0">
               {picked === "influencer" ? <InfluencerSignupForm /> : <BrandSignupForm embedded />}
             </div>
           ) : (

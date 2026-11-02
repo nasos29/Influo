@@ -353,7 +353,7 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
   );
 
   const shellClass = embedded
-    ? "mx-auto flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white"
+    ? "mx-auto flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white max-sm:h-full max-sm:max-h-none max-sm:rounded-none max-sm:border-0"
     : "mx-auto flex w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white";
 
   if (success) {
@@ -381,7 +381,7 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
         <p className="mt-1 text-xs leading-snug text-slate-600 sm:text-sm max-sm:!text-xs sm:leading-relaxed">{txt.headerDesc}</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto bg-white px-5 py-6 sm:px-8">
+      <div className="min-h-0 flex-1 overflow-y-auto bg-white px-5 py-6 sm:px-8 max-sm:py-4">
         {!embedded && (
           <button
             type="button"
@@ -454,7 +454,7 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
 
             {message && <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-center text-sm font-medium text-red-700">{message}</p>}
 
-            <div className="mt-8 pt-6 border-t border-slate-200">
+            <div className="mt-8 pt-6 border-t border-slate-200 max-sm:sticky max-sm:bottom-0 max-sm:z-10 max-sm:-mx-5 max-sm:-mb-4 max-sm:mt-6 max-sm:bg-white max-sm:px-5 max-sm:pb-3 max-sm:pt-3">
               <button
                 type="button"
                 onClick={handleStep1Next}
@@ -574,7 +574,7 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
 
             {message && <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-center text-sm font-medium text-red-700">{message}</p>}
 
-            <div className="mt-8 pt-6 border-t border-slate-200 flex flex-col-reverse sm:flex-row gap-3 sm:gap-4">
+            <div className="mt-8 pt-6 border-t border-slate-200 max-sm:sticky max-sm:bottom-0 max-sm:z-10 max-sm:-mx-5 max-sm:-mb-4 max-sm:mt-6 max-sm:bg-white max-sm:px-5 max-sm:pb-3 max-sm:pt-3 flex flex-col-reverse sm:flex-row gap-3 sm:gap-4">
               <button
                 type="button"
                 onClick={() => { setStep(1); setMessage(""); }}

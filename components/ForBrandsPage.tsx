@@ -470,7 +470,7 @@ export default function ForBrandsPage({ stats }: Props) {
       {showModal ? (
         <dialog
           open
-          className="fixed inset-0 z-50 m-0 flex h-full max-h-none w-full max-w-none items-center justify-center bg-transparent p-4"
+          className="fixed inset-0 z-50 m-0 flex h-full max-h-none w-full max-w-none items-center justify-center bg-transparent p-4 max-sm:p-0"
           aria-label={txt.cta_primary}
           onCancel={(e) => {
             e.preventDefault();
@@ -483,8 +483,8 @@ export default function ForBrandsPage({ stats }: Props) {
             aria-label={txt.close}
             onClick={() => setShowModal(false)}
           />
-          <div className="relative z-10 w-full max-w-5xl">
-            <div className="relative">
+          <div className="relative z-10 w-full max-w-5xl max-sm:h-dvh">
+            <div className="relative max-sm:h-full">
               <button
                 type="button"
                 onClick={() => setShowModal(false)}
