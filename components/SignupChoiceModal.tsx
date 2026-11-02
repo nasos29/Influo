@@ -126,18 +126,18 @@ export default function SignupChoiceModal({
         aria-labelledby="signup-choice-title"
       >
         <div className="rounded-2xl border border-slate-200 bg-slate-50 shadow-xl">
-          <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4 sm:px-6">
+          <div className={`flex items-start justify-between gap-4 border-b border-slate-200 px-5 sm:px-6 sm:py-4 ${picked ? "py-1.5 max-sm:items-center" : "py-4"}`}>
             <div>
               {picked ? (
                 <button
                   type="button"
                   onClick={() => setPicked(null)}
-                  className="mb-2 inline-flex min-h-11 items-center text-sm font-medium text-slate-600 hover:text-slate-900"
+                  className="mb-2 inline-flex min-h-11 items-center max-sm:mb-0 text-sm font-medium text-slate-600 hover:text-slate-900"
                 >
                   ← {txt.back}
                 </button>
               ) : null}
-              <h2 id="signup-choice-title" className="text-lg font-semibold sm:text-2xl max-sm:!text-lg max-sm:!leading-tight tracking-tight text-slate-900">
+              <h2 id="signup-choice-title" className={`text-lg font-semibold sm:text-2xl max-sm:!text-lg max-sm:!leading-tight ${picked ? "max-sm:sr-only" : ""} tracking-tight text-slate-900`}>
                 {txt.title}
               </h2>
               {picked ? null : <p className="mt-1 text-xs text-slate-600 sm:text-sm max-sm:!text-xs">{txt.lead}</p>}
