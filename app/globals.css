@@ -294,10 +294,29 @@ select option:focus {
   }
 }
 
-/* Focus styles */
+/* Focus styles.
+   Keyboard ring stays for buttons, links and other controls.
+   Text fields (input/select/textarea) get a subtle border + soft shadow instead of the blue box.
+   The field defaults live in @layer base so component focus:* utilities still win. */
 *:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):focus,
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):focus-visible,
+select:focus,
+select:focus-visible,
+textarea:focus,
+textarea:focus-visible {
+  outline: none;
+}
+
+@layer base {
+  :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]), select, textarea):focus {
+    border-color: #64748b;
+    box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.08);
+  }
 }
 
 /* Slideshow animation */

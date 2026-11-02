@@ -192,7 +192,7 @@ export default function ProfileHireCard({
             <select
               value={selected?.id || ""}
               onChange={(event) => onSelectedIdChange(event.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 outline-none focus:border-blue-500"
+              className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 outline-none focus:border-slate-500"
             >
               {choices.map((choice) => (
                 <option key={choice.id} value={choice.id}>

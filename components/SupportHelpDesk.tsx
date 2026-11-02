@@ -638,7 +638,7 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
                   value={customEmailTo}
                   onChange={(e) => setCustomEmailTo(e.target.value)}
                   placeholder={t[lang].customEmailPlaceholder}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-transparent text-gray-900"
                   required
                 />
                 <p className="text-xs text-gray-600 mt-1">
@@ -655,7 +655,7 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
                   value={customEmailSubject}
                   onChange={(e) => setCustomEmailSubject(e.target.value)}
                   placeholder={t[lang].customEmailSubjectPlaceholder}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-transparent text-gray-900"
                   required
                 />
               </div>
@@ -669,7 +669,7 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
                   onChange={(e) => setCustomEmailMessage(e.target.value)}
                   placeholder={t[lang].customEmailMessagePlaceholder}
                   rows={10}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-transparent text-gray-900"
                   required
                 />
                 <p className="text-xs text-gray-600 mt-1">
@@ -718,7 +718,7 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
                     setCreateUserType(e.target.value as 'influencer' | 'brand');
                     setCreateUserId('');
                   }}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-transparent text-gray-900"
                 >
                   <option value="influencer">{t[lang].influencer}</option>
                   <option value="brand">{t[lang].brand}</option>
@@ -735,7 +735,7 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
                   <select
                     value={createUserId}
                     onChange={(e) => setCreateUserId(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-transparent text-gray-900"
                     required
                   >
                     <option value="">-- Επιλογή {createUserType === 'influencer' ? 'Influencer' : 'Brand'} --</option>
@@ -757,7 +757,7 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
                   value={createSubject}
                   onChange={(e) => setCreateSubject(e.target.value)}
                   placeholder={t[lang].placeholderSubject}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-transparent text-gray-900"
                   required
                 />
               </div>
@@ -771,7 +771,7 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
                   onChange={(e) => setCreateMessage(e.target.value)}
                   placeholder={t[lang].placeholderMessage}
                   rows={8}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-transparent text-gray-900"
                   required
                 />
               </div>
@@ -940,7 +940,7 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
                         onChange={(e) => setReplyText(e.target.value)}
                         placeholder={t[lang].replyPlaceholder}
                         rows={6}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm text-gray-900"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-transparent text-sm text-gray-900"
                       />
                       
                       {/* File Upload for Reply */}
@@ -955,7 +955,7 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
                             setReplyFiles(files);
                           }}
                           multiple
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm text-gray-900"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-transparent text-sm text-gray-900"
                           accept="image/*,.pdf,.doc,.docx,.txt,.xls,.xlsx"
                         />
                         {replyFiles.length > 0 && (

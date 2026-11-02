@@ -515,7 +515,7 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, onToast, 
               value={brandName}
               onChange={(e) => setBrandName(e.target.value)}
               required
-              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 outline-none transition-all"
             />
           </div>
 
@@ -529,7 +529,7 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, onToast, 
               value={contactPerson}
               onChange={(e) => setContactPerson(e.target.value)}
               placeholder={lang === 'el' ? 'π.χ. Μαρία Παπαδοπούλου' : 'e.g. Maria Papadopoulou'}
-              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400"
+              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 outline-none transition-all placeholder:text-slate-400"
             />
           </div>
 
@@ -586,7 +586,7 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, onToast, 
               rows={4}
               maxLength={BRAND_BIO_MAX}
               placeholder={lang === 'el' ? 'Πείτε ποιοι είστε και τι ψάχνετε…' : 'Tell creators who you are and what you look for…'}
-              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-y"
+              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 outline-none transition-all resize-y"
             />
             <p className="text-xs text-slate-500 mt-1">
               {txt.edit_bio_hint} ({bio.length}/{BRAND_BIO_MAX})
@@ -604,7 +604,7 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, onToast, 
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
                 placeholder={lang === 'el' ? 'π.χ. Αθήνα' : 'e.g. Athens'}
-                className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 outline-none transition-all"
               />
             </div>
           )}
@@ -621,7 +621,7 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, onToast, 
               value={website}
               onChange={(e) => setWebsite(e.target.value)}
               placeholder="example.com"
-              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 outline-none transition-all"
             />
             <p className="text-xs text-slate-500 mt-1">
               {lang === "el"
@@ -642,7 +642,7 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, onToast, 
                 value={instagram}
                 onChange={(e) => setInstagram(e.target.value)}
                 placeholder="@yourbrand"
-                className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 outline-none transition-all"
               />
               <p className="text-xs text-slate-500 mt-1">
                 {lang === "el"

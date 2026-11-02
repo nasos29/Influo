@@ -2347,7 +2347,7 @@ export default function Messaging({
                     }}
                     onKeyDown={onComposerKeyDown}
                     placeholder={txt.placeholder}
-                    className="flex-1 px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900 bg-white text-sm"
+                    className="flex-1 px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 resize-none text-slate-900 bg-white text-sm"
                     rows={2}
                   />
                   {speechSupported ? (
@@ -2465,7 +2465,7 @@ export default function Messaging({
                       }}
                       onKeyDown={onComposerKeyDown}
                       placeholder={txt.placeholder}
-                      className="flex-1 px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900 text-sm"
+                      className="flex-1 px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 resize-none text-slate-900 text-sm"
                       rows={2}
                     />
                     {speechSupported ? (

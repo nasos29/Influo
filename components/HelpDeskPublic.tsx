@@ -469,7 +469,7 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   placeholder={t[lang].placeholderSubject}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-transparent text-gray-900"
                   required
                 />
               </div>
@@ -483,7 +483,7 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder={t[lang].placeholderMessage}
                   rows={8}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-transparent text-gray-900"
                   required
                 />
               </div>
@@ -496,7 +496,7 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
                   type="file"
                   onChange={handleFileSelect}
                   multiple
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm text-gray-900"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-transparent text-sm text-gray-900"
                   accept="image/*,.pdf,.doc,.docx,.txt,.xls,.xlsx"
                 />
                 {selectedFiles.length > 0 && (
@@ -642,7 +642,7 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
                           onChange={(e) => setReplyMessage(e.target.value)}
                           placeholder={t[lang].replyPlaceholder}
                           rows={4}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent mb-3 text-gray-900"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-transparent mb-3 text-gray-900"
                           required
                         />
                         
@@ -658,7 +658,7 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
                               setReplyFiles(files);
                             }}
                             multiple
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm text-gray-900"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-transparent text-sm text-gray-900"
                             accept="image/*,.pdf,.doc,.docx,.txt,.xls,.xlsx"
                           />
                           {replyFiles.length > 0 && (
