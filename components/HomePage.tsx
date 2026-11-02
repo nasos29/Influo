@@ -533,19 +533,19 @@ export default function Home({
                 {txt.open_campaigns_subtitle}
               </p>
             </div>
-            <ul className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <ul className="grid auto-rows-fr gap-4 md:grid-cols-2 lg:grid-cols-3">
               {openCampaigns.map((campaign) => (
-                <li key={campaign.id}>
+                <li key={campaign.id} className="h-full [&>*]:h-full">
                   <CampaignCard campaign={campaign} lang={lang} />
                 </li>
               ))}
               {openCampaigns.length < 3 ? (
-                <li className={openCampaigns.length === 1 ? "md:col-span-1 lg:col-span-2" : ""}>
-                  <div className="flex h-full flex-col justify-center rounded-2xl border border-slate-200 bg-white p-8 shadow-sm md:p-10">
+                <li className="h-full">
+                  <div className="flex h-full flex-col justify-center rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                     <span className="mb-3 inline-flex w-fit items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 border border-emerald-100">
                       {lang === "en" ? "For brands" : "Για επιχειρήσεις"}
                     </span>
-                    <h3 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">
+                    <h3 className="text-xl font-bold tracking-tight text-slate-900">
                       {lang === "en" ? "Post a campaign for free" : "Δημοσίευσε καμπάνια δωρεάν"}
                     </h3>
                     <p className="mt-3 max-w-lg text-base text-slate-600 leading-relaxed">
