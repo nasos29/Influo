@@ -149,7 +149,7 @@ const icons = {
   ),
   counter: (
     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0zM8 10.5h6M8 13.5h4.5M15.5 8.4A4 4 0 0 0 13 7.5a4.5 4.5 0 0 0 0 9 4 4 0 0 0 2.5-.9" />
     </svg>
   ),
   agreement: (

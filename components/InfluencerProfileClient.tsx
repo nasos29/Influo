@@ -2741,8 +2741,9 @@ export default function InfluencerProfile(props: {
                       accent
                       icon={
                         <MetricIcon className="bg-blue-100 text-blue-700 ring-blue-200/70">
-                          <path d="M12 1v22" />
-                          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                          <path d="M4 10h12" />
+                          <path d="M4 14h9" />
+                          <path d="M19 6a7.7 7.7 0 0 0-5.2-2A7.9 7.9 0 0 0 6 12c0 4.4 3.5 8 7.8 8 2 0 3.8-.8 5.2-2" />
                         </MetricIcon>
                       }
                     >
@@ -2763,10 +2764,8 @@ export default function InfluencerProfile(props: {
                       accent
                       icon={
                         <MetricIcon className="bg-violet-100 text-violet-700 ring-violet-200/70">
-                          <path d="M12 1v22" />
-                          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                          <path d="M3 12h3" />
-                          <path d="M18 12h3" />
+                          <path d="M22 7 13.5 15.5 8.5 10.5 2 17" />
+                          <path d="M16 7h6v6" />
                         </MetricIcon>
                       }
                     >
