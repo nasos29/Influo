@@ -377,8 +377,8 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
   return (
     <div className={shellClass}>
       <div className="shrink-0 border-b border-slate-200 px-5 py-3 sm:px-8 sm:py-5">
-        <h3 className="text-lg font-semibold text-slate-900 sm:text-xl">{txt.headerTitle}</h3>
-        <p className="mt-1 text-[13px] leading-snug text-slate-600 sm:text-sm sm:leading-relaxed">{txt.headerDesc}</p>
+        <h3 className="text-base font-semibold text-slate-900 sm:text-xl max-sm:!text-base max-sm:!leading-snug">{txt.headerTitle}</h3>
+        <p className="mt-1 text-xs leading-snug text-slate-600 sm:text-sm max-sm:!text-xs sm:leading-relaxed">{txt.headerDesc}</p>
       </div>
 
       <div className="flex-1 overflow-y-auto bg-white px-5 py-6 sm:px-8">
@@ -396,7 +396,7 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
 
         {step === 1 && (
           <div className="space-y-6">
-            <h2 className="text-base font-semibold text-slate-900 sm:text-lg">{txt.step1}</h2>
+            <h2 className="text-sm font-semibold text-slate-900 sm:text-lg max-sm:!text-base max-sm:!leading-snug">{txt.step1}</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -468,7 +468,7 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
 
         {step === 2 && (
           <form onSubmit={handleSubmit} className="space-y-6">
-            <h2 className="text-base font-semibold text-slate-900 sm:text-lg">{txt.step2}</h2>
+            <h2 className="text-sm font-semibold text-slate-900 sm:text-lg max-sm:!text-base max-sm:!leading-snug">{txt.step2}</h2>
 
             <CategoryCheckboxList
               lang={lang}
