@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { sendPushAdminSupportTicketUserReply } from '@/lib/push';
+import { USER_REPLY_SPLIT } from '@/lib/supportThread';
+import { insertTicketMessage, loadTicketMessages } from '@/lib/supportThreadStore';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -36,25 +38,45 @@ export async function POST(req: Request) {
       );
     }
 
-    // Append user message to existing message and reopen ticket
-    const updatedMessage = ticket.message + '\n\n--- Νέα Απάντηση ---\n' + user_message;
-    
-    // Combine existing attachments with new reply attachments
-    const existingAttachments = ticket.attachments || [];
-    const newAttachments = attachments && Array.isArray(attachments) ? attachments : [];
-    const allAttachments = [...existingAttachments, ...newAttachments];
-    
-    // Update ticket: reopen it (set status to 'open') and update message
-    const updateData: any = {
-      message: updatedMessage,
-      status: 'open', // Reopen the ticket
-      updated_at: new Date().toISOString(),
-      // Clear admin reply since user is responding
-      admin_reply: null,
-      admin_replied_at: null,
-    };
+    if (ticket.status === 'closed') {
+      return NextResponse.json(
+        { success: false, error: 'Ticket is closed' },
+        { status: 409 }
+      );
+    }
 
-    // Update attachments if new ones were added
+    const newAttachments = attachments && Array.isArray(attachments) ? attachments : [];
+    const repliedAt = new Date().toISOString();
+    let threaded = false;
+    try {
+      threaded = await insertTicketMessage(supabaseAdmin, {
+        ticket_id,
+        sender_role: 'user',
+        sender_id: ticket.user_id ? String(ticket.user_id) : null,
+        body: user_message,
+        attachments: newAttachments,
+        created_at: repliedAt,
+      });
+    } catch (threadError) {
+      console.error('[User Reply Ticket] Thread insert:', threadError);
+      return NextResponse.json(
+        { success: false, error: threadError instanceof Error ? threadError.message : 'Could not save reply' },
+        { status: 500 }
+      );
+    }
+
+    const updatedMessage = `${ticket.message || ''}${USER_REPLY_SPLIT}${user_message}`;
+    const existingAttachments = ticket.attachments || [];
+    const allAttachments = [...existingAttachments, ...newAttachments];
+    const updateData: Record<string, unknown> = {
+      message: updatedMessage,
+      status: threaded ? 'awaiting' : 'open',
+      updated_at: repliedAt,
+    };
+    if (!threaded) {
+      updateData.admin_reply = null;
+      updateData.admin_replied_at = null;
+    }
     if (newAttachments.length > 0) {
       updateData.attachments = allAttachments;
     }
@@ -120,7 +142,8 @@ export async function POST(req: Request) {
       userName: ticket.user_name || ticket.user_email,
     }).catch((e) => console.warn('[User Reply Ticket] Admin push:', e));
 
-    return NextResponse.json({ success: true, ticket: updatedTicket });
+    const thread = await loadTicketMessages(supabaseAdmin, updatedTicket);
+    return NextResponse.json({ success: true, ticket: updatedTicket, messages: thread.messages });
   } catch (error: any) {
     console.error('[User Reply Ticket] Error:', error);
     return NextResponse.json(

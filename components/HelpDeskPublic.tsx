@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import Link from 'next/link';
 import { formatDisplayDateTime } from '@/lib/formatDate';
+import SupportTicketThread from '@/components/SupportTicketThread';
+import type { SupportMessage } from '@/lib/supportThread';
 
 interface Ticket {
   id: string;
@@ -61,13 +63,17 @@ const t = {
     in_progress: "Σε Εξέλιξη",
     resolved: "Επιλυμένο",
     closed: "Κλειστό",
+    answered: "Απαντήθηκε",
+    awaiting: "Αναμονή",
     waiting: "Αναμονή Απάντησης",
+    closeTicket: "Κλείσιμο ticket",
+    closing: "Κλείσιμο...",
     viewReply: "Προβολή Απάντησης",
     replyToTicket: "Απάντηση στο Ticket",
     replyPlaceholder: "Γράψτε την απάντησή σας...",
     sendReply: "Αποστολή Απάντησης",
     sendingReply: "Αποστολή...",
-    replySuccess: "✅ Η απάντηση σας στάλθηκε! Το ticket άνοιξε ξανά.",
+    replySuccess: "✅ Η απάντηση στάλθηκε.",
     close: "Κλείσιμο",
   },
   en: {
@@ -95,13 +101,17 @@ const t = {
     in_progress: "In Progress",
     resolved: "Resolved",
     closed: "Closed",
+    answered: "Answered",
+    awaiting: "Awaiting",
     waiting: "Waiting for Reply",
+    closeTicket: "Close ticket",
+    closing: "Closing...",
     viewReply: "View Reply",
     replyToTicket: "Reply to Ticket",
     replyPlaceholder: "Write your reply...",
     sendReply: "Send Reply",
     sendingReply: "Sending...",
-    replySuccess: "✅ Your reply has been sent! The ticket has been reopened.",
+    replySuccess: "✅ Your reply has been sent.",
     close: "Close",
   }
 };
@@ -123,10 +133,39 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<FileAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [thread, setThread] = useState<SupportMessage[]>([]);
+  const [loadingThread, setLoadingThread] = useState(false);
+  const [closingTicket, setClosingTicket] = useState(false);
 
   useEffect(() => {
     loadTickets();
   }, [user.id, userType]);
+
+  useEffect(() => {
+    if (tickets.length === 0) return;
+    const id = new URLSearchParams(window.location.search).get("ticket");
+    if (!id) return;
+    const found = tickets.find((ticket) => ticket.id === id);
+    if (found) setSelectedTicket(found);
+  }, [tickets]);
+
+  useEffect(() => {
+    if (!selectedTicket) return;
+    void loadThread(selectedTicket.id);
+  }, [selectedTicket?.id]);
+
+  const loadThread = async (ticketId: string) => {
+    setLoadingThread(true);
+    try {
+      const response = await fetch(`/api/tickets/messages?ticket_id=${encodeURIComponent(ticketId)}`);
+      const data = await response.json();
+      if (data.success) setThread(data.messages || []);
+    } catch (error) {
+      console.error("Error loading ticket thread:", error);
+    } finally {
+      setLoadingThread(false);
+    }
+  };
 
   const loadTickets = async () => {
     try {
@@ -252,6 +291,8 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
       open: t[lang].open,
       in_progress: t[lang].in_progress,
       resolved: t[lang].resolved,
+      answered: t[lang].answered,
+      awaiting: t[lang].awaiting,
       closed: t[lang].closed,
     };
     return statusMap[status] || status;
@@ -259,6 +300,8 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
 
   const getStatusColor = (status: string) => {
     const colorMap: Record<string, string> = {
+      answered: 'bg-green-100 text-green-800',
+      awaiting: 'bg-amber-100 text-amber-800',
       open: 'bg-yellow-100 text-yellow-800',
       in_progress: 'bg-blue-100 text-blue-800',
       resolved: 'bg-green-100 text-green-800',
@@ -302,6 +345,32 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
     return uploaded;
   };
 
+  const handleCloseTicket = async () => {
+    if (!selectedTicket) return;
+    setClosingTicket(true);
+    try {
+      const response = await fetch("/api/tickets/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticket_id: selectedTicket.id, action: "close" }),
+      });
+      const data = await response.json();
+      if (!data.success) {
+        alert(`${t[lang].error} ${data.error}`);
+        return;
+      }
+      if (data.ticket) {
+        setSelectedTicket(data.ticket);
+        setTickets((prev) => prev.map((item) => (item.id === data.ticket.id ? { ...item, ...data.ticket } : item)));
+      }
+      if (data.messages) setThread(data.messages);
+    } catch (error: any) {
+      alert(`${t[lang].error} ${error.message}`);
+    } finally {
+      setClosingTicket(false);
+    }
+  };
+
   const handleReplySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -338,8 +407,10 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
         // Reload tickets to get updated status
         await loadTickets();
         // Update selected ticket with the new data from server
+        if (data.messages) setThread(data.messages);
         if (data.ticket) {
           setSelectedTicket(data.ticket);
+          setTickets((prev) => prev.map((item) => (item.id === data.ticket.id ? { ...item, ...data.ticket } : item)));
         }
         alert(t[lang].replySuccess);
       } else {
@@ -553,41 +624,15 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
                 </div>
 
                 <div className="mb-6">
-                  <h3 className="text-sm font-medium text-gray-900 mb-2">Το Μήνυμά σας:</h3>
-                  <div className="bg-gray-50 p-4 rounded-lg whitespace-pre-wrap text-sm text-gray-900">
-                    {selectedTicket.message}
-                  </div>
-                  {selectedTicket.attachments && selectedTicket.attachments.length > 0 && (
-                    <div className="mt-3">
-                      <h4 className="text-xs font-medium text-gray-900 mb-2">Επισυναπτόμενα Αρχεία:</h4>
-                      <div className="space-y-1">
-                        {selectedTicket.attachments.map((file, idx) => (
-                          <a
-                            key={idx}
-                            href={file.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block text-sm text-blue-600 hover:text-blue-700 hover:underline"
-                          >
-                            📎 {file.filename} ({(file.size / 1024).toFixed(1)} KB)
-                          </a>
-                        ))}
-                      </div>
-                    </div>
+                  {loadingThread ? (
+                    <p className="text-sm text-slate-500">Loading...</p>
+                  ) : (
+                    <SupportTicketThread messages={thread} lang={lang} viewer="user" />
                   )}
                 </div>
 
-                {selectedTicket.admin_reply ? (
+                {selectedTicket.status !== "closed" ? (
                   <div className="mb-6">
-                    <h3 className="text-sm font-medium text-gray-900 mb-2">Απάντηση:</h3>
-                    <div className="bg-green-50 border border-green-200 p-4 rounded-lg whitespace-pre-wrap text-sm text-gray-900 mb-4">
-                      {selectedTicket.admin_reply}
-                    </div>
-                    <div className="text-xs text-gray-900 mb-4">
-                      {t[lang].reply}: {formatDate(selectedTicket.admin_replied_at!)}
-                    </div>
-                    
-                    {/* User Reply Form */}
                     <div className="border-t border-gray-200 pt-4">
                       <h3 className="text-sm font-medium text-gray-900 mb-3">{t[lang].replyToTicket}</h3>
                       <form onSubmit={handleReplySubmit}>
@@ -647,11 +692,22 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg text-sm text-yellow-800">
-                    {t[lang].waiting}
+                  <div className="mb-6 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                    {t[lang].closed}
                   </div>
                 )}
               </div>
+
+              {selectedTicket.status !== "closed" ? (
+                <button
+                  type="button"
+                  disabled={closingTicket}
+                  onClick={() => void handleCloseTicket()}
+                  className="mb-3 w-full rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 disabled:opacity-50"
+                >
+                  {closingTicket ? t[lang].closing : t[lang].closeTicket}
+                </button>
+              ) : null}
 
               <button
                 onClick={() => {

@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import SupportTicketThread from '@/components/SupportTicketThread';
+import type { SupportMessage } from '@/lib/supportThread';
+import { userHasRepliedSinceAdmin } from '@/lib/supportThread';
 
 async function adminAuthHeaders(): Promise<Record<string, string>> {
   const { data: { session } } = await supabase.auth.getSession();
@@ -71,6 +74,13 @@ const t = {
     in_progress: "Σε Εξέλιξη",
     resolved: "Επιλυμένο",
     closed: "Κλειστό",
+    answered: "Απαντήθηκε",
+    awaiting: "Αναμονή",
+    newUserReply: "Νέα απάντηση χρήστη",
+    all: "Όλα",
+    closeTicket: "Κλείσιμο",
+    reopenTicket: "Επανάνοιγμα",
+    closing: "Κλείσιμο...",
     viewTicket: "Προβολή Ticket",
     createTicket: "Δημιουργία Νέου Ticket",
     createTicketFor: "Δημιουργία Ticket για",
@@ -115,6 +125,13 @@ const t = {
     in_progress: "In Progress",
     resolved: "Resolved",
     closed: "Closed",
+    answered: "Answered",
+    awaiting: "Awaiting",
+    newUserReply: "New user reply",
+    all: "All",
+    closeTicket: "Close",
+    reopenTicket: "Reopen",
+    closing: "Closing...",
     viewTicket: "View Ticket",
     createTicket: "Create New Ticket",
     createTicketFor: "Create Ticket for",
@@ -167,6 +184,10 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
   const [customEmailSubject, setCustomEmailSubject] = useState('');
   const [customEmailMessage, setCustomEmailMessage] = useState('');
   const [sendingCustomEmail, setSendingCustomEmail] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<"all" | "open" | "answered" | "awaiting" | "closed">("all");
+  const [thread, setThread] = useState<SupportMessage[]>([]);
+  const [loadingThread, setLoadingThread] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   // Load tickets on mount
   useEffect(() => {
@@ -208,6 +229,19 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
       console.error('Error loading users:', error);
     } finally {
       setLoadingUsers(false);
+    }
+  };
+
+  const loadThread = async (ticketId: string) => {
+    setLoadingThread(true);
+    try {
+      const response = await fetch(`/api/tickets/messages?ticket_id=${encodeURIComponent(ticketId)}`);
+      const data = await response.json();
+      if (data.success) setThread(data.messages || []);
+    } catch (error) {
+      console.error("Error loading ticket thread:", error);
+    } finally {
+      setLoadingThread(false);
     }
   };
 
@@ -332,8 +366,13 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
         alert(t[lang].replySuccess);
         setReplyText('');
         setReplyFiles([]);
-        setSelectedTicket(null);
-        await loadTickets();
+        if (data.messages) setThread(data.messages);
+        if (data.ticket) {
+          setSelectedTicket(data.ticket);
+          setTickets((prev) => prev.map((item) => (item.id === data.ticket.id ? data.ticket : item)));
+        } else {
+          await loadTickets();
+        }
       } else {
         alert(`${t[lang].error} ${data.error}`);
       }
@@ -344,13 +383,50 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
     }
   };
 
+  const handleStatus = async (ticketId: string, action: "close" | "reopen") => {
+    setUpdatingStatus(true);
+    try {
+      const response = await fetch("/api/tickets/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticket_id: ticketId, action }),
+      });
+      const data = await response.json();
+      if (!data.success) {
+        alert(`${t[lang].error} ${data.error}`);
+        return;
+      }
+      if (data.ticket) {
+        setSelectedTicket(data.ticket);
+        setTickets((prev) => prev.map((item) => (item.id === data.ticket.id ? data.ticket : item)));
+      }
+      if (data.messages) setThread(data.messages);
+    } catch (error: any) {
+      alert(`${t[lang].error} ${error.message}`);
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
   const formatDate = (dateString: string) => formatDisplayDateTime(dateString);
+
+  const visibleTickets = tickets.filter((ticket) => {
+    if (statusFilter === "all") return true;
+    if (statusFilter === "open") return ticket.status === "open" || ticket.status === "in_progress";
+    if (statusFilter === "answered") return ticket.status === "answered" || ticket.status === "resolved";
+    return ticket.status === statusFilter;
+  });
+
+  const needsUserReplyBadge = (ticket: Ticket) =>
+    ticket.status === "awaiting" || (ticket.status === "open" && userHasRepliedSinceAdmin(ticket));
 
   const getStatusLabel = (status: string) => {
     const statusMap: Record<string, string> = {
       open: t[lang].open,
       in_progress: t[lang].in_progress,
       resolved: t[lang].resolved,
+      answered: t[lang].answered,
+      awaiting: t[lang].awaiting,
       closed: t[lang].closed,
     };
     return statusMap[status] || status;
@@ -361,6 +437,8 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
       open: 'bg-yellow-100 text-yellow-800',
       in_progress: 'bg-blue-100 text-blue-800',
       resolved: 'bg-green-100 text-green-800',
+      answered: 'bg-green-100 text-green-800',
+      awaiting: 'bg-amber-100 text-amber-800',
       closed: 'bg-gray-100 text-gray-800',
     };
     return colorMap[status] || 'bg-gray-100 text-gray-800';
@@ -725,19 +803,37 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-6">{t[lang].tickets}</h2>
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                  <h2 className="text-xl font-semibold text-gray-900">{t[lang].tickets}</h2>
+                  <div className="flex flex-wrap gap-2">
+                    {(["all", "open", "answered", "awaiting", "closed"] as const).map((key) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setStatusFilter(key)}
+                        className={`rounded-full px-3 py-1 text-xs font-medium ${statusFilter === key ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"}`}
+                      >
+                        {t[lang][key]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 
                 {loadingTickets ? (
                   <div className="text-center text-gray-900 py-8">Loading...</div>
-                ) : tickets.length === 0 ? (
+                ) : visibleTickets.length === 0 ? (
                   <div className="text-center text-gray-900 py-8">{t[lang].noTickets}</div>
                 ) : (
                   <div className="space-y-4">
-                    {tickets.map((ticket) => (
+                    {visibleTickets.map((ticket) => (
                       <div
                         key={ticket.id}
                         className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors cursor-pointer relative"
-                        onClick={() => setSelectedTicket(ticket)}
+                        onClick={() => {
+                          setSelectedTicket(ticket);
+                          setThread([]);
+                          void loadThread(ticket.id);
+                        }}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
@@ -746,6 +842,11 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
                               <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(ticket.status)}`}>
                                 {getStatusLabel(ticket.status)}
                               </span>
+                              {needsUserReplyBadge(ticket) ? (
+                                <span className="rounded bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800">
+                                  {t[lang].newUserReply}
+                                </span>
+                              ) : null}
                             </div>
                             <p className="text-sm text-gray-900 mb-2 pr-20">
                               {t[lang].from}: {ticket.user_name} ({ticket.user_email})
@@ -801,41 +902,36 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
                   </div>
 
                   <div className="mb-4">
-                    <h4 className="text-sm font-medium text-gray-900 mb-2">Μήνυμα:</h4>
-                    <div className="bg-gray-50 p-3 rounded-lg text-sm text-gray-900 whitespace-pre-wrap">
-                      {selectedTicket.message}
-                    </div>
+                    {loadingThread ? (
+                      <p className="text-sm text-slate-500">Loading...</p>
+                    ) : (
+                      <SupportTicketThread messages={thread} lang={lang} viewer="admin" />
+                    )}
                   </div>
 
-                  {selectedTicket.admin_reply ? (
-                    <div className="mb-4">
-                      <h4 className="text-sm font-medium text-gray-900 mb-2">Η Απάντησή σας:</h4>
-                      <div className="bg-green-50 border border-green-200 p-3 rounded-lg text-sm text-gray-900 whitespace-pre-wrap">
-                        {selectedTicket.admin_reply}
-                      </div>
-                      {selectedTicket.admin_reply_attachments && selectedTicket.admin_reply_attachments.length > 0 && (
-                        <div className="mt-3">
-                          <h5 className="text-xs font-medium text-gray-900 mb-2">Επισυναπτόμενα Αρχεία:</h5>
-                          <div className="space-y-1">
-                            {selectedTicket.admin_reply_attachments.map((file, idx) => (
-                              <a
-                                key={idx}
-                                href={file.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block text-sm text-blue-600 hover:text-blue-700 hover:underline"
-                              >
-                                📎 {file.filename} ({(file.size / 1024).toFixed(1)} KB)
-                              </a>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      <p className="text-xs text-gray-900 mt-2">
-                        {formatDate(selectedTicket.admin_replied_at!)}
-                      </p>
-                    </div>
-                  ) : (
+                  <div className="mb-4 flex gap-2">
+                    {selectedTicket.status === "closed" ? (
+                      <button
+                        type="button"
+                        disabled={updatingStatus}
+                        onClick={() => void handleStatus(selectedTicket.id, "reopen")}
+                        className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-800 disabled:opacity-50"
+                      >
+                        {t[lang].reopenTicket}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={updatingStatus}
+                        onClick={() => void handleStatus(selectedTicket.id, "close")}
+                        className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-800 disabled:opacity-50"
+                      >
+                        {updatingStatus ? t[lang].closing : t[lang].closeTicket}
+                      </button>
+                    )}
+                  </div>
+
+                  {selectedTicket.status === "closed" ? null : (
                     <div className="mb-4">
                       <h4 className="text-sm font-medium text-gray-900 mb-2">{t[lang].reply}:</h4>
                       <textarea

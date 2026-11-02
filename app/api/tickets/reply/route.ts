@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { sendPushUserHelpDeskAdminReply } from '@/lib/push';
+import { REPLY_ON_SITE_NOTE, helpDeskTicketUrl } from '@/lib/supportThread';
+import { insertTicketMessage, loadTicketMessages } from '@/lib/supportThreadStore';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -35,17 +37,43 @@ export async function POST(req: Request) {
       );
     }
 
-    // Update ticket with admin reply
-    const updateData: any = {
+    if (ticket.status === 'closed') {
+      return NextResponse.json(
+        { success: false, error: 'Ticket is closed' },
+        { status: 409 }
+      );
+    }
+
+    const replyAttachments = attachments && Array.isArray(attachments) ? attachments : [];
+    const repliedAt = new Date().toISOString();
+    let threaded = false;
+    try {
+      threaded = await insertTicketMessage(supabaseAdmin, {
+        ticket_id,
+        sender_role: 'admin',
+        sender_id: null,
+        body: admin_reply,
+        attachments: replyAttachments,
+        created_at: repliedAt,
+      });
+    } catch (threadError) {
+      console.error('[Reply Ticket] Thread insert:', threadError);
+      return NextResponse.json(
+        { success: false, error: threadError instanceof Error ? threadError.message : 'Could not save reply' },
+        { status: 500 }
+      );
+    }
+
+    // Keep admin_reply as the latest reply so a rollback still has it.
+    const updateData: Record<string, unknown> = {
       admin_reply,
-      admin_replied_at: new Date().toISOString(),
-      status: 'resolved',
-      updated_at: new Date().toISOString(),
+      admin_replied_at: repliedAt,
+      status: threaded ? 'answered' : 'resolved',
+      updated_at: repliedAt,
     };
 
-    // Add attachments if provided
-    if (attachments && Array.isArray(attachments) && attachments.length > 0) {
-      updateData.admin_reply_attachments = attachments;
+    if (replyAttachments.length > 0) {
+      updateData.admin_reply_attachments = replyAttachments;
     }
 
     const { data: updatedTicket, error: updateError } = await supabaseAdmin
@@ -67,6 +95,7 @@ export async function POST(req: Request) {
     if (process.env.RESEND_API_KEY) {
       try {
         const host = req.headers.get('host') || 'influo.gr';
+        const ticketUrl = helpDeskTicketUrl(host, ticket_id);
         const replyHtml = `
           <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
             <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 24px; border-radius: 12px 12px 0 0;">
@@ -76,10 +105,10 @@ export async function POST(req: Request) {
               <p style="margin: 0 0 16px 0; font-size: 14px;">Γεια σας ${ticket.user_name || ticket.user_email},</p>
               <p style="margin: 0 0 12px 0; font-size: 13px; color: #4b5563;">Έχετε λάβει απάντηση στο ticket σας: <strong style="color: #1f2937;">${ticket.subject}</strong></p>
               <div style="background: #f0f9ff; border-left: 4px solid #3b82f6; padding: 16px; border-radius: 8px; margin: 20px 0;">
-                <p style="margin: 0; font-size: 12px; color: #1e40af; font-weight: 600;">💡 Συνδεθείτε στο Help Desk για να δείτε την πλήρη απάντηση.</p>
+                <p style="margin: 0; font-size: 12px; color: #1e40af; font-weight: 600;">💡 ${REPLY_ON_SITE_NOTE.el}</p>
               </div>
               <div style="margin: 24px 0; text-align: center;">
-                <a href="https://${host}/help-desk" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">Προβολή Απάντησης</a>
+                <a href="${ticketUrl}" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">Προβολή ticket</a>
               </div>
               <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
                 <p style="margin: 0; font-size: 12px; color: #9ca3af;">Η ομάδα του Influo<br>support@influo.gr</p>
@@ -110,7 +139,8 @@ export async function POST(req: Request) {
       subject: ticket.subject,
     }).catch((e) => console.warn('[Reply Ticket] User push:', e));
 
-    return NextResponse.json({ success: true, ticket: updatedTicket });
+    const thread = await loadTicketMessages(supabaseAdmin, updatedTicket);
+    return NextResponse.json({ success: true, ticket: updatedTicket, messages: thread.messages });
   } catch (error: any) {
     console.error('[Reply Ticket] Error:', error);
     return NextResponse.json(

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { sendPushAdminNewSupportTicket } from '@/lib/push';
+import { helpDeskTicketUrl } from '@/lib/supportThread';
+import { insertTicketMessage } from '@/lib/supportThreadStore';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -54,10 +56,24 @@ export async function POST(req: Request) {
       );
     }
 
+    try {
+      await insertTicketMessage(supabaseAdmin, {
+        ticket_id: ticket.id,
+        sender_role: 'user',
+        sender_id: String(user_id),
+        body: message,
+        attachments: attachments || [],
+        created_at: ticket.created_at,
+      });
+    } catch (threadError) {
+      console.error('[Create Ticket] Thread insert:', threadError);
+    }
+
     // Send auto-reply email to user
     if (process.env.RESEND_API_KEY) {
       try {
         const host = req.headers.get('host') || 'influo.gr';
+        const ticketUrl = helpDeskTicketUrl(host, ticket.id);
         const autoReplyHtml = `
           <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
             <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 24px; border-radius: 12px 12px 0 0;">
@@ -71,7 +87,7 @@ export async function POST(req: Request) {
                 <p style="margin: 0; font-size: 12px; color: #1e40af; font-weight: 600;">💡 Σημείωση: Θα λάβετε email ειδοποίηση όταν υπάρχει απάντηση στο Help Desk σας.</p>
               </div>
               <div style="margin: 24px 0; text-align: center;">
-                <a href="https://${host}/help-desk" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">Προβολή Help Desk</a>
+                <a href="${ticketUrl}" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">Προβολή ticket</a>
               </div>
               <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
                 <p style="margin: 0; font-size: 12px; color: #9ca3af;">Η ομάδα του Influo<br>support@influo.gr</p>
