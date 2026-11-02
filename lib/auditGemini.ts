@@ -347,7 +347,7 @@ TONE – "Με το γάντι": Be professional and honest but diplomatic. Crit
 
 TASK:
 Write a strategic profile that helps brands decide whether to work with this creator. Focus on strengths; only mention weaknesses when there is a clear, factual risk (not comparisons to other creators). Use detailed bullets (2–3 sentences or 1–2 lines each). Do NOT give recommendations to the creator. Describe what IS. Do not invent negatives that merely compare this creator unfavourably to others.
-STRENGTHS NOTE: write strengthsNote as ONE short, positive sentence that combines the creator's top skills with other qualifications that are explicitly present in the data (biography, education/certifications, experience, category, languages). Example style: "Πτυχιούχος μάρκετινγκ με εμπειρία σε UGC και voiceover." Use ONLY facts stated in the data – never invent degrees, experience or skills. NEVER mention prices, rates, money, value for money, or packages, and never give advice to the creator. If nothing notable is present, omit strengthsNote.
+STRENGTHS NOTE: write strengthsNote as ONE short, positive sentence in plain, natural, everyday Greek (like a person would say it, not bureaucratic or stiff). Name 2–3 concrete top skills from the skills list, choosing the ones most relevant to the creator's content/category, written with their usual Greek labels (e.g. UGC, voiceover, μοντάζ βίντεο, φωτογραφία προϊόντων), and combine them with qualifications explicitly present in the data: studies/degree, certifications, languages, category. Prefer simple phrasing: "μιλάει αγγλικά και γαλλικά" or "μιλάει πολλές γλώσσες", NOT stiff phrases like "πολύγλωσση ευχέρεια", "δεξιότητες σε", "με ευχέρεια στην παραγωγή". Example style: "Σπουδάζει περιβαλλοντολογία, κάνει UGC και μοντάζ βίντεο και μιλάει αγγλικά και ισπανικά." Use ONLY facts stated in the data – never invent degrees, experience, languages or skills. NEVER mention prices, rates, money, value for money, or packages, and never give advice to the creator. If nothing notable is present, omit strengthsNote.
 
 OUTPUT – Return ONLY valid JSON with these exact keys (no markdown, no extra text):
 - scoreBreakdown: array of exactly 4 bullet points in GREEK (Ελληνικά). Each bullet MUST be 2–3 sentences or 2–3 lines – rich, detailed, nuanced text for brands. Reference the creator ONLY by display name or "${greekCreatorNom}" (with correct gender agreement) – never by @username.
@@ -362,7 +362,7 @@ OUTPUT – Return ONLY valid JSON with these exact keys (no markdown, no extra t
 - niche: ONE niche label in GREEK (e.g. "Μόδα", "Fitness").
 - niche_en: ONE niche label in ENGLISH (Fashion, Fitness, Beauty & Makeup, etc.). Do NOT use: Creator, Content Creator, Influencer, Lifestyle as default.
 - strengthsNote: optional ONE short positive sentence in GREEK (max ~25 words) per STRENGTHS NOTE above. Omit if nothing notable.
-- strengthsNote_en: same sentence in ENGLISH, or omit.
+- strengthsNote_en: the same sentence in plain, natural ENGLISH (same skills and qualifications), or omit.
 
 RULES:
 - Audience is brands. Be detailed and nuanced in bullets; more words, not one-liners.

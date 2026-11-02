@@ -1,3 +1,4 @@
+import { revalidatePublicProfileById } from '@/lib/revalidatePublicProfile';
 /**
  * Admin: refresh Gemini audit for one influencer from their current data (no scraping).
  * Called after saving profile edits (followers, engagement_rate, avg_likes) so the audit reflects current data.
@@ -226,6 +227,10 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    await revalidatePublicProfileById(supabaseAdmin, influencerId).catch((err) => {
+      console.error('[admin/refresh-audit] revalidate failed', err);
+    });
 
     return NextResponse.json({ success: true, auditpr_audit });
   } catch (err: unknown) {
