@@ -205,6 +205,11 @@ export default function Home({
   const [userName, setUserName] = useState<string | null>(null);
   const [homeDirectoryIds, setHomeDirectoryIds] = useState<string[]>([]);
   const txt = t[lang];
+  const openSignupChoice = () => {
+    setSignupType(null);
+    setShowModal(true);
+    setMobileMenuOpen(false);
+  };
   const handleHomeDirectoryIds = useCallback((ids: string[]) => {
     setHomeDirectoryIds((prev) => {
       if (prev.length === ids.length && prev.every((id, i) => id === ids[i])) return prev;
@@ -440,7 +445,7 @@ export default function Home({
             <nav className="hidden md:flex items-center gap-6" aria-label="Main navigation">
               <ul className="flex items-center gap-6 text-sm font-medium text-slate-700">
                 {!isLoggedIn && (
-                  <li className="flex items-center"><button onClick={() => { setSignupType(null); setShowModal(true); }} className={DESKTOP_NAV_ITEM_CLASS}>
+                  <li className="flex items-center"><button onClick={openSignupChoice} className={DESKTOP_NAV_ITEM_CLASS}>
                     {txt.nav_join}
                   </button></li>
                 )}
@@ -568,11 +573,7 @@ export default function Home({
             <div className="px-4 py-3 space-y-2">
               {!isLoggedIn && (
                 <button
-                  onClick={() => {
-                    setSignupType(null);
-                    setShowModal(true);
-                    setMobileMenuOpen(false);
-                  }}
+                  onClick={openSignupChoice}
                   className="w-full text-left rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
                 >
                   {txt.nav_join}
@@ -655,7 +656,7 @@ export default function Home({
                 
                 <div className="flex flex-col sm:flex-row flex-wrap justify-center lg:justify-start gap-4">
                   <button 
-                    onClick={() => { setSignupType("influencer"); setShowModal(true); }} 
+                    onClick={openSignupChoice} 
                     className="px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl transition-all transform hover:scale-105 shadow-lg hover:shadow-xl text-lg"
                   >
                     {txt.hero_btn_primary}
