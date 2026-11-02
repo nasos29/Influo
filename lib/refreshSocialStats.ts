@@ -111,6 +111,14 @@ export async function doRefreshSocialStats(
     youtubeOverrides?: YouTubeOverrides;
     /** Only apply provided overrides; do not call Auditpr for missing platforms. */
     overridesOnly?: boolean;
+    /** Called after a successful DB update with the accounts before and after (used for the stats email). */
+    onApplied?: (info: {
+      id: string;
+      oldAccounts: AccountRow[];
+      newAccounts: AccountRow[];
+      oldAudit: { strengthsNote?: string } | null;
+      newAudit: { strengthsNote?: string } | null;
+    }) => Promise<void> | void;
   }
 ): Promise<RefreshResult> {
   const { influencerId, auditprBaseUrl, instagramOverrides, tiktokOverrides, youtubeOverrides, overridesOnly } = options;
@@ -408,6 +416,20 @@ export async function doRefreshSocialStats(
       await revalidatePublicProfileById(supabaseAdmin, String(inf.id)).catch((err) => {
         console.error('[refreshSocialStats] revalidate', err);
       });
+      if (options.onApplied) {
+        try {
+          const oldAudit = (inf as { auditpr_audit?: AuditprAudit | null }).auditpr_audit ?? null;
+          await options.onApplied({
+            id: String(inf.id),
+            oldAccounts: accounts,
+            newAccounts: updatePayload.accounts,
+            oldAudit,
+            newAudit: updatePayload.auditpr_audit ?? oldAudit,
+          });
+        } catch (err) {
+          console.error('[refreshSocialStats] onApplied', err);
+        }
+      }
       const total = totalFollowersFromAccounts(updatePayload.accounts);
       const totalPosts = totalPostsFromAccounts(updatePayload.accounts);
       if (total > 0) {
