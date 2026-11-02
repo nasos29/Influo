@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse, after } from "next/server";
+import { siteUrl as publicSiteUrl } from "@/lib/proposalMail";
 import { createClient } from "@supabase/supabase-js";
 import { notifyMatchingOpenCampaign } from "@/lib/campaignNotify";
 import { publishedToBrand } from "@/lib/campaignMail";
@@ -92,7 +93,8 @@ export async function POST(req: NextRequest) {
     const minFollowers = (row as { min_followers?: number | null }).min_followers ?? null;
     const platforms = platformList((row as { platforms?: unknown }).platforms);
     const budget = row.budget;
-    const siteUrl = req.nextUrl.origin;
+    // req.nextUrl.origin is the internal http host behind nginx (https → http port fails with SSL "wrong version number").
+    const siteUrl = publicSiteUrl();
 
     after(() =>
       notifyMatchingOpenCampaign({
