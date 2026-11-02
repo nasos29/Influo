@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import InfluoLogo from "@/components/InfluoLogo";
+import SignupChoiceModal from "@/components/SignupChoiceModal";
 import { usePathname, useRouter } from "next/navigation";
 import { setStoredLanguage } from "@/lib/language";
 import { alternateLocalePath, usePublicAccountNav } from "@/lib/publicAccountNav";
@@ -18,6 +19,7 @@ const NAV = {
     forBrands: "Για brands",
     forInfluencers: "Για influencers",
     docs: "Οδηγός",
+    signup: "Εγγραφή",
     menu: "Μενού",
     close: "Κλείσιμο",
   },
@@ -28,6 +30,7 @@ const NAV = {
     forBrands: "For brands",
     forInfluencers: "For influencers",
     docs: "Guide",
+    signup: "Sign up",
     menu: "Menu",
     close: "Close",
   },
@@ -100,14 +103,18 @@ function AccountAvatar({
 export default function SiteHeader({
   lang,
   onLangChange,
+  onSignup,
 }: {
   lang: Lang;
+  /** Opens the page's own signup role choice; when omitted the header shows its own SignupChoiceModal. */
+  onSignup?: () => void;
   /** Called when language toggles (useful on pages without `/en` mirrors). */
   onLangChange?: (lang: Lang) => void;
 }) {
   const pathname = usePathname() || "/";
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [signupOpen, setSignupOpen] = useState(false);
   const { identityReady, userKind, dashboardPath, dashboardLabel, avatarUrl, avatarName } = usePublicAccountNav(lang);
   const t = NAV[lang];
 
@@ -184,6 +191,13 @@ export default function SiteHeader({
     />
   );
 
+  const showSignup = identityReady && userKind === "none";
+  const openSignup = () => {
+    setMobileOpen(false);
+    if (onSignup) onSignup();
+    else setSignupOpen(true);
+  };
+
   const langButton = (
     <button
       type="button"
@@ -213,6 +227,15 @@ export default function SiteHeader({
             ))}
           </ul>
           <div className="flex items-center gap-3 shrink-0">
+            {showSignup ? (
+              <button
+                type="button"
+                onClick={openSignup}
+                className="inline-flex min-h-[44px] items-center whitespace-nowrap rounded-lg px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-900"
+              >
+                {t.signup}
+              </button>
+            ) : null}
             {accountLink}
             {langButton}
           </div>
@@ -244,6 +267,17 @@ export default function SiteHeader({
       {mobileOpen && (
         <nav className="md:hidden border-t border-slate-200 bg-white" aria-label="Mobile navigation">
           <ul className="px-4 py-3 space-y-1">
+            {showSignup ? (
+              <li>
+                <button
+                  type="button"
+                  onClick={openSignup}
+                  className="block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-900"
+                >
+                  {t.signup}
+                </button>
+              </li>
+            ) : null}
             {items.map((item) => (
               <li key={item.key}>
                 <Link
@@ -261,6 +295,7 @@ export default function SiteHeader({
           </ul>
         </nav>
       )}
+      {onSignup ? null : <SignupChoiceModal open={signupOpen} onClose={() => setSignupOpen(false)} lang={lang} />}
     </header>
   );
 }
