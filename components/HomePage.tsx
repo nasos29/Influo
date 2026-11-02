@@ -542,10 +542,10 @@ export default function Home({
               {openCampaigns.length < 3 ? (
                 <li className="h-full rounded-2xl transition-shadow duration-200 hover:shadow-lg">
                   <div className="flex h-full flex-col justify-center rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <span className="mb-3 inline-flex w-fit items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 border border-emerald-100">
+                    <span className="mb-3 mx-auto inline-flex w-fit items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 border border-emerald-100">
                       {lang === "en" ? "For brands" : "Για επιχειρήσεις"}
                     </span>
-                    <h3 className="text-xl font-bold tracking-tight text-slate-900">
+                    <h3 className="text-center text-xl font-bold tracking-tight text-slate-900">
                       {lang === "en" ? "Post a campaign for free" : "Δημοσίευσε καμπάνια δωρεάν"}
                     </h3>
                     <p className="mt-3 max-w-lg text-base text-slate-600 leading-relaxed">
