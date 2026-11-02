@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import Directory, { type Influencer } from "@/components/Directory";
 import SignupChoiceModal from "@/components/SignupChoiceModal";
+import HomeHeroSearch from "@/components/HomeHeroSearch";
 import SiteHeader from "@/components/SiteHeader";
 import Footer from "@/components/Footer";
 import TopInfluencersSection from "@/components/TopInfluencersSection";
@@ -440,7 +441,7 @@ export default function Home({
           </div>
           
           <div className="relative z-10 max-w-7xl mx-auto">
-            <div className="grid lg:grid-cols-3 gap-8 lg:gap-12 items-stretch">
+            <div className="grid lg:grid-cols-[0.8fr_1.6fr_0.8fr] gap-8 lg:gap-10 items-stretch">
               
               {/* Left Image */}
               <div className="hidden lg:block relative min-h-[500px] h-full rounded-2xl overflow-hidden shadow-2xl">
@@ -455,43 +456,16 @@ export default function Home({
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
               </div>
               
-              {/* Center Content — vertically centered to photo height on desktop */}
-              <div className="lg:col-span-1 text-center lg:text-left lg:min-h-[500px] lg:flex lg:flex-col lg:justify-center">
-                <h1 className="!text-xl md:!text-2xl font-bold text-slate-900 mb-6 !leading-[1.3] tracking-tight">
-                  <span className="block">{txt.hero_title_1}</span>
-                  <span className="block bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                    {txt.hero_title_2}
-                  </span>
-                </h1>
-                <p className="text-lg md:text-xl lg:text-2xl text-slate-600 mb-10 leading-relaxed max-w-xl mx-auto lg:mx-0">
-                  {txt.hero_desc}
-                </p>
-                
-                <div className="flex flex-col sm:flex-row flex-wrap justify-center lg:justify-start gap-4">
-                  <button 
-                    onClick={() => { setSignupType(null); setShowModal(true); }} 
-                    className="px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl transition-all transform hover:scale-105 shadow-lg hover:shadow-xl text-lg"
-                  >
-                    {txt.hero_btn_primary}
-                  </button>
-                  <a 
-                    href="#directory" 
-                    className="px-8 py-4 bg-white hover:bg-slate-50 text-slate-900 font-semibold border-2 border-slate-200 rounded-xl transition-all transform hover:scale-105 shadow-md hover:shadow-lg text-lg"
-                  >
-                    {txt.hero_btn_secondary}
-                  </a>
-                </div>
-                <h2 className="!text-xl md:!text-2xl font-bold text-slate-900 mb-6 !leading-[1.3] tracking-tight mt-10">
-                  <span className="block">{txt.hero_brand_title_1}</span>
-                  <span className="block bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                    {txt.hero_brand_title_2}
-                  </span>
-                </h2>
-                <p className="text-lg md:text-xl lg:text-2xl text-slate-600 mb-10 leading-relaxed max-w-xl mx-auto lg:mx-0">
-                  {txt.hero_brand_desc}
-                </p>
+              {/* Center Content — brand-first hero with search (preview) */}
+              <div className="lg:min-h-[500px]">
+                <HomeHeroSearch
+                  lang={lang}
+                  influencers={initialInfluencers}
+                  total={initialDirectoryTotal}
+                  onCreatorSignup={() => { setSignupType("influencer"); setShowModal(true); }}
+                />
               </div>
-              
+
               {/* Right Image */}
               <div className="hidden lg:block relative min-h-[500px] h-full rounded-2xl overflow-hidden shadow-2xl">
                 <Image 
