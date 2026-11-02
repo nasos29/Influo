@@ -1909,43 +1909,43 @@ export default function InfluencerProfile(props: {
       {/* MESSAGE MODAL */}
       {/* Registration Required Modal - Modern & Professional */}
       {showRegistrationRequiredModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden relative transform transition-all">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[calc(100dvh-1rem)] sm:max-h-none overflow-y-auto sm:overflow-hidden relative transform transition-all">
             {/* Close Button */}
             <button 
               onClick={() => setShowRegistrationRequiredModal(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-xl z-10 transition-colors"
+              className="absolute top-2 right-3 sm:top-4 sm:right-4 text-slate-400 hover:text-slate-600 font-bold text-xl z-10 transition-colors"
             >
               ✕
             </button>
 
             {/* Content */}
-            <div className="p-8">
+            <div className="p-4 sm:p-8">
               {/* Icon */}
-              <div className="flex justify-center mb-4">
-                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
-                  <span className="text-4xl">🔒</span>
+              <div className="flex justify-center mb-2 sm:mb-4">
+                <div className="w-12 h-12 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                  <span className="text-2xl sm:text-4xl">🔒</span>
                 </div>
               </div>
 
               {/* Title */}
-              <h2 className="text-2xl font-bold text-slate-900 text-center mb-3">
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 text-center mb-1.5 sm:mb-3">
                 {lang === 'el' ? 'Εγγραφή Απαιτείται' : 'Registration Required'}
               </h2>
 
               {/* Description */}
-              <p className="text-slate-600 text-center mb-6 leading-relaxed">
+              <p className="text-sm sm:text-base text-slate-600 text-center mb-3 sm:mb-6 leading-snug sm:leading-relaxed">
                 {lang === 'el' 
                   ? 'Για να στείλετε μήνυμα σε αυτόν τον influencer, χρειάζεται να έχετε εγγραφεί ως επιχείρηση. Η εγγραφή είναι δωρεάν και γρήγορη!'
                   : 'To send a message to this influencer, you need to register as a business. Registration is free and quick!'}
               </p>
 
               {/* Benefits List */}
-              <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-5 mb-6 border border-blue-100">
-                <p className="text-sm font-semibold text-slate-900 mb-3">
+              <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-3 sm:p-5 mb-3 sm:mb-6 border border-blue-100">
+                <p className="text-sm font-semibold text-slate-900 mb-1.5 sm:mb-3">
                   {lang === 'el' ? 'Με την εγγραφή θα έχετε:' : 'By registering you will have:'}
                 </p>
-                <ul className="space-y-2 text-sm text-slate-700">
+                <ul className="space-y-1 sm:space-y-2 text-[13px] sm:text-sm text-slate-700">
                   {[
                     { el: "Μηνύματα με creators", en: "Message creators" },
                     { el: "Προτάσεις συνεργασίας και αντιπροτάσεις", en: "Proposals and counter-offers" },
@@ -1963,7 +1963,7 @@ export default function InfluencerProfile(props: {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2 sm:gap-3">
                 <button
                   onClick={async () => {
                     try {
@@ -1977,7 +1977,7 @@ export default function InfluencerProfile(props: {
                       router.push(`/brand/signup?redirect=${encodeURIComponent(redirectUrl)}`);
                     }
                   }}
-                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-4 px-6 rounded-xl shadow-lg transition-all transform hover:scale-[1.02] flex items-center justify-center gap-2"
+                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-3 sm:py-4 px-6 rounded-xl shadow-lg transition-all transform hover:scale-[1.02] flex items-center justify-center gap-2"
                 >
                   <span className="text-lg">✨</span>
                   <span>{lang === 'el' ? 'Εγγραφή Επιχείρησης' : 'Register Business'}</span>
@@ -1985,14 +1985,14 @@ export default function InfluencerProfile(props: {
                 
                 <button
                   onClick={() => setShowRegistrationRequiredModal(false)}
-                  className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-3 px-6 rounded-xl transition-colors"
+                  className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2.5 sm:py-3 px-6 rounded-xl transition-colors"
                 >
                   {lang === 'el' ? 'Ακύρωση' : 'Cancel'}
                 </button>
               </div>
 
               {/* Footer Note */}
-              <p className="text-xs text-slate-500 text-center mt-4">
+              <p className="text-xs text-slate-500 text-center mt-2 sm:mt-4">
                 {lang === 'el' 
                   ? 'Η εγγραφή είναι 100% δωρεάν και διαρκεί λιγότερο από 2 λεπτά'
                   : 'Registration is 100% free and takes less than 2 minutes'}

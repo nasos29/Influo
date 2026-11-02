@@ -180,22 +180,22 @@ function HowItWorks({ lang }: { lang: "el" | "en" }) {
     { n: "3", title: copy.step3, body: copy.step3b },
   ];
   return (
-    <div className="h-full w-full flex-1 bg-gradient-to-br from-blue-600 to-purple-600 p-6 text-white sm:p-8">
-      <h3 className="pr-10 text-lg font-bold">{copy.how}</h3>
-      <ol className="mt-5 space-y-4">
+    <div className="h-full w-full flex-1 bg-gradient-to-br from-blue-600 to-purple-600 p-4 text-white sm:p-8">
+      <h3 className="pr-10 text-base font-bold sm:text-lg">{copy.how}</h3>
+      <ol className="mt-2.5 space-y-1.5 sm:mt-5 sm:space-y-4">
         {steps.map((step) => (
-          <li key={step.n} className="flex gap-3">
-            <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/20 text-sm font-bold">
+          <li key={step.n} className="flex items-center gap-2.5 sm:items-start sm:gap-3">
+            <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs font-bold sm:h-7 sm:w-7 sm:text-sm">
               {step.n}
             </span>
             <span>
               <span className="block text-sm font-semibold">{step.title}</span>
-              <span className="mt-0.5 block text-sm leading-snug text-white/85">{step.body}</span>
+              <span className="mt-0.5 hidden text-sm leading-snug text-white/85 sm:block">{step.body}</span>
             </span>
           </li>
         ))}
       </ol>
-      <p className="mt-6 border-t border-white/25 pt-4 text-xs leading-relaxed text-white/95">
+      <p className="mt-3 border-t border-white/25 pt-2.5 text-xs leading-snug text-white/95 sm:mt-6 sm:pt-4 sm:leading-relaxed">
         <span aria-hidden>💛 </span>
         {copy.fee}
       </p>
@@ -264,7 +264,7 @@ export function NegotiateDialog({
   return (
     <ResponsiveDialog open={open} onClose={onClose} labelledBy="negotiate-title" wide>
       <div className="sm:grid sm:grid-cols-2 sm:items-stretch">
-        <div className="relative px-5 pb-6 pt-6 sm:px-7 sm:pb-7 sm:pt-7">
+        <div className="relative px-4 pb-4 pt-4 sm:px-7 sm:pb-7 sm:pt-7">
           <button
             type="button"
             onClick={onClose}
@@ -273,7 +273,7 @@ export function NegotiateDialog({
           >
             ×
           </button>
-          <h2 id="negotiate-title" className="pr-10 text-xl font-bold text-slate-900">
+          <h2 id="negotiate-title" className="pr-10 text-lg font-bold text-slate-900 sm:text-xl">
             {copy.negotiate}
           </h2>
           <p className="mt-1 text-sm text-slate-500">{negotiateLead(creatorName, gender, lang)}</p>
@@ -287,7 +287,7 @@ export function NegotiateDialog({
             </div>
           ) : (
             <form
-              className="mt-5 space-y-4"
+              className="mt-3 space-y-2.5 sm:mt-5 sm:space-y-4"
               onSubmit={async (event) => {
                 event.preventDefault();
                 const qty = Math.round(Number(quantity));
@@ -334,7 +334,7 @@ export function NegotiateDialog({
                 <select
                   value={active?.id || ""}
                   onChange={(event) => setOptionId(event.target.value)}
-                  className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 outline-none focus:border-blue-500"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 sm:mt-1.5 sm:py-3 text-sm text-slate-900 outline-none focus:border-blue-500"
                 >
                   {options.map((option) => (
                     <option key={option.id} value={option.id}>
@@ -351,12 +351,12 @@ export function NegotiateDialog({
                   max={99}
                   value={quantity}
                   onChange={(event) => setQuantity(event.target.value.replace(/[^\d]/g, "").slice(0, 2))}
-                  className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-3 text-sm text-slate-900 outline-none focus:border-blue-500"
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 sm:mt-1.5 sm:py-3 text-sm text-slate-900 outline-none focus:border-blue-500"
                 />
               </label>
               <label className="block">
                 <span className="text-sm font-medium text-slate-700">{copy.price}</span>
-                <span className="relative mt-1.5 block">
+                <span className="relative mt-1 block sm:mt-1.5">
                   <input
                     type="number"
                     inputMode="decimal"
@@ -369,7 +369,7 @@ export function NegotiateDialog({
                     onInvalid={(event) => {
                       if (priceTooLow) event.preventDefault();
                     }}
-                    className="w-full rounded-xl border border-slate-200 py-3 pl-3 pr-10 text-sm text-slate-900 outline-none focus:border-blue-500"
+                    className="w-full rounded-xl border border-slate-200 py-2.5 sm:py-3 pl-3 pr-10 text-sm text-slate-900 outline-none focus:border-blue-500"
                   />
                   <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
                     €
@@ -391,7 +391,7 @@ export function NegotiateDialog({
                   value={deadline}
                   onChange={setDeadline}
                   ariaLabel={copy.deadline}
-                  className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-3 text-sm text-slate-900 outline-none focus:border-blue-500"
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 sm:mt-1.5 sm:py-3 text-sm text-slate-900 outline-none focus:border-blue-500"
                 />
                 <span className="mt-1 block text-xs text-slate-500">{copy.deadlineHint}</span>
               </label>
@@ -403,7 +403,7 @@ export function NegotiateDialog({
                   value={note}
                   onChange={(event) => setNote(event.target.value)}
                   placeholder={copy.notePlaceholder}
-                  className="mt-1.5 w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-500"
+                  className="mt-1 h-16 sm:h-auto sm:mt-1.5 w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-500"
                 />
               </label>
               {priceTooLow ? (
@@ -415,14 +415,14 @@ export function NegotiateDialog({
               <button
                 type="submit"
                 disabled={sending || !active || priceTooLow}
-                className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-sm font-semibold text-white hover:from-blue-700 hover:to-purple-700 disabled:opacity-60"
+                className="inline-flex min-h-11 sm:min-h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-sm font-semibold text-white hover:from-blue-700 hover:to-purple-700 disabled:opacity-60"
               >
                 {sending ? copy.sending : copy.send}
               </button>
             </form>
           )}
         </div>
-        <div className="relative mx-4 mb-5 overflow-hidden rounded-2xl sm:mx-0 sm:mb-0 sm:flex sm:h-full sm:flex-col sm:rounded-none">
+        <div className="relative mx-4 mb-4 overflow-hidden rounded-2xl sm:mx-0 sm:mb-0 sm:flex sm:h-full sm:flex-col sm:rounded-none">
           <div className="hidden sm:block">
             <DialogClose onClose={onClose} light />
           </div>
