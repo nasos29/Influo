@@ -334,7 +334,7 @@ export function NegotiateDialog({
                 <select
                   value={active?.id || ""}
                   onChange={(event) => setOptionId(event.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 sm:mt-1.5 sm:py-3 text-sm text-slate-900 outline-none focus:border-blue-500"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 sm:mt-1.5 sm:py-3 text-sm text-slate-900 outline-none focus:border-slate-500"
                 >
                   {options.map((option) => (
                     <option key={option.id} value={option.id}>
@@ -351,7 +351,7 @@ export function NegotiateDialog({
                   max={99}
                   value={quantity}
                   onChange={(event) => setQuantity(event.target.value.replace(/[^\d]/g, "").slice(0, 2))}
-                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 sm:mt-1.5 sm:py-3 text-sm text-slate-900 outline-none focus:border-blue-500"
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 sm:mt-1.5 sm:py-3 text-sm text-slate-900 outline-none focus:border-slate-500"
                 />
               </label>
               <label className="block">
@@ -369,7 +369,7 @@ export function NegotiateDialog({
                     onInvalid={(event) => {
                       if (priceTooLow) event.preventDefault();
                     }}
-                    className="w-full rounded-xl border border-slate-200 py-2.5 sm:py-3 pl-3 pr-10 text-sm text-slate-900 outline-none focus:border-blue-500"
+                    className="w-full rounded-xl border border-slate-200 py-2.5 sm:py-3 pl-3 pr-10 text-sm text-slate-900 outline-none focus:border-slate-500"
                   />
                   <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
                     €
@@ -391,7 +391,7 @@ export function NegotiateDialog({
                   value={deadline}
                   onChange={setDeadline}
                   ariaLabel={copy.deadline}
-                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 sm:mt-1.5 sm:py-3 text-sm text-slate-900 outline-none focus:border-blue-500"
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 sm:mt-1.5 sm:py-3 text-sm text-slate-900 outline-none focus:border-slate-500"
                 />
                 <span className="mt-1 block text-xs text-slate-500">{copy.deadlineHint}</span>
               </label>
@@ -403,7 +403,7 @@ export function NegotiateDialog({
                   value={note}
                   onChange={(event) => setNote(event.target.value)}
                   placeholder={copy.notePlaceholder}
-                  className="mt-1 h-16 sm:h-auto sm:mt-1.5 w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-500"
+                  className="mt-1 h-16 sm:h-auto sm:mt-1.5 w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-500"
                 />
               </label>
               {priceTooLow ? (

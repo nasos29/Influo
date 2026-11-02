@@ -709,7 +709,7 @@ export default function BrandToolsPanel({
                       type="checkbox"
                       checked={!!checklist[k]}
                       onChange={(e) => setCheck(k, e.target.checked)}
-                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      className="rounded border-slate-300 text-blue-600 focus:ring-slate-900/10"
                     />
                     {labels[k]}
                   </label>

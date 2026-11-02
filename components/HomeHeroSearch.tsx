@@ -82,7 +82,7 @@ export default function HomeHeroSearch({
       <form
         onSubmit={submit}
         role="search"
-        className="mt-8 flex w-full min-w-0 max-w-xl mx-auto lg:mx-0 items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_8px_30px_rgba(15,23,42,0.08)] focus-within:border-slate-400"
+        className="mt-8 flex w-full min-w-0 max-w-xl mx-auto lg:mx-0 items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_8px_30px_rgba(15,23,42,0.08)] transition focus-within:border-slate-900 focus-within:shadow-[0_8px_30px_rgba(15,23,42,0.14)]"
       >
         <svg aria-hidden viewBox="0 0 24 24" className="ml-2 h-5 w-5 shrink-0 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2">
           <circle cx="11" cy="11" r="7" />
@@ -97,7 +97,7 @@ export default function HomeHeroSearch({
           onBlur={() => setFocused(false)}
           placeholder={placeholder}
           aria-label={t.searchLabel}
-          className="min-w-0 flex-1 bg-transparent px-1 py-3 text-base text-slate-900 placeholder:text-slate-400 focus:outline-none"
+          className="min-w-0 flex-1 bg-transparent px-1 py-3 text-base text-slate-900 placeholder:text-slate-400 outline-none focus:outline-none focus:ring-0 focus:shadow-none"
         />
         <button
           type="submit"

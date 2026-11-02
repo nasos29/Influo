@@ -910,7 +910,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                         <div className="grid md:grid-cols-2 gap-3">
                             <div>
                                 <label className="block text-sm font-semibold text-slate-900 mb-1">{L("Ονοματεπώνυμο *", "Full name *")}</label>
-                                <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" required />
+                                <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 text-slate-900" required />
                             </div>
                             <div>
                                 <label className="block text-sm font-semibold text-slate-900 mb-1" htmlFor="edit-location">{L("Τοποθεσία", "Location")}</label>
@@ -919,7 +919,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                                   lang={lang}
                                   value={location}
                                   onChange={setLocation}
-                                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900"
+                                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 text-slate-900"
                                 />
                             </div>
                             <div>
@@ -931,7 +931,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                                     onChange={setBirthDate}
                                     min={BIRTH_DATE_MIN}
                                     max={athensTodayYmd()}
-                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900"
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 text-slate-900"
                                 />
                             </div>
                             <CategoryCheckboxList
@@ -948,7 +948,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                             </div>
                             <div>
                                 <label className="block text-xs font-semibold text-slate-900 mb-1">{L("Φύλο", "Gender")}</label>
-                                <select name="gender" autoComplete="off" value={gender} onChange={e => setGender(normalizeGender(e.target.value))} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900">
+                                <select name="gender" autoComplete="off" value={gender} onChange={e => setGender(normalizeGender(e.target.value))} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 text-slate-900">
                                     <option value="Female">{L("Γυναίκα", "Woman")}</option>
                                     <option value="Male">{L("Άνδρας", "Man")}</option>
                                     <option value="AI">{L("AI (τεχνητή νοημοσύνη)", "AI (artificial intelligence)")}</option>
@@ -957,7 +957,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                         </div>
                         <div className="mt-3">
                             <label className="block text-xs font-semibold text-slate-900 mb-1">{L("Βιογραφικό", "Biography")}</label>
-                            <textarea value={bio} onChange={e => setBio(e.target.value)} rows={2} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900" />
+                            <textarea value={bio} onChange={e => setBio(e.target.value)} rows={2} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 resize-none text-slate-900" />
                         </div>
                     </div>
                     ) : null}
@@ -998,7 +998,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                                                                 setSelectedLanguages(selectedLanguages.filter(l => l !== langItem.code));
                                                             }
                                                         }}
-                                                        className="w-4 h-4 text-blue-600 border-2 border-slate-300 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                                                        className="w-4 h-4 text-blue-600 border-2 border-slate-300 rounded focus:ring-2 focus:ring-slate-900/10 cursor-pointer"
                                                     />
                                                     <span className={`text-xs font-medium ${isSelected ? 'text-blue-900' : 'text-slate-700'}`}>
                                                         {lang === 'en' ? langItem.en : langItem.el}
@@ -1019,11 +1019,11 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                         <div className="space-y-2">
                             {accounts.map((acc, i) => (
                                 <div key={i} className="flex gap-3 items-start p-3 border border-slate-200 rounded-lg">
-                                    <select value={acc.platform} onChange={e => handleAccountChange(i, 'platform', e.target.value)} className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900">
+                                    <select value={acc.platform} onChange={e => handleAccountChange(i, 'platform', e.target.value)} className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 text-slate-900">
                                         {platforms.map(p => <option key={p}>{p}</option>)}
                                     </select>
-                                    <input type="text" placeholder={L("Όνομα χρήστη", "Username")} value={acc.username} onChange={e => handleAccountChange(i, 'username', e.target.value)} className="min-h-11 flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" />
-                                    <input type="text" placeholder={L("Ακόλουθοι", "Followers")} value={acc.followers} onChange={e => handleAccountChange(i, 'followers', e.target.value)} className="min-h-11 w-32 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" />
+                                    <input type="text" placeholder={L("Όνομα χρήστη", "Username")} value={acc.username} onChange={e => handleAccountChange(i, 'username', e.target.value)} className="min-h-11 flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 text-slate-900" />
+                                    <input type="text" placeholder={L("Ακόλουθοι", "Followers")} value={acc.followers} onChange={e => handleAccountChange(i, 'followers', e.target.value)} className="min-h-11 w-32 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 text-slate-900" />
                                     {accounts.length > 1 && (
                                         <button type="button" onClick={() => removeAccount(i)} aria-label={L("Αφαίρεση", "Remove")} className="inline-flex min-h-11 min-w-11 items-center justify-center text-red-600 hover:bg-red-50 rounded-lg">✕</button>
                                     )}
@@ -1039,11 +1039,11 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                         <div className="grid md:grid-cols-3 gap-3">
                             <div>
                                 <label className="block text-xs font-semibold text-slate-900 mb-1">{L("Άνδρες (%)", "Men (%)")}</label>
-                                <input type="number" value={malePercent} onChange={e => setMalePercent(e.target.value)} min="0" max="100" className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" />
+                                <input type="number" value={malePercent} onChange={e => setMalePercent(e.target.value)} min="0" max="100" className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 text-slate-900" />
                             </div>
                             <div>
                                 <label className="block text-xs font-semibold text-slate-900 mb-1">{L("Γυναίκες (%)", "Women (%)")}</label>
-                                <input type="number" value={femalePercent} onChange={e => setFemalePercent(e.target.value)} min="0" max="100" className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" />
+                                <input type="number" value={femalePercent} onChange={e => setFemalePercent(e.target.value)} min="0" max="100" className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 text-slate-900" />
                             </div>
                             <div>
                                 <label className="block text-xs font-semibold text-slate-900 mb-1">{L("Κύρια Ηλικιακή Ομάδα", "Main Age Group")}</label>
@@ -1060,7 +1060,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                                         }
                                         setTopAge(value);
                                     }}
-                                    className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900" 
+                                    className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 text-slate-900" 
                                     placeholder="18-24" 
                                     maxLength={6}
                                 />
@@ -1156,7 +1156,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                                                 value={video} 
                                                 onChange={e => handleVideoChange(row.id, e.target.value)}
                                                 onBlur={() => handleVideoBlur(row.id)}
-                                                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900 ${
+                                                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-slate-900/10 text-slate-900 ${
                                                   isHiddenRow
                                                     ? "border-amber-400 bg-amber-50/40"
                                                     : "border-slate-300"
@@ -2823,7 +2823,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                     value={counterBudget}
                                     onChange={(e) => setCounterBudget(e.target.value)}
                                     placeholder={selectedProposal.budget}
-                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900"
+                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 text-slate-900"
                                     required
                                 />
                                 <p className="text-xs text-slate-500 mt-1">
@@ -2840,7 +2840,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                     onChange={(e) => setCounterMessage(e.target.value)}
                                     placeholder={T('Εξήγησε γιατί η αντιπρόταση είναι δίκαιη...', 'Explain why the counter-offer is fair...')}
                                     rows={4}
-                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900"
+                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 resize-none text-slate-900"
                                 />
                             </div>
 

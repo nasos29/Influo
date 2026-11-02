@@ -126,7 +126,7 @@ export default function AnnouncementRecipientMultiSelect({
         onChange={(e) => setQuery(e.target.value)}
         placeholder={searchPlaceholder || t.search}
         disabled={atLimit}
-        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white disabled:opacity-60"
+        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 text-slate-900 bg-white disabled:opacity-60"
       />
 
       <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-200 bg-white divide-y divide-slate-100">

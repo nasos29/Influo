@@ -166,7 +166,7 @@ export default function BrandsDirectory({ lang = "el" }: { lang?: "el" | "en" })
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={txt.searchPlace}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500"
             />
           </div>
 
@@ -178,7 +178,7 @@ export default function BrandsDirectory({ lang = "el" }: { lang?: "el" | "en" })
             <select
               value={selectedIndustry}
               onChange={(e) => setSelectedIndustry(e.target.value)}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500"
             >
               <option value="all">{txt.industryAll}</option>
               {industries.map((industry) => (

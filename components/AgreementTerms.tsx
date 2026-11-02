@@ -219,7 +219,7 @@ export default function AgreementTerms({
                 type="checkbox"
                 checked={accepted}
                 onChange={(event) => onAcceptedChange(event.target.checked)}
-                className="mt-1 h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                className="mt-1 h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-slate-900/10"
               />
               <span className="text-sm text-slate-700">{copy.checkbox(id)}</span>
             </label>

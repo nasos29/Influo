@@ -81,7 +81,7 @@ export default function CategoryCheckboxList({
                       : withoutGeneral.filter((item) => item !== cat);
                     apply(next);
                   }}
-                  className={`${compact ? "w-4 h-4" : "w-5 h-5"} text-blue-600 border-2 border-slate-300 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer`}
+                  className={`${compact ? "w-4 h-4" : "w-5 h-5"} text-blue-600 border-2 border-slate-300 rounded focus:ring-2 focus:ring-slate-900/10 cursor-pointer`}
                 />
                 <span className={`font-medium ${compact ? "text-xs" : ""} ${isSelected ? "text-blue-900" : "text-slate-700"}`}>
                   {displayName}

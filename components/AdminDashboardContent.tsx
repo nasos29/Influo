@@ -670,7 +670,7 @@ const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClos
               value={brandName}
               onChange={(e) => setBrandName(e.target.value)}
               required
-              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 outline-none transition-all"
             />
           </div>
 
@@ -683,7 +683,7 @@ const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClos
               type="text"
               value={contactPerson}
               onChange={(e) => setContactPerson(e.target.value)}
-              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 outline-none transition-all"
             />
           </div>
 
@@ -699,7 +699,7 @@ const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClos
               value={afm}
               onChange={(e) => { setAfm(e.target.value.replace(/\D/g, '').slice(0, 9)); setAfmError(''); }}
               placeholder="123456789"
-              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all font-mono"
+              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 outline-none transition-all font-mono"
             />
             {afmError ? <p className="mt-1 text-sm text-red-600">{afmError}</p> : null}
           </div>
@@ -737,7 +737,7 @@ const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClos
               rows={4}
               maxLength={BRAND_BIO_MAX}
               placeholder={lang === 'el' ? 'Προαιρετική περιγραφή…' : 'Optional description…'}
-              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-y"
+              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 outline-none transition-all resize-y"
             />
             <p className="text-xs text-slate-500 mt-1">
               {lang === 'el'
@@ -756,7 +756,7 @@ const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClos
               value={city}
               onChange={(e) => setCity(e.target.value)}
               placeholder={lang === 'el' ? 'π.χ. Αθήνα' : 'e.g. Athens'}
-              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 outline-none transition-all"
             />
           </div>
 
@@ -770,7 +770,7 @@ const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClos
               value={website}
               onChange={(e) => setWebsite(e.target.value)}
               placeholder="https://example.com"
-              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 outline-none transition-all"
             />
             <p className="text-xs text-slate-500 mt-1">
               {lang === 'el' ? 'Μόνο έγκυρα https URLs.' : 'Valid https URLs only.'}
@@ -787,7 +787,7 @@ const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClos
               value={instagram}
               onChange={(e) => setInstagram(e.target.value)}
               placeholder="https://www.instagram.com/yourbrand"
-              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 outline-none transition-all"
             />
             <p className="text-xs text-slate-500 mt-1">
               {lang === 'el' ? 'Μόνο https URLs του instagram.com.' : 'https instagram.com URLs only.'}
@@ -819,7 +819,7 @@ const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClos
               type="file"
               accept="image/*"
               onChange={handleLogoChange}
-              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 outline-none transition-all"
             />
           </div>
 
@@ -1609,7 +1609,7 @@ const EditProfileModal = ({
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-900 mb-1">{L("Ονοματεπώνυμο", "Full Name")}</label>
-                                    <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" required />
+                                    <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 text-slate-900" required />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-900 mb-1">{L("Email", "Email")}</label>
@@ -1617,14 +1617,14 @@ const EditProfileModal = ({
                                         type="email"
                                         value={contactEmail}
                                         onChange={(e) => setContactEmail(e.target.value)}
-                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900"
+                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 text-slate-900"
                                         placeholder="contact@example.com"
                                         autoComplete="email"
                                     />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-900 mb-1">{L("Τοποθεσία", "Location")}</label>
-                                    <input type="text" value={location} onChange={e => setLocation(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900" />
+                                    <input type="text" value={location} onChange={e => setLocation(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 text-slate-900" />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-900 mb-1">{L("Ημερομηνία Γέννησης", "Date of Birth")}</label>
@@ -1635,13 +1635,13 @@ const EditProfileModal = ({
                                         onChange={setBirthDate}
                                         min={BIRTH_DATE_MIN}
                                         max={athensTodayYmd()}
-                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900"
+                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 text-slate-900"
                                     />
                                     <p className="text-xs text-slate-500 mt-1">{L("Η ηλικία υπολογίζεται από αυτή την ημερομηνία", "Age is calculated from this date")}</p>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-900 mb-1">{L("Φύλο", "Gender")}</label>
-                                    <select value={gender} onChange={e => setGender(normalizeGender(e.target.value))} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900">
+                                    <select value={gender} onChange={e => setGender(normalizeGender(e.target.value))} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 text-slate-900">
                                         <option value="Female">{L("Γυναίκα", "Female")}</option>
                                         <option value="Male">{L("Άνδρας", "Male")}</option>
                                         <option value="AI">AI (Artificial Intelligence)</option>
@@ -1682,7 +1682,7 @@ const EditProfileModal = ({
                                                                     setSelectedLanguages(selectedLanguages.filter(l => l !== langItem.code));
                                                                 }
                                                             }}
-                                                            className="w-4 h-4 text-blue-600 border-2 border-slate-300 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                                                            className="w-4 h-4 text-blue-600 border-2 border-slate-300 rounded focus:ring-2 focus:ring-slate-900/10 cursor-pointer"
                                                         />
                                                         <span className={`text-xs font-medium ${isSelected ? 'text-blue-900' : 'text-slate-700'}`}>
                                                             {lang === "en" ? langItem.en : langItem.el}
@@ -1707,7 +1707,7 @@ const EditProfileModal = ({
                                     setBio(e.target.value);
                                 }}
                                 rows={4}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 resize-none text-slate-900"
                                 placeholder="Βιογραφία στα Ελληνικά..."
                             />
                         </div>
@@ -1722,7 +1722,7 @@ const EditProfileModal = ({
                                     setBioEn(e.target.value);
                                 }}
                                 rows={4}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 resize-none text-slate-900"
                                 placeholder={L("Βιογραφία στα Αγγλικά...", "Biography in English...")}
                             />
                             <p className="text-xs text-slate-500 mt-1">{L("Αυτή η βιογραφία θα εμφανίζεται όταν ο χρήστης επιλέξει Αγγλικά ως γλώσσα", "This bio is shown when the visitor selects English")}</p>
@@ -4659,13 +4659,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     placeholder={lang === "el" ? "Αναζήτηση ονόματος, email ή username…" : "Search name, email, or username…"}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500"
                   />
                 </div>
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value as "all" | "verified" | "pending")}
-                  className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500"
                 >
                   <option value="all">{txt.filter}: {lang === "el" ? "Όλοι" : "All"}</option>
                   <option value="verified">{lang === "el" ? "Εγκεκριμένοι" : "Approved"}</option>
@@ -5088,7 +5088,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     placeholder={lang === 'el' ? 'Αναζήτηση επιχείρησης...' : 'Search company...'}
                     value={brandSearchQuery}
                     onChange={(e) => setBrandSearchQuery(e.target.value)}
-                    className="min-h-11 flex-1 px-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="min-h-11 flex-1 px-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500"
                   />
                   <button
                     onClick={() => void fetchBrands({ page: brandsPage })}
@@ -5292,7 +5292,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                   placeholder={txt.search}
                   value={campaignSearchQuery}
                   onChange={(e) => setCampaignSearchQuery(e.target.value)}
-                  className="flex-1 min-w-[12rem] px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="flex-1 min-w-[12rem] px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500"
                 />
                 <button
                   type="button"
@@ -5541,7 +5541,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     placeholder={lang === 'el' ? "Αναζήτηση άρθρων..." : "Search articles..."}
                     value={blogSearchQuery}
                     onChange={(e) => setBlogSearchQuery(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500"
                   />
                 </div>
                 <button
@@ -5670,7 +5670,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                       value={announcementTitle}
                       onChange={(e) => setAnnouncementTitle(e.target.value)}
                       placeholder={lang === 'el' ? 'Τίτλος ανακοίνωσης' : 'Announcement title'}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 text-slate-900 bg-white"
                       required
                     />
                   </div>
@@ -5681,7 +5681,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                       onChange={(e) => setAnnouncementBody(e.target.value)}
                       placeholder={lang === 'el' ? 'Κείμενο ανακοίνωσης' : 'Announcement content'}
                       rows={4}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 text-slate-900 bg-white"
                       required
                     />
                   </div>
@@ -5812,7 +5812,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     placeholder={
                       lang === 'el' ? 'Αναζήτηση τίτλου ή κειμένου…' : 'Search title or body…'
                     }
-                    className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white text-sm"
+                    className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 text-slate-900 bg-white text-sm"
                   />
                   <select
                     value={announcementFilterTarget}
@@ -5821,7 +5821,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                         e.target.value as "" | "all" | "specific" | "all_brands" | "specific_brand"
                       )
                     }
-                    className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white text-sm"
+                    className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 text-slate-900 bg-white text-sm"
                   >
                     <option value="">
                       {lang === 'el' ? 'Όλοι οι παραλήπτες' : 'All recipient types'}
@@ -5836,14 +5836,14 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     value={announcementDateFrom}
                     onChange={setAnnouncementDateFrom}
                     ariaLabel={lang === 'el' ? 'Από ημερομηνία' : 'From date'}
-                    className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white text-sm"
+                    className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 text-slate-900 bg-white text-sm"
                   />
                   <DmyDateField
                     lang={lang}
                     value={announcementDateTo}
                     onChange={setAnnouncementDateTo}
                     ariaLabel={lang === 'el' ? 'Έως ημερομηνία' : 'To date'}
-                    className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 bg-white text-sm"
+                    className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 text-slate-900 bg-white text-sm"
                   />
                 </div>
 

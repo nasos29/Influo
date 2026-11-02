@@ -1151,7 +1151,7 @@ export default function InfluencerSignupForm() {
                                                     setSelectedLanguages(selectedLanguages.filter(l => l !== langItem.code));
                                                 }
                                             }}
-                                            className="w-4 h-4 text-blue-600 border-2 border-slate-300 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                                            className="w-4 h-4 text-blue-600 border-2 border-slate-300 rounded focus:ring-2 focus:ring-slate-900/10 cursor-pointer"
                                         />
                                         <span className={`text-sm font-medium ${isSelected ? 'text-blue-900' : 'text-slate-700'}`}>
                                             {displayName}
