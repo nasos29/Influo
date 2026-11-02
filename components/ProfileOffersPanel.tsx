@@ -576,7 +576,7 @@ export default function ProfileOffersPanel({
           <div
             role="tablist"
             aria-label={copy.platforms}
-            className="flex gap-5 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="flex gap-1 overflow-x-auto md:gap-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             {(["all", ...platforms] as const).map((id) => {
               const active = activeTab === id;
@@ -588,13 +588,14 @@ export default function ProfileOffersPanel({
                   role="tab"
                   aria-selected={active}
                   onClick={() => setTab(id)}
-                  className={`inline-flex min-h-11 shrink-0 items-center border-b-2 text-sm font-semibold whitespace-nowrap ${
-                    active
-                      ? "border-blue-600 text-blue-600"
-                      : "border-transparent text-slate-500 hover:text-slate-800"
+                  className={`group inline-flex min-h-11 min-w-[84px] shrink-0 items-center justify-center border-b-2 pb-1 text-sm font-semibold whitespace-nowrap md:min-w-[112px] ${
+                    active ? "border-slate-900 text-slate-900" : "border-transparent text-slate-500 hover:text-slate-900"
                   }`}
                 >
-                  {label}
+                  {/* Hover border mirrors the signup Influencer/Brand choice cards (rounded-2xl, transition-colors), in black. */}
+                  <span className="inline-flex w-full items-center justify-center rounded-2xl border border-transparent px-4 py-1.5 transition-colors [@media(hover:hover)]:group-hover:border-slate-900">
+                    {label}
+                  </span>
                 </button>
               );
             })}
