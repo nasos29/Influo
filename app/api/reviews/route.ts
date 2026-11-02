@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
+import { creatorContact } from "@/lib/campaignNotify";
+import { reviewToCreator } from "@/lib/campaignMail";
+import { publicProfilePath } from "@/lib/profileSlug";
+import { send, siteUrl } from "@/lib/proposalMail";
+import { deferAfterResponse } from "@/lib/proposalNotify";
+import { sendPushToInfluencer } from "@/lib/push";
 
 function asString(value: unknown): string {
   return typeof value === "string" ? value : value == null ? "" : String(value);
@@ -207,6 +213,38 @@ export async function POST(req: Request) {
         })
         .eq("id", influencerId);
     }
+
+    // One review per brand per creator (checked above), so this fires once.
+    deferAfterResponse(async () => {
+      try {
+        const person = await creatorContact(influencerId);
+        const slugRow = await admin.from("influencers").select("profile_slug").eq("id", influencerId).maybeSingle();
+        const slug = !slugRow.error && typeof slugRow.data?.profile_slug === "string" ? slugRow.data.profile_slug : null;
+        const profileUrl = `${siteUrl()}${publicProfilePath(slug, influencerId)}?tab=reviews`;
+        const shownName = brandName || "Μια επιχείρηση";
+        const jobs: Promise<unknown>[] = [
+          sendPushToInfluencer(influencerId, {
+            title: "Νέα αξιολόγηση",
+            body: `${shownName}: ${"★".repeat(Math.max(1, Math.min(5, Math.round(ratingNum))))}`.slice(0, 120),
+            url: `${publicProfilePath(slug, influencerId)}?tab=reviews`,
+            tag: `review-${review?.id ?? influencerId}`,
+          }).catch((err) => console.error("[review notify] push", err)),
+        ];
+        if (person?.email) {
+          const mail = reviewToCreator({
+            influencerName: person.name,
+            brandName: shownName,
+            rating: ratingNum,
+            reviewText: reviewTextRaw || null,
+            profileUrl,
+          });
+          jobs.push(send("review_creator", person.email, mail.subject, mail.html));
+        }
+        await Promise.all(jobs);
+      } catch (err) {
+        console.error("[review notify]", err);
+      }
+    });
 
     return NextResponse.json({ success: true, review });
   } catch (error: unknown) {

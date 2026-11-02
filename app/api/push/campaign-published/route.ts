@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { notifyMatchingOpenCampaign } from "@/lib/campaignNotify";
+import { publishedToBrand } from "@/lib/campaignMail";
+import { campaignClosesAt } from "@/lib/campaignLifecycle";
+import { send } from "@/lib/proposalMail";
+
+/** Brand confirmation goes out once per opening: only right after opened_at, and once per process. */
+const BRAND_CONFIRM_WINDOW_MS = 15 * 60 * 1000;
+const confirmedOpenings = new Set<string>();
 
 export const maxDuration = 60;
 
@@ -55,7 +62,10 @@ export async function POST(req: NextRequest) {
         location,
         min_followers,
         platforms,
-        brands ( brand_name )
+        deadline,
+        opened_at,
+        created_at,
+        brands ( brand_name, contact_email )
       `
       )
       .eq("id", campaignId)
@@ -71,9 +81,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, skipped: true, reason: "not_open" });
     }
 
-    const br = row.brands as { brand_name?: string } | { brand_name?: string }[] | null;
-    const brandName =
-      (Array.isArray(br) ? br[0]?.brand_name : br?.brand_name) || "Brand";
+    type BrandRow = { brand_name?: string; contact_email?: string | null };
+    const br = row.brands as BrandRow | BrandRow[] | null;
+    const brandOne = Array.isArray(br) ? br[0] : br;
+    const brandName = brandOne?.brand_name || "Brand";
+    const brandEmail = (brandOne?.contact_email || "").trim().toLowerCase();
     const title = row.title;
     const category = (row as { category?: string | null }).category || null;
     const location = (row as { location?: string | null }).location || null;
@@ -118,6 +130,30 @@ export async function POST(req: NextRequest) {
           console.error("[push/campaign-published] admin email error", emailErr);
         })
     );
+
+    const timing = row as { deadline?: string | null; opened_at?: string | null; created_at?: string };
+    const openedAt = timing.opened_at || timing.created_at || "";
+    const openingKey = `${campaignId}:${openedAt}`;
+    const fresh = openedAt && Date.now() - new Date(openedAt).getTime() < BRAND_CONFIRM_WINDOW_MS;
+    if (brandEmail && fresh && !confirmedOpenings.has(openingKey)) {
+      confirmedOpenings.add(openingKey);
+      let closesAt: string | null = null;
+      try {
+        closesAt = campaignClosesAt({
+          deadline: timing.deadline ?? null,
+          opened_at: timing.opened_at ?? null,
+          created_at: timing.created_at || new Date().toISOString(),
+        }).toISOString();
+      } catch {
+        closesAt = null;
+      }
+      const mail = publishedToBrand({ brandEmail, brandName, campaignTitle: title, campaignId, budget, closesAt });
+      after(() =>
+        send("campaign_published_brand", brandEmail, mail.subject, mail.html).catch((err) => {
+          console.error("[push/campaign-published] brand email", err);
+        })
+      );
+    }
 
     return NextResponse.json({ ok: true, queued: true });
   } catch (e: unknown) {

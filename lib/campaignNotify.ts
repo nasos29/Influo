@@ -10,7 +10,8 @@ import {
   type RankedAlert,
 } from "@/lib/campaignAlert";
 import { sendPushToInfluencer } from "@/lib/push";
-import { escapeHtml, sendTransactional } from "@/lib/transactionalEmail";
+import { sendTransactional } from "@/lib/transactionalEmail";
+import { applicationStatusToCreator, newCampaignToCreator, removedToCreator } from "@/lib/campaignMail";
 
 const SEND_TIMEOUT_MS = 8000;
 const PAGE = 1000;
@@ -199,17 +200,14 @@ async function sendCampaignOutreach(
   person: Contact,
   opts: { campaignId: string; title: string; brandName: string }
 ): Promise<{ emailed: number; pushed: number }> {
-  const link = campaignLink(opts.campaignId);
+  const outreach = newCampaignToCreator({
+    influencerName: person.name,
+    brandName: opts.brandName,
+    campaignTitle: opts.title,
+    campaignId: opts.campaignId,
+  });
   const mail = await withTimeout(
-    sendTransactional(
-      person.email,
-      `Νέα καμπάνια: ${opts.title}`,
-      `<div style="font-family:sans-serif;font-size:14px;color:#1f2937;max-width:560px">
-        <p>Γεια σου ${escapeHtml(person.name)},</p>
-        <p>Η επιχείρηση <strong>${escapeHtml(opts.brandName)}</strong> δημοσίευσε την καμπάνια <strong>${escapeHtml(opts.title)}</strong> σε κατηγορία που ταιριάζει με το προφίλ σου.</p>
-        <p><a href="${link}">Δες την καμπάνια και κάνε αίτηση</a></p>
-      </div>`
-    ),
+    sendTransactional(person.email, outreach.subject, outreach.html),
     SEND_TIMEOUT_MS
   );
   const push = await withTimeout(
@@ -253,32 +251,29 @@ async function insertCampaignAnnouncements(authUserIds: string[], title: string,
 export async function notifyApplicationStatus(opts: {
   influencerId: string;
   campaignTitle: string;
-  status: "shortlisted" | "accepted" | "rejected";
+  status: "shortlisted" | "rejected";
   campaignId: string;
 }): Promise<void> {
   const [person] = await contactsFor([opts.influencerId]);
   if (!person) return;
-  const labels = {
-    shortlisted: "μπήκε στη λίστα",
-    accepted: "έγινε αποδεκτή",
-    rejected: "δεν προχώρησε",
-  };
-  const line = labels[opts.status];
-  await sendTransactional(
-    person.email,
-    `Η αίτησή σου ${line}`,
-    `<div style="font-family:sans-serif;font-size:14px;color:#1f2937;max-width:560px">
-      <p>Γεια σου ${escapeHtml(person.name)},</p>
-      <p>Η αίτησή σου για «${escapeHtml(opts.campaignTitle)}» ${line}.</p>
-      <p><a href="${campaignLink(opts.campaignId)}">Άνοιγμα καμπάνιας</a></p>
-    </div>`
-  );
+  const line = opts.status === "shortlisted" ? "μπήκες στη λίστα" : "δεν επιλέχθηκες αυτή τη φορά";
+  const mail = applicationStatusToCreator({
+    influencerName: person.name,
+    campaignTitle: opts.campaignTitle,
+    campaignId: opts.campaignId,
+    status: opts.status,
+  });
+  const sent = await sendTransactional(person.email, mail.subject, mail.html).catch((err) => ({
+    ok: false,
+    error: err instanceof Error ? err.message : "send failed",
+  }));
+  if (!sent.ok && "error" in sent && sent.error) console.error("[campaignNotify] status mail", sent.error);
   await sendPushToInfluencer(person.id, {
     title: "Ενημέρωση αίτησης",
     body: `${opts.campaignTitle}: ${line}`.slice(0, 120),
     url: "/dashboard?tab=campaigns",
     tag: `campaign-app-${opts.campaignId}-${opts.status}`,
-  });
+  }).catch((err) => console.error("[campaignNotify] status push", err));
 }
 
 export async function notifyApplicantsCampaignRemoved(opts: {
@@ -288,21 +283,22 @@ export async function notifyApplicantsCampaignRemoved(opts: {
   const people = await contactsFor(opts.influencerIds.slice(0, 25));
   let sent = 0;
   for (const person of people) {
-    const mail = await sendTransactional(
-      person.email,
-      `Η καμπάνια «${opts.campaignTitle}» αφαιρέθηκε`,
-      `<div style="font-family:sans-serif;font-size:14px;color:#1f2937;max-width:560px">
-        <p>Γεια σου ${escapeHtml(person.name)},</p>
-        <p>Η καμπάνια «${escapeHtml(opts.campaignTitle)}», στην οποία είχες κάνει αίτηση, αφαιρέθηκε από την επιχείρηση. Η αίτησή σου δεν είναι πλέον ενεργή.</p>
-      </div>`
-    );
+    const removed = removedToCreator({ influencerName: person.name, campaignTitle: opts.campaignTitle });
+    const mail = await sendTransactional(person.email, removed.subject, removed.html).catch(() => ({ ok: false, error: "send failed" }));
     if (mail.ok) sent += 1;
+    else if ("error" in mail && mail.error) console.error("[campaignNotify] removed mail", mail.error);
     await sendPushToInfluencer(person.id, {
       title: "Η καμπάνια αφαιρέθηκε",
       body: opts.campaignTitle.slice(0, 120),
-      url: "/dashboard?tab=campaigns",
+      url: "/campaigns",
       tag: `campaign-removed-${person.id}`,
-    });
+    }).catch((err) => console.error("[campaignNotify] removed push", err));
   }
   return sent;
+}
+
+/** Creator contact (name, email) for one influencer id. */
+export async function creatorContact(influencerId: string): Promise<{ id: string; name: string; email: string | null } | null> {
+  const [person] = await contactsFor([influencerId]);
+  return person ? { id: person.id, name: person.name, email: person.email } : null;
 }

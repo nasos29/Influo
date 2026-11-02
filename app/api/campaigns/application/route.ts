@@ -1,7 +1,112 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
 import { ensureProposalThread } from "@/lib/proposalChat";
-import { notifyApplicationStatus } from "@/lib/campaignNotify";
+import { creatorContact, notifyApplicationStatus } from "@/lib/campaignNotify";
+import { acceptedToBrand, acceptedToCreator, applicationToBrand, applicationToCreator } from "@/lib/campaignMail";
+import { send } from "@/lib/proposalMail";
+import { deferAfterResponse } from "@/lib/proposalNotify";
+import { sendPushBrandNewCampaignApplication, sendPushToBrand, sendPushToInfluencer } from "@/lib/push";
+
+/** Server-side notifications after a new application is saved: brand email + push, creator confirmation. */
+function notifyNewApplication(applicationId: string, influencerId: string): void {
+  deferAfterResponse(async () => {
+    try {
+      const admin = supabaseService();
+      const { data: app } = await admin
+        .from("campaign_applications")
+        .select("id, message, proposed_price, work_links, brand_campaigns ( id, title, brands ( brand_name, contact_email ) )")
+        .eq("id", applicationId)
+        .maybeSingle();
+      if (!app) return;
+      const rawBc = app.brand_campaigns as unknown;
+      const bc = (Array.isArray(rawBc) ? rawBc[0] : rawBc) as {
+        id?: string;
+        title?: string;
+        brands?: { brand_name?: string; contact_email?: string } | { brand_name?: string; contact_email?: string }[] | null;
+      } | null;
+      const brandRow = Array.isArray(bc?.brands) ? bc?.brands[0] : bc?.brands;
+      const brandEmail = (brandRow?.contact_email || "").trim().toLowerCase();
+      const brandName = brandRow?.brand_name || "Επιχείρηση";
+      const campaignTitle = bc?.title || "Καμπάνια";
+      const person = await creatorContact(influencerId);
+      const influencerName = person?.name || "Influencer";
+      const row = app as { message?: string | null; proposed_price?: number | null; work_links?: string | null };
+      const jobs: Promise<unknown>[] = [];
+      if (brandEmail) {
+        const toBrand = applicationToBrand({
+          brandEmail,
+          brandName,
+          campaignTitle,
+          influencerName,
+          message: row.message ?? null,
+          proposedPrice: row.proposed_price ?? null,
+          workLinks: row.work_links ?? null,
+          brandHasAccount: true,
+        });
+        jobs.push(send("campaign_application_brand", brandEmail, toBrand.subject, toBrand.html));
+        jobs.push(
+          sendPushBrandNewCampaignApplication({ brandEmail, campaignTitle, influencerName, applicationId }).catch((err) =>
+            console.error("[campaign application] brand push", err)
+          )
+        );
+      } else {
+        console.warn("[campaign application] brand missing contact_email", bc?.id || "unknown_campaign");
+      }
+      if (person?.email) {
+        const toCreator = applicationToCreator({
+          influencerName,
+          campaignTitle,
+          brandName,
+          campaignId: bc?.id || "",
+          proposedPrice: row.proposed_price ?? null,
+        });
+        jobs.push(send("campaign_application_creator", person.email, toCreator.subject, toCreator.html));
+      }
+      await Promise.all(jobs);
+    } catch (err) {
+      console.error("[campaign application] notify", err);
+    }
+  });
+}
+
+/** Accepted application → proposal created: creator + brand email and push. */
+function notifyAcceptedApplication(input: {
+  influencerId: string;
+  brandEmail: string;
+  brandName: string;
+  campaignTitle: string;
+  budget: number;
+  proposalId: string | number | null;
+}): void {
+  deferAfterResponse(async () => {
+    try {
+      const person = await creatorContact(input.influencerId);
+      const influencerName = person?.name || "Influencer";
+      const toCreator = acceptedToCreator({ influencerName, brandName: input.brandName, campaignTitle: input.campaignTitle, budget: input.budget, proposalId: input.proposalId });
+      const toBrand = acceptedToBrand({ brandEmail: input.brandEmail, brandName: input.brandName, influencerName, campaignTitle: input.campaignTitle, budget: input.budget, proposalId: input.proposalId });
+      await Promise.all([
+        person?.email ? send("campaign_accepted_creator", person.email, toCreator.subject, toCreator.html) : Promise.resolve(),
+        input.brandEmail ? send("campaign_accepted_brand", input.brandEmail, toBrand.subject, toBrand.html) : Promise.resolve(),
+        sendPushToInfluencer(input.influencerId, {
+          title: "Η αίτησή σου έγινε αποδεκτή",
+          body: `${input.brandName}: ${input.campaignTitle}`.slice(0, 120),
+          url: "/dashboard?tab=proposals",
+          tag: `campaign-accepted-${input.proposalId ?? input.campaignTitle}`,
+        }).catch((err) => console.error("[campaign accept] creator push", err)),
+        input.brandEmail
+          ? sendPushToBrand(input.brandEmail, {
+              title: "Η συνεργασία δημιουργήθηκε",
+              body: `${influencerName}: ${input.campaignTitle}`.slice(0, 120),
+              url: "/brand/dashboard?tab=proposals",
+              tag: `campaign-accepted-${input.proposalId ?? input.campaignTitle}`,
+            }).catch((err) => console.error("[campaign accept] brand push", err))
+          : Promise.resolve(),
+      ]);
+    } catch (err) {
+      console.error("[campaign accept] notify", err);
+    }
+  });
+}
 import { findContactInfo, filterWorkLinks } from "@/lib/contactFilter";
 
 const STATUSES = new Set(["pending", "shortlisted", "rejected", "accepted"]);
@@ -114,7 +219,8 @@ async function createApplication(request: NextRequest, body: Record<string, unkn
   if (result.error && /proposed_price|work_links|schema cache|column/i.test(result.error.message)) {
     result = await admin.from("campaign_applications").insert(base).select("id").single();
     if (!result.error) {
-      return NextResponse.json({ ok: true, id: result.data?.id, migration: true });
+      if (result.data?.id) notifyNewApplication(String(result.data.id), influencer.id);
+      return NextResponse.json({ ok: true, id: result.data?.id, migration: true, notified: true });
     }
   }
   if (result.error) {
@@ -123,7 +229,8 @@ async function createApplication(request: NextRequest, body: Record<string, unkn
     }
     return NextResponse.json({ error: result.error.message }, { status: 400 });
   }
-  return NextResponse.json({ ok: true, id: result.data?.id });
+  if (result.data?.id) notifyNewApplication(String(result.data.id), influencer.id);
+  return NextResponse.json({ ok: true, id: result.data?.id, notified: true });
 }
 
 export async function POST(request: NextRequest) {
@@ -180,7 +287,8 @@ export async function POST(request: NextRequest) {
 
   let conversationId: string | null = null;
   let proposalId: string | number | null = null;
-  if (status === "shortlisted" || status === "accepted" || status === "rejected") {
+  // "accepted" is announced below, together with the proposal it creates (one email per side).
+  if ((status === "shortlisted" || status === "rejected") && app.status !== status) {
     await notifyApplicationStatus({
       influencerId: String(app.influencer_id),
       campaignTitle: campaign.title,
@@ -213,6 +321,14 @@ export async function POST(request: NextRequest) {
       .single();
     if (!proposalError && proposal) {
       proposalId = proposal.id;
+      if (app.status !== "accepted") notifyAcceptedApplication({
+        influencerId: String(app.influencer_id),
+        brandEmail,
+        brandName,
+        campaignTitle: campaign.title,
+        budget,
+        proposalId: proposal.id,
+      });
       try {
         conversationId = await ensureProposalThread({
           influencerId: String(app.influencer_id),
@@ -228,6 +344,16 @@ export async function POST(request: NextRequest) {
       }
     } else if (proposalError) {
       console.error("[campaign accept proposal]", proposalError.message);
+      if (app.status !== "accepted") {
+        notifyAcceptedApplication({
+          influencerId: String(app.influencer_id),
+          brandEmail,
+          brandName,
+          campaignTitle: campaign.title,
+          budget,
+          proposalId: null,
+        });
+      }
     }
   }
 

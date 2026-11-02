@@ -1,4 +1,5 @@
 import { Resend } from 'resend';
+import { applicationToBrand, closedToBrand, closingSoonToBrand, notSelectedToCreator, publishedToAdmin } from "@/lib/campaignMail";
 import { NextResponse } from 'next/server';
 import { buildPasswordResetEmail } from '@/lib/passwordResetEmail';
 import { supabaseService } from '@/lib/apiAuth';
@@ -488,14 +489,6 @@ export async function POST(req: Request) {
     }
     else if (type === 'campaign_application_brand') {
         toEmail = email || bodyToEmail;
-        const campaignTitleRaw = (body.campaignTitle as string) || 'Καμπάνια';
-        const brandNameVal = (body.brandName as string) || 'Επιχείρηση';
-        const infNameVal = (body.influencerName as string) || 'Influencer';
-        const applicationMessage = body.applicationMessage as string | null | undefined;
-        const proposedPrice = body.proposedPrice as number | string | null | undefined;
-        const workLinks = body.workLinks as string | null | undefined;
-        const brandHasAccount = !!(body.brandHasAccount as boolean | undefined);
-
         if (!toEmail) {
           console.error('[Email API] campaign_application_brand missing email');
           return NextResponse.json(
@@ -503,64 +496,19 @@ export async function POST(req: Request) {
             { status: 400 }
           );
         }
-
-        const safeTitle = escapeHtml(campaignTitleRaw);
-        const safeBrand = escapeHtml(brandNameVal);
-        const safeInf = escapeHtml(infNameVal);
-        const msgBlock =
-          applicationMessage && String(applicationMessage).trim()
-            ? `<div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #c7d2fe;"><p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #3730a3;">Μήνυμα από τον influencer:</p><p style="margin: 0; font-size: 13px; color: #1f2937; white-space: pre-wrap;">${escapeHtml(String(applicationMessage).trim()).replace(/\n/g, '<br/>')}</p></div>`
-            : '';
-        const priceBlock =
-          proposedPrice !== undefined && proposedPrice !== null && String(proposedPrice).trim() !== ''
-            ? `<div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #c7d2fe;"><p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #3730a3;">Προτεινόμενη τιμή:</p><p style="margin: 0; font-size: 13px; color: #1f2937;">${euroLabel(proposedPrice)}</p></div>`
-            : '';
-        const linksBlock =
-          workLinks && String(workLinks).trim()
-            ? `<div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #c7d2fe;"><p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #3730a3;">Work links:</p><p style="margin: 0; font-size: 13px; color: #1f2937; white-space: pre-wrap; word-break: break-all;">${escapeHtml(String(workLinks).trim()).replace(/\n/g, '<br/>')}</p></div>`
-            : '';
-
-        const subjTitle = campaignTitleRaw.length > 55 ? `${campaignTitleRaw.slice(0, 52)}…` : campaignTitleRaw;
-        subject = `📣 Νέα αίτηση: ${subjTitle}`;
-
-        const brandSignupLink = `https://${host}/brand/signup?email=${encodeURIComponent(toEmail)}`;
-        const dashCampaigns = encodeURIComponent('/brand/dashboard?tab=campaigns');
-        const brandLoginLink = `https://${host}/login?redirect=${dashCampaigns}&email=${encodeURIComponent(toEmail)}`;
-        const brandLink = brandHasAccount ? brandLoginLink : brandSignupLink;
-        const ctaLabel = brandHasAccount ? '🔐 Ανοίξτε το Influo' : '📝 Συνδεθείτε ή δημιουργήστε λογαριασμό';
-
-        html = `
-            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
-              <div style="background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); padding: 24px; border-radius: 12px 12px 0 0;">
-                <h1 style="color: #312e81; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">📣 Νέα αίτηση στην καμπάνια σας</h1>
-              </div>
-              <div style="background: #ffffff; padding: 24px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
-                <p style="margin: 0 0 12px 0; font-size: 14px;">Γεια σας <strong>${safeBrand}</strong>,</p>
-                <p style="margin: 0 0 16px 0; font-size: 14px; color: #4b5563;">Ο/Η <strong>${safeInf}</strong> υπέβαλε αίτηση ενδιαφέροντος για την καμπάνια <strong>${safeTitle}</strong>.</p>
-                <div style="background: #eef2ff; border-left: 4px solid #4f46e5; padding: 16px; border-radius: 8px; margin: 16px 0;">
-                  <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #4338ca;">Καμπάνια</p>
-                  <p style="margin: 0; font-size: 15px; color: #1f2937;">${safeTitle}</p>
-                  ${msgBlock}
-                  ${priceBlock}
-                  ${linksBlock}
-                </div>
-                <p style="margin: 16px 0; font-size: 13px; color: #4b5563;">Συνδεθείτε στο Influo για να δείτε την αίτηση και να απαντήσετε.</p>
-                <div style="margin: 24px 0; text-align: center;">
-                  <a href="${brandLink}" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); color: #ffffff !important; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">${ctaLabel}</a>
-                </div>
-                <p style="margin: 16px 0 0 0; font-size: 12px; color: #6b7280; text-align: center;">Αν έχετε ενεργές ειδοποιήσεις, μπορεί να λάβατε και push· το email σάς βοηθά να μη χάσετε νέες αιτήσεις.</p>
-                <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
-                  <p style="margin: 0; font-size: 12px; color: #9ca3af;">Η ομάδα του Influo</p>
-                </div>
-              </div>
-            </div>
-        `;
+        ({ subject, html } = applicationToBrand({
+          brandEmail: toEmail,
+          brandName: (body.brandName as string) || 'Επιχείρηση',
+          campaignTitle: (body.campaignTitle as string) || 'Καμπάνια',
+          influencerName: (body.influencerName as string) || 'Influencer',
+          message: (body.applicationMessage as string | null | undefined) ?? null,
+          proposedPrice: body.proposedPrice,
+          workLinks: (body.workLinks as string | null | undefined) ?? null,
+          brandHasAccount: !!body.brandHasAccount,
+        }));
     }
     else if (type === 'campaign_closed_brand') {
         toEmail = email || bodyToEmail;
-        const campaignTitleRaw = (body.campaignTitle as string) || 'Καμπάνια';
-        const brandNameVal = (body.brandName as string) || 'Επιχείρηση';
-        const appsCount = Number(body.applicationsCount ?? 0);
         if (!toEmail) {
           console.error('[Email API] campaign_closed_brand missing email');
           return NextResponse.json(
@@ -568,39 +516,15 @@ export async function POST(req: Request) {
             { status: 400 }
           );
         }
-        const safeTitle = escapeHtml(campaignTitleRaw);
-        const safeBrand = escapeHtml(brandNameVal);
-        const safeCount = escapeHtml(String(Number.isFinite(appsCount) ? appsCount : 0));
-        subject = `Καμπάνια έκλεισε: ${campaignTitleRaw.length > 50 ? `${campaignTitleRaw.slice(0, 47)}…` : campaignTitleRaw}`;
-        const brandLink = `https://${host}/login?redirect=${encodeURIComponent('/brand/dashboard?tab=campaigns')}&email=${encodeURIComponent(toEmail)}`;
-        html = `
-            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
-              <div style="background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); padding: 24px; border-radius: 12px 12px 0 0;">
-                <h1 style="color: #312e81; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">Η καμπάνια έκλεισε</h1>
-              </div>
-              <div style="background: #ffffff; padding: 24px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
-                <p style="margin: 0 0 12px 0; font-size: 14px;">Γεια σας <strong>${safeBrand}</strong>,</p>
-                <p style="margin: 0 0 16px 0; font-size: 14px; color: #4b5563;">Η καμπάνια <strong>${safeTitle}</strong> έκλεισε αυτόματα (προθεσμία ή 30 ημέρες από το άνοιγμα).</p>
-                <div style="background: #eef2ff; border-left: 4px solid #4f46e5; padding: 16px; border-radius: 8px; margin: 16px 0;">
-                  <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #4338ca;">Καμπάνια</p>
-                  <p style="margin: 0 0 10px 0; font-size: 15px; color: #1f2937;">${safeTitle}</p>
-                  <p style="margin: 0; font-size: 13px; color: #1f2937;">Αιτήσεις: <strong>${safeCount}</strong></p>
-                </div>
-                <div style="margin: 24px 0; text-align: center;">
-                  <a href="${brandLink}" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); color: #ffffff !important; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">Δείτε τις καμπάνιες</a>
-                </div>
-                <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
-                  <p style="margin: 0; font-size: 12px; color: #9ca3af;">Η ομάδα του Influo</p>
-                </div>
-              </div>
-            </div>
-        `;
+        ({ subject, html } = closedToBrand({
+          brandEmail: toEmail,
+          brandName: (body.brandName as string) || 'Επιχείρηση',
+          campaignTitle: (body.campaignTitle as string) || 'Καμπάνια',
+          applicationsCount: Number(body.applicationsCount ?? 0),
+        }));
     }
     else if (type === 'campaign_closed_applicant') {
         toEmail = email || bodyToEmail;
-        const campaignTitleRaw = (body.campaignTitle as string) || 'Καμπάνια';
-        const brandNameVal = (body.brandName as string) || 'Brand';
-        const influencerNameVal = (body.influencerName as string) || 'Influencer';
         if (!toEmail) {
           console.error('[Email API] campaign_closed_applicant missing email');
           return NextResponse.json(
@@ -608,39 +532,14 @@ export async function POST(req: Request) {
             { status: 400 }
           );
         }
-        const safeTitle = escapeHtml(campaignTitleRaw);
-        const safeBrand = escapeHtml(brandNameVal);
-        const safeInf = escapeHtml(influencerNameVal);
-        subject = `Η καμπάνια έκλεισε: ${campaignTitleRaw.length > 50 ? `${campaignTitleRaw.slice(0, 47)}…` : campaignTitleRaw}`;
-        const campaignsLink = `https://${host}/campaigns`;
-        html = `
-            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
-              <div style="background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); padding: 24px; border-radius: 12px 12px 0 0;">
-                <h1 style="color: #312e81; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">Η καμπάνια έκλεισε</h1>
-              </div>
-              <div style="background: #ffffff; padding: 24px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
-                <p style="margin: 0 0 12px 0; font-size: 14px;">Γεια σου <strong>${safeInf}</strong>,</p>
-                <p style="margin: 0 0 16px 0; font-size: 14px; color: #4b5563;">Η καμπάνια <strong>${safeTitle}</strong> από το brand <strong>${safeBrand}</strong> έκλεισε. Η αίτησή σου παραμένει στο ιστορικό σου.</p>
-                <div style="background: #eef2ff; border-left: 4px solid #4f46e5; padding: 16px; border-radius: 8px; margin: 16px 0;">
-                  <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #4338ca;">Καμπάνια</p>
-                  <p style="margin: 0; font-size: 15px; color: #1f2937;">${safeTitle}</p>
-                </div>
-                <div style="margin: 24px 0; text-align: center;">
-                  <a href="${campaignsLink}" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); color: #ffffff !important; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">Δείτε ανοιχτές καμπάνιες</a>
-                </div>
-                <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
-                  <p style="margin: 0; font-size: 12px; color: #9ca3af;">Η ομάδα του Influo</p>
-                </div>
-              </div>
-            </div>
-        `;
+        ({ subject, html } = notSelectedToCreator({
+          influencerName: (body.influencerName as string) || 'Influencer',
+          campaignTitle: (body.campaignTitle as string) || 'Καμπάνια',
+          brandName: (body.brandName as string) || 'Επιχείρηση',
+        }));
     }
     else if (type === 'campaign_closing_soon_brand') {
         toEmail = email || bodyToEmail;
-        const campaignTitleRaw = (body.campaignTitle as string) || 'Καμπάνια';
-        const brandNameVal = (body.brandName as string) || 'Επιχείρηση';
-        const appsCount = Number(body.applicationsCount ?? 0);
-        const closesAtRaw = (body.closesAt as string) || '';
         if (!toEmail) {
           console.error('[Email API] campaign_closing_soon_brand missing email');
           return NextResponse.json(
@@ -648,72 +547,22 @@ export async function POST(req: Request) {
             { status: 400 }
           );
         }
-        const safeTitle = escapeHtml(campaignTitleRaw);
-        const safeBrand = escapeHtml(brandNameVal);
-        const safeCount = escapeHtml(String(Number.isFinite(appsCount) ? appsCount : 0));
-        const closesLabel = closesAtRaw ? formatDisplayDate(closesAtRaw) || closesAtRaw : closesAtRaw;
-        const safeCloses = escapeHtml(closesLabel || '—');
-        subject = `Η καμπάνια κλείνει σύντομα: ${campaignTitleRaw.length > 45 ? `${campaignTitleRaw.slice(0, 42)}…` : campaignTitleRaw}`;
-        const brandLink = `https://${host}/login?redirect=${encodeURIComponent('/brand/dashboard?tab=campaigns')}&email=${encodeURIComponent(toEmail)}`;
-        html = `
-            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
-              <div style="background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); padding: 24px; border-radius: 12px 12px 0 0;">
-                <h1 style="color: #312e81; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">Υπενθύμιση λήξης καμπάνιας</h1>
-              </div>
-              <div style="background: #ffffff; padding: 24px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
-                <p style="margin: 0 0 12px 0; font-size: 14px;">Γεια σας <strong>${safeBrand}</strong>,</p>
-                <p style="margin: 0 0 16px 0; font-size: 14px; color: #4b5563;">Η καμπάνια <strong>${safeTitle}</strong> κλείνει στις <strong>${safeCloses}</strong> (σε περίπου 3 ημέρες).</p>
-                <div style="background: #eef2ff; border-left: 4px solid #4f46e5; padding: 16px; border-radius: 8px; margin: 16px 0;">
-                  <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #4338ca;">Καμπάνια</p>
-                  <p style="margin: 0 0 10px 0; font-size: 15px; color: #1f2937;">${safeTitle}</p>
-                  <p style="margin: 0 0 6px 0; font-size: 13px; color: #1f2937;">Ημερομηνία λήξης: <strong>${safeCloses}</strong></p>
-                  <p style="margin: 0; font-size: 13px; color: #1f2937;">Αιτήσεις: <strong>${safeCount}</strong></p>
-                </div>
-                <div style="margin: 24px 0; text-align: center;">
-                  <a href="${brandLink}" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); color: #ffffff !important; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">Δείτε τις καμπάνιες</a>
-                </div>
-                <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
-                  <p style="margin: 0; font-size: 12px; color: #9ca3af;">Η ομάδα του Influo</p>
-                </div>
-              </div>
-            </div>
-        `;
+        ({ subject, html } = closingSoonToBrand({
+          brandEmail: toEmail,
+          brandName: (body.brandName as string) || 'Επιχείρηση',
+          campaignTitle: (body.campaignTitle as string) || 'Καμπάνια',
+          closesAt: (body.closesAt as string) || '',
+          applicationsCount: Number(body.applicationsCount ?? 0),
+        }));
     }
     else if (type === 'campaign_published_admin') {
         toEmail = ADMIN_RECEIVING_EMAIL;
-        const campaignTitleRaw = (body.campaignTitle as string) || '—';
-        const brandNameVal = (body.brandName as string) || 'Brand';
-        const campaignId = (body.campaignId as string) || '';
-        const budgetRaw = body.budget as number | string | undefined | null;
-        const budgetLabel =
-          budgetRaw !== undefined && budgetRaw !== null && String(budgetRaw).trim() !== ''
-            ? euroLabel(budgetRaw)
-            : '—';
-        const safeTitle = escapeHtml(campaignTitleRaw);
-        const safeBrand = escapeHtml(brandNameVal);
-        const subjTail =
-          campaignTitleRaw.length > 42 ? `${campaignTitleRaw.slice(0, 39)}…` : campaignTitleRaw;
-        subject = `📣 Νέα ανοιχτή καμπάνια: ${brandNameVal} — ${subjTail}`;
-        const adminLink = `https://${host}/admin`;
-        html = `
-            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
-              <div style="background: linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%); padding: 24px; border-radius: 12px 12px 0 0;">
-                <h1 style="color: #0f766e; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">📣 Νέα ανοιχτή καμπάνια</h1>
-              </div>
-              <div style="background: #ffffff; padding: 24px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
-                <p style="margin: 0 0 16px 0; font-size: 14px; color: #4b5563;">Ένα verified brand δημοσίευσε καμπάνια με κατάσταση <strong>Open</strong>. Στάλθηκε ειδοποίηση push στους εγκεκριμένους influencers.</p>
-                <div style="background: #f0fdfa; border-left: 4px solid #14b8a6; padding: 16px; border-radius: 8px; margin: 16px 0;">
-                  <p style="margin: 0 0 8px 0; font-size: 13px;"><strong style="color: #0f766e;">Brand:</strong> <span style="color: #1f2937;">${safeBrand}</span></p>
-                  <p style="margin: 0 0 8px 0; font-size: 13px;"><strong style="color: #0f766e;">Τίτλος:</strong> <span style="color: #1f2937;">${safeTitle}</span></p>
-                  <p style="margin: 0 0 8px 0; font-size: 13px;"><strong style="color: #0f766e;">Budget:</strong> <span style="color: #1f2937;">${budgetLabel}</span></p>
-                  ${campaignId ? `<p style="margin: 0; font-size: 12px; color: #6b7280;">Campaign ID: <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;">${escapeHtml(campaignId)}</code></p>` : ''}
-                </div>
-                <div style="margin: 24px 0; text-align: center;">
-                  <a href="${adminLink}" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%); color: #ffffff !important; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">📊 Admin</a>
-                </div>
-              </div>
-            </div>
-        `;
+        ({ subject, html } = publishedToAdmin({
+          campaignTitle: (body.campaignTitle as string) || '—',
+          brandName: (body.brandName as string) || 'Brand',
+          campaignId: (body.campaignId as string) || '',
+          budget: body.budget,
+        }));
     }
     else if (type === 'collaboration_complete') {
         toEmail = email;

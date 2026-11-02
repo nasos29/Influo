@@ -71,13 +71,11 @@ export async function submitCampaignApplication(
   return { id: body.id, migration: body.migration };
 }
 
-export async function notifyBrandOfApplication(applicationId: string): Promise<void> {
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
-  if (!token) return;
-  await fetch("/api/push/campaign-application", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ applicationId }),
-  }).catch(() => undefined);
+/**
+ * Kept for older callers. The brand email + push and the creator confirmation are now sent
+ * by POST /api/campaigns/application right after the save, so nothing is sent from here.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export async function notifyBrandOfApplication(_applicationId: string): Promise<void> {
+  return;
 }

@@ -266,6 +266,21 @@ export async function POST(request: Request) {
 
     const influencerName = influencer.name || profile.data.display_name || "Influencer";
     const proposalId = saved.id;
+    // Brand invite to one of its own campaigns: same email/push, worded as a campaign invite.
+    let campaignTitle: string | null = null;
+    const inviteCampaignId = clipText(body.campaignId, 80);
+    if (inviteCampaignId && brandId) {
+      try {
+        const { data: inviteCampaign } = await supabaseService()
+          .from("brand_campaigns")
+          .select("title, brand_id")
+          .eq("id", inviteCampaignId)
+          .maybeSingle();
+        if (inviteCampaign && inviteCampaign.brand_id === brandId) campaignTitle = inviteCampaign.title || null;
+      } catch (error) {
+        console.error("[proposal invite campaign]", error instanceof Error ? error.message : "lookup failed");
+      }
+    }
     deferAfterResponse(async () => {
       await Promise.all([
         mailNewProposal({
@@ -280,6 +295,7 @@ export async function POST(request: Request) {
           extras: selectedExtras,
           publishDeadline: deadline.date,
           brandHasAccount: signedIn,
+          campaignTitle,
         }),
         pushParty({
           type: "proposal_new",
@@ -288,8 +304,10 @@ export async function POST(request: Request) {
           brandEmail,
           conversationId,
           payload: {
-            title: "Νέα πρόταση συνεργασίας",
-            body: `${brandName}: ${service} | ${formatEuroAmount(budget) || budget}`,
+            title: campaignTitle ? "Πρόσκληση σε καμπάνια" : "Νέα πρόταση συνεργασίας",
+            body: campaignTitle
+              ? `${brandName}: ${campaignTitle} | ${formatEuroAmount(budget, "el", 0) || budget}`.slice(0, 120)
+              : `${brandName}: ${service} | ${formatEuroAmount(budget) || budget}`,
             url: "/dashboard",
             tag: "proposal",
           },

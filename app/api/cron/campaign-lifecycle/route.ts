@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { creatorContact } from "@/lib/campaignNotify";
 import { createClient } from "@supabase/supabase-js";
 import {
   CAMPAIGN_REMINDER_DAYS_BEFORE,
@@ -153,7 +154,7 @@ export async function GET(req: Request) {
           .from("campaign_applications")
           .select("influencer_id, influencers(contact_email, display_name)")
           .eq("campaign_id", row.id)
-          .eq("status", "pending");
+          .in("status", ["pending", "shortlisted"]);
 
         if (pendingErr) {
           console.error("[campaign-lifecycle] pending apps", row.id, pendingErr);
@@ -163,7 +164,12 @@ export async function GET(req: Request) {
             const inf = (
               Array.isArray(infRaw) ? infRaw[0] : infRaw
             ) as { contact_email?: string | null; display_name?: string | null } | null;
-            const email = inf?.contact_email?.trim().toLowerCase() || "";
+            let email = inf?.contact_email?.trim().toLowerCase() || "";
+            if (!email) {
+              const influencerId = (app as { influencer_id?: string | null }).influencer_id;
+              const person = influencerId ? await creatorContact(String(influencerId)).catch(() => null) : null;
+              email = person?.email?.trim().toLowerCase() || "";
+            }
             if (!email) continue;
             const ok = await sendEmail({
               type: "campaign_closed_applicant",
