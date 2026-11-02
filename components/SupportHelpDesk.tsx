@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabaseClient';
 import SupportTicketThread from '@/components/SupportTicketThread';
 import type { SupportMessage } from '@/lib/supportThread';
 import { userHasRepliedSinceAdmin } from '@/lib/supportThread';
+import { sessionFetch } from '@/lib/sessionFetch';
 
 async function adminAuthHeaders(): Promise<Record<string, string>> {
   const { data: { session } } = await supabase.auth.getSession();
@@ -235,7 +236,7 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
   const loadThread = async (ticketId: string) => {
     setLoadingThread(true);
     try {
-      const response = await fetch(`/api/tickets/messages?ticket_id=${encodeURIComponent(ticketId)}`);
+      const response = await sessionFetch(`/api/tickets/messages?ticket_id=${encodeURIComponent(ticketId)}`);
       const data = await response.json();
       if (data.success) setThread(data.messages || []);
     } catch (error) {
@@ -275,7 +276,7 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
         formData.append('ticket_id', ticketId);
         formData.append('user_id', 'admin'); // Admin uploads don't need real user_id
 
-        const response = await fetch('/api/tickets/upload', {
+        const response = await sessionFetch('/api/tickets/upload', {
           method: 'POST',
           body: formData,
         });
@@ -306,7 +307,7 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
 
     setDeletingTicket(ticketId);
     try {
-      const response = await fetch('/api/tickets/delete', {
+      const response = await sessionFetch('/api/tickets/delete', {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -348,7 +349,7 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
         attachments = await uploadReplyFiles(ticketId);
       }
 
-      const response = await fetch('/api/tickets/reply', {
+      const response = await sessionFetch('/api/tickets/reply', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -386,7 +387,7 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
   const handleStatus = async (ticketId: string, action: "close" | "reopen") => {
     setUpdatingStatus(true);
     try {
-      const response = await fetch("/api/tickets/status", {
+      const response = await sessionFetch("/api/tickets/status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ticket_id: ticketId, action }),
@@ -536,7 +537,7 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
         return;
       }
 
-      const response = await fetch('/api/tickets/admin-create', {
+      const response = await sessionFetch('/api/tickets/admin-create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { rejectUnlessAdmin } from '@/lib/apiAuth';
+import { ticketAuthResponse } from '@/lib/ticketAccess';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -7,6 +9,8 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
 export async function DELETE(req: Request) {
   try {
+    const denied = await rejectUnlessAdmin(req);
+    if (denied) return ticketAuthResponse(req, denied.status === 403 ? 403 : 401);
     const body = await req.json();
     const { ticket_id } = body;
 

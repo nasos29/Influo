@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { loadTicketMessages } from "@/lib/supportThreadStore";
+import { requireTicketReader } from "@/lib/ticketAccess";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -21,6 +22,8 @@ export async function GET(req: Request) {
     if (error || !ticket) {
       return NextResponse.json({ success: false, error: "Ticket not found" }, { status: 404 });
     }
+    const denied = await requireTicketReader(req, ticket);
+    if (denied) return denied;
     const thread = await loadTicketMessages(supabaseAdmin, ticket);
     return NextResponse.json({ success: true, messages: thread.messages, threaded: thread.threaded });
   } catch (error) {

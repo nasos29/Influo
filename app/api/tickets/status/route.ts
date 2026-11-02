@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { reopenStatus } from "@/lib/supportThread";
 import { loadTicketMessages } from "@/lib/supportThreadStore";
+import { requireTicketStatusActor } from "@/lib/ticketAccess";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,6 +26,8 @@ export async function POST(req: Request) {
     if (error || !ticket) {
       return NextResponse.json({ success: false, error: "Ticket not found" }, { status: 404 });
     }
+    const denied = await requireTicketStatusActor(req, ticket, action);
+    if (denied) return denied;
 
     let status = "closed";
     if (action === "reopen") {

@@ -4,6 +4,8 @@ import { Resend } from 'resend';
 import { sendPushUserHelpDeskTicketFromAdmin } from '@/lib/push';
 import { REPLY_ON_SITE_NOTE, helpDeskTicketUrl } from '@/lib/supportThread';
 import { insertTicketMessage } from '@/lib/supportThreadStore';
+import { rejectUnlessAdmin } from '@/lib/apiAuth';
+import { ticketAuthResponse } from '@/lib/ticketAccess';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -14,6 +16,8 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'nd.6@hotmail.com';
 
 export async function POST(req: Request) {
   try {
+    const denied = await rejectUnlessAdmin(req);
+    if (denied) return ticketAuthResponse(req, denied.status === 403 ? 403 : 401);
     const body = await req.json();
     const { user_id, user_type, user_email, user_name, subject, message } = body;
 
