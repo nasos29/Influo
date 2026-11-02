@@ -151,6 +151,39 @@ const TiktokIcon = () => (
 const YoutubeIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"></path><polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"></polygon></svg>
 );
+// Brand-coloured link chips for the platforms the creator gave usernames for.
+const PLATFORM_LINK_STYLE: Record<string, { name: string; icon: () => React.JSX.Element; cls: string }> = {
+  instagram: {
+    name: "Instagram",
+    icon: InstagramIcon,
+    cls: "text-white bg-gradient-to-tr from-amber-400 via-pink-500 to-purple-600 hover:brightness-110",
+  },
+  tiktok: {
+    name: "TikTok",
+    icon: TiktokIcon,
+    cls: "text-white bg-slate-900 shadow-[-2px_-2px_0_#25F4EE,2px_2px_0_#FE2C55] hover:bg-black",
+  },
+  youtube: { name: "YouTube", icon: YoutubeIcon, cls: "text-white bg-red-600 hover:bg-red-700" },
+};
+
+function socialProfileHref(
+  plat: string,
+  user: string,
+  accounts: { platform?: string }[] | undefined
+): string {
+  const u = (user || "").trim();
+  const platKey = plat.toLowerCase();
+  if (platKey === "youtube") {
+    const ytAcc = (accounts || []).find((a) => String(a?.platform || "").toLowerCase() === "youtube");
+    return (
+      youtubeChannelUrl((ytAcc as Parameters<typeof youtubeChannelUrl>[0]) || { username: u }) ||
+      `https://www.youtube.com/@${u.replace(/^@+/, "")}`
+    );
+  }
+  if (platKey === "tiktok") return `https://tiktok.com/${u.startsWith("@") ? u : `@${u}`}`;
+  return `https://${plat}.com/${u}`;
+}
+
 const TwitterIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c1 1 2.45 1.53 4 1.53a10.66 10.66 0 0 0 10-5.83v-.57a4.48 4.48 0 0 0 2-1.39z"></path></svg>
 );
@@ -545,8 +578,8 @@ const STATS_UI_COPY = {
     en: "Number of completed brand collaborations.",
   },
   tip_platforms: {
-    el: "Πόσες πλατφόρμες έχει δηλώσει ο δημιουργός.",
-    en: "How many platforms the creator has linked.",
+    el: "Οι πλατφόρμες που έχει δηλώσει ο δημιουργός. Πάτα για να δεις το προφίλ του.",
+    en: "The platforms the creator has linked. Tap to open their profile.",
   },
   tip_status: {
     el: "Αν ο δημιουργός είναι διαθέσιμος για νέες συνεργασίες.",
@@ -2609,9 +2642,28 @@ export default function InfluencerProfile(props: {
                         </MetricIcon>
                       }
                     >
-                      <p className="text-2xl font-semibold tracking-tight text-slate-900 tabular-nums">
-                        {Object.keys(profile.socials || {}).length || 0}
-                      </p>
+                      <div className="flex flex-col items-center gap-1">
+                        {Object.entries(profile.socials || {})
+                          .filter(([plat, user]) => plat.toLowerCase() !== "facebook" && String(user || "").trim())
+                          .map(([plat, user]) => {
+                            const st = PLATFORM_LINK_STYLE[plat.toLowerCase()];
+                            const Icon = st?.icon;
+                            return (
+                              <a
+                                key={plat}
+                                href={socialProfileHref(plat, String(user), profile.accounts)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title={st?.name || plat}
+                                onClick={() => trackOutboundSocialClick(id, String(plat))}
+                                className={`inline-flex w-28 justify-center items-center gap-1 rounded-full px-2 py-0.5 text-[11px] sm:px-2.5 sm:py-1 sm:text-xs font-semibold transition hover:-translate-y-px hover:shadow-md ${st?.cls || "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
+                              >
+                                {Icon ? <Icon /> : null}
+                                <span>{st?.name || plat}</span>
+                              </a>
+                            );
+                          })}
+                      </div>
                     </ProfileStatCard>
                   )}
 
@@ -2630,7 +2682,7 @@ export default function InfluencerProfile(props: {
                     }
                   >
                     <span
-                      className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${availabilityTone}`}
+                      className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] sm:px-2.5 sm:py-1 sm:text-xs font-semibold ring-1 ${availabilityTone}`}
                     >
                       <span className={`h-1.5 w-1.5 rounded-full ${availabilityDot}`} />
                       {availabilityLabel}
@@ -3292,45 +3344,6 @@ export default function InfluencerProfile(props: {
                      <ProfileHireCard variant="desktop" {...hireCardProps} />
                    </div>
                  ) : null}
-                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h3 className="font-bold text-slate-900 mb-4 text-sm uppercase">{txt.connect}</h3>
-                    <div className="space-y-3">
-                         {Object.entries(profile.socials)
-                            .filter(([plat]) => plat.toLowerCase() !== 'facebook')
-                            .map(([plat, user]) => {
-                            const u = (user || '').trim();
-                            const platKey = plat.toLowerCase();
-                            let href: string;
-                            if (platKey === 'youtube') {
-                              const ytAcc = (profile.accounts || []).find(
-                                (a: { platform?: string }) =>
-                                  String(a?.platform || '').toLowerCase() === 'youtube'
-                              );
-                              href =
-                                youtubeChannelUrl(ytAcc || { username: u }) ||
-                                `https://www.youtube.com/@${u.replace(/^@+/, '')}`;
-                            } else if (platKey === 'tiktok') {
-                              href = `https://tiktok.com/${u.startsWith('@') ? u : `@${u}`}`;
-                            } else {
-                              href = `https://${plat}.com/${u}`;
-                            }
-                            return (
-                            <a
-                              key={plat}
-                              href={href}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition border border-transparent hover:border-slate-200 group"
-                              onClick={() => {
-                                trackOutboundSocialClick(id, String(plat));
-                              }}
-                            >
-                                <span className="capitalize font-medium text-slate-700">{plat}</span>
-                                <span className="text-slate-400 group-hover:text-blue-600">↗</span>
-                            </a>
-                        ); })}
-                    </div>
-                 </div>
                  {/* Συνεργασίες - μόνο αν υπάρχει τουλάχιστον μία */}
                  {profile.past_brands && profile.past_brands.length > 0 && (
                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
