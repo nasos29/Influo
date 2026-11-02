@@ -253,9 +253,9 @@ function ProfileStatCard({
 
   return (
     <div className={shell}>
+      {tip ? <span className="absolute -right-2 -top-2 z-10 sm:right-2.5 sm:top-2.5">{tipNode}</span> : null}
       {/* Mobile (<sm): icon → value → label */}
       <div className="flex h-full min-w-0 flex-1 flex-col items-center gap-2 text-center sm:hidden">
-        {tip ? <span className="absolute -right-2 -top-2 z-10">{tipNode}</span> : null}
         <div className="flex items-center justify-center pt-0.5">
           <span className="shrink-0">{icon}</span>
         </div>
@@ -269,11 +269,10 @@ function ProfileStatCard({
 
       {/* Desktop (sm+): unchanged label-row layout */}
       <div className="hidden h-full min-w-0 flex-1 flex-col sm:flex">
-        <div className="mb-3 flex items-start gap-2.5">
+        <div className={["mb-3 flex items-start gap-2.5", tip ? "pr-5" : ""].join(" ")}>
           <span className="shrink-0">{icon}</span>
           <span className="flex min-w-0 items-start gap-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
             <span className="leading-tight break-words">{label}</span>
-            {tipNode}
           </span>
         </div>
         <div
