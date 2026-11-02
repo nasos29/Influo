@@ -3,9 +3,9 @@
 import { Suspense, useState, useEffect, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
-import InfluoLogo from "@/components/InfluoLogo";
 import Directory, { type Influencer } from "@/components/Directory";
 import SignupChoiceModal from "@/components/SignupChoiceModal";
+import SiteHeader from "@/components/SiteHeader";
 import Footer from "@/components/Footer";
 import TopInfluencersSection from "@/components/TopInfluencersSection";
 import NewlyApprovedInfluencersSection from "@/components/NewlyApprovedInfluencersSection";
@@ -13,7 +13,7 @@ import CampaignCard, { type CampaignCardData } from "@/components/CampaignCard";
 import HomeTrustStatsRow from "@/components/HomeTrustStats";
 import HomeHowItWorks from "@/components/HomeHowItWorks";
 import { supabase } from "@/lib/supabaseClient";
-import { getStoredLanguage, setStoredLanguage, type Language } from "@/lib/language";
+import { getStoredLanguage } from "@/lib/language";
 import { getCachedImageUrl } from "@/lib/imageProxy";
 import { SITE_URL } from "@/lib/site";
 import { normalizeNameCase } from "@/lib/greeklish";
@@ -59,9 +59,6 @@ const DUMMY_LOGOS: SlideLogo[] = DUMMY_BRANDS.map((brand) => ({
 const BRAND_SLIDE_LIMIT = 12;
 
 /** Guest desktop nav: one box so labels share a center line. */
-const DESKTOP_NAV_ITEM_CLASS =
-  "inline-flex min-h-[44px] items-center rounded-lg px-3 py-1.5 leading-5 hover:bg-slate-100 hover:text-slate-900 transition-colors";
-
 const t = {
   el: {
     nav_join: "Εγγραφή",
@@ -194,7 +191,6 @@ export default function Home({
   const [showModal, setShowModal] = useState(false);
   const [signupType, setSignupType] = useState<"influencer" | "brand" | null>(null);
   const [lang, setLang] = useState<Lang>(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [verifiedBrands, setVerifiedBrands] = useState<VerifiedBrand[]>([]);
   const [brandsReady, setBrandsReady] = useState(false);
   /** Null until client pick after verified fetch — avoids SSR/hydration shuffle mismatch. */
@@ -430,189 +426,7 @@ export default function Home({
       
       <div className="min-h-screen flex flex-col overflow-x-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50/30 font-sans text-slate-900 selection:bg-purple-200">
       {/* Header */}
-        <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-200/50 shadow-sm">
-        <div className="max-w-7xl mx-auto flex justify-between items-center px-4 sm:px-6 py-4">
-            <a href={lang === "en" ? "/en" : "/"} className="flex items-center gap-2" aria-label="Influo Home">
-              <InfluoLogo className="h-10 w-auto" title="Influo" />
-            </a>
-            
-            {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center gap-6" aria-label="Main navigation">
-              <ul className="flex items-center gap-6 text-sm font-medium text-slate-700">
-                {!isLoggedIn && (
-                  <li className="flex items-center"><button onClick={() => { setSignupType(null); setShowModal(true); }} className={DESKTOP_NAV_ITEM_CLASS}>
-                    {txt.nav_join}
-                  </button></li>
-                )}
-                <li className="flex items-center"><a href="/directory" className={DESKTOP_NAV_ITEM_CLASS}>
-                  {txt.nav_directory}
-                </a></li>
-                <li className="flex items-center">
-                  <a href={lang === "en" ? "/en/campaigns" : "/campaigns"} className={DESKTOP_NAV_ITEM_CLASS}>
-                    {txt.nav_campaigns}
-                  </a>
-                </li>
-                {isLoggedIn ? (
-                  <li className="flex items-center"><a href={userType === 'brand' ? '/brand/dashboard' : '/dashboard'} className={DESKTOP_NAV_ITEM_CLASS}>
-                    {lang === "el" ? "Dashboard" : "Dashboard"}
-                  </a></li>
-                ) : (
-                  <li className="flex items-center"><a href="/login" className={DESKTOP_NAV_ITEM_CLASS}>
-                    {lang === "el" ? "Σύνδεση" : "Sign In"}
-                  </a></li>
-                )}
-            </ul>
-            {/* User Avatar/Logo and Lang Toggle */}
-            <div className="flex items-center gap-3">
-              {isLoggedIn && (
-                <a 
-                  href={userType === 'brand' ? '/brand/dashboard' : '/dashboard'}
-                  className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-                >
-                  <div className="w-10 h-10 rounded-full border-2 border-slate-300 overflow-hidden bg-slate-100 flex items-center justify-center">
-                    {userAvatar ? (
-                      <Image
-                        src={userAvatar}
-                        alt={userName || 'Profile'}
-                        width={40}
-                        height={40}
-                        className="w-full h-full object-cover"
-                        unoptimized
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-500 text-white font-semibold text-sm">
-                        {userName ? userName.charAt(0).toUpperCase() : 'U'}
-                      </div>
-                    )}
-                  </div>
-                </a>
-              )}
-              <button 
-                onClick={() => {
-                  const newLang = lang === "el" ? "en" : "el";
-                  setLang(newLang);
-                  setStoredLanguage(newLang);
-                  if (newLang === "en") router.push("/en");
-                  else router.push("/");
-                }}
-                className="inline-flex min-h-[44px] items-center text-xs font-medium border border-slate-200 px-3 rounded hover:bg-slate-50 text-slate-600 transition-colors"
-                aria-label="Toggle language"
-              >
-                {lang === "el" ? "EN" : "EL"}
-              </button>
-            </div>
-          </nav>
-
-          {/* Mobile Menu Button */}
-          <div className="flex items-center gap-3 md:hidden">
-            <div className="flex items-center gap-2">
-              {isLoggedIn && (
-                <a 
-                  href={userType === 'brand' ? '/brand/dashboard' : '/dashboard'}
-                  className="flex items-center"
-                >
-                  <div className="w-10 h-10 rounded-full border-2 border-slate-300 overflow-hidden bg-slate-100 flex items-center justify-center">
-                    {userAvatar ? (
-                      <Image
-                        src={userAvatar}
-                        alt={userName || 'Profile'}
-                        width={40}
-                        height={40}
-                        className="w-full h-full object-cover"
-                        unoptimized
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-500 text-white font-semibold text-sm">
-                        {userName ? userName.charAt(0).toUpperCase() : 'U'}
-                      </div>
-                    )}
-                  </div>
-                </a>
-              )}
-              <button 
-                onClick={() => {
-                  const newLang = lang === "el" ? "en" : "el";
-                  setLang(newLang);
-                  setStoredLanguage(newLang);
-                  if (newLang === "en") router.push("/en");
-                  else router.push("/");
-                }}
-                className="inline-flex min-h-[44px] items-center text-xs font-medium border border-slate-200 px-3 rounded hover:bg-slate-50 text-slate-600 transition-colors"
-                aria-label="Toggle language"
-              >
-                {lang === "el" ? "EN" : "EL"}
-              </button>
-            </div>
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center p-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
-              aria-label="Toggle mobile menu"
-              aria-expanded={mobileMenuOpen}
-            >
-              {mobileMenuOpen ? (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              ) : (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <nav className="md:hidden border-t border-slate-200 bg-white">
-            <div className="px-4 py-3 space-y-2">
-              {!isLoggedIn && (
-                <button
-                  onClick={() => {
-                    setSignupType(null);
-                    setShowModal(true);
-                    setMobileMenuOpen(false);
-                  }}
-                  className="w-full text-left rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
-                >
-                  {txt.nav_join}
-                </button>
-              )}
-              <a 
-                href="/directory"
-                onClick={() => setMobileMenuOpen(false)}
-                className="block rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
-              >
-                {txt.nav_directory}
-              </a>
-              <a
-                href={lang === "en" ? "/en/campaigns" : "/campaigns"}
-                onClick={() => setMobileMenuOpen(false)}
-                className="block rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
-              >
-                {txt.nav_campaigns}
-              </a>
-              {isLoggedIn ? (
-                <a 
-                  href="/dashboard"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
-                >
-                  Dashboard
-                </a>
-              ) : (
-                <a 
-                  href="/login"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
-                >
-                  {lang === "el" ? "Σύνδεση" : "Sign In"}
-                </a>
-              )}
-            </div>
-          </nav>
-        )}
-      </header>
+        <SiteHeader lang={lang} onLangChange={setLang} onSignup={() => { setSignupType(null); setShowModal(true); }} />
 
       {/* Hero Section — overflow-hidden only on lg+ so mobile twin photos aren't clipped by section overflow + shadow */}
         <section className="relative pt-16 pb-24 md:pt-24 md:pb-32 px-6 overflow-visible lg:overflow-hidden bg-gradient-to-br from-slate-50 via-white to-slate-100">
