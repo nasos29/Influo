@@ -497,6 +497,8 @@ const t = {
 const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClose: () => void, onSave: (updatedBrand: Partial<Brand> & { clearFields?: string[] }) => Promise<void>, lang: "el" | "en" }) => {
   const [brandName, setBrandName] = useState(brand.brand_name || '');
   const [contactPerson, setContactPerson] = useState(brand.contact_person || '');
+  const [afm, setAfm] = useState(brand.afm || '');
+  const [afmError, setAfmError] = useState('');
   const [website, setWebsite] = useState(brand.website || '');
   const [instagram, setInstagram] = useState(brand.instagram || '');
   const [city, setCity] = useState(brand.city || '');
@@ -522,6 +524,12 @@ const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClos
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const afmDigits = afm.replace(/\D/g, '');
+    if (afmDigits.length > 0 && afmDigits.length !== 9) {
+      setAfmError(lang === 'el' ? 'Το ΑΦΜ πρέπει να έχει 9 ψηφία.' : 'Tax ID must have 9 digits.');
+      return;
+    }
+    setAfmError('');
     setSaving(true);
     
     let logoUrl = brand.logo_url || null;
@@ -602,6 +610,8 @@ const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClos
 
     if (!strEq(nextName, brand.brand_name || "")) patch.brand_name = nextName;
     if (!strEq(nextContact, brand.contact_person || null)) patch.contact_person = nextContact;
+    const nextAfm = afm.replace(/\D/g, '') || null;
+    if (!strEq(nextAfm, brand.afm || null)) patch.afm = nextAfm as string;
     if (!strEq(nextIndustry, brand.industry || null)) patch.industry = nextIndustry;
     if (!strEq(logoUrl, brand.logo_url || null)) patch.logo_url = logoUrl;
 
@@ -675,6 +685,23 @@ const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClos
               onChange={(e) => setContactPerson(e.target.value)}
               className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
             />
+          </div>
+
+          {/* AFM (optional) */}
+          <div>
+            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
+              {lang === 'el' ? 'ΑΦΜ (προαιρετικό)' : 'Tax ID (optional)'}
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={9}
+              value={afm}
+              onChange={(e) => { setAfm(e.target.value.replace(/\D/g, '').slice(0, 9)); setAfmError(''); }}
+              placeholder="123456789"
+              className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all font-mono"
+            />
+            {afmError ? <p className="mt-1 text-sm text-red-600">{afmError}</p> : null}
           </div>
 
           {/* Email (Read-only) */}

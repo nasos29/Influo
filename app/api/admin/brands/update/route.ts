@@ -25,6 +25,7 @@ const WHITELIST = [
   "bio",
   "instagram",
   "city",
+  "afm",
 ] as const;
 
 function asString(value: unknown): string {
@@ -84,6 +85,17 @@ export async function POST(request: NextRequest) {
 
     if (body.contact_person !== undefined) {
       updateData.contact_person = asString(body.contact_person).trim() || null;
+    }
+
+    if (body.afm !== undefined) {
+      const afmDigits = asString(body.afm).replace(/\D/g, "");
+      if (afmDigits.length > 0 && afmDigits.length !== 9) {
+        return NextResponse.json(
+          { error: lang === "el" ? "Το ΑΦΜ πρέπει να έχει 9 ψηφία." : "Tax ID must have 9 digits." },
+          { status: 400 }
+        );
+      }
+      updateData.afm = afmDigits || null;
     }
 
     if (body.industry !== undefined) {
