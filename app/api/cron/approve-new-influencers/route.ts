@@ -16,6 +16,7 @@ import { copyAuditprErExtras } from '@/lib/engagementFlags';
 import { GEMINI_PAUSED_MSG, isGeminiPaused } from '@/lib/geminiPause';
 import { doRefreshSocialStats, type InstagramOverrides, type TikTokOverrides, type YouTubeOverrides } from '@/lib/refreshSocialStats';
 import { finalizeNewInfluencerApproval } from '@/lib/approveNewInfluencer';
+import { sanitizeTopPosts } from '@/lib/topPosts';
 import {
   appendSocialRefreshLog,
   createSocialRefreshRun,
@@ -312,6 +313,10 @@ export async function POST(request: NextRequest) {
           ...(acc.posts_count != null ? { posts_count: Number(acc.posts_count) } : {}),
           ...(acc.avg_views != null && Number(acc.avg_views) > 0 ? { avg_views: Number(acc.avg_views) } : {}),
           ...copyAuditprErExtras(acc),
+          // Same as the bulk refresh: keep Auditpr top_posts when it sent them.
+          ...(Object.hasOwn(acc, 'top_posts')
+            ? { top_posts: sanitizeTopPosts((acc as { top_posts?: unknown }).top_posts) }
+            : {}),
         };
         if (platform === 'instagram') instagramOverrides[username] = metrics;
         else if (platform === 'tiktok') tiktokOverrides[username] = metrics;

@@ -19,7 +19,14 @@ export const TOP_POSTS_PER_ACCOUNT = 3;
 /** Shown on the profile, across every account. */
 export const TOP_POSTS_DISPLAY_LIMIT = 3;
 
-const ALLOWED_HOST_SUFFIXES = ["instagram.com", "tiktok.com", "youtube.com"] as const;
+const ALLOWED_HOST_SUFFIXES = ["instagram.com", "tiktok.com", "youtube.com", "youtu.be"] as const;
+
+/** Map scraper type aliases (reel, short, sidecar, photo…) onto our three types. */
+const TYPE_ALIASES: Record<string, TopPostType> = {
+  reel: "video", reels: "video", clip: "video", clips: "video", short: "video", shorts: "video", igtv: "video",
+  photo: "image", picture: "image", graphimage: "image",
+  sidecar: "carousel", album: "carousel", graphsidecar: "carousel", slideshow: "carousel",
+};
 
 function parseCount(value: unknown): number | null {
   if (value == null || value === "") return null;
@@ -74,7 +81,8 @@ export function sanitizeTopPosts(raw: unknown): TopPost[] {
     const src = item as Record<string, unknown>;
     const url = typeof src.url === "string" ? src.url.trim() : "";
     if (!url || !isAllowedTopPostUrl(url)) continue;
-    const typeRaw = String(src.type || "").toLowerCase();
+    const typeIn = String(src.type || "").toLowerCase().replace(/[^a-z]/g, "");
+    const typeRaw = TYPE_ALIASES[typeIn] ?? typeIn;
     if (!ALLOWED_TYPES.has(typeRaw as TopPostType)) continue;
     out.push({
       url,
