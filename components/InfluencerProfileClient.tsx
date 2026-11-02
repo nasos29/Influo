@@ -136,14 +136,8 @@ interface ProInfluencer extends Influencer {
     brandSafe: boolean;
     niche?: string;
     niche_en?: string;
-    priceNote?: string;
-    priceNote_en?: string;
-    packageNote?: string;
-    packageNote_en?: string;
-    skillsNote?: string;
-    skillsNote_en?: string;
-    offerTips?: string[];
-    offerTips_en?: string[];
+    strengthsNote?: string;
+    strengthsNote_en?: string;
   };
 }
 
@@ -433,10 +427,6 @@ const t = {
     negatives: "Σημεία προσοχής",
     negatives_none: "Δεν υπάρχουν σημεία προσοχής.",
     positives_none: "Δεν υπάρχουν ξεχωριστά σημεία σε αυτή την ενότητα.",
-    audit_price: "Τιμές",
-    audit_packages: "Πακέτα",
-    audit_skills: "Δεξιότητες",
-    audit_tips: "Προτάσεις",
   },
   en: {
     contact: "Contact for Work",
@@ -530,10 +520,6 @@ const t = {
     negatives: "Points to consider",
     negatives_none: "No points to note.",
     positives_none: "No separate bullet points in this section.",
-    audit_price: "Pricing",
-    audit_packages: "Packages",
-    audit_skills: "Skills",
-    audit_tips: "Suggestions",
   }
 };
 
@@ -2999,37 +2985,14 @@ export default function InfluencerProfile(props: {
                                     </div>
                                     {(() => {
                                       const audit = profile.auditpr_audit;
-                                      const pick = (el?: string, en?: string) =>
-                                        (lang === "en" ? en || el : el || en)?.trim() || "";
-                                      const notes = [
-                                        { label: txt.audit_price, text: pick(audit.priceNote, audit.priceNote_en) },
-                                        { label: txt.audit_packages, text: pick(audit.packageNote, audit.packageNote_en) },
-                                        { label: txt.audit_skills, text: pick(audit.skillsNote, audit.skillsNote_en) },
-                                      ].filter((item) => item.text);
-                                      const tips = (lang === "en" ? audit.offerTips_en || audit.offerTips : audit.offerTips || audit.offerTips_en) || [];
-                                      const tipLines = tips.map((item) => String(item || "").trim()).filter(Boolean);
-                                      if (!notes.length && !tipLines.length) return null;
+                                      const note = ((lang === "en" ? audit.strengthsNote_en || audit.strengthsNote : audit.strengthsNote || audit.strengthsNote_en) || "").trim();
+                                      if (!note) return null;
                                       return (
-                                        <div className="mt-6 space-y-3 border-t border-slate-100 pt-5">
-                                          {notes.map((item) => (
-                                            <p key={item.label} className="text-sm leading-relaxed text-slate-600">
-                                              <span className="font-semibold text-slate-800">{item.label}: </span>
-                                              {localizeCategoryText(item.text, lang)}
-                                            </p>
-                                          ))}
-                                          {tipLines.length ? (
-                                            <div>
-                                              <h3 className="mb-2 text-sm font-semibold text-slate-800">{txt.audit_tips}</h3>
-                                              <ul className="space-y-1.5 text-sm leading-relaxed text-slate-600">
-                                                {tipLines.map((item, idx) => (
-                                                  <li key={idx} className="flex gap-2">
-                                                    <span className="shrink-0 text-indigo-500">•</span>
-                                                    <span>{localizeCategoryText(item, lang)}</span>
-                                                  </li>
-                                                ))}
-                                              </ul>
-                                            </div>
-                                          ) : null}
+                                        <div className="mt-6 border-t border-slate-100 pt-5">
+                                          <p className="text-sm leading-relaxed text-slate-600">
+                                            <span className="font-semibold text-slate-800">{lang === "en" ? "Strengths" : "Δυνατά σημεία"}: </span>
+                                            {localizeCategoryText(note, lang)}
+                                          </p>
                                         </div>
                                       );
                                     })()}

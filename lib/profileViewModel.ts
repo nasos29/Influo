@@ -60,14 +60,8 @@ export type ProfileViewModel = {
     brandSafe: boolean;
     niche?: string;
     niche_en?: string;
-    priceNote?: string;
-    priceNote_en?: string;
-    packageNote?: string;
-    packageNote_en?: string;
-    skillsNote?: string;
-    skillsNote_en?: string;
-    offerTips?: string[];
-    offerTips_en?: string[];
+    strengthsNote?: string;
+    strengthsNote_en?: string;
   };
 };
 
