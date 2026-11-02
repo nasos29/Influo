@@ -14,8 +14,8 @@ import type { SimilarInfluencerRow } from "@/lib/similarInfluencers";
 
 const COPY = {
   title: {
-    el: (name: string) => `Δημιουργοί παρόμοιοι με ${name}`,
-    en: (name: string) => `Creators similar to ${name}`,
+    el: (name: string) => `Δημιουργοί σχετικοί με ${name}`,
+    en: (name: string) => `Creators related to ${name}`,
   },
   seeMore: { el: "Δες περισσότερους", en: "See more" },
 } as const;
