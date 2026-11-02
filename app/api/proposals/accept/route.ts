@@ -30,6 +30,9 @@ export async function POST(request: Request) {
           brandHasAccount: email ? await brandHasAccount(email) : false,
           service: proposal.service_type || "",
           budget: proposal.budget || "",
+          proposalId: proposal.id,
+          extras: proposal.selected_extras,
+          publishDeadline: proposal.publish_deadline,
         }),
         pushParty({
           type: "proposal_accepted",

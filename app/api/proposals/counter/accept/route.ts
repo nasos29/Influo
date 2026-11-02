@@ -38,6 +38,9 @@ export async function POST(request: Request) {
           brandName,
           service: proposal.service_type || "",
           budget,
+          proposalId: proposal.id,
+          extras: proposal.selected_extras,
+          publishDeadline: proposal.publish_deadline,
         }),
         pushParty({
           type: "counter_accepted",

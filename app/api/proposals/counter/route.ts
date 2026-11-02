@@ -40,6 +40,9 @@ export async function POST(request: Request) {
           budget: proposal.budget || "",
           counterBudget,
           counterMessage,
+          proposalId: proposal.id,
+          extras: proposal.selected_extras,
+          publishDeadline: proposal.publish_deadline,
           brandHasAccount: email ? await brandHasAccount(email) : false,
         }),
         pushParty({
