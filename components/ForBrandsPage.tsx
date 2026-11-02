@@ -23,7 +23,6 @@ import {
 } from "lucide-react";
 import Footer from "@/components/Footer";
 import SiteHeader from "@/components/SiteHeader";
-import InfluencerSignupForm from "@/components/InfluencerSignupForm";
 import BrandSignupForm from "@/components/BrandSignupForm";
 import FeatureGrid from "@/components/marketing/FeatureGrid";
 import HowSteps from "@/components/marketing/HowSteps";
@@ -313,11 +312,9 @@ export default function ForBrandsPage({ stats }: Props) {
   const [lang, setLang] = useMarketingLang();
   const txt = resolveCopy(lang, UI);
   const [showModal, setShowModal] = useState(false);
-  const [signupType, setSignupType] = useState<"influencer" | "brand">("brand");
   const isLoggedIn = useAuthLoggedIn();
 
   const openBrandModal = () => {
-    setSignupType("brand");
     setShowModal(true);
   };
 
@@ -487,30 +484,6 @@ export default function ForBrandsPage({ stats }: Props) {
             onClick={() => setShowModal(false)}
           />
           <div className="relative z-10 w-full max-w-5xl">
-            <div className="mb-4 flex gap-2 rounded-lg bg-slate-800 p-1.5">
-              <button
-                type="button"
-                onClick={() => setSignupType("influencer")}
-                className={`flex-1 rounded-md px-4 py-2 text-sm font-semibold transition-colors ${
-                  signupType === "influencer"
-                    ? "bg-blue-600 text-white"
-                    : "text-slate-300 hover:bg-slate-700 hover:text-white"
-                }`}
-              >
-                {txt.signup_influencer}
-              </button>
-              <button
-                type="button"
-                onClick={() => setSignupType("brand")}
-                className={`flex-1 rounded-md px-4 py-2 text-sm font-semibold transition-colors ${
-                  signupType === "brand"
-                    ? "bg-blue-600 text-white"
-                    : "text-slate-300 hover:bg-slate-700 hover:text-white"
-                }`}
-              >
-                {txt.signup_brand}
-              </button>
-            </div>
             <div className="relative">
               <button
                 type="button"
@@ -520,7 +493,7 @@ export default function ForBrandsPage({ stats }: Props) {
               >
                 <span aria-hidden>×</span>
               </button>
-              {signupType === "influencer" ? <InfluencerSignupForm /> : <BrandSignupForm embedded />}
+              <BrandSignupForm embedded />
             </div>
           </div>
         </dialog>
