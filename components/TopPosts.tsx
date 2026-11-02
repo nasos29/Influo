@@ -1,10 +1,12 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import SocialEmbedCard from "@/components/SocialEmbedCard";
 import { detectProvider } from "@/lib/videoThumbnail";
 import {
   collectTopPosts,
   formatCompactCount,
+  TOP_POSTS_DISPLAY_LIMIT,
   type TopPost,
 } from "@/lib/topPosts";
 import { formatDisplayDate } from "@/lib/formatDate";
@@ -34,9 +36,11 @@ function formatPostedAt(iso: string | null | undefined, _lang: "el" | "en"): str
 function TopPostCard({
   post,
   lang,
+  onUnavailable,
 }: {
   post: TopPost;
   lang: "el" | "en";
+  onUnavailable: () => void;
 }) {
   const provider = detectProvider(post.url);
   const dateLabel = formatPostedAt(post.posted_at, lang);
@@ -44,7 +48,7 @@ function TopPostCard({
 
   return (
     <div className="w-full min-w-0">
-      <SocialEmbedCard provider={provider} originalUrl={post.url} lang={lang} />
+      <SocialEmbedCard provider={provider} originalUrl={post.url} lang={lang} onUnavailable={onUnavailable} />
       <PostMeta post={post} lang={lang} dateLabel={dateLabel} />
     </div>
   );
@@ -98,7 +102,29 @@ export default function TopPosts({
   accounts?: AccountLike[] | null;
   lang: "el" | "en";
 }>) {
-  const posts = collectTopPosts(accounts);
+  // Collect a few spares so a removed post can be replaced by the next one.
+  const candidates = useMemo(() => collectTopPosts(accounts, TOP_POSTS_DISPLAY_LIMIT * 3), [accounts]);
+  const [hidden, setHidden] = useState<Set<string>>(() => new Set());
+  const candidateKey = candidates.map((p) => p.url).join("|");
+
+  useEffect(() => {
+    if (!candidateKey) return;
+    const params = new URLSearchParams();
+    for (const url of candidateKey.split("|")) params.append("u", url);
+    let cancelled = false;
+    fetch(`/api/top-posts/availability?${params.toString()}`)
+      .then((res) => (res.ok ? res.json() : { unavailable: [] }))
+      .then((data: { unavailable?: string[] }) => {
+        if (cancelled || !Array.isArray(data.unavailable) || !data.unavailable.length) return;
+        setHidden((prev) => new Set([...prev, ...data.unavailable!]));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [candidateKey]);
+
+  const posts = candidates.filter((p) => !hidden.has(p.url)).slice(0, TOP_POSTS_DISPLAY_LIMIT);
   if (!posts.length) return null;
 
   return (
@@ -106,7 +132,12 @@ export default function TopPosts({
       <h2 className="mb-4 text-lg font-bold text-slate-900 md:text-xl">{COPY.title[lang]}</h2>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
         {posts.map((post) => (
-          <TopPostCard key={post.url} post={post} lang={lang} />
+          <TopPostCard
+            key={post.url}
+            post={post}
+            lang={lang}
+            onUnavailable={() => setHidden((prev) => new Set(prev).add(post.url))}
+          />
         ))}
       </div>
     </section>

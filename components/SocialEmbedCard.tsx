@@ -27,6 +27,8 @@ interface SocialEmbedCardProps {
   thumbnailUrl?: string;
   width?: number;
   height?: number;
+  /** Called once when the embed fails to load (used to hide broken top posts). */
+  onUnavailable?: () => void;
 }
 
 const COPY = {
@@ -167,6 +169,7 @@ export default function SocialEmbedCard({
   lang = "el",
   width,
   height,
+  onUnavailable,
 }: SocialEmbedCardProps) {
   const finalWidth = width || DEFAULT_DIMENSIONS[provider].width;
   const finalHeight = height || DEFAULT_DIMENSIONS[provider].height;
@@ -184,6 +187,11 @@ export default function SocialEmbedCard({
   const [nativePoster, setNativePoster] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const onUnavailableRef = useRef(onUnavailable);
+  onUnavailableRef.current = onUnavailable;
+  useEffect(() => {
+    if (error) onUnavailableRef.current?.();
+  }, [error]);
   const [igKind, setIgKind] = useState<InstagramEmbedKind | null>(
     isIgReel ? "video" : null
   );
