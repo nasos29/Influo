@@ -566,7 +566,7 @@ export default function Home({
                     </ul>
                     <a
                       href={userType === "brand" ? "/brand/dashboard?tab=campaigns" : "/brand/signup"}
-                      className="mt-7 inline-flex w-fit items-center justify-center rounded-xl bg-slate-900 px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800"
+                      className="mt-7 mx-auto inline-flex w-fit items-center justify-center rounded-xl bg-slate-900 px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800"
                     >
                       {lang === "en" ? "Post a campaign" : "Δημοσίευσε καμπάνια"} →
                     </a>
