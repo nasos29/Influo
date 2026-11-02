@@ -945,13 +945,13 @@ export default function InfluencerSignupForm() {
   );
 
   return (
-    <div className="mx-auto flex max-h-[85vh] max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white">
+    <div className="mx-auto flex max-h-[85vh] max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white max-sm:h-full max-sm:max-h-none max-sm:rounded-none max-sm:border-0">
       <div className="shrink-0 border-b border-slate-200 px-5 py-3 sm:px-8 sm:py-5">
           <h3 className="text-base font-semibold text-slate-900 sm:text-xl max-sm:!text-base max-sm:!leading-snug">{txt.headerTitle}</h3>
           <p className="mt-1 text-xs leading-snug text-slate-600 sm:text-sm max-sm:!text-xs sm:leading-relaxed">{txt.headerDesc}</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto bg-white px-5 py-6 sm:px-8">
+      <div className="min-h-0 flex-1 overflow-y-auto bg-white px-5 py-6 sm:px-8 max-sm:py-4">
         {step < 4 && <ProgressSteps />}
 
         {/* --- STEP 1 --- (Basic Info & Password) */}
@@ -1057,7 +1057,7 @@ export default function InfluencerSignupForm() {
                 {message && <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-center text-sm font-medium text-red-700">{message}</p>}
                 
                 {/* Button at the end of Step 1 */}
-                <div className="mt-8 pt-6 border-t border-slate-200">
+                <div className="mt-8 pt-6 border-t border-slate-200 max-sm:sticky max-sm:bottom-0 max-sm:z-10 max-sm:-mx-5 max-sm:-mb-4 max-sm:mt-6 max-sm:bg-white max-sm:px-5 max-sm:pb-3 max-sm:pt-3">
                   <button 
                     onClick={handleCheckEmailAndNext} 
                     disabled={!displayName || !email || !password || !bio.trim() || !birthDate || loading || !!emailError || checkingEmail} 
@@ -1173,7 +1173,7 @@ export default function InfluencerSignupForm() {
                 {message && <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-center text-sm font-medium text-red-700">{message}</p>}
 
                 {/* Buttons at the end of Step 2 */}
-                <div className="mt-8 pt-6 border-t border-slate-200 flex flex-col-reverse sm:flex-row gap-3 sm:gap-4">
+                <div className="mt-8 pt-6 border-t border-slate-200 max-sm:sticky max-sm:bottom-0 max-sm:z-10 max-sm:-mx-5 max-sm:-mb-4 max-sm:mt-6 max-sm:bg-white max-sm:px-5 max-sm:pb-3 max-sm:pt-3 flex flex-col-reverse sm:flex-row gap-3 sm:gap-4">
                   <button onClick={() => { setStep(1); setMessage(""); }} className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-all">{txt.back}</button>
                   <button onClick={handleStep2Next} className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-500/30 transition-all">{txt.next}</button>
                 </div>
@@ -1277,7 +1277,7 @@ export default function InfluencerSignupForm() {
                 {message && <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-center text-sm font-medium text-red-700">{message}</p>}
                 
                 {/* Buttons at the end of Step 3 */}
-                <div className="mt-8 pt-6 border-t border-slate-200 flex flex-col-reverse sm:flex-row gap-3 sm:gap-4">
+                <div className="mt-8 pt-6 border-t border-slate-200 max-sm:sticky max-sm:bottom-0 max-sm:z-10 max-sm:-mx-5 max-sm:-mb-4 max-sm:mt-6 max-sm:bg-white max-sm:px-5 max-sm:pb-3 max-sm:pt-3 flex flex-col-reverse sm:flex-row gap-3 sm:gap-4">
                   <button onClick={() => { setStep(2); setMessage(""); }} className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-all">{txt.back}</button>
                   <button
                     onClick={handleSubmit}
