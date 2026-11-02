@@ -98,6 +98,39 @@ export function intEuro(amount: unknown): string {
   return formatEuroAmount(amount, "el", 0) || String(amount ?? "").trim();
 }
 
+/** Plain admin notice: factual lines and one link to /admin. No tips, no emoji. */
+export async function mailAdminEvent(type: string, subject: string, title: string, rows: Array<[string, unknown]>): Promise<void> {
+  try {
+    const lines = rows
+      .filter(([, value]) => value != null && String(value).trim() !== "")
+      .map(([label, value]) => `<strong>${escapeHtml(label)}:</strong> ${escapeHtml(String(value))}`)
+      .join("<br/>");
+    await send(
+      type,
+      adminEmail(),
+      subject,
+      `<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px;">
+        <p><strong>${escapeHtml(title)}</strong></p>
+        <p>${lines}</p>
+        <p><a href="${siteUrl()}/admin">${siteUrl()}/admin</a></p>
+      </div>`
+    );
+  } catch (err) {
+    console.error("[mail admin]", type, err instanceof Error ? err.message : "failed");
+  }
+}
+
+function adminDealRows(input: DealInfo & { brandName: string; influencerName: string; service: string; budget: unknown }): Array<[string, unknown]> {
+  return [
+    ["Πρόταση", input.proposalId != null && input.proposalId !== "" ? `#${input.proposalId}` : null],
+    ["Επιχείρηση", input.brandName],
+    ["Δημιουργός", input.influencerName],
+    ["Υπηρεσία", displayServiceType(input.service, "el") || input.service],
+    ["Ποσό", intEuro(input.budget)],
+    ["Ημερομηνία", todayAthens()],
+  ];
+}
+
 export async function mailNewProposal(input: DealInfo & {
   influencerEmail: string | null;
   influencerName: string;
@@ -162,10 +195,12 @@ export async function mailNewProposal(input: DealInfo & {
   send(
     "proposal_admin",
     adminEmail(),
-    `Νέα πρόταση από ${input.brandName} προς ${input.influencerName}`,
+    campaignTitle
+      ? `Πρόσκληση σε καμπάνια: ${input.brandName} προς ${input.influencerName} (${campaignTitle})`
+      : `Νέα πρόταση από ${input.brandName} προς ${input.influencerName}`,
     shell(
-      "Νέα πρόταση",
-      `<p><strong>Brand:</strong> ${brandName}<br/>
+      campaignTitle ? "Πρόσκληση σε καμπάνια" : "Νέα πρόταση",
+      `${campaignTitle ? `<p><strong>Καμπάνια:</strong> ${escapeHtml(campaignTitle)}</p>` : ""}<p><strong>Brand:</strong> ${brandName}<br/>
         <strong>Email:</strong> ${escapeHtml(input.brandEmail)}<br/>
         <strong>Influencer:</strong> ${influencerName}<br/>
         <strong>Υπηρεσία:</strong> ${service}<br/>
@@ -212,6 +247,12 @@ export async function mailProposalDecision(input: DealInfo & {
       : `Ο/Η ${input.influencerName} απέρριψε την πρότασή σας`,
     shell(input.accepted ? "Η πρόταση έγινε αποδεκτή" : "Η πρόταση απορρίφθηκε", body)
   );
+  await mailAdminEvent(
+    input.accepted ? "proposal_accepted_admin" : "proposal_rejected_admin",
+    `Πρόταση ${input.accepted ? "αποδεκτή" : "απορρίφθηκε"}: ${input.influencerName} / ${input.brandName}`,
+    input.accepted ? "Ο δημιουργός αποδέχτηκε πρόταση" : "Ο δημιουργός απέρριψε πρόταση",
+    adminDealRows(input)
+  );
 }
 
 export async function mailCounter(input: DealInfo & {
@@ -246,6 +287,12 @@ export async function mailCounter(input: DealInfo & {
        ])}`
     )
   );
+  await mailAdminEvent(
+    "counter_admin",
+    `Αντιπρόταση: ${input.influencerName} / ${input.brandName} – ${intEuro(input.counterBudget)}`,
+    "Ο δημιουργός έστειλε αντιπρόταση",
+    [...adminDealRows(input), ["Αντιπρόταση", intEuro(input.counterBudget)]]
+  );
 }
 
 export async function mailCounterDecision(input: DealInfo & {
@@ -272,6 +319,12 @@ export async function mailCounterDecision(input: DealInfo & {
        ${summaryBlockHtml(input)}
        ${buttonHtml(creatorProposalsUrl(), "Άνοιξε την πρόταση")}`
     )
+  );
+  await mailAdminEvent(
+    input.accepted ? "counter_accepted_admin" : "counter_rejected_admin",
+    `Αντιπρόταση ${input.accepted ? "αποδεκτή" : "απορρίφθηκε"}: ${input.brandName} / ${input.influencerName}`,
+    input.accepted ? "Η επιχείρηση αποδέχτηκε αντιπρόταση" : "Η επιχείρηση απέρριψε αντιπρόταση",
+    adminDealRows(input)
   );
 }
 
