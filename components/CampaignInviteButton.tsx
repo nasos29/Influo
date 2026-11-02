@@ -101,6 +101,7 @@ export default function CampaignInviteButton({
         serviceType: campaignServiceType(campaign.title, lang),
         budget: String(budget),
         message,
+        campaignId: campaign.id,
       }),
     });
     const proposalBody = await proposal.json().catch(() => ({}));

@@ -15,7 +15,7 @@ function euroHtml(amount: unknown): string {
 
 const SENDER = "Influo <noreply@influo.gr>";
 
-function siteUrl(): string {
+export function siteUrl(): string {
   return (process.env.NEXT_PUBLIC_SITE_URL || "https://influo.gr").replace(/\/$/, "");
 }
 
@@ -23,14 +23,14 @@ function adminEmail(): string {
   return (process.env.ADMIN_EMAIL || "nd.6@hotmail.com").trim();
 }
 
-function brandLink(email: string, hasAccount: boolean): string {
+export function brandLink(email: string, hasAccount: boolean): string {
   const target = hasAccount
     ? `/login?redirect=${encodeURIComponent("/brand/dashboard?tab=proposals")}&email=${encodeURIComponent(email)}`
     : `/brand/signup?email=${encodeURIComponent(email)}`;
   return `${siteUrl()}${target}`;
 }
 
-async function send(type: string, to: string | null | undefined, subject: string, html: string): Promise<void> {
+export async function send(type: string, to: string | null | undefined, subject: string, html: string): Promise<void> {
   const address = (to || "").trim();
   const key = process.env.RESEND_API_KEY;
   if (!address || !address.includes("@") || !key) {
@@ -45,13 +45,15 @@ async function send(type: string, to: string | null | undefined, subject: string
       subject: subject.replace(/[\r\n]/g, " ").slice(0, 180),
       html,
     });
+    if (error) console.error("[mail]", type, error.message);
     logEmail(type, !error);
-  } catch {
+  } catch (err) {
+    console.error("[mail]", type, err instanceof Error ? err.message : "send failed");
     logEmail(type, false);
   }
 }
 
-function shell(title: string, body: string): string {
+export function shell(title: string, body: string): string {
   return `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
     <div style="padding: 24px 24px 0;"><h1 style="font-size: 20px; margin: 0;">${title}</h1></div>
     <div style="padding: 16px 24px 24px;">${body}
@@ -70,7 +72,7 @@ function creatorProposalsUrl(): string {
   return `${siteUrl()}/dashboard?tab=proposals`;
 }
 
-function todayAthens(): string {
+export function todayAthens(): string {
   return formatDate(new Date().toISOString(), "el");
 }
 
@@ -88,11 +90,11 @@ function summaryBlockHtml(input: DealInfo & { service: string; budget: unknown; 
 <strong>Προθεσμία δημοσίευσης:</strong> ${escapeHtml(deadline)}</p>`;
 }
 
-function tipsHtml(lines: string[]): string {
+export function tipsHtml(lines: string[]): string {
   return `<p style="margin-top: 16px;"><strong>💡 Συμβουλές:</strong><br/>${lines.map((l) => `• ${l}`).join("<br/>")}</p>`;
 }
 
-function intEuro(amount: unknown): string {
+export function intEuro(amount: unknown): string {
   return formatEuroAmount(amount, "el", 0) || String(amount ?? "").trim();
 }
 
@@ -105,8 +107,11 @@ export async function mailNewProposal(input: DealInfo & {
   budget: string;
   message: string;
   brandHasAccount?: boolean;
+  /** Set when the proposal is a brand invite to one of its campaigns. */
+  campaignTitle?: string | null;
 }): Promise<void> {
   const influencerName = escapeHtml(input.influencerName);
+  const campaignTitle = (input.campaignTitle || "").trim();
   const brandName = escapeHtml(input.brandName);
   const service = escapeHtml(input.service);
   const message = escapeHtml(input.message).replace(/\n/g, "<br/>");
@@ -119,11 +124,15 @@ export async function mailNewProposal(input: DealInfo & {
   send(
     "proposal_new",
     input.influencerEmail,
-    `Νέα πρόταση συνεργασίας από ${input.brandName} – ${intEuro(input.budget)}`,
+    campaignTitle
+      ? `Πρόσκληση σε καμπάνια από ${input.brandName}: ${campaignTitle} – ${intEuro(input.budget)}`
+      : `Νέα πρόταση συνεργασίας από ${input.brandName} – ${intEuro(input.budget)}`,
     shell(
-      "Νέα πρόταση συνεργασίας",
+      campaignTitle ? "Πρόσκληση σε καμπάνια" : "Νέα πρόταση συνεργασίας",
       `<p>Γεια σου ${influencerName},</p>
-       <p>Η <strong>${brandName}</strong> σού έστειλε πρόταση συνεργασίας στις ${escapeHtml(todayAthens())}.</p>
+       ${campaignTitle
+         ? `<p>Η <strong>${brandName}</strong> σε προσκαλεί στην καμπάνια <strong>«${escapeHtml(campaignTitle)}»</strong> (${escapeHtml(todayAthens())}).</p>`
+         : `<p>Η <strong>${brandName}</strong> σού έστειλε πρόταση συνεργασίας στις ${escapeHtml(todayAthens())}.</p>`}
        ${summaryBlockHtml(input)}
        ${quote}
        ${buttonHtml(creatorProposalsUrl(), "Δες την πρόταση")}
@@ -378,7 +387,7 @@ export async function mailAdminAgreementComplete(input: {
   );
 }
 
-function buttonHtml(href: string, label: string): string {
+export function buttonHtml(href: string, label: string): string {
   return `<p style="margin: 20px 0;"><a href="${escapeHtml(href)}" style="display: inline-block; background: #2563eb; color: #ffffff; text-decoration: none; font-weight: 600; padding: 10px 18px; border-radius: 8px;">${escapeHtml(label)}</a></p>`;
 }
 
