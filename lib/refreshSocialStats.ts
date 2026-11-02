@@ -1,3 +1,4 @@
+import { filterAvailableTopPosts } from '@/lib/topPostsAvailability';
 /**
  * Shared logic for refreshing social stats (followers, engagement_rate, avg_likes).
  * Used by GET /api/cron/refresh-social-stats and POST /api/admin/refresh-social-stats.
@@ -240,6 +241,9 @@ export async function doRefreshSocialStats(
       if (isSocialMetrics(metrics)) {
         anySuccess = true;
         const flagged = withErFlags(metrics, platformLower);
+        if (Array.isArray(flagged.top_posts) && flagged.top_posts.length) {
+          flagged.top_posts = await filterAvailableTopPosts(flagged.top_posts);
+        }
         const penaltyStored: Partial<Record<PenaltyPercentField, number | null>> = {};
         for (const key of PENALTY_FIELDS) {
           penaltyStored[key] = flagged[key] ?? null;
