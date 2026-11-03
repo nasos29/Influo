@@ -463,6 +463,55 @@ function ymd(value: string | null | undefined): string {
   return value.slice(0, 10);
 }
 
+function fmtPeople(n: number): string {
+  return n.toLocaleString("el-GR");
+}
+
+/** Estimated reach from the creators we would recommend for this draft (server side, nothing saved). */
+function ReachEstimate({ lang, form }: { lang: string; form: CampaignForm }) {
+  const [state, setState] = useState<{ low: number; high: number; creators: number } | null | "loading">("loading");
+  const key = JSON.stringify([form.chips, form.slots, form.min_followers, form.location, form.requires_presence, form.category]);
+  useEffect(() => {
+    let cancelled = false;
+    setState("loading");
+    const timer = setTimeout(async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        if (!token) { if (!cancelled) setState(null); return; }
+        const res = await fetch("/api/campaigns/reach-estimate", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ chips: form.chips, slots: form.slots, min_followers: form.min_followers, location: form.location, requires_presence: form.requires_presence, category: form.category, title: form.title, description: form.description }),
+        });
+        const body = res.ok ? await res.json() : null;
+        if (!cancelled) setState(body?.estimate || null);
+      } catch {
+        if (!cancelled) setState(null);
+      }
+    }, 300);
+    return () => { cancelled = true; clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  if (state === null) return null;
+  const el = lang === "el";
+  return (
+    <div className="mt-4 rounded-lg border border-blue-100 bg-white px-3 py-2.5">
+      <p className="text-sm text-slate-900">
+        <span className="font-medium">{el ? "Εκτιμώμενη εμβέλεια: " : "Estimated reach: "}</span>
+        {state === "loading" ? "…" : `~${fmtPeople(state.low)}–${fmtPeople(state.high)} ${el ? "άτομα" : "people"}`}
+      </p>
+      {state !== "loading" && (
+        <p className="text-xs text-slate-500 mt-0.5">
+          {el
+            ? `Εκτίμηση από τους ακόλουθους και τις μέσες προβολές των ${state.creators} creators που θα σας προτείναμε, με τυπικά ποσοστά εμβέλειας ανά πλατφόρμα. Δεν είναι εγγύηση.`
+            : `Estimate based on followers and average views of the ${state.creators} creators we would recommend, using typical reach ratios per platform. Not a guarantee.`}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function BrandCampaignsSection({
   brandId,
   lang,
@@ -1611,6 +1660,7 @@ export default function BrandCampaignsSection({
                   <dt className="text-slate-500">{x.form_location}</dt>
                   <dd className="text-slate-900">{form.location || (lang === "el" ? "Πανελλαδικά" : "Nationwide")}{form.requires_presence ? (lang === "el" ? " · φυσική παρουσία" : " · in person") : ""}</dd>
                 </dl>
+                <ReachEstimate lang={lang} form={form} />
                 <div className="mt-4">
                   <label htmlFor="cf-status" className="block text-sm font-medium text-slate-700 mb-1">{t.form_status}</label>
                   <select id="cf-status" value={form.status} onChange={(e) => { setForm({ ...form, status: e.target.value as typeof form.status }); clearFieldError("status"); }} className={`${inputCls(fieldErrors.status)} bg-white max-w-xs`}>
