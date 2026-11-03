@@ -10,6 +10,7 @@ import { publicProfilePath } from "@/lib/profileSlug";
 import { displayNameForLang } from "@/lib/greeklish";
 import { filterWorkLinks } from "@/lib/contactFilter";
 import { formatEuroAmount } from "@/lib/formatEuro";
+import { getBadgeStyles, type Badge } from "@/lib/badges";
 
 export type ApplicantAccount = { platform: string; username: string; followers: unknown; engagement_rate: unknown; url: string | null };
 export type ApplicantFull = {
@@ -26,6 +27,7 @@ export type ApplicantFull = {
   videos: string[];
   completed: number;
   past_brands: string[];
+  badges?: Badge[];
 };
 
 type Lang = "el" | "en";
@@ -124,6 +126,16 @@ export default function ApplicantCard({
               profile && profile.completed > 0 ? (el ? `${profile.completed} συνεργασίες` : `${profile.completed} collabs`) : "",
             ].filter(Boolean).join(" · ")}
           </p>
+          {profile?.badges?.length ? (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {profile.badges.map((b) => (
+                <span key={b.type} className={getBadgeStyles(b)} title={b.label}>
+                  <span aria-hidden>{b.icon}</span>
+                  <span>{b.label}</span>
+                </span>
+              ))}
+            </div>
+          ) : null}
           {profile?.categories?.length ? (
             <div className="flex flex-wrap gap-1 mt-1">
               {profile.categories.map((c) => (
