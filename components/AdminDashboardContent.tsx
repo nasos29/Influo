@@ -2047,17 +2047,24 @@ const EditProfileModal = ({
     );
 };
 
+const UNAPPROVAL_KINDS: Record<string, { el: string; en: string; cls: string }> = {
+  profile_changed: { el: "Άλλαξε το προφίλ", en: "Profile edited", cls: "border-blue-200 bg-blue-50 text-blue-900" },
+  account_not_found: { el: "Δεν βρέθηκε ο λογαριασμός", en: "Account not found", cls: "border-red-200 bg-red-50 text-red-900" },
+  check_error: { el: "Σφάλμα ελέγχου", en: "Check error", cls: "border-amber-200 bg-amber-50 text-amber-900" },
+  other: { el: "Δεν εγκρίθηκε", en: "Not approved", cls: "border-slate-200 bg-slate-50 text-slate-800" },
+};
+
 export default function AdminDashboardContent({ adminEmail }: { adminEmail: string }) {
   const [lang, setLang] = useState<"el" | "en">("el"); // Default to Greek, will be updated in useEffect
   const txt = t[lang];
-  const [unapprovalReasons, setUnapprovalReasons] = useState<Record<string, { reason: string; at: string }>>({});
+  const [unapprovalReasons, setUnapprovalReasons] = useState<Record<string, { kind?: string; reason: string; at: string }>>({});
   useEffect(() => {
     let alive = true;
     void (async () => {
       try {
         const res = await fetch("/api/admin/influencers/unapproval-reasons", { headers: await adminAuthHeaders() });
         if (!res.ok) return;
-        const json = (await res.json()) as { reasons?: Record<string, { reason: string; at: string }> };
+        const json = (await res.json()) as { reasons?: Record<string, { kind?: string; reason: string; at: string }> };
         if (alive && json.reasons) setUnapprovalReasons(json.reasons);
       } catch {
         /* optional info */
@@ -2070,9 +2077,10 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const unapprovalLine = (id: string | number) => {
     const r = unapprovalReasons[String(id)];
     if (!r) return null;
+    const k = UNAPPROVAL_KINDS[r.kind || "other"] || UNAPPROVAL_KINDS.other;
     return (
-      <span className="block max-w-xs whitespace-normal break-words rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] leading-snug text-amber-900">
-        {lang === "el" ? "Δεν εγκρίθηκε" : "Not approved"}: {r.reason} · {formatDate(r.at, lang)} {formatTime(r.at, lang)}
+      <span className={`block max-w-xs whitespace-normal break-words rounded-md border px-2 py-1 text-[11px] leading-snug ${k.cls}`}>
+        <span className="font-semibold">{k[lang]}</span>: {r.reason} · {formatDate(r.at, lang)} {formatTime(r.at, lang)}
       </span>
     );
   };
@@ -2143,6 +2151,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "verified" | "pending">("all");
+  const [reasonFilter, setReasonFilter] = useState<string>("all");
   const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
   const [influencersPage, setInfluencersPage] = useState(1);
   const [influencersTotal, setInfluencersTotal] = useState(0);
@@ -4284,7 +4293,9 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const visibleBrands = brands;
 
   /** Server already applied search + status filters; `users` is the current loaded page(s). */
-  const filteredUsers = users;
+  const filteredUsers = reasonFilter === "all"
+    ? users
+    : users.filter((u) => !u.approved && (unapprovalReasons[String(u.id)]?.kind || "none") === reasonFilter);
 
   const toggleUserSelection = (id: number) => {
     setSelectedUsers(prev => 
@@ -4730,6 +4741,18 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                   <option value="all">{txt.filter}: {lang === "el" ? "Όλοι" : "All"}</option>
                   <option value="verified">{lang === "el" ? "Εγκεκριμένοι" : "Approved"}</option>
                   <option value="pending">{lang === "el" ? "Εκκρεμείς" : "Pending"}</option>
+                </select>
+                <select
+                  value={reasonFilter}
+                  onChange={(e) => setReasonFilter(e.target.value)}
+                  aria-label={lang === "el" ? "Λόγος αναμονής" : "Pending reason"}
+                  className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500"
+                >
+                  <option value="all">{lang === "el" ? "Λόγος: όλοι" : "Reason: all"}</option>
+                  {Object.entries(UNAPPROVAL_KINDS).map(([key, k]) => (
+                    <option key={key} value={key}>{k[lang]}</option>
+                  ))}
+                  <option value="none">{lang === "el" ? "Χωρίς καταγεγραμμένο λόγο" : "No recorded reason"}</option>
                 </select>
                 <button
                   onClick={exportData}
