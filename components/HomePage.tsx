@@ -536,7 +536,7 @@ export default function Home({
             <ul className="grid auto-rows-fr gap-4 md:grid-cols-2 lg:grid-cols-3">
               {openCampaigns.map((campaign) => (
                 <li key={campaign.id} className="h-full rounded-2xl transition-shadow duration-200 hover:shadow-lg [&>*]:h-full">
-                  <CampaignCard campaign={campaign} lang={lang} />
+                  <CampaignCard campaign={campaign} lang={lang} viewCta />
                 </li>
               ))}
               {openCampaigns.length < 3 ? (
