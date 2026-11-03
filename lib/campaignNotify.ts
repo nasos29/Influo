@@ -210,16 +210,8 @@ async function sendCampaignOutreach(
     sendTransactional(person.email, outreach.subject, outreach.html),
     SEND_TIMEOUT_MS
   );
-  const push = await withTimeout(
-    sendPushToInfluencer(person.id, {
-      title: "Νέα καμπάνια",
-      body: `${opts.brandName}: ${opts.title}`.slice(0, 120),
-      url: `/campaigns/${opts.campaignId}`,
-      tag: `campaign-open-${opts.campaignId}`,
-    }),
-    SEND_TIMEOUT_MS
-  );
-  return { emailed: mail?.ok ? 1 : 0, pushed: push?.sent || 0 };
+  // Push is sent to every approved creator by notifyCampaignPublished, not per match.
+  return { emailed: mail?.ok ? 1 : 0, pushed: 0 };
 }
 
 async function insertCampaignAnnouncements(authUserIds: string[], title: string, body: string): Promise<number> {

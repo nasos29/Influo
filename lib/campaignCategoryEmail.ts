@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { contactsFor, loadApprovedCreators } from "@/lib/campaignNotify";
 import { rankCampaignAlerts } from "@/lib/campaignAlert";
 import { sharedCategoryKeys } from "@/lib/recommendations";
@@ -32,26 +34,90 @@ export const RELATED_CATEGORIES: Record<string, string[]> = {
   "Sustainability & Eco": ["Lifestyle", "Home & Decor", "Food & Drink"],
 };
 
-/** ~30 emails/hour: one every 2 minutes, in-process queue. */
+/** ~30 emails/hour: one every 2 minutes. */
 const GAP_MS = 2 * 60 * 1000;
 
-type Job = { key: string; to: string; subject: string; html: string };
-const store = globalThis as unknown as { __influoCatMail?: { sent: Set<string>; queue: Job[]; running: boolean } };
-const state = (store.__influoCatMail ??= { sent: new Set<string>(), queue: [], running: false });
+/**
+ * Queue state persisted to disk so a deploy/restart resumes it without double sends.
+ * On the server cwd is /app, a bind mount of /opt/influo, which survives deploys.
+ * `sent` holds `campaignId:influencerId` and `campaignId:email` keys of queued-or-sent jobs.
+ */
+const STATE_FILE = process.env.CAMPAIGN_MAIL_QUEUE_FILE || path.join(process.cwd(), ".data", "campaign-mail-queue.json");
+
+type Job = { key: string; emailKey?: string; to: string; subject: string; html: string };
+type State = { sent: Set<string>; queue: Job[]; running: boolean; loaded: boolean };
+const store = globalThis as unknown as { __influoCatMail?: State };
+const state = (store.__influoCatMail ??= { sent: new Set<string>(), queue: [], running: false, loaded: false });
+
+function load(): void {
+  if (state.loaded) return;
+  state.loaded = true;
+  try {
+    const raw = JSON.parse(fs.readFileSync(STATE_FILE, "utf8")) as { sent?: string[]; queue?: Job[] };
+    for (const k of raw.sent || []) state.sent.add(k);
+    const known = new Set(state.queue.map((j) => j.key));
+    for (const j of raw.queue || []) if (!known.has(j.key)) state.queue.push(j);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException)?.code !== "ENOENT") console.error("[campaign category email] state load failed", err instanceof Error ? err.message : err);
+  }
+}
+
+function save(): void {
+  try {
+    fs.mkdirSync(path.dirname(STATE_FILE), { recursive: true });
+    const tmp = `${STATE_FILE}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify({ sent: [...state.sent], queue: state.queue }), { mode: 0o600 });
+    fs.renameSync(tmp, STATE_FILE);
+  } catch (err) {
+    console.error("[campaign category email] state save failed", err instanceof Error ? err.message : err);
+  }
+}
+
+/** Mark recipients already emailed outside this queue (e.g. a lost in-memory run). */
+export function markCategoryEmailsSent(campaignId: string, emails: string[]): number {
+  load();
+  let added = 0;
+  for (const e of emails) {
+    const k = `${campaignId}:${e.trim().toLowerCase()}`;
+    if (!state.sent.has(k)) {
+      state.sent.add(k);
+      added += 1;
+    }
+  }
+  state.queue = state.queue.filter((j) => !j.emailKey || !emails.some((e) => j.emailKey === `${campaignId}:${e.trim().toLowerCase()}`));
+  save();
+  return added;
+}
+
+export function categoryQueueStatus(): { pending: number; sentKeys: number } {
+  load();
+  return { pending: state.queue.length, sentKeys: state.sent.size };
+}
+
+/** Resume a persisted queue (called at boot). */
+export function resumeCategoryEmailQueue(): void {
+  load();
+  if (state.queue.length) console.log("[campaign category email] resuming", state.queue.length);
+  pump();
+}
 
 function pump(): void {
   if (state.running) return;
   state.running = true;
   const tick = async () => {
-    const job = state.queue.shift();
+    const job = state.queue[0];
     if (!job) {
       state.running = false;
       return;
     }
+    // Remove before sending: a crash mid-send skips one email rather than sending it twice.
+    state.queue.shift();
+    save();
     try {
       await send("campaign_category_creator", job.to, job.subject, job.html);
+      console.log("[campaign category email] sent", job.key, { pending: state.queue.length });
     } catch (err) {
-      console.error("[campaign category email]", err instanceof Error ? err.message : "failed");
+      console.error("[campaign category email]", job.key, err instanceof Error ? err.message : "failed");
     }
     setTimeout(tick, state.queue.length ? GAP_MS : 0);
   };
@@ -92,6 +158,10 @@ export async function queueCategoryCampaignEmails(c: {
   location?: string | null;
   minFollowers?: number | null;
   platforms: string[];
+  /** Also queue strong matches (used when re-deriving a lost queue). */
+  includeStrong?: boolean;
+  /** Re-derive only: the first N recipients (same order as the lost run) were already emailed. */
+  skipFirst?: number;
 }): Promise<{ matched: number; related: number; skippedStrong: number; relatedCategories: string[] }> {
   const category = (c.category || "").split(",").map((s) => s.trim()).filter(Boolean);
   const relatedCats = [...new Set(category.flatMap((k) => RELATED_CATEGORIES[k] || []))].filter((k) => !category.includes(k));
@@ -111,29 +181,38 @@ export async function queueCategoryCampaignEmails(c: {
     if (status && status !== "available") continue;
     const id = String(row.id);
     if (sharedCategoryKeys(c.category, row.category).length) {
-      if (strong.has(id)) skippedStrong += 1;
+      if (strong.has(id) && !c.includeStrong) skippedStrong += 1;
       else tier.set(id, "matched");
     } else if (relatedCats.length && sharedCategoryKeys(relatedCats.join(","), row.category).length) {
       tier.set(id, "related");
     }
   }
 
+  load();
   let matched = 0;
   let related = 0;
+  let toSkip = Math.max(0, Math.floor(c.skipFirst || 0));
   const people = await contactsFor([...tier.keys()]);
   for (const person of people) {
     const email = (person.email || "").trim();
     if (!email.includes("@")) continue;
     if (isProtectedTestAccount({ display_name: person.name, contact_email: email })) continue;
     const key = `${c.campaignId}:${person.id}`;
-    if (state.sent.has(key)) continue;
+    const emailKey = `${c.campaignId}:${email.toLowerCase()}`;
+    if (state.sent.has(key) || state.sent.has(emailKey)) continue;
     state.sent.add(key);
+    state.sent.add(emailKey);
+    if (toSkip > 0) {
+      toSkip -= 1;
+      continue;
+    }
     const mail = buildCategoryCampaignEmail({ name: person.name, title: c.title, brandName: c.brandName, platforms: c.platforms, campaignId: c.campaignId });
-    state.queue.push({ key, to: email, ...mail });
+    state.queue.push({ key, emailKey, to: email, ...mail });
     if (tier.get(person.id) === "matched") matched += 1;
     else related += 1;
   }
   console.log("[campaign category email] queued", c.campaignId, { matched, related, skippedStrong, relatedCategories: relatedCats });
+  save();
   pump();
   return { matched, related, skippedStrong, relatedCategories: relatedLabel };
 }

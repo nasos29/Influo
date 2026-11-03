@@ -378,7 +378,7 @@ export async function sendPushNewOpenCampaignToAllApprovedInfluencers(opts: {
         sendPushToInfluencer(String(row.id), {
           title,
           body,
-          url: "/dashboard",
+          url: `/campaigns/${opts.campaignId}`,
           tag: `campaign-open-${opts.campaignId}`,
         })
       )
@@ -389,6 +389,23 @@ export async function sendPushNewOpenCampaignToAllApprovedInfluencers(opts: {
     }
   }
   return { sent, failed };
+}
+
+/** Admin push for a new campaign application (plain text, no emoji). */
+export async function sendPushAdminNewCampaignApplication(opts: {
+  campaignTitle: string;
+  brandName: string;
+  influencerName: string;
+  applicationId: string;
+}): Promise<{ sent: number; failed: number }> {
+  const admin = getAdminPushRecipient();
+  if (!admin) return { sent: 0, failed: 0 };
+  return sendPushToBrand(admin, {
+    title: "Νέα αίτηση σε καμπάνια",
+    body: `${clipPushText(opts.influencerName, 36)} / ${clipPushText(opts.brandName, 30)}: ${clipPushText(opts.campaignTitle, 50)}`,
+    url: "/admin",
+    tag: `admin-campaign-app-${opts.applicationId}`,
+  });
 }
 
 /** Influencer υπέβαλε αίτηση σε καμπάνια — ειδοποίηση brand (web push με email ως user_identifier). */
