@@ -1212,6 +1212,64 @@ export default function BrandCampaignsSection({
 
   const req = <span className="text-red-600"> *</span>;
 
+  // One card for every place a brand sees applications (campaign list and the «Αιτήσεις» panel).
+  const renderApplicant = (app: ApplicationRow) => {
+                          const inf = app.influencers;
+                          const appStatusChip =
+                            app.status === "accepted"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : app.status === "rejected"
+                                ? "bg-slate-200 text-slate-700"
+                                : app.status === "shortlisted"
+                                  ? "bg-blue-100 text-blue-800"
+                                  : app.status === "withdrawn"
+                                    ? "bg-slate-100 text-slate-500"
+                                    : "bg-amber-100 text-amber-900";
+                          const appStatusText =
+                            app.status === "accepted"
+                              ? t.app_accepted
+                              : app.status === "rejected"
+                                ? t.app_rejected
+                                : app.status === "shortlisted"
+                                  ? t.app_shortlisted
+                                  : app.status === "withdrawn"
+                                    ? t.app_withdrawn
+                                    : t.app_pending;
+                          return (
+                            <ApplicantCard
+                              key={app.id}
+                              lang={lang}
+                              influencerId={app.influencer_id}
+                              profile={app.profile ?? null}
+                              fallbackName={inf?.display_name || "Creator"}
+                              fallbackAvatar={inf?.avatar_url ?? null}
+                              status={app.status}
+                              statusText={appStatusText}
+                              statusClass={appStatusChip}
+                              invite={app.initiated_by === "brand"}
+                              message={app.message}
+                              proposedPrice={app.proposed_price}
+                              workLinks={app.work_links}
+                              canDecide={app.status !== "withdrawn" && app.status !== "accepted"}
+                              onAccept={() => updateAppStatus(app, "accepted")}
+                              onReject={() => updateAppStatus(app, "rejected")}
+                              onShortlist={() => updateAppStatus(app, "shortlisted")}
+                              onMessage={() => onOpenInfluencerMessage?.({ influencerId: app.influencer_id, displayName: displayNameForLang(inf?.display_name || "Influencer", lang) })}
+                              footer={
+                                <>
+                                  {app.deliverable_status ? <span className="text-xs text-slate-500">{deliverableLabel(app.deliverable_status)}</span> : null}
+                                  {app.deliverable_status === "submitted" && (
+                                    <>
+                                      <button type="button" onClick={() => reviewDeliverable(app.id, "approved")} className="text-[11px] px-2 py-1 rounded bg-emerald-600 text-white">{t.approve_deliverable}</button>
+                                      <button type="button" onClick={() => { const note = window.prompt(t.review_note_ph) || ""; void reviewDeliverable(app.id, "changes_requested", note); }} className="text-[11px] px-2 py-1 rounded border border-amber-300 text-amber-800 bg-amber-50">{t.request_changes}</button>
+                                    </>
+                                  )}
+                                </>
+                              }
+                            />
+                          );
+  };
+
   return (
     <div className="space-y-6">
       {aiOpen && (
@@ -1676,23 +1734,9 @@ export default function BrandCampaignsSection({
                   return (
                     <section key={row.id} className="space-y-3">
                       <h4 className="text-sm font-semibold text-slate-900">{row.title}</h4>
-                      <ul className="space-y-2">
-                        {apps.map((app) => (
-                          <li key={app.id} className="rounded-xl border border-slate-200 bg-white p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-                            <div className="min-w-0 flex-1">
-                              <p className="font-medium text-slate-900">{displayNameForLang(app.influencers?.display_name || "Creator", lang)}</p>
-                              <p className="text-xs text-slate-500 mt-1">{app.message || "—"}</p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => onOpenInfluencerMessage?.({ influencerId: app.influencer_id, displayName: displayNameForLang(app.influencers?.display_name || "Influencer", lang) })}
-                              className="inline-flex min-h-11 items-center px-3 rounded-lg bg-blue-600 text-white text-sm font-medium"
-                            >
-                              {t.btn_chat}
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
+                      <div className="space-y-3">
+                        {apps.map((app) => renderApplicant(app))}
+                      </div>
                     </section>
                   );
                 })}
@@ -1759,62 +1803,7 @@ export default function BrandCampaignsSection({
                       <p className="text-sm text-slate-500">{t.no_apps}</p>
                     ) : (
                       <div className="space-y-3">
-                        {(appsByCampaign[row.id] || []).map((app) => {
-                          const inf = app.influencers;
-                          const appStatusChip =
-                            app.status === "accepted"
-                              ? "bg-emerald-100 text-emerald-800"
-                              : app.status === "rejected"
-                                ? "bg-slate-200 text-slate-700"
-                                : app.status === "shortlisted"
-                                  ? "bg-blue-100 text-blue-800"
-                                  : app.status === "withdrawn"
-                                    ? "bg-slate-100 text-slate-500"
-                                    : "bg-amber-100 text-amber-900";
-                          const appStatusText =
-                            app.status === "accepted"
-                              ? t.app_accepted
-                              : app.status === "rejected"
-                                ? t.app_rejected
-                                : app.status === "shortlisted"
-                                  ? t.app_shortlisted
-                                  : app.status === "withdrawn"
-                                    ? t.app_withdrawn
-                                    : t.app_pending;
-                          return (
-                            <ApplicantCard
-                              key={app.id}
-                              lang={lang}
-                              influencerId={app.influencer_id}
-                              profile={app.profile ?? null}
-                              fallbackName={inf?.display_name || "Creator"}
-                              fallbackAvatar={inf?.avatar_url ?? null}
-                              status={app.status}
-                              statusText={appStatusText}
-                              statusClass={appStatusChip}
-                              invite={app.initiated_by === "brand"}
-                              message={app.message}
-                              proposedPrice={app.proposed_price}
-                              workLinks={app.work_links}
-                              canDecide={app.status !== "withdrawn" && app.status !== "accepted"}
-                              onAccept={() => updateAppStatus(app, "accepted")}
-                              onReject={() => updateAppStatus(app, "rejected")}
-                              onShortlist={() => updateAppStatus(app, "shortlisted")}
-                              onMessage={() => onOpenInfluencerMessage?.({ influencerId: app.influencer_id, displayName: displayNameForLang(inf?.display_name || "Influencer", lang) })}
-                              footer={
-                                <>
-                                  {app.deliverable_status ? <span className="text-xs text-slate-500">{deliverableLabel(app.deliverable_status)}</span> : null}
-                                  {app.deliverable_status === "submitted" && (
-                                    <>
-                                      <button type="button" onClick={() => reviewDeliverable(app.id, "approved")} className="text-[11px] px-2 py-1 rounded bg-emerald-600 text-white">{t.approve_deliverable}</button>
-                                      <button type="button" onClick={() => { const note = window.prompt(t.review_note_ph) || ""; void reviewDeliverable(app.id, "changes_requested", note); }} className="text-[11px] px-2 py-1 rounded border border-amber-300 text-amber-800 bg-amber-50">{t.request_changes}</button>
-                                    </>
-                                  )}
-                                </>
-                              }
-                            />
-                          );
-                        })}
+                        {(appsByCampaign[row.id] || []).map((app) => renderApplicant(app))}
                       </div>
                     )}
                   </div>
