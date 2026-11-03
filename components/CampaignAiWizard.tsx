@@ -352,6 +352,7 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
               <p className="text-slate-700 whitespace-pre-line">{result.fill.description}</p>
               {result.fill.deliverables && <p className="text-slate-700"><span className="text-slate-500">Παραδοτέα:</span> {result.fill.deliverables}</p>}
               <p className="text-slate-700"><span className="text-slate-500">Θέσεις:</span> {result.fill.slots || "Χωρίς όριο"}</p>
+              <p className="text-xs text-slate-500">Εικόνα καμπάνιας: την ανεβάζετε στο επόμενο βήμα («Επεξεργασία & δημοσίευση») και μπορείτε να την αλλάξετε όποτε θέλετε. Χωρίς εικόνα εμφανίζεται το λογότυπό σας.</p>
               {result.price ? <p className="text-slate-700"><span className="text-slate-500">Προτεινόμενη αμοιβή ανά creator:</span> {result.price} €</p> : null}
             </div>
             {result.packages.length > 0 && (
