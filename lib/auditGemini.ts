@@ -625,7 +625,7 @@ export async function runAuditGeminiStrict(
     throw new Error('No valid social accounts (platform + username) for audit.');
   }
 
-  const modelId = (process.env.GEMINI_AUDIT_MODEL || 'gemini-2.0-flash').trim();
+  const modelId = (process.env.GEMINI_AUDIT_MODEL || 'gemini-flash-latest').trim();
   const prompt = buildMultiPlatformPrompt(filtered, shared, options?.exampleAudits);
 
   try {
@@ -660,7 +660,7 @@ export async function runAuditGeminiStrict(
 
 /**
  * Run Gemini strategic audit from all platforms' metrics (one unified audit).
- * Uses GEMINI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY. Model: gemini-2.0-flash (or GEMINI_AUDIT_MODEL).
+ * Uses GEMINI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY. Model: gemini-flash-latest (or GEMINI_AUDIT_MODEL).
  */
 export async function runAuditGemini(
   accounts: AuditAccount[],
@@ -687,7 +687,7 @@ export async function runAuditGemini(
     return FALLBACK;
   }
 
-  const modelId = (process.env.GEMINI_AUDIT_MODEL || 'gemini-2.0-flash').trim();
+  const modelId = (process.env.GEMINI_AUDIT_MODEL || 'gemini-flash-latest').trim();
   const prompt = buildMultiPlatformPrompt(filtered, shared, options?.exampleAudits);
 
   try {
