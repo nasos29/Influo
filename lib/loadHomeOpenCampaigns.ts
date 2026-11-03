@@ -1,5 +1,6 @@
 import { supabaseService } from "@/lib/apiAuth";
 import type { CampaignCardData } from "@/components/CampaignCard";
+import { campaignSlotInfo } from "@/lib/campaignSlots";
 import { brandVerifiedFromJoin } from "@/lib/publicCampaignVisibility";
 
 const SELECT = `
@@ -73,10 +74,12 @@ export async function loadOpenCampaigns(limit?: number): Promise<CampaignCardDat
       brandVerifiedFromJoin(row.brands)
     );
     const ids = rows.map((r) => r.id).filter(Boolean);
-    const counts = await loadApplicationsCounts(ids);
+    const [counts, slots] = await Promise.all([loadApplicationsCounts(ids), campaignSlotInfo(supabaseService(), ids)]);
     return rows.map((row) => ({
       ...row,
       applications_count: counts.get(row.id) ?? 0,
+      slots: slots[row.id]?.slots ?? null,
+      slots_filled: slots[row.id]?.filled ?? 0,
     }));
   } catch (error) {
     console.error("loadOpenCampaigns", error);

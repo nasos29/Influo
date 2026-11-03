@@ -1,0 +1,296 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { sessionFetch } from "@/lib/sessionFetch";
+import { CATEGORIES, categoryLabel } from "@/lib/categories";
+import { publicProfilePath } from "@/lib/profileSlug";
+
+export type AiPrefill = {
+  title: string;
+  description: string;
+  deliverables: string;
+  category: string;
+  platforms: string[];
+  location: string;
+  budget: string;
+  slots: string;
+  compensation_type: "money" | "product" | "both";
+  starts_on: string;
+};
+
+type Match = { id: string; display_name: string; avatar_url: string | null; profile_slug: string | null; followers: number };
+
+const GOALS = [
+  ["awareness", "Αναγνωρισιμότητα brand"],
+  ["launch", "Λανσάρισμα προϊόντος"],
+  ["sales", "Πωλήσεις / κωδικός έκπτωσης"],
+  ["traffic", "Επισκέψεις σε κατάστημα ή site"],
+  ["ugc", "UGC βίντεο για τα κανάλια μας"],
+  ["event", "Κάλυψη εκδήλωσης"],
+] as const;
+const PLATFORMS = [["instagram", "Instagram"], ["tiktok", "TikTok"], ["youtube", "YouTube"], ["facebook", "Facebook"]] as const;
+const CONTENT = [["reel", "Reel"], ["story", "Stories"], ["post", "Post"], ["tiktok", "TikTok βίντεο"], ["youtube", "YouTube βίντεο"], ["ugc", "UGC (χωρίς δημοσίευση)"]] as const;
+
+function addDays(days: number): string {
+  const d = new Date(Date.now() + days * 86400000);
+  return d.toISOString().slice(0, 10);
+}
+
+const sel = "w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 bg-white";
+
+/** Six short questions → one cheap AI call → editable prefill for the campaign form. */
+export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => void; onApply: (fill: AiPrefill) => void }) {
+  const [q, setQ] = useState(1);
+  const [goal, setGoal] = useState("launch");
+  const [category, setCategory] = useState("");
+  const [product, setProduct] = useState("");
+  const [age, setAge] = useState("all");
+  const [gender, setGender] = useState("all");
+  const [inPerson, setInPerson] = useState(false);
+  const [location, setLocation] = useState("");
+  const [platforms, setPlatforms] = useState<string[]>(["instagram"]);
+  const [content, setContent] = useState<string[]>(["reel"]);
+  const [budget, setBudget] = useState("");
+  const [slots, setSlots] = useState("3");
+  const [timing, setTiming] = useState("2weeks");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ fill: AiPrefill; price: number | null; matches: Match[] } | null>(null);
+
+  const toggle = (list: string[], set: (v: string[]) => void, id: string) => set(list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
+
+  const check = (n: number): string | null => {
+    if (n === 2 && !category) return "Επιλέξτε κατηγορία.";
+    if (n === 3 && inPerson && !location.trim()) return "Γράψτε την περιοχή όπου χρειάζεται φυσική παρουσία.";
+    if (n === 4 && !platforms.length) return "Επιλέξτε τουλάχιστον μία πλατφόρμα.";
+    if (n === 5 && budget && !(Number(budget) >= 0)) return "Το budget πρέπει να είναι αριθμός.";
+    return null;
+  };
+
+  const next = () => {
+    const problem = check(q);
+    setError(problem);
+    if (!problem) setQ(q + 1);
+  };
+
+  const generate = async () => {
+    for (const n of [2, 3, 4, 5]) {
+      const problem = check(n);
+      if (problem) {
+        setError(problem);
+        setQ(n);
+        return;
+      }
+    }
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await sessionFetch("/api/campaigns/ai-draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ goal, category, product, age, gender, inPerson, location, platforms, content, budget: Number(budget) || 0, slots: Number(slots) || 0, timing }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        draft?: { title: string; description: string; deliverables: string; slots: number | null; pricePerCreator: number | null; location: string; compensation: "money" | "product"; budget: number | null; timing: string };
+        matches?: Match[];
+        message?: { el?: string };
+      };
+      if (!res.ok || !data.draft) {
+        setError(data.message?.el || "Κάτι πήγε στραβά. Δοκιμάστε ξανά ή χρησιμοποιήστε τη φόρμα.");
+        return;
+      }
+      const d = data.draft;
+      const priceLine = d.pricePerCreator ? `\n\nΠροτεινόμενη αμοιβή ανά creator: ${d.pricePerCreator} €.` : "";
+      const start = timing === "asap" ? addDays(2) : timing === "2weeks" ? addDays(14) : timing === "month" ? addDays(30) : addDays(7);
+      setResult({
+        price: d.pricePerCreator,
+        matches: data.matches || [],
+        fill: {
+          title: d.title,
+          description: `${d.description}${priceLine}`.trim(),
+          deliverables: d.deliverables,
+          category,
+          platforms,
+          location: inPerson ? location.trim() : "",
+          budget: d.budget ? String(d.budget) : "",
+          slots: d.slots ? String(d.slots) : "",
+          compensation_type: d.compensation === "money" ? "money" : "product",
+          starts_on: start,
+        },
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/50 p-0 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="ai-wiz-title">
+      <div className="w-full sm:max-w-lg max-h-[92vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-white p-5 shadow-xl">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 id="ai-wiz-title" className="text-lg font-semibold text-slate-900">Δημιουργία καμπάνιας με AI</h3>
+            <p className="text-xs text-slate-500 mt-0.5">{result ? "Ελέγξτε το προσχέδιο. Θα μπορείτε να το αλλάξετε πριν τη δημοσίευση." : `Ερώτηση ${q}/6`}</p>
+          </div>
+          <button type="button" onClick={onClose} className="text-slate-500 hover:text-slate-800 text-sm" aria-label="Κλείσιμο">✕</button>
+        </div>
+
+        {!result && (
+          <div className="mt-4 space-y-3">
+            {q === 1 && (
+              <label className="block">
+                <span className="block text-sm font-medium text-slate-700 mb-1">Ποιος είναι ο στόχος;</span>
+                <select value={goal} onChange={(e) => setGoal(e.target.value)} className={sel}>
+                  {GOALS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+                </select>
+              </label>
+            )}
+            {q === 2 && (
+              <>
+                <label className="block">
+                  <span className="block text-sm font-medium text-slate-700 mb-1">Κατηγορία προϊόντος / υπηρεσίας</span>
+                  <select value={category} onChange={(e) => setCategory(e.target.value)} className={sel}>
+                    <option value="">—</option>
+                    {CATEGORIES.map((c) => <option key={c} value={c}>{categoryLabel(c, "el")}</option>)}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="block text-sm font-medium text-slate-700 mb-1">Τι προωθείτε; (προαιρετικό, σύντομα)</span>
+                  <input value={product} maxLength={140} onChange={(e) => setProduct(e.target.value)} className={sel} placeholder="π.χ. νέα σειρά αντηλιακών" />
+                </label>
+              </>
+            )}
+            {q === 3 && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block">
+                    <span className="block text-sm font-medium text-slate-700 mb-1">Ηλικία κοινού</span>
+                    <select value={age} onChange={(e) => setAge(e.target.value)} className={sel}>
+                      <option value="all">Όλες</option>
+                      <option value="18-24">18–24</option>
+                      <option value="25-34">25–34</option>
+                      <option value="35-44">35–44</option>
+                      <option value="45+">45+</option>
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="block text-sm font-medium text-slate-700 mb-1">Φύλο κοινού</span>
+                    <select value={gender} onChange={(e) => setGender(e.target.value)} className={sel}>
+                      <option value="all">Όλοι</option>
+                      <option value="women">Κυρίως γυναίκες</option>
+                      <option value="men">Κυρίως άνδρες</option>
+                    </select>
+                  </label>
+                </div>
+                <label className="block">
+                  <span className="block text-sm font-medium text-slate-700 mb-1">Χρειάζεται φυσική παρουσία;</span>
+                  <select value={inPerson ? "yes" : "no"} onChange={(e) => setInPerson(e.target.value === "yes")} className={sel}>
+                    <option value="no">Όχι, εξ αποστάσεως (Πανελλαδικά)</option>
+                    <option value="yes">Ναι (κατάστημα, εκδήλωση κ.λπ.)</option>
+                  </select>
+                </label>
+                {inPerson && (
+                  <label className="block">
+                    <span className="block text-sm font-medium text-slate-700 mb-1">Περιοχή</span>
+                    <input value={location} maxLength={60} onChange={(e) => setLocation(e.target.value)} className={sel} placeholder="π.χ. Αθήνα" />
+                  </label>
+                )}
+              </>
+            )}
+            {q === 4 && (
+              <>
+                <p className="text-sm font-medium text-slate-700">Πλατφόρμες</p>
+                <div className="flex flex-wrap gap-2">
+                  {PLATFORMS.map(([id, label]) => (
+                    <button key={id} type="button" onClick={() => toggle(platforms, setPlatforms, id)} className={`rounded-full border px-3 py-1.5 text-sm ${platforms.includes(id) ? "border-blue-600 bg-blue-50 text-blue-800" : "border-slate-300 text-slate-700"}`}>{label}</button>
+                  ))}
+                </div>
+                <p className="text-sm font-medium text-slate-700 pt-1">Τύπος περιεχομένου</p>
+                <div className="flex flex-wrap gap-2">
+                  {CONTENT.map(([id, label]) => (
+                    <button key={id} type="button" onClick={() => toggle(content, setContent, id)} className={`rounded-full border px-3 py-1.5 text-sm ${content.includes(id) ? "border-blue-600 bg-blue-50 text-blue-800" : "border-slate-300 text-slate-700"}`}>{label}</button>
+                  ))}
+                </div>
+              </>
+            )}
+            {q === 5 && (
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="block text-sm font-medium text-slate-700 mb-1">Συνολικό budget (€)</span>
+                  <select value={budget} onChange={(e) => setBudget(e.target.value)} className={sel}>
+                    <option value="">Μόνο προϊόν / ανταλλαγή</option>
+                    {["150", "300", "500", "1000", "2000", "5000"].map((b) => <option key={b} value={b}>{`έως ${b} €`}</option>)}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="block text-sm font-medium text-slate-700 mb-1">Πόσοι creators;</span>
+                  <select value={slots} onChange={(e) => setSlots(e.target.value)} className={sel}>
+                    <option value="">Χωρίς όριο</option>
+                    {["1", "2", "3", "5", "10"].map((n) => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                </label>
+              </div>
+            )}
+            {q === 6 && (
+              <label className="block">
+                <span className="block text-sm font-medium text-slate-700 mb-1">Πότε ξεκινά;</span>
+                <select value={timing} onChange={(e) => setTiming(e.target.value)} className={sel}>
+                  <option value="asap">Άμεσα</option>
+                  <option value="2weeks">Σε περίπου 2 εβδομάδες</option>
+                  <option value="month">Μέσα στον μήνα</option>
+                  <option value="flexible">Ευέλικτα</option>
+                </select>
+              </label>
+            )}
+            {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+            <div className="flex items-center gap-2 pt-2">
+              {q > 1 && <button type="button" onClick={() => { setError(null); setQ(q - 1); }} className="px-4 py-2 rounded-lg border border-slate-300 text-sm text-slate-700">Πίσω</button>}
+              {q < 6 ? (
+                <button type="button" onClick={next} className="ml-auto px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium">Επόμενο</button>
+              ) : (
+                <button type="button" onClick={generate} disabled={loading} className="ml-auto px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium disabled:opacity-60">{loading ? "Δημιουργία…" : "Δημιουργία προσχεδίου"}</button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {result && (
+          <div className="mt-4 space-y-4">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2 text-sm">
+              <p className="font-semibold text-slate-900">{result.fill.title}</p>
+              <p className="text-slate-700 whitespace-pre-line">{result.fill.description}</p>
+              {result.fill.deliverables && <p className="text-slate-700"><span className="text-slate-500">Παραδοτέα:</span> {result.fill.deliverables}</p>}
+              <p className="text-slate-700"><span className="text-slate-500">Θέσεις:</span> {result.fill.slots || "Χωρίς όριο"}</p>
+              {result.price ? <p className="text-slate-700"><span className="text-slate-500">Προτεινόμενη αμοιβή ανά creator:</span> {result.price} €</p> : null}
+            </div>
+            {result.matches.length > 0 && (
+              <div>
+                <p className="text-sm font-medium text-slate-700 mb-2">Creators που ταιριάζουν</p>
+                <ul className="grid grid-cols-2 gap-2">
+                  {result.matches.map((m) => (
+                    <li key={m.id}>
+                      <Link href={publicProfilePath(m.profile_slug, m.id)} target="_blank" className="flex items-center gap-2 rounded-lg border border-slate-200 p-2 hover:bg-slate-50">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        {m.avatar_url ? <img src={m.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" /> : <span className="h-8 w-8 rounded-full bg-slate-200" />}
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-medium text-slate-900">{m.display_name}</span>
+                          {m.followers > 0 && <span className="block text-xs text-slate-500">{m.followers.toLocaleString("el-GR")} ακόλουθοι</span>}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-slate-500 mt-1">Μετά τη δημοσίευση μπορείτε να τους στείλετε πρόσκληση.</p>
+              </div>
+            )}
+            {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" onClick={() => setResult(null)} className="px-4 py-2 rounded-lg border border-slate-300 text-sm text-slate-700">Αλλαγή απαντήσεων</button>
+              <button type="button" onClick={() => onApply(result.fill)} className="ml-auto px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium">Επεξεργασία & δημοσίευση</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -1,3 +1,4 @@
+import { campaignSlotInfo, slotsFull } from "@/lib/campaignSlots";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
 import { addAdminNotice } from "@/lib/adminNotice";
@@ -274,6 +275,13 @@ async function createApplication(request: NextRequest, body: Record<string, unkn
     .maybeSingle();
   if (!campaign || campaign.status !== "open") {
     return NextResponse.json({ error: "Campaign not available" }, { status: 400 });
+  }
+  const slotInfo = (await campaignSlotInfo(admin, [campaign.id]))[campaign.id];
+  if (slotsFull(slotInfo)) {
+    return NextResponse.json(
+      { error: "slots_full", message: { el: "Οι θέσεις συμπληρώθηκαν.", en: "All spots are filled." } },
+      { status: 403 }
+    );
   }
 
   const price = proposedPriceRaw.trim()
