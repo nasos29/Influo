@@ -1,7 +1,7 @@
 "use client";
 
 import { useImageCrop, COVER_CROP, COVER_HINT } from "@/components/ImageCropDialog";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { Fragment, useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { sessionFetch } from "@/lib/sessionFetch";
@@ -406,6 +406,7 @@ const TEMPLATES: Array<{ id: string; el: string; en: string; hint: string; fill:
       description:
         "Αναζητούμε creators για Reels, Stories και Post που παρουσιάζουν τα προϊόντα ή τις υπηρεσίες μας στο κοινό τους. Η δημιουργία μπορεί να γίνει εξ αποστάσεως (αποστέλλουμε το προϊόν) ή με παρουσία στον χώρο μας.",
       chips: { story: 3, reel: 1, post: 1 },
+      deliverables: "Tag & mention του brand σε όλα, link στα Stories, δικαίωμα επαναδημοσίευσης στα κανάλια του brand",
       platforms: ["instagram"],
       compensation_type: "both",
       slots: "3",
@@ -1349,23 +1350,26 @@ export default function BrandCampaignsSection({
             <div>
               <p className="text-sm font-medium text-slate-700">{lang === "el" ? "Έτοιμα πακέτα" : "Ready templates"}</p>
               <p className="text-xs text-slate-500 mb-2">{lang === "el" ? "Για γρήγορο ξεκίνημα, ή φτιάξε το δικό σου." : "For a quick start, or build your own."}</p>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-stretch sm:gap-1.5">
                 {TEMPLATES.map((tpl) => (
-                  <button
-                    key={tpl.id}
-                    type="button"
-                    onClick={() => { setCustomPick(false); applyPrefill(tpl.fill); }}
-                    className="rounded-xl border border-slate-200 bg-white p-3 text-left hover:border-blue-400 hover:bg-blue-50 transition-colors"
-                  >
-                    <span className="block text-sm font-semibold text-slate-900">{lang === "el" ? tpl.el : tpl.en}</span>
-                    <span className="block text-xs text-slate-500 mt-0.5">{tpl.hint}</span>
-                  </button>
+                  <Fragment key={tpl.id}>
+                    <button
+                      type="button"
+                      onClick={() => { setCustomPick(false); applyPrefill(tpl.fill); }}
+                      className="flex-1 min-w-0 rounded-xl border border-slate-200 bg-white p-3 text-left hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                    >
+                      <span className="block text-sm font-semibold text-slate-900">{lang === "el" ? tpl.el : tpl.en}</span>
+                      <span className="block text-xs text-slate-500 mt-0.5">{tpl.hint}</span>
+                      <span className="block text-xs font-medium text-slate-700 mt-1.5">{buildDeliverables(tpl.fill.chips || {}, "").replace(/, /g, " · ")}</span>
+                    </button>
+                    <span aria-hidden="true" className="self-center text-xs font-medium text-slate-400 sm:px-0.5">{lang === "el" ? "ή" : "or"}</span>
+                  </Fragment>
                 ))}
                 <button
                   type="button"
                   aria-pressed={customPick}
                   onClick={() => { applyPrefill({}); setCustomPick(true); setTimeout(() => document.getElementById("cf-title")?.focus(), 50); }}
-                  className={`col-span-2 sm:col-span-1 rounded-xl border border-dashed p-3 text-left transition-colors ${customPick ? "border-blue-600 bg-blue-50" : "border-blue-300 bg-white hover:border-blue-500 hover:bg-blue-50"}`}
+                  className={`flex-1 min-w-0 rounded-xl border border-dashed p-3 text-left transition-colors ${customPick ? "border-blue-600 bg-blue-50" : "border-blue-300 bg-white hover:border-blue-500 hover:bg-blue-50"}`}
                 >
                   <span className="block text-sm font-semibold text-blue-700">{lang === "el" ? "＋ Φτιάξε το δικό σου" : "＋ Build your own"}</span>
                   <span className="block text-xs text-slate-500 mt-0.5">{lang === "el" ? "Διαλέγεις εσύ παραδοτέα & ποσότητες" : "Pick your own deliverables & quantities"}</span>
