@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useCallback, useState, type ReactNode } from "react";
+import ImageLightbox from "@/components/ImageLightbox";
 import Link from "next/link";
 import CreatorPhoto from "@/components/CreatorPhoto";
 import InfluencerPresenceDot from "@/components/InfluencerPresenceDot";
@@ -89,6 +90,7 @@ export default function ApplicantCard({
 }) {
   const el = lang === "el";
   const [zoom, setZoom] = useState(false);
+  const closeZoom = useCallback(() => setZoom(false), []);
   const [more, setMore] = useState(false);
   const [menu, setMenu] = useState(false);
   const name = displayNameForLang(profile?.display_name || fallbackName || "Creator", lang);
@@ -102,7 +104,7 @@ export default function ApplicantCard({
   return (
     <article className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
       <div className="flex gap-3">
-        <button type="button" onClick={() => avatar && setZoom(true)} className="shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" aria-label={el ? "Μεγέθυνση φωτογραφίας" : "Enlarge photo"}>
+        <button type="button" onClick={() => avatar && setZoom(true)} className="shrink-0 rounded-full cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" aria-label={el ? "Μεγέθυνση φωτογραφίας" : "Enlarge photo"}>
           <CreatorPhoto src={avatar} name={name} className="w-16 h-16" rounded="rounded-full" />
         </button>
         <div className="min-w-0 flex-1">
@@ -211,13 +213,7 @@ export default function ApplicantCard({
       </div>
       {footer ? <div className="mt-2 flex flex-wrap items-center gap-2">{footer}</div> : null}
 
-      {zoom && avatar ? (
-        <div role="dialog" aria-modal="true" aria-label={name} className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setZoom(false)}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={avatar} alt={name} className="max-w-full max-h-[85vh] rounded-2xl object-contain" />
-          <button type="button" onClick={() => setZoom(false)} className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/90 text-slate-900 text-xl" aria-label={el ? "Κλείσιμο" : "Close"}>×</button>
-        </div>
-      ) : null}
+      {avatar ? <ImageLightbox src={avatar} alt={name} open={zoom} onClose={closeZoom} lang={lang} /> : null}
     </article>
   );
 }

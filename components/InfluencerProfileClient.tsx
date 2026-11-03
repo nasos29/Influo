@@ -3,6 +3,7 @@
 import { useEffect, useState, use, Suspense, useRef, useCallback, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import ImageLightbox from "@/components/ImageLightbox";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { heroGradientForCategory } from "@/lib/heroTheme";
@@ -642,6 +643,8 @@ export default function InfluencerProfile(props: {
   const txt = { ...t[lang], ...statsUiFor(lang) };
 
   const [activeTab, setActiveTab] = useState("overview");
+  const [avatarZoom, setAvatarZoom] = useState(false);
+  const closeAvatarZoom = useCallback(() => setAvatarZoom(false), []);
   // Deep link from emails: ?tab=reviews (or overview/audience/pricing) opens that tab.
   useEffect(() => {
     const tab = searchParams?.get("tab");
@@ -2177,9 +2180,18 @@ export default function InfluencerProfile(props: {
           {/* Top Section: Avatar, Name, Info */}
           <div className="p-6 md:p-8 flex flex-col md:flex-row items-center md:items-start gap-6 border-b border-slate-100">
             <div className="relative w-40 h-40 -mt-6 md:mb-0 flex-shrink-0">
-                <div className="relative w-40 h-40 rounded-full border-4 border-white shadow-lg overflow-hidden bg-slate-100">
+                <button
+                  type="button"
+                  onClick={() => profile.avatar && setAvatarZoom(true)}
+                  disabled={!profile.avatar}
+                  className="relative block w-40 h-40 rounded-full border-4 border-white shadow-lg overflow-hidden bg-slate-100 cursor-zoom-in disabled:cursor-default transition-transform hover:scale-[1.02] focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/50"
+                  aria-label={lang === "el" ? `Μεγέθυνση φωτογραφίας: ${displayNameForLang(profile.name, lang)}` : `Enlarge photo: ${displayNameForLang(profile.name, lang)}`}
+                >
                   <Avatar src={profile.avatar} alt={displayNameForLang(profile.name, lang)} size={160} className="w-full h-full" priority />
-                </div>
+                </button>
+                {profile.avatar ? (
+                  <ImageLightbox src={profile.avatar} alt={displayNameForLang(profile.name, lang)} open={avatarZoom} onClose={closeAvatarZoom} lang={lang === "en" ? "en" : "el"} />
+                ) : null}
                 {profile.verified && (
                   <div
                     className="absolute bottom-1 right-1 bg-blue-600 text-white p-1.5 rounded-full border-2 border-white shadow-sm"
