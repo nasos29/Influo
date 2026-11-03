@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
+import { addAdminNotice } from "@/lib/adminNotice";
 import { ensureProposalThread } from "@/lib/proposalChat";
 import { creatorContact, notifyApplicationStatus } from "@/lib/campaignNotify";
 import { acceptedToBrand, acceptedToCreator, applicationToBrand, applicationToCreator } from "@/lib/campaignMail";
@@ -85,6 +86,15 @@ function notifyNewApplication(applicationId: string, influencerId: string): void
         sendPushAdminNewCampaignApplication({ campaignTitle, brandName, influencerName, applicationId }).catch((err) =>
           console.error("[campaign application] admin push", err)
         )
+      );
+      jobs.push(
+        addAdminNotice({
+          kind: "campaign_application",
+          title: `Νέα αίτηση σε καμπάνια: ${influencerName} / ${brandName}`,
+          body: `Καμπάνια: ${campaignTitle}`,
+          url: "/admin",
+          dedupeKey: `campaign_application:${applicationId}`,
+        })
       );
       if (bc?.brand_id) {
         jobs.push(

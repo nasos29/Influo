@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient"; 
 import Image from "next/image";
+import AdminNoticesPanel from "@/components/AdminNoticesPanel";
 import { isDefinitelyVideo, isDefinitelyImage, detectProvider, getVideoEmbedApiUrl, isEmbeddableVideoUrl } from "@/lib/videoThumbnail";
 import {
   FACEBOOK_VIDEO_LINK_ERROR,
@@ -4407,6 +4408,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <AdminNoticesPanel lang={lang} />
         <div className="@container relative bg-white rounded-xl border border-slate-200 mb-6 overflow-hidden">
           <nav
             ref={adminTabsRef}
