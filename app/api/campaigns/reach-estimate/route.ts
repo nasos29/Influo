@@ -119,12 +119,23 @@ export async function POST(request: NextRequest) {
 
   let low = 0;
   let high = 0;
+  const list: Array<{ id: string; display_name: string; avatar_url: string | null; profile_slug: string | null; accounts: Array<{ platform: string; followers: number; avg_views: number }> }> = [];
   for (const m of matches) {
-    const r = creatorReach((m.influencer.accounts as Acc[]) || [], chips);
+    const accs = (m.influencer.accounts as Acc[]) || [];
+    const r = creatorReach(accs, chips);
     if (!r) continue;
     low += r[0];
     high += r[1];
+    list.push({
+      id: String(m.influencer.id),
+      display_name: m.influencer.display_name,
+      avatar_url: m.influencer.avatar_url || null,
+      profile_slug: m.influencer.profile_slug || null,
+      accounts: accs
+        .filter((a) => a && !a.is_private && num(a.followers) > 0)
+        .map((a) => ({ platform: canonicalPlatform(a.platform), followers: num(a.followers), avg_views: num(a.avg_views) })),
+    });
   }
   if (!high) return NextResponse.json({ estimate: null, reason: "no_data" });
-  return NextResponse.json({ estimate: { low: roundNice(low), high: roundNice(high), creators: matches.length } });
+  return NextResponse.json({ estimate: { low: roundNice(low), high: roundNice(high), creators: list.length, list } });
 }
