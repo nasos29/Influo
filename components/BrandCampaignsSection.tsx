@@ -15,6 +15,7 @@ import { publicProfilePath } from "@/lib/profileSlug";
 import { mergeApplicantProfile } from "@/lib/applicantProfile";
 import { findContactInfo, filterWorkLinks } from "@/lib/contactFilter";
 import CampaignCard from "@/components/CampaignCard";
+import { clearSessionKeys, useBackGesture } from "@/lib/useFormPersistence";
 import CampaignAiWizard, { type SiteBrandInfo } from "@/components/CampaignAiWizard";
 import PlatformActivityBadge from "@/components/PlatformActivityBadge";
 import CampaignCover from "@/components/CampaignCover";
@@ -690,29 +691,34 @@ export default function BrandCampaignsSection({
     void loadApplicationPanel();
   }, [panel, campaignKey, loadApplicationPanel]);
 
+  function restoreDraftFull(): { form: CampaignForm; step: number } | null {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY(brandId));
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as { form?: Partial<CampaignForm>; step?: number; at?: number };
+      if (!parsed.form || !parsed.at || Date.now() - parsed.at > 14 * 24 * 3600 * 1000) return null;
+      return { form: { ...emptyForm(), ...parsed.form }, step: Math.max(1, Math.min(3, Number(parsed.step) || 1)) };
+    } catch {
+      return null;
+    }
+  }
+
   const startNewOnce = useRef(false);
   useEffect(() => {
     if (!startNew || startNewOnce.current || loading) return;
     startNewOnce.current = true;
-    setForm(emptyForm());
-    setStep(1);
+    const draft = restoreDraftFull();
+    setForm(draft?.form || emptyForm());
+    setDraftRestored(!!draft);
+    setStep(draft?.step || 1);
     setContactFieldErrors({});
     setEditing("new");
   }, [startNew, loading]);
 
-  const restoreDraft = (): CampaignForm | null => {
-    try {
-      const raw = localStorage.getItem(DRAFT_KEY(brandId));
-      if (!raw) return null;
-      const parsed = JSON.parse(raw) as { form?: Partial<CampaignForm>; at?: number };
-      if (!parsed.form || !parsed.at || Date.now() - parsed.at > 14 * 24 * 3600 * 1000) return null;
-      return { ...emptyForm(), ...parsed.form };
-    } catch {
-      return null;
-    }
-  };
 
+  const draftClearedRef = useRef(false);
   const clearDraft = () => {
+    draftClearedRef.current = true;
     try {
       localStorage.removeItem(DRAFT_KEY(brandId));
     } catch {
@@ -721,10 +727,10 @@ export default function BrandCampaignsSection({
   };
 
   const openNew = () => {
-    const draft = restoreDraft();
-    setForm(draft || emptyForm());
+    const draft = restoreDraftFull();
+    setForm(draft?.form || emptyForm());
     setDraftRestored(!!draft);
-    setStep(1);
+    setStep(draft?.step || 1);
     setFieldErrors({});
     setContactFieldErrors({});
     setEditing("new");
@@ -739,20 +745,40 @@ export default function BrandCampaignsSection({
     setEditing((prev) => prev || "new");
   };
 
-  // Draft autosave (new campaigns only), debounced.
+  // Draft autosave (new campaigns only): debounced, plus an immediate flush when the page is hidden/left.
   useEffect(() => {
     if (editing !== "new") return;
-    const timer = setTimeout(() => {
+    draftClearedRef.current = false;
+    const save = () => {
+      if (draftClearedRef.current) return;
       try {
-        const empty = JSON.stringify(emptyForm());
-        if (JSON.stringify(form) === empty) return;
-        localStorage.setItem(DRAFT_KEY(brandId), JSON.stringify({ form, at: Date.now() }));
+        if (JSON.stringify(form) === JSON.stringify(emptyForm())) return;
+        localStorage.setItem(DRAFT_KEY(brandId), JSON.stringify({ form, step, at: Date.now() }));
       } catch {
         /* storage full or blocked */
       }
-    }, 600);
-    return () => clearTimeout(timer);
-  }, [form, editing, brandId]);
+    };
+    const timer = setTimeout(save, 400);
+    const onHide = () => save();
+    window.addEventListener("pagehide", onHide);
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("pagehide", onHide);
+      document.removeEventListener("visibilitychange", onHide);
+      save();
+    };
+  }, [form, step, editing, brandId]);
+
+  // Browser / mobile back inside the form: previous step instead of leaving the page (draft kept).
+  useBackGesture(!!editing && !aiOpen, () => {
+    if (step > 1) {
+      setStep(step - 1);
+      return true;
+    }
+    setEditing(null);
+    return false;
+  });
 
   // Slots per campaign (separate read so a missing column never breaks the list).
   useEffect(() => {
@@ -1033,7 +1059,10 @@ export default function BrandCampaignsSection({
         toastSuccess(x.saved);
       }
       setDeadlineClearedNotice(!!data.deadlineCleared);
-      if (editing === "new") clearDraft();
+      if (editing === "new") {
+        clearDraft();
+        clearSessionKeys("influo:ai-wizard:");
+      }
       setEditing(null);
       await load();
       onApplicationsUpdated?.();

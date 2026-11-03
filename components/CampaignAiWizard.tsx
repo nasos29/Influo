@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useBackGesture, useSessionState } from "@/lib/useFormPersistence";
 import Link from "next/link";
 import { sessionFetch } from "@/lib/sessionFetch";
 import { CATEGORIES, categoryLabel } from "@/lib/categories";
@@ -58,27 +59,41 @@ const sel = "w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 
 
 /** Six short questions → one cheap AI call → editable prefill for the campaign form. */
 export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => void; onApply: (fill: AiPrefill, brand: SiteBrandInfo) => void }) {
-  const [q, setQ] = useState(0);
-  const [website, setWebsite] = useState("");
-  const [siteGoal, setSiteGoal] = useState("");
-  const [siteBrand, setSiteBrand] = useState<SiteBrandInfo>(null);
+  const [q, setQ] = useSessionState("influo:ai-wizard:q", 0);
+  const [website, setWebsite] = useSessionState("influo:ai-wizard:website", "");
+  const [siteGoal, setSiteGoal] = useSessionState("influo:ai-wizard:siteGoal", "");
+  const [siteBrand, setSiteBrand] = useSessionState<SiteBrandInfo>("influo:ai-wizard:siteBrand", null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [goal, setGoal] = useState("launch");
-  const [category, setCategory] = useState("");
-  const [product, setProduct] = useState("");
-  const [age, setAge] = useState("all");
-  const [gender, setGender] = useState("all");
-  const [inPerson, setInPerson] = useState(false);
-  const [location, setLocation] = useState("");
-  const [platforms, setPlatforms] = useState<string[]>(["instagram"]);
-  const [content, setContent] = useState<string[]>(["reel"]);
-  const [budget, setBudget] = useState("");
-  const [slots, setSlots] = useState("3");
-  const [timing, setTiming] = useState("2weeks");
+  const [goal, setGoal] = useSessionState("influo:ai-wizard:goal", "launch");
+  const [category, setCategory] = useSessionState("influo:ai-wizard:category", "");
+  const [product, setProduct] = useSessionState("influo:ai-wizard:product", "");
+  const [age, setAge] = useSessionState("influo:ai-wizard:age", "all");
+  const [gender, setGender] = useSessionState("influo:ai-wizard:gender", "all");
+  const [inPerson, setInPerson] = useSessionState("influo:ai-wizard:inPerson", false);
+  const [location, setLocation] = useSessionState("influo:ai-wizard:location", "");
+  const [platforms, setPlatforms] = useSessionState<string[]>("influo:ai-wizard:platforms", ["instagram"]);
+  const [content, setContent] = useSessionState<string[]>("influo:ai-wizard:content", ["reel"]);
+  const [budget, setBudget] = useSessionState("influo:ai-wizard:budget", "");
+  const [slots, setSlots] = useSessionState("influo:ai-wizard:slots", "3");
+  const [timing, setTiming] = useSessionState("influo:ai-wizard:timing", "2weeks");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ fill: AiPrefill; price: number | null; matches: Match[]; packages: Pkg[] } | null>(null);
-  const [pkgIdx, setPkgIdx] = useState<number | null>(null);
+  const [result, setResult] = useSessionState<{ fill: AiPrefill; price: number | null; matches: Match[]; packages: Pkg[] } | null>("influo:ai-wizard:result", null);
+  const [pkgIdx, setPkgIdx] = useSessionState<number | null>("influo:ai-wizard:pkgIdx", null);
+
+  // Back gesture: previous question, or close (answers stay in sessionStorage).
+  useBackGesture(true, () => {
+    if (result) {
+      setResult(null);
+      return true;
+    }
+    if (q > 0) {
+      setQ(q - 1);
+      return true;
+    }
+    onClose();
+    return false;
+  });
 
   const toggle = (list: string[], set: (v: string[]) => void, id: string) => set(list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
 
