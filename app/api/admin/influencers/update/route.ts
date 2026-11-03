@@ -11,7 +11,7 @@ import {
   birthDateLangFromRequest,
   validateBirthDate,
 } from '@/lib/validateBirthDate';
-import { FACEBOOK_VIDEO_LINK_ERROR, prepareVideosForSave } from '@/lib/videoLinks';
+import { FACEBOOK_VIDEO_LINK_ERROR, prepareVideosForSave, portfolioPostLimit, portfolioLimitMessage } from '@/lib/videoLinks';
 import { syncHiddenVideosWithVideos } from '@/lib/hiddenVideos';
 import { FIXED_PRICE_MESSAGE, hasUnfixedCreatorPrice, minRateFromPackages, packagesForViewer } from '@/lib/servicePackages';
 import {
@@ -121,6 +121,12 @@ export async function POST(request: NextRequest) {
       const existingVideos = Array.isArray(existing.videos)
         ? (existing.videos as string[])
         : [];
+      if (prepared.videos.length > portfolioPostLimit(existingVideos.filter(Boolean).length)) {
+        return NextResponse.json(
+          { error: portfolioLimitMessage(lang === 'en' ? 'en' : 'el') },
+          { status: 400 }
+        );
+      }
       const playable = await checkNewVideosPlayable(prepared.videos, existingVideos);
       if (!playable.ok) {
         return NextResponse.json(

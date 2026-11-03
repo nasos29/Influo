@@ -95,3 +95,17 @@ export function prepareVideosForSave(videos: unknown): PrepareVideosResult {
   }
   return { ok: true, videos: out };
 }
+
+/** Free plan: max portfolio posts per creator. Older profiles above it keep theirs but cannot add more. */
+export const MAX_PORTFOLIO_POSTS = 10;
+
+/** Allowed count given what was already saved (grandfathers older profiles with more). */
+export function portfolioPostLimit(existingCount = 0): number {
+  return Math.max(MAX_PORTFOLIO_POSTS, existingCount);
+}
+
+export function portfolioLimitMessage(lang: "el" | "en"): string {
+  return lang === "en"
+    ? `You can add up to ${MAX_PORTFOLIO_POSTS} posts.`
+    : `Μπορείτε να προσθέσετε έως ${MAX_PORTFOLIO_POSTS} posts.`;
+}
