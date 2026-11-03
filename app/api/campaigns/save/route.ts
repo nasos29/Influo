@@ -1,3 +1,4 @@
+import { campaignDateBounds, DATE_RANGE_MSG } from "@/lib/campaignDateRange";
 import { revalidatePublicCampaigns } from "@/lib/revalidatePublicCampaigns";
 import { NextRequest, NextResponse, after } from "next/server";
 import { notifyCampaignPublished } from "@/lib/campaignPublishedNotify";
@@ -159,6 +160,15 @@ export async function POST(request: NextRequest) {
   }
 
   const deadlineYmd = asString(body.deadline).trim();
+  {
+    const b = campaignDateBounds();
+    if (startsOn > b.max || (!campaignId && startsOn < b.min)) {
+      return NextResponse.json({ error: "date_out_of_range", message: DATE_RANGE_MSG.el }, { status: 400 });
+    }
+    if (deadlineYmd && /^\d{4}-\d{2}-\d{2}$/.test(deadlineYmd) && (deadlineYmd > b.max || (!campaignId && deadlineYmd < b.min))) {
+      return NextResponse.json({ error: "date_out_of_range", message: DATE_RANGE_MSG.el }, { status: 400 });
+    }
+  }
   if (deadlineYmd && /^\d{4}-\d{2}-\d{2}$/.test(deadlineYmd) && deadlineYmd <= startsOn) {
     return NextResponse.json({ error: "deadline_after_start" }, { status: 400 });
   }
