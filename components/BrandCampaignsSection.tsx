@@ -539,6 +539,11 @@ function ReachEstimate({ lang, form }: { lang: string; form: CampaignForm }) {
               );
             })}
           </ul>
+          <p className="text-xs text-slate-500 mt-2">
+            {el
+              ? "Η εκτίμηση αφορά τους creators που προτείνονται παραπάνω. Αν τελικά συνεργαστείτε με άλλους, η εμβέλεια θα διαφέρει."
+              : "The estimate refers to the creators suggested above. If you end up working with others, the reach will differ."}
+          </p>
         </div>
       )}
     </div>
