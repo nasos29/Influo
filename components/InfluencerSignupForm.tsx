@@ -7,7 +7,7 @@ import Image from "next/image";
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 import {
   FACEBOOK_VIDEO_LINK_ERROR,
-  prepareVideosForSave,
+  prepareVideosForSave, MAX_PORTFOLIO_POSTS, portfolioLimitMessage,
 } from "@/lib/videoLinks";
 import { isDefinitelyImage, isEmbeddableVideoUrl } from "@/lib/videoThumbnail";
 import {
@@ -391,7 +391,7 @@ export default function InfluencerSignupForm() {
     })();
   };
   const addVideo = () =>
-    setVideoRows((rows) => [...rows, { id: newVideoRowId(), url: "" }]);
+    setVideoRows((rows) => (rows.length >= MAX_PORTFOLIO_POSTS ? rows : [...rows, { id: newVideoRowId(), url: "" }]));
   const removeVideo = (id: string) => {
     setVideoRows((rows) => {
       if (rows.length <= 1) return rows;
@@ -614,6 +614,12 @@ export default function InfluencerSignupForm() {
       if (!preparedVideos.ok) {
         setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR[lang]);
         setMessage(FACEBOOK_VIDEO_LINK_ERROR[lang]);
+        setLoading(false);
+        return;
+      }
+      if (preparedVideos.videos.length > MAX_PORTFOLIO_POSTS) {
+        setVideoLinkError(portfolioLimitMessage(lang));
+        setMessage(portfolioLimitMessage(lang));
         setLoading(false);
         return;
       }
@@ -1243,6 +1249,7 @@ export default function InfluencerSignupForm() {
                 <div className="space-y-3">
                     <label className={labelClass}>{txt.videoLabel}</label>
                     <p className="text-xs text-gray-500 mb-2">{txt.videoDesc}</p>
+                    <p className="text-xs font-semibold text-gray-600">{lang === "en" ? `Up to ${MAX_PORTFOLIO_POSTS} posts` : `Έως ${MAX_PORTFOLIO_POSTS} posts`} · {videoRows.filter((r) => r.url.trim()).length}/{MAX_PORTFOLIO_POSTS}</p>
                     {videoRows.map((row) => (
                       <PortfolioVideoLinkRow
                         key={row.id}
@@ -1264,7 +1271,9 @@ export default function InfluencerSignupForm() {
                         {videoLinkError}
                       </p>
                     ) : null}
+                    {videoRows.length < MAX_PORTFOLIO_POSTS ? (
                     <button type="button" onClick={addVideo} className="text-blue-600 text-sm font-bold hover:underline">{txt.addVideo}</button>
+                    ) : null}
                 </div>
 
                 <CreatorPlatformPrices

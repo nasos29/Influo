@@ -26,7 +26,7 @@ import AdminNoticesPanel from "@/components/AdminNoticesPanel";
 import { isDefinitelyVideo, isDefinitelyImage, detectProvider, getVideoEmbedApiUrl, isEmbeddableVideoUrl } from "@/lib/videoThumbnail";
 import {
   FACEBOOK_VIDEO_LINK_ERROR,
-  prepareVideosForSave,
+  prepareVideosForSave, MAX_PORTFOLIO_POSTS, portfolioPostLimit, portfolioLimitMessage,
 } from "@/lib/videoLinks";
 import {
   newVideoRowId,
@@ -1229,9 +1229,10 @@ const EditProfileModal = ({
         return labels[field] || field;
     };
     
+    const portfolioMax = portfolioPostLimit(Array.isArray(user.videos) ? user.videos.filter(Boolean).length : 0);
     const addVideo = () => {
         markSensitiveTouched("videos");
-        setVideoRows((rows) => [...rows, { id: newVideoRowId(), url: "" }]);
+        setVideoRows((rows) => (rows.length >= portfolioMax ? rows : [...rows, { id: newVideoRowId(), url: "" }]));
     };
     const removeVideo = (id: string) => {
         markSensitiveTouched("videos");
@@ -1328,6 +1329,12 @@ const EditProfileModal = ({
             if (!preparedVideos.ok) {
                 setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR.el);
                 notify(FACEBOOK_VIDEO_LINK_ERROR.el);
+                setLoading(false);
+                return;
+            }
+            if (preparedVideos.videos.length > portfolioMax) {
+                setVideoLinkError(portfolioLimitMessage("el"));
+                notify(portfolioLimitMessage("el"));
                 setLoading(false);
                 return;
             }
@@ -1998,7 +2005,10 @@ const EditProfileModal = ({
                                 {videoLinkError}
                               </p>
                             ) : null}
+                            <p className="mt-2 text-xs text-gray-500">Έως {MAX_PORTFOLIO_POSTS} posts · {videoRows.filter((r) => r.url.trim()).length}/{portfolioMax}</p>
+                            {videoRows.length < portfolioMax ? (
                             <button type="button" onClick={addVideo} className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm">+ Προσθήκη Video Link / Φωτογραφίας</button>
+                            ) : null}
                         </div>
 
                         {/* Insights Screenshots */}

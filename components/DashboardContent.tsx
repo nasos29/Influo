@@ -12,7 +12,7 @@ import InfluoLogo from '@/components/InfluoLogo';
 import { getVideoThumbnail, isVideoUrl, isDefinitelyVideo, isDefinitelyImage, detectProvider, isEmbeddableVideoUrl } from '@/lib/videoThumbnail';
 import {
     FACEBOOK_VIDEO_LINK_ERROR,
-    prepareVideosForSave,
+    prepareVideosForSave, MAX_PORTFOLIO_POSTS, portfolioPostLimit, portfolioLimitMessage,
 } from '@/lib/videoLinks';
 import { normalizeVideoUrlKey } from '@/lib/checkVideoPlayable';
 import {
@@ -406,8 +406,9 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
             }
         })();
     };
+    const portfolioMax = portfolioPostLimit(Array.isArray(user.videos) ? user.videos.filter(Boolean).length : 0);
     const addVideo = () =>
-        setVideoRows((rows) => [...rows, { id: newVideoRowId(), url: '' }]);
+        setVideoRows((rows) => (rows.length >= portfolioMax ? rows : [...rows, { id: newVideoRowId(), url: '' }]));
     const removeVideo = (id: string) => {
         setVideoRows((rows) => {
             if (rows.length <= 1) return rows;
@@ -491,6 +492,13 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
             if (!preparedVideos.ok) {
                 setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR[lang]);
                 notify(FACEBOOK_VIDEO_LINK_ERROR[lang], 'error');
+                setSection('portfolio');
+                setLoading(false);
+                return;
+            }
+            if (preparedVideos.videos.length > portfolioMax) {
+                setVideoLinkError(portfolioLimitMessage(lang));
+                notify(portfolioLimitMessage(lang), 'error');
                 setSection('portfolio');
                 setLoading(false);
                 return;
@@ -1216,7 +1224,10 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                                 {videoLinkError}
                               </p>
                             ) : null}
+                            <p className="text-xs text-gray-500">{L(`Έως ${MAX_PORTFOLIO_POSTS} posts`, `Up to ${MAX_PORTFOLIO_POSTS} posts`)} · {videoRows.filter((r) => r.url.trim()).length}/{portfolioMax}</p>
+                            {videoRows.length < portfolioMax ? (
                             <button type="button" onClick={addVideo} className="text-sm text-blue-600 hover:text-blue-700 font-medium">{L("+ Προσθήκη Video Link / Φωτογραφίας", "+ Add Video Link / Photo")}</button>
+                            ) : null}
                         </div>
                     </div>
 
