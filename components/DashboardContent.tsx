@@ -290,6 +290,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                 'engagement_rate',
                 'avg_likes',
                 'avg_views',
+                'is_private',
                 'posts_count',
                 'er_suspicious',
                 'er_flag_reason',
@@ -639,8 +640,17 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
             });
 
             // Add accounts and videos to check
-            const oldAccountsStr = JSON.stringify(oldValues.accounts || []);
-            const newAccountsStr = JSON.stringify(newValues.accounts || []);
+            // Only creator-editable account fields count as a change (technical fields are preserved/recomputed).
+            const editableAccounts = (list: unknown) =>
+                JSON.stringify(
+                    (Array.isArray(list) ? list : []).map((a: Record<string, unknown>) => [
+                        String(a?.platform || '').trim().toLowerCase(),
+                        String(a?.username || '').replace(/^@+/, '').trim().toLowerCase(),
+                        String(a?.followers ?? '').trim(),
+                    ])
+                );
+            const oldAccountsStr = editableAccounts(oldValues.accounts);
+            const newAccountsStr = editableAccounts(newValues.accounts);
             if (oldAccountsStr !== newAccountsStr) {
                 if (!changedFields.includes('accounts')) {
                     changedFields.push('accounts');

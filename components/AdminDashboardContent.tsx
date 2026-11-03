@@ -1161,7 +1161,11 @@ const EditProfileModal = ({
                 console.log('[Profile Changes] API Response:', data);
                 
                 if (data.success) {
-                    const changes = data.data || [];
+                    // Hide entries that contain only technical noise (nothing a person would review).
+                    const changes = (data.data || []).filter(
+                        (c: { changed_fields?: string[] | null; old_values?: Record<string, unknown> | null; new_values?: Record<string, unknown> | null }) =>
+                            diffProfileChange(c.changed_fields, c.old_values, c.new_values).length > 0
+                    );
                     setProfileChanges(changes);
                     console.log('[Profile Changes] ✅ Found', changes.length, 'unreviewed changes');
                     if (changes.length === 0) {
@@ -2046,6 +2050,32 @@ const EditProfileModal = ({
 export default function AdminDashboardContent({ adminEmail }: { adminEmail: string }) {
   const [lang, setLang] = useState<"el" | "en">("el"); // Default to Greek, will be updated in useEffect
   const txt = t[lang];
+  const [unapprovalReasons, setUnapprovalReasons] = useState<Record<string, { reason: string; at: string }>>({});
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const res = await fetch("/api/admin/influencers/unapproval-reasons", { headers: await adminAuthHeaders() });
+        if (!res.ok) return;
+        const json = (await res.json()) as { reasons?: Record<string, { reason: string; at: string }> };
+        if (alive && json.reasons) setUnapprovalReasons(json.reasons);
+      } catch {
+        /* optional info */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const unapprovalLine = (id: string | number) => {
+    const r = unapprovalReasons[String(id)];
+    if (!r) return null;
+    return (
+      <span className="block max-w-xs whitespace-normal break-words rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] leading-snug text-amber-900">
+        {lang === "el" ? "Δεν εγκρίθηκε" : "Not approved"}: {r.reason} · {formatDate(r.at, lang)} {formatTime(r.at, lang)}
+      </span>
+    );
+  };
   const { toasts, push: pushToast, dismiss: dismissToast } = useToasts();
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -4825,6 +4855,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                           <p className="text-sm text-slate-600 break-all">{u.contact_email || "—"}</p>
                           <p className="text-xs text-slate-400 mt-1">{formatDate(u.created_at, lang)} {formatTime(u.created_at, lang)}</p>
                           <p className="mt-2 text-xs text-slate-600">{u.approved ? txt.approved : { el: "Μη εγκεκριμένος", en: "Not approved" }[lang]}</p>
+                          {!u.approved ? <div className="mt-1">{unapprovalLine(u.id)}</div> : null}
                         </div>
                       </div>
                       {influencerActions(u)}
@@ -4932,6 +4963,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               ) : (
                                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">{{ el: "Μη εγκεκριμένος", en: "Not approved" }[lang]}</span>
                               )}
+                              {!u.approved ? unapprovalLine(u.id) : null}
                               {u.analytics_verified ? (
                                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">{txt.analytics_verified}</span>
                               ) : (
