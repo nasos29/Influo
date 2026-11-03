@@ -36,6 +36,8 @@ export type AuditAccount = {
   posts_count?: number | string | null;
   er_suspicious?: boolean;
   er_flag_reason?: ErFlagReason | string | null;
+  /** Recent posts; lets TikTok/YouTube ER flags use the sample rate. */
+  top_posts?: unknown;
   engagement_hidden?: boolean | null;
   suspected_fake_penalty?: boolean | null;
   engagement_rate_raw?: string | number | null;
