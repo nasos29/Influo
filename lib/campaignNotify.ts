@@ -38,7 +38,7 @@ type Contact = { id: string; name: string; email: string | null; category: strin
 
 const IN_CHUNK = 100;
 
-async function contactsFor(ids: string[]): Promise<Contact[]> {
+export async function contactsFor(ids: string[]): Promise<Contact[]> {
   const unique = [...new Set(ids.filter(Boolean))];
   const out: Contact[] = [];
   for (let index = 0; index < unique.length; index += IN_CHUNK) {
@@ -78,7 +78,7 @@ function campaignLink(id: string): string {
   return `${host}/campaigns/${id}`;
 }
 
-async function loadApprovedCreators(): Promise<AlertCandidate[]> {
+export async function loadApprovedCreators(): Promise<AlertCandidate[]> {
   const admin = supabaseService();
   const rows: AlertCandidate[] = [];
   let from = 0;
