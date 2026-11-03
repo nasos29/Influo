@@ -463,13 +463,23 @@ function ymd(value: string | null | undefined): string {
   return value.slice(0, 10);
 }
 
+type ReachCreator = { id: string; display_name: string; avatar_url: string | null; profile_slug: string | null; accounts: Array<{ platform: string; followers: number; avg_views: number }> };
+
+function compactNum(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}K`;
+  return String(Math.round(n));
+}
+
+const PLATFORM_SHORT: Record<string, string> = { instagram: "IG", tiktok: "TikTok", youtube: "YouTube", facebook: "FB" };
+
 function fmtPeople(n: number): string {
   return n.toLocaleString("el-GR");
 }
 
 /** Estimated reach from the creators we would recommend for this draft (server side, nothing saved). */
 function ReachEstimate({ lang, form }: { lang: string; form: CampaignForm }) {
-  const [state, setState] = useState<{ low: number; high: number; creators: number } | null | "loading">("loading");
+  const [state, setState] = useState<{ low: number; high: number; creators: number; list?: ReachCreator[] } | null | "loading">("loading");
   const key = JSON.stringify([form.chips, form.slots, form.min_followers, form.location, form.requires_presence, form.category]);
   useEffect(() => {
     let cancelled = false;
@@ -507,6 +517,29 @@ function ReachEstimate({ lang, form }: { lang: string; form: CampaignForm }) {
             ? `Εκτίμηση από τους ακόλουθους και τις μέσες προβολές των ${state.creators} creators που θα σας προτείναμε, με τυπικά ποσοστά εμβέλειας ανά πλατφόρμα. Δεν είναι εγγύηση.`
             : `Estimate based on followers and average views of the ${state.creators} creators we would recommend, using typical reach ratios per platform. Not a guarantee.`}
         </p>
+      )}
+      {state !== "loading" && state.list && state.list.length > 0 && (
+        <div className="mt-3">
+          <p className="text-xs font-medium text-slate-700 mb-1.5">{el ? "Creators που ταιριάζουν" : "Matching creators"}</p>
+          <ul className="space-y-1.5">
+            {state.list.map((c) => {
+              const name = displayNameForLang(c.display_name, lang === "en" ? "en" : "el");
+              return (
+                <li key={c.id}>
+                  <a href={publicProfilePath(c.profile_slug, c.id)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-lg p-1 hover:bg-slate-50">
+                    <CreatorPhoto src={c.avatar_url} name={name} className="w-8 h-8 shrink-0" rounded="rounded-full" />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium text-slate-900 truncate">{name}</span>
+                      <span className="block text-xs text-slate-500">
+                        {c.accounts.map((a) => `${PLATFORM_SHORT[a.platform] || a.platform} ${compactNum(a.followers)}${a.avg_views ? ` · ~${compactNum(a.avg_views)} ${el ? "προβολές" : "views"}` : ""}`).join(" | ")}
+                      </span>
+                    </span>
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
     </div>
   );
