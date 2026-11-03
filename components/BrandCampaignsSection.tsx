@@ -398,13 +398,13 @@ const TEMPLATES: Array<{ id: string; el: string; en: string; hint: string; fill:
   },
   {
     id: "local",
-    el: "Τοπική επιχείρηση",
-    en: "Local business",
-    hint: "ή εξ αποστάσεως",
+    el: "Βίντεο Reels & Stories",
+    en: "Reels & Stories video",
+    hint: "Εξ αποστάσεως ή με παρουσία",
     fill: {
-      title: "Παρουσίαση τοπικής επιχείρησης",
+      title: "Βίντεο Reels & Stories για το brand μας",
       description:
-        "Αναζητούμε creators να γνωρίσουν τα προϊόντα ή τις υπηρεσίες μας και να τα παρουσιάσουν στο κοινό τους, είτε με επίσκεψη στην επιχείρησή μας είτε εξ αποστάσεως (αποστέλλουμε το προϊόν).",
+        "Αναζητούμε creators για Reels και Stories που παρουσιάζουν τα προϊόντα ή τις υπηρεσίες μας στο κοινό τους. Η δημιουργία μπορεί να γίνει εξ αποστάσεως (αποστέλλουμε το προϊόν) ή με παρουσία στον χώρο μας.",
       chips: { story: 3, reel: 1, post: 1 },
       platforms: ["instagram"],
       compensation_type: "both",
