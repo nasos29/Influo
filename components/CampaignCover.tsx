@@ -133,7 +133,7 @@ export default function CampaignCover({
   return (
     <div
       className={`relative w-full ${aspectClass} overflow-hidden ${
-        hasCover ? `bg-gradient-to-br ${gradientFor(category)}` : logoSrc ? "bg-slate-800" : "bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600"
+        hasCover ? `bg-gradient-to-br ${gradientFor(category)}` : "bg-gradient-to-br from-slate-100 via-slate-200 to-slate-300"
       } ${className}`}
     >
       {hasCover ? (
@@ -163,47 +163,8 @@ export default function CampaignCover({
           <div className="absolute left-3 bottom-3 z-10">{logoMark("w-10 h-10 sm:w-12 sm:h-12", "text-base", true)}</div>
         </>
       ) : (
-        <>
-          {logoSrc ? (
-            <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={logoSrc}
-                alt=""
-                className="absolute inset-0 h-full w-full origin-center scale-[1.35] object-cover blur-[36px]"
-                loading={imageLoading}
-                decoding="async"
-                fetchPriority={imagePriority}
-                draggable={false}
-                onError={() => setLogoFailed(true)}
-              />
-              <div className="absolute inset-0 bg-black/40" />
-            </div>
-          ) : (
-            <div
-              className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_28%_18%,rgba(255,255,255,0.18),transparent_42%),radial-gradient(circle_at_82%_84%,rgba(15,23,42,0.18),transparent_46%)]"
-              aria-hidden
-            />
-          )}
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 px-4">
-            {logoSrc ? (
-              logoMark("w-16 h-16 sm:w-20 sm:h-20", "text-2xl sm:text-3xl")
-            ) : (
-              <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/30 backdrop-blur-sm" aria-hidden>
-                <svg viewBox="0 0 24 24" className="h-7 w-7 sm:h-8 sm:w-8 text-white" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z" />
-                  <path d="M15.5 8.5a5 5 0 0 1 0 7" />
-                  <path d="M18.5 5.5a9 9 0 0 1 0 13" />
-                </svg>
-              </div>
-            )}
-            {brandName ? (
-              <p className="max-w-full truncate text-sm font-semibold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.55)]">
-                {brandName}
-              </p>
-            ) : null}
-          </div>
-        </>
+        // No image: clean neutral background only (no icon, logo or initials). Brand adds an image via edit.
+        null
       )}
       {platformList.length > 0 && (
         <div className="absolute right-3 bottom-3 z-20 inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-slate-950/50 px-3 py-2 ring-1 ring-white/30 backdrop-blur-md sm:min-h-0 sm:px-2.5 sm:py-1.5">

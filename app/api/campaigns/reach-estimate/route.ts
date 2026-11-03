@@ -22,29 +22,26 @@ function num(v: unknown): number {
 function creatorReach(accounts: Acc[], chips: Record<string, number>): [number, number] | null {
   const by = new Map<string, Acc>();
   for (const a of accounts) if (a && !a.is_private) by.set(canonicalPlatform(a.platform), a);
-  const parts: Array<[number, number]> = [];
-  let cap = 0;
+  // Each extra piece of content adds new people, with diminishing returns (same audience).
+  const series = (base: number, n: number) => { let t = 0; for (let k = 0; k < n; k++) t += base * Math.pow(0.55, k); return t; };
+  let total = 0;
   const ig = by.get("instagram");
   if (ig && (chips.reel || chips.story || chips.post)) {
     const f = num(ig.followers);
     const v = num(ig.avg_views);
-    cap = Math.max(cap, f, v);
-    if (chips.reel) parts.push(v ? [0.5 * v, 1.0 * v * Math.min(chips.reel, 3)] : [0.1 * f, 0.3 * f]);
-    if (chips.story) parts.push([0.03 * f, 0.08 * f]);
-    if (chips.post) parts.push([0.08 * f, 0.2 * f]);
+    if (chips.reel) total += series(v ? 0.7 * v : 0.2 * f, chips.reel);
+    if (chips.story) total += series(0.05 * f, chips.story) * 0.6;
+    if (chips.post) total += series(0.12 * f, chips.post) * 0.7;
   }
   for (const [chip, plat] of [["tiktok", "tiktok"], ["youtube", "youtube"]] as const) {
     const a = by.get(plat);
     if (!a || !chips[chip]) continue;
     const f = num(a.followers);
     const v = num(a.avg_views);
-    cap = Math.max(cap, f, v);
-    parts.push(v ? [0.5 * v, v * Math.min(chips[chip], 3)] : [0.05 * f, 0.15 * f]);
+    total += series(v ? 0.7 * v : 0.1 * f, chips[chip]);
   }
-  if (!parts.length || !cap) return null;
-  const low = Math.max(...parts.map((p) => p[0]));
-  const high = Math.min(parts.reduce((s, p) => s + p[1], 0), cap);
-  return [low, Math.max(low, high)];
+  if (!total) return null;
+  return [0.8 * total, 1.2 * total];
 }
 
 function roundNice(n: number): number {

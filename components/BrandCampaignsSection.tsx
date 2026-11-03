@@ -522,16 +522,16 @@ function ReachEstimate({ lang, form }: { lang: string; form: CampaignForm }) {
       {state !== "loading" && state.list && state.list.length > 0 && (
         <div className="mt-3">
           <p className="text-xs font-medium text-slate-700 mb-1.5">{el ? "Creators που ταιριάζουν" : "Matching creators"}</p>
-          <ul className="space-y-1.5">
+          <ul className="space-y-2">
             {state.list.map((c) => {
               const name = displayNameForLang(c.display_name, lang === "en" ? "en" : "el");
               return (
                 <li key={c.id}>
-                  <a href={publicProfilePath(c.profile_slug, c.id)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-lg p-1 hover:bg-slate-50">
-                    <CreatorPhoto src={c.avatar_url} name={name} className="w-8 h-8 shrink-0" rounded="rounded-full" />
+                  <a href={publicProfilePath(c.profile_slug, c.id)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-lg p-2 hover:bg-slate-50">
+                    <CreatorPhoto src={c.avatar_url} name={name} className="w-12 h-12 shrink-0" rounded="rounded-full" />
                     <span className="min-w-0">
-                      <span className="block text-sm font-medium text-slate-900 truncate">{name}</span>
-                      <span className="block text-xs text-slate-500">
+                      <span className="block text-base font-semibold text-slate-900 truncate">{name}</span>
+                      <span className="block text-sm text-slate-600">
                         {c.accounts.map((a) => `${PLATFORM_SHORT[a.platform] || a.platform} ${compactNum(a.followers)}${a.avg_views ? ` · ~${compactNum(a.avg_views)} ${el ? "προβολές" : "views"}` : ""}`).join(" | ")}
                       </span>
                     </span>

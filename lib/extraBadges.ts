@@ -13,7 +13,7 @@ import type { ExtraBadgeType } from "@/lib/badges";
 
 const TTL_MS = 10 * 60_000;
 /** Criteria (also described in the guides / FAQ). */
-export const FAST_RESPONSE_MAX_HOURS = 2;
+export const FAST_RESPONSE_MAX_HOURS = 4;
 export const FAST_RESPONSE_MIN_CONVERSATIONS = 3;
 export const TOP_RATED_MIN_AVG = 4.8;
 export const TOP_RATED_MIN_REVIEWS = 3;
