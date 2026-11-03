@@ -137,6 +137,11 @@ export function meetsFollowerMinimum(
 ): boolean {
   const minimum = Number(minFollowers) || 0;
   if (minimum <= 0) return true;
+  return bestFollowersFor(accounts, platforms) >= minimum;
+}
+
+/** Highest follower count among the creator's accounts on the given platforms (all platforms when none). */
+export function bestFollowersFor(accounts: unknown, platforms: string[] | null | undefined): number {
   const wanted = (platforms || []).map((platform) => canonicalPlatform(platform)).filter(Boolean);
   const stats = statsFromAccounts(accountList(accounts));
   const pool = wanted.length ? stats.filter((row) => wanted.includes(row.platform)) : stats;
@@ -145,7 +150,7 @@ export function meetsFollowerMinimum(
     const count = parseFollowerNumber(row.followers);
     if (count > best) best = count;
   }
-  return best >= minimum;
+  return best;
 }
 
 function compareText(a: string, b: string): number {

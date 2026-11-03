@@ -10,6 +10,7 @@ import { campaignClosesMeta } from "@/components/CampaignCard";
 import { supabase } from "@/lib/supabaseClient";
 import { loadOwnProfiles } from "@/lib/ownProfile";
 import { categoryLabel } from "@/lib/categories";
+import FollowerGapNotice from "@/components/FollowerGapNotice";
 import { notifyBrandOfApplication, submitCampaignApplication } from "@/lib/campaignApply";
 import { findContactInfo, filterWorkLinks } from "@/lib/contactFilter";
 import { toastError, toastSuccess } from "@/components/Feedback";
@@ -131,6 +132,7 @@ export default function CampaignPublicView({
   const [messageError, setMessageError] = useState<string | null>(null);
   const [workLinksError, setWorkLinksError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [myAccounts, setMyAccounts] = useState<unknown>(null);
 
   useEffect(() => {
     setLang(pathname?.startsWith("/en") ? "en" : getStoredLanguage() === "en" ? "en" : "el");
@@ -170,6 +172,10 @@ export default function CampaignPublicView({
           nextInfluencerId = typeof rawId === "string" || typeof rawId === "number" ? String(rawId) : "";
           setInfluencerId(nextInfluencerId);
           setApproved(!!inf.approved);
+          if (nextInfluencerId) {
+            const { data: acc } = await supabase.from("influencers").select("accounts").eq("id", nextInfluencerId).maybeSingle();
+            setMyAccounts((acc as { accounts?: unknown } | null)?.accounts ?? null);
+          }
           setAvailable(!inf.availability_status || inf.availability_status === "available");
           if (nextInfluencerId) {
             const { data: mine } = await supabase
@@ -398,6 +404,7 @@ export default function CampaignPublicView({
             <span className="block text-xs text-slate-500 mt-1 font-normal">{WORK_LINK_HINT[el ? "el" : "en"]}</span>
             {workLinksError && <span className="block text-xs text-red-600 mt-1 font-normal">{workLinksError}</span>}
           </label>
+          <FollowerGapNotice accounts={myAccounts} platforms={platforms} minFollowers={campaign?.min_followers} lang={el ? "el" : "en"} />
           <button type="submit" disabled={submitting || !available} className="w-full px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium disabled:opacity-50">
             {submitting ? "…" : el ? "Αίτηση" : "Apply"}
           </button>
