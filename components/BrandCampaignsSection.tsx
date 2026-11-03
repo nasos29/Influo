@@ -1,7 +1,7 @@
 "use client";
 
 import { useImageCrop, COVER_CROP, COVER_HINT } from "@/components/ImageCropDialog";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { Fragment, useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { sessionFetch } from "@/lib/sessionFetch";
@@ -406,6 +406,7 @@ const TEMPLATES: Array<{ id: string; el: string; en: string; hint: string; fill:
       description:
         "Αναζητούμε creators για Reels, Stories και Post που παρουσιάζουν τα προϊόντα ή τις υπηρεσίες μας στο κοινό τους. Η δημιουργία μπορεί να γίνει εξ αποστάσεως (αποστέλλουμε το προϊόν) ή με παρουσία στον χώρο μας.",
       chips: { story: 3, reel: 1, post: 1 },
+      deliverables: "Tag & mention του brand σε όλα, link στα Stories, δικαίωμα επαναδημοσίευσης στα κανάλια του brand",
       platforms: ["instagram"],
       compensation_type: "both",
       slots: "3",
@@ -460,6 +461,55 @@ function FieldError({ msg }: { msg?: string | null }) {
 function ymd(value: string | null | undefined): string {
   if (!value) return "";
   return value.slice(0, 10);
+}
+
+function fmtPeople(n: number): string {
+  return n.toLocaleString("el-GR");
+}
+
+/** Estimated reach from the creators we would recommend for this draft (server side, nothing saved). */
+function ReachEstimate({ lang, form }: { lang: string; form: CampaignForm }) {
+  const [state, setState] = useState<{ low: number; high: number; creators: number } | null | "loading">("loading");
+  const key = JSON.stringify([form.chips, form.slots, form.min_followers, form.location, form.requires_presence, form.category]);
+  useEffect(() => {
+    let cancelled = false;
+    setState("loading");
+    const timer = setTimeout(async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        if (!token) { if (!cancelled) setState(null); return; }
+        const res = await fetch("/api/campaigns/reach-estimate", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ chips: form.chips, slots: form.slots, min_followers: form.min_followers, location: form.location, requires_presence: form.requires_presence, category: form.category, title: form.title, description: form.description }),
+        });
+        const body = res.ok ? await res.json() : null;
+        if (!cancelled) setState(body?.estimate || null);
+      } catch {
+        if (!cancelled) setState(null);
+      }
+    }, 300);
+    return () => { cancelled = true; clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  if (state === null) return null;
+  const el = lang === "el";
+  return (
+    <div className="mt-4 rounded-lg border border-blue-100 bg-white px-3 py-2.5">
+      <p className="text-sm text-slate-900">
+        <span className="font-medium">{el ? "Εκτιμώμενη εμβέλεια: " : "Estimated reach: "}</span>
+        {state === "loading" ? "…" : `~${fmtPeople(state.low)}–${fmtPeople(state.high)} ${el ? "άτομα" : "people"}`}
+      </p>
+      {state !== "loading" && (
+        <p className="text-xs text-slate-500 mt-0.5">
+          {el
+            ? `Εκτίμηση από τους ακόλουθους και τις μέσες προβολές των ${state.creators} creators που θα σας προτείναμε, με τυπικά ποσοστά εμβέλειας ανά πλατφόρμα. Δεν είναι εγγύηση.`
+            : `Estimate based on followers and average views of the ${state.creators} creators we would recommend, using typical reach ratios per platform. Not a guarantee.`}
+        </p>
+      )}
+    </div>
+  );
 }
 
 export default function BrandCampaignsSection({
@@ -1349,23 +1399,26 @@ export default function BrandCampaignsSection({
             <div>
               <p className="text-sm font-medium text-slate-700">{lang === "el" ? "Έτοιμα πακέτα" : "Ready templates"}</p>
               <p className="text-xs text-slate-500 mb-2">{lang === "el" ? "Για γρήγορο ξεκίνημα, ή φτιάξε το δικό σου." : "For a quick start, or build your own."}</p>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-stretch sm:gap-1.5">
                 {TEMPLATES.map((tpl) => (
-                  <button
-                    key={tpl.id}
-                    type="button"
-                    onClick={() => { setCustomPick(false); applyPrefill(tpl.fill); }}
-                    className="rounded-xl border border-slate-200 bg-white p-3 text-left hover:border-blue-400 hover:bg-blue-50 transition-colors"
-                  >
-                    <span className="block text-sm font-semibold text-slate-900">{lang === "el" ? tpl.el : tpl.en}</span>
-                    <span className="block text-xs text-slate-500 mt-0.5">{tpl.hint}</span>
-                  </button>
+                  <Fragment key={tpl.id}>
+                    <button
+                      type="button"
+                      onClick={() => { setCustomPick(false); applyPrefill(tpl.fill); }}
+                      className="flex-1 min-w-0 rounded-xl border border-slate-200 bg-white p-3 text-left hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                    >
+                      <span className="block text-sm font-semibold text-slate-900">{lang === "el" ? tpl.el : tpl.en}</span>
+                      <span className="block text-xs text-slate-500 mt-0.5">{tpl.hint}</span>
+                      <span className="block text-xs font-medium text-slate-700 mt-1.5">{buildDeliverables(tpl.fill.chips || {}, "").replace(/, /g, " · ")}</span>
+                    </button>
+                    <span aria-hidden="true" className="self-center text-xs font-medium text-slate-400 sm:px-0.5">{lang === "el" ? "ή" : "or"}</span>
+                  </Fragment>
                 ))}
                 <button
                   type="button"
                   aria-pressed={customPick}
                   onClick={() => { applyPrefill({}); setCustomPick(true); setTimeout(() => document.getElementById("cf-title")?.focus(), 50); }}
-                  className={`col-span-2 sm:col-span-1 rounded-xl border border-dashed p-3 text-left transition-colors ${customPick ? "border-blue-600 bg-blue-50" : "border-blue-300 bg-white hover:border-blue-500 hover:bg-blue-50"}`}
+                  className={`flex-1 min-w-0 rounded-xl border border-dashed p-3 text-left transition-colors ${customPick ? "border-blue-600 bg-blue-50" : "border-blue-300 bg-white hover:border-blue-500 hover:bg-blue-50"}`}
                 >
                   <span className="block text-sm font-semibold text-blue-700">{lang === "el" ? "＋ Φτιάξε το δικό σου" : "＋ Build your own"}</span>
                   <span className="block text-xs text-slate-500 mt-0.5">{lang === "el" ? "Διαλέγεις εσύ παραδοτέα & ποσότητες" : "Pick your own deliverables & quantities"}</span>
@@ -1607,6 +1660,7 @@ export default function BrandCampaignsSection({
                   <dt className="text-slate-500">{x.form_location}</dt>
                   <dd className="text-slate-900">{form.location || (lang === "el" ? "Πανελλαδικά" : "Nationwide")}{form.requires_presence ? (lang === "el" ? " · φυσική παρουσία" : " · in person") : ""}</dd>
                 </dl>
+                <ReachEstimate lang={lang} form={form} />
                 <div className="mt-4">
                   <label htmlFor="cf-status" className="block text-sm font-medium text-slate-700 mb-1">{t.form_status}</label>
                   <select id="cf-status" value={form.status} onChange={(e) => { setForm({ ...form, status: e.target.value as typeof form.status }); clearFieldError("status"); }} className={`${inputCls(fieldErrors.status)} bg-white max-w-xs`}>
