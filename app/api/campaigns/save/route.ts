@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { notifyCampaignPublished } from "@/lib/campaignPublishedNotify";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
 import { findContactInfo } from "@/lib/contactFilter";
 import { normalizeDeadlineForOpen } from "@/lib/campaignLifecycle";
@@ -265,6 +266,15 @@ export async function POST(request: NextRequest) {
   const id = result.data?.id || existing?.id;
   if (!id) {
     return NextResponse.json({ error: "Save failed" }, { status: 500 });
+  }
+
+  if (status === "open" && !wasOpen) {
+    // Server-side so a dropped client follow-up call can't lose the notifications.
+    after(() =>
+      notifyCampaignPublished(id, { ownerId: user.id }).catch((err) => {
+        console.error("[campaigns/save] publish notify", err);
+      })
+    );
   }
 
   return NextResponse.json({ ok: true, id, deadlineCleared });
