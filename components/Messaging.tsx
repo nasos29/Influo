@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { appendDictation, transcriptFromResults, type SpeechResultLike } from "@/lib/dictation";
 import { Mic, Send } from 'lucide-react';
 import { FaPaperclip } from 'react-icons/fa';
 import { supabase } from '@/lib/supabaseClient';
@@ -229,7 +230,7 @@ const t = {
   }
 };
 
-type SpeechResultList = ArrayLike<{ isFinal: boolean; 0?: { transcript: string } }>;
+type SpeechResultList = SpeechResultLike;
 
 type BrowserSpeechRecognition = {
   lang: string;
@@ -250,14 +251,6 @@ function speechRecognitionCtor(): (new () => BrowserSpeechRecognition) | null {
     webkitSpeechRecognition?: new () => BrowserSpeechRecognition;
   };
   return host.SpeechRecognition || host.webkitSpeechRecognition || null;
-}
-
-/** Spoken words are added after text the user already typed. */
-function appendDictation(base: string, spoken: string): string {
-  const extra = spoken.replace(/\s+/g, " ").trim();
-  if (!extra) return base;
-  if (!base) return extra;
-  return /\s$/.test(base) ? `${base}${extra}` : `${base} ${extra}`;
 }
 
 export default function Messaging({
@@ -1480,39 +1473,24 @@ export default function Messaging({
     const recognition = new Ctor();
     recognition.lang = lang === "en" ? "en-US" : "el-GR";
     recognition.interimResults = true;
-    recognition.continuous = true;
-    let blocked = false;
-    let committed = newMessageRef.current;
+    // Single session: continuous mode on Android restarts/beeps and repeats words cumulatively.
+    recognition.continuous = false;
     recognition.onresult = (event) => {
-      if (!wantDictationRef.current) return;
-      let finals = "";
-      let interim = "";
-      for (let i = 0; i < event.results.length; i++) {
-        const transcript = event.results[i][0]?.transcript ?? "";
-        if (event.results[i].isFinal) finals += transcript;
-        else interim += transcript;
-      }
-      committed = appendDictation(dictationPrefixRef.current, finals);
-      setNewMessage(appendDictation(dictationPrefixRef.current, `${finals}${interim}`));
+      if (!wantDictationRef.current || recognitionRef.current !== recognition) return;
+      const { text } = transcriptFromResults(event.results);
+      setNewMessage(appendDictation(dictationPrefixRef.current, text));
     };
     recognition.onerror = (event) => {
       if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-        blocked = true;
-        wantDictationRef.current = false;
-        setListening(false);
         setMicDenied(true);
       }
+      wantDictationRef.current = false;
+      setListening(false);
     };
     recognition.onend = () => {
-      dictationPrefixRef.current = committed;
-      if (wantDictationRef.current && !blocked) {
-        try {
-          recognition.start();
-          return;
-        } catch {
-          wantDictationRef.current = false;
-        }
-      }
+      // No auto-restart (that caused the repeated beeps); user taps the mic again to continue.
+      if (recognitionRef.current === recognition) recognitionRef.current = null;
+      wantDictationRef.current = false;
       setListening(false);
     };
     recognitionRef.current = recognition;
