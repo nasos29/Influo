@@ -163,8 +163,8 @@ export default function CampaignCover({
           <div className="absolute left-3 bottom-3 z-10">{logoMark("w-10 h-10 sm:w-12 sm:h-12", "text-base", true)}</div>
         </>
       ) : (
-        // No image: clean neutral background only (no icon, logo or initials). Brand adds an image via edit.
-        null
+        // No image: neutral background; only the small brand logo bottom-left when the brand has one.
+        logoSrc ? <div className="absolute left-3 bottom-3 z-10">{logoMark("w-10 h-10 sm:w-12 sm:h-12", "text-base", true)}</div> : null
       )}
       {platformList.length > 0 && (
         <div className="absolute right-3 bottom-3 z-20 inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-slate-950/50 px-3 py-2 ring-1 ring-white/30 backdrop-blur-md sm:min-h-0 sm:px-2.5 sm:py-1.5">
