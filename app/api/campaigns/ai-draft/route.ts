@@ -162,7 +162,16 @@ export async function POST(request: NextRequest) {
       generationConfig: { responseMimeType: "application/json", temperature: 0.5, maxOutputTokens: 4000 },
     });
     const result = await model.generateContent(prompt);
-    draft = JSON.parse(result.response.text() || "{}");
+    const raw = (result.response.text() || "{}").replace(/^```(?:json)?\s*|\s*```$/g, "");
+    const parsed: unknown = JSON.parse(raw);
+    // Some models wrap the object in an array or under a key.
+    const obj = Array.isArray(parsed) ? parsed[0] : parsed;
+    const inner = obj && typeof obj === "object" && !("title" in obj) ? Object.values(obj as Record<string, unknown>).find((v) => v && typeof v === "object" && "title" in (v as object)) : null;
+    draft = (inner || obj || {}) as typeof draft;
+    if (!draft.title && !draft.description) {
+      console.error("[ai-draft] empty draft, keys:", Object.keys((obj as object) || {}).slice(0, 8).join(","), "finish:", result.response.candidates?.[0]?.finishReason);
+      throw new Error("empty draft");
+    }
   } catch (err) {
     const msg = err instanceof Error ? err.message : "";
     console.error("[ai-draft] gemini", MODEL, msg.slice(0, 200) || "failed");
