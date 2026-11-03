@@ -18,7 +18,7 @@ const COPY = {
     searchLabel: "Αναζήτηση creators",
     creators: "creators",
     trust: "στο Influo",
-    creatorCta: "Είσαι creator;",
+    creatorCta: "Είσαι creator\u00a0;",
     creatorLink: "Γράψου δωρεάν",
   },
   en: {
