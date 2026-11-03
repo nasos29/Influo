@@ -110,6 +110,7 @@ export interface Influencer {
     penalty_percent?: number | string | null;
   }>;
   avg_response_time?: number | null;
+  extra_badges?: string[];
   completion_rate?: number | null;
 }
 
@@ -284,6 +285,7 @@ const badgesForInfluencer = (inf: Influencer, lang: "el" | "en") => {
       past_brands: inf.past_brands || 0,
       account_created_days: accountAgeDays,
       min_rate: badgeMinRateFromTier(inf.price_tier),
+      extra_badges: inf.extra_badges,
     },
     lang
   );
@@ -612,6 +614,7 @@ export default function Directory({
               availability_status: inf.availability_status || "available",
               profile_slug: inf.profile_slug || null,
               accounts: Array.isArray(inf.accounts) ? inf.accounts : [],
+              extra_badges: Array.isArray(inf.extra_badges) ? inf.extra_badges : undefined,
             };
           });
 

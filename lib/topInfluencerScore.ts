@@ -100,6 +100,11 @@ const BADGE_POINTS: Record<BadgeType, number> = {
   pro: 74,
   elite: 88,
   vip: 100,
+  // Behaviour badges are not passed into scoring (no extra_badges there).
+  fast_responder: 0,
+  top_rated: 0,
+  active: 0,
+  complete_profile: 0,
 };
 
 function clamp01(n: number): number {

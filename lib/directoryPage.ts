@@ -10,6 +10,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabaseService } from "@/lib/apiAuth";
 import { getPastBrandsByInfluencerIds } from "@/lib/pastBrands";
 import { selectApprovedInfluencers } from "@/lib/loadPublicInfluencers";
+import { getExtraBadgeMap } from "@/lib/extraBadges";
 import { DIRECTORY_PAGE_COLUMNS, toPublicDirectoryCard } from "@/lib/publicInfluencer";
 import {
   DIRECTORY_PAGE_SIZE,
@@ -98,10 +99,12 @@ function stripCard(card: Record<string, unknown>): Record<string, unknown> {
   return next;
 }
 
-function toCard(row: Record<string, unknown>, pastBrands: string[]): Record<string, unknown> {
+function toCard(row: Record<string, unknown>, pastBrands: string[], extra?: Map<string, string[]>): Record<string, unknown> {
+  const badges = extra?.get(String(row.id ?? ""));
   return stripCard({
     ...toPublicDirectoryCard(row),
     past_brands: pastBrands,
+    ...(badges?.length ? { extra_badges: badges } : {}),
   });
 }
 
@@ -225,9 +228,9 @@ async function loadSqlPage(filters: DirectoryFilters, page: number, pageSize: nu
     rows = again.rows;
     total = again.total ?? counted;
   }
-  const past = await pastBrandsFor(rows.map((row) => String(row.id ?? "")));
+  const [past, extra] = await Promise.all([pastBrandsFor(rows.map((row) => String(row.id ?? ""))), getExtraBadgeMap()]);
   return {
-    data: rows.map((row) => toCard(row, past.get(String(row.id ?? "")) || [])),
+    data: rows.map((row) => toCard(row, past.get(String(row.id ?? "")) || [], extra)),
     total: total ?? counted,
     page: (total ?? counted) === 0 ? 1 : safePage,
     pageSize,
@@ -239,11 +242,15 @@ async function loadFilteredPage(filters: DirectoryFilters, page: number, pageSiz
   const heavy = directoryFiltersNeedAccounts(filters);
   const rows = await loadIndex(heavy ? HEAVY_INDEX_COLUMNS : LIGHT_INDEX_COLUMNS, heavy);
   const past = filters.badge !== "All" ? await allPastBrands() : new Map<string, string[]>();
+  const extra = await getExtraBadgeMap();
   const now = Date.now();
-  const indexed = rows.map((row) => ({
-    row,
-    candidate: directoryCandidateFromRow(row, past.get(String(row.id ?? "")) || []),
-  }));
+  const indexed = rows.map((row) => {
+    const badges = extra.get(String(row.id ?? ""));
+    return {
+      row,
+      candidate: directoryCandidateFromRow(badges ? { ...row, extra_badges: badges } : row, past.get(String(row.id ?? "")) || []),
+    };
+  });
   let relaxedMax: number | null = null;
   const sortMatches = <T extends { candidate: DirectoryCandidate }>(items: T[], q: string) => {
     const ranked = items.map((item) => ({ item, tier: directorySearchTier(item.candidate, q) }));
@@ -285,7 +292,7 @@ async function loadFilteredPage(filters: DirectoryFilters, page: number, pageSiz
     const ordered = ids
       .map((id) => byId.get(id))
       .filter((row): row is Record<string, unknown> => !!row)
-      .map((row) => toCard(row, pagePast.get(String(row.id ?? "")) || []));
+      .map((row) => toCard(row, pagePast.get(String(row.id ?? "")) || [], extra));
     return { data: ordered, total, page: safePage, pageSize, relaxedMax };
   }
 
@@ -293,7 +300,7 @@ async function loadFilteredPage(filters: DirectoryFilters, page: number, pageSiz
     ? await pastBrandsFor(slice.map((item) => String(item.row.id ?? "")))
     : past;
   return {
-    data: slice.map((item) => toCard(item.row, pagePast.get(String(item.row.id ?? "")) || [])),
+    data: slice.map((item) => toCard(item.row, pagePast.get(String(item.row.id ?? "")) || [], extra)),
     total,
     page: total === 0 ? 1 : safePage,
     pageSize,
@@ -302,9 +309,12 @@ async function loadFilteredPage(filters: DirectoryFilters, page: number, pageSiz
 }
 
 export async function countDirectoryMatches(filters: DirectoryFilters): Promise<number> {
-  const rows = await loadIndex(LIGHT_INDEX_COLUMNS, false);
+  const [rows, extra] = await Promise.all([loadIndex(LIGHT_INDEX_COLUMNS, false), getExtraBadgeMap()]);
   const now = Date.now();
-  return rows.filter((row) => matchesDirectoryFilters(directoryCandidateFromRow(row, 0), filters, now)).length;
+  return rows.filter((row) => {
+    const badges = extra.get(String(row.id ?? ""));
+    return matchesDirectoryFilters(directoryCandidateFromRow(badges ? { ...row, extra_badges: badges } : row, 0), filters, now);
+  }).length;
 }
 
 export async function loadDirectoryPage(

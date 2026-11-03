@@ -2,7 +2,13 @@
 
 import { listedPriceMin } from "@/lib/parsePrice";
 
-export type BadgeType = 'new' | 'rising' | 'verified' | 'top_performer' | 'pro' | 'elite' | 'vip';
+export type BadgeType =
+  | 'new' | 'rising' | 'verified' | 'top_performer' | 'pro' | 'elite' | 'vip'
+  | 'fast_responder' | 'top_rated' | 'active' | 'complete_profile';
+
+/** Behaviour badges, precomputed server-side (lib/extraBadges.ts) and shown next to the achievement badge. */
+export type ExtraBadgeType = 'fast_responder' | 'top_rated' | 'active' | 'complete_profile';
+export const EXTRA_BADGE_TYPES: ExtraBadgeType[] = ['top_rated', 'fast_responder', 'active', 'complete_profile'];
 
 export interface Badge {
   type: BadgeType;
@@ -22,6 +28,8 @@ interface InfluencerMetrics {
   past_brands?: any[] | number;
   account_created_days?: number;
   min_rate?: string;
+  /** Precomputed behaviour badges (server). */
+  extra_badges?: readonly string[] | null;
 }
 
 /** Days an account counts as “New”. */
@@ -108,6 +116,34 @@ const BADGE_DEFINITIONS: Record<BadgeType, Omit<Badge, 'type'>> = {
     bgColor: 'bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-400',
     priority: 7,
   },
+  top_rated: {
+    label: 'Top Rated',
+    icon: '🌟',
+    color: 'text-orange-700',
+    bgColor: 'bg-orange-50 border-orange-300',
+    priority: 0.4,
+  },
+  fast_responder: {
+    label: 'Fast responder',
+    icon: '⚡',
+    color: 'text-teal-700',
+    bgColor: 'bg-teal-50 border-teal-300',
+    priority: 0.3,
+  },
+  active: {
+    label: 'Active',
+    icon: '🟢',
+    color: 'text-emerald-700',
+    bgColor: 'bg-emerald-50 border-emerald-300',
+    priority: 0.2,
+  },
+  complete_profile: {
+    label: 'Complete profile',
+    icon: '🧩',
+    color: 'text-rose-700',
+    bgColor: 'bg-rose-50 border-rose-300',
+    priority: 0.1,
+  },
 };
 
 // Greek translations
@@ -119,6 +155,10 @@ const BADGE_LABELS_EL: Record<BadgeType, string> = {
   pro: 'Pro',
   elite: 'Elite',
   vip: 'VIP',
+  top_rated: 'Top Rated',
+  fast_responder: 'Απαντάει γρήγορα',
+  active: 'Ενεργός/ή',
+  complete_profile: 'Πλήρες προφίλ',
 };
 
 /**
@@ -197,7 +237,18 @@ export function getBadges(metrics: InfluencerMetrics, lang: 'el' | 'en' = 'el'):
 
   // Sort by priority (highest first); show at most one badge
   badges.sort((a, b) => b.priority - a.priority);
-  return badges.length > 0 ? [badges[0]] : [];
+  const out: Badge[] = badges.length > 0 ? [badges[0]] : [];
+  // Behaviour badges (precomputed server-side) are shown in addition.
+  const extra = new Set(metrics.extra_badges || []);
+  for (const type of EXTRA_BADGE_TYPES) {
+    if (!extra.has(type)) continue;
+    out.push({
+      type,
+      ...BADGE_DEFINITIONS[type],
+      label: lang === 'el' ? BADGE_LABELS_EL[type] : BADGE_DEFINITIONS[type].label,
+    });
+  }
+  return out;
 }
 
 /** Directory filter options — excludes “verified” (shown as avatar ✓ only). */
@@ -208,6 +259,10 @@ export const BADGE_FILTER_TYPES: BadgeType[] = [
   'pro',
   'elite',
   'vip',
+  'top_rated',
+  'fast_responder',
+  'active',
+  'complete_profile',
 ];
 
 export function getBadgeFilterLabel(type: BadgeType, lang: 'el' | 'en' = 'el'): string {

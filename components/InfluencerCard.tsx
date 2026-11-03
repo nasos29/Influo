@@ -169,10 +169,23 @@ export default function InfluencerCard({
     );
   } else if (badges[0]) {
     const badge = badges[0];
+    const more = badges.slice(1);
     overlay = (
-      <span className={getBadgeStyles(badge)} title={badge.label}>
-        <span className="text-[10px]">{badge.icon}</span>
-        <span className="text-[9px] leading-none">{badge.label}</span>
+      <span className="inline-flex items-center gap-1">
+        <span className={getBadgeStyles(badge)} title={badge.label}>
+          <span className="text-[10px]">{badge.icon}</span>
+          <span className="text-[9px] leading-none">{badge.label}</span>
+        </span>
+        {more.map((b) => (
+          <span
+            key={b.type}
+            className={`${b.bgColor} ${b.color} inline-flex h-5 w-5 items-center justify-center rounded-full border text-[10px]`}
+            title={b.label}
+            aria-label={b.label}
+          >
+            {b.icon}
+          </span>
+        ))}
       </span>
     );
   } else if (trustChips[0]) {
