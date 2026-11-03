@@ -158,15 +158,15 @@ export async function POST(request: NextRequest) {
   try {
     const model = new GoogleGenerativeAI(apiKey).getGenerativeModel({
       model: MODEL,
-      // No "thinking" tokens: they would eat the output budget and truncate the JSON on newer models.
-      generationConfig: { responseMimeType: "application/json", temperature: 0.5, maxOutputTokens: 1400, thinkingConfig: { thinkingBudget: 0 } } as Record<string, unknown>,
+      // Roomy budget: newer models may spend part of it on internal reasoning.
+      generationConfig: { responseMimeType: "application/json", temperature: 0.5, maxOutputTokens: 4000 },
     });
     const result = await model.generateContent(prompt);
     draft = JSON.parse(result.response.text() || "{}");
   } catch (err) {
     const msg = err instanceof Error ? err.message : "";
     console.error("[ai-draft] gemini", MODEL, msg.slice(0, 200) || "failed");
-    if (/\b429\b|quota|rate/i.test(msg)) {
+    if (/\b429\b|quota|rate.?limit|resource.?exhausted/i.test(msg)) {
       return NextResponse.json({ error: "ai_busy", message: { el: "Το AI είναι προσωρινά απασχολημένο. Δοκιμάστε ξανά σε λίγα λεπτά ή συνεχίστε με τη φόρμα.", en: "AI is busy right now. Try again in a few minutes or use the form." } }, { status: 429 });
     }
     return NextResponse.json({ error: "ai_failed", message: { el: "Το AI δεν απάντησε. Δοκιμάστε ξανά ή χρησιμοποιήστε τη φόρμα.", en: "AI did not respond. Try again or use the form." } }, { status: 502 });
